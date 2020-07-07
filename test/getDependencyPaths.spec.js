@@ -91,7 +91,7 @@ describe("getDependencyPaths", () => {
   test("it should prioritise overridden dependencies", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
-      "node_modules/macrocore/core/mf_abort.sas",
+      "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/macros/mf_abort.sas",
     ];
 
@@ -105,7 +105,7 @@ describe("getDependencyPaths", () => {
   test("it should prioritise overridden dependencies provided specific macros", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
-      "node_modules/macrocore/core/mf_abort.sas",
+      "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/macros/mf_abort.sas",
     ];
@@ -121,7 +121,7 @@ describe("getDependencyPaths", () => {
   test("it should prioritise overridden dependencies provided specific macroLoc but macro not present", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
-      "node_modules/macrocore/core/mf_abort.sas",
+      "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/macros/mf_abort.sas",
     ];
 
@@ -136,7 +136,7 @@ describe("getDependencyPaths", () => {
   test("it should prioritise overridden dependencies provided specific macros And remove extra", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
-      "node_modules/macrocore/core/mf_abort.sas",
+      "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/sasviyamacros/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/macros2/mf_abort.sas",
@@ -154,7 +154,7 @@ describe("getDependencyPaths", () => {
   test("it should prioritise overridden dependencies provided specific macros And remove duplicates", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
-      "node_modules/macrocore/core/mf_abort.sas",
+      "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/macros/mf_abort.sas",

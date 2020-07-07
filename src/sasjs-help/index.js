@@ -10,7 +10,7 @@ export async function printHelpText() {
     )} - creates the folder structure specified in config.json, inside the provided parent folder
           e.g. sasjs create my-sas-project
         - if no foldername is specified, it creates the folder structure in the current working directory.
-        - If this is an existing NPM project, it will update package.json with the macrocore dependency.
+        - If this is an existing NPM project, it will update package.json with the @sasjs/core dependency.
     * ${chalk.greenBright("help")} - displays this help text
     * ${chalk.greenBright("version")} - displays currenlty installed version
     * ${chalk.greenBright(
@@ -81,9 +81,7 @@ export async function printHelpText() {
           * ${chalk.cyanBright(
             "serverUrl"
           )} - The full path to the server (eg https://yourserver)
-          * ${chalk.cyanBright(
-            "serverType"
-          )} - Eg SAS9 or SASVIYA
+          * ${chalk.cyanBright("serverType")} - Eg SAS9 or SASVIYA
     * ${chalk.greenBright(
       "compilebuilddeploy <targetName>"
     )} - executes script file specified in the ${chalk.cyanBright(

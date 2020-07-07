@@ -28,7 +28,7 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
 
 - `create`: creates the folders and files required for SAS development. You can use this command in two ways:
   1. `sasjs create folderName` - which creates a new folder with the name specified.
-  2. `sasjs create` - which creates the files and folder in the current working directory. If this directory is an existing NPM project with a `package.json` file, this command adds `macrocore` to the list of dependencies in that file. Else, it will initialise a new NPM project and then install `macrocore`. An alias for this command is `sasjs c`.
+  2. `sasjs create` - which creates the files and folder in the current working directory. If this directory is an existing NPM project with a `package.json` file, this command adds `@sasjs/core` to the list of dependencies in that file. Else, it will initialise a new NPM project and then install `@sasjs/core`. An alias for this command is `sasjs c`.
 - `sasjs build [targetName]`: loads dependencies and builds services for SAS, for the specified build target name. If no target is specified, it builds the first target specified in `sasconfig.json`. An alias for this command is `sasjs b`.
 - `web`: generates SAS services for streaming your HTML, CSS and JavaScript-based app from a SAS server. This command is automatically run as part of `sasjs build` if `streamWeb` is set to true for a particular build target. An alias for this command is `sasjs w`.
 - `sasjs help`: displays help text. Aliases for this command are `sasjs h`, `sasjs --help`, `sasjs -help` and `sasjs --h`.

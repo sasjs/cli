@@ -31,8 +31,8 @@ export async function setupNpmProject(folderPath) {
     } else {
       console.log(chalk.greenBright("Existing NPM project detected.\n"));
     }
-    console.log(chalk.greenBright("Installing MacroCore"));
-    shelljs.exec(`cd ${folderPath} && npm i macrocore --save`, {
+    console.log(chalk.greenBright("Installing @sasjs/core"));
+    shelljs.exec(`cd ${folderPath} && npm i @sasjs/core --save`, {
       silent: true,
     });
     return resolve();

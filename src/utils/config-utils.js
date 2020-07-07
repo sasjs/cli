@@ -136,7 +136,8 @@ export async function getSourcePaths(buildSourceFolder) {
     const macroCorePath = path.join(
       process.projectDir,
       "node_modules",
-      "macrocore"
+      "@sasjs",
+      "core"
     );
     sourcePaths.push(macroCorePath);
   }
@@ -152,7 +153,7 @@ export async function getBuildTargets(buildSourceFolder) {
 }
 
 export function getMacroCorePath() {
-  return path.join(process.projectDir, "node_modules", "macrocore");
+  return path.join(process.projectDir, "node_modules", "@sasjs/core");
 }
 
 export async function getTargetToBuild(targetName) {
