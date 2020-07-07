@@ -24,6 +24,9 @@
     "url": "https://github.com/sasjs/cli/issues"
   },
   "homepage": "https://github.com/sasjs/cli",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "base64-img": "^1.0.4",
     "chalk": "^4.1.0",
