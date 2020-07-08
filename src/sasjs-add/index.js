@@ -1,7 +1,7 @@
 import { getUserInput } from "../utils/input-utils";
 import chalk from "chalk";
 import path from "path";
-import SASjs from "sasjs/node";
+import SASjs from "@sasjs/adapter/node";
 import validUrl from "valid-url";
 import {
   getGlobalRcFile,

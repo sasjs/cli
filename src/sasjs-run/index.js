@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import path from "path";
-import SASjs from "sasjs/node";
+import SASjs from "@sasjs/adapter/node";
 import { findTargetInConfiguration } from "../utils/config-utils";
 import { readFile } from "../utils/file-utils";
 import { getVariable } from "../utils/utils";

@@ -1,5 +1,5 @@
 import path from "path";
-import SASjs from "sasjs/node";
+import SASjs from "@sasjs/adapter/node";
 import chalk from "chalk";
 import { getTargetToBuild } from "../utils/config-utils";
 import { asyncForEach, executeShellScript, getVariable } from "../utils/utils";
@@ -19,11 +19,12 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
   if (preTargetToBuild) targetToBuild = preTargetToBuild;
   else targetToBuild = await getTargetToBuild(targetName);
 
-  if (targetToBuild.serverType === "SASVIYA" && targetToBuild.deployServicePack){
+  if (
+    targetToBuild.serverType === "SASVIYA" &&
+    targetToBuild.deployServicePack
+  ) {
     console.log(
-      chalk.cyanBright(
-        `Executing deployServicePack to update SAS server.`
-      )
+      chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
     );
     await deployToSasViyaWithServicePack(targetToBuild);
     console.log("Job execution completed!");
@@ -107,7 +108,7 @@ function getDeployScripts() {
     : [];
 }
 
-async function getSASjsAndAccessToken(buildTarget){
+async function getSASjsAndAccessToken(buildTarget) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
@@ -117,18 +118,21 @@ async function getSASjsAndAccessToken(buildTarget){
   const accessToken = await getToken(buildTarget, sasjs);
   return {
     sasjs,
-    accessToken
-  }
+    accessToken,
+  };
 }
 
-async function deployToSasViyaWithServicePack(buildTarget){
+async function deployToSasViyaWithServicePack(buildTarget) {
   const { sasjs, accessToken } = await getSASjsAndAccessToken(buildTarget);
 
   const CONSTANTS = require("../constants");
   const buildDestinationFolder = CONSTANTS.buildDestinationFolder;
-  const finalFilePathJSON = path.join(buildDestinationFolder, `${targetToBuild.name}.json`);
+  const finalFilePathJSON = path.join(
+    buildDestinationFolder,
+    `${targetToBuild.name}.json`
+  );
   const jsonContent = await readFile(finalFilePathJSON);
-  const jsonObject = JSON.parse(jsonContent)
+  const jsonObject = JSON.parse(jsonContent);
 
   return await sasjs.deployServicePack(jsonObject, null, null, accessToken);
 }

@@ -1,4 +1,4 @@
-import SASjs from "sasjs/node";
+import SASjs from "@sasjs/adapter/node";
 import chalk from "chalk";
 import ora from "ora";
 import { getVariable } from "../utils/utils";
