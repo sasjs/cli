@@ -6,6 +6,11 @@
     "test": "jest --silent",
     "semantic-release": "semantic-release"
   },
+  "release": {
+    "branches": [
+      "main"
+    ]
+  },
   "bin": {
     "sasjs": "bin/sasjs"
   },
