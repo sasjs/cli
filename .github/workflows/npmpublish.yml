@@ -6,7 +6,7 @@ name: SASjs CLI Deploy
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   release:
