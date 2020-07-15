@@ -2,12 +2,12 @@ import shelljs from "shelljs";
 import chalk from "chalk";
 
 export async function printVersion() {
-  const result = shelljs.exec(`npm list -g sasjs-cli`, {
-    silent: true
+  const result = shelljs.exec(`npm list -g @sasjs/cli`, {
+    silent: true,
   });
 
-  const line = result.split("\n").find(l => l.includes("sasjs-cli"));
-  const version = line.split("@")[1].trim();
+  const line = result.split("\n").find((l) => l.includes("@sasjs/cli"));
+  const version = line.split("@")[2].trim();
   if (version.includes("->")) {
     console.log(
       chalk.red(
