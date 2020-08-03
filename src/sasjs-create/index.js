@@ -5,6 +5,7 @@ import {
   setupGitIgnore,
   asyncForEach,
   createReactApp,
+  createAngularApp,
 } from "../utils/utils";
 import { getFolders, getConfiguration } from "../utils/config-utils";
 import {
@@ -25,6 +26,8 @@ export async function create(parentFolderName = ".", appType = "") {
 
   if (appType === "react") {
     await createReactApp(path.join(process.projectDir, parentFolderName));
+  } else if (appType === "angular") {
+    await createAngularApp(path.join(process.projectDir, parentFolderName));
   }
 
   await asyncForEach(fileStructure, async (folder, index) => {

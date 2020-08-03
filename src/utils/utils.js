@@ -18,10 +18,25 @@ export function diff(x, y) {
 export async function createReactApp(folderPath) {
   return new Promise(async (resolve, _) => {
     console.log(
-      chalk.greenBright("Creating react app in", chalk.cyanBright(folderPath))
+      chalk.greenBright("Creating React app in", chalk.cyanBright(folderPath))
     );
     shelljs.exec(
       `cd ${folderPath} && git clone https://github.com/sasjs/react-seed-app.git && mv react-seed-app/{.,}* . && rm -rf .git && rm -rf react-seed-app`,
+      {
+        silent: true,
+      }
+    );
+    return resolve();
+  });
+}
+
+export async function createAngularApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    console.log(
+      chalk.greenBright("Creating Angular app in", chalk.cyanBright(folderPath))
+    );
+    shelljs.exec(
+      `cd ${folderPath} && git clone https://github.com/sasjs/angular-seed-app.git && mv angular-seed-app/{.,}* . && rm -rf .git && rm -r angular-seed-app && pwd`,
       {
         silent: true,
       }
