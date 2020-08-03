@@ -26,7 +26,7 @@ function parseCommand(rawArgs) {
       const parameters = processRunParameters(args.slice(1));
       return { name, parameters };
     }
-    return { name, parameters: args[1] };
+    return { name, parameters: args };
   }
   return null;
 }
@@ -139,25 +139,27 @@ export async function cli(args) {
   }
   switch (command.name) {
     case "create":
-      await createFileStructure(command.parameters);
+      const projectName = command.parameters[1];
+      const appType = (command.parameters[2] || "").replace("--", "");
+      await createFileStructure(projectName, appType);
       break;
     case "compile":
-      await compileServices(command.parameters);
+      await compileServices(command.parameters[1]);
       break;
     case "build":
-      await buildServices(command.parameters);
+      await buildServices(command.parameters[1]);
       break;
     case "deploy":
-      await deployServices(command.parameters);
+      await deployServices(command.parameters[1]);
       break;
     case "db":
-      await buildDBs(command.parameters);
+      await buildDBs(command.parameters[1]);
       break;
     case "compilebuild":
-      await compileBuildServices(command.parameters);
+      await compileBuildServices(command.parameters[1]);
       break;
     case "compilebuilddeploy":
-      await compileBuildDeployServices(command.parameters);
+      await compileBuildDeployServices(command.parameters[1]);
       break;
     case "help":
       await showHelp();
@@ -166,16 +168,16 @@ export async function cli(args) {
       await showVersion();
       break;
     case "web":
-      await buildWebApp(command.parameters);
+      await buildWebApp(command.parameters[1]);
       break;
     case "listcontexts":
-      await listContexts(command.parameters);
+      await listContexts(command.parameters[1]);
       break;
     case "add":
-      await add(command.parameters);
+      await add(command.parameters[1]);
       break;
     case "run":
-      const { filePath, targetName } = command.parameters;
+      const { filePath, targetName } = command.parameters[1];
       await run(filePath, targetName);
       break;
     default:

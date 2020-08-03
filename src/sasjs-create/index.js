@@ -3,24 +3,30 @@ import path from "path";
 import {
   setupNpmProject,
   setupGitIgnore,
-  asyncForEach
+  asyncForEach,
+  createReactApp,
 } from "../utils/utils";
 import { getFolders, getConfiguration } from "../utils/config-utils";
 import {
   createFolderStructure,
   createFolder,
   createFile,
-  fileExists
+  fileExists,
 } from "../utils/file-utils";
 import chalk from "chalk";
 
-export async function create(parentFolderName = ".") {
+export async function create(parentFolderName = ".", appType = "") {
   const config = await getConfiguration(path.join(__dirname, "../config.json"));
   const fileStructure = await getFileStructure();
   console.log(chalk.greenBright("Creating folders and files..."));
   if (parentFolderName !== ".") {
     await createFolder(path.join(process.projectDir, parentFolderName));
   }
+
+  if (appType === "react") {
+    await createReactApp(path.join(process.projectDir, parentFolderName));
+  }
+
   await asyncForEach(fileStructure, async (folder, index) => {
     const pathExists = await fileExists(
       path.join(process.projectDir, parentFolderName, folder.folderName)
@@ -45,7 +51,9 @@ export async function create(parentFolderName = ".") {
       await createFile(configDestinationPath, JSON.stringify(config, null, 1));
     }
   });
-  await setupNpmProject(parentFolderName);
+  if (!appType) {
+    await setupNpmProject(parentFolderName);
+  }
   await setupGitIgnore(parentFolderName);
 }
 

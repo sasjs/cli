@@ -15,6 +15,21 @@ export function diff(x, y) {
   return x.filter((a) => !y.includes(a));
 }
 
+export async function createReactApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    console.log(
+      chalk.greenBright("Creating react app in", chalk.cyanBright(folderPath))
+    );
+    shelljs.exec(
+      `cd ${folderPath} && git clone https://github.com/sasjs/react-seed-app.git && mv react-seed-app/{.,}* . && rm -rf .git && rm -rf react-seed-app`,
+      {
+        silent: true,
+      }
+    );
+    return resolve();
+  });
+}
+
 export async function setupNpmProject(folderPath) {
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath);
@@ -51,6 +66,9 @@ export async function setupGitIgnore(folderPath) {
     await createFile(gitIgnoreFilePath, `${gitIgnoreContent}\nsasjsbuild/\n`);
     console.log(chalk.greenBright("Existing .gitignore is updated."));
   } else {
+    shelljs.exec(`cd ${folderPath} && git init`, {
+      silent: true,
+    });
     await createFile(gitIgnoreFilePath, "node_modules/\nsasjsbuild/\n.env\n");
     console.log(chalk.greenBright("Created .gitignore file."));
   }
