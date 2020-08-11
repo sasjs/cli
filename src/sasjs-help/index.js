@@ -11,6 +11,12 @@ export async function printHelpText() {
           e.g. sasjs create my-sas-project
         - if no foldername is specified, it creates the folder structure in the current working directory.
         - If this is an existing NPM project, it will update package.json with the @sasjs/core dependency.
+        - An additional option can be specified to create a web app from a template.
+          This supports creation of Angular, React and minimal web apps.
+          e.g. ${chalk.cyanBright(
+            "sasjs create my-sas-project --template react"
+          )}
+          ${chalk.cyanBright("sasjs create my-sas-project -t angular")}
     * ${chalk.greenBright("help")} - displays this help text
     * ${chalk.greenBright("version")} - displays currenlty installed version
     * ${chalk.greenBright(
