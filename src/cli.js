@@ -16,6 +16,7 @@ import {
 import { fileExists } from "./utils/file-utils";
 import path from "path";
 import chalk from "chalk";
+import { exit } from "process";
 
 function parseCommand(rawArgs) {
   checkNodeVersion();
@@ -140,7 +141,7 @@ export async function cli(args) {
   switch (command.name) {
     case "create":
       const projectName = command.parameters[1];
-      const appType = (command.parameters[2] || "").replace("--", "");
+      const appType = processCreateParameters(command.parameters);
       await createFileStructure(projectName, appType);
       break;
     case "compile":
@@ -259,4 +260,36 @@ function processRunParameters(parameters) {
     filePath: parameters[0],
     targetName: parameters.length === 3 ? parameters[2] : "default",
   };
+}
+
+function processCreateParameters(parameters) {
+  const supportedTypes = ["react", "angular", "minimal"];
+  let type = "";
+  if (parameters.length > 2 && parameters[2] !== "-t") {
+    console.error(
+      chalk.redBright(
+        `Invalid usage.\nCorrect syntax is ${chalk.cyanBright(
+          "sasjs create <app-name> -t <app-type>"
+        )}.`
+      )
+    );
+    exit(1);
+  }
+
+  if (parameters.length !== 4) {
+    return type;
+  }
+  type = parameters[3].trim();
+  if (!supportedTypes.includes(type)) {
+    console.error(
+      chalk.redBright(
+        `Invalid web app type.\nSupported types are ${chalk.cyanBright(
+          "angular"
+        )}, ${chalk.cyanBright("react")} and ${chalk.cyanBright("minimal")}.`
+      )
+    );
+    exit(1);
+  }
+
+  return type;
 }
