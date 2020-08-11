@@ -265,11 +265,16 @@ function processRunParameters(parameters) {
 function processCreateParameters(parameters) {
   const supportedTypes = ["react", "angular", "minimal"];
   let type = "";
-  if (parameters.length > 2 && parameters[2] !== "-t") {
+  if (
+    parameters.length > 2 &&
+    !(parameters[2] === "-t" || parameters[2] === "--template")
+  ) {
     console.error(
       chalk.redBright(
         `Invalid usage.\nCorrect syntax is ${chalk.cyanBright(
           "sasjs create <app-name> -t <app-type>"
+        )} or ${chalk.cyanBright(
+          "sasjs create <app-name> --template <app-type>"
         )}.`
       )
     );
