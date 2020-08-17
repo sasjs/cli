@@ -33,7 +33,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.3.2",
+    "@sasjs/adapter": "^1.3.4",
     "@sasjs/core": "^1.3.0",
     "base64-img": "^1.0.4",
     "chalk": "^4.1.0",
