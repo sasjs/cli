@@ -10,8 +10,8 @@ import { getContexts } from "./sasjs-listcontexts";
 import { runSasCode } from "./sasjs-run";
 import chalk from "chalk";
 
-export async function createFileStructure(parentFolderName) {
-  await create(parentFolderName)
+export async function createFileStructure(parentFolderName, appType) {
+  await create(parentFolderName, appType)
     .then(() =>
       console.log(
         chalk.greenBright.bold.italic(

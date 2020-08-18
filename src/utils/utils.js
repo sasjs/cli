@@ -1,6 +1,7 @@
 import shelljs from "shelljs";
 import chalk from "chalk";
 import path from "path";
+import ora from "ora";
 import { fileExists, createFile, readFile } from "./file-utils";
 import { getLocalRcFile } from "./config-utils";
 
@@ -13,6 +14,50 @@ async function inExistingProject(folderPath) {
 
 export function diff(x, y) {
   return x.filter((a) => !y.includes(a));
+}
+
+export async function createReactApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    createApp(folderPath, "https://github.com/sasjs/react-seed-app.git");
+    return resolve();
+  });
+}
+
+export async function createAngularApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    createApp(folderPath, "https://github.com/sasjs/angular-seed-app.git");
+    return resolve();
+  });
+}
+
+export async function createMinimalApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    createApp(
+      folderPath,
+      "https://github.com/sasjs/minimal-seed-app.git",
+      false
+    );
+    return resolve();
+  });
+}
+
+function createApp(folderPath, repoUrl, installDependencies = true) {
+  const spinner = ora(
+    chalk.greenBright("Creating web app in", chalk.cyanBright(folderPath))
+  );
+  spinner.start();
+  shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
+    silent: true,
+  });
+  spinner.stop();
+  if (installDependencies) {
+    spinner.text = chalk.greenBright("Installing dependencies...");
+    spinner.start();
+    shelljs.exec(`cd ${folderPath} && npm install`, {
+      silent: true,
+    });
+    spinner.stop();
+  }
 }
 
 export async function setupNpmProject(folderPath) {
@@ -49,10 +94,13 @@ export async function setupGitIgnore(folderPath) {
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath);
     await createFile(gitIgnoreFilePath, `${gitIgnoreContent}\nsasjsbuild/\n`);
-    console.log(chalk.greenBright("Existing .gitignore is updated."));
+    console.log(chalk.greenBright("Existing .gitignore has been updated."));
   } else {
+    shelljs.exec(`cd ${folderPath} && git init`, {
+      silent: true,
+    });
     await createFile(gitIgnoreFilePath, "node_modules/\nsasjsbuild/\n.env\n");
-    console.log(chalk.greenBright("Created .gitignore file."));
+    console.log(chalk.greenBright(".gitignore file has been created."));
   }
 }
 
