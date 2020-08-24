@@ -136,7 +136,7 @@ async function getAndValidateServerUrl() {
   const serverUrlField = {
     name: "serverUrl",
     description: chalk.cyanBright(
-      `${chalk.greenBright("Please enter a server URL:")}`
+      `${chalk.greenBright("Please enter a target server URL (including port, if relevant):")}`
     ),
   };
 
