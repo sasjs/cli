@@ -14,7 +14,7 @@ import { getNewAccessToken } from "../utils/auth-utils";
 export async function addTarget() {
   const scope = await getAndValidateScope();
   const serverType = await getAndValidateServerType();
-  const name = await getAndValidateTargetName(scope);
+  const name = await getAndValidateTargetName(scope, serverType);
   const serverUrl = await getAndValidateServerUrl();
 
   let buildTarget = {
@@ -149,14 +149,7 @@ async function getAndValidateServerUrl() {
   return await getAndValidateField(serverUrlField, validator, message);
 }
 
-async function getAndValidateTargetName(targetScope) {
-  const targetNameField = {
-    name: "name",
-    description: chalk.cyanBright(
-      `${chalk.greenBright("Please enter a target name:")}`
-    ),
-  };
-
+async function getAndValidateTargetName(targetScope, serverType) {
   const validator = async (value, scope) => {
     let config;
     if (scope === 1) {
@@ -169,7 +162,19 @@ async function getAndValidateTargetName(targetScope) {
     if (config && config.targets) {
       existingTargetNames = config.targets.map((t) => t.name);
     }
+
     return !existingTargetNames.includes(value);
+  };
+
+  const defaultName = serverType === 1 ? 'viya' : 'sas9'
+  const isDefaultNameValid = await validator(defaultName, targetScope)
+
+  const targetNameField = {
+    name: "name",
+    description: chalk.cyanBright(
+      `${chalk.greenBright("Please enter a target name:")}`
+    ),
+    default: isDefaultNameValid ? defaultName : ''
   };
 
   const message =
