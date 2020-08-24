@@ -101,6 +101,7 @@ async function getAndValidateScope() {
         "Please pick a scope for the new target:"
       )}\n1. Local project config file\n2. Global config file`
     ),
+    default: 1,
   };
 
   const validator = (value) => {
