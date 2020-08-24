@@ -13,8 +13,8 @@ import { getNewAccessToken } from "../utils/auth-utils";
 
 export async function addTarget() {
   const scope = await getAndValidateScope();
-  const name = await getAndValidateTargetName(scope);
   const serverType = await getAndValidateServerType();
+  const name = await getAndValidateTargetName(scope);
   const serverUrl = await getAndValidateServerUrl();
 
   let buildTarget = {
@@ -122,6 +122,7 @@ async function getAndValidateServerType() {
         "Please pick a server type:"
       )}\n1. SAS Viya\n2. SAS 9`
     ),
+    default: 1
   };
 
   const validator = (value) => {
