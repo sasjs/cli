@@ -15,6 +15,10 @@ export async function addTarget() {
   const scope = await getAndValidateScope();
   const serverType = await getAndValidateServerType();
   const name = await getAndValidateTargetName(scope, serverType);
+
+  let localAppLoc;
+  if (scope === 1) localAppLoc = await getAndValidateLocalAppLoc(name)
+
   const serverUrl = await getAndValidateServerUrl();
 
   let buildTarget = {
@@ -37,6 +41,7 @@ export async function addTarget() {
       contextName,
       authInfo,
     } = await getAndValidateSasViyaFields(serverUrl);
+
     buildTarget = {
       ...buildTarget,
       tgtBuildVars: { client, secret, contextName },
@@ -46,6 +51,11 @@ export async function addTarget() {
   }
 
   if (scope === 1) {
+    buildTarget = {
+      ...buildTarget,
+      appLoc: localAppLoc
+    }
+
     await saveToLocalConfig(buildTarget);
   } else if (scope === 2) {
     await saveToGlobalConfig(buildTarget);
@@ -290,4 +300,18 @@ async function getAndValidateField(field, validator, message, validatorParams) {
     return await getAndValidateField(field, validator, message);
   }
   return input[field.name];
+}
+
+async function getAndValidateLocalAppLoc(target) {
+  const appLoc = {
+    name: 'app location',
+    type: 'string',
+    description: chalk.cyanBright(`${chalk.greenBright('Please provide an app location:')}`),
+    default: `/Public/app/${target}`
+  }
+
+  const validator = (value) => value !== ''
+  const message = 'Invalid input.';
+
+  return await getAndValidateField(appLoc, validator, message);
 }
