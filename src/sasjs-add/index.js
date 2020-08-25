@@ -243,7 +243,7 @@ async function getAndValidateSasViyaFields(serverUrl) {
     ),
   };
   const nonEmptyValidator = (value) => !!value;
-  const message = "This value can not be empty. Please enter a value";
+  const message = 'This value can not be empty. Please enter a value'
   const client = await getAndValidateField(
     clientField,
     nonEmptyValidator,
