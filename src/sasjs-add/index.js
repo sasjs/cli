@@ -235,9 +235,10 @@ async function getAndValidateSasViyaFields(serverUrl) {
 
   const contextNameField = {
     name: "contextName",
+    type: 'integer',
     description: chalk.cyanBright(
       `${chalk.greenBright(
-        "Please enter your SAS Viya execution context name: "
+        "Please enter your SAS Viya execution context number: "
       )}`
     ),
   };
@@ -271,15 +272,13 @@ async function getAndValidateSasViyaFields(serverUrl) {
   );
   console.log(
     chalk.cyanBright(
-      `${contexts.map((c) => chalk.yellowBright("* ") + c.name).join("\n")}`
+      `${contexts.map((c, i) => chalk.yellowBright(`${i + 1}. `) + c.name).join('\n')}`
     )
   );
 
-  const contextName = await getAndValidateField(
-    contextNameField,
-    nonEmptyValidator,
-    message
-  );
+  const contextNumber = await getAndValidateField(contextNameField, nonEmptyValidator, message) - 1
+  const contextName = contexts[contextNumber].name
+
   return { client, secret, contextName, authInfo: authResponse };
 }
 
