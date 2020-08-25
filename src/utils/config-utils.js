@@ -132,15 +132,15 @@ export async function getSourcePaths(buildSourceFolder) {
   const sourcePaths = configuration.cmnMacros
     ? configuration.cmnMacros.map((l) => path.join(buildSourceFolder, l))
     : [];
-
-  const macroCorePath = path.join(
-    process.projectDir,
-    "node_modules",
-    "@sasjs",
-    "core"
-  )
-
-  sourcePaths.push(macroCorePath);
+  if (configuration.useMacroCore) {
+    const macroCorePath = path.join(
+        process.projectDir,
+        "node_modules",
+        "@sasjs",
+        "core"
+    );
+    sourcePaths.push(macroCorePath);
+  }
 
   return sourcePaths;
 }
