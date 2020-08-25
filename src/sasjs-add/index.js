@@ -27,7 +27,7 @@ export async function addTarget() {
     serverUrl,
   };
 
-  if (serverType === "SAS9") {
+  if (serverType === 2) {
     const sas9FieldValues = await getAndValidateSas9Fields();
     buildTarget = {
       ...buildTarget,
