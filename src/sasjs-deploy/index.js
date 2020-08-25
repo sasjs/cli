@@ -10,7 +10,7 @@ import {
   folderExists,
   createFile,
 } from "../utils/file-utils";
-import { getAccessToken } from "../utils/auth-utils";
+import { getAccessToken, isAccessTokenExpiring, refreshTokens } from "../utils/auth-utils";
 
 let targetToBuild = null;
 let executionSession;
@@ -123,7 +123,22 @@ async function getSASjsAndAccessToken(buildTarget) {
 }
 
 async function deployToSasViyaWithServicePack(buildTarget) {
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(buildTarget);
+  const sasjs = new SASjs({
+    serverUrl: buildTarget.serverUrl,
+    appLoc: buildTarget.appLoc,
+    serverType: buildTarget.serverType,
+  });
+
+  let { access_token } = buildTarget.authInfo
+  const { refresh_token } = buildTarget.authInfo
+  const isTokenExpiring = isAccessTokenExpiring(access_token)
+
+  if (isTokenExpiring) {
+    const { client, secret } = buildTarget.tgtDeployVars
+    const newAuthResponse = await refreshTokens(sasjs, client, secret, refresh_token)
+
+    access_token = newAuthResponse.access_token
+  }
 
   const CONSTANTS = require("../constants");
   const buildDestinationFolder = CONSTANTS.buildDestinationFolder;
@@ -134,7 +149,7 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonContent = await readFile(finalFilePathJSON);
   const jsonObject = JSON.parse(jsonContent);
 
-  return await sasjs.deployServicePack(jsonObject, null, null, accessToken);
+  return await sasjs.deployServicePack(jsonObject, null, null, access_token);
 }
 
 async function deployToSasViya(

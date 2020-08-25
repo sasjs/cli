@@ -186,7 +186,7 @@ export async function getAccessToken(
   }
 }
 
-function isAccessTokenExpiring(token) {
+export function isAccessTokenExpiring(token) {
   if (!token) {
     return true;
   }
@@ -195,7 +195,7 @@ function isAccessTokenExpiring(token) {
   return timeToLive <= 60000;
 }
 
-async function refreshTokens(
+export async function refreshTokens(
   sasjsInstance,
   clientId,
   clientSecret,
