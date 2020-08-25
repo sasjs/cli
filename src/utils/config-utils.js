@@ -134,10 +134,10 @@ export async function getSourcePaths(buildSourceFolder) {
     : [];
   if (configuration.useMacroCore) {
     const macroCorePath = path.join(
-        process.projectDir,
-        "node_modules",
-        "@sasjs",
-        "core"
+      process.projectDir,
+      "node_modules",
+      "@sasjs",
+      "core"
     );
     sourcePaths.push(macroCorePath);
   }
