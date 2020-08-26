@@ -46,7 +46,9 @@ export async function addTarget() {
       ...buildTarget,
       tgtBuildVars: { client, secret, contextName },
       tgtDeployVars: { client, secret, contextName },
-      authInfo,
+      authInfo: authInfo,
+      deployServicePack: true,
+      tgtDeployScripts: []
     };
   }
 
