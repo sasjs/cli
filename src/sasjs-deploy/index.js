@@ -28,12 +28,15 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
     );
     await deployToSasViyaWithServicePack(targetToBuild);
     console.log("Job execution completed!");
-    return;
   }
 
   const deployScripts = getDeployScripts();
 
-  if (deployScripts.length === 0) console.log(chalk.redBright.bold(`Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`))
+  if (deployScripts.length === 0 && !targetToBuild.deployServicePack) {
+    console.log(chalk.redBright.bold(`Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`))
+
+    return;
+  }
 
   const pathExistsInCurrentFolder = await folderExists(
     path.join(process.cwd(), "sasjsbuild")
