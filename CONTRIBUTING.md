@@ -7,3 +7,5 @@ git clone git@github.com:sasjs/cli.git
 cd cli
 npm link
 ```
+
+Once done, you can use `npm unlink` from the repository to unlink it.
