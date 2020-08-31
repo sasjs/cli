@@ -1,13 +1,13 @@
 import chalk from "chalk";
 import path from "path";
 import prompt from "prompt";
-import { createFile, fileExists } from "./file-utils";
+import { createFile } from "./file-utils";
 import {
   getLocalRcFile,
   getGlobalRcFile,
   saveGlobalRcFile,
   getProjectRoot,
-  saveLocalRcFile,
+  saveLocalRcFile
 } from "./config-utils";
 import jwtDecode from "jwt-decode";
 
@@ -75,7 +75,7 @@ export async function getAccessToken(
         target.authInfo = authInfo;
         localRcFile.targets = [
           ...localRcFile.targets.filter((t) => t.name !== buildTarget.name),
-          target,
+          target
         ];
         await saveLocalRcFile(JSON.stringify(localRcFile, null, 2));
 
@@ -95,8 +95,8 @@ export async function getAccessToken(
             {
               targets: [
                 ...existingTargets,
-                { ...buildTarget, authInfo: authResponse },
-              ],
+                { ...buildTarget, authInfo: authResponse }
+              ]
             },
             null,
             2
@@ -138,7 +138,7 @@ export async function getAccessToken(
         target.authInfo = authInfo;
         globalRcFile.targets = [
           ...globalRcFile.targets.filter((t) => t.name !== buildTarget.name),
-          target,
+          target
         ];
         await saveGlobalRcFile(JSON.stringify(globalRcFile, null, 2));
 
@@ -156,8 +156,8 @@ export async function getAccessToken(
             {
               targets: [
                 ...existingTargets,
-                { ...buildTarget, authInfo: authResponse },
-              ],
+                { ...buildTarget, authInfo: authResponse }
+              ]
             },
             null,
             2

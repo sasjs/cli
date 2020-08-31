@@ -3,7 +3,7 @@ import chalk from "chalk";
 
 export async function printVersion() {
   const result = shelljs.exec(`npm list -g @sasjs/cli`, {
-    silent: true,
+    silent: true
   });
 
   const line = result.split("\n").find((l) => l.includes("@sasjs/cli"));

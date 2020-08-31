@@ -6,14 +6,14 @@ import {
   asyncForEach,
   createReactApp,
   createAngularApp,
-  createMinimalApp,
+  createMinimalApp
 } from "../utils/utils";
 import { getFolders, getConfiguration } from "../utils/config-utils";
 import {
   createFolderStructure,
   createFolder,
   createFile,
-  fileExists,
+  fileExists
 } from "../utils/file-utils";
 import chalk from "chalk";
 

@@ -47,14 +47,14 @@ function createApp(folderPath, repoUrl, installDependencies = true) {
   );
   spinner.start();
   shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
-    silent: true,
+    silent: true
   });
   spinner.stop();
   if (installDependencies) {
     spinner.text = chalk.greenBright("Installing dependencies...");
     spinner.start();
     shelljs.exec(`cd ${folderPath} && npm install`, {
-      silent: true,
+      silent: true
     });
     spinner.stop();
   }
@@ -71,14 +71,14 @@ export async function setupNpmProject(folderPath) {
         )
       );
       shelljs.exec(`cd ${folderPath} && npm init --yes`, {
-        silent: true,
+        silent: true
       });
     } else {
       console.log(chalk.greenBright("Existing NPM project detected.\n"));
     }
     console.log(chalk.greenBright("Installing @sasjs/core"));
     shelljs.exec(`cd ${folderPath} && npm i @sasjs/core --save`, {
-      silent: true,
+      silent: true
     });
     return resolve();
   });
@@ -97,7 +97,7 @@ export async function setupGitIgnore(folderPath) {
     console.log(chalk.greenBright("Existing .gitignore has been updated."));
   } else {
     shelljs.exec(`cd ${folderPath} && git init`, {
-      silent: true,
+      silent: true
     });
     await createFile(gitIgnoreFilePath, "node_modules/\nsasjsbuild/\n.env\n");
     console.log(chalk.greenBright(".gitignore file has been created."));
@@ -147,7 +147,7 @@ export async function executeShellScript(filePath, logFilePath) {
   return new Promise(async (resolve, reject) => {
     const result = shelljs.exec(`bash ${filePath}`, {
       silent: true,
-      async: false,
+      async: false
     });
     if (result.code) {
       console.error(chalk.redBright("Error:\n"), chalk.red(result.stderr));

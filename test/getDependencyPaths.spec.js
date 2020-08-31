@@ -2,7 +2,7 @@ import path from "path";
 import { readFile } from "../src/utils/file-utils";
 import {
   getDependencyPaths,
-  prioritiseDependencyOverrides,
+  prioritiseDependencyOverrides
 } from "../src/sasjs-build/index";
 
 process.projectDir = path.join(process.cwd());
@@ -16,7 +16,7 @@ describe("getDependencyPaths", () => {
       "mf_getuniquelibref.sas",
       "mf_isblank.sas",
       "mf_mval.sas",
-      "mf_getplatform.sas",
+      "mf_getplatform.sas"
     ];
     const dependencyPaths = await getDependencyPaths(fileContent);
     dependencyPaths.forEach((dep) => {
@@ -45,7 +45,7 @@ describe("getDependencyPaths", () => {
       "mm_updatestpsourcecode.sas",
       "mp_dropmembers.sas",
       "mm_getservercontexts.sas",
-      "mm_getrepos.sas",
+      "mm_getrepos.sas"
     ];
     const dependencyPaths = await getDependencyPaths(fileContent);
     dependencyPaths.forEach((dep) => {
@@ -77,7 +77,7 @@ describe("getDependencyPaths", () => {
       "mf_getuniquelibref.sas",
       "mf_isblank.sas",
       "mf_mval.sas",
-      "mf_getplatform.sas",
+      "mf_getplatform.sas"
     ];
 
     await expect(getDependencyPaths(fileContent)).resolves.not.toThrow();
@@ -92,7 +92,7 @@ describe("getDependencyPaths", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
       "node_modules/@sasjs/core/core/mf_abort.sas",
-      "sas/macros/mf_abort.sas",
+      "sas/macros/mf_abort.sas"
     ];
 
     const result = prioritiseDependencyOverrides(
@@ -107,7 +107,7 @@ describe("getDependencyPaths", () => {
     const dependencyPaths = [
       "node_modules/@sasjs/core/core/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
-      "sas/macros/mf_abort.sas",
+      "sas/macros/mf_abort.sas"
     ];
 
     const result = prioritiseDependencyOverrides(
@@ -122,7 +122,7 @@ describe("getDependencyPaths", () => {
     const dependencyNames = ["mf_abort.sas"];
     const dependencyPaths = [
       "node_modules/@sasjs/core/core/mf_abort.sas",
-      "sas/macros/mf_abort.sas",
+      "sas/macros/mf_abort.sas"
     ];
 
     const result = prioritiseDependencyOverrides(
@@ -140,7 +140,7 @@ describe("getDependencyPaths", () => {
       "sas/sasviyamacros/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/macros2/mf_abort.sas",
-      "sas/macros/mf_abort.sas",
+      "sas/macros/mf_abort.sas"
     ];
 
     const result = prioritiseDependencyOverrides(
@@ -158,7 +158,7 @@ describe("getDependencyPaths", () => {
       "sas/sas9macros/mf_abort.sas",
       "sas/sas9macros/mf_abort.sas",
       "sas/macros/mf_abort.sas",
-      "sas/macros/mf_abort.sas",
+      "sas/macros/mf_abort.sas"
     ];
 
     const result = prioritiseDependencyOverrides(

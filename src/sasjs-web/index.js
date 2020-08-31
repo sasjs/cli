@@ -8,7 +8,7 @@ import {
   createFolder,
   createFile,
   deleteFolder,
-  getFilesInFolder,
+  getFilesInFolder
 } from "../utils/file-utils";
 import path from "path";
 import chalk from "chalk";
@@ -136,7 +136,7 @@ async function createAssetServices(target, destinationPath) {
         );
         assetPathMap.push({
           source: path.join(fullAssetPath, filePath),
-          target: assetServiceUrl,
+          target: assetServiceUrl
         });
       }
     });
