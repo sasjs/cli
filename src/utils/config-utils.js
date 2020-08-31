@@ -192,7 +192,7 @@ export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
   );
   return {
     path: path.join(buildSourceFolder, toBuildPath),
-    content: toBuildContent,
+    content: toBuildContent
   };
 }
 

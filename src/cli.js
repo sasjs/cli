@@ -11,7 +11,7 @@ import {
   buildWebApp,
   listContexts,
   add,
-  run,
+  run
 } from "./main";
 import { fileExists } from "./utils/file-utils";
 import path from "path";
@@ -258,7 +258,7 @@ function processRunParameters(parameters) {
 
   return {
     filePath: parameters[0],
-    targetName: parameters.length === 3 ? parameters[2] : "default",
+    targetName: parameters.length === 3 ? parameters[2] : "default"
   };
 }
 

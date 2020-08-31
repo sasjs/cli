@@ -11,7 +11,7 @@ import {
   createFolder,
   deleteFolder,
   fileExists,
-  copy,
+  copy
 } from "../utils/file-utils";
 import { asyncForEach, removeComments, chunk, diff } from "../utils/utils";
 import {
@@ -19,7 +19,7 @@ import {
   getConfiguration,
   getTargetToBuild,
   getTargetSpecificFile,
-  getMacroCorePath,
+  getMacroCorePath
 } from "../utils/config-utils";
 
 let buildSourceFolder = "";
@@ -129,7 +129,13 @@ async function createFinalSasFiles() {
         );
       });
   }
-  await createFinalSasFile(buildOutputFileName, appLoc, serverType, tgtMacros, tgtName);
+  await createFinalSasFile(
+    buildOutputFileName,
+    appLoc,
+    serverType,
+    tgtMacros,
+    tgtName
+  );
 }
 
 async function createFinalSasFile(
@@ -144,14 +150,17 @@ async function createFinalSasFile(
   );
   let finalSasFileContent = "";
   const finalFilePath = path.join(buildDestinationFolder, fileName);
-  const finalFilePathJSON = path.join(buildDestinationFolder, `${tgtName}.json`);
+  const finalFilePathJSON = path.join(
+    buildDestinationFolder,
+    `${tgtName}.json`
+  );
   const buildConfig = await getBuildConfig(appLoc, serverType, tgtMacros);
   finalSasFileContent += `\n${buildConfig}`;
 
   const { content: buildInit, path: buildInitPath } = await getBuildInit();
   const {
     content: buildTermContent,
-    path: buildTermPath,
+    path: buildTermPath
   } = await getBuildTerm();
 
   console.log(chalk.greenBright("  Loading dependencies for:"));
@@ -172,13 +181,18 @@ async function createFinalSasFile(
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`;
 
   console.log(chalk.greenBright("  - Compiling Services"));
-  const { folderContent, folderContentJSON } = await getFolderContent(serverType);
+  const { folderContent, folderContentJSON } = await getFolderContent(
+    serverType
+  );
   finalSasFileContent += `\n${folderContent}`;
 
   finalSasFileContent += `\n${buildTermContent}`;
   finalSasFileContent = removeComments(finalSasFileContent);
   await createFile(finalFilePath, finalSasFileContent);
-  await createFile(finalFilePathJSON, JSON.stringify(folderContentJSON, null, 1));
+  await createFile(
+    finalFilePathJSON,
+    JSON.stringify(folderContentJSON, null, 1)
+  );
 }
 
 async function getBuildConfig(appLoc, serverType, tgtMacros = []) {
@@ -247,25 +261,27 @@ async function getPreCodeForServicePack(serverType) {
   let content = "";
   switch (serverType.toUpperCase()) {
     case "SASVIYA":
-      content += await readFile( `${getMacroCorePath()}/base/mf_getuser.sas` );
-      content += await readFile( `${getMacroCorePath()}/base/mp_jsonout.sas` );
-      content += await readFile( `${getMacroCorePath()}/viya/mv_webout.sas` );
-      content += "/* if calling viya service with _job param, _program will conflict */\n" +
-                 "/* so we provide instead as __program */\n" +
-                 "%global __program _program;\n" +
-                 "%let _program=%sysfunc(coalescec(&__program,&_program));\n" +
-                 "%macro webout(action,ds,dslabel=,fmt=);\n" +
-                 "%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n" +
-                 "%mend;\n"
+      content += await readFile(`${getMacroCorePath()}/base/mf_getuser.sas`);
+      content += await readFile(`${getMacroCorePath()}/base/mp_jsonout.sas`);
+      content += await readFile(`${getMacroCorePath()}/viya/mv_webout.sas`);
+      content +=
+        "/* if calling viya service with _job param, _program will conflict */\n" +
+        "/* so we provide instead as __program */\n" +
+        "%global __program _program;\n" +
+        "%let _program=%sysfunc(coalescec(&__program,&_program));\n" +
+        "%macro webout(action,ds,dslabel=,fmt=);\n" +
+        "%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n" +
+        "%mend;\n";
       break;
 
     case "SAS9":
-      content += await readFile( `${getMacroCorePath()}/base/mf_getuser.sas` );
-      content += await readFile( `${getMacroCorePath()}/base/mp_jsonout.sas` );
-      content += await readFile( `${getMacroCorePath()}/meta/mm_webout.sas` );
-      content += "  %macro webout(action,ds,dslabel=,fmt=);\n" +
-                 "    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n" +
-                 "  %mend;\n"
+      content += await readFile(`${getMacroCorePath()}/base/mf_getuser.sas`);
+      content += await readFile(`${getMacroCorePath()}/base/mp_jsonout.sas`);
+      content += await readFile(`${getMacroCorePath()}/meta/mm_webout.sas`);
+      content +=
+        "  %macro webout(action,ds,dslabel=,fmt=);\n" +
+        "    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n" +
+        "  %mend;\n";
       break;
 
     default:
@@ -292,19 +308,22 @@ async function getContentFor(folderPath, folderName, serverType) {
     const transformedContent = getServiceText(file, fileContent, serverType);
     content += `\n${transformedContent}\n`;
     contentJSON.members.push({
-      name: file.replace('.sas', ''),
+      name: file.replace(".sas", ""),
       type: "service",
       code: removeComments(`${preCode}\n${fileContent}`)
     });
   });
   const subFolders = await getSubFoldersInFolder(folderPath);
   await asyncForEach(subFolders, async (subFolder) => {
-    const { content: childContent, contentJSON: childContentJSON } = await getContentFor(
+    const {
+      content: childContent,
+      contentJSON: childContentJSON
+    } = await getContentFor(
       path.join(folderPath, subFolder),
       subFolder,
       serverType
     );
-    contentJSON.members.push( childContentJSON );
+    contentJSON.members.push(childContentJSON);
     content += childContent;
   });
   return { content, contentJSON };
@@ -566,7 +585,7 @@ async function validCompiled(buildFolders) {
   if (!pathExists)
     return {
       compiled: false,
-      message: `Build Folder doesn't exists: ${buildDestinationFolder}`,
+      message: `Build Folder doesn't exists: ${buildDestinationFolder}`
     };
 
   const subFolders = await getSubFoldersInFolder(buildDestinationServ);
@@ -574,7 +593,7 @@ async function validCompiled(buildFolders) {
   if (present) {
     let returnObj = {
       compiled: true,
-      message: `All services are already present.`,
+      message: `All services are already present.`
     };
     await asyncForEach(buildFolders, async (buildFolder) => {
       if (returnObj.compiled) {
@@ -584,7 +603,7 @@ async function validCompiled(buildFolders) {
         if (subFolders.length == 0 && filesNamesInPath.length == 0) {
           returnObj = {
             compiled: false,
-            message: `Service folder ${buildFolder} is empty.`,
+            message: `Service folder ${buildFolder} is empty.`
           };
         }
       }

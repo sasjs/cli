@@ -8,9 +8,13 @@ import {
   isShellScript,
   readFile,
   folderExists,
-  createFile,
+  createFile
 } from "../utils/file-utils";
-import { getAccessToken, isAccessTokenExpiring, refreshTokens } from "../utils/auth-utils";
+import {
+  getAccessToken,
+  isAccessTokenExpiring,
+  refreshTokens
+} from "../utils/auth-utils";
 
 let targetToBuild = null;
 let executionSession;
@@ -33,7 +37,11 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
   const deployScripts = getDeployScripts();
 
   if (deployScripts.length === 0 && !targetToBuild.deployServicePack) {
-    console.log(chalk.redBright.bold(`Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`))
+    console.log(
+      chalk.redBright.bold(
+        `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
+      )
+    );
 
     return;
   }
@@ -118,13 +126,13 @@ async function getSASjsAndAccessToken(buildTarget) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType,
+    serverType: buildTarget.serverType
   });
 
   const accessToken = await getToken(buildTarget, sasjs);
   return {
     sasjs,
-    accessToken,
+    accessToken
   };
 }
 
@@ -132,7 +140,7 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType,
+    serverType: buildTarget.serverType
   });
 
   const CONSTANTS = require("../constants");
@@ -145,21 +153,26 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonObject = JSON.parse(jsonContent);
 
   if (buildTarget.authInfo) {
-    let { access_token } = buildTarget.authInfo
-    const { refresh_token } = buildTarget.authInfo
-    const isTokenExpiring = isAccessTokenExpiring(access_token)
+    let { access_token } = buildTarget.authInfo;
+    const { refresh_token } = buildTarget.authInfo;
+    const isTokenExpiring = isAccessTokenExpiring(access_token);
 
     if (isTokenExpiring) {
-      const { client, secret } = buildTarget.tgtDeployVars
-      const newAuthResponse = await refreshTokens(sasjs, client, secret, refresh_token)
+      const { client, secret } = buildTarget.tgtDeployVars;
+      const newAuthResponse = await refreshTokens(
+        sasjs,
+        client,
+        secret,
+        refresh_token
+      );
 
-      access_token = newAuthResponse.access_token
+      access_token = newAuthResponse.access_token;
     }
 
-    return await sasjs.deployServicePack(jsonObject, null, null, access_token)
+    return await sasjs.deployServicePack(jsonObject, null, null, access_token);
   }
 
-  return await sasjs.deployServicePack(jsonObject, null, null, null)
+  return await sasjs.deployServicePack(jsonObject, null, null, null);
 }
 
 async function deployToSasViya(
@@ -269,7 +282,7 @@ async function deployToSas9(
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType,
+    serverType: buildTarget.serverType
   });
   const executionResult = await sasjs.executeScriptSAS9(
     linesToExecute,

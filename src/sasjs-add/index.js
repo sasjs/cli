@@ -6,7 +6,7 @@ import validUrl from "valid-url";
 import {
   getGlobalRcFile,
   saveGlobalRcFile,
-  getConfiguration,
+  getConfiguration
 } from "../utils/config-utils";
 import { createFile } from "../utils/file-utils";
 import { getNewAccessToken } from "../utils/auth-utils";
@@ -17,14 +17,14 @@ export async function addTarget() {
   const name = await getAndValidateTargetName(scope, serverType);
 
   let localAppLoc;
-  if (scope === 1) localAppLoc = await getAndValidateLocalAppLoc(name)
+  if (scope === 1) localAppLoc = await getAndValidateLocalAppLoc(name);
 
   const serverUrl = await getAndValidateServerUrl();
 
   let buildTarget = {
     name,
     serverType: serverType === 1 ? "SASVIYA" : "SAS9",
-    serverUrl,
+    serverUrl
   };
 
   if (serverType === 2) {
@@ -32,14 +32,14 @@ export async function addTarget() {
     buildTarget = {
       ...buildTarget,
       tgtBuildVars: sas9FieldValues,
-      tgtDeployVars: sas9FieldValues,
+      tgtDeployVars: sas9FieldValues
     };
   } else {
     const {
       client,
       secret,
       contextName,
-      authInfo,
+      authInfo
     } = await getAndValidateSasViyaFields(serverUrl);
 
     buildTarget = {
@@ -56,7 +56,7 @@ export async function addTarget() {
     buildTarget = {
       ...buildTarget,
       appLoc: localAppLoc
-    }
+    };
 
     await saveToLocalConfig(buildTarget);
   } else if (scope === 2) {
@@ -113,7 +113,7 @@ async function getAndValidateScope() {
         "Please pick a scope for the new target:"
       )}\n1. Local project config file\n2. Global config file`
     ),
-    default: 1,
+    default: 1
   };
 
   const validator = (value) => {
@@ -150,8 +150,10 @@ async function getAndValidateServerUrl() {
   const serverUrlField = {
     name: "serverUrl",
     description: chalk.cyanBright(
-      `${chalk.greenBright("Please enter a target server URL (including port, if relevant):")}`
-    ),
+      `${chalk.greenBright(
+        "Please enter a target server URL (including port, if relevant):"
+      )}`
+    )
   };
 
   const validator = validUrl.isUri;
@@ -178,15 +180,15 @@ async function getAndValidateTargetName(targetScope, serverType) {
     return !existingTargetNames.includes(value);
   };
 
-  const defaultName = serverType === 1 ? 'viya' : 'sas9'
-  const isDefaultNameValid = await validator(defaultName, targetScope)
+  const defaultName = serverType === 1 ? "viya" : "sas9";
+  const isDefaultNameValid = await validator(defaultName, targetScope);
 
   const targetNameField = {
     name: "name",
     description: chalk.cyanBright(
       `${chalk.greenBright("Please enter a target name:")}`
     ),
-    default: isDefaultNameValid ? defaultName : ''
+    default: isDefaultNameValid ? defaultName : ""
   };
 
   const message =
@@ -207,7 +209,7 @@ async function getAndValidateSas9Fields() {
       `${chalk.greenBright(
         "Please enter a server name" + chalk.cyanBright("(default is SASApp):")
       )}`
-    ),
+    )
   };
 
   const repositoryNameField = {
@@ -217,7 +219,7 @@ async function getAndValidateSas9Fields() {
         "Please enter a repository name" +
           chalk.cyanBright("(default is Foundation):")
       )}`
-    ),
+    )
   };
 
   let serverName = await getAndValidateField(serverNameField, () => true, "");
@@ -236,26 +238,26 @@ async function getAndValidateSasViyaFields(serverUrl) {
     name: "client",
     description: chalk.cyanBright(
       `${chalk.greenBright("Please enter your SAS Viya app client ID: ")}`
-    ),
+    )
   };
   const secretField = {
     name: "secret",
     description: chalk.cyanBright(
       `${chalk.greenBright("Please enter your SAS Viya app client secret: ")}`
-    ),
+    )
   };
 
   const contextNameField = {
     name: "contextName",
-    type: 'integer',
+    type: "integer",
     description: chalk.cyanBright(
       `${chalk.greenBright(
         "Please enter your SAS Viya execution context number: "
       )}`
-    ),
+    )
   };
   const nonEmptyValidator = (value) => !!value;
-  const message = 'This value can not be empty. Please enter a value'
+  const message = "This value can not be empty. Please enter a value";
   const client = await getAndValidateField(
     clientField,
     nonEmptyValidator,
@@ -269,11 +271,11 @@ async function getAndValidateSasViyaFields(serverUrl) {
 
   const sasjs = new SASjs({
     serverUrl: serverUrl,
-    serverType: "SASVIYA",
+    serverType: "SASVIYA"
   });
 
   const authResponse = await getNewAccessToken(sasjs, client, secret, {
-    serverUrl,
+    serverUrl
   });
 
   const contexts = await sasjs.getAllContexts(authResponse.access_token);
@@ -284,12 +286,16 @@ async function getAndValidateSasViyaFields(serverUrl) {
   );
   console.log(
     chalk.cyanBright(
-      `${contexts.map((c, i) => chalk.yellowBright(`${i + 1}. `) + c.name).join('\n')}`
+      `${contexts
+        .map((c, i) => chalk.yellowBright(`${i + 1}. `) + c.name)
+        .join("\n")}`
     )
   );
 
-  const contextNumber = await getAndValidateField(contextNameField, nonEmptyValidator, message) - 1
-  const contextName = contexts[contextNumber].name
+  const contextNumber =
+    (await getAndValidateField(contextNameField, nonEmptyValidator, message)) -
+    1;
+  const contextName = contexts[contextNumber].name;
 
   return { client, secret, contextName, authInfo: authResponse };
 }
@@ -306,14 +312,16 @@ async function getAndValidateField(field, validator, message, validatorParams) {
 
 async function getAndValidateLocalAppLoc(target) {
   const appLoc = {
-    name: 'app location',
-    type: 'string',
-    description: chalk.cyanBright(`${chalk.greenBright('Please provide an app location:')}`),
+    name: "app location",
+    type: "string",
+    description: chalk.cyanBright(
+      `${chalk.greenBright("Please provide an app location:")}`
+    ),
     default: `/Public/app/${target}`
-  }
+  };
 
-  const validator = (value) => value !== ''
-  const message = 'Invalid input.';
+  const validator = (value) => value !== "";
+  const message = "Invalid input.";
 
   return await getAndValidateField(appLoc, validator, message);
 }

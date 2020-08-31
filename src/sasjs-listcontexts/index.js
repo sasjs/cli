@@ -36,7 +36,7 @@ export async function getContexts(targetName) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType,
+    serverType: buildTarget.serverType
   });
   const accessToken = await getAccessToken(
     sasjs,
@@ -58,7 +58,7 @@ export async function getContexts(targetName) {
     id: context.id,
     name: context.name,
     version: context.version,
-    sysUserId: context.attributes.sysUserId,
+    sysUserId: context.attributes.sysUserId
   }));
   const accessibleContextIds = contexts.map((c) => c.id);
   const allContexts = await sasjs.getAllContexts(accessToken);
@@ -69,7 +69,7 @@ export async function getContexts(targetName) {
       id: context.id,
       name: context.name,
       version: context.version,
-      sysUserId: "NOT ACCESSIBLE",
+      sysUserId: "NOT ACCESSIBLE"
     }));
   const endTime = new Date().getTime();
   spinner.stop();
