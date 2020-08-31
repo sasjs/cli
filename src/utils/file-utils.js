@@ -159,22 +159,22 @@ export async function getIniFilesInFolder(folderName, debug = false) {
 }
 
 export async function createFolder(folderName, debug = false) {
-  if (debug) console.log("Creating folder %s", chalk.cyan(folderName))
+  if (debug) console.log("Creating folder %s", chalk.cyan(folderName));
 
   return new Promise((resolve, reject) => {
-    fs.mkdir(folderName, {recursive: true}, (error, data) => {
+    fs.mkdir(folderName, { recursive: true }, (error, data) => {
       if (error) {
         console.log(
           chalk.red(`Error creating folder %s`),
           chalk.redBright.bold(folderName)
-        )
+        );
 
         return reject(error);
       }
 
       resolve(data);
-    })
-  })
+    });
+  });
 }
 
 export async function createFile(fileName, content, debug = false) {
