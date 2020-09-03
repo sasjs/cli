@@ -1,14 +1,14 @@
-import { build } from "./sasjs-build";
-import { deploy } from "./sasjs-deploy";
-import { buildDB } from "./sasjs-db";
-import { create } from "./sasjs-create";
-import { printHelpText } from "./sasjs-help";
-import { printVersion } from "./sasjs-version";
-import { createWebAppServices } from "./sasjs-web";
-import { addTarget } from "./sasjs-add";
-import { getContexts } from "./sasjs-listcontexts";
-import { runSasCode } from "./sasjs-run";
-import chalk from "chalk";
+import { build } from './sasjs-build'
+import { deploy } from './sasjs-deploy'
+import { buildDB } from './sasjs-db'
+import { create } from './sasjs-create'
+import { printHelpText } from './sasjs-help'
+import { printVersion } from './sasjs-version'
+import { createWebAppServices } from './sasjs-web'
+import { addTarget } from './sasjs-add'
+import { getContexts } from './sasjs-listcontexts'
+import { runSasCode } from './sasjs-run'
+import chalk from 'chalk'
 
 export async function createFileStructure(parentFolderName, appType) {
   await create(parentFolderName, appType)
@@ -24,19 +24,19 @@ export async function createFileStructure(parentFolderName, appType) {
     .catch((err) => {
       console.log(
         chalk.redBright(
-          "An error has occurred whilst creating your project.",
+          'An error has occurred whilst creating your project.',
           err
         )
-      );
-    });
+      )
+    })
 }
 
 export async function showHelp() {
-  await printHelpText();
+  await printHelpText()
 }
 
 export async function showVersion() {
-  await printVersion();
+  await printVersion()
 }
 
 export async function buildServices(targetName) {
@@ -45,16 +45,16 @@ export async function buildServices(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild"
+            'sasjsbuild'
           )} directory.`
         )
       )
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when building services.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when building services.', err)
+      )
+    })
 }
 
 export async function compileServices(targetName) {
@@ -63,16 +63,16 @@ export async function compileServices(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild"
+            'sasjsbuild'
           )} directory.`
         )
       )
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when building services.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when building services.', err)
+      )
+    })
 }
 
 export async function deployServices(targetName) {
@@ -86,9 +86,9 @@ export async function deployServices(targetName) {
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when deploying services.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when deploying services.', err)
+      )
+    })
 }
 
 export async function compileBuildServices(targetName) {
@@ -97,16 +97,16 @@ export async function compileBuildServices(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild"
+            'sasjsbuild'
           )} directory.`
         )
       )
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when building services.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when building services.', err)
+      )
+    })
 }
 
 export async function compileBuildDeployServices(targetName) {
@@ -115,16 +115,16 @@ export async function compileBuildDeployServices(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild"
+            'sasjsbuild'
           )} directory.`
         )
       )
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when building services.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when building services.', err)
+      )
+    })
 }
 
 export async function buildDBs(targetName) {
@@ -133,16 +133,16 @@ export async function buildDBs(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild/db"
+            'sasjsbuild/db'
           )} directory.`
         )
       )
     )
     .catch((err) => {
       console.log(
-        chalk.redBright("An error has occurred when building DBs.", err)
-      );
-    });
+        chalk.redBright('An error has occurred when building DBs.', err)
+      )
+    })
 }
 
 export async function buildWebApp(targetName) {
@@ -151,7 +151,7 @@ export async function buildWebApp(targetName) {
       console.log(
         chalk.greenBright.bold.italic(
           `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            "sasjsbuild"
+            'sasjsbuild'
           )} directory.`
         )
       )
@@ -159,11 +159,11 @@ export async function buildWebApp(targetName) {
     .catch((err) => {
       console.log(
         chalk.redBright(
-          "An error has occurred when building web app services.",
+          'An error has occurred when building web app services.',
           err
         )
-      );
-    });
+      )
+    })
 }
 
 export async function listContexts(targetName) {
@@ -172,62 +172,62 @@ export async function listContexts(targetName) {
       if (accessibleContexts.length) {
         console.log(
           chalk.cyanBright.bold(
-            "You have execution access to the following contexts:\n"
+            'You have execution access to the following contexts:\n'
           )
-        );
-        console.log(accessibleContexts);
+        )
+        console.log(accessibleContexts)
       } else {
         console.log(
           chalk.redBright.bold(
-            "You do not have access to any compute contexts on this server."
+            'You do not have access to any compute contexts on this server.'
           )
-        );
+        )
       }
       if (inaccessibleContexts.length) {
         console.log(
           chalk.cyanBright.bold(
-            "You do not have execution access to the following contexts:\n"
+            'You do not have execution access to the following contexts:\n'
           )
-        );
-        console.log(inaccessibleContexts);
+        )
+        console.log(inaccessibleContexts)
       } else {
         if (accessibleContexts.length) {
           console.log(
             chalk.greenBright.bold(
-              "You have access to all the compute contexts on this server."
+              'You have access to all the compute contexts on this server.'
             )
-          );
+          )
         }
       }
     })
     .catch((err) => {
       console.log(
         chalk.redBright(
-          "An error has occurred when fetching compute contexts.",
+          'An error has occurred when fetching compute contexts.',
           err
         )
-      );
-    });
+      )
+    })
 }
 
-export async function add(resourceType = "target") {
-  if (resourceType === "target") {
+export async function add(resourceType = 'target') {
+  if (resourceType === 'target') {
     await addTarget()
       .then(() => {
-        console.log(chalk.greenBright("Target successfully added!"));
+        console.log(chalk.greenBright('Target successfully added!'))
       })
       .catch((err) => {
         console.log(
-          chalk.redBright("An error has occurred when adding the target.", err)
-        );
-      });
+          chalk.redBright('An error has occurred when adding the target.', err)
+        )
+      })
   }
 }
 
 export async function run(filePath, targetName) {
   await runSasCode(filePath, targetName).catch((err) => {
     console.log(
-      chalk.redBright("An error has occurred when running your SAS code", err)
-    );
-  });
+      chalk.redBright('An error has occurred when running your SAS code', err)
+    )
+  })
 }

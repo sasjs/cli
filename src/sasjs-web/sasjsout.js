@@ -108,4 +108,4 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     rc = fclose(fileid);
   run;
 %end;
-%mend;`;
+%mend;`

@@ -1,5 +1,5 @@
-import { getTargetToBuild } from "../utils/config-utils";
-import { asyncForEach, chunk } from "../utils/utils";
+import { getTargetToBuild } from '../utils/config-utils'
+import { asyncForEach, chunk } from '../utils/utils'
 import {
   readFile,
   base64EncodeFile,
@@ -9,51 +9,51 @@ import {
   createFile,
   deleteFolder,
   getFilesInFolder
-} from "../utils/file-utils";
-import path from "path";
-import chalk from "chalk";
-import jsdom from "jsdom";
-import base64img from "base64-img";
-import { sasjsout } from "./sasjsout";
+} from '../utils/file-utils'
+import path from 'path'
+import chalk from 'chalk'
+import jsdom from 'jsdom'
+import base64img from 'base64-img'
+import { sasjsout } from './sasjsout'
 
-let buildDestinationFolder = "";
+let buildDestinationFolder = ''
 
 export async function createWebAppServices(
   targetName = null,
   preTargetToBuild = null
 ) {
-  const CONSTANTS = require("../constants");
-  buildDestinationFolder = CONSTANTS.buildDestinationFolder;
-  console.log(chalk.greenBright("Building web app services..."));
-  await createBuildDestinationFolder();
-  let target = null;
-  if (preTargetToBuild) target = preTargetToBuild;
-  else target = await getTargetToBuild(targetName);
+  const CONSTANTS = require('../constants')
+  buildDestinationFolder = CONSTANTS.buildDestinationFolder
+  console.log(chalk.greenBright('Building web app services...'))
+  await createBuildDestinationFolder()
+  let target = null
+  if (preTargetToBuild) target = preTargetToBuild
+  else target = await getTargetToBuild(targetName)
 
   if (target) {
     console.log(
       chalk.greenBright(`Building for target ${chalk.cyanBright(target.name)}`)
-    );
+    )
 
-    const webAppSourcePath = target.webSourcePath;
+    const webAppSourcePath = target.webSourcePath
     const destinationPath = path.join(
       buildDestinationFolder,
-      "services",
+      'services',
       target.streamWebFolder
-    );
-    await createTargetDestinationFolder(destinationPath);
+    )
+    await createTargetDestinationFolder(destinationPath)
 
     if (webAppSourcePath) {
-      const assetPathMap = await createAssetServices(target, destinationPath);
+      const assetPathMap = await createAssetServices(target, destinationPath)
       const hasIndexHtml = await fileExists(
-        path.join(process.projectDir, webAppSourcePath, "index.html")
-      );
+        path.join(process.projectDir, webAppSourcePath, 'index.html')
+      )
       if (hasIndexHtml) {
         const indexHtml = await readFile(
-          path.join(process.projectDir, webAppSourcePath, "index.html")
-        ).then((content) => new jsdom.JSDOM(content));
+          path.join(process.projectDir, webAppSourcePath, 'index.html')
+        ).then((content) => new jsdom.JSDOM(content))
 
-        const scriptTags = getScriptTags(indexHtml);
+        const scriptTags = getScriptTags(indexHtml)
         await asyncForEach(scriptTags, async (tag) => {
           await updateTagSource(
             tag,
@@ -61,19 +61,19 @@ export async function createWebAppServices(
             destinationPath,
             target,
             assetPathMap
-          );
-        });
-        const linkTags = getLinkTags(indexHtml);
+          )
+        })
+        const linkTags = getLinkTags(indexHtml)
         await asyncForEach(linkTags, async (linkTag) => {
           await updateLinkHref(
             linkTag,
             webAppSourcePath,
             destinationPath,
             target
-          );
-        });
+          )
+        })
 
-        const faviconTags = getFaviconTags(indexHtml);
+        const faviconTags = getFaviconTags(indexHtml)
 
         await asyncForEach(faviconTags, async (faviconTag) => {
           await updateFaviconHref(
@@ -81,80 +81,80 @@ export async function createWebAppServices(
             webAppSourcePath,
             destinationPath,
             target
-          );
-        });
+          )
+        })
 
-        await createClickMeService(indexHtml.serialize());
+        await createClickMeService(indexHtml.serialize())
       }
     } else {
       throw new Error(
-        "webSourcePath has not been specified. Please check your config and try again."
-      );
+        'webSourcePath has not been specified. Please check your config and try again.'
+      )
     }
   } else
     throw new Error(
-      "no target is found. Please check your config and try again."
-    );
+      'no target is found. Please check your config and try again.'
+    )
 }
 
 async function createAssetServices(target, destinationPath) {
-  const assetPaths = target.assetPaths || [];
-  const assetPathMap = [];
+  const assetPaths = target.assetPaths || []
+  const assetPathMap = []
   await asyncForEach(assetPaths, async (assetPath) => {
     const pathExistsInCurrentFolder = await folderExists(
       path.join(process.cwd(), target.webSourcePath, assetPath)
-    );
+    )
     const pathExistsInParentFolder = await folderExists(
-      path.join(process.cwd(), "..", target.webSourcePath, assetPath)
-    );
+      path.join(process.cwd(), '..', target.webSourcePath, assetPath)
+    )
     const fullAssetPath = pathExistsInCurrentFolder
       ? path.join(process.cwd(), target.webSourcePath, assetPath)
       : pathExistsInParentFolder
-      ? path.join(process.cwd(), "..", target.webSourcePath, assetPath)
-      : null;
-    const filePaths = await getFilesInFolder(fullAssetPath);
+      ? path.join(process.cwd(), '..', target.webSourcePath, assetPath)
+      : null
+    const filePaths = await getFilesInFolder(fullAssetPath)
     await asyncForEach(filePaths, async (filePath) => {
-      const fullFileName = path.basename(filePath);
-      const fileName = fullFileName.substring(0, fullFileName.lastIndexOf("."));
+      const fullFileName = path.basename(filePath)
+      const fileName = fullFileName.substring(0, fullFileName.lastIndexOf('.'))
       const fileExtension = path
         .basename(filePath)
-        .substring(fullFileName.lastIndexOf(".") + 1, fullFileName.length);
+        .substring(fullFileName.lastIndexOf('.') + 1, fullFileName.length)
       if (fileName && fileExtension) {
         const base64string = await base64EncodeFile(
           path.join(fullAssetPath, filePath)
-        );
+        )
         const fileName = await generateAssetService(
           base64string,
           filePath,
           destinationPath
-        );
+        )
         const assetServiceUrl = getScriptPath(
           target.appLoc,
           target.serverType,
           target.streamWebFolder,
-          fileName.replace(".sas", "")
-        );
+          fileName.replace('.sas', '')
+        )
         assetPathMap.push({
           source: path.join(fullAssetPath, filePath),
           target: assetServiceUrl
-        });
+        })
       }
-    });
-  });
-  return assetPathMap;
+    })
+  })
+  return assetPathMap
 }
 
 async function generateAssetService(content, filePath, destinationPath) {
-  const fileType = path.extname(filePath).replace(".", "").toUpperCase();
-  const fileName = path.basename(filePath).replace(".", "-");
-  const serviceContent = await getWebServiceContent(content, fileType);
+  const fileType = path.extname(filePath).replace('.', '').toUpperCase()
+  const fileName = path.basename(filePath).replace('.', '-')
+  const serviceContent = await getWebServiceContent(content, fileType)
 
   await createFile(
     path.join(destinationPath, `${fileName}.sas`),
     serviceContent
-  );
+  )
 
-  return `${fileName}.sas`;
+  return `${fileName}.sas`
 }
 
 async function updateTagSource(
@@ -164,39 +164,38 @@ async function updateTagSource(
   target,
   assetPathMap
 ) {
-  const scriptPath = tag.getAttribute("src");
+  const scriptPath = tag.getAttribute('src')
   const isUrl =
-    scriptPath &&
-    (scriptPath.startsWith("http") || scriptPath.startsWith("//"));
+    scriptPath && (scriptPath.startsWith('http') || scriptPath.startsWith('//'))
 
   if (scriptPath) {
-    const fileName = `${path.basename(scriptPath).replace(/\./g, "")}`;
+    const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
       let content = await readFile(
         path.join(process.projectDir, webAppSourcePath, scriptPath)
-      );
+      )
       assetPathMap.forEach((pathEntry) => {
         content = content.replace(
-          new RegExp(pathEntry.source, "g"),
+          new RegExp(pathEntry.source, 'g'),
           pathEntry.target
-        );
-      });
-      const serviceContent = await getWebServiceContent(content);
+        )
+      })
+      const serviceContent = await getWebServiceContent(content)
 
       await createFile(
         path.join(destinationPath, `${fileName}.sas`),
         serviceContent
-      );
+      )
 
       tag.setAttribute(
-        "src",
+        'src',
         getScriptPath(
           target.appLoc,
           target.serverType,
           target.streamWebFolder,
           fileName
         )
-      );
+      )
     }
   }
 }
@@ -207,166 +206,166 @@ async function updateLinkHref(
   destinationPath,
   target
 ) {
-  const linkSourcePath = linkTag.getAttribute("href");
+  const linkSourcePath = linkTag.getAttribute('href')
   const isUrl =
-    linkSourcePath.startsWith("http") || linkSourcePath.startsWith("//");
-  const fileName = `${path.basename(linkSourcePath).replace(/\./g, "")}`;
+    linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
+  const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
     const content = await readFile(
       path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-    );
-    const serviceContent = await getWebServiceContent(content, "CSS");
+    )
+    const serviceContent = await getWebServiceContent(content, 'CSS')
 
     await createFile(
       path.join(destinationPath, `${fileName}.sas`),
       serviceContent
-    );
+    )
     const linkHref = getLinkHref(
       target.appLoc,
       target.serverType,
       target.streamWebFolder,
       fileName
-    );
-    linkTag.setAttribute("href", linkHref);
+    )
+    linkTag.setAttribute('href', linkHref)
   }
 }
 
 async function updateFaviconHref(linkTag, webAppSourcePath) {
-  const linkSourcePath = linkTag.getAttribute("href");
+  const linkSourcePath = linkTag.getAttribute('href')
   const isUrl =
-    linkSourcePath.startsWith("http") || linkSourcePath.startsWith("//");
+    linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
     const base64string = base64img.base64Sync(
       path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-    );
-    linkTag.setAttribute("href", base64string);
+    )
+    linkTag.setAttribute('href', base64string)
   }
 }
 
 function getScriptPath(appLoc, serverType, streamWebFolder, fileName) {
-  const permittedServerTypes = ["SAS9", "SASVIYA"];
+  const permittedServerTypes = ['SAS9', 'SASVIYA']
   if (!permittedServerTypes.includes(serverType.toUpperCase())) {
     throw new Error(
-      "Unsupported server type. Supported types are SAS9 and SASVIYA"
-    );
+      'Unsupported server type. Supported types are SAS9 and SASVIYA'
+    )
   }
   const storedProcessPath =
-    serverType === "SASVIYA"
+    serverType === 'SASVIYA'
       ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`;
-  return `${storedProcessPath}/${fileName}`;
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+  return `${storedProcessPath}/${fileName}`
 }
 
 function getLinkHref(appLoc, serverType, streamWebFolder, fileName) {
-  const permittedServerTypes = ["SAS9", "SASVIYA"];
+  const permittedServerTypes = ['SAS9', 'SASVIYA']
   if (!permittedServerTypes.includes(serverType.toUpperCase())) {
     throw new Error(
-      "Unsupported server type. Supported types are SAS9 and SASVIYA"
-    );
+      'Unsupported server type. Supported types are SAS9 and SASVIYA'
+    )
   }
   const storedProcessPath =
-    serverType === "SASVIYA"
+    serverType === 'SASVIYA'
       ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`;
-  return `${storedProcessPath}/${fileName}`;
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+  return `${storedProcessPath}/${fileName}`
 }
 
 function getScriptTags(parsedHtml) {
-  return parsedHtml.window.document.querySelectorAll("script");
+  return parsedHtml.window.document.querySelectorAll('script')
 }
 
 function getLinkTags(parsedHtml) {
   const linkTags = Array.from(
-    parsedHtml.window.document.querySelectorAll("link")
-  ).filter((s) => s.getAttribute("rel") === "stylesheet");
+    parsedHtml.window.document.querySelectorAll('link')
+  ).filter((s) => s.getAttribute('rel') === 'stylesheet')
 
-  return linkTags;
+  return linkTags
 }
 
 function getFaviconTags(parsedHtml) {
   const linkTags = Array.from(
-    parsedHtml.window.document.querySelectorAll("link")
-  ).filter((s) => s.getAttribute("rel").includes("icon"));
+    parsedHtml.window.document.querySelectorAll('link')
+  ).filter((s) => s.getAttribute('rel').includes('icon'))
 
-  return linkTags;
+  return linkTags
 }
 
 async function createBuildDestinationFolder() {
-  const pathExists = await fileExists(buildDestinationFolder);
+  const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists) {
-    await createFolder(buildDestinationFolder);
+    await createFolder(buildDestinationFolder)
   }
 }
 
 async function createTargetDestinationFolder(destinationPath) {
-  const pathExists = await fileExists(destinationPath);
+  const pathExists = await fileExists(destinationPath)
   if (pathExists) {
-    await deleteFolder(destinationPath);
+    await deleteFolder(destinationPath)
   }
-  await createFolder(destinationPath);
+  await createFolder(destinationPath)
 }
 
-async function getWebServiceContent(content, type = "JS") {
+async function getWebServiceContent(content, type = 'JS') {
   const lines = content
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .filter((l) => !!l);
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((l) => !!l)
   let serviceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;
 data _null_;
 file sasjs;
-`;
+`
   lines.forEach((line) => {
-    const chunkedLines = chunk(line);
+    const chunkedLines = chunk(line)
     if (chunkedLines.length === 1) {
-      serviceContent += `put '${chunkedLines[0].split("'").join("''")}';\n`;
+      serviceContent += `put '${chunkedLines[0].split("'").join("''")}';\n`
     } else {
-      let combinedLines = "";
+      let combinedLines = ''
       chunkedLines.forEach((chunkedLine, index) => {
-        let text = `put '${chunkedLine.split("'").join("''")}'`;
+        let text = `put '${chunkedLine.split("'").join("''")}'`
         if (index !== chunkedLines.length - 1) {
-          text += "@;\n";
+          text += '@;\n'
         } else {
-          text += ";\n";
+          text += ';\n'
         }
-        combinedLines += text;
-      });
-      serviceContent += combinedLines;
+        combinedLines += text
+      })
+      serviceContent += combinedLines
     }
-  });
+  })
 
-  serviceContent += `\nrun;\n%sasjsout(${type})`;
-  return serviceContent;
+  serviceContent += `\nrun;\n%sasjsout(${type})`
+  return serviceContent
 }
 
 async function createClickMeService(indexHtmlContent) {
-  const lines = indexHtmlContent.replace(/\r\n/g, "\n").split("\n");
-  let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`;
+  const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
+  let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 
   lines.forEach((line) => {
-    const chunkedLines = chunk(line);
+    const chunkedLines = chunk(line)
     if (chunkedLines.length === 1) {
-      if (chunkedLines[0].length == 0) chunkedLines[0] = " ";
+      if (chunkedLines[0].length == 0) chunkedLines[0] = ' '
 
       clickMeServiceContent += `put '${chunkedLines[0]
         .split("'")
-        .join("''")}';\n`;
+        .join("''")}';\n`
     } else {
-      let combinedLines = "";
+      let combinedLines = ''
       chunkedLines.forEach((chunkedLine, index) => {
-        let text = `put '${chunkedLine.split("'").join("''")}'`;
+        let text = `put '${chunkedLine.split("'").join("''")}'`
         if (index !== chunkedLines.length - 1) {
-          text += "@;\n";
+          text += '@;\n'
         } else {
-          text += ";\n";
+          text += ';\n'
         }
-        combinedLines += text;
-      });
-      clickMeServiceContent += combinedLines;
+        combinedLines += text
+      })
+      clickMeServiceContent += combinedLines
     }
-  });
-  clickMeServiceContent += "run;\n%sasjsout(HTML)";
+  })
+  clickMeServiceContent += 'run;\n%sasjsout(HTML)'
   await createFile(
-    path.join(buildDestinationFolder, "services", "clickme.sas"),
+    path.join(buildDestinationFolder, 'services', 'clickme.sas'),
     clickMeServiceContent
-  );
+  )
 }
