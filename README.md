@@ -10,7 +10,7 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
 
 ## Usage
 
-1. Install globally using `npm` as follows:
+1. Install globally using `npm` as follows
 
 ```
   npm i -g @sasjs/cli
