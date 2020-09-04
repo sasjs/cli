@@ -2,8 +2,8 @@
 
 `@sasjs/cli` is a Command-Line Interface to assist with creating, building, and deploying HTML5 Web Applications on the SAS platform. It fulfills 3 main purposes:
 
-- Creation of a project repository in an 'opinionated' way
-- Compilation each service, including all the dependent macros and pre / post code
+- Creation of a project repository in an 'opinionated' way.
+- Compilation each service, including all the dependent macros and pre / post code.
 - Deployment script generation - run this in SAS Studio to create all your backend services in Viya or SAS9.
 
 There is also a feature to let you deploy your frontend as a service, bypassing the need to access the SAS Web Server.
