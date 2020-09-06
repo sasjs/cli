@@ -32,11 +32,7 @@ export async function createAngularApp(folderPath) {
 
 export async function createMinimalApp(folderPath) {
   return new Promise(async (resolve, _) => {
-    createApp(
-      folderPath,
-      'https://github.com/sasjs/minimal-seed-app.git',
-      false
-    )
+    createApp(folderPath, 'https://github.com/sasjs/minimal-seed-app.git')
     return resolve()
   })
 }
