@@ -17,6 +17,10 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.png'
       contenttype='image/png' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=JSON %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.json'
+      contenttype='application/json' lrecl=2000000 recfm=n;
+  %end;
   %else %if &type=MP3 %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.mp3'
       contenttype='audio/mpeg' lrecl=2000000 recfm=n;
@@ -31,6 +35,9 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   %end;
   %else %if &type=PNG %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/png));
+  %end;
+  %else %if &type=JSON %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,application/json));
   %end;
   %else %if &type=MP3 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/mpeg));
