@@ -16,7 +16,8 @@ describe("getDependencyPaths", () => {
       "mf_getuniquelibref.sas",
       "mf_isblank.sas",
       "mf_mval.sas",
-      "mf_getplatform.sas"
+      "mf_getplatform.sas",
+      "mf_trimstr.sas"
     ];
     const dependencyPaths = await getDependencyPaths(fileContent);
     dependencyPaths.forEach((dep) => {
@@ -45,14 +46,11 @@ describe("getDependencyPaths", () => {
       "mm_updatestpsourcecode.sas",
       "mp_dropmembers.sas",
       "mm_getservercontexts.sas",
-      "mm_getrepos.sas"
+      "mm_getrepos.sas",
+      "mf_trimstr.sas"
     ];
     const dependencyPaths = await getDependencyPaths(fileContent);
     dependencyPaths.forEach((dep) => {
-      console.log(
-        dep,
-        dependenciesList.some((x) => dep.includes(x))
-      );
       expect(dependenciesList.some((x) => dep.includes(x))).toBeTruthy();
     });
     done();
@@ -77,7 +75,8 @@ describe("getDependencyPaths", () => {
       "mf_getuniquelibref.sas",
       "mf_isblank.sas",
       "mf_mval.sas",
-      "mf_getplatform.sas"
+      "mf_getplatform.sas",
+      "mf_trimstr.sas"
     ];
 
     await expect(getDependencyPaths(fileContent)).resolves.not.toThrow();
