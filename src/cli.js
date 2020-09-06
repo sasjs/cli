@@ -151,7 +151,10 @@ export async function cli(args) {
       await buildServices(command.parameters[1])
       break
     case 'deploy':
-      await deployServices(command.parameters[1])
+      await deployServices(
+        command.parameters[1],
+        command.parameters[2] === '-f'
+      )
       break
     case 'db':
       await buildDBs(command.parameters[1])
@@ -160,7 +163,10 @@ export async function cli(args) {
       await compileBuildServices(command.parameters[1])
       break
     case 'compilebuilddeploy':
-      await compileBuildDeployServices(command.parameters[1])
+      await compileBuildDeployServices(
+        command.parameters[1],
+        command.parameters[2] === '-f'
+      )
       break
     case 'help':
       await showHelp()
