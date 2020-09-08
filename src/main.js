@@ -51,15 +51,21 @@ export async function buildServices(targetName) {
       )
     )
     .catch((err) => {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
 
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building services.',
-          message
+        console.log(
+          chalk.redBright(
+            'An error has occurred when building services.',
+            message
+          )
         )
-      )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when building services.', err)
+        )
+      }
     })
 }
 
@@ -75,15 +81,21 @@ export async function compileServices(targetName) {
       )
     )
     .catch((err) => {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
 
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building services.',
-          message
+        console.log(
+          chalk.redBright(
+            'An error has occurred when building services.',
+            message
+          )
         )
-      )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when building services.', err)
+        )
+      }
     })
 }
 
@@ -97,20 +109,26 @@ export async function deployServices(targetName, isForced) {
       )
     )
     .catch((err) => {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-      const status = err.status
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const status = err.status
 
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building services.',
-          `${message}${
-            status === 409
-              ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-              : ''
-          }`
+        console.log(
+          chalk.redBright(
+            'An error has occurred when building services.',
+            `${message}${
+              status === 409
+                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
+                : ''
+            }`
+          )
         )
-      )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when deploying services.', err)
+        )
+      }
     })
 }
 
@@ -150,20 +168,26 @@ export async function compileBuildDeployServices(targetName, isForced) {
       )
     )
     .catch((err) => {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-      const status = err.status
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const status = err.status
 
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building services.',
-          `${message}${
-            status === 409
-              ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-              : ''
-          }`
+        console.log(
+          chalk.redBright(
+            'An error has occurred when building services.',
+            `${message}${
+              status === 409
+                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
+                : ''
+            }`
+          )
         )
-      )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when building services.', err)
+        )
+      }
     })
 }
 
