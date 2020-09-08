@@ -140,7 +140,9 @@ export async function cli(args) {
   }
   switch (command.name) {
     case 'create':
-      const { projectName, appType } = processCreateParameters(command.parameters)
+      const { projectName, appType } = processCreateParameters(
+        command.parameters
+      )
       await createFileStructure(projectName, appType)
       break
     case 'compile':
@@ -261,7 +263,7 @@ function processRunParameters(parameters) {
   }
 }
 
-function invalidSyntax(){
+function invalidSyntax() {
   console.error(
     chalk.redBright(
       `Invalid usage.\nCorrect syntax is ${chalk.cyanBright(
@@ -274,7 +276,7 @@ function invalidSyntax(){
   exit(1)
 }
 
-function invalidAppType(){
+function invalidAppType() {
   console.error(
     chalk.redBright(
       `Invalid web app type.\nSupported types are ${chalk.cyanBright(
@@ -288,32 +290,27 @@ function invalidAppType(){
 function processCreateParameters(parameters) {
   const supportedTypes = ['react', 'angular', 'minimal', 'sasonly']
   let params = { projectName: undefined, appType: undefined }
-  switch (parameters.length){
+  switch (parameters.length) {
     case 1: // sasjs create
-      break;
+      break
     case 2: // sasjs create <app_name>
-      params.projectName = parameters[1];
-      break;
+      params.projectName = parameters[1]
+      break
     case 3: // sasjs create -t <type>
       if (parameters[1] === '-t' || parameters[1] === '--template')
-        params.appType = parameters[2].trim();
-      else
-        invalidSyntax();
-      if (!supportedTypes.includes(params.appType))
-        invalidAppType();
-      break;
+        params.appType = parameters[2].trim()
+      else invalidSyntax()
+      if (!supportedTypes.includes(params.appType)) invalidAppType()
+      break
     case 4: // sasjs create <app_name> -t <type>
-      if (parameters[2] === '-t' || parameters[2] === '--template'){
-        params.projectName = parameters[1];
-        params.appType = parameters[3].trim();
-      }
-      else
-        invalidSyntax();
-      if (!supportedTypes.includes(params.appType))
-        invalidAppType();
-      break;
+      if (parameters[2] === '-t' || parameters[2] === '--template') {
+        params.projectName = parameters[1]
+        params.appType = parameters[3].trim()
+      } else invalidSyntax()
+      if (!supportedTypes.includes(params.appType)) invalidAppType()
+      break
     default:
-    invalidSyntax();
+      invalidSyntax()
   }
-  return params;
+  return params
 }
