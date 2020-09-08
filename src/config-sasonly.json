@@ -1,0 +1,40 @@
+{
+  "folders": [
+    {
+      "folderName": "sasjs",
+      "files": [],
+      "subFolders": [
+        {
+          "folderName": "db"
+        },
+        {
+          "folderName": "build"
+        },
+        {
+          "folderName": "macros"
+        },
+        {
+          "folderName": "services",
+          "files": [],
+          "subFolders": [
+            {
+              "folderName": "common",
+              "files": [
+                {
+                  "fileName": "appinit.sas",
+                  "content": "/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> Dependencies </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "config": {
+    "cmnMacros": ["macros"],
+    "cmnServices": ["services/common"],
+    "useMacroCore": true,
+    "targets": []
+  }
+}

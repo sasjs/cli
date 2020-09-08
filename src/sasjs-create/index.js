@@ -18,8 +18,9 @@ import {
 import chalk from 'chalk'
 
 export async function create(parentFolderName = '.', appType = '') {
-  const config = await getConfiguration(path.join(__dirname, '../config.json'))
-  const fileStructure = await getFileStructure()
+  const configPath = appType === 'sasonly' ? '../config-sasonly.json' : '../config.json'
+  const config = await getConfiguration(path.join(__dirname, configPath))
+  const fileStructure = await getFileStructure(appType === 'sasonly')
   console.log(chalk.greenBright('Creating folders and files...'))
   if (parentFolderName !== '.') {
     await createFolder(path.join(process.projectDir, parentFolderName))
@@ -58,12 +59,12 @@ export async function create(parentFolderName = '.', appType = '') {
     })
   }
 
-  if (!appType) {
+  if (!appType || appType === 'sasonly') {
     await setupNpmProject(parentFolderName)
   }
   await setupGitIgnore(parentFolderName)
 }
 
-async function getFileStructure() {
-  return await getFolders()
+async function getFileStructure(sasOnly = false) {
+  return await getFolders(sasOnly)
 }

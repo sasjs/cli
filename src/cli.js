@@ -286,7 +286,7 @@ function invalidAppType(){
 }
 
 function processCreateParameters(parameters) {
-  const supportedTypes = ['react', 'angular', 'minimal']
+  const supportedTypes = ['react', 'angular', 'minimal', 'sasonly']
   let params = { projectName: undefined, appType: undefined }
   switch (parameters.length){
     case 1: // sasjs create
