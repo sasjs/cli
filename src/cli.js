@@ -281,7 +281,9 @@ function invalidAppType() {
     chalk.redBright(
       `Invalid web app type.\nSupported types are ${chalk.cyanBright(
         'angular'
-      )}, ${chalk.cyanBright('react')} and ${chalk.cyanBright('minimal')}.`
+      )}, ${chalk.cyanBright('react')}, ${chalk.cyanBright(
+        'minimal'
+      )} and ${chalk.cyanBright('sasonly')}.`
     )
   )
   exit(1)

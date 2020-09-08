@@ -70,8 +70,7 @@ async function getLocalConfig() {
   const config = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  if (!config)
-    await create('.', 'sasonly')
+  if (!config) await create('.', 'sasonly')
   return config
 }
 
