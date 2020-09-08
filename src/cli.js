@@ -178,7 +178,7 @@ export async function cli(args) {
       await add(command.parameters[1])
       break
     case 'run':
-      const { filePath, targetName } = command.parameters[1]
+      const { filePath, targetName } = command.parameters
       await run(filePath, targetName)
       break
     default:
