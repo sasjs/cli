@@ -54,11 +54,12 @@ export async function buildServices(targetName) {
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
+        const details = body.details || ''
 
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            message
+            `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {
@@ -84,11 +85,12 @@ export async function compileServices(targetName) {
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
+        const details = body.details || ''
 
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            message
+            `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {
@@ -113,6 +115,7 @@ export async function deployServices(targetName, isForced) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
         const status = err.status
+        const details = body.details || ''
 
         console.log(
           chalk.redBright(
@@ -121,7 +124,7 @@ export async function deployServices(targetName, isForced) {
               status === 409
                 ? '\nIf you still want to deploy, use force flag (-f) after target name.'
                 : ''
-            }`
+            }${details ? '\n' + details : ''}`
           )
         )
       } else {
@@ -172,6 +175,7 @@ export async function compileBuildDeployServices(targetName, isForced) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
         const status = err.status
+        const details = body.details || ''
 
         console.log(
           chalk.redBright(
@@ -180,7 +184,7 @@ export async function compileBuildDeployServices(targetName, isForced) {
               status === 409
                 ? '\nIf you still want to deploy, use force flag (-f) after target name.'
                 : ''
-            }`
+            }${details ? '\n' + details : ''}`
           )
         )
       } else {
