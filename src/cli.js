@@ -140,8 +140,9 @@ export async function cli(args) {
   }
   switch (command.name) {
     case 'create':
-      const projectName = command.parameters[1]
-      const appType = processCreateParameters(command.parameters)
+      const { projectName, appType } = processCreateParameters(
+        command.parameters
+      )
       await createFileStructure(projectName, appType)
       break
     case 'compile':
@@ -184,7 +185,7 @@ export async function cli(args) {
       await add(command.parameters[1])
       break
     case 'run':
-      const { filePath, targetName } = command.parameters[1]
+      const { filePath, targetName } = command.parameters
       await run(filePath, targetName)
       break
     default:
@@ -268,39 +269,56 @@ function processRunParameters(parameters) {
   }
 }
 
+function invalidSyntax() {
+  console.error(
+    chalk.redBright(
+      `Invalid usage.\nCorrect syntax is ${chalk.cyanBright(
+        'sasjs create <app-name> -t <app-type>'
+      )} or ${chalk.cyanBright(
+        'sasjs create <app-name> --template <app-type>'
+      )}.`
+    )
+  )
+  exit(1)
+}
+
+function invalidAppType() {
+  console.error(
+    chalk.redBright(
+      `Invalid web app type.\nSupported types are ${chalk.cyanBright(
+        'angular'
+      )}, ${chalk.cyanBright('react')}, ${chalk.cyanBright(
+        'minimal'
+      )} and ${chalk.cyanBright('sasonly')}.`
+    )
+  )
+  exit(1)
+}
+
 function processCreateParameters(parameters) {
-  const supportedTypes = ['react', 'angular', 'minimal']
-  let type = ''
-  if (
-    parameters.length > 2 &&
-    !(parameters[2] === '-t' || parameters[2] === '--template')
-  ) {
-    console.error(
-      chalk.redBright(
-        `Invalid usage.\nCorrect syntax is ${chalk.cyanBright(
-          'sasjs create <app-name> -t <app-type>'
-        )} or ${chalk.cyanBright(
-          'sasjs create <app-name> --template <app-type>'
-        )}.`
-      )
-    )
-    exit(1)
+  const supportedTypes = ['react', 'angular', 'minimal', 'sasonly']
+  let params = { projectName: undefined, appType: undefined }
+  switch (parameters.length) {
+    case 1: // sasjs create
+      break
+    case 2: // sasjs create <app_name>
+      params.projectName = parameters[1]
+      break
+    case 3: // sasjs create -t <type>
+      if (parameters[1] === '-t' || parameters[1] === '--template')
+        params.appType = parameters[2].trim()
+      else invalidSyntax()
+      if (!supportedTypes.includes(params.appType)) invalidAppType()
+      break
+    case 4: // sasjs create <app_name> -t <type>
+      if (parameters[2] === '-t' || parameters[2] === '--template') {
+        params.projectName = parameters[1]
+        params.appType = parameters[3].trim()
+      } else invalidSyntax()
+      if (!supportedTypes.includes(params.appType)) invalidAppType()
+      break
+    default:
+      invalidSyntax()
   }
-
-  if (parameters.length !== 4) {
-    return type
-  }
-  type = parameters[3].trim()
-  if (!supportedTypes.includes(type)) {
-    console.error(
-      chalk.redBright(
-        `Invalid web app type.\nSupported types are ${chalk.cyanBright(
-          'angular'
-        )}, ${chalk.cyanBright('react')} and ${chalk.cyanBright('minimal')}.`
-      )
-    )
-    exit(1)
-  }
-
-  return type
+  return params
 }

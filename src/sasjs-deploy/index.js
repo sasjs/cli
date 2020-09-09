@@ -27,6 +27,16 @@ export async function deploy(
   if (preTargetToBuild) targetToBuild = preTargetToBuild
   else targetToBuild = await getTargetToBuild(targetName)
 
+  if (targetToBuild.serverType === 'SASVIYA' && !targetToBuild.authInfo) {
+    console.log(
+      chalk.redBright.bold(
+        `Deployment failed. Request is not authenticated.\nRun 'sasjs add' command and provide 'client' and 'secret'.`
+      )
+    )
+
+    return
+  }
+
   if (
     targetToBuild.serverType === 'SASVIYA' &&
     targetToBuild.deployServicePack
