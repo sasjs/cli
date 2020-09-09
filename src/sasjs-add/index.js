@@ -1,3 +1,4 @@
+import { create } from '../sasjs-create'
 import { getUserInput } from '../utils/input-utils'
 import chalk from 'chalk'
 import path from 'path'
@@ -69,6 +70,7 @@ async function getLocalConfig() {
   const config = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+  if (!config) await create('.', 'sasonly')
   return config
 }
 
