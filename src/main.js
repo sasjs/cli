@@ -8,6 +8,7 @@ import { createWebAppServices } from './sasjs-web'
 import { addTarget } from './sasjs-add'
 import { getContexts } from './sasjs-listcontexts'
 import { runSasCode } from './sasjs-run'
+import { processContext } from './sasjs-context'
 import chalk from 'chalk'
 
 export async function createFileStructure(parentFolderName, appType) {
@@ -298,4 +299,17 @@ export async function run(filePath, targetName) {
       chalk.redBright('An error has occurred when running your SAS code', err)
     )
   })
+}
+
+export async function context(command) {
+  if (!command)
+    console.log(
+      chalk.redBright(`Please provide action for the 'context' command.`)
+    )
+
+  await processContext(command).catch((err) =>
+    console.log(
+      chalk.redBright('An error has occurred when processing context.', err)
+    )
+  )
 }

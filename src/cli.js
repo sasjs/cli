@@ -11,7 +11,8 @@ import {
   buildWebApp,
   listContexts,
   add,
-  run
+  run,
+  context
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -97,6 +98,8 @@ function getUnaliasedCommand(command) {
   if (command === 'run' || command === 'r') {
     return 'run'
   }
+
+  if (command === 'context') return 'context'
 
   return command
 }
@@ -187,6 +190,9 @@ export async function cli(args) {
     case 'run':
       const { filePath, targetName } = command.parameters
       await run(filePath, targetName)
+      break
+    case 'context':
+      await context(command.parameters[1])
       break
     default:
       showInvalidCommandText()
