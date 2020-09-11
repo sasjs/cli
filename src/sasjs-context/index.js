@@ -45,7 +45,7 @@ export async function processContext(command) {
       break
     case 'delete':
       validationMap = {
-        contextId: ''
+        name: ''
       }
 
       validateConfig(config, validationMap)
@@ -256,10 +256,10 @@ async function remove(config, target) {
   })
 
   const accessToken = target.authInfo.access_token
-  const { contextId } = config
+  const { name } = config
 
   const deletedContext = await sasjs
-    .deleteContext(contextId, accessToken)
+    .deleteContext(name, accessToken)
     .catch((err) => {
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
@@ -268,14 +268,14 @@ async function remove(config, target) {
 
         console.log(
           chalk.redBright(
-            `An error has occurred when deleting context ${contextId}.`,
+            `An error has occurred when deleting context '${name}'.`,
             `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {
         console.log(
           chalk.redBright(
-            `An error has occurred when deleting context ${contextId}.`,
+            `An error has occurred when deleting context '${name}'.`,
             err
           )
         )
@@ -284,9 +284,7 @@ async function remove(config, target) {
 
   if (deletedContext) {
     console.log(
-      chalk.greenBright.bold.italic(
-        `Context with id '${contextId}' has been deleted!`
-      )
+      chalk.greenBright.bold.italic(`Context '${name}' has been deleted!`)
     )
   }
 }
