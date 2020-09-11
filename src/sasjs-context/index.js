@@ -10,14 +10,42 @@ export async function processContext(command) {
   const configPath = await getAndValidateConfigPath()
   const config = await readFile(configPath)
 
-  validateConfig(config)
-  const parsedConfig = JSON.parse(config)
+  let validationMap = {}
+  let parsedConfig = {}
 
   switch (command) {
     case 'create':
+      validationMap = {
+        name: '',
+        launchName: '',
+        sharedAccountId: '',
+        autoExecLines: [],
+        authorizedUsers: []
+      }
+
+      validateConfig(config, validationMap)
+
+      parsedConfig = JSON.parse(config)
+
       create(parsedConfig, target)
+
+      break
+    case 'edit':
+      validationMap = {
+        contextId: '',
+        updatedContext: {}
+      }
+
+      validateConfig(config, validationMap)
+
+      parsedConfig = JSON.parse(config)
+
+      edit(parsedConfig, target)
+
       break
     default:
+      console.log(chalk.redBright('Not supported context command.'))
+
       break
   }
 }
@@ -61,29 +89,32 @@ async function getAndValidateConfigPath() {
   return await getAndValidateField(nameField, validator, message)
 }
 
-function validateConfig(config) {
+function validateConfig(config, configKeys) {
   const validationErrorType = 'validation'
 
   try {
     const parsedConfig = JSON.parse(config)
-    const configKeys = [
-      'name',
-      'launchName',
-      'sharedAccountId',
-      'autoExecLines',
-      'authorizedUsers'
-    ]
     const missedKeys = []
 
-    for (const requiredKey of configKeys) {
-      if (!parsedConfig.hasOwnProperty(requiredKey))
+    for (const requiredKey of Object.keys(configKeys)) {
+      if (!parsedConfig.hasOwnProperty(requiredKey)) {
         missedKeys.push(requiredKey)
+      } else if (
+        typeof parsedConfig[requiredKey] !== typeof configKeys[requiredKey]
+      ) {
+        missedKeys.push(requiredKey)
+      } else if (
+        Array.isArray(parsedConfig[requiredKey]) !==
+        Array.isArray(configKeys[requiredKey])
+      ) {
+        missedKeys.push(requiredKey)
+      }
     }
 
     if (missedKeys.length) {
       const error = {
         type: validationErrorType,
-        message: `Context config file doesn't have all required keys. Required keys missed:\n${missedKeys.join(
+        message: `Context config file doesn't have all required keys or value is not valid. Please check:\n${missedKeys.join(
           '\n'
         )}`
       }
@@ -151,10 +182,7 @@ async function create(config, target) {
         )
       } else {
         console.log(
-          chalk.redBright(
-            'AAn error has occurred when processing context.',
-            err
-          )
+          chalk.redBright('An error has occurred when processing context.', err)
         )
       }
     })
@@ -162,6 +190,47 @@ async function create(config, target) {
   if (createdContext) {
     console.log(
       chalk.greenBright.bold.italic(`Context '${name}' successfully created!`)
+    )
+  }
+}
+
+async function edit(config, target) {
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType
+  })
+
+  const accessToken = target.authInfo.access_token
+  const { contextId, updatedContext } = config
+
+  const editedContext = await sasjs
+    .editContext(contextId, updatedContext, accessToken)
+    .catch((err) => {
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const details = body.details || ''
+
+        console.log(
+          chalk.redBright(
+            'An error has occurred when processing context.',
+            `${message}${details ? '\n' + details : ''}`
+          )
+        )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when processing context.', err)
+        )
+      }
+    })
+
+  if (editedContext) {
+    const editedContextName = editedContext.result.name || ''
+
+    console.log(
+      chalk.greenBright.bold.italic(
+        `Context '${editedContextName}' successfully updated!`
+      )
     )
   }
 }
