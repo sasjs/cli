@@ -202,7 +202,7 @@ async function create(config, target) {
   if (createdContext) {
     console.log(
       chalk.greenBright.bold.italic(
-        `Context '${name}' with an id '${createdContext.id}' successfully created !`
+        `Context '${name}' with id '${createdContext.id}' successfully created !`
       )
     )
   }
@@ -282,7 +282,7 @@ async function remove(config, target) {
   if (deletedContext) {
     console.log(
       chalk.greenBright.bold.italic(
-        `Context with an id '${contextId}' has been deleted!`
+        `Context with id '${contextId}' has been deleted!`
       )
     )
   }
