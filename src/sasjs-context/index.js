@@ -5,6 +5,14 @@ import { getBuildTargets } from '../utils/config-utils'
 import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(command) {
+  const commands = ['create', 'edit', 'delete']
+
+  if (!commands.includes(command)) {
+    console.log(chalk.redBright('Not supported context command.'))
+
+    return
+  }
+
   const targetName = await getAndValidateTargetName()
   const target = await getTarget(targetName)
   const configPath = await getAndValidateConfigPath()
@@ -14,7 +22,7 @@ export async function processContext(command) {
   let parsedConfig = {}
 
   switch (command) {
-    case 'create':
+    case commands[0]:
       validationMap = {
         name: '',
         launchName: '',
@@ -30,9 +38,9 @@ export async function processContext(command) {
       create(parsedConfig, target)
 
       break
-    case 'edit':
+    case commands[1]:
       validationMap = {
-        contextId: '',
+        name: '',
         updatedContext: {}
       }
 
@@ -43,9 +51,19 @@ export async function processContext(command) {
       edit(parsedConfig, target)
 
       break
-    default:
-      console.log(chalk.redBright('Not supported context command.'))
+    case commands[2]:
+      validationMap = {
+        name: ''
+      }
 
+      validateConfig(config, validationMap)
+
+      parsedConfig = JSON.parse(config)
+
+      remove(parsedConfig, target)
+
+      break
+    default:
       break
   }
 }
@@ -169,27 +187,14 @@ async function create(config, target) {
       accessToken
     )
     .catch((err) => {
-      if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const details = body.details || ''
-
-        console.log(
-          chalk.redBright(
-            'An error has occurred when processing context.',
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } else {
-        console.log(
-          chalk.redBright('An error has occurred when processing context.', err)
-        )
-      }
+      displayResult(err, 'An error has occurred when processing context.', null)
     })
 
   if (createdContext) {
-    console.log(
-      chalk.greenBright.bold.italic(`Context '${name}' successfully created!`)
+    displayResult(
+      null,
+      null,
+      `Context '${name}' with id '${createdContext.id}' successfully created!`
     )
   }
 }
@@ -201,37 +206,46 @@ async function edit(config, target) {
   })
 
   const accessToken = target.authInfo.access_token
-  const { contextId, updatedContext } = config
+  const { name, updatedContext } = config
 
   const editedContext = await sasjs
-    .editContext(contextId, updatedContext, accessToken)
+    .editContext(name, updatedContext, accessToken)
     .catch((err) => {
-      if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const details = body.details || ''
-
-        console.log(
-          chalk.redBright(
-            'An error has occurred when processing context.',
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } else {
-        console.log(
-          chalk.redBright('An error has occurred when processing context.', err)
-        )
-      }
+      displayResult(err, 'An error has occurred when processing context.', null)
     })
 
   if (editedContext) {
     const editedContextName = editedContext.result.name || ''
 
-    console.log(
-      chalk.greenBright.bold.italic(
-        `Context '${editedContextName}' successfully updated!`
-      )
+    displayResult(
+      null,
+      null,
+      `Context '${editedContextName}' successfully updated!`
     )
+  }
+}
+
+async function remove(config, target) {
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType
+  })
+
+  const accessToken = target.authInfo.access_token
+  const { name } = config
+
+  const deletedContext = await sasjs
+    .deleteContext(name, accessToken)
+    .catch((err) => {
+      displayResult(
+        err,
+        `An error has occurred when deleting context '${name}'.`,
+        null
+      )
+    })
+
+  if (deletedContext) {
+    displayResult(null, null, `Context '${name}' has been deleted!`)
   }
 }
 
@@ -246,4 +260,27 @@ async function getAndValidateField(field, validator, message) {
   }
 
   return input[field.name]
+}
+
+function displayResult(err, failureMessage, successMessage) {
+  if (err) {
+    if (err.hasOwnProperty('body')) {
+      const body = JSON.parse(err.body)
+      const message = body.message || ''
+      const details = body.details || ''
+
+      console.log(
+        chalk.redBright(
+          failureMessage,
+          `${message}${details ? '\n' + details : ''}`
+        )
+      )
+    } else {
+      console.log(chalk.redBright(failureMessage, err))
+    }
+  }
+
+  if (successMessage) {
+    console.log(chalk.greenBright.bold.italic(successMessage))
+  }
 }
