@@ -40,7 +40,7 @@ export async function processContext(command) {
       break
     case commands[1]:
       validationMap = {
-        contextId: '',
+        name: '',
         updatedContext: {}
       }
 
@@ -206,10 +206,10 @@ async function edit(config, target) {
   })
 
   const accessToken = target.authInfo.access_token
-  const { contextId, updatedContext } = config
+  const { name, updatedContext } = config
 
   const editedContext = await sasjs
-    .editContext(contextId, updatedContext, accessToken)
+    .editContext(name, updatedContext, accessToken)
     .catch((err) => {
       displayResult(err, 'An error has occurred when processing context.', null)
     })
