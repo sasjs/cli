@@ -113,6 +113,10 @@ export async function printHelpText() {
     )} - Lets the user run a given SAS file against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
 
+    * ${chalk.greenBright(
+      'request <sasJob> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
+    )} - Lets the user run a SAS job against a specified target.
+    The target can exist either in the local project configuration or in the global .sasjsrc file.
 
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
@@ -137,5 +141,6 @@ export async function printHelpText() {
     * ${chalk.greenBright('listcontexts')}, ${chalk.cyanBright('lc')},
     * ${chalk.greenBright('add')}, ${chalk.cyanBright('a')}
     * ${chalk.greenBright('run')}, ${chalk.cyanBright('r')}
+    * ${chalk.greenBright('request')}, ${chalk.cyanBright('rq')}
   `)
 }

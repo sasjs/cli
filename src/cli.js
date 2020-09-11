@@ -12,6 +12,7 @@ import {
   listContexts,
   add,
   run,
+  runRequest,
   context
 } from './main'
 import { fileExists } from './utils/file-utils'
@@ -21,13 +22,22 @@ import { exit } from 'process'
 
 function parseCommand(rawArgs) {
   checkNodeVersion()
+
   const args = rawArgs.slice(2)
+
   if (args.length) {
     const name = getUnaliasedCommand(args[0])
-    if (name === 'run') {
-      const parameters = processRunParameters(args.slice(1))
-      return { name, parameters }
+    let parameters
+
+    switch (name) {
+      case 'run':
+        parameters = processRunParameters(args.slice(1))
+        return { name, parameters }
+      case 'request':
+        parameters = processRequestParameters(args.slice(1))
+        return { name, parameters }
     }
+
     return { name, parameters: args }
   }
   return null
@@ -99,6 +109,10 @@ function getUnaliasedCommand(command) {
     return 'run'
   }
 
+  if (command === 'request' || command === 'rq') {
+    return 'request'
+  }
+
   if (command === 'context') return 'context'
 
   return command
@@ -142,58 +156,83 @@ export async function cli(args) {
       break
   }
   switch (command.name) {
-    case 'create':
+    case 'create': {
       const { projectName, appType } = processCreateParameters(
         command.parameters
       )
       await createFileStructure(projectName, appType)
       break
-    case 'compile':
+    }
+    case 'compile': {
       await compileServices(command.parameters[1])
       break
-    case 'build':
+    }
+    case 'build': {
       await buildServices(command.parameters[1])
       break
-    case 'deploy':
+    }
+    case 'deploy': {
       await deployServices(
         command.parameters[1],
         command.parameters[2] === '-f'
       )
       break
-    case 'db':
+    }
+    case 'db': {
       await buildDBs(command.parameters[1])
       break
-    case 'compilebuild':
+    }
+    case 'compilebuild': {
       await compileBuildServices(command.parameters[1])
       break
-    case 'compilebuilddeploy':
+    }
+    case 'compilebuilddeploy': {
       await compileBuildDeployServices(
         command.parameters[1],
         command.parameters[2] === '-f'
       )
       break
-    case 'help':
+    }
+    case 'help': {
       await showHelp()
       break
-    case 'version':
+    }
+    case 'version': {
       await showVersion()
       break
-    case 'web':
+    }
+    case 'web': {
       await buildWebApp(command.parameters[1])
       break
-    case 'listcontexts':
+    }
+    case 'listcontexts': {
       await listContexts(command.parameters[1])
       break
-    case 'add':
+    }
+    case 'add': {
       await add(command.parameters[1])
       break
-    case 'run':
+    }
+    case 'run': {
       const { filePath, targetName } = command.parameters
       await run(filePath, targetName)
       break
-    case 'context':
+    }
+    case 'request': {
+      const {
+        sasJobLocation,
+        dataFilePath,
+        configFilePath,
+        targetName
+      } = command.parameters
+
+      await runRequest(sasJobLocation, dataFilePath, configFilePath, targetName)
+      break
+    }
+    case 'context': {
       await context(command.parameters[1])
       break
+    }
     default:
       showInvalidCommandText()
       break
@@ -269,9 +308,50 @@ function processRunParameters(parameters) {
     )
   }
 
+  let targetName
+
+  let indexOfTargetFileFlag = parameters.indexOf('-t')
+  if (indexOfTargetFileFlag > -1)
+    targetName = parameters[indexOfTargetFileFlag + 1]
+
   return {
     filePath: parameters[0],
-    targetName: parameters.length === 3 ? parameters[2] : 'default'
+    targetName
+  }
+}
+
+function processRequestParameters(parameters) {
+  let invalidSyntaxError =
+    'Invalid syntax.\nPlease use `sasjs request <path/to/sasJob> -t <targetName>` or `sasjs request <path/to/sasJob> -d <path/to/datafile> -t <targetName>` or `sasjs request <path/to/sasJob> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
+
+  if (!parameters) {
+    throw new Error(invalidSyntaxError)
+  }
+
+  if (!parameters.length || parameters.length > 7) {
+    throw new Error(invalidSyntaxError)
+  }
+
+  let sasJobLocation = parameters[0] || 'default'
+  let dataFilePath = 'default'
+  let configFilePath = 'default'
+  let targetName = 'default'
+
+  let indexOfDataFlag = parameters.indexOf('-d')
+  if (indexOfDataFlag > -1) dataFilePath = parameters[indexOfDataFlag + 1]
+
+  let indexOfConfigFlag = parameters.indexOf('-c')
+  if (indexOfConfigFlag > -1) configFilePath = parameters[indexOfConfigFlag + 1]
+
+  let indexOfTargetFileFlag = parameters.indexOf('-t')
+  if (indexOfTargetFileFlag > -1)
+    targetName = parameters[indexOfTargetFileFlag + 1]
+
+  return {
+    sasJobLocation,
+    dataFilePath,
+    configFilePath,
+    targetName
   }
 }
 

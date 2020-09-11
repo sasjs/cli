@@ -8,6 +8,7 @@ import { createWebAppServices } from './sasjs-web'
 import { addTarget } from './sasjs-add'
 import { getContexts } from './sasjs-listcontexts'
 import { runSasCode } from './sasjs-run'
+import { runSasJob } from './sasjs-request'
 import { processContext } from './sasjs-context'
 import chalk from 'chalk'
 
@@ -297,6 +298,24 @@ export async function run(filePath, targetName) {
   await runSasCode(filePath, targetName).catch((err) => {
     console.log(
       chalk.redBright('An error has occurred when running your SAS code', err)
+    )
+  })
+}
+
+export async function runRequest(
+  sasJobLocation,
+  dataFilePath,
+  configFilePath,
+  targetName
+) {
+  await runSasJob(
+    sasJobLocation,
+    dataFilePath,
+    configFilePath,
+    targetName
+  ).catch((err) => {
+    console.log(
+      chalk.redBright('An error has occurred when running your SAS job', err)
     )
   })
 }
