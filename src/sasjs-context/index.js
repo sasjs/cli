@@ -43,6 +43,18 @@ export async function processContext(command) {
       edit(parsedConfig, target)
 
       break
+    case 'delete':
+      validationMap = {
+        contextId: ''
+      }
+
+      validateConfig(config, validationMap)
+
+      parsedConfig = JSON.parse(config)
+
+      remove(parsedConfig, target)
+
+      break
     default:
       console.log(chalk.redBright('Not supported context command.'))
 
@@ -189,7 +201,9 @@ async function create(config, target) {
 
   if (createdContext) {
     console.log(
-      chalk.greenBright.bold.italic(`Context '${name}' successfully created!`)
+      chalk.greenBright.bold.italic(
+        `Context '${name}' with an id '${createdContext.id}' successfully created !`
+      )
     )
   }
 }
@@ -230,6 +244,45 @@ async function edit(config, target) {
     console.log(
       chalk.greenBright.bold.italic(
         `Context '${editedContextName}' successfully updated!`
+      )
+    )
+  }
+}
+
+async function remove(config, target) {
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType
+  })
+
+  const accessToken = target.authInfo.access_token
+  const { contextId } = config
+
+  const deletedContext = await sasjs
+    .deleteContext(contextId, accessToken)
+    .catch((err) => {
+      if (err.hasOwnProperty('body')) {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const details = body.details || ''
+
+        console.log(
+          chalk.redBright(
+            'An error has occurred when processing context.',
+            `${message}${details ? '\n' + details : ''}`
+          )
+        )
+      } else {
+        console.log(
+          chalk.redBright('An error has occurred when processing context.', err)
+        )
+      }
+    })
+
+  if (deletedContext) {
+    console.log(
+      chalk.greenBright.bold.italic(
+        `Context with an id '${contextId}' has been deleted!`
       )
     )
   }
