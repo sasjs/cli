@@ -268,13 +268,16 @@ async function remove(config, target) {
 
         console.log(
           chalk.redBright(
-            'An error has occurred when processing context.',
+            `An error has occurred when deleting context ${contextId}.`,
             `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when processing context.', err)
+          chalk.redBright(
+            `An error has occurred when deleting context ${contextId}.`,
+            err
+          )
         )
       }
     })
