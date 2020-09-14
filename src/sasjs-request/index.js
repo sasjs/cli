@@ -1,10 +1,10 @@
-import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { findTargetInConfiguration } from '../utils/config-utils'
 import { readFile } from '../utils/file-utils'
 import { getVariable } from '../utils/utils'
 import { getAccessToken } from '../utils/auth-utils'
+import { displayResult } from '../utils/displayResult'
 
 export async function runSasJob(
   sasJobLocation,
@@ -51,8 +51,7 @@ export async function runSasJob(
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
-    serverType: target.serverType,
-    useComputeApi: true
+    serverType: target.serverType
   })
 
   const clientId = await getVariable('client', target)
@@ -88,16 +87,16 @@ export async function runSasJob(
       data,
       configJson,
       () => {
-        chalk.redBright(`Login callback called. Request failed.`)
+        displayResult(null, 'Login callback called. Request failed.', null)
       },
       accessToken
     )
     .then(
       (res) => {
-        console.log('Request finish', res)
+        displayResult(null, null, 'Request finished.')
       },
       (err) => {
-        chalk.redBright(`Login callback called. Request failed. ${err}`)
+        displayResult(err, 'And error occurred while executing the request.', null)
       }
     )
 }
