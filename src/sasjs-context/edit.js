@@ -1,5 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
+import { getAccessToken } from '../utils/config-utils'
 
 export async function edit(config, target) {
   const sasjs = new SASjs({
@@ -7,7 +8,7 @@ export async function edit(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = target.authInfo.access_token
+  const accessToken = getAccessToken(target)
   const { name, updatedContext } = config
 
   const editedContext = await sasjs

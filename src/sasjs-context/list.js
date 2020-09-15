@@ -2,6 +2,7 @@ import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
+import { getAccessToken } from '../utils/config-utils'
 
 export async function list(target) {
   if (target.serverType !== 'SASVIYA') {
@@ -11,7 +12,7 @@ export async function list(target) {
   }
 
   const startTime = new Date().getTime()
-  const accessToken = target.authInfo.access_token
+  const accessToken = getAccessToken(target)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
