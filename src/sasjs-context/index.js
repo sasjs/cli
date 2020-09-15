@@ -168,7 +168,15 @@ async function create(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = target.authInfo.access_token
+  const accessToken =
+    target && target.authInfo
+      ? target.authInfo.access_token
+      : process.env.access_token
+
+  if (!accessToken) {
+    throw new Error(`A valid access token was not found.
+    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
+  }
   const {
     name,
     launchName,
@@ -265,16 +273,21 @@ async function getAndValidateField(field, validator, message) {
 function displayResult(err, failureMessage, successMessage) {
   if (err) {
     if (err.hasOwnProperty('body')) {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-      const details = body.details || ''
+      try {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const details = body.details || ''
 
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          `${message}${details ? '\n' + details : ''}`
+        console.log(
+          chalk.redBright(
+            failureMessage,
+            `${message}${details ? '\n' + details : ''}`
+          )
         )
-      )
+      } catch (parseError) {
+        console.log(chalk.redBright('Unable to parse error\n', parseError))
+        console.log(chalk.redBright(failureMessage, err.body))
+      }
     } else {
       console.log(chalk.redBright(failureMessage, err))
     }
