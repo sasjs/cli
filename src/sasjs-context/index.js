@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { getUserInput } from '../utils/input-utils'
 import { fileExists, readFile } from '../utils/file-utils'
-import { getBuildTargets } from '../utils/config-utils'
+import { getBuildTargets, getAccessToken } from '../utils/config-utils'
 import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(command) {
@@ -168,7 +168,8 @@ async function create(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = target.authInfo.access_token
+  const accessToken = getAccessToken(target)
+
   const {
     name,
     launchName,
@@ -205,7 +206,8 @@ async function edit(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = target.authInfo.access_token
+  const accessToken = getAccessToken(target)
+
   const { name, updatedContext } = config
 
   const editedContext = await sasjs
@@ -231,7 +233,8 @@ async function remove(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = target.authInfo.access_token
+  const accessToken = getAccessToken(target)
+
   const { name } = config
 
   const deletedContext = await sasjs
@@ -265,16 +268,21 @@ async function getAndValidateField(field, validator, message) {
 function displayResult(err, failureMessage, successMessage) {
   if (err) {
     if (err.hasOwnProperty('body')) {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-      const details = body.details || ''
+      try {
+        const body = JSON.parse(err.body)
+        const message = body.message || ''
+        const details = body.details || ''
 
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          `${message}${details ? '\n' + details : ''}`
+        console.log(
+          chalk.redBright(
+            failureMessage,
+            `${message}${details ? '\n' + details : ''}`
+          )
         )
-      )
+      } catch (parseError) {
+        console.log(chalk.redBright('Unable to parse error\n', parseError))
+        console.log(chalk.redBright(failureMessage, err.body))
+      }
     } else {
       console.log(chalk.redBright(failureMessage, err))
     }
