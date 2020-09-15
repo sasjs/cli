@@ -168,15 +168,7 @@ async function create(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken =
-    target && target.authInfo
-      ? target.authInfo.access_token
-      : process.env.access_token
-
-  if (!accessToken) {
-    throw new Error(`A valid access token was not found.
-    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
-  }
+  const accessToken = getAccessToken(target)
 
   const {
     name,
@@ -214,15 +206,7 @@ async function edit(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken =
-    target && target.authInfo
-      ? target.authInfo.access_token
-      : process.env.access_token
-
-  if (!accessToken) {
-    throw new Error(`A valid access token was not found.
-    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
-  }
+  const accessToken = getAccessToken(target)
 
   const { name, updatedContext } = config
 
@@ -249,15 +233,7 @@ async function remove(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken =
-    target && target.authInfo
-      ? target.authInfo.access_token
-      : process.env.access_token
-
-  if (!accessToken) {
-    throw new Error(`A valid access token was not found.
-    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
-  }
+  const accessToken = getAccessToken(target)
 
   const { name } = config
 
@@ -315,4 +291,18 @@ function displayResult(err, failureMessage, successMessage) {
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
   }
+}
+
+function getAccessToken(target) {
+  const accessToken =
+    target && target.authInfo
+      ? target.authInfo.access_token
+      : process.env.access_token
+
+  if (!accessToken) {
+    throw new Error(`A valid access token was not found.
+    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
+  }
+
+  return accessToken
 }
