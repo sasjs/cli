@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { getUserInput } from '../utils/input-utils'
 import { fileExists, readFile } from '../utils/file-utils'
-import { getBuildTargets } from '../utils/config-utils'
+import { getBuildTargets, getAccessToken } from '../utils/config-utils'
 import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(command) {
@@ -291,18 +291,4 @@ function displayResult(err, failureMessage, successMessage) {
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
   }
-}
-
-function getAccessToken(target) {
-  const accessToken =
-    target && target.authInfo
-      ? target.authInfo.access_token
-      : process.env.access_token
-
-  if (!accessToken) {
-    throw new Error(`A valid access token was not found.
-    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration.`)
-  }
-
-  return accessToken
 }
