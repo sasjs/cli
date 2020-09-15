@@ -9,7 +9,6 @@ import {
   showHelp,
   showVersion,
   buildWebApp,
-  listContexts,
   add,
   run,
   context
@@ -85,10 +84,6 @@ function getUnaliasedCommand(command) {
   }
   if (command === 'web' || command === 'w') {
     return 'web'
-  }
-
-  if (command === 'listcontexts' || command === 'lc') {
-    return 'listcontexts'
   }
 
   if (command === 'add' || command === 'a') {
@@ -180,9 +175,6 @@ export async function cli(args) {
       break
     case 'web':
       await buildWebApp(command.parameters[1])
-      break
-    case 'listcontexts':
-      await listContexts(command.parameters[1])
       break
     case 'add':
       await add(command.parameters[1])
