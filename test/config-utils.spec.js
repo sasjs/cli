@@ -5,6 +5,10 @@ describe('Config Utils', () => {
     process.env.access_token = null
   })
 
+  afterEach(() => {
+    process.env.access_token = null
+  })
+
   describe('getAccessToken', () => {
     test('should get access token from authInfo', () => {
       const target = {
