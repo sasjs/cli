@@ -28,44 +28,62 @@ export async function list(target) {
 
   spinner.start()
 
-  const contexts = await sasjs.getExecutableContexts(accessToken)
-  const accessibleContexts = contexts.map((context) => ({
-    createdBy: context.createdBy,
-    id: context.id,
-    name: context.name,
-    version: context.version,
-    sysUserId: context.attributes.sysUserId
-  }))
-  const accessibleContextIds = contexts.map((context) => context.id)
+  const contexts = await sasjs
+    .getExecutableContexts(accessToken)
+    .catch((err) => {
+      displayResult(
+        err,
+        'An error has occurred when fetching contexts list.',
+        null
+      )
+    })
 
-  const allContexts = await sasjs.getAllContexts(accessToken)
-  const inaccessibleContexts = allContexts
-    .filter((context) => !accessibleContextIds.includes(context.id))
-    .map((context) => ({
+  if (contexts) {
+    const accessibleContexts = contexts.map((context) => ({
       createdBy: context.createdBy,
       id: context.id,
       name: context.name,
       version: context.version,
-      sysUserId: 'NOT ACCESSIBLE'
+      sysUserId: context.attributes.sysUserId
     }))
+    const accessibleContextIds = contexts.map((context) => context.id)
 
-  const endTime = new Date().getTime()
+    const allContexts = await sasjs.getAllContexts(accessToken).catch((err) => {
+      displayResult(
+        err,
+        'An error has occurred when fetching contexts list.',
+        null
+      )
+    })
+
+    const inaccessibleContexts = allContexts
+      .filter((context) => !accessibleContextIds.includes(context.id))
+      .map((context) => ({
+        createdBy: context.createdBy,
+        id: context.id,
+        name: context.name,
+        version: context.version,
+        sysUserId: 'NOT ACCESSIBLE'
+      }))
+
+    displayResult(
+      null,
+      null,
+      'Accessible contexts:\n' +
+        accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
+    )
+
+    displayResult(
+      null,
+      null,
+      'Inaccessible contexts:\n' +
+        inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
+    )
+  }
 
   spinner.stop()
 
-  displayResult(
-    null,
-    null,
-    'Accessible contexts:\n' +
-      accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
-  )
-
-  displayResult(
-    null,
-    null,
-    'Inaccessible contexts:\n' +
-      inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
-  )
+  const endTime = new Date().getTime()
 
   console.log(
     chalk.whiteBright(
