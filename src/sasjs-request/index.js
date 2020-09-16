@@ -96,7 +96,11 @@ export async function runSasJob(
         displayResult(null, null, 'Request finished.')
       },
       (err) => {
-        displayResult(err, 'And error occurred while executing the request.', null)
+        displayResult(
+          err,
+          'And error occurred while executing the request.',
+          null
+        )
       }
     )
 }
