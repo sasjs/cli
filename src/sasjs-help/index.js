@@ -98,8 +98,21 @@ export async function printHelpText() {
       NOTE: If no target name is specified/matched, it will build the first target present in config.json.
 
     * ${chalk.greenBright(
-      'listcontexts <targetName>'
-    )} - displays a list of executable compute contexts for the given build target.
+      'context <command>'
+    )} - performs operations on contexts.
+        * ${chalk.cyanBright('create')} - creates new context.
+          1) Provide target name.
+          2) Provide path to context config file (eg. ./contextConfig.json).
+        * ${chalk.cyanBright('edit')} - edits existing context.
+          1) Provide target name.
+          2) Provide path to context config file (eg. ./contextConfig.json).
+        * ${chalk.cyanBright('remove')} - removes existing context.
+          1) Provide target name.
+          2) Provide path to context config file (eg. ./contextConfig.json).
+        * ${chalk.cyanBright(
+          'list'
+        )} - lists all accessible and inaccessible contexts.
+          1) Provide target name.
 
       NOTE: This operation is only supported for SAS Viya build targets.
 

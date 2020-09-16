@@ -1,13 +1,21 @@
 import chalk from 'chalk'
+import { create } from './create'
+import { edit } from './edit'
+import { remove } from './remove'
+import { list } from './list'
 import { getUserInput } from '../utils/input-utils'
 import { fileExists, readFile } from '../utils/file-utils'
 import { getBuildTargets } from '../utils/config-utils'
-import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(command) {
-  const commands = ['create', 'edit', 'delete']
+  const commands = {
+    create: 'create',
+    edit: 'edit',
+    delete: 'delete',
+    list: 'list'
+  }
 
-  if (!commands.includes(command)) {
+  if (!commands.hasOwnProperty(command)) {
     console.log(chalk.redBright('Not supported context command.'))
 
     return
@@ -15,14 +23,20 @@ export async function processContext(command) {
 
   const targetName = await getAndValidateTargetName()
   const target = await getTarget(targetName)
-  const configPath = await getAndValidateConfigPath()
-  const config = await readFile(configPath)
+
+  let configPath
+  let config
+
+  if (command !== commands.list) {
+    configPath = await getAndValidateConfigPath()
+    config = await readFile(configPath)
+  }
 
   let validationMap = {}
   let parsedConfig = {}
 
   switch (command) {
-    case commands[0]:
+    case commands.create:
       validationMap = {
         name: '',
         launchName: '',
@@ -38,7 +52,7 @@ export async function processContext(command) {
       create(parsedConfig, target)
 
       break
-    case commands[1]:
+    case commands.edit:
       validationMap = {
         name: '',
         updatedContext: {}
@@ -51,7 +65,7 @@ export async function processContext(command) {
       edit(parsedConfig, target)
 
       break
-    case commands[2]:
+    case commands.delete:
       validationMap = {
         name: ''
       }
@@ -61,6 +75,10 @@ export async function processContext(command) {
       parsedConfig = JSON.parse(config)
 
       remove(parsedConfig, target)
+
+      break
+    case commands.list:
+      list(target)
 
       break
     default:
@@ -162,93 +180,6 @@ async function getAndValidateTargetName() {
   return await getAndValidateField(nameField, validator, message)
 }
 
-async function create(config, target) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = target.authInfo.access_token
-  const {
-    name,
-    launchName,
-    sharedAccountId,
-    autoExecLines,
-    authorizedUsers
-  } = config
-
-  const createdContext = await sasjs
-    .createContext(
-      name,
-      launchName,
-      sharedAccountId,
-      autoExecLines,
-      authorizedUsers,
-      accessToken
-    )
-    .catch((err) => {
-      displayResult(err, 'An error has occurred when processing context.', null)
-    })
-
-  if (createdContext) {
-    displayResult(
-      null,
-      null,
-      `Context '${name}' with id '${createdContext.id}' successfully created!`
-    )
-  }
-}
-
-async function edit(config, target) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = target.authInfo.access_token
-  const { name, updatedContext } = config
-
-  const editedContext = await sasjs
-    .editContext(name, updatedContext, accessToken)
-    .catch((err) => {
-      displayResult(err, 'An error has occurred when processing context.', null)
-    })
-
-  if (editedContext) {
-    const editedContextName = editedContext.result.name || ''
-
-    displayResult(
-      null,
-      null,
-      `Context '${editedContextName}' successfully updated!`
-    )
-  }
-}
-
-async function remove(config, target) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = target.authInfo.access_token
-  const { name } = config
-
-  const deletedContext = await sasjs
-    .deleteContext(name, accessToken)
-    .catch((err) => {
-      displayResult(
-        err,
-        `An error has occurred when deleting context '${name}'.`,
-        null
-      )
-    })
-
-  if (deletedContext) {
-    displayResult(null, null, `Context '${name}' has been deleted!`)
-  }
-}
-
 async function getAndValidateField(field, validator, message) {
   const input = await getUserInput([field])
   const isValid = await validator(input[field.name])
@@ -260,27 +191,4 @@ async function getAndValidateField(field, validator, message) {
   }
 
   return input[field.name]
-}
-
-function displayResult(err, failureMessage, successMessage) {
-  if (err) {
-    if (err.hasOwnProperty('body')) {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-      const details = body.details || ''
-
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          `${message}${details ? '\n' + details : ''}`
-        )
-      )
-    } else {
-      console.log(chalk.redBright(failureMessage, err))
-    }
-  }
-
-  if (successMessage) {
-    console.log(chalk.greenBright.bold.italic(successMessage))
-  }
 }

@@ -216,3 +216,17 @@ export async function getProjectRoot() {
   }
   return root
 }
+
+export function getAccessToken(target) {
+  const accessToken =
+    target && target.authInfo && target.authInfo.access_token
+      ? target.authInfo.access_token
+      : process.env.access_token
+
+  if (!accessToken || accessToken.trim() === 'null') {
+    throw new Error(`A valid access token was not found.
+    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`)
+  }
+
+  return accessToken
+}

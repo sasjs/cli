@@ -9,7 +9,6 @@ import {
   showHelp,
   showVersion,
   buildWebApp,
-  listContexts,
   add,
   run,
   runRequest,
@@ -95,10 +94,6 @@ function getUnaliasedCommand(command) {
   }
   if (command === 'web' || command === 'w') {
     return 'web'
-  }
-
-  if (command === 'listcontexts' || command === 'lc') {
-    return 'listcontexts'
   }
 
   if (command === 'add' || command === 'a') {
