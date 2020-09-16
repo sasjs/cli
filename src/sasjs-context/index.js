@@ -26,17 +26,14 @@ export async function processContext(command) {
 
   let configPath
   let config
-
-  if (command !== commands.list) {
-    configPath = await getAndValidateConfigPath()
-    config = await readFile(configPath)
-  }
-
-  let validationMap = {}
-  let parsedConfig = {}
+  let validationMap
+  let parsedConfig
 
   switch (command) {
     case commands.create:
+      configPath = await getAndValidateConfigPath()
+      config = await readFile(configPath)
+
       validationMap = {
         name: '',
         launchName: '',
@@ -53,6 +50,9 @@ export async function processContext(command) {
 
       break
     case commands.edit:
+      configPath = await getAndValidateConfigPath()
+      config = await readFile(configPath)
+
       validationMap = {
         name: '',
         updatedContext: {}
@@ -66,15 +66,9 @@ export async function processContext(command) {
 
       break
     case commands.delete:
-      validationMap = {
-        name: ''
-      }
+      const contextName = await getAndValidateContextName()
 
-      validateConfig(config, validationMap)
-
-      parsedConfig = JSON.parse(config)
-
-      remove(parsedConfig, target)
+      remove(contextName, target)
 
       break
     case commands.list:
@@ -100,7 +94,7 @@ async function getTarget(targetName) {
 }
 
 async function getAndValidateConfigPath() {
-  const nameField = {
+  const configPathField = {
     name: 'configPath',
     type: 'string',
     description: chalk.cyanBright(
@@ -122,7 +116,7 @@ async function getAndValidateConfigPath() {
 
   const message = `Invalid input. Couldn't find context config file at provided location.`
 
-  return await getAndValidateField(nameField, validator, message)
+  return await getAndValidateField(configPathField, validator, message)
 }
 
 function validateConfig(config, configKeys) {
@@ -174,10 +168,24 @@ async function getAndValidateTargetName() {
   }
 
   const validator = (value) => value !== ''
-
   const message = 'Invalid input. Target name should be not empty string.'
 
   return await getAndValidateField(nameField, validator, message)
+}
+
+async function getAndValidateContextName() {
+  const contextNameField = {
+    name: 'contextName',
+    type: 'string',
+    description: chalk.cyanBright(
+      `${chalk.greenBright('Please provide context name')}`
+    )
+  }
+
+  const validator = (value) => value !== ''
+  const message = 'Invalid input. Context name should be not empty string.'
+
+  return await getAndValidateField(contextNameField, validator, message)
 }
 
 async function getAndValidateField(field, validator, message) {
