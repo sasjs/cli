@@ -1,6 +1,8 @@
 import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
+import { isAccessTokenExpired, getNewAccessToken } from '../utils/auth-utils'
+import { getVariable } from '../utils/utils'
 
 export async function create(config, target) {
   const sasjs = new SASjs({
@@ -9,6 +11,17 @@ export async function create(config, target) {
   })
 
   const accessToken = getAccessToken(target)
+
+  // REFACTOR
+  if (isAccessTokenExpired(accessToken)) {
+    const client = await getVariable('client', target)
+    const secret = await getVariable('secret', target)
+
+    const authInfo = await getNewAccessToken(sasjs, client, secret, target)
+
+    accessToken = authInfo.access_token
+  }
+
   const {
     name,
     launchName,

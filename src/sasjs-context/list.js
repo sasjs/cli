@@ -3,6 +3,8 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
+import { isAccessTokenExpired, getNewAccessToken } from '../utils/auth-utils'
+import { getVariable } from '../utils/utils'
 
 export async function list(target) {
   if (target.serverType !== 'SASVIYA') {
@@ -11,14 +13,24 @@ export async function list(target) {
     )
   }
 
-  const startTime = new Date().getTime()
-  const accessToken = getAccessToken(target)
-
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType
   })
+
+  const startTime = new Date().getTime()
+  let accessToken = getAccessToken(target)
+
+  // REFACTOR
+  if (isAccessTokenExpired(accessToken)) {
+    const client = await getVariable('client', target)
+    const secret = await getVariable('secret', target)
+
+    const authInfo = await getNewAccessToken(sasjs, client, secret, target)
+
+    accessToken = authInfo.access_token
+  }
 
   const spinner = ora(
     `Checking the compute contexts on ${chalk.greenBright(
@@ -66,19 +78,23 @@ export async function list(target) {
         sysUserId: 'NOT ACCESSIBLE'
       }))
 
-    displayResult(
-      null,
-      null,
-      'Accessible contexts:\n' +
-        accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
-    )
+    if (accessibleContexts.length) {
+      displayResult(
+        null,
+        null,
+        'Accessible contexts:\n' +
+          accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
+      )
+    }
 
-    displayResult(
-      null,
-      null,
-      'Inaccessible contexts:\n' +
-        inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
-    )
+    if (inaccessibleContexts.length) {
+      displayResult(
+        null,
+        null,
+        'Inaccessible contexts:\n' +
+          inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
+      )
+    }
   }
 
   spinner.stop()

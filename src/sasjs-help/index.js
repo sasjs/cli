@@ -101,18 +101,15 @@ export async function printHelpText() {
       'context <command>'
     )} - performs operations on contexts.
         * ${chalk.cyanBright('create')} - creates new context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
+          example: sasjs create myTarget -source ../contextConfig.json
         * ${chalk.cyanBright('edit')} - edits existing context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
-        * ${chalk.cyanBright('remove')} - removes existing context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
+          example: sasjs edit myTarget -source ../contextConfig.json
+        * ${chalk.cyanBright('delete')} - deletes existing context.
+          example: sasjs delete myTarget -source ../contextConfig.json
         * ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.
-          1) Provide target name.
+          example: sasjs list myTarget
 
       NOTE: This operation is only supported for SAS Viya build targets.
 

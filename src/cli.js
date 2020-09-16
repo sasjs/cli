@@ -184,7 +184,7 @@ export async function cli(args) {
       await run(filePath, targetName)
       break
     case 'context':
-      await context(command.parameters[1])
+      await context(command.parameters)
       break
     default:
       showInvalidCommandText()

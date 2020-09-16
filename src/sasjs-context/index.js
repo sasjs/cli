@@ -3,11 +3,11 @@ import { create } from './create'
 import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
-import { getUserInput } from '../utils/input-utils'
 import { fileExists, readFile } from '../utils/file-utils'
 import { getBuildTargets } from '../utils/config-utils'
 
-export async function processContext(command) {
+export async function processContext(commandLine) {
+  const command = commandLine[1]
   const commands = {
     create: 'create',
     edit: 'edit',
@@ -16,12 +16,29 @@ export async function processContext(command) {
   }
 
   if (!commands.hasOwnProperty(command)) {
-    console.log(chalk.redBright('Not supported context command.'))
+    console.log(
+      chalk.redBright(
+        `Not supported context command. Supported commands are:\n${Object.keys(
+          commands
+        ).join('\n')}`
+      )
+    )
 
     return
   }
 
-  const targetName = await getAndValidateTargetName()
+  const targetName = commandLine[2]
+  const commandExample =
+    'sasjs context <command> myTarget -source ../contextConfig.json'
+
+  if (!targetName) {
+    console.log(
+      chalk.redBright(`Provide a target name (ag '${commandExample}')`)
+    )
+
+    return
+  }
+
   const target = await getTarget(targetName)
 
   let configPath
@@ -29,10 +46,37 @@ export async function processContext(command) {
   let validationMap
   let parsedConfig
 
+  const getConfig = async () => {
+    const configPathFlag = commandLine[3]
+
+    if (configPathFlag !== '-source') {
+      console.log(
+        chalk.redBright(`'-source' flag is missing (ag '${commandExample}')`)
+      )
+
+      return
+    }
+
+    configPath = commandLine[4]
+
+    if (!configPath || !validateConfigPath(configPath)) {
+      console.log(
+        chalk.redBright(
+          `Provide a path to context config file (ag '${commandExample}')`
+        )
+      )
+
+      return
+    }
+
+    return await readFile(configPath)
+  }
+
   switch (command) {
     case commands.create:
-      configPath = await getAndValidateConfigPath()
-      config = await readFile(configPath)
+      config = await getConfig()
+
+      if (!config) break
 
       validationMap = {
         name: '',
@@ -50,8 +94,7 @@ export async function processContext(command) {
 
       break
     case commands.edit:
-      configPath = await getAndValidateConfigPath()
-      config = await readFile(configPath)
+      config = await getConfig()
 
       validationMap = {
         name: '',
@@ -66,7 +109,17 @@ export async function processContext(command) {
 
       break
     case commands.delete:
-      const contextName = await getAndValidateContextName()
+      const contextName = commandLine.slice(3).join(' ')
+
+      if (!contextName) {
+        console.log(
+          chalk.redBright(
+            `Provide a context name (ag 'sasjs context delete myContext')`
+          )
+        )
+
+        break
+      }
 
       remove(contextName, target)
 
@@ -93,30 +146,14 @@ async function getTarget(targetName) {
   return target
 }
 
-async function getAndValidateConfigPath() {
-  const configPathField = {
-    name: 'configPath',
-    type: 'string',
-    description: chalk.cyanBright(
-      `${chalk.greenBright(
-        'Please provide path to context config file (eg. ./contextConfig.json).'
-      )}`
-    )
-  }
+async function validateConfigPath(path) {
+  if (!path) return false
 
-  const validator = async (value) => {
-    if (!value) return false
+  const isJsonFile = /\.json$/i.test(path)
 
-    const isJsonFile = /\.json$/i.test(value)
+  if (!isJsonFile) return false
 
-    if (!isJsonFile) return false
-
-    return await fileExists(value)
-  }
-
-  const message = `Invalid input. Couldn't find context config file at provided location.`
-
-  return await getAndValidateField(configPathField, validator, message)
+  return await fileExists(path)
 }
 
 function validateConfig(config, configKeys) {
@@ -156,47 +193,4 @@ function validateConfig(config, configKeys) {
 
     throw new Error('Context config file is not a valid JSON file.')
   }
-}
-
-async function getAndValidateTargetName() {
-  const nameField = {
-    name: 'targetName',
-    type: 'string',
-    description: chalk.cyanBright(
-      `${chalk.greenBright('Please provide target name')}`
-    )
-  }
-
-  const validator = (value) => value !== ''
-  const message = 'Invalid input. Target name should be not empty string.'
-
-  return await getAndValidateField(nameField, validator, message)
-}
-
-async function getAndValidateContextName() {
-  const contextNameField = {
-    name: 'contextName',
-    type: 'string',
-    description: chalk.cyanBright(
-      `${chalk.greenBright('Please provide context name')}`
-    )
-  }
-
-  const validator = (value) => value !== ''
-  const message = 'Invalid input. Context name should be not empty string.'
-
-  return await getAndValidateField(contextNameField, validator, message)
-}
-
-async function getAndValidateField(field, validator, message) {
-  const input = await getUserInput([field])
-  const isValid = await validator(input[field.name])
-
-  if (!isValid) {
-    console.log(chalk.redBright.bold(message))
-
-    return await getAndValidateField(field, validator, message)
-  }
-
-  return input[field.name]
 }
