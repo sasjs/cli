@@ -6,7 +6,6 @@ import { printHelpText } from './sasjs-help'
 import { printVersion } from './sasjs-version'
 import { createWebAppServices } from './sasjs-web'
 import { addTarget } from './sasjs-add'
-import { getContexts } from './sasjs-listcontexts'
 import { runSasCode } from './sasjs-run'
 import { processContext } from './sasjs-context'
 import chalk from 'chalk'
@@ -229,50 +228,6 @@ export async function buildWebApp(targetName) {
       console.log(
         chalk.redBright(
           'An error has occurred when building web app services.',
-          err
-        )
-      )
-    })
-}
-
-export async function listContexts(targetName) {
-  await getContexts(targetName)
-    .then(([accessibleContexts, inaccessibleContexts]) => {
-      if (accessibleContexts.length) {
-        console.log(
-          chalk.cyanBright.bold(
-            'You have execution access to the following contexts:\n'
-          )
-        )
-        console.log(accessibleContexts)
-      } else {
-        console.log(
-          chalk.redBright.bold(
-            'You do not have access to any compute contexts on this server.'
-          )
-        )
-      }
-      if (inaccessibleContexts.length) {
-        console.log(
-          chalk.cyanBright.bold(
-            'You do not have execution access to the following contexts:\n'
-          )
-        )
-        console.log(inaccessibleContexts)
-      } else {
-        if (accessibleContexts.length) {
-          console.log(
-            chalk.greenBright.bold(
-              'You have access to all the compute contexts on this server.'
-            )
-          )
-        }
-      }
-    })
-    .catch((err) => {
-      console.log(
-        chalk.redBright(
-          'An error has occurred when fetching compute contexts.',
           err
         )
       )
