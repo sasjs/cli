@@ -1,7 +1,7 @@
 import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
-import { isAccessTokenExpired, getNewAccessToken } from '../utils/auth-utils'
+import { isAccessTokenExpiring, getNewAccessToken } from '../utils/auth-utils'
 import { getVariable } from '../utils/utils'
 
 export async function edit(config, target) {
@@ -10,10 +10,16 @@ export async function edit(config, target) {
     serverType: target.serverType
   })
 
-  const accessToken = getAccessToken(target)
+  let accessToken
+
+  try {
+    accessToken = getAccessToken(target)
+  } catch (err) {
+    displayResult(err)
+  }
 
   // REFACTOR
-  if (isAccessTokenExpired(accessToken)) {
+  if (isAccessTokenExpiring(accessToken)) {
     const client = await getVariable('client', target)
     const secret = await getVariable('secret', target)
 

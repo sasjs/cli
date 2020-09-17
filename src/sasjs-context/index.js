@@ -4,7 +4,7 @@ import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
 import { fileExists, readFile } from '../utils/file-utils'
-import { getBuildTargets } from '../utils/config-utils'
+import { getBuildTargets, getGlobalRcFile } from '../utils/config-utils'
 
 export async function processContext(commandLine) {
   const command = commandLine[1]
@@ -27,17 +27,23 @@ export async function processContext(commandLine) {
     return
   }
 
-  const targetName = commandLine[2]
   const commandExample =
-    'sasjs context <command> myTarget -source ../contextConfig.json'
+    'sasjs context <command> -source ../contextConfig.json -target targetName'
 
-  if (!targetName) {
-    console.log(
-      chalk.redBright(`Provide a target name (ag '${commandExample}')`)
-    )
+  let targetName = []
+  const targetNameFlagIndex = commandLine.indexOf('-target')
 
-    return
+  if (targetNameFlagIndex !== -1) {
+    for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
+      if (commandLine[i] === '-source') {
+        throw `Target name has to be provided as the last argument (ag ${commandExample})`
+      }
+
+      targetName.push(commandLine[i])
+    }
   }
+
+  targetName = targetName.join(' ')
 
   const target = await getTarget(targetName)
 
@@ -47,9 +53,9 @@ export async function processContext(commandLine) {
   let parsedConfig
 
   const getConfig = async () => {
-    const configPathFlag = commandLine[3]
+    const configPathFlagIndex = commandLine.indexOf('-source')
 
-    if (configPathFlag !== '-source') {
+    if (configPathFlagIndex === -1) {
       console.log(
         chalk.redBright(`'-source' flag is missing (ag '${commandExample}')`)
       )
@@ -57,7 +63,7 @@ export async function processContext(commandLine) {
       return
     }
 
-    configPath = commandLine[4]
+    configPath = commandLine[configPathFlagIndex + 1]
 
     if (!configPath || !validateConfigPath(configPath)) {
       console.log(
@@ -109,7 +115,13 @@ export async function processContext(commandLine) {
 
       break
     case commands.delete:
-      const contextName = commandLine.slice(3).join(' ')
+      let contextName = ''
+
+      if (targetNameFlagIndex === -1) {
+        contextName = commandLine.slice(2).join(' ')
+      } else {
+        contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
+      }
 
       if (!contextName) {
         console.log(
@@ -135,13 +147,33 @@ export async function processContext(commandLine) {
 
 async function getTarget(targetName) {
   const { buildSourceFolder } = require('../constants')
-  const targets = await getBuildTargets(buildSourceFolder)
-  const target = targets.find((t) => t.name === targetName)
+  let targets = await getBuildTargets(buildSourceFolder)
 
-  if (!target)
-    throw new Error(
-      `Target with the name '${targetName}' was not found in sasjsconfig.json`
+  if (targets.length === 0) {
+    const globalRc = await getGlobalRcFile()
+
+    targets = globalRc.targets || []
+
+    if (targets.length === 0) throw new Error(`No build targets found.`)
+  }
+
+  let target = null
+
+  if (targetName) target = targets.find((t) => t.name === targetName)
+
+  if (!target) {
+    target = targets[0]
+
+    console.log(
+      chalk.yellowBright(
+        `${
+          targetName
+            ? `Target with the name '${targetName}' was not found in sasjsconfig.json.`
+            : `Target name wasn't provided.`
+        } Using ${chalk.cyanBright(target.name)} by default.`
+      )
     )
+  }
 
   return target
 }

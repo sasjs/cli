@@ -193,16 +193,7 @@ export function isAccessTokenExpiring(token) {
   const payload = jwtDecode(token)
   const timeToLive = payload.exp - new Date().valueOf() / 1000
 
-  return timeToLive <= 60000
-}
-
-export function isAccessTokenExpired(token) {
-  if (!token) return true
-
-  const payload = jwtDecode(token)
-  const timeToLive = payload.exp - new Date().valueOf() / 1000
-
-  return timeToLive <= 60 // one minute
+  return timeToLive <= 60 * 60 // 1 hour
 }
 
 export async function refreshTokens(
