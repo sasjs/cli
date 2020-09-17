@@ -101,8 +101,9 @@ export async function printHelpText() {
       'context <command>'
     )} - performs operations on contexts.
         * ${chalk.cyanBright('create')} - creates new context.
-          command example: sasjs create -source ../contextConfig.json -target targetName
-          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+          command example: sasjs create --source ../contextConfig.json --target targetName
+          command example: sasjs create -s ../contextConfig.json -t targetName
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
           context config example:
             {
@@ -114,8 +115,9 @@ export async function printHelpText() {
             }
           NOTE: Keys "name", "launchName", "sharedAccountId", "autoExecLines", "authorizedUsers" are required.
         * ${chalk.cyanBright('edit')} - edits existing context.
-          command example: sasjs edit -source ../contextConfig.json -target targetName
-          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+          command example: sasjs edit --source ../contextConfig.json --target targetName
+          command example: sasjs edit -s ../contextConfig.json -t targetName
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
           context config example:
             {
@@ -126,13 +128,15 @@ export async function printHelpText() {
             }
           NOTE: Keys "name", "updatedContext" are required.
         * ${chalk.cyanBright('delete')} - deletes existing context.
-          command example: sasjs delete contextName -target targetName
-          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+          command example: sasjs delete contextName --target targetName
+          command example: sasjs delete contextName -t targetName
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
         * ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.
-          command example: sasjs list -target targetName
-          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+          command example: sasjs list --target targetName
+          command example: sasjs list -t targetName
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
       NOTE: This operation is only supported for SAS Viya build targets.
 
