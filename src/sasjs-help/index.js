@@ -101,18 +101,38 @@ export async function printHelpText() {
       'context <command>'
     )} - performs operations on contexts.
         * ${chalk.cyanBright('create')} - creates new context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
+          command example: sasjs create -source ../contextConfig.json -target targetName
+          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+
+          context config example:
+            {
+              "name": "New context",
+              "launchName": "SAS Job Execution launcher context",
+              "sharedAccountId": "cas",
+              "autoExecLines": ["%put hello;"],
+              "authorizedUsers": []
+            }
+          NOTE: Keys "name", "launchName", "sharedAccountId", "autoExecLines", "authorizedUsers" are required.
         * ${chalk.cyanBright('edit')} - edits existing context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
-        * ${chalk.cyanBright('remove')} - removes existing context.
-          1) Provide target name.
-          2) Provide path to context config file (eg. ./contextConfig.json).
+          command example: sasjs edit -source ../contextConfig.json -target targetName
+          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
+
+          context config example:
+            {
+              "name": "New context",
+              "updatedContext": {
+                "autoExecLines": ["%put hello world!;"]
+              }
+            }
+          NOTE: Keys "name", "updatedContext" are required.
+        * ${chalk.cyanBright('delete')} - deletes existing context.
+          command example: sasjs delete contextName -target targetName
+          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
         * ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.
-          1) Provide target name.
+          command example: sasjs list -target targetName
+          NOTE: Providing target name (-target targetName) is optional. Default target name will be used if target name was omitted.
 
       NOTE: This operation is only supported for SAS Viya build targets.
 
