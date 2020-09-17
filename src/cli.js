@@ -225,7 +225,7 @@ export async function cli(args) {
       break
     }
     case 'context': {
-      await context(command.parameters[1])
+      await context(command.parameters)
       break
     }
     default:

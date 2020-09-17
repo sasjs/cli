@@ -150,7 +150,8 @@ export async function getBuildTargets(buildSourceFolder) {
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  return configuration.targets ? configuration.targets : []
+
+  return configuration && configuration.targets ? configuration.targets : []
 }
 
 export function getMacroCorePath() {
@@ -224,8 +225,9 @@ export function getAccessToken(target) {
       : process.env.access_token
 
   if (!accessToken || accessToken.trim() === 'null') {
-    throw new Error(`A valid access token was not found.
-    Please provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`)
+    throw new Error(
+      `A valid access token was not found.\nPlease provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`
+    )
   }
 
   return accessToken
