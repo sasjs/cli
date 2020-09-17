@@ -28,14 +28,17 @@ export async function processContext(commandLine) {
   }
 
   const commandExample =
-    'sasjs context <command> -source ../contextConfig.json -target targetName'
+    'sasjs context <command> --source ../contextConfig.json --target targetName'
 
   let targetName = []
-  const targetNameFlagIndex = commandLine.indexOf('-target')
+  let targetNameFlagIndex = commandLine.indexOf('--target')
+
+  if (targetNameFlagIndex === -1)
+    targetNameFlagIndex = commandLine.indexOf('-t')
 
   if (targetNameFlagIndex !== -1) {
     for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
-      if (commandLine[i] === '-source') {
+      if (commandLine[i] === '--source' || commandLine[i] === '-s') {
         throw `Target name has to be provided as the last argument (ag ${commandExample})`
       }
 
@@ -53,11 +56,14 @@ export async function processContext(commandLine) {
   let parsedConfig
 
   const getConfig = async () => {
-    const configPathFlagIndex = commandLine.indexOf('-source')
+    let configPathFlagIndex = commandLine.indexOf('--source')
+
+    if (configPathFlagIndex === -1)
+      configPathFlagIndex = commandLine.indexOf('-s')
 
     if (configPathFlagIndex === -1) {
       console.log(
-        chalk.redBright(`'-source' flag is missing (ag '${commandExample}')`)
+        chalk.redBright(`'--source' flag is missing (ag '${commandExample}')`)
       )
 
       return
