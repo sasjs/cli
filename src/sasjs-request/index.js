@@ -86,6 +86,8 @@ export async function runSasJob(
     fromjs: [dataJson]
   }
 
+  if (!dataJson) data = null
+
   await sasjs
     .request(
       sasJobLocation,
@@ -129,7 +131,7 @@ export async function runSasJob(
       },
       (err) => {
         displayResult(
-          err,
+          JSON.stringify(err),
           'An error occurred while executing the request.',
           null
         )
