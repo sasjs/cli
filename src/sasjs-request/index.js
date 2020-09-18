@@ -17,7 +17,7 @@ export async function runSasJob(
   configFilePath,
   targetName
 ) {
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
+  const { target, isLocal } = await findTargetInConfiguration(targetName, true)
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')
   }
