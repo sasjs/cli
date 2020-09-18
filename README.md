@@ -33,6 +33,11 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
 - `web`: generates SAS services for streaming your HTML, CSS and JavaScript-based app from a SAS server. This command is automatically run as part of `sasjs build` if `streamWeb` is set to true for a particular build target. An alias for this command is `sasjs w`.
 - `sasjs help`: displays help text. Aliases for this command are `sasjs h`, `sasjs --help`, `sasjs -help` and `sasjs --h`.
 - `sasjs version`: displays the currently installed version of SASjs CLI. Aliases for this command are `sasjs v`, `sasjs --version`, `sasjs -version` and `sasjs --v`.
+- `sasjs context`: performs context related operations
+  1. `sasjs context create --source ../contextConfig.json --target targetName` - creates new context using provided context config.
+  2. `sasjs context edit --source ../contextConfig.json --target targetName` - updates existing context using provided context config.
+  3. `sasjs context delete contextName --target targetName` - deletes context.
+  4. `sasjs context list --target targetName` - lists all accessible and inaccessible contexts.
 
 ## Command Operations
 
@@ -44,8 +49,6 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
   Compile if needed, and recreate deployment script.
 - `sasjs compilebuild` (Alias: `cb`)
   Compile and recreate deployment script.
-- `sasjs listcontexts` (Alias: `lc`)
-  Display a list of compute contexts on a given server, with inaccessible ones specifically marked.
 - `sasjs add` (Alias: `a`)
   Lets the user add a build target either to the local project configuration or to the global `.sasjsrc` file.
 - `sasjs run` (Alias: `r`)
