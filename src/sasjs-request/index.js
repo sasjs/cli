@@ -1,7 +1,12 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { findTargetInConfiguration } from '../utils/config-utils'
-import { readFile } from '../utils/file-utils'
+import {
+  readFile,
+  folderExists,
+  createFile,
+  createFolder
+} from '../utils/file-utils'
 import { getVariable } from '../utils/utils'
 import { getAccessToken } from '../utils/auth-utils'
 import { displayResult } from '../utils/displayResult'
@@ -92,13 +97,40 @@ export async function runSasJob(
       accessToken
     )
     .then(
-      (res) => {
-        displayResult(null, null, 'Request finished.')
+      async (res) => {
+        let output
+
+        try {
+          output = JSON.stringify(res, null, 2)
+        } catch (error) {
+          displayResult(null, null, 'Request finished.')
+
+          return
+        }
+
+        let outputPath = path.join(
+          process.env.PWD,
+          isLocal ? '/sasjsbuild' : ''
+        )
+
+        if (!(await folderExists(outputPath))) {
+          await createFolder(outputPath)
+        }
+
+        outputPath += '/output.json'
+
+        await createFile(outputPath, output)
+
+        displayResult(
+          null,
+          null,
+          `Request finished. Output is stored at '${outputPath}'`
+        )
       },
       (err) => {
         displayResult(
           err,
-          'And error occurred while executing the request.',
+          'An error occurred while executing the request.',
           null
         )
       }
