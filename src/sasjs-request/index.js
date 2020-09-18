@@ -111,7 +111,7 @@ export async function runSasJob(
         }
 
         let outputPath = path.join(
-          process.env.PWD,
+          process.env.CWD,
           isLocal ? '/sasjsbuild' : ''
         )
 
@@ -131,7 +131,7 @@ export async function runSasJob(
       },
       (err) => {
         displayResult(
-          JSON.stringify(err),
+          err,
           'An error occurred while executing the request.',
           null
         )
