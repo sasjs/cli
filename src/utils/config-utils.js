@@ -11,7 +11,10 @@ export async function getConfiguration(pathToFile) {
   return Promise.resolve(null)
 }
 
-export async function findTargetInConfiguration(targetName, viyaSpecific = false) {
+export async function findTargetInConfiguration(
+  targetName,
+  viyaSpecific = false
+) {
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
@@ -23,7 +26,7 @@ export async function findTargetInConfiguration(targetName, viyaSpecific = false
       return { target, isLocal: true }
     }
   }
-  
+
   const globalConfig = await getGlobalRcFile()
 
   if (globalConfig && globalConfig.targets) {
@@ -33,8 +36,10 @@ export async function findTargetInConfiguration(targetName, viyaSpecific = false
     }
   }
 
-  let fallBackTarget = viyaSpecific ? localConfig.targets.find((t) => t.serverType === 'SASVIYA') : localConfig.targets[0]
-  
+  let fallBackTarget = viyaSpecific
+    ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
+    : localConfig.targets[0]
+
   if (fallBackTarget) {
     console.log(
       chalk.yellowBright(
@@ -47,8 +52,10 @@ export async function findTargetInConfiguration(targetName, viyaSpecific = false
     return { target: fallBackTarget, isLocal: true }
   }
 
-  fallBackTarget = viyaSpecific ? globalConfig.targets.find((t) => t.serverType === 'SASVIYA') : globalConfig.targets[0]
-  
+  fallBackTarget = viyaSpecific
+    ? globalConfig.targets.find((t) => t.serverType === 'SASVIYA')
+    : globalConfig.targets[0]
+
   if (fallBackTarget) {
     console.log(
       chalk.yellowBright(
