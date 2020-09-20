@@ -11,17 +11,22 @@ export async function getConfiguration(pathToFile) {
   return Promise.resolve(null)
 }
 
-export async function findTargetInConfiguration(targetName) {
+export async function findTargetInConfiguration(
+  targetName,
+  viyaSpecific = false
+) {
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
+
   if (localConfig && localConfig.targets) {
     const target = localConfig.targets.find((t) => t.name === targetName)
     if (target) {
       return { target, isLocal: true }
     }
   }
+
   const globalConfig = await getGlobalRcFile()
 
   if (globalConfig && globalConfig.targets) {
@@ -29,6 +34,38 @@ export async function findTargetInConfiguration(targetName) {
     if (target) {
       return { target, isLocal: false }
     }
+  }
+
+  let fallBackTarget = viyaSpecific
+    ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
+    : localConfig.targets[0]
+
+  if (fallBackTarget) {
+    console.log(
+      chalk.yellowBright(
+        `No build target specified. Using ${chalk.cyanBright(
+          fallBackTarget.name
+        )} by default.`
+      )
+    )
+
+    return { target: fallBackTarget, isLocal: true }
+  }
+
+  fallBackTarget = viyaSpecific
+    ? globalConfig.targets.find((t) => t.serverType === 'SASVIYA')
+    : globalConfig.targets[0]
+
+  if (fallBackTarget) {
+    console.log(
+      chalk.yellowBright(
+        `No build target specified. Using ${chalk.cyanBright(
+          fallBackTarget.name
+        )} by default.`
+      )
+    )
+
+    return { target: fallBackTarget, isLocal: false }
   }
 
   throw new Error(

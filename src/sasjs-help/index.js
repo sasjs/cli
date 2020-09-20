@@ -150,6 +150,13 @@ export async function printHelpText() {
     )} - Lets the user run a given SAS file against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
 
+    * ${chalk.greenBright(
+      'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
+    )} - Lets the user run a SAS job against a specified target.
+    The target can exist either in the local project configuration or in the global .sasjsrc file.
+    <sasProgramPath> - It should be the full path to the service, eg that contained in the _program parameter
+    It can also be relative path, for example if appLoc is '/Public/app', then you can pass 'folder/sasjob' it will  
+    join them to make a full path, eg '/Public/app/folder/sasjob'.
 
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
@@ -173,5 +180,6 @@ export async function printHelpText() {
   )}, ${chalk.cyanBright('--h')}, ${chalk.cyanBright('h')},
     * ${chalk.greenBright('add')}, ${chalk.cyanBright('a')}
     * ${chalk.greenBright('run')}, ${chalk.cyanBright('r')}
+    * ${chalk.greenBright('request')}, ${chalk.cyanBright('rq')}
   `)
 }
