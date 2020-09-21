@@ -228,7 +228,7 @@ async function updateLinkHref(
     let content
 
     // encode *.css files if target server type is SAS 9
-    if (target.serverType === 'SAS9') {
+    if (target.serverType === permittedServerTypes.SAS9) {
       content = await base64EncodeFile(
         path.join(process.projectDir, webAppSourcePath, linkSourcePath)
       )
