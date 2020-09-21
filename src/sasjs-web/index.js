@@ -17,6 +17,10 @@ import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
 
 let buildDestinationFolder = ''
+const permittedServerTypes = {
+  SAS9: 'SAS9',
+  SASVIYA: 'SASVIYA'
+}
 
 export async function createWebAppServices(
   targetName = null,
@@ -171,9 +175,19 @@ async function updateTagSource(
   if (scriptPath) {
     const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
-      let content = await readFile(
-        path.join(process.projectDir, webAppSourcePath, scriptPath)
-      )
+      let content
+
+      // encode *.js files if target server type is SAS 9
+      if (target.serverType === permittedServerTypes.SAS9) {
+        content = await base64EncodeFile(
+          path.join(process.projectDir, webAppSourcePath, scriptPath)
+        )
+      } else {
+        content = await readFile(
+          path.join(process.projectDir, webAppSourcePath, scriptPath)
+        )
+      }
+
       assetPathMap.forEach((pathEntry) => {
         content = content.replace(
           new RegExp(pathEntry.source, 'g'),
@@ -211,9 +225,19 @@ async function updateLinkHref(
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
-    const content = await readFile(
-      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-    )
+    let content
+
+    // encode *.css files if target server type is SAS 9
+    if (target.serverType === 'SAS9') {
+      content = await base64EncodeFile(
+        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+      )
+    } else {
+      content = await readFile(
+        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+      )
+    }
+
     const serviceContent = await getWebServiceContent(content, 'CSS')
 
     await createFile(
@@ -243,8 +267,7 @@ async function updateFaviconHref(linkTag, webAppSourcePath) {
 }
 
 function getScriptPath(appLoc, serverType, streamWebFolder, fileName) {
-  const permittedServerTypes = ['SAS9', 'SASVIYA']
-  if (!permittedServerTypes.includes(serverType.toUpperCase())) {
+  if (!permittedServerTypes.hasOwnProperty(serverType.toUpperCase())) {
     throw new Error(
       'Unsupported server type. Supported types are SAS9 and SASVIYA'
     )
@@ -257,8 +280,7 @@ function getScriptPath(appLoc, serverType, streamWebFolder, fileName) {
 }
 
 function getLinkHref(appLoc, serverType, streamWebFolder, fileName) {
-  const permittedServerTypes = ['SAS9', 'SASVIYA']
-  if (!permittedServerTypes.includes(serverType.toUpperCase())) {
+  if (!permittedServerTypes.hasOwnProperty(serverType.toUpperCase())) {
     throw new Error(
       'Unsupported server type. Supported types are SAS9 and SASVIYA'
     )
@@ -285,7 +307,9 @@ function getLinkTags(parsedHtml) {
 function getFaviconTags(parsedHtml) {
   const linkTags = Array.from(
     parsedHtml.window.document.querySelectorAll('link')
-  ).filter((s) => s.getAttribute('rel').includes('icon'))
+  ).filter(
+    (s) => s.getAttribute('rel') && s.getAttribute('rel').includes('icon')
+  )
 
   return linkTags
 }
