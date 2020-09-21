@@ -111,7 +111,7 @@ export async function runSasJob(
         }
 
         let outputPath = path.join(
-          process.env.CWD,
+          process.env.cwd,
           isLocal ? '/sasjsbuild' : ''
         )
 
