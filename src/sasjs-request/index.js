@@ -58,7 +58,7 @@ export async function runSasJob(
     serverType: target.serverType
   })
 
-  const accessToken = await getAccessToken(target)
+  const accessToken = getAccessToken(target)
 
   let data = {
     fromjs: [dataJson]
