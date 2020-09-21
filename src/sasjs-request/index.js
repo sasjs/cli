@@ -8,7 +8,7 @@ import {
   createFolder
 } from '../utils/file-utils'
 import { getVariable } from '../utils/utils'
-import { getAccessToken } from '../utils/auth-utils'
+import { getAccessToken } from '../utils/config-utils'
 import { displayResult } from '../utils/displayResult'
 
 export async function runSasJob(
