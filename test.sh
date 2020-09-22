@@ -1,5 +1,15 @@
 #!/bin/bash
 
+function process_result {
+  if [ $? -eq 0 ]
+  then
+    echo $success_message
+  else
+    echo $failure_message
+    exit 1
+  fi
+}
+
 $success_message = "\e[32mSuccess!"
 $failure_message = "\e[91mTest \e[91mfailed."
 
@@ -36,13 +46,3 @@ process_result
 echo "SASjs Create SAS Only App"
 sasjs create test5 -t sasonly
 process_result
-
-function process_result {
-  if [ $? -eq 0 ]
-  then
-    echo $success_message
-  else
-    echo $failure_message
-    exit 1
-  fi
-}
