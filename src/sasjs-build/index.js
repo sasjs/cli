@@ -422,7 +422,8 @@ async function getTargetSpecificVars(typeOfVars) {
   )
   if (configuration[`cmn${typeOfVars}`])
     variables = { ...configuration[`cmn${typeOfVars}`] }
-  if (targetToBuild[`tgt${typeOfVars}`])
+
+  if (targetToBuild && targetToBuild[`tgt${typeOfVars}`])
     variables = { ...variables, ...targetToBuild[`tgt${typeOfVars}`] }
 
   const entries = Object.entries(variables)
@@ -567,8 +568,10 @@ async function getAllServices(pathToFile) {
 
   if (configuration.cmnServices)
     allServices = [...allServices, ...configuration.cmnServices]
-  if (targetToBuild.tgtServices)
+
+  if (targetToBuild && targetToBuild.tgtServices)
     allServices = [...allServices, ...targetToBuild.tgtServices]
+
   return Promise.resolve(allServices)
 }
 
