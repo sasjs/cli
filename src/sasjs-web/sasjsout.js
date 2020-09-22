@@ -75,7 +75,8 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
 %end;
 
 /* stream byte by byte */
-%if &type=PNG or &type=MP3 %then %do;
+/* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
+%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 %then %do;
   data _null_;
     length filein 8 fileout 8;
     filein = fopen("&fref",'I',4,'B');
