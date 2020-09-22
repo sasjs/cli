@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 success_message="\e[32mSuccess!"
 failure_message="\e[91mTest \e[91mfailed."
@@ -13,15 +14,15 @@ function process_result {
   fi
 }
 
-# echo "\e[34mInstalling \e[34mSASjs \e[34mCLI..."
-# npm install -g @sasjs/cli
-# if [ $? -eq 0 ]
-# then
-#   echo "\e[32mSuccess: SASjs CLI installed."
-# else
-#   echo "\e[91mError: Could not install SASjs CLI."
-#   exit 1
-# fi
+echo "\e[34mInstalling \e[34mSASjs \e[34mCLI..."
+npm install -g @sasjs/cli
+if [ $? -eq 0 ]
+then
+  echo "\e[32mSuccess: SASjs CLI installed."
+else
+  echo "\e[91mError: Could not install SASjs CLI."
+  exit 1
+fi
 
 echo "\e[34mSASjs \e[34mVersion"
 sasjs v
