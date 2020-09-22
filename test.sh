@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function process_result {
+function process_result() {
   if [ $? -eq 0 ]
   then
     echo $success_message
