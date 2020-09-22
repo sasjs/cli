@@ -351,14 +351,20 @@ file sasjs;
   })
 
   // Encode to base64 *.js and *.css files if target server type is SAS 9.
-  if (
-    serverType === permittedServerTypes.SAS9 &&
-    ['JS', 'CSS'].includes(type)
-  ) {
-    serviceContent = btoa(serviceContent)
+  const typesToEncode = {
+    JS: 'JS64',
+    CSS: 'CSS64'
   }
 
-  serviceContent += `\nrun;\n%sasjsout(${type})`
+  if (
+    serverType === permittedServerTypes.SAS9 &&
+    typesToEncode.hasOwnProperty(type)
+  ) {
+    serviceContent = btoa(serviceContent)
+    serviceContent += `\nrun;\n%sasjsout(${typesToEncode[type]})`
+  } else {
+    serviceContent += `\nrun;\n%sasjsout(${type})`
+  }
 
   return serviceContent
 }
