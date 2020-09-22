@@ -15,6 +15,7 @@ import chalk from 'chalk'
 import jsdom from 'jsdom'
 import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
+import btoa from 'btoa'
 
 let buildDestinationFolder = ''
 const permittedServerTypes = {
@@ -175,18 +176,9 @@ async function updateTagSource(
   if (scriptPath) {
     const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
-      let content
-
-      // encode *.js files if target server type is SAS 9
-      if (target.serverType === permittedServerTypes.SAS9) {
-        content = await base64EncodeFile(
-          path.join(process.projectDir, webAppSourcePath, scriptPath)
-        )
-      } else {
-        content = await readFile(
-          path.join(process.projectDir, webAppSourcePath, scriptPath)
-        )
-      }
+      const content = await readFile(
+        path.join(process.projectDir, webAppSourcePath, scriptPath)
+      )
 
       assetPathMap.forEach((pathEntry) => {
         content = content.replace(
@@ -194,7 +186,12 @@ async function updateTagSource(
           pathEntry.target
         )
       })
-      const serviceContent = await getWebServiceContent(content)
+
+      const serviceContent = await getWebServiceContent(
+        content,
+        'JS',
+        target.serverType
+      )
 
       await createFile(
         path.join(destinationPath, `${fileName}.sas`),
@@ -225,20 +222,15 @@ async function updateLinkHref(
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
-    let content
+    const content = await readFile(
+      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+    )
 
-    // encode *.css files if target server type is SAS 9
-    if (target.serverType === permittedServerTypes.SAS9) {
-      content = await base64EncodeFile(
-        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-      )
-    } else {
-      content = await readFile(
-        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-      )
-    }
-
-    const serviceContent = await getWebServiceContent(content, 'CSS')
+    const serviceContent = await getWebServiceContent(
+      content,
+      'CSS',
+      target.serverType
+    )
 
     await createFile(
       path.join(destinationPath, `${fileName}.sas`),
@@ -329,7 +321,7 @@ async function createTargetDestinationFolder(destinationPath) {
   await createFolder(destinationPath)
 }
 
-async function getWebServiceContent(content, type = 'JS') {
+async function getWebServiceContent(content, type = 'JS', serverType) {
   const lines = content
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -338,6 +330,7 @@ async function getWebServiceContent(content, type = 'JS') {
 data _null_;
 file sasjs;
 `
+
   lines.forEach((line) => {
     const chunkedLines = chunk(line)
     if (chunkedLines.length === 1) {
@@ -357,7 +350,16 @@ file sasjs;
     }
   })
 
+  // Encode to base64 *.js and *.css files if target server type is SAS 9.
+  if (
+    serverType === permittedServerTypes.SAS9 &&
+    ['JS', 'CSS'].includes(type)
+  ) {
+    serviceContent = btoa(serviceContent)
+  }
+
   serviceContent += `\nrun;\n%sasjsout(${type})`
+
   return serviceContent
 }
 
