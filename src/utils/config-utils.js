@@ -216,7 +216,7 @@ export async function getTargetToBuild(targetName) {
 
     return Promise.resolve(targetToBuild)
   } else {
-    // Use default target to build. For cases when build target was not provided.
+    // Use default target to build. For cases when build target was not found.
     console.log(
       chalk.yellowBright(`No build target found. Using default target.`)
     )
