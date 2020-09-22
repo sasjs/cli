@@ -34,7 +34,7 @@ process_result $?
 
 echo "\e[34mSASjs \e[34mCreate \e[34mMinimal \e[34mApp"
 sasjs create test2 -t minimal
-process_result
+process_result $?
 
 echo "\e[34mSASjs \e[34mCreate \e[34mReact \e[34mApp"
 sasjs create test3 -t react
