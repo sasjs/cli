@@ -10,8 +10,8 @@ function process_result {
   fi
 }
 
-$success_message = "\e[32mSuccess!"
-$failure_message = "\e[91mTest \e[91mfailed."
+success_message="\e[32mSuccess!"
+failure_message="\e[91mTest \e[91mfailed."
 
 echo "\e[34mInstalling \e[34mSASjs \e[34mCLI..."
 npm install -g @sasjs/cli
