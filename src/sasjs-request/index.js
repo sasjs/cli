@@ -7,8 +7,7 @@ import {
   createFile,
   createFolder
 } from '../utils/file-utils'
-import { getVariable } from '../utils/utils'
-import { getAccessToken } from '../utils/auth-utils'
+import { getAccessToken } from '../utils/config-utils'
 import { displayResult } from '../utils/displayResult'
 
 export async function runSasJob(
@@ -59,28 +58,7 @@ export async function runSasJob(
     serverType: target.serverType
   })
 
-  const clientId = await getVariable('client', target)
-  const clientSecret = await getVariable('secret', target)
-
-  if (!clientId) {
-    throw new Error(
-      'A client ID is required for SAS Viya deployments.\n Please ensure that `client` is present in your build target configuration or in your .env file, and try again.\n'
-    )
-  }
-
-  if (!clientSecret) {
-    throw new Error(
-      'A client secret is required for SAS Viya deployments.\n Please ensure that `secret` is present in your build target configuration or in your .env file, and try again.\n'
-    )
-  }
-
-  const accessToken = await getAccessToken(
-    sasjs,
-    clientId,
-    clientSecret,
-    target,
-    isLocal
-  )
+  const accessToken = getAccessToken(target)
 
   let data = {
     fromjs: [dataJson]
