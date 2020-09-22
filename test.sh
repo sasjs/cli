@@ -1,6 +1,9 @@
 #!/bin/bash
 
-echo "\e[96mInstalling \e[96mSASjs \e[96mCLI..."
+$success_message = "\e[32mSuccess!"
+$failure_message = "\e[91mTest \e[91mfailed."
+
+echo "\e[34mInstalling \e[34mSASjs \e[34mCLI..."
 npm install -g @sasjs/cli
 if [ $? -eq 0 ]
 then
@@ -10,62 +13,36 @@ else
   exit 1
 fi
 
-echo "\e[96mSASjs \e[96mVersion"
+echo "\e[34mSASjs \e[34mVersion"
 sasjs v
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest \e[91mfailed."
-  exit 1
-fi
+process_result
 
-echo "\e[96mSASjs \e[96mCreate"
+echo "\e[34mSASjs \e[34mCreate"
 sasjs create test1
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest \e[91mfailed."
-  exit 1
-fi
+process_result
 
-echo "\e[96mSASjs \e[96mCreate \e[96mMinimal \e[96mApp"
+echo "\e[34mSASjs \e[34mCreate \e[34mMinimal \e[34mApp"
 sasjs create test2 -t minimal
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest \e[91mfailed."
-  exit 1
-fi
+process_result
 
-echo "\e[96mSASjs \e[96mCreate \e[96mReact \e[96mApp"
+echo "\e[34mSASjs \e[34mCreate \e[34mReact \e[34mApp"
 sasjs create test3 -t react
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest \e[91mfailed."
-  exit 1
-fi
+process_result
 
-echo "\e[96mSASjs \e[96mCreate \e[96mAngular \e[96mApp"
+echo "\e[34mSASjs \e[34mCreate \e[34mAngular \e[34mApp"
 sasjs create test4 -t angular
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest \e[91mfailed."
-  exit 1
-fi
+process_result
 
 echo "SASjs Create SAS Only App"
 sasjs create test5 -t sasonly
-if [ $? -eq 0 ]
-then
-  echo "\e[32mSuccess!"
-else
-  echo "\e[91mTest failed."
-  exit 1
-fi
+process_result
+
+function process_result {
+  if [ $? -eq 0 ]
+  then
+    echo $success_message
+  else
+    echo $failure_message
+    exit 1
+  fi
+}
