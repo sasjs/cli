@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-success_message="\e[32mSuccess!"
-failure_message="\e[91mTest \e[91mfailed."
-
 function process_result {
+  success_message="\e[32mSuccess!"
+  failure_message="\e[91mTest \e[91mfailed."
+
   if [ $1 -eq 0 ]
   then
     echo $success_message
