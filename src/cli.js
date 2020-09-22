@@ -200,10 +200,6 @@ export async function cli(args) {
       await buildWebApp(command.parameters[1])
       break
     }
-    case 'listcontexts': {
-      await listContexts(command.parameters[1])
-      break
-    }
     case 'add': {
       await add(command.parameters[1])
       break
