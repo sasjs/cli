@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-function process_result {
+process_result() {
   success_message="\e[32mSuccess!"
   failure_message="\e[91mTest \e[91mfailed."
 
