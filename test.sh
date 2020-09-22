@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function process_result() {
+function process_result {
   if [ $? -eq 0 ]
   then
     echo $success_message
@@ -45,4 +45,9 @@ process_result
 
 echo "SASjs Create SAS Only App"
 sasjs create test5 -t sasonly
+process_result
+
+echo "SASjs Compile Build"
+cd test5
+sasjs cb
 process_result
