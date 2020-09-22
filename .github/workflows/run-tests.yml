@@ -25,4 +25,4 @@ jobs:
       - run: npm test
         env:
           CI: true
-      - run: sh build/test.sh
+      - run: sh ./test.sh
