@@ -217,14 +217,20 @@ export async function getTargetToBuild(targetName) {
     return Promise.resolve(targetToBuild)
   } else {
     // Use default target to build. For cases when build target was not found.
-    console.log(
-      chalk.yellowBright(`No build target found. Using default target.`)
-    )
-
     const defaultTargetToBuild = {
       buildOutputFileName: 'build.sas',
-      serverType: 'SAS9'
+      serverType: 'SASVIYA'
     }
+
+    console.log(
+      chalk.yellowBright(
+        `No build target found. Using default target:\n${JSON.stringify(
+          defaultTargetToBuild,
+          null,
+          2
+        )}`
+      )
+    )
 
     return Promise.resolve(defaultTargetToBuild)
   }
