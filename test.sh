@@ -14,13 +14,13 @@ process_result() {
   fi
 }
 
-echo "\e[34mInstalling \e[34mSASjs \e[34mCLI..."
-npm install -g @sasjs/cli
+echo "\e[34mLinking \e[34mSASjs \e[34mCLI..."
+npm link
 if [ $? -eq 0 ]
 then
-  echo "\e[32mSuccess: SASjs CLI installed."
+  echo "\e[32mSuccess: SASjs CLI linked."
 else
-  echo "\e[91mError: Could not install SASjs CLI."
+  echo "\e[91mError: Could not link SASjs CLI."
   exit 1
 fi
 
