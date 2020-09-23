@@ -3,6 +3,7 @@ import { create } from './create'
 import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
+import { exportContext } from './export'
 import { fileExists, readFile } from '../utils/file-utils'
 import { getBuildTargets, getGlobalRcFile } from '../utils/config-utils'
 
@@ -12,7 +13,8 @@ export async function processContext(commandLine) {
     create: 'create',
     edit: 'edit',
     delete: 'delete',
-    list: 'list'
+    list: 'list',
+    export: 'export'
   }
 
   if (!commands.hasOwnProperty(command)) {
@@ -84,6 +86,28 @@ export async function processContext(commandLine) {
     return await readFile(configPath)
   }
 
+  const getContextName = () => {
+    let contextName = ''
+
+    if (targetNameFlagIndex === -1) {
+      contextName = commandLine.slice(2).join(' ')
+    } else {
+      contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
+    }
+
+    if (!contextName) {
+      console.log(
+        chalk.redBright(
+          `Provide a context name (ag 'sasjs context <command> contextName')`
+        )
+      )
+
+      return null
+    }
+
+    return contextName
+  }
+
   switch (command) {
     case commands.create:
       config = await getConfig()
@@ -120,32 +144,24 @@ export async function processContext(commandLine) {
       edit(parsedConfig, target)
 
       break
-    case commands.delete:
-      let contextName = ''
+    case commands.delete: {
+      const contextName = getContextName()
 
-      if (targetNameFlagIndex === -1) {
-        contextName = commandLine.slice(2).join(' ')
-      } else {
-        contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
-      }
-
-      if (!contextName) {
-        console.log(
-          chalk.redBright(
-            `Provide a context name (ag 'sasjs context delete myContext')`
-          )
-        )
-
-        break
-      }
-
-      remove(contextName, target)
+      if (contextName) remove(contextName, target)
 
       break
+    }
     case commands.list:
       list(target)
 
       break
+    case commands.export: {
+      const contextName = getContextName()
+
+      if (contextName) exportContext(contextName, target)
+
+      break
+    }
     default:
       break
   }

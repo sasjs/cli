@@ -3,8 +3,6 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
-import { isAccessTokenExpiring, getNewAccessToken } from '../utils/auth-utils'
-import { getVariable } from '../utils/utils'
 
 export async function list(target) {
   if (target.serverType !== 'SASVIYA') {
@@ -21,23 +19,9 @@ export async function list(target) {
 
   const startTime = new Date().getTime()
 
-  let accessToken
-
-  try {
-    accessToken = getAccessToken(target)
-  } catch (err) {
+  const accessToken = await getAccessToken(target).catch((err) => {
     displayResult(err)
-  }
-
-  // REFACTOR
-  if (isAccessTokenExpiring(accessToken)) {
-    const client = await getVariable('client', target)
-    const secret = await getVariable('secret', target)
-
-    const authInfo = await getNewAccessToken(sasjs, client, secret, target)
-
-    accessToken = authInfo.access_token
-  }
+  })
 
   const spinner = ora(
     `Checking the compute contexts on ${chalk.greenBright(

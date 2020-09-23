@@ -58,7 +58,7 @@ export async function runSasJob(
     serverType: target.serverType
   })
 
-  const accessToken = getAccessToken(target)
+  const accessToken = await getAccessToken(target)
 
   let data = {
     fromjs: [dataJson]
@@ -88,10 +88,7 @@ export async function runSasJob(
           return
         }
 
-        let outputPath = path.join(
-          process.env.cwd(),
-          isLocal ? '/sasjsbuild' : ''
-        )
+        let outputPath = path.join(process.cwd(), isLocal ? '/sasjsbuild' : '')
 
         if (!(await folderExists(outputPath))) {
           await createFolder(outputPath)
