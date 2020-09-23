@@ -88,10 +88,7 @@ export async function runSasJob(
           return
         }
 
-        let outputPath = path.join(
-          process.cwd(),
-          isLocal ? '/sasjsbuild' : ''
-        )
+        let outputPath = path.join(process.cwd(), isLocal ? '/sasjsbuild' : '')
 
         if (!(await folderExists(outputPath))) {
           await createFolder(outputPath)
