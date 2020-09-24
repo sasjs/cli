@@ -137,6 +137,21 @@ export async function printHelpText() {
           command example: sasjs context list --target targetName
           command example: sasjs context list -t targetName
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+        * ${chalk.cyanBright(
+          'export'
+        )} - exports context to contextName.json in the current folder.
+          command example: sasjs context export contextName --target targetName
+          command example: sasjs context export contextName -t targetName
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
+          exported context example:
+            {
+              "createdBy": "admin",
+              "links": [...],
+              "id": "id...",
+              "version": 2,
+              "name": "Compute Context"
+            }
 
       NOTE: This operation is only supported for SAS Viya build targets.
 

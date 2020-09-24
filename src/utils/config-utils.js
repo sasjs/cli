@@ -1,4 +1,7 @@
+import SASjs from '@sasjs/adapter/node'
 import { readFile, fileExists, folderExists, createFile } from './file-utils'
+import { isAccessTokenExpiring, getNewAccessToken } from './auth-utils'
+import { getVariable } from './utils'
 import path from 'path'
 import chalk from 'chalk'
 
@@ -279,8 +282,8 @@ export async function getProjectRoot() {
   return root
 }
 
-export function getAccessToken(target) {
-  const accessToken =
+export async function getAccessToken(target, checkIfExpiring = true) {
+  let accessToken =
     target && target.authInfo && target.authInfo.access_token
       ? target.authInfo.access_token
       : process.env.access_token
@@ -289,6 +292,20 @@ export function getAccessToken(target) {
     throw new Error(
       `A valid access token was not found.\nPlease provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`
     )
+  }
+
+  if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      serverType: target.serverType
+    })
+
+    const client = await getVariable('client', target)
+    const secret = await getVariable('secret', target)
+
+    const authInfo = await getNewAccessToken(sasjs, client, secret, target)
+
+    accessToken = authInfo.access_token
   }
 
   return accessToken

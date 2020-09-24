@@ -3,6 +3,7 @@ import { create } from './create'
 import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
+import { exportContext } from './export'
 import { fileExists, readFile } from '../utils/file-utils'
 import { getBuildTargets, getGlobalRcFile } from '../utils/config-utils'
 
@@ -12,7 +13,8 @@ export async function processContext(commandLine) {
     create: 'create',
     edit: 'edit',
     delete: 'delete',
-    list: 'list'
+    list: 'list',
+    export: 'export'
   }
 
   if (!commands.hasOwnProperty(command)) {
@@ -39,7 +41,7 @@ export async function processContext(commandLine) {
   if (targetNameFlagIndex !== -1) {
     for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
       if (commandLine[i] === '--source' || commandLine[i] === '-s') {
-        throw `Target name has to be provided as the last argument (ag ${commandExample})`
+        throw `Target name has to be provided as the last argument (eg ${commandExample})`
       }
 
       targetName.push(commandLine[i])
@@ -63,7 +65,7 @@ export async function processContext(commandLine) {
 
     if (configPathFlagIndex === -1) {
       console.log(
-        chalk.redBright(`'--source' flag is missing (ag '${commandExample}')`)
+        chalk.redBright(`'--source' flag is missing (eg '${commandExample}')`)
       )
 
       return
@@ -74,7 +76,7 @@ export async function processContext(commandLine) {
     if (!configPath || !validateConfigPath(configPath)) {
       console.log(
         chalk.redBright(
-          `Provide a path to context config file (ag '${commandExample}')`
+          `Provide a path to context config file (eg '${commandExample}')`
         )
       )
 
@@ -84,23 +86,35 @@ export async function processContext(commandLine) {
     return await readFile(configPath)
   }
 
+  const getContextName = () => {
+    let contextName = ''
+
+    if (targetNameFlagIndex === -1) {
+      contextName = commandLine.slice(2).join(' ')
+    } else {
+      contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
+    }
+
+    if (!contextName) {
+      console.log(
+        chalk.redBright(
+          `Provide a context name (eg 'sasjs context <command> contextName')`
+        )
+      )
+
+      return null
+    }
+
+    return contextName
+  }
+
   switch (command) {
     case commands.create:
       config = await getConfig()
 
       if (!config) break
 
-      validationMap = {
-        name: '',
-        launchName: '',
-        sharedAccountId: '',
-        autoExecLines: [],
-        authorizedUsers: []
-      }
-
-      validateConfig(config, validationMap)
-
-      parsedConfig = JSON.parse(config)
+      parsedConfig = parseConfig(config)
 
       create(parsedConfig, target)
 
@@ -108,44 +122,29 @@ export async function processContext(commandLine) {
     case commands.edit:
       config = await getConfig()
 
-      validationMap = {
-        name: '',
-        updatedContext: {}
-      }
-
-      validateConfig(config, validationMap)
-
-      parsedConfig = JSON.parse(config)
+      parsedConfig = parseConfig(config)
 
       edit(parsedConfig, target)
 
       break
-    case commands.delete:
-      let contextName = ''
+    case commands.delete: {
+      const contextName = getContextName()
 
-      if (targetNameFlagIndex === -1) {
-        contextName = commandLine.slice(2).join(' ')
-      } else {
-        contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
-      }
-
-      if (!contextName) {
-        console.log(
-          chalk.redBright(
-            `Provide a context name (ag 'sasjs context delete myContext')`
-          )
-        )
-
-        break
-      }
-
-      remove(contextName, target)
+      if (contextName) remove(contextName, target)
 
       break
+    }
     case commands.list:
       list(target)
 
       break
+    case commands.export: {
+      const contextName = getContextName()
+
+      if (contextName) exportContext(contextName, target)
+
+      break
+    }
     default:
       break
   }
@@ -194,41 +193,12 @@ async function validateConfigPath(path) {
   return await fileExists(path)
 }
 
-function validateConfig(config, configKeys) {
-  const validationErrorType = 'validation'
-
+function parseConfig(config) {
   try {
     const parsedConfig = JSON.parse(config)
-    const missedKeys = []
 
-    for (const requiredKey of Object.keys(configKeys)) {
-      if (!parsedConfig.hasOwnProperty(requiredKey)) {
-        missedKeys.push(requiredKey)
-      } else if (
-        typeof parsedConfig[requiredKey] !== typeof configKeys[requiredKey]
-      ) {
-        missedKeys.push(requiredKey)
-      } else if (
-        Array.isArray(parsedConfig[requiredKey]) !==
-        Array.isArray(configKeys[requiredKey])
-      ) {
-        missedKeys.push(requiredKey)
-      }
-    }
-
-    if (missedKeys.length) {
-      const error = {
-        type: validationErrorType,
-        message: `Context config file doesn't have all required keys or value is not valid. Please check:\n${missedKeys.join(
-          '\n'
-        )}`
-      }
-
-      throw error
-    }
+    return parsedConfig
   } catch (err) {
-    if (err.type === validationErrorType) throw new Error(err.message)
-
     throw new Error('Context config file is not a valid JSON file.')
   }
 }
