@@ -41,7 +41,7 @@ export async function processContext(commandLine) {
   if (targetNameFlagIndex !== -1) {
     for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
       if (commandLine[i] === '--source' || commandLine[i] === '-s') {
-        throw `Target name has to be provided as the last argument (ag ${commandExample})`
+        throw `Target name has to be provided as the last argument (eg ${commandExample})`
       }
 
       targetName.push(commandLine[i])
@@ -65,7 +65,7 @@ export async function processContext(commandLine) {
 
     if (configPathFlagIndex === -1) {
       console.log(
-        chalk.redBright(`'--source' flag is missing (ag '${commandExample}')`)
+        chalk.redBright(`'--source' flag is missing (eg '${commandExample}')`)
       )
 
       return
@@ -76,7 +76,7 @@ export async function processContext(commandLine) {
     if (!configPath || !validateConfigPath(configPath)) {
       console.log(
         chalk.redBright(
-          `Provide a path to context config file (ag '${commandExample}')`
+          `Provide a path to context config file (eg '${commandExample}')`
         )
       )
 
@@ -98,7 +98,7 @@ export async function processContext(commandLine) {
     if (!contextName) {
       console.log(
         chalk.redBright(
-          `Provide a context name (ag 'sasjs context <command> contextName')`
+          `Provide a context name (eg 'sasjs context <command> contextName')`
         )
       )
 
