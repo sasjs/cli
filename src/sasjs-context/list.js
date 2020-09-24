@@ -4,6 +4,10 @@ import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
 
+/**
+ * Lists all accessible and inaccessible compute contexts.
+ * @param {object} target - SAS server configuration.
+ */
 export async function list(target) {
   if (target.serverType !== 'SASVIYA') {
     throw new Error(

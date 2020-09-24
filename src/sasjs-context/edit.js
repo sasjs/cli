@@ -2,6 +2,11 @@ import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
 
+/**
+ * Edits existing compute context.
+ * @param {object} config - context configuration.
+ * @param {object} target - SAS server configuration.
+ */
 export async function edit(config, target) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,

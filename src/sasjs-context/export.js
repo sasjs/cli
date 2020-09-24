@@ -4,6 +4,11 @@ import { getAccessToken } from '../utils/config-utils'
 import path from 'path'
 import { createFile } from '../utils/file-utils'
 
+/**
+ * Export compute context to json file in current folder.
+ * @param {string} contextName - name of the context to export.
+ * @param {object} target - SAS server configuration.
+ */
 export async function exportContext(contextName, target) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,

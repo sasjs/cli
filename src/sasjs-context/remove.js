@@ -2,6 +2,11 @@ import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
 import { getAccessToken } from '../utils/config-utils'
 
+/**
+ * Removes compute context.
+ * @param {string} contextName - name of the context to delete.
+ * @param {object} target - SAS server configuration.
+ */
 export async function remove(contextName, target) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
