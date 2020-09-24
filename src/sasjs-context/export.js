@@ -17,29 +17,37 @@ export async function exportContext(contextName, target) {
   const context = await sasjs
     .getComputeContextByName(contextName, accessToken)
     .catch((err) => {
-      displayResult(err, ``, null)
+      displayResult(err, '', null)
     })
 
-  if (context) {
-    let output
+  if (context && context.id) {
+    const contextAllAttributes = await sasjs
+      .getComputeContextById(context.id, accessToken)
+      .catch((err) => displayResult(err, '', null))
 
-    try {
-      output = JSON.stringify(context, null, 2)
-    } catch (error) {
-      displayResult(null, null, 'Context has bad format.')
+    if (contextAllAttributes) {
+      delete contextAllAttributes.links
 
-      return
+      let output
+
+      try {
+        output = JSON.stringify(contextAllAttributes, null, 2)
+      } catch (error) {
+        displayResult(null, null, 'Context has bad format.')
+
+        return
+      }
+
+      const outputFileName = contextName.replace(/[^a-z0-9]/gi, '_') + '.json'
+      const outputPath = path.join(process.cwd(), outputFileName)
+
+      await createFile(outputPath, output)
+
+      displayResult(
+        null,
+        null,
+        `Context successfully exported to '${outputPath}'.`
+      )
     }
-
-    const outputFileName = contextName.replace(/[^a-z0-9]/gi, '_') + '.json'
-    const outputPath = path.join(process.cwd(), outputFileName)
-
-    await createFile(outputPath, output)
-
-    displayResult(
-      null,
-      null,
-      `Context successfully exported to '${outputPath}'.`
-    )
   }
 }

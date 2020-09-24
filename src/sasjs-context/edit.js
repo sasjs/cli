@@ -12,10 +12,10 @@ export async function edit(config, target) {
     displayResult(err)
   })
 
-  const { name, updatedContext } = config
+  const { name } = config
 
   const editedContext = await sasjs
-    .editContext(name, updatedContext, accessToken)
+    .editContext(name, config, accessToken)
     .catch((err) => {
       displayResult(err, 'An error has occurred when processing context.', null)
     })

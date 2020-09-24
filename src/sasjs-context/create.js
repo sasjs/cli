@@ -12,13 +12,10 @@ export async function create(config, target) {
     displayResult(err)
   })
 
-  const {
-    name,
-    launchName,
-    sharedAccountId,
-    autoExecLines,
-    authorizedUsers
-  } = config
+  const { name } = config
+  const launchName = config.launchContext && config.launchContext.contextName
+  const autoExecLines = config.environment && config.environment.autoExecLines
+  const sharedAccountId = config.attributes && config.attributes.runServerAs
 
   const createdContext = await sasjs
     .createContext(
@@ -26,7 +23,6 @@ export async function create(config, target) {
       launchName,
       sharedAccountId,
       autoExecLines,
-      authorizedUsers,
       accessToken
     )
     .catch((err) => {

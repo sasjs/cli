@@ -114,17 +114,7 @@ export async function processContext(commandLine) {
 
       if (!config) break
 
-      validationMap = {
-        name: '',
-        launchName: '',
-        sharedAccountId: '',
-        autoExecLines: [],
-        authorizedUsers: []
-      }
-
-      validateConfig(config, validationMap)
-
-      parsedConfig = JSON.parse(config)
+      parsedConfig = parseConfig(config)
 
       create(parsedConfig, target)
 
@@ -132,14 +122,7 @@ export async function processContext(commandLine) {
     case commands.edit:
       config = await getConfig()
 
-      validationMap = {
-        name: '',
-        updatedContext: {}
-      }
-
-      validateConfig(config, validationMap)
-
-      parsedConfig = JSON.parse(config)
+      parsedConfig = parseConfig(config)
 
       edit(parsedConfig, target)
 
@@ -210,41 +193,12 @@ async function validateConfigPath(path) {
   return await fileExists(path)
 }
 
-function validateConfig(config, configKeys) {
-  const validationErrorType = 'validation'
-
+function parseConfig(config) {
   try {
     const parsedConfig = JSON.parse(config)
-    const missedKeys = []
 
-    for (const requiredKey of Object.keys(configKeys)) {
-      if (!parsedConfig.hasOwnProperty(requiredKey)) {
-        missedKeys.push(requiredKey)
-      } else if (
-        typeof parsedConfig[requiredKey] !== typeof configKeys[requiredKey]
-      ) {
-        missedKeys.push(requiredKey)
-      } else if (
-        Array.isArray(parsedConfig[requiredKey]) !==
-        Array.isArray(configKeys[requiredKey])
-      ) {
-        missedKeys.push(requiredKey)
-      }
-    }
-
-    if (missedKeys.length) {
-      const error = {
-        type: validationErrorType,
-        message: `Context config file doesn't have all required keys or value is not valid. Please check:\n${missedKeys.join(
-          '\n'
-        )}`
-      }
-
-      throw error
-    }
+    return parsedConfig
   } catch (err) {
-    if (err.type === validationErrorType) throw new Error(err.message)
-
     throw new Error('Context config file is not a valid JSON file.')
   }
 }
