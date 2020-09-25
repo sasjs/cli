@@ -9,6 +9,7 @@ import { addTarget } from './sasjs-add'
 import { runSasCode } from './sasjs-run'
 import { runSasJob } from './sasjs-request'
 import { processContext } from './sasjs-context'
+import { fileSystem } from './sasjs-folder'
 import chalk from 'chalk'
 
 export async function createFileStructure(parentFolderName, appType) {
@@ -286,4 +287,20 @@ export async function context(command) {
       chalk.redBright('An error has occurred when processing context.', err)
     )
   )
+}
+
+export async function fileSystemOperations(command) {
+  if (!command)
+    console.log(
+      chalk.redBright(`Please provide action for the 'context' command.`)
+    )
+
+  await fileSystem(command).catch((err) => {
+    console.log(
+      chalk.redBright(
+        'An error has occurred when processing file system operation.',
+        err
+      )
+    )
+  })
 }
