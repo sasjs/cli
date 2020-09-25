@@ -4,10 +4,11 @@ import { getAccessToken } from '../utils/config-utils'
 
 /**
  * Edits existing compute context.
+ * @param {string} configName - name of the config to edit.
  * @param {object} config - context configuration.
  * @param {object} target - SAS server configuration.
  */
-export async function edit(config, target) {
+export async function edit(configName, config, target) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType
@@ -17,7 +18,9 @@ export async function edit(config, target) {
     displayResult(err)
   })
 
-  const { name } = config
+  const name = configName || config.name
+
+  delete config.id
 
   const editedContext = await sasjs
     .editContext(name, config, accessToken)
