@@ -55,9 +55,10 @@ export async function processContext(commandLine) {
   let configPath
   let config
   let parsedConfig
+  let configPathFlagIndex
 
   const getConfig = async () => {
-    let configPathFlagIndex = commandLine.indexOf('--source')
+    configPathFlagIndex = commandLine.indexOf('--source')
 
     if (configPathFlagIndex === -1)
       configPathFlagIndex = commandLine.indexOf('-s')
@@ -85,16 +86,18 @@ export async function processContext(commandLine) {
     return await readFile(configPath)
   }
 
-  const getContextName = () => {
+  const getContextName = (upToSourceFlag = false) => {
     let contextName = ''
 
     if (targetNameFlagIndex === -1) {
       contextName = commandLine.slice(2).join(' ')
     } else {
-      contextName = commandLine.slice(2, targetNameFlagIndex).join(' ')
+      contextName = commandLine
+        .slice(2, upToSourceFlag ? configPathFlagIndex : targetNameFlagIndex)
+        .join(' ')
     }
 
-    if (!contextName) {
+    if (!contextName && !upToSourceFlag) {
       console.log(
         chalk.redBright(
           `Provide a context name (eg 'sasjs context <command> contextName')`
@@ -118,14 +121,17 @@ export async function processContext(commandLine) {
       create(parsedConfig, target)
 
       break
-    case commands.edit:
+    case commands.edit: {
       config = await getConfig()
+
+      const contextName = getContextName(true)
 
       parsedConfig = parseConfig(config)
 
-      edit(parsedConfig, target)
+      edit(contextName, parsedConfig, target)
 
       break
+    }
     case commands.delete: {
       const contextName = getContextName()
 
