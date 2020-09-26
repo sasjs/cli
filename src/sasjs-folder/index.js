@@ -38,7 +38,13 @@ export async function fileSystem(commandLine) {
 
   const target = await getBuildTarget(targetName)
 
-  const folderPath = commandLine[2]
+  let folderPath = ''
+
+  if (targetFlagIndex === -1) {
+    folderPath = commandLine.slice(2).join(' ')
+  } else {
+    folderPath = commandLine.slice(2, targetFlagIndex).join(' ')
+  }
 
   if (!folderPath || folderPath === '-t' || folderPath === '--target') {
     console.log(
@@ -50,9 +56,16 @@ export async function fileSystem(commandLine) {
     return
   }
 
+  // Folder path should has prefix '/'
+  if (!/^\//.test(folderPath)) folderPath = '/' + folderPath
+
   switch (command) {
     case commands.create:
       create(folderPath, target)
+
+      break
+    case commands.delete:
+      remove(folderPath, target)
 
       break
     default:
@@ -71,18 +84,48 @@ const create = async (path, target) => {
   )
 
   const pathMap = path.split('/')
-  const folder = pathMap.pop()
-  const parentFolderPath = pathMap.join('/')
+  const folder = sanitize(pathMap.pop())
+  let parentFolderPath = pathMap.join('/')
 
-  console.log(`[folder]`, folder)
-  console.log(`[parentFolderPath]`, parentFolderPath)
+  // TODO: added force flag
+  const createdFolder = await sasjs
+    .createFolder(folder, parentFolderPath, null, accessToken)
+    .catch((err) => {
+      displayResult(err)
+    })
 
-  const createdFolder = await sasjs.createFolder(
-    folder,
-    parentFolderPath,
-    null,
-    accessToken
+  if (createdFolder) {
+    displayResult(
+      null,
+      null,
+      `Folder '${
+        parentFolderPath + '/' + folder
+      }' has been successfully created.`
+    )
+  }
+}
+
+const remove = async (path, target) => {
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType
+  })
+
+  const accessToken = await getAccessToken(target).catch((err) =>
+    displayResult(err)
   )
 
-  console.log(`[createdFolder]`, createdFolder)
+  const deletedFolder = await sasjs
+    .deleteFolder(path, accessToken)
+    .catch((err) => {
+      displayResult(err)
+    })
+
+  console.log(`[deletedFolder]`, deletedFolder)
+
+  // if (deletedFolder) {
+  //   displayResult(null, null, dele)
+  // }
 }
+
+const sanitize = (path) => path.replace(/[^0-9a-zA-Z_\-. ]/g, '_')
