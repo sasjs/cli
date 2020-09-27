@@ -34,12 +34,13 @@ export async function printHelpText() {
   )} and ${chalk.cyanBright('tgtServices')}
     * ${chalk.greenBright(
       'build <targetName>'
-    )} - Prepares a single deployment script (SAS9 or Viya program) per configuration in sasjs.config.json.
+    )} - Prepares a single deployment script (SAS9 or Viya program) per configuration in sasjsconfig.json.
         First Build (macro) variables are inserted, then all of the buildinit / buildterm dependencies,
-          then the buildinit (a good place to source the Viya app tokens),
-          then all of the compiled services are added,
-          and finally the buildterm script (where you might perform additional deployment actions such as database build).
-        This SAS file could be executed as part of a web service (executed by the Deploy command) or simply copy pasted into Enterprise Guide or SAS Studio.
+          then the buildinit (a good place to source the Viya app tokens), then all of the compiled
+          services are added, and finally the buildterm script (where you might perform additional
+          deployment actions such as database build).
+        This SAS file could be executed as part of a web service (executed by the Deploy command)
+          or simply copy pasted into Enterprise Guide or SAS Studio.
         It will also perform ${chalk.greenBright(
           'compile'
         )} command if services are not compiled.
