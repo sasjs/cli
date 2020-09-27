@@ -34,7 +34,7 @@ export async function printHelpText() {
   )} and ${chalk.cyanBright('tgtServices')}
     * ${chalk.greenBright(
       'build <targetName>'
-    )} - Prepares a single deployment script (SAS9 or Viya program) per configuration in sasjs.config.json.    
+    )} - Prepares a single deployment script (SAS9 or Viya program) per configuration in sasjs.config.json.
         First Build (macro) variables are inserted, then all of the buildinit / buildterm dependencies,
           then the buildinit (a good place to source the Viya app tokens),
           then all of the compiled services are added,
@@ -99,7 +99,7 @@ export async function printHelpText() {
 
     * ${chalk.greenBright(
       'context <command>'
-    )} - performs operations on contexts.  
+    )} - performs operations on contexts.
         * ${chalk.cyanBright('create')} - creates new context.
           command example: sasjs context create --source ../contextConfig.json --target targetName
           command example: sasjs context create -s ../contextConfig.json -t targetName
@@ -154,7 +154,7 @@ export async function printHelpText() {
     )} - Lets the user run a SAS job against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
     <sasProgramPath> - It should be the full path to the service, eg that contained in the _program parameter
-    It can also be relative path, for example if appLoc is '/Public/app', then you can pass 'folder/sasjob' it will  
+    It can also be relative path, for example if appLoc is '/Public/app', then you can pass 'folder/sasjob' it will
     join them to make a full path, eg '/Public/app/folder/sasjob'.
 
     ${chalk.cyan('Alias commands:')}
