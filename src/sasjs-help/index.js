@@ -103,29 +103,34 @@ export async function printHelpText() {
         * ${chalk.cyanBright('create')} - creates new context.
           command example: sasjs context create --source ../contextConfig.json --target targetName
           command example: sasjs context create -s ../contextConfig.json -t targetName
-          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing target name (--target targetName or -t targetName) is optional.
+                Default target name will be used if target name was omitted.
 
         * ${chalk.cyanBright('edit')} - edits existing context.
           command example: sasjs context edit contextName --source ../contextConfig.json --target targetName
           command example: sasjs context edit -s ../contextConfig.json -t targetName
-          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing target name (--target targetName or -t targetName) is optional.
+                Default target name will be used if target name was omitted.
 
         * ${chalk.cyanBright('delete')} - deletes existing context.
           command example: sasjs context delete contextName --target targetName
           command example: sasjs context delete contextName -t targetName
-          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing target name (--target targetName or -t targetName) is optional.
+                Default target name will be used if target name was omitted.
         * ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.
           command example: sasjs context list --target targetName
           command example: sasjs context list -t targetName
-          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing target name (--target targetName or -t targetName) is optional.
+                Default target name will be used if target name was omitted.
         * ${chalk.cyanBright(
           'export'
         )} - exports context to contextName.json in the current folder.
           command example: sasjs context export contextName --target targetName
           command example: sasjs context export contextName -t targetName
-          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing target name (--target targetName or -t targetName) is optional.
+                Default target name will be used if target name was omitted.
 
           exported context example:
             {
@@ -136,13 +141,14 @@ export async function printHelpText() {
               "name": "Compute Context"
             }
 
-      NOTE: The sasjs context operation is only supported for SAS Viya build targets.  More information available in the online documentation: https://sasjs.io/sasjs-cli-context
+      NOTE: The sasjs context operation is only supported for SAS Viya build targets.
+            More information available in the online documentation: https://sasjs.io/sasjs-cli-context
 
     * ${chalk.greenBright(
       'add'
     )} - Lets the user add a build target to either the local project configuration, or to the global .sasjsrc file.
-    This command requires the user to input all the required parameters.
-    More information available in the online documentation: https://sasjs.io/sasjs-cli-add/
+      NOTE:  This command requires the user to input all the required parameters.
+             More information available in the online documentation: https://sasjs.io/sasjs-cli-add/
 
     * ${chalk.greenBright(
       'run <sasFilePath> -t <targetName>'
