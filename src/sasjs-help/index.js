@@ -12,7 +12,7 @@ export async function printHelpText() {
         - if no foldername is specified, it creates the folder structure in the current working directory.
         - If this is an existing NPM project, it will update package.json with the @sasjs/core dependency.
         - An additional option can be specified to create a web app from a template.
-          This supports creation of Angular, React and minimal web apps.
+          This supports creation of Angular, React and minimal web apps.  There is also a sasonly option.
           e.g. ${chalk.cyanBright(
             'sasjs create my-sas-project --template react'
           )}
@@ -99,34 +99,17 @@ export async function printHelpText() {
 
     * ${chalk.greenBright(
       'context <command>'
-    )} - performs operations on contexts.
+    )} - performs operations on contexts.  
         * ${chalk.cyanBright('create')} - creates new context.
           command example: sasjs context create --source ../contextConfig.json --target targetName
           command example: sasjs context create -s ../contextConfig.json -t targetName
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
-          context config example:
-            {
-              "name": "New context",
-              "launchName": "SAS Job Execution launcher context",
-              "sharedAccountId": "cas",
-              "autoExecLines": ["%put hello;"],
-              "authorizedUsers": []
-            }
-          NOTE: Keys "name", "launchName", "sharedAccountId", "autoExecLines", "authorizedUsers" are required.
         * ${chalk.cyanBright('edit')} - edits existing context.
-          command example: sasjs context edit --source ../contextConfig.json --target targetName
+          command example: sasjs context edit contextName --source ../contextConfig.json --target targetName
           command example: sasjs context edit -s ../contextConfig.json -t targetName
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
-          context config example:
-            {
-              "name": "New context",
-              "updatedContext": {
-                "autoExecLines": ["%put hello world!;"]
-              }
-            }
-          NOTE: Keys "name", "updatedContext" are required.
         * ${chalk.cyanBright('delete')} - deletes existing context.
           command example: sasjs context delete contextName --target targetName
           command example: sasjs context delete contextName -t targetName
@@ -153,12 +136,13 @@ export async function printHelpText() {
               "name": "Compute Context"
             }
 
-      NOTE: This operation is only supported for SAS Viya build targets.
+      NOTE: The sasjs context operation is only supported for SAS Viya build targets.  More information available in the online documentation: https://sasjs.io/sasjs-cli-context
 
     * ${chalk.greenBright(
       'add'
     )} - Lets the user add a build target to either the local project configuration, or to the global .sasjsrc file.
     This command requires the user to input all the required parameters.
+    More information available in the online documentation: https://sasjs.io/sasjs-cli-add/
 
     * ${chalk.greenBright(
       'run <sasFilePath> -t <targetName>'
