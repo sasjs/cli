@@ -108,7 +108,7 @@ export async function printHelpText() {
 
         * ${chalk.cyanBright('edit')} - edits existing context.
           command example: sasjs context edit contextName --source ../contextConfig.json --target targetName
-          command example: sasjs context edit -s ../contextConfig.json -t targetName
+          command example: sasjs context edit contextName -s ../contextConfig.json -t targetName
           NOTE: Providing target name (--target targetName or -t targetName) is optional.
                 Default target name will be used if target name was omitted.
 
