@@ -160,9 +160,9 @@ export async function printHelpText() {
       'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
     )} - Lets the user run a SAS job against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
-    <sasProgramPath> - It should be the full path to the service, eg that contained in the _program parameter
-    It can also be relative path, for example if appLoc is '/Public/app', then you can pass 'folder/sasjob' it will
-    join them to make a full path, eg '/Public/app/folder/sasjob'.
+    <sasProgramPath> - If this has a leading slash (eg /Public/app/folder/servicename) then it must
+      be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended
+      with the appLoc - which must then be defined in the sasjs config.
 
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
