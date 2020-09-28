@@ -2,6 +2,9 @@ import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import { getBuildTarget, getAccessToken } from '../utils/config-utils'
 import { displayResult } from '../utils/displayResult'
+import { create } from './create'
+import { move } from './move'
+import { remove } from './remove'
 
 export async function fileSystem(commandLine) {
   const command = commandLine[1]
@@ -23,13 +26,19 @@ export async function fileSystem(commandLine) {
     return
   }
 
-  let targetName = []
-  let targetFlagIndex = commandLine.indexOf('--target')
+  let forceFlagIndex = commandLine.indexOf('-f')
 
-  if (targetFlagIndex === -1) targetFlagIndex = commandLine.indexOf('-t')
+  if (forceFlagIndex === -1) forceFlagIndex = commandLine.indexOf('--force')
+
+  let targetName = []
+  let targetFlagIndex = commandLine.indexOf('-t')
+
+  if (targetFlagIndex === -1) targetFlagIndex = commandLine.indexOf('--target')
 
   if (targetFlagIndex !== -1) {
     for (let i = targetFlagIndex + 1; i < commandLine.length; i++) {
+      if (i === forceFlagIndex) break
+
       targetName.push(commandLine[i])
     }
   }
@@ -40,13 +49,22 @@ export async function fileSystem(commandLine) {
 
   let folderPath = ''
 
-  if (targetFlagIndex === -1) {
+  if (targetFlagIndex === -1 && forceFlagIndex === -1) {
     folderPath = commandLine.slice(2).join(' ')
-  } else {
+  } else if (targetFlagIndex === -1) {
+    folderPath = commandLine.slice(2, forceFlagIndex).join(' ')
+  } else if (forceFlagIndex === -1) {
     folderPath = commandLine.slice(2, targetFlagIndex).join(' ')
+  } else {
+    folderPath = commandLine
+      .slice(
+        2,
+        targetFlagIndex > forceFlagIndex ? forceFlagIndex : targetFlagIndex
+      )
+      .join(' ')
   }
 
-  if (!folderPath || folderPath === '-t' || folderPath === '--target') {
+  if (!folderPath) {
     console.log(
       chalk.redBright(
         `Please provide folder path (eg 'sasjs folder <command> /Public/folder').`
@@ -59,73 +77,29 @@ export async function fileSystem(commandLine) {
   // Folder path should has prefix '/'
   if (!/^\//.test(folderPath)) folderPath = '/' + folderPath
 
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType
+  })
+
+  const accessToken = await getAccessToken(target).catch((err) =>
+    displayResult(err)
+  )
+
   switch (command) {
     case commands.create:
-      create(folderPath, target)
+      create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
 
       break
     case commands.delete:
-      remove(folderPath, target)
+      remove(folderPath, sasjs, accessToken)
+
+      break
+    case commands.move:
+      move(folderPath, sasjs, accessToken)
 
       break
     default:
       break
   }
 }
-
-const create = async (path, target) => {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = await getAccessToken(target).catch((err) =>
-    displayResult(err)
-  )
-
-  const pathMap = path.split('/')
-  const folder = sanitize(pathMap.pop())
-  let parentFolderPath = pathMap.join('/')
-
-  // TODO: added force flag
-  const createdFolder = await sasjs
-    .createFolder(folder, parentFolderPath, null, accessToken)
-    .catch((err) => {
-      displayResult(err)
-    })
-
-  if (createdFolder) {
-    displayResult(
-      null,
-      null,
-      `Folder '${
-        parentFolderPath + '/' + folder
-      }' has been successfully created.`
-    )
-  }
-}
-
-const remove = async (path, target) => {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = await getAccessToken(target).catch((err) =>
-    displayResult(err)
-  )
-
-  const deletedFolder = await sasjs
-    .deleteFolder(path, accessToken)
-    .catch((err) => {
-      displayResult(err)
-    })
-
-  console.log(`[deletedFolder]`, deletedFolder)
-
-  // if (deletedFolder) {
-  //   displayResult(null, null, dele)
-  // }
-}
-
-const sanitize = (path) => path.replace(/[^0-9a-zA-Z_\-. ]/g, '_')
