@@ -4,7 +4,7 @@ import { displayResult } from '../utils/displayResult'
 /**
  * Creates folder.
  * @param {string} path - folder path.
- * @param {object} sasjs - SAS adapter.
+ * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  * @param {boolean} isForced - forced flag indicates if target folder already exists, its content and all subfolders will be deleted.
  */

@@ -194,6 +194,10 @@ export async function getBuildTargets(buildSourceFolder) {
   return configuration && configuration.targets ? configuration.targets : []
 }
 
+/**
+ * Returns SAS server configuration.
+ * @param {string} targetName - name of the configuration.
+ */
 export async function getBuildTarget(targetName) {
   const { buildSourceFolder } = require('../constants')
   let targets = await getBuildTargets(buildSourceFolder)

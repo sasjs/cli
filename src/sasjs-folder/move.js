@@ -2,8 +2,8 @@ import { displayResult } from '../utils/displayResult'
 
 /**
  * Moves folder to a new location.
- * @param {string} paths - folder paths (source path and target path).
- * @param {object} sasjs - SAS adapter.
+ * @param {string} paths - folder paths (source path and destination path separated by space).
+ * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
 export const move = async (paths, sasjs, accessToken) => {
