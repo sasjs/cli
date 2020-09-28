@@ -1,5 +1,11 @@
 import { displayResult } from '../utils/displayResult'
 
+/**
+ * Moves folder to a new location.
+ * @param {string} paths - folder paths (source path and target path).
+ * @param {object} sasjs - SAS adapter.
+ * @param {string} accessToken - an access token for an authorized user.
+ */
 export const move = async (paths, sasjs, accessToken) => {
   const pathMap = paths.split(' ')
 

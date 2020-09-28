@@ -1,5 +1,11 @@
 import { displayResult } from '../utils/displayResult'
 
+/**
+ * Deletes folder.
+ * @param {string} path - folder path.
+ * @param {object} sasjs - SAS adapter.
+ * @param {string} accessToken - an access token for an authorized user.
+ */
 export const remove = async (path, sasjs, accessToken) => {
   const deletedFolder = await sasjs
     .deleteFolder(path, accessToken)
