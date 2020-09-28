@@ -6,7 +6,7 @@ import { create } from './create'
 import { move } from './move'
 import { remove } from './remove'
 
-export async function fileSystem(commandLine) {
+export async function folder(commandLine) {
   const command = commandLine[1]
   const commands = {
     create: 'create',

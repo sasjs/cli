@@ -13,7 +13,7 @@ import {
   run,
   runRequest,
   context,
-  fileSystemOperations
+  folderManagement
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -230,7 +230,7 @@ export async function cli(args) {
       break
     }
     case 'folder': {
-      await fileSystemOperations(command.parameters)
+      await folderManagement(command.parameters)
 
       break
     }
