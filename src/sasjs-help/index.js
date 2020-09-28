@@ -164,6 +164,27 @@ export async function printHelpText() {
       be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended
       with the appLoc - which must then be defined in the sasjs config.
 
+    * ${chalk.greenBright('folder <command>')} - performs operations on folders.
+        * ${chalk.cyanBright('create')} - creates new folder.
+          command example: sasjs folder create /Public/folder --target targetName
+          command example: sasjs folder create /Public/folder -t targetName
+          command example: sasjs folder create /Public/folder -t targetName -f
+          command example: sasjs folder create /Public/folder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing force flag (-f or --force) is optional. If provided and target folder already exists, its content and all subfolders will be deleted.
+
+        * ${chalk.cyanBright('delete')} - deletes folder.
+          command example: sasjs folder delete /Public/folder --target targetName
+          command example: sasjs folder delete /Public/folder -t targetName
+          command example: sasjs folder delete /Public/folder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
+        * ${chalk.cyanBright('move')} - moves folder to a new location.
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder -t targetName
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
     'DB'

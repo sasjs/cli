@@ -38,6 +38,10 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
   2. `sasjs context edit --source ../contextConfig.json --target targetName` - updates existing context using provided context config.
   3. `sasjs context delete contextName --target targetName` - deletes context.
   4. `sasjs context list --target targetName` - lists all accessible and inaccessible contexts.
+- `sasjs folder`: performs folder related operations
+  1. `sasjs folder create /Public/folder --target targetName` - creates new new folder.
+  2. `sasjs folder delete /Public/folder --target targetName` - deletes folder.
+  3. `sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName` - moves folder to a new location.
 
 ## Command Operations
 

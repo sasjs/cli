@@ -5,7 +5,7 @@ import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
 import { fileExists, readFile } from '../utils/file-utils'
-import { getBuildTargets, getGlobalRcFile } from '../utils/config-utils'
+import { getBuildTarget } from '../utils/config-utils'
 
 export async function processContext(commandLine) {
   const command = commandLine[1]
@@ -50,7 +50,7 @@ export async function processContext(commandLine) {
 
   targetName = targetName.join(' ')
 
-  const target = await getTarget(targetName)
+  const target = await getBuildTarget(targetName)
 
   let configPath
   let config
@@ -153,39 +153,6 @@ export async function processContext(commandLine) {
     default:
       break
   }
-}
-
-async function getTarget(targetName) {
-  const { buildSourceFolder } = require('../constants')
-  let targets = await getBuildTargets(buildSourceFolder)
-
-  if (targets.length === 0) {
-    const globalRc = await getGlobalRcFile()
-
-    targets = globalRc.targets || []
-
-    if (targets.length === 0) throw new Error(`No build targets found.`)
-  }
-
-  let target = null
-
-  if (targetName) target = targets.find((t) => t.name === targetName)
-
-  if (!target) {
-    target = targets[0]
-
-    console.log(
-      chalk.yellowBright(
-        `${
-          targetName
-            ? `Target with the name '${targetName}' was not found in sasjsconfig.json.`
-            : `Target name wasn't provided.`
-        } Using ${chalk.cyanBright(target.name)} by default.`
-      )
-    )
-  }
-
-  return target
 }
 
 async function validateConfigPath(path) {

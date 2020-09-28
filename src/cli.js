@@ -12,7 +12,8 @@ import {
   add,
   run,
   runRequest,
-  context
+  context,
+  folderManagement
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -109,6 +110,8 @@ function getUnaliasedCommand(command) {
   }
 
   if (command === 'context') return 'context'
+
+  if (command === 'folder') return 'folder'
 
   return command
 }
@@ -218,14 +221,22 @@ export async function cli(args) {
       } = command.parameters
 
       await runRequest(sasJobLocation, dataFilePath, configFilePath, targetName)
+
       break
     }
     case 'context': {
       await context(command.parameters)
+
+      break
+    }
+    case 'folder': {
+      await folderManagement(command.parameters)
+
       break
     }
     default:
       showInvalidCommandText()
+
       break
   }
 }

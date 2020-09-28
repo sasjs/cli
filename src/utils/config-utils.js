@@ -194,6 +194,43 @@ export async function getBuildTargets(buildSourceFolder) {
   return configuration && configuration.targets ? configuration.targets : []
 }
 
+/**
+ * Returns SAS server configuration.
+ * @param {string} targetName - name of the configuration.
+ */
+export async function getBuildTarget(targetName) {
+  const { buildSourceFolder } = require('../constants')
+  let targets = await getBuildTargets(buildSourceFolder)
+
+  if (targets.length === 0) {
+    const globalRc = await getGlobalRcFile()
+
+    targets = globalRc.targets || []
+
+    if (targets.length === 0) throw new Error(`No build targets found.`)
+  }
+
+  let target = null
+
+  if (targetName) target = targets.find((t) => t.name === targetName)
+
+  if (!target) {
+    target = targets[0]
+
+    console.log(
+      chalk.yellowBright(
+        `${
+          targetName
+            ? `Target with the name '${targetName}' was not found in sasjsconfig.json.`
+            : `Target name wasn't provided.`
+        } Using ${chalk.cyanBright(target.name)} by default.`
+      )
+    )
+  }
+
+  return target
+}
+
 export function getMacroCorePath() {
   return path.join(process.projectDir, 'node_modules', '@sasjs/core')
 }
