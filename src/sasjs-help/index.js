@@ -173,6 +173,27 @@ export async function printHelpText() {
     It can also be relative path, for example if appLoc is '/Public/app', then you can pass 'folder/sasjob' it will  
     join them to make a full path, eg '/Public/app/folder/sasjob'.
 
+    * ${chalk.greenBright('folder <command>')} - performs operations on folders.
+        * ${chalk.cyanBright('create')} - creates new folder.
+          command example: sasjs folder create /Public/folder --target targetName
+          command example: sasjs folder create /Public/folder -t targetName
+          command example: sasjs folder create /Public/folder -t targetName -f
+          command example: sasjs folder create /Public/folder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing force flag (-f or --force) is optional. If provided and target folder already exists, its content and all subfolders will be deleted.
+
+        * ${chalk.cyanBright('delete')} - deletes folder.
+          command example: sasjs folder delete /Public/folder --target targetName
+          command example: sasjs folder delete /Public/folder -t targetName
+          command example: sasjs folder delete /Public/folder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
+        * ${chalk.cyanBright('move')} - moves folder to a new location.
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder -t targetName
+          command example: sasjs folder move /Public/sourceFolder /Public/targetFolder
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
     'DB'
