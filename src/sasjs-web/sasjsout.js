@@ -5,11 +5,11 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name="_webout.json"
       contenttype="text/html";
   %end;
-  %else %if &type=JS %then %do;
+  %else %if &type=JS or &type=JS64 %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.js'
       contenttype='application/javascript';
   %end;
-  %else %if &type=CSS %then %do;
+  %else %if &type=CSS or &type=CSS64 %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.css'
       contenttype='text/css';
   %end;
@@ -27,10 +27,10 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   %end;
 %end;
 %else %do;
-  %if &type=JS %then %do;
+  %if &type=JS or &type=JS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,application/javascript));
   %end;
-  %else %if &type=CSS %then %do;
+  %else %if &type=CSS or &type=CSS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
   %end;
   %else %if &type=PNG %then %do;

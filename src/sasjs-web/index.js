@@ -322,10 +322,26 @@ async function createTargetDestinationFolder(destinationPath) {
 }
 
 async function getWebServiceContent(content, type = 'JS', serverType) {
-  const lines = content
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .filter((l) => !!l)
+  let lines
+
+  // Encode to base64 *.js and *.css files if target server type is SAS 9.
+  const typesToEncode = {
+    JS: 'JS64',
+    CSS: 'CSS64'
+  }
+
+  if (
+    serverType === permittedServerTypes.SAS9 &&
+    typesToEncode.hasOwnProperty(type)
+  ) {
+    lines = [btoa(content)]
+  } else {
+    lines = content
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .filter((l) => !!l)
+  }
+
   let serviceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;
 data _null_;
 file sasjs;
@@ -350,17 +366,10 @@ file sasjs;
     }
   })
 
-  // Encode to base64 *.js and *.css files if target server type is SAS 9.
-  const typesToEncode = {
-    JS: 'JS64',
-    CSS: 'CSS64'
-  }
-
   if (
     serverType === permittedServerTypes.SAS9 &&
     typesToEncode.hasOwnProperty(type)
   ) {
-    serviceContent = btoa(serviceContent)
     serviceContent += `\nrun;\n%sasjsout(${typesToEncode[type]})`
   } else {
     serviceContent += `\nrun;\n%sasjsout(${type})`
