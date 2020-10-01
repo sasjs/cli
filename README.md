@@ -57,3 +57,7 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
   Lets the user add a build target either to the local project configuration or to the global `.sasjsrc` file.
 - `sasjs run` (Alias: `r`)
   Lets the user run the specified SAS file against a target present either in the local project configuration or the global `.sasjsrc` file.
+
+## Notes
+
+- In order to update existing version of `sasjs` consider using `npm update -g @sasjs/cli` command to get the latest version of it.
