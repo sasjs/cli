@@ -11,6 +11,7 @@ import { runSasJob } from './sasjs-request'
 import { processContext } from './sasjs-context'
 import { folder } from './sasjs-folder'
 import chalk from 'chalk'
+import { displayResult } from './utils/displayResult'
 
 export async function createFileStructure(parentFolderName, appType) {
   await create(parentFolderName, appType)
@@ -243,9 +244,7 @@ export async function add(resourceType = 'target') {
         console.log(chalk.greenBright('Target successfully added!'))
       })
       .catch((err) => {
-        console.log(
-          chalk.redBright('An error has occurred when adding the target.', err)
-        )
+        displayResult(err, 'An error has occurred when adding the target.')
       })
   }
 }
