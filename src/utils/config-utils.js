@@ -281,7 +281,7 @@ export async function getTargetToBuild(targetName) {
   }
 }
 
-function sanitizeAppLoc(appLoc) {
+export function sanitizeAppLoc(appLoc) {
   if (!appLoc || typeof appLoc !== 'string') return
 
   // Removes trailing '/'
