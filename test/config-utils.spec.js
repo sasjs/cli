@@ -1,4 +1,4 @@
-import { getAccessToken } from '../src/utils/config-utils'
+import { getAccessToken, sanitizeAppLoc } from '../src/utils/config-utils'
 
 describe('Config Utils', () => {
   beforeEach(() => {
@@ -47,6 +47,24 @@ describe('Config Utils', () => {
       const token = await getAccessToken(target, false)
 
       expect(token).toEqual('3NVT0K3N')
+    })
+  })
+
+  describe('sanitizeAppLoc', () => {
+    let notValidAppLoc = '///Public/app///'
+    const validAppLoc = '/Public/app'
+
+    test('should remove trailing slash', () => {
+      expect(sanitizeAppLoc(notValidAppLoc)).toEqual(validAppLoc)
+    })
+
+    test('should remove multiple leading slashes', () => {
+      expect(sanitizeAppLoc(notValidAppLoc)).toEqual(validAppLoc)
+    })
+
+    notValidAppLoc = 'Public/app///'
+    test('should add leading slash', () => {
+      expect(sanitizeAppLoc(notValidAppLoc)).toEqual(validAppLoc)
     })
   })
 })

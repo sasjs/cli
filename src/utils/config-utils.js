@@ -232,6 +232,8 @@ export async function getBuildTarget(targetName) {
     )
   }
 
+  if (target.appLoc) target.appLoc = sanitizeAppLoc(target.appLoc)
+
   return target
 }
 
@@ -258,6 +260,9 @@ export async function getTargetToBuild(targetName) {
       )
     }
 
+    if (targetToBuild.appLoc)
+      targetToBuild.appLoc = sanitizeAppLoc(targetToBuild.appLoc)
+
     return Promise.resolve(targetToBuild)
   } else {
     // Use default target to build. For cases when build target was not found.
@@ -278,6 +283,25 @@ export async function getTargetToBuild(targetName) {
 
     return Promise.resolve(defaultTargetToBuild)
   }
+}
+
+/**
+ * Sanitizes app location string.
+ * @param {string} appLoc - app location
+ */
+export function sanitizeAppLoc(appLoc) {
+  if (!appLoc || typeof appLoc !== 'string') return
+
+  // Removes trailing '/'
+  appLoc = appLoc.replace(/\/{1,}$/, '')
+
+  // Adds leading '/'
+  if (!/^\//.test(appLoc)) appLoc = '/' + appLoc
+
+  // Replaces multiple leading '/' with a single '/'
+  appLoc = appLoc.replace(/^\/{2,}/, '/')
+
+  return appLoc
 }
 
 export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
