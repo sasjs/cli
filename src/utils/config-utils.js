@@ -281,6 +281,10 @@ export async function getTargetToBuild(targetName) {
   }
 }
 
+/**
+ * Sanitizes app location string.
+ * @param {string} appLoc - app location
+ */
 export function sanitizeAppLoc(appLoc) {
   if (!appLoc || typeof appLoc !== 'string') return
 
