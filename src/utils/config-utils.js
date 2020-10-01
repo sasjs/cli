@@ -144,7 +144,11 @@ export async function getLocalRcFile() {
 
 export async function saveGlobalRcFile(content) {
   const homeDir = require('os').homedir()
-  await createFile(path.join(homeDir, '.sasjsrc'), content)
+  const rcFilePath = path.join(homeDir, '.sasjsrc')
+
+  await createFile(rcFilePath, content)
+
+  console.log(chalk.greenBright(`Config saved to '${rcFilePath}'.`))
 }
 
 export async function saveLocalRcFile(content) {
