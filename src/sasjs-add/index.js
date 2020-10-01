@@ -86,10 +86,12 @@ async function saveToLocalConfig(buildTarget) {
   } else {
     config = { targets: [buildTarget] }
   }
-  await createFile(
-    path.join(buildSourceFolder, 'sasjsconfig.json'),
-    JSON.stringify(config, null, 2)
-  )
+
+  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+
+  await createFile(configPath, JSON.stringify(config, null, 2))
+
+  console.log(chalk.greenBright(`Config saved to '${configPath}'.`))
 }
 
 async function saveToGlobalConfig(buildTarget) {
