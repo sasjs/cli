@@ -7,7 +7,7 @@ import { getVariable } from '../utils/utils'
 import { getAccessToken } from '../utils/auth-utils'
 
 export async function runSasCode(filePath, targetName) {
-  if (!/\.sas/i.test(filePath)) {
+  if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
   }
 
