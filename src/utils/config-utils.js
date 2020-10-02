@@ -39,9 +39,13 @@ export async function findTargetInConfiguration(
     }
   }
 
-  let fallBackTarget = viyaSpecific
-    ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
-    : localConfig.targets[0]
+  let fallBackTarget
+
+  if (localConfig && localConfig.targets) {
+    fallBackTarget = viyaSpecific
+      ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
+      : localConfig.targets[0]
+  }
 
   if (fallBackTarget) {
     console.log(
