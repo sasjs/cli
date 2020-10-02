@@ -252,7 +252,7 @@ export async function add(resourceType = 'target') {
 export async function run(filePath, targetName) {
   await runSasCode(filePath, targetName).catch((err) => {
     console.log(
-      chalk.redBright('An error has occurred when running your SAS code', err)
+      chalk.redBright('An error has occurred when running your SAS code.', err)
     )
   })
 }
