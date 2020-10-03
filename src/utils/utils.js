@@ -208,3 +208,13 @@ export async function getVariable(name, target) {
     return null
   }
 }
+
+/**
+ * Returns a timestamp in YYYYMMDDSS format
+ */
+export function generateTimestamp() {
+  const date = new Date()
+  const timestamp = `${date.getFullYear()}${date.getMonth()}${date.getDate()}${date.getHours()}${date.getMinutes()}${date.getSeconds()}`
+
+  return timestamp
+}
