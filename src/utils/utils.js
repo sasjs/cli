@@ -214,7 +214,7 @@ export async function getVariable(name, target) {
  */
 export function generateTimestamp() {
   const date = new Date()
-  const timestamp = `${date.getFullYear()}${date.getMonth()}${date.getDate()}${date.getHours()}${date.getMinutes()}${date.getSeconds()}`
+  const timestamp = `${date.getUTCFullYear()}${date.getUTCMonth()}${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
 
   return timestamp
 }
