@@ -1,4 +1,3 @@
-import { test } from 'shelljs'
 import { runSasCode } from '../src/sasjs-run/index'
 
 describe('sasjs run', () => {

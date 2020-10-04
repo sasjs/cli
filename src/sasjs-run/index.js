@@ -1,35 +1,37 @@
 import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration } from '../utils/config-utils'
-import { readFile } from '../utils/file-utils'
-import { getVariable } from '../utils/utils'
-import { getAccessToken } from '../utils/auth-utils'
+import {
+  findTargetInConfiguration,
+  getAccessToken
+} from '../utils/config-utils'
+import { readFile, createFile } from '../utils/file-utils'
+import { getVariable, generateTimestamp } from '../utils/utils'
 
+/**
+ * Runs SAS code from a given file on the specified target.
+ * @param {string} filePath - the path to the file containing SAS code.
+ * @param {string} targetName - the name of the target to run the SAS code on.
+ */
 export async function runSasCode(filePath, targetName) {
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
   }
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')
   }
   const sasFile = await readFile(path.join(process.cwd(), filePath))
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === 'SASVIYA') {
-    await executeOnSasViya(filePath, target, linesToExecute, isLocal)
+    await executeOnSasViya(filePath, target, linesToExecute)
   } else {
     await executeOnSas9(target, linesToExecute)
   }
 }
 
-async function executeOnSasViya(
-  filePath,
-  buildTarget,
-  linesToExecute,
-  isLocalTarget
-) {
+async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   console.log(
     chalk.cyanBright(
       `Sending ${path.basename(filePath)} to SAS server for execution.`
@@ -49,26 +51,7 @@ async function executeOnSasViya(
     )
   }
 
-  const clientId = await getVariable('client', buildTarget)
-  const clientSecret = await getVariable('secret', buildTarget)
-  if (!clientId) {
-    throw new Error(
-      'A client ID is required for SAS Viya deployments.\n Please ensure that `client` is present in your build target configuration or in your .env file, and try again.\n'
-    )
-  }
-  if (!clientSecret) {
-    throw new Error(
-      'A client secret is required for SAS Viya deployments.\n Please ensure that `secret` is present in your build target configuration or in your .env file, and try again.\n'
-    )
-  }
-
-  const accessToken = await getAccessToken(
-    sasjs,
-    clientId,
-    clientSecret,
-    buildTarget,
-    isLocalTarget
-  )
+  const accessToken = await getAccessToken(buildTarget)
 
   const executionSession = await sasjs
     .createSession(contextName, accessToken)
@@ -88,8 +71,8 @@ async function executeOnSasViya(
   let log
   try {
     log = executionResult.log.items
-      ? executionResult.log.items.map((i) => i.line).join('\n')
-      : JSON.stringify(executionResult.log)
+      ? executionResult.log.items.map((i) => i.line)
+      : executionResult.log
   } catch (e) {
     console.log(
       chalk.redBright(
@@ -103,11 +86,12 @@ async function executeOnSasViya(
         `Please check your ${chalk.cyanBright('tgtDeployVars')} and try again.`
       )
     )
-    log = executionResult
+    log = JSON.stringify(executionResult)
   }
 
   console.log(chalk.greenBright('Job execution completed!'))
-  console.log(log)
+
+  await createOutputFile(log)
 }
 
 async function executeOnSas9(buildTarget, linesToExecute) {
@@ -150,5 +134,17 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   }
 
   console.log(chalk.greenBright('Job execution completed!'))
-  console.log(parsedLog)
+
+  await createOutputFile(JSON.stringify(parsedLog, null, 2))
+}
+
+async function createOutputFile(log) {
+  const timestamp = generateTimestamp()
+  const outputFilePath = path.join(process.cwd(), `sasjs-run-${timestamp}.log`)
+
+  await createFile(outputFilePath, log)
+
+  console.log(
+    chalk.whiteBright(`Log is available in ${chalk.cyanBright(outputFilePath)}`)
+  )
 }
