@@ -100,17 +100,17 @@ export async function printHelpText() {
 
     * ${chalk.greenBright(
       'servicepack <command>'
-    )} - performs operations on contexts.
+    )} - performs operations on Service Packs (collections of jobs & folders).
         * ${chalk.cyanBright('deploy')} - deploys service pack from json file.
           command example: sasjs servicepack deploy -s ./path/services.json -t targetName
           command example: sasjs servicepack deploy --source ./path/services.json --target targetName
 
           NOTE: Providing target name (--target targetName or -t targetName) is optional.
-                You can force deploy by passing the (-f) flag.
+                You can force deploy (overwrite an existing deploy) by passing the (-f) flag.
                 Default target name will be used if target name was omitted.
 
-      NOTE: The sasjs context operation is only supported for SAS Viya build targets.
-            More information available in the online documentation: https://sasjs.io/sasjs-cli-context
+      NOTE: The sasjs servicepack operation is only supported for SAS Viya build targets.
+            More information available in the online documentation: https://sasjs.io/sasjs-cli-servicepack
 
 
     * ${chalk.greenBright(
