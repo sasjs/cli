@@ -24,7 +24,7 @@ export async function servicePackDeploy(
     isForced
   })
 
-  if (jsonFilePath.extname() !== 'json') {
+  if (path.extname(jsonFilePath) !== '.json') {
     throw new Error('Provided data file must be valid json.')
   }
 
