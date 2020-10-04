@@ -2,7 +2,7 @@ import { servicePackDeploy } from './deploy'
 import {
   getCommandParameter,
   getCommandParameterLastMultiWord,
-  getCommmandSingleFlag
+  isFlagPresent
 } from '../utils/command-utils'
 
 import chalk from 'chalk'
@@ -32,7 +32,7 @@ export async function processServicepack(commandLine) {
     case commands.deploy:
       let targetName = getCommandParameterLastMultiWord('-t', '--target', commandLine, commandExample)
       let jsonFilePath = getCommandParameter('-s', '--source', commandLine, commandExample)
-      let isForced = getCommmandSingleFlag('-f', commandLine)
+      let isForced = isFlagPresent('-f', commandLine)
 
       servicePackDeploy(jsonFilePath, targetName, isForced)
       break

@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 
-export function getCommmandSingleFlag(flag, commandLine) {
+export function isFlagPresent(flag, commandLine) {
   return commandLine.indexOf(flag) > -1
 }
 
@@ -11,9 +11,12 @@ export function getCommandParameter(commandFlag, commandFlagLong, commandLine, c
     parameterValueFlagIndex = commandLine.indexOf(commandFlag)
 
   if (parameterValueFlagIndex === -1) {
-    console.log(
-      chalk.redBright(`'${commandFlag || commandFlagLong}' flag is missing (eg '${commandExample}')`)
-    )
+
+    if (commandExample.length > 0) {
+      console.log(
+        chalk.redBright(`'${commandFlag || commandFlagLong}' flag is missing (eg '${commandExample}')`)
+      )
+    }
 
     return
   }
@@ -33,7 +36,8 @@ export function getCommandParameterLastMultiWord(commandFlag, commandFlagLong, c
   if (parameterFlagIndex !== -1) {
     for (let i = parameterFlagIndex + 1; i < commandLine.length; i++) {
       if (
-        commandLine[i].includes('-')
+        commandLine[i].includes('-') &&
+        commandExample.length > 0
       ) {
         throw `Parameter '${commandFlagLong || commandFlag}' has to be provided as the last argument (eg ${commandExample})`
       }

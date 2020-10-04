@@ -1,5 +1,5 @@
 import {
-  getCommmandSingleFlag,
+  isFlagPresent,
   getCommandParameter,
   getCommandParameterLastMultiWord
 } from '../src/utils/command-utils'
@@ -16,35 +16,35 @@ const mockCommandLine = [
   'word'
 ]
 
-describe('getCommmandSingleFlag', () => {
+describe('isFlagPresent', () => {
   test('passed existing flag', () => {
-    let isFlagPresent = getCommmandSingleFlag('-f', mockCommandLine)
+    let flagPresent = isFlagPresent('-f', mockCommandLine)
     
-    expect(isFlagPresent).toEqual(true)
+    expect(flagPresent).toEqual(true)
   })
 
   test('passed non existing flag', () => {
-    let isFlagPresent = getCommmandSingleFlag('-a', mockCommandLine)
+    let flagPresent = isFlagPresent('-a', mockCommandLine)
     
-    expect(isFlagPresent).toEqual(false)
+    expect(flagPresent).toEqual(false)
   })
 
   test('passed empty string', () => {
-    let isFlagPresent = getCommmandSingleFlag('', mockCommandLine)
+    let flagPresent = isFlagPresent('', mockCommandLine)
     
-    expect(isFlagPresent).toEqual(false)
+    expect(flagPresent).toEqual(false)
   })
 
   test('passed null', () => {
-    let isFlagPresent = getCommmandSingleFlag(null, mockCommandLine)
+    let flagPresent = isFlagPresent(null, mockCommandLine)
     
-    expect(isFlagPresent).toEqual(false)
+    expect(flagPresent).toEqual(false)
   })
 
   test('passed undefined', () => {
-    let isFlagPresent = getCommmandSingleFlag(undefined, mockCommandLine)
+    let flagPresent = isFlagPresent(undefined, mockCommandLine)
     
-    expect(isFlagPresent).toEqual(false)
+    expect(flagPresent).toEqual(false)
   })
 })
 
