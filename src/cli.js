@@ -13,7 +13,8 @@ import {
   run,
   runRequest,
   context,
-  folderManagement
+  folderManagement,
+  servicepack
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -80,6 +81,10 @@ function getUnaliasedCommand(command) {
 
   if (command === 'deploy' || command === 'd') {
     return 'deploy'
+  }
+
+  if (command === 'servicepack') {
+    return 'servicepack'
   }
 
   if (command === 'build-DB' || command === 'DB' || command === 'db') {
@@ -174,6 +179,10 @@ export async function cli(args) {
         command.parameters[1],
         command.parameters[2] === '-f'
       )
+      break
+    }
+    case 'servicepack': {
+      await servicepack(command.parameters)
       break
     }
     case 'db': {

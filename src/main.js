@@ -1,5 +1,6 @@
 import { build } from './sasjs-build'
 import { deploy } from './sasjs-deploy'
+import { processServicepack } from './sasjs-servicepack'
 import { buildDB } from './sasjs-db'
 import { create } from './sasjs-create'
 import { printHelpText } from './sasjs-help'
@@ -284,6 +285,19 @@ export async function context(command) {
   await processContext(command).catch((err) =>
     console.log(
       chalk.redBright('An error has occurred when processing context.', err)
+    )
+  )
+}
+
+export async function servicepack(command) {
+  if (!command)
+    console.log(
+      chalk.redBright(`Please provide action for the 'servicepack' command.`)
+    )
+
+  await processServicepack(command).catch((err) =>
+    console.log(
+      chalk.redBright('An error has occurred when processing servicepack.', err)
     )
   )
 }
