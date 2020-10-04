@@ -1,5 +1,5 @@
 import { create } from '../sasjs-create'
-import { getUserInput } from '../utils/input-utils'
+import { getAndValidateField } from '../utils/input-utils'
 import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
@@ -17,8 +17,7 @@ export async function addTarget() {
   const serverType = await getAndValidateServerType()
   const name = await getAndValidateTargetName(scope, serverType)
 
-  let localAppLoc
-  if (scope === 1) localAppLoc = await getAndValidateLocalAppLoc(name)
+  const appLoc = await getAndValidateAppLoc(name)
 
   const serverUrl = await getAndValidateServerUrl()
 
@@ -45,6 +44,7 @@ export async function addTarget() {
 
     buildTarget = {
       ...buildTarget,
+      appLoc,
       tgtBuildVars: { client, secret, contextName },
       tgtDeployVars: { client, secret, contextName },
       authInfo: authInfo,
@@ -54,11 +54,6 @@ export async function addTarget() {
   }
 
   if (scope === 1) {
-    buildTarget = {
-      ...buildTarget,
-      appLoc: localAppLoc
-    }
-
     await saveToLocalConfig(buildTarget)
   } else if (scope === 2) {
     await saveToGlobalConfig(buildTarget)
@@ -304,17 +299,7 @@ async function getAndValidateSasViyaFields(serverUrl) {
   return { client, secret, contextName, authInfo: authResponse }
 }
 
-async function getAndValidateField(field, validator, message, validatorParams) {
-  const input = await getUserInput([field])
-  const isValid = await validator(input[field.name], validatorParams)
-  if (!isValid) {
-    console.log(chalk.redBright.bold(message))
-    return await getAndValidateField(field, validator, message)
-  }
-  return input[field.name]
-}
-
-async function getAndValidateLocalAppLoc(target) {
+async function getAndValidateAppLoc(target) {
   const appLoc = {
     name: 'app location',
     type: 'string',
