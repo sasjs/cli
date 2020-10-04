@@ -1,6 +1,10 @@
 import SASjs from '@sasjs/adapter/node'
 import { readFile, fileExists, folderExists, createFile } from './file-utils'
-import { isAccessTokenExpiring, getNewAccessToken } from './auth-utils'
+import {
+  isAccessTokenExpiring,
+  getNewAccessToken,
+  refreshTokens
+} from './auth-utils'
 import { getVariable } from './utils'
 import path from 'path'
 import chalk from 'chalk'
@@ -351,6 +355,20 @@ export async function getProjectRoot() {
   return root
 }
 
+/**
+ * Gets an access token for the specified target.
+ * If the target is from the global `.sasjsrc` file,
+ * the auth info should be contained in it.
+ * It should be in the form:
+ * @example: { targets: [{ "name": "targetName", "authInfo": { "client": "client ID", "secret": "Client Secret", "access_token": "Token", "refresh_token": "Token" }}]}
+ * If the access token is going to expire in the next hour,
+ * it is refreshed using a refresh token if available.
+ * If a refresh token is unavailable, we will use the client ID and secret
+ * to obtain a new access token. Manual intervention is required in this case
+ * to navigate to the URL shown and type in an authorization code.
+ * @param {object} target - the target to get an access token for.
+ * @param {string} checkIfExpiring - flag that indicates whether to do an expiry check.
+ */
 export async function getAccessToken(target, checkIfExpiring = true) {
   let accessToken =
     target && target.authInfo && target.authInfo.access_token
@@ -369,10 +387,39 @@ export async function getAccessToken(target, checkIfExpiring = true) {
       serverType: target.serverType
     })
 
-    const client = await getVariable('client', target)
-    const secret = await getVariable('secret', target)
+    const client =
+      target.authInfo && target.authInfo.client
+        ? target.authInfo.client
+        : await getVariable('client', target)
+    if (!client) {
+      throw new Error(
+        `Client ID was not found.
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authInfo in your global ~/.sasjsrc file.`
+      )
+    }
 
-    const authInfo = await getNewAccessToken(sasjs, client, secret, target)
+    const secret =
+      target.authInfo && target.authInfo.secret
+        ? target.authInfo.secret
+        : await getVariable('secret', target)
+    if (!secret) {
+      throw new Error(
+        `Client secret was not found.
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authInfo in your global ~/.sasjsrc file.`
+      )
+    }
+
+    const refreshToken =
+      target.authInfo && target.authInfo.refresh_token
+        ? target.authInfo.refresh_token
+        : await getVariable('refresh_token', target)
+    let authInfo
+
+    if (refreshToken) {
+      authInfo = await refreshTokens(sasjs, client, secret, refreshToken)
+    } else {
+      authInfo = await getNewAccessToken(sasjs, client, secret, target)
+    }
 
     accessToken = authInfo.access_token
   }
