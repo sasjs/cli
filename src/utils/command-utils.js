@@ -4,19 +4,24 @@ export function isFlagPresent(flag, commandLine) {
   return commandLine.indexOf(flag) > -1
 }
 
-export function getCommandParameter(commandFlag, commandFlagLong, commandLine, commandExample = '') {
+export function getCommandParameter(
+  commandFlag,
+  commandFlagLong,
+  commandLine,
+  commandExample = ''
+) {
   let parameterValueFlagIndex = commandLine.indexOf(commandFlagLong)
 
   if (parameterValueFlagIndex === -1)
     parameterValueFlagIndex = commandLine.indexOf(commandFlag)
 
   if (parameterValueFlagIndex === -1) {
-
-    if (commandExample.length > 0) {
-      console.log(
-        chalk.redBright(`'${commandFlag || commandFlagLong}' flag is missing (eg '${commandExample}')`)
-      )
-    }
+    const errorMessage = chalk.redBright(
+      `'${commandFlag || commandFlagLong}' flag is missing. ${
+        commandExample ? "(eg '" + commandExample + "')" : ''
+      }`
+    )
+    throw new Error(errorMessage)
 
     return
   }
@@ -26,7 +31,12 @@ export function getCommandParameter(commandFlag, commandFlagLong, commandLine, c
   return parameterValue
 }
 
-export function getCommandParameterLastMultiWord(commandFlag, commandFlagLong, commandLine, commandExample = '') {
+export function getCommandParameterLastMultiWord(
+  commandFlag,
+  commandFlagLong,
+  commandLine,
+  commandExample = ''
+) {
   let parameterValue = []
   let parameterFlagIndex = commandLine.indexOf(commandFlagLong)
 
@@ -35,11 +45,13 @@ export function getCommandParameterLastMultiWord(commandFlag, commandFlagLong, c
 
   if (parameterFlagIndex !== -1) {
     for (let i = parameterFlagIndex + 1; i < commandLine.length; i++) {
-      if (
-        commandLine[i].includes('-') &&
-        commandExample.length > 0
-      ) {
-        throw `Parameter '${commandFlagLong || commandFlag}' has to be provided as the last argument (eg ${commandExample})`
+      if (commandLine[i].includes('-')) {
+        const errorMessage = `Parameter '${
+          commandFlagLong || commandFlag
+        }' has to be provided as the last argument ${
+          commandExample ? "(eg '" + commandExample + "')" : ''
+        }`
+        throw new Error(errorMessage)
       }
 
       parameterValue.push(commandLine[i])

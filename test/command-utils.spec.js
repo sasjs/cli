@@ -19,31 +19,31 @@ const mockCommandLine = [
 describe('isFlagPresent', () => {
   test('passed existing flag', () => {
     let flagPresent = isFlagPresent('-f', mockCommandLine)
-    
+
     expect(flagPresent).toEqual(true)
   })
 
   test('passed non existing flag', () => {
     let flagPresent = isFlagPresent('-a', mockCommandLine)
-    
+
     expect(flagPresent).toEqual(false)
   })
 
   test('passed empty string', () => {
     let flagPresent = isFlagPresent('', mockCommandLine)
-    
+
     expect(flagPresent).toEqual(false)
   })
 
   test('passed null', () => {
     let flagPresent = isFlagPresent(null, mockCommandLine)
-    
+
     expect(flagPresent).toEqual(false)
   })
 
   test('passed undefined', () => {
     let flagPresent = isFlagPresent(undefined, mockCommandLine)
-    
+
     expect(flagPresent).toEqual(false)
   })
 })
@@ -51,39 +51,45 @@ describe('isFlagPresent', () => {
 describe('getCommandParameter', () => {
   test('passed short flag and long flag', () => {
     let parameter = getCommandParameter('-t', '--test3', mockCommandLine)
-    
+
     expect(parameter).toEqual('testLongParam')
   })
 
   test('passed short flag, without long flag', () => {
     let parameter = getCommandParameter('-t2', null, mockCommandLine)
-    
+
     expect(parameter).toEqual('testParam')
   })
 
   test('passed long flag, without short flag', () => {
     let parameter = getCommandParameter(null, '--test3', mockCommandLine)
-    
+
     expect(parameter).toEqual('testLongParam')
   })
 
-  test('passed non-existing flags', () => {
-    let parameter = getCommandParameter('-n', '--non', mockCommandLine)
-    
-    expect(parameter).toEqual(undefined)
+  test('should throw and error when passed non-existing flags', () => {
+    expect(() => getCommandParameter('-n', '--non', mockCommandLine)).toThrow()
   })
 })
 
 describe('getCommandParameterLastMultiWord', () => {
   test('passed short flag and long flag', () => {
-    let parameter = getCommandParameterLastMultiWord('-l', '--last', mockCommandLine)
-    
+    let parameter = getCommandParameterLastMultiWord(
+      '-l',
+      '--last',
+      mockCommandLine
+    )
+
     expect(parameter).toEqual('multi word')
   })
 
   test('passed short flag without long flag', () => {
-    let parameter = getCommandParameterLastMultiWord('-l', null, mockCommandLine)
-    
+    let parameter = getCommandParameterLastMultiWord(
+      '-l',
+      null,
+      mockCommandLine
+    )
+
     expect(parameter).toEqual('multi word')
   })
 
@@ -100,14 +106,30 @@ describe('getCommandParameterLastMultiWord', () => {
       'word'
     ]
 
-    let parameter = getCommandParameterLastMultiWord(null, '--last', mockCommandLineCustom)
-    
+    let parameter = getCommandParameterLastMultiWord(
+      null,
+      '--last',
+      mockCommandLineCustom
+    )
+
     expect(parameter).toEqual('multi word')
   })
 
-  test('passed non-existing flags', () => {
-    let parameter = getCommandParameterLastMultiWord('-n', '--non', mockCommandLine)
-    
+  test('throws an error when passed non-existing flags', () => {
+    let parameter = getCommandParameterLastMultiWord(
+      '-n',
+      '--non',
+      mockCommandLine
+    )
+
     expect(parameter).toEqual('')
+  })
+
+  test('should throw and error when argument is not the last one', () => {
+    const input = ['-t', 'target', '-s', 'source']
+
+    expect(() =>
+      getCommandParameterLastMultiWord('-t', '--target', input)
+    ).toThrow()
   })
 })
