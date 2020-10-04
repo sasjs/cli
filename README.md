@@ -24,6 +24,8 @@ There is also a feature to let you deploy your frontend as a service, bypassing 
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/hUpBqExNec4/0.jpg)](https://www.youtube.com/watch?v=hUpBqExNec4)
 
+Additional documentation can be found on the [SASjs](https://sasjs.io) website.
+
 ## Available Options
 
 - `create`: creates the folders and files required for SAS development. You can use this command in two ways:
