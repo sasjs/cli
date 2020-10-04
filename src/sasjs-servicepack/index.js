@@ -11,7 +11,7 @@ export async function processServicepack(commandLine) {
   if (!commands.hasOwnProperty(command)) {
     console.log(
       chalk.redBright(
-        `Not supported context command. Supported commands are:\n${Object.keys(
+        `Not supported servicepack command. Supported commands are:\n${Object.keys(
           commands
         ).join('\n')}`
       )
