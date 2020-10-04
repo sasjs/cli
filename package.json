@@ -5,7 +5,8 @@
   "scripts": {
     "test": "jest --silent",
     "semantic-release": "semantic-release",
-    "lint:fix": "npx prettier --write 'src/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'"
+    "lint:fix": "npx prettier --write 'src/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'",
+    "lint": "npx prettier --check 'src/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'"
   },
   "release": {
     "branches": [

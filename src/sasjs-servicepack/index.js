@@ -30,9 +30,19 @@ export async function processServicepack(commandLine) {
 
   switch (command) {
     case commands.deploy:
-      let targetName = getCommandParameterLastMultiWord('-t', '--target', commandLine, commandExample)
-      let jsonFilePath = getCommandParameter('-s', '--source', commandLine, commandExample)
-      let isForced = isFlagPresent('-f', commandLine)
+      const targetName = getCommandParameterLastMultiWord(
+        '-t',
+        '--target',
+        commandLine,
+        commandExample
+      )
+      const jsonFilePath = getCommandParameter(
+        '-s',
+        '--source',
+        commandLine,
+        commandExample
+      )
+      const isForced = isFlagPresent('-f', commandLine)
 
       servicePackDeploy(jsonFilePath, targetName, isForced)
       break
