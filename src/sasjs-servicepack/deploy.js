@@ -44,27 +44,21 @@ export async function servicePackDeploy(
     chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
   )
 
-  let output = await deployToSasViyaWithServicePack(
-    jsonFilePath,
-    target,
-    isForced
-  )
+  let success
 
-  let outputPath = path.join(process.cwd(), isLocal ? '/sasjsbuild' : '')
+  await deployToSasViyaWithServicePack(jsonFilePath, target, isForced)
+    .then((_) => {
+      displayResult(null, null, 'Servicepack successfully deployed!')
 
-  if (!(await folderExists(outputPath))) {
-    await createFolder(outputPath)
-  }
+      success = true
+    })
+    .catch((err) => {
+      displayResult(err, 'Servicepack deploy failed.')
 
-  outputPath += '/output.json'
+      success = false
+    })
 
-  await createFile(outputPath, output)
-
-  displayResult(
-    null,
-    null,
-    `Request finished. Output is stored at '${outputPath}'`
-  )
+  return success
 }
 
 async function deployToSasViyaWithServicePack(
