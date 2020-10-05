@@ -1,6 +1,5 @@
 import { servicePackDeploy } from '../../../src/sasjs-servicepack/deploy'
 import { saveGlobalRcFile } from '../../../src/utils/config-utils'
-import dotenv from 'dotenv'
 import path from 'path'
 
 describe('sasjs servicepack', () => {
@@ -19,8 +18,6 @@ describe('sasjs servicepack', () => {
     )
 
     process.projectDir = path.join(process.cwd())
-
-    dotenv.config()
   })
 
   describe('processServicepack', () => {
