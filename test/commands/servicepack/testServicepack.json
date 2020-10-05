@@ -1,0 +1,15 @@
+{
+  "name": "services",
+  "type": "folder",
+  "members": [
+   {
+    "name": "admin",
+    "type": "folder",
+    "members": [
+     {
+      "name": "exportconfig",
+      "type": "service",
+      "code": "%put hello world;"
+     }]
+   }]
+ }
