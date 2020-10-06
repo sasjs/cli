@@ -373,7 +373,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
   let accessToken =
     target && target.authInfo && target.authInfo.access_token
       ? target.authInfo.access_token
-      : process.env.access_token
+      : process.env.ACCESS_TOKEN
 
   if (!accessToken || accessToken.trim() === 'null') {
     throw new Error(

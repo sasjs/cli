@@ -9,14 +9,14 @@ jest.mock('@sasjs/adapter/node')
 describe('Config Utils', () => {
   let authUtils
   beforeEach(() => {
-    process.env.access_token = null
+    process.env.ACCESS_TOKEN = null
 
     jest.unmock('../src/utils/auth-utils')
     authUtils = require('../src/utils/auth-utils')
   })
 
   afterEach(() => {
-    process.env.access_token = null
+    process.env.ACCESS_TOKEN = null
   })
 
   describe('getAccessToken', () => {
@@ -50,7 +50,7 @@ describe('Config Utils', () => {
 
     test('should get access token from environment', async () => {
       const target = null
-      process.env.access_token = '3NVT0K3N'
+      process.env.ACCESS_TOKEN = '3NVT0K3N'
 
       const token = await getAccessToken(target, false)
 
