@@ -32,7 +32,7 @@ jobs:
         run: npm test
         env:
           CI: true
-          ACCESS_TOKEN: ${{env.ACCESS_TOKEN}}
+          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
 
       - name: Run smoke tests
         run: sh ./test.sh
