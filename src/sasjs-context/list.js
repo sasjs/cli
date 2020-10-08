@@ -1,31 +1,21 @@
-import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
-import { getAccessToken } from '../utils/config-utils'
 
 /**
  * Lists all accessible and inaccessible compute contexts.
  * @param {object} target - SAS server configuration.
+ * @param {object} sasjs - configuration object of SAS adapter.
+ * @param {string} accessToken - an access token for an authorized user.
  */
-export async function list(target) {
+export async function list(target, sasjs, accessToken) {
   if (target.serverType !== 'SASVIYA') {
     throw new Error(
       `'context list' command is only supported for SAS Viya build targets.\nPlease check the target name and try again.`
     )
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
-
   const startTime = new Date().getTime()
-
-  const accessToken = await getAccessToken(target).catch((err) => {
-    displayResult(err)
-  })
 
   const spinner = ora(
     `Checking the compute contexts on ${chalk.greenBright(
@@ -44,6 +34,8 @@ export async function list(target) {
         null
       )
     })
+
+  let result
 
   if (contexts) {
     const accessibleContexts = contexts.map((context) => ({
@@ -74,6 +66,8 @@ export async function list(target) {
       }))
 
     if (accessibleContexts.length) {
+      result = accessibleContexts
+
       displayResult(
         null,
         null,
@@ -101,4 +95,6 @@ export async function list(target) {
       `This operation took ${(endTime - startTime) / 1000} seconds`
     )
   )
+
+  return result ? result : false
 }
