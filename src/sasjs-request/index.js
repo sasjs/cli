@@ -65,7 +65,7 @@ export async function runSasJob(
   await sasjs
     .request(
       sasJobLocation,
-      data,
+      dataJson,
       configJson,
       () => {
         displayResult(null, 'Login callback called. Request failed.', null)
