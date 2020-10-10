@@ -60,11 +60,7 @@ export async function runSasJob(
 
   const accessToken = await getAccessToken(target)
 
-  let data = {
-    fromjs: [dataJson]
-  }
-
-  if (!dataJson) data = null
+  if (!dataJson) dataJson = null
 
   await sasjs
     .request(
