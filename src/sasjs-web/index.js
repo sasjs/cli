@@ -1,4 +1,4 @@
-import { getTargetToBuild } from '../utils/config-utils'
+import { findTargetInConfiguration } from '../utils/config-utils'
 import { asyncForEach, chunk } from '../utils/utils'
 import {
   readFile,
@@ -33,7 +33,7 @@ export async function createWebAppServices(
   await createBuildDestinationFolder()
   let target = null
   if (preTargetToBuild) target = preTargetToBuild
-  else target = await getTargetToBuild(targetName)
+  else target = await findTargetInConfiguration(targetName)
 
   if (target) {
     console.log(

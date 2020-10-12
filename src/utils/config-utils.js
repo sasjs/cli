@@ -249,50 +249,6 @@ export function getMacroCorePath() {
   return path.join(process.projectDir, 'node_modules', '@sasjs/core')
 }
 
-export async function getTargetToBuild(targetName) {
-  const { buildSourceFolder } = require('../constants')
-  const buildTargets = await getBuildTargets(buildSourceFolder)
-
-  if (buildTargets.length) {
-    let targetToBuild = buildTargets.find((t) => t.name === targetName)
-
-    if (!targetToBuild) {
-      targetToBuild = buildTargets[0]
-
-      console.log(
-        chalk.yellowBright(
-          `No build target specified. Using ${chalk.cyanBright(
-            targetToBuild.name
-          )} by default.`
-        )
-      )
-    }
-
-    if (targetToBuild.appLoc)
-      targetToBuild.appLoc = sanitizeAppLoc(targetToBuild.appLoc)
-
-    return Promise.resolve(targetToBuild)
-  } else {
-    // Use default target to build. For cases when build target was not found.
-    const defaultTargetToBuild = {
-      buildOutputFileName: 'build.sas',
-      serverType: 'SASVIYA'
-    }
-
-    console.log(
-      chalk.yellowBright(
-        `No build target found. Using default target:\n${JSON.stringify(
-          defaultTargetToBuild,
-          null,
-          2
-        )}`
-      )
-    )
-
-    return Promise.resolve(defaultTargetToBuild)
-  }
-}
-
 /**
  * Sanitizes app location string.
  * @param {string} appLoc - app location
