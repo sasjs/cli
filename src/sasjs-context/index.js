@@ -5,7 +5,9 @@ import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
 import { fileExists, readFile } from '../utils/file-utils'
-import { getBuildTarget } from '../utils/config-utils'
+import { getBuildTarget, getAccessToken } from '../utils/config-utils'
+import { displayResult } from '../utils/displayResult'
+import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(commandLine) {
   const command = commandLine[1]
@@ -110,6 +112,18 @@ export async function processContext(commandLine) {
     return contextName
   }
 
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType
+  })
+
+  const accessToken = await getAccessToken(target).catch((err) => {
+    displayResult(err)
+  })
+
+  let output
+
   switch (command) {
     case commands.create:
       config = await getConfig()
@@ -118,7 +132,7 @@ export async function processContext(commandLine) {
 
       parsedConfig = parseConfig(config)
 
-      create(parsedConfig, target)
+      output = await create(parsedConfig, sasjs, accessToken)
 
       break
     case commands.edit: {
@@ -128,31 +142,37 @@ export async function processContext(commandLine) {
 
       parsedConfig = parseConfig(config)
 
-      edit(contextName, parsedConfig, target)
+      output = await edit(contextName, parsedConfig, sasjs, accessToken)
 
       break
     }
     case commands.delete: {
       const contextName = getContextName()
 
-      if (contextName) remove(contextName, target)
+      if (contextName) {
+        output = remove(contextName, sasjs, accessToken)
+      }
 
       break
     }
     case commands.list:
-      list(target)
+      output = list(target, sasjs, accessToken)
 
       break
     case commands.export: {
       const contextName = getContextName()
 
-      if (contextName) exportContext(contextName, target)
+      if (contextName) {
+        output = await exportContext(contextName, sasjs, accessToken)
+      }
 
       break
     }
     default:
       break
   }
+
+  return output
 }
 
 async function validateConfigPath(path) {
