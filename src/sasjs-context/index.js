@@ -6,6 +6,7 @@ import { list } from './list'
 import { exportContext } from './export'
 import { fileExists, readFile } from '../utils/file-utils'
 import { getBuildTarget, getAccessToken } from '../utils/config-utils'
+import { displayResult } from '../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(commandLine) {

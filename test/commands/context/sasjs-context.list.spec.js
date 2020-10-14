@@ -43,7 +43,7 @@ describe('sasjs context', () => {
 
         expect(contexts.length).toBeGreaterThan(0)
       },
-      60 * 1000
+      60 * 4 * 1000
     )
   })
 
