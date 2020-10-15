@@ -17,7 +17,7 @@ import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
   getSourcePaths,
   getConfiguration,
-  getTargetToBuild,
+  findTargetInConfiguration,
   getTargetSpecificFile,
   getMacroCorePath
 } from '../utils/config-utils'
@@ -38,7 +38,9 @@ export async function build(
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildDestinationServ = CONSTANTS.buildDestinationServ
-  targetToBuild = await getTargetToBuild(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
+  targetToBuild = target
+
   if (compileBuildDeployOnly) {
     await compile()
     await createFinalSasFiles()

@@ -4,8 +4,8 @@ import path from 'path'
 import { processServicepack } from '../../../src/sasjs-servicepack/index'
 
 describe('sasjs servicepack', () => {
-  beforeAll(() => {
-    saveGlobalRcFile(
+  beforeAll(async () => {
+    await saveGlobalRcFile(
       JSON.stringify({
         targets: [
           {
