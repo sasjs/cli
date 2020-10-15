@@ -12,11 +12,7 @@ describe('sasjs servicepack', () => {
             name: 'cli-tests',
             serverType: 'SASVIYA',
             serverUrl: 'https://sas.analytium.co.uk',
-            appLoc: '/Public/app/cli-tests',
-            authInfo: {
-              access_token: process.env.ACCESS_TOKEN,
-              token_type: 'bearer'
-            }
+            appLoc: '/Public/app/cli-tests'
           }
         ]
       })
