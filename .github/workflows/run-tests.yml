@@ -34,6 +34,8 @@ jobs:
           CI: true
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
 
-      - name: Run smoke tests
+      - name: Prepare for smoke tests
         run: sh ./getAccessToken.sh
+
+      - name: Run smoke tests
         run: sh ./test.sh
