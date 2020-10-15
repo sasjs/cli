@@ -1,17 +1,10 @@
-import {
-  saveGlobalRcFile,
-  saveAccessTokenToFile
-} from '../../../src/utils/config-utils'
+import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { processServicepack } from '../../../src/sasjs-servicepack/index'
 
 describe('sasjs servicepack', () => {
   beforeAll(async () => {
-    process.projectDir = path.join(process.cwd())
-
-    dotenv.config()
-
     await saveGlobalRcFile(
       JSON.stringify({
         targets: [
@@ -29,25 +22,27 @@ describe('sasjs servicepack', () => {
       })
     )
 
-    await saveAccessTokenToFile()
+    process.projectDir = path.join(process.cwd())
+
+    dotenv.config()
   })
 
   describe('processServicepack', () => {
-    // it(
-    //   'should deploy servicepack',
-    //   async () => {
-    //     const command = [
-    //       'servicepack',
-    //       'deploy',
-    //       '-s',
-    //       'test/commands/servicepack/testServicepack.json',
-    //       '-f'
-    //     ]
+    it(
+      'should deploy servicepack',
+      async () => {
+        const command = [
+          'servicepack',
+          'deploy',
+          '-s',
+          'test/commands/servicepack/testServicepack.json',
+          '-f'
+        ]
 
-    //     await expect(processServicepack(command)).resolves.toEqual(true)
-    //   },
-    //   60 * 1000
-    // )
+        await expect(processServicepack(command)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
 
     it(
       'should fail because servicepack already been deployed',

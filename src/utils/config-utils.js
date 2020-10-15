@@ -426,9 +426,3 @@ export async function getAccessToken(target, checkIfExpiring = true) {
 
   return accessToken
 }
-
-export async function saveAccessTokenToFile() {
-  const accessToken = process.env.ACCESS_TOKEN
-
-  await createFile(path.join(process.cwd(), 'accessToken.txt'), accessToken)
-}
