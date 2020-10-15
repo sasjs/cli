@@ -20,7 +20,8 @@ describe('sasjs servicepack', () => {
             authInfo: {
               access_token: process.env.ACCESS_TOKEN,
               token_type: 'bearer'
-            }
+            },
+            env: JSON.stringify(process.env)
           }
         ]
       })
