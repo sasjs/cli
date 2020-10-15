@@ -238,3 +238,6 @@ export function isSasFile(filePath) {
 export function isShellScript(filePath) {
   return path.extname(filePath) === '.sh'
 }
+
+export const sanitizeFileName = (fileName) =>
+  fileName.replace(/[^a-z0-9]/gi, '_')

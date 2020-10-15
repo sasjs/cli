@@ -28,6 +28,8 @@ export async function processServicepack(commandLine) {
   const commandExample =
     'sasjs servicepack <command> --source ../viyadeploy.json --target targetName'
 
+  let output
+
   switch (command) {
     case commands.deploy:
       const targetName = getCommandParameterLastMultiWord(
@@ -44,7 +46,9 @@ export async function processServicepack(commandLine) {
       )
       const isForced = isFlagPresent('-f', commandLine)
 
-      servicePackDeploy(jsonFilePath, targetName, isForced)
+      output = await servicePackDeploy(jsonFilePath, targetName, isForced)
       break
   }
+
+  return output
 }
