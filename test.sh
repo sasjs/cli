@@ -52,3 +52,15 @@ echo $'\e[34mSASjs Compile Build'
 cd test5
 sasjs cb
 process_result $?
+
+echo $'\e[34mSASjs Compile Build Deploy alias with force flag'
+sasjs create test6
+cd test6
+sasjs cbd -f
+process_result $?
+
+echo $'\e[34mSASjs Compile Build Deploy alias'
+sasjs create test7
+cd test7
+sasjs cbd
+process_result $?
