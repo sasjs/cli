@@ -35,4 +35,5 @@ jobs:
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
 
       - name: Run smoke tests
+        run: sh ./getAccessToken.sh
         run: sh ./test.sh
