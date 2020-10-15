@@ -50,7 +50,7 @@ export async function servicePackDeploy(
     .catch((err) => {
       displayResult(err, 'Servicepack deploy failed.')
 
-      success = err
+      success = false
     })
 
   return success
