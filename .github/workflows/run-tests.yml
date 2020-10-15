@@ -22,17 +22,17 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Install dependencies
-        run: npm ci
+      # - name: Install dependencies
+      #   run: npm ci
 
-      - name: Check code style
-        run: npm run lint
+      # - name: Check code style
+      #   run: npm run lint
 
-      - name: Run unit tests
-        run: npm test
-        env:
-          CI: true
-          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+      # - name: Run unit tests
+      #   run: npm test
+      #   env:
+      #     CI: true
+      #     ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
 
       - name: Prepare for smoke tests
         run: sh ./getAccessToken.sh
