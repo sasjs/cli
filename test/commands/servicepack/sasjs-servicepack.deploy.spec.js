@@ -1,7 +1,7 @@
-import { servicePackDeploy } from '../../../src/sasjs-servicepack/deploy'
 import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import dotenv from 'dotenv'
 import path from 'path'
+import { processServicepack } from '../../../src/sasjs-servicepack/index'
 
 describe('sasjs servicepack', () => {
   beforeAll(() => {
@@ -27,13 +27,15 @@ describe('sasjs servicepack', () => {
     it(
       'should deploy servicepack',
       async () => {
-        await expect(
-          servicePackDeploy(
-            './test/commands/servicepack/testServicepack.json',
-            null,
-            true
-          )
-        ).resolves.toEqual(true)
+        const command = [
+          'servicepack',
+          'deploy',
+          '-s',
+          'test/commands/servicepack/testServicepack.json',
+          '-f'
+        ]
+
+        await expect(processServicepack(command)).resolves.toEqual(true)
       },
       60 * 1000
     )
@@ -41,9 +43,14 @@ describe('sasjs servicepack', () => {
     it(
       'should fail because servicepack already been deployed',
       async () => {
-        await expect(
-          servicePackDeploy('./test/commands/servicepack/testServicepack.json')
-        ).resolves.toEqual(false)
+        const command = [
+          'servicepack',
+          'deploy',
+          '-s',
+          'test/commands/servicepack/testServicepack.json'
+        ]
+
+        await expect(processServicepack(command)).resolves.toEqual(false)
       },
       60 * 1000
     )

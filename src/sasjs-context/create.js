@@ -1,26 +1,18 @@
-import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../utils/displayResult'
-import { getAccessToken } from '../utils/config-utils'
 
 /**
  * Creates compute context using provided config.
  * @param {object} config - context configuration.
- * @param {object} target - SAS server configuration.
+ * @param {object} sasjs - configuration object of SAS adapter.
+ * @param {string} accessToken - an access token for an authorized user.
  */
-export async function create(config, target) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
-
-  const accessToken = await getAccessToken(target).catch((err) => {
-    displayResult(err)
-  })
-
+export async function create(config, sasjs, accessToken) {
   const { name } = config
   const launchName = config.launchContext && config.launchContext.contextName
   const autoExecLines = config.environment && config.environment.autoExecLines
   const sharedAccountId = config.attributes && config.attributes.runServerAs
+
+  let result
 
   const createdContext = await sasjs
     .createContext(
@@ -32,13 +24,19 @@ export async function create(config, target) {
     )
     .catch((err) => {
       displayResult(err, 'An error has occurred when processing context.', null)
+
+      result = err
     })
 
   if (createdContext) {
+    result = true
+
     displayResult(
       null,
       null,
       `Context '${name}' with id '${createdContext.id}' successfully created!`
     )
   }
+
+  return result
 }

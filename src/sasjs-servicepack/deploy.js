@@ -1,12 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import {
-  readFile,
-  folderExists,
-  createFile,
-  createFolder
-} from '../utils/file-utils'
+import { readFile } from '../utils/file-utils'
 import { displayResult } from '../utils/displayResult'
 import {
   getAccessToken,
@@ -28,7 +23,7 @@ export async function servicePackDeploy(
     throw new Error('Provided data file must be valid json.')
   }
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName, true)
+  const { target } = await findTargetInConfiguration(targetName, true)
 
   if (!target.serverType === 'SASVIYA') {
     console.log(
