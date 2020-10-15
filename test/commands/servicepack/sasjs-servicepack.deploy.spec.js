@@ -4,8 +4,8 @@ import dotenv from 'dotenv'
 import path from 'path'
 
 describe('sasjs servicepack', () => {
-  beforeAll(() => {
-    saveGlobalRcFile(
+  beforeAll(async () => {
+    await saveGlobalRcFile(
       JSON.stringify({
         targets: [
           {
