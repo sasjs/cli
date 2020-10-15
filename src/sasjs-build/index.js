@@ -38,7 +38,9 @@ export async function build(
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildDestinationServ = CONSTANTS.buildDestinationServ
-  targetToBuild = await findTargetInConfiguration(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
+  targetToBuild = target
+
   if (compileBuildDeployOnly) {
     await compile()
     await createFinalSasFiles()

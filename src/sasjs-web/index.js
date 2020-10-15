@@ -31,25 +31,33 @@ export async function createWebAppServices(
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   console.log(chalk.greenBright('Building web app services...'))
   await createBuildDestinationFolder()
-  let target = null
-  if (preTargetToBuild) target = preTargetToBuild
-  else target = await findTargetInConfiguration(targetName)
+  let targetToBuild = null
+  if (preTargetToBuild) targetToBuild = preTargetToBuild
+  else {
+    const { target } = await findTargetInConfiguration(targetName)
+    targetToBuild = target
+  }
 
-  if (target) {
+  if (targetToBuild) {
     console.log(
-      chalk.greenBright(`Building for target ${chalk.cyanBright(target.name)}`)
+      chalk.greenBright(
+        `Building for target ${chalk.cyanBright(targetToBuild.name)}`
+      )
     )
 
-    const webAppSourcePath = target.webSourcePath
+    const webAppSourcePath = targetToBuild.webSourcePath
     const destinationPath = path.join(
       buildDestinationFolder,
       'services',
-      target.streamWebFolder
+      targetToBuild.streamWebFolder
     )
     await createTargetDestinationFolder(destinationPath)
 
     if (webAppSourcePath) {
-      const assetPathMap = await createAssetServices(target, destinationPath)
+      const assetPathMap = await createAssetServices(
+        targetToBuild,
+        destinationPath
+      )
       const hasIndexHtml = await fileExists(
         path.join(process.projectDir, webAppSourcePath, 'index.html')
       )
@@ -64,7 +72,7 @@ export async function createWebAppServices(
             tag,
             webAppSourcePath,
             destinationPath,
-            target,
+            targetToBuild,
             assetPathMap
           )
         })
@@ -74,7 +82,7 @@ export async function createWebAppServices(
             linkTag,
             webAppSourcePath,
             destinationPath,
-            target
+            targetToBuild
           )
         })
 
@@ -85,7 +93,7 @@ export async function createWebAppServices(
             faviconTag,
             webAppSourcePath,
             destinationPath,
-            target
+            targetToBuild
           )
         })
 

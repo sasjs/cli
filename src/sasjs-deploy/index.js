@@ -25,7 +25,10 @@ export async function deploy(
   isForced = false
 ) {
   if (preTargetToBuild) targetToBuild = preTargetToBuild
-  else targetToBuild = await findTargetInConfiguration(targetName)
+  else {
+    const { target } = await findTargetInConfiguration(targetName)
+    targetToBuild = target
+  }
 
   if (targetToBuild.serverType === 'SASVIYA' && !targetToBuild.authInfo) {
     console.log(
