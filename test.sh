@@ -55,7 +55,8 @@ fi
 
 echo $'\e[34mSASjs Compile Build Deploy alias with force flag'
 pwd
-cat cat ~/.sasjsrc
+cat ~/.sasjsrc
+cat accessToken.txt
 # sasjs create test6
 # cd test6
 # sasjs cbd -f
