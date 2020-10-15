@@ -163,9 +163,17 @@ export async function compileBuildServices(targetName) {
     })
 }
 
-export async function compileBuildDeployServices(targetName, isForced) {
-  await build(targetName, null, null, true, isForced) // enforcing compile & build & deploy
-    .then(() =>
+export async function compileBuildDeployServices(commandLine) {
+  commandLine.shift()
+
+  const indexOfForceFlag = commandLine.indexOf('-f')
+
+  if (indexOfForceFlag !== -1) commandLine.splice(indexOfForceFlag, 1)
+
+  const targetName = commandLine.join('')
+
+  await build(targetName, null, null, true, indexOfForceFlag !== -1) // enforcing compile & build & deploy
+    .then(() => {
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
@@ -173,7 +181,7 @@ export async function compileBuildDeployServices(targetName, isForced) {
           )} directory.`
         )
       )
-    )
+    })
     .catch((err) => {
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)

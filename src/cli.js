@@ -194,10 +194,7 @@ export async function cli(args) {
       break
     }
     case 'compilebuilddeploy': {
-      await compileBuildDeployServices(
-        command.parameters[1],
-        command.parameters[2] === '-f'
-      )
+      await compileBuildDeployServices(command.parameters)
       break
     }
     case 'help': {
