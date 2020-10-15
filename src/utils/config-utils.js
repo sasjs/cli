@@ -18,6 +18,14 @@ export async function getConfiguration(pathToFile) {
   return Promise.resolve(null)
 }
 
+/**
+ * Returns the target with the given name.
+ * If the target is not found in the local configuration,
+ * this function then looks in the global configuration.
+ * If it is still unable to find it, it throws an error.
+ * @param {string} targetName - the name of the target in question.
+ * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
+ */
 export async function findTargetInConfiguration(
   targetName,
   viyaSpecific = false
