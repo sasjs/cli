@@ -1,7 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { getTargetToBuild } from '../utils/config-utils'
+import { findTargetInConfiguration } from '../utils/config-utils'
 import { asyncForEach, executeShellScript, getVariable } from '../utils/utils'
 import {
   isSasFile,
@@ -25,7 +25,10 @@ export async function deploy(
   isForced = false
 ) {
   if (preTargetToBuild) targetToBuild = preTargetToBuild
-  else targetToBuild = await getTargetToBuild(targetName)
+  else {
+    const { target } = await findTargetInConfiguration(targetName)
+    targetToBuild = target
+  }
 
   if (targetToBuild.serverType === 'SASVIYA' && !targetToBuild.authInfo) {
     console.log(
