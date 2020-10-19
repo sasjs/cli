@@ -11,6 +11,7 @@ import { runSasCode } from './sasjs-run'
 import { runSasJob } from './sasjs-request'
 import { processContext } from './sasjs-context'
 import { folder } from './sasjs-folder'
+import { processJob } from './sasjs-job'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
 
@@ -172,8 +173,12 @@ export async function compileBuildDeployServices(commandLine) {
 
   const targetName = commandLine.join('')
 
+  let result
+
   await build(targetName, null, null, true, indexOfForceFlag !== -1) // enforcing compile & build & deploy
     .then(() => {
+      result = true
+
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
@@ -183,6 +188,8 @@ export async function compileBuildDeployServices(commandLine) {
       )
     })
     .catch((err) => {
+      result = err
+
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
@@ -205,6 +212,8 @@ export async function compileBuildDeployServices(commandLine) {
         )
       }
     })
+
+  return result
 }
 
 export async function buildDBs(targetName) {
@@ -320,6 +329,20 @@ export async function folderManagement(command) {
     console.log(
       chalk.redBright(
         'An error has occurred when processing folder operation.',
+        err
+      )
+    )
+  })
+}
+
+export async function jobManagement(command) {
+  if (!command)
+    console.log(chalk.redBright(`Please provide action for the 'job' command.`))
+
+  await processJob(command).catch((err) => {
+    console.log(
+      chalk.redBright(
+        'An error has occurred when processing job operation.',
         err
       )
     )
