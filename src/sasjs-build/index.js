@@ -422,7 +422,8 @@ async function getTargetSpecificVars(typeOfVars) {
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  if (configuration[`cmn${typeOfVars}`])
+
+  if (configuration && configuration[`cmn${typeOfVars}`])
     variables = { ...configuration[`cmn${typeOfVars}`] }
 
   if (targetToBuild && targetToBuild[`tgt${typeOfVars}`])
@@ -568,7 +569,7 @@ async function getAllServices(pathToFile) {
   const configuration = await getConfiguration(pathToFile)
   let allServices = []
 
-  if (configuration.cmnServices)
+  if (configuration && configuration.cmnServices)
     allServices = [...allServices, ...configuration.cmnServices]
 
   if (targetToBuild && targetToBuild.tgtServices)

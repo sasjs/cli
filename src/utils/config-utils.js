@@ -283,7 +283,7 @@ export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjsconfig.json')
     )
-    if (configuration[`cmn${typeOfFile}`])
+    if (configuration && configuration[`cmn${typeOfFile}`])
       toBuildPath = configuration[`cmn${typeOfFile}`]
   } else if (targetToBuild[`tgt${typeOfFile}`] == false) toBuildPath = ''
   else if (targetToBuild[`tgt${typeOfFile}`].length)
