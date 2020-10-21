@@ -256,15 +256,19 @@ export async function buildWebApp(targetName) {
 }
 
 export async function add(resourceType = 'target') {
+  let result = false
   if (resourceType === 'target') {
     await addTarget()
       .then(() => {
         console.log(chalk.greenBright('Target successfully added!'))
+        result = true
       })
       .catch((err) => {
         displayResult(err, 'An error has occurred when adding the target.')
+        result = false
       })
   }
+  return result
 }
 
 export async function run(filePath, targetName) {
