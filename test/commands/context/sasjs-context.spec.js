@@ -14,8 +14,8 @@ let testContextConfigFile
 let testContextConfigPath
 
 describe('sasjs context', () => {
-  beforeAll(() => {
-    saveGlobalRcFile(
+  beforeAll(async () => {
+    await saveGlobalRcFile(
       JSON.stringify({
         targets: [
           {
