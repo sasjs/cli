@@ -9,7 +9,7 @@ describe('sasjs servicepack', () => {
       JSON.stringify({
         targets: [
           {
-            name: 'cliTests',
+            name: 'cli-tests',
             serverType: 'SASVIYA',
             serverUrl: 'https://sas.analytium.co.uk',
             appLoc: '/Public/app/cli-tests'
