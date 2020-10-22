@@ -1,3 +1,13 @@
+import path from 'path'
+
+import { fileExists, folderExists } from '../src/utils/file-utils'
+import { asyncForEach } from '../src/utils/utils'
+import { getFolders } from '../src/utils/config-utils'
+
+import fileStructureMinimalObj from 'files-minimal-app.json'
+import fileStructureReactObj from 'files-react-app.json'
+import fileStructureAngularrObj from 'files-angular-app.json'
+
 const puppeteer = require('puppeteer')
 
 global.browserGetAuthorizationCode = async ({
@@ -69,4 +79,91 @@ global.browserGetAuthorizationCode = async ({
     await browser.close()
   }, 1000)
   return authCodeContent
+}
+
+async function verifyFolderStructure(folder, parentFolderName = '.') {
+  let everythingPresent = false
+  let folderPath = path.join(process.projectDir, folder.folderName)
+  if (parentFolderName) {
+    folderPath = path.join(
+      process.projectDir,
+      parentFolderName,
+      folder.folderName
+    )
+  }
+  if (await folderExists(folderPath)) {
+    everythingPresent = true
+    if (folder.files && folder.files.length) {
+      let filesPresent = true
+      await asyncForEach(folder.files, async (file) => {
+        const filePath = path.join(
+          process.projectDir,
+          parentFolderName,
+          `${folder.folderName}/${file.fileName}`
+        )
+        filesPresent = filesPresent && (await fileExists(filePath))
+      })
+      everythingPresent = filesPresent
+    }
+    if (everythingPresent && folder.subFolders && folder.subFolders.length) {
+      let subfoldersPresent = true
+      await asyncForEach(folder.subFolders, async (subFolder) => {
+        subFolder.folderName = `${
+          parentFolderName ? parentFolderName + '/' : ''
+        }${folder.folderName}/${subFolder.folderName}`
+
+        subfoldersPresent =
+          subfoldersPresent && (await verifyFolderStructure(subFolder))
+      })
+      everythingPresent = subfoldersPresent
+    }
+  }
+  return everythingPresent
+}
+
+global.verifyCreate = async ({ parentFolderName, sasonly }) => {
+  const fileStructure = await getFolders(sasonly)
+  let everythingPresent = false
+  await asyncForEach(fileStructure, async (folder, index) => {
+    everythingPresent = await verifyFolderStructure(folder, parentFolderName)
+    if (everythingPresent && index === 0) {
+      const configDestinationPath = path.join(
+        process.projectDir,
+        parentFolderName,
+        folder.folderName,
+        'sasjsconfig.json'
+      )
+      const configPresent = await fileExists(configDestinationPath)
+      expect(configPresent).toEqual(true)
+    }
+  })
+  expect(everythingPresent).toEqual(true)
+}
+
+global.verifyCreateWeb = async ({ parentFolderName, appType }) => {
+  let everythingPresent = true
+  const fileStructure =
+    appType === 'minimal'
+      ? fileStructureMinimalObj
+      : appType === 'react'
+      ? fileStructureReactObj
+      : appType === 'angular'
+      ? fileStructureAngularrObj
+      : null
+  await asyncForEach(fileStructure.files, async (file, index) => {
+    const filePath = path.join(
+      process.projectDir,
+      parentFolderName,
+      file.fileName
+    )
+    everythingPresent = everythingPresent && (await fileExists(filePath))
+  })
+  if (everythingPresent) {
+    await asyncForEach(fileStructure.subFolders, async (folder, index) => {
+      everythingPresent =
+        everythingPresent &&
+        (await verifyFolderStructure(folder, parentFolderName))
+    })
+  }
+  expect(everythingPresent).toEqual(true)
 }
