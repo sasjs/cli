@@ -265,7 +265,7 @@ export async function add(resourceType = 'target') {
       })
       .catch((err) => {
         displayResult(err, 'An error has occurred when adding the target.')
-        result = false
+        result = err
       })
   }
   return result
