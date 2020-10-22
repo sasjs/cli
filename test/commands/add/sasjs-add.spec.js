@@ -5,6 +5,7 @@ import {
   getConfiguration,
   getGlobalRcFile
 } from '../../../src/utils/config-utils'
+import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs add', () => {
   let stdin;
@@ -19,10 +20,10 @@ describe('sasjs add', () => {
     it(
       'should lets the user to add a build target to localConfig',
       async () => {
-        const randomNumber = Math.floor(Math.random() * Math.floor(1000));
+        const timestamp = generateTimestamp()
 
         const serverUrl= process.env.serverUrl
-        const tgtName  = `test-viya-${randomNumber}`
+        const tgtName  = `test-viya-${timestamp}`
         const username = process.env.username
         const password = process.env.password
         const clientId = process.env.client
@@ -42,7 +43,6 @@ describe('sasjs add', () => {
           stdin.send([`1\r`]);
         }, 1000);
         await expect(add()).resolves.toEqual(true)
-        // let globalConfig = await getGlobalRcFile()
 
         const buildSourceFolder = require('../../../src/constants').buildSourceFolder
         const config = await getConfiguration(
@@ -65,10 +65,10 @@ describe('sasjs add', () => {
     it(
       'should lets the user to add a build target to globalConfig',
       async () => {
-        const randomNumber = Math.floor(Math.random() * Math.floor(1000));
+        const timestamp = generateTimestamp()
 
         const serverUrl= process.env.serverUrl
-        const tgtName  = `test-viya-${randomNumber}`
+        const tgtName  = `test-viya-${timestamp}`
         const username = process.env.username
         const password = process.env.password
         const clientId = process.env.client

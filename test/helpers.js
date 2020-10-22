@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 
 global.browserGetAuthorizationCode = async ({ serverUrl, clientId, username, password }) => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch();
   const page = await browser.newPage();
   await page.goto(`${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`);
 
