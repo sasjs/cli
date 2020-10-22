@@ -14,12 +14,11 @@ describe('sasjs create', () => {
     dotenv.config()
   })
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     const projectDirPath = path.join(process.projectDir)
     await deleteFolder(projectDirPath)
     await createFolder(projectDirPath)
-    done()
-  })
+  }, 60 * 1000)
 
   describe(`.`, () => {
     it(
@@ -56,7 +55,7 @@ describe('sasjs create', () => {
         )
         await verifyCreateWeb({ parentFolderName: '.', appType: 'react' })
       },
-      60 * 1000
+      120 * 1000
     )
   })
   describe(`${parentFolderNameTimeStamped}`, () => {
@@ -81,7 +80,7 @@ describe('sasjs create', () => {
           appType: 'minimal'
         })
       },
-      60 * 1000
+      120 * 1000
     )
     it(
       `should create new folder ${testingAppFolder}/${parentFolderNameTimeStamped}/ having apptype 'angular'`,
@@ -94,7 +93,7 @@ describe('sasjs create', () => {
           appType: 'angular'
         })
       },
-      60 * 1000
+      120 * 1000
     )
   })
 })
