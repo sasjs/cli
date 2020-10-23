@@ -7,6 +7,7 @@ import { getFolders } from '../src/utils/config-utils'
 import fileStructureMinimalObj from 'files-minimal-app.json'
 import fileStructureReactObj from 'files-react-app.json'
 import fileStructureAngularrObj from 'files-angular-app.json'
+import fileStructureDBObj from 'files-db.json'
 
 const puppeteer = require('puppeteer')
 
@@ -165,5 +166,15 @@ global.verifyCreateWeb = async ({ parentFolderName, appType }) => {
         (await verifyFolderStructure(folder, parentFolderName))
     })
   }
+  expect(everythingPresent).toEqual(true)
+}
+
+global.verifyDB = async ({ parentFolderName }) => {
+  let everythingPresent = true
+  await asyncForEach(fileStructureDBObj.subFolders, async (folder, index) => {
+    everythingPresent =
+      everythingPresent &&
+      (await verifyFolderStructure(folder, parentFolderName))
+  })
   expect(everythingPresent).toEqual(true)
 }

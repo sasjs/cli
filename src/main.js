@@ -220,9 +220,11 @@ export async function compileBuildDeployServices(commandLine) {
   return result
 }
 
-export async function buildDBs(targetName) {
-  await buildDB(targetName)
-    .then(() =>
+export async function buildDBs() {
+  let result = false
+  await buildDB()
+    .then(() => {
+      result = true
       console.log(
         chalk.greenBright.bold.italic(
           `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
@@ -230,12 +232,14 @@ export async function buildDBs(targetName) {
           )} directory.`
         )
       )
-    )
+    })
     .catch((err) => {
+      result = err
       console.log(
         chalk.redBright('An error has occurred when building DBs.', err)
       )
     })
+  return result
 }
 
 export async function buildWebApp(targetName) {

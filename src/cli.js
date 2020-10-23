@@ -187,7 +187,7 @@ export async function cli(args) {
       break
     }
     case 'db': {
-      await buildDBs(command.parameters[1])
+      await buildDBs()
       break
     }
     case 'compilebuild': {

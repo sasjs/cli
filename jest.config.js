@@ -80,6 +80,7 @@ module.exports = {
 
   // A map from regular expressions to module names that allow to stub out resources with a single module
   moduleNameMapper: {
+    'files-db.json': '<rootDir>/test/__mocks__/files-db.json',
     'files-minimal-app.json': '<rootDir>/test/__mocks__/files-minimal-app.json',
     'files-react-app.json': '<rootDir>/test/__mocks__/files-react-app.json',
     'files-angular-app.json': '<rootDir>/test/__mocks__/files-angular-app.json'
