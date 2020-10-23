@@ -110,6 +110,16 @@
           ]
         },
         {
+          "folderName": "programs",
+          "files": [
+            {
+              "fileName": "exampleprogram.sas",
+              "content": "%put this is sas!;"
+            }
+          ],
+          "subFolders": []
+        },
+        {
           "folderName": "targets",
           "files": [],
           "subFolders": [
