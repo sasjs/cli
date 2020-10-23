@@ -564,6 +564,15 @@ async function getCommonServices(pathToFile) {
   return Promise.resolve(configuration.cmnServices)
 }
 
+async function getAllJobs(pathToFile) {
+  let allJobs = []
+
+  if (targetToBuild && targetToBuild.tgtJobs)
+    allJobs = [...allJobs, ...targetToBuild.tgtJobs]
+
+  return Promise.resolve(allJobs)
+}
+
 async function getAllServices(pathToFile) {
   const configuration = await getConfiguration(pathToFile)
   let allServices = []
