@@ -172,7 +172,7 @@ export async function printHelpText() {
     The target can exist either in the local project configuration or in the global .sasjsrc file.
 
     * ${chalk.greenBright(
-      'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
+      'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>'
     )} - Lets the user run a SAS job against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
     <sasProgramPath> - If this has a leading slash (eg /Public/app/folder/servicename) then it must
