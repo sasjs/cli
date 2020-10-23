@@ -200,6 +200,20 @@ export async function printHelpText() {
           command example: sasjs folder move /Public/sourceFolder /Public/targetFolder
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
 
+    * ${chalk.greenBright('job <command>')} - performs operations on jobs.
+        * ${chalk.cyanBright('execute')} - triggers job for execution.
+          command example: sasjs job execute /Public/job --target targetName
+          command example: sasjs job execute /Public/job -t targetName
+          command example: sasjs job execute /Public/job --target targetName --wait
+          command example: sasjs job execute /Public/job -t targetName -w
+          command example: sasjs job execute /Public/job --target targetName --output
+          command example: sasjs job execute /Public/job -t targetName -o
+          command example: sasjs job execute /Public/job --target targetName --wait --output
+          command example: sasjs job execute /Public/job -t targetName -w -o
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.
+          NOTE: Providing output flag (--output or -o) is optional. If present, CLI will print out job output.
+
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
     'DB'
