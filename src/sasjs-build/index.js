@@ -25,6 +25,7 @@ import {
 let buildSourceFolder = ''
 let buildDestinationFolder = ''
 let buildDestinationServ = ''
+let buildDestinationJobs = ''
 let targetToBuild = null
 
 export async function build(
@@ -35,9 +36,12 @@ export async function build(
   isForced = false
 ) {
   const CONSTANTS = require('../constants')
+  
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildDestinationServ = CONSTANTS.buildDestinationServ
+  buildDestinationJobs = CONSTANTS.buildDestinationJobs
+
   const { target } = await findTargetInConfiguration(targetName)
   targetToBuild = target
 
@@ -46,18 +50,30 @@ export async function build(
     await createFinalSasFiles()
     return await deploy(targetName, targetToBuild, isForced)
   }
+
   if (compileBuildOnly) {
     await compile()
     return await createFinalSasFiles()
   }
+  
   if (compileOnly) return await compile()
 
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+
+  const jobsToCompile = await getAllJobs(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
   const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
-  const result = await validCompiled(serviceNamesToCompileUniq)
+
+  const jobNamesToCompile = jobsToCompile.map((s) => s.split('/').pop())
+  const jobNamesToCompileUniq = [...new Set(jobNamesToCompile)]
+
+  const result = await validCompiled(serviceNamesToCompileUniq, jobNamesToCompileUniq)
+
   if (result.compiled) {
     // no need to compile again
     console.log(chalk.greenBright(result.message))
@@ -66,20 +82,49 @@ export async function build(
     console.log(chalk.redBright(result.message))
     await compile()
   }
+
   await createFinalSasFiles()
 }
 
 async function compile() {
   await copyFilesToBuildFolder()
+
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+  
   const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
+
+  const jobsToCompile = await getAllJobs(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+  
+  const jobNamesToCompile = jobsToCompile.map((s) => s.split('/').pop())
+  const jobNamesToCompileUniq = [...new Set(jobNamesToCompile)]
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
 
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
+    const folderPath = path.join(buildDestinationServ, buildFolder)
+    const subFolders = await getSubFoldersInFolder(folderPath)
+    const filesNamesInPath = await getFilesInFolder(folderPath)
+    await asyncForEach(filesNamesInPath, async (fileName) => {
+      const filePath = path.join(folderPath, fileName)
+      const dependencies = await loadDependencies(filePath, tgtMacros)
+      await createFile(filePath, dependencies)
+    })
+    await asyncForEach(subFolders, async (subFolder) => {
+      const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+      await asyncForEach(fileNames, async (fileName) => {
+        const filePath = path.join(folderPath, subFolder, fileName)
+        const dependencies = await loadDependencies(filePath, tgtMacros)
+        await createFile(filePath, dependencies)
+      })
+    })
+  })
+
+  await asyncForEach(jobNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
@@ -358,7 +403,19 @@ async function copyFilesToBuildFolder() {
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+
+  const jobsToCompile = await getAllJobs(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+  
   await asyncForEach(servicesToCompile, async (buildFolder) => {
+    const sourcePath = path.join(buildSourceFolder, buildFolder)
+    const buildFolderName = buildFolder.split('/').pop()
+    const destinationPath = path.join(buildDestinationServ, buildFolderName)
+    await copy(sourcePath, destinationPath)
+  })
+
+  await asyncForEach(jobsToCompile, async (buildFolder) => {
     const sourcePath = path.join(buildSourceFolder, buildFolder)
     const buildFolderName = buildFolder.split('/').pop()
     const destinationPath = path.join(buildDestinationServ, buildFolderName)
@@ -586,7 +643,7 @@ async function getAllServices(pathToFile) {
   return Promise.resolve(allServices)
 }
 
-async function validCompiled(buildFolders) {
+async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
   const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists)
     return {
@@ -595,13 +652,17 @@ async function validCompiled(buildFolders) {
     }
 
   const subFolders = await getSubFoldersInFolder(buildDestinationServ)
-  const present = buildFolders.every((folder) => subFolders.includes(folder))
-  if (present) {
+
+  const servicesPresent = servicesBuildFolders.every((folder) => subFolders.includes(folder))
+  const jobsPresent = jobsBuildFolders.every((folder) => subFolders.includes(folder))
+  
+  if (servicesPresent && jobsPresent) {
     let returnObj = {
       compiled: true,
-      message: `All services are already present.`
+      message: `All services and jobs are already present.`
     }
-    await asyncForEach(buildFolders, async (buildFolder) => {
+
+    await asyncForEach(servicesBuildFolders, async (buildFolder) => {
       if (returnObj.compiled) {
         const folderPath = path.join(buildDestinationServ, buildFolder)
         const subFolders = await getSubFoldersInFolder(folderPath)
@@ -614,7 +675,23 @@ async function validCompiled(buildFolders) {
         }
       }
     })
+
+    if (returnObj.compiled) {
+      await asyncForEach(jobsBuildFolders, async (buildFolder) => {
+        const folderPath = path.join(buildDestinationServ, buildFolder)
+        const subFolders = await getSubFoldersInFolder(folderPath)
+        const filesNamesInPath = await getFilesInFolder(folderPath)
+        if (subFolders.length == 0 && filesNamesInPath.length == 0) {
+          returnObj = {
+            compiled: false,
+            message: `Jobs folder ${buildFolder} is empty.`
+          }
+        }
+      })
+    }
+
     return returnObj
   }
-  return { compiled: false, message: 'All services are not present.' }
+
+  return { compiled: false, message: 'All services and jobs are not present.' }
 }

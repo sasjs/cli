@@ -9,6 +9,11 @@ const buildDestinationServ = path.join(
   'sasjsbuild',
   'services'
 )
+const buildDestinationJobs = path.join(
+  process.projectDir,
+  'sasjsbuild',
+  'jobs'
+)
 const buildDestinationDBFolder = path.join(
   process.projectDir,
   'sasjsbuild',
@@ -20,5 +25,6 @@ module.exports = {
   buildSourceDBFolder,
   buildDestinationFolder,
   buildDestinationServ,
+  buildDestinationJobs,
   buildDestinationDBFolder
 }
