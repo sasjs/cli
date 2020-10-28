@@ -293,16 +293,19 @@ export async function runRequest(
   configFilePath,
   targetName
 ) {
+  let result = true
   await runSasJob(
     sasJobLocation,
     dataFilePath,
     configFilePath,
     targetName
   ).catch((err) => {
+    result = err
     console.log(
       chalk.redBright('An error has occurred when running your SAS job', err)
     )
   })
+  return result
 }
 
 export async function context(command) {
