@@ -19,7 +19,8 @@ import {
   getConfiguration,
   findTargetInConfiguration,
   getTargetSpecificFile,
-  getMacroCorePath
+  getMacroCorePath,
+  getProgramFolders
 } from '../utils/config-utils'
 
 let buildSourceFolder = ''
@@ -42,15 +43,15 @@ export async function build(
   targetToBuild = target
 
   if (compileBuildDeployOnly) {
-    await compile()
+    await compile(targetName)
     await createFinalSasFiles()
     return await deploy(targetName, targetToBuild, isForced)
   }
   if (compileBuildOnly) {
-    await compile()
+    await compile(targetName)
     return await createFinalSasFiles()
   }
-  if (compileOnly) return await compile()
+  if (compileOnly) return await compile(targetName)
 
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
@@ -69,7 +70,7 @@ export async function build(
   await createFinalSasFiles()
 }
 
-async function compile() {
+async function compile(targetName) {
   await copyFilesToBuildFolder()
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
@@ -78,6 +79,7 @@ async function compile() {
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
+  const programFolders = await getProgramFolders(targetName)
 
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
@@ -85,14 +87,22 @@ async function compile() {
     const filesNamesInPath = await getFilesInFolder(folderPath)
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
-      const dependencies = await loadDependencies(filePath, tgtMacros)
+      const dependencies = await loadDependencies(
+        filePath,
+        tgtMacros,
+        programFolders
+      )
       await createFile(filePath, dependencies)
     })
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
       await asyncForEach(fileNames, async (fileName) => {
         const filePath = path.join(folderPath, subFolder, fileName)
-        const dependencies = await loadDependencies(filePath, tgtMacros)
+        const dependencies = await loadDependencies(
+          filePath,
+          tgtMacros,
+          programFolders
+        )
         await createFile(filePath, dependencies)
       })
     })
@@ -382,7 +392,7 @@ async function recreateBuildFolder() {
   await createFolder(path.join(buildDestinationServ))
 }
 
-export async function loadDependencies(filePath, tgtMacros) {
+export async function loadDependencies(filePath, tgtMacros, programFolders) {
   console.log(
     chalk.greenBright('Loading dependencies for', chalk.cyanBright(filePath))
   )
@@ -394,9 +404,13 @@ export async function loadDependencies(filePath, tgtMacros) {
     `${fileContent}\n${serviceInit}\n${serviceTerm}`,
     tgtMacros
   )
+  const programDependencies = await getProgramDependencies(
+    fileContent,
+    programFolders
+  )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
-  fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
+  fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
 
   return fileContent
 }
@@ -455,6 +469,79 @@ async function getDependencies(filePaths) {
   })
 
   return dependenciesContent.join('\n')
+}
+
+export async function getProgramDependencies(fileContent, programFolders) {
+  const programsStart = fileContent.split(/\<h4\> SAS Programs \<\/h4\>/gi)
+  let programs = []
+  if (programsStart.length > 1) {
+    let count = 1
+    while (count < programsStart.length) {
+      let program = programsStart[count]
+        .split('**/')[0]
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .filter((d) => !!d)
+        .map((d) => d.replace(/\@li/g, '').trim())
+      const [fileName, fileRef] = program.length ? program[0].split(' ') : null
+      if (fileName && fileRef) {
+        programs = [...programs, { fileName, fileRef }]
+        count++
+      }
+    }
+    const foundPrograms = []
+    await asyncForEach(programFolders, async (programFolder) => {
+      await asyncForEach(programs, async (program) => {
+        const filePath = path.join(process.cwd(), 'sasjs', programFolder)
+        console.log(filePath)
+        const filePaths = find.fileSync(program.fileName, filePath)
+        if (filePaths.length) {
+          const fileContent = await readFile(filePaths[0])
+          const programDependencyContent = getProgramDependencyText(
+            fileContent,
+            program.fileRef
+          )
+          foundPrograms.push(programDependencyContent)
+        }
+      })
+    })
+
+    return foundPrograms.join('\n')
+  }
+
+  return ''
+}
+
+function getProgramDependencyText(fileContent, fileRef) {
+  let output = `filename ${fileRef} temp;\ndata _null;\nfile ${fileRef} lrecl=32767;\n`
+
+  const sourceLines = fileContent
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((l) => !!l)
+
+  sourceLines.forEach((line) => {
+    const chunkedLines = chunk(line)
+    if (chunkedLines.length === 1) {
+      output += `put '${chunkedLines[0].split("'").join("''")}';\n`
+    } else {
+      let combinedLines = ''
+      chunkedLines.forEach((chunkedLine, index) => {
+        let text = `put '${chunkedLine.split("'").join("''")}'`
+        if (index !== chunkedLines.length - 1) {
+          text += '@;\n'
+        } else {
+          text += ';\n'
+        }
+        combinedLines += text
+      })
+      output += combinedLines
+    }
+  })
+
+  output += 'run;'
+
+  return output
 }
 
 export async function getDependencyPaths(fileContent, tgtMacros = []) {
@@ -557,11 +644,6 @@ export function prioritiseDependencyOverrides(
   })
 
   return dependencyPaths
-}
-
-async function getCommonServices(pathToFile) {
-  const configuration = await getConfiguration(pathToFile)
-  return Promise.resolve(configuration.cmnServices)
 }
 
 async function getAllServices(pathToFile) {

@@ -253,6 +253,36 @@ export async function getBuildTarget(targetName) {
   return target
 }
 
+/**
+ * Returns SAS program folders from configuration.
+ * This list includes both common and target-specific folders.
+ * @param {string} targetName - name of the configuration.
+ */
+export async function getProgramFolders(targetName) {
+  let programFolders = []
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+  if (localConfig && localConfig.programFolders) {
+    programFolders = programFolders.concat(localConfig.programFolders)
+  }
+
+  const target = await findTargetInConfiguration(targetName)
+
+  if (!target) {
+    throw new Error(
+      'Target not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
+    )
+  }
+
+  if (target.programFolders) {
+    programFolders = programFolders.concat(target.programFolders)
+  }
+
+  return programFolders
+}
+
 export function getMacroCorePath() {
   return path.join(process.projectDir, 'node_modules', '@sasjs/core')
 }

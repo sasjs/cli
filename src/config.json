@@ -210,6 +210,7 @@
       "numvar": "42"
     },
     "useMacroCore": true,
+    "programFolders": ["./programs"],
     "targets": [
       {
         "name": "viya",
@@ -239,7 +240,8 @@
         "assetPaths": [],
         "streamWeb": false,
         "streamWebFolder": "webv",
-        "webSourcePath": "dist"
+        "webSourcePath": "dist",
+        "programFolders": []
       },
       {
         "name": "sas9",
@@ -260,7 +262,8 @@
         "assetPaths": [],
         "streamWeb": false,
         "streamWebFolder": "web9",
-        "webSourcePath": "dist"
+        "webSourcePath": "dist",
+        "programFolders": []
       }
     ]
   }
