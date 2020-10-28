@@ -210,7 +210,7 @@
       "numvar": "42"
     },
     "useMacroCore": true,
-    "programFolders": ["./programs"],
+    "programFolders": ["programs"],
     "targets": [
       {
         "name": "viya",

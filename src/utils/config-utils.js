@@ -280,6 +280,13 @@ export async function getProgramFolders(targetName) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
+  if (!programFolders.length) {
+    console.log(
+      chalk.yellowBright(
+        'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
+      )
+    )
+  }
   return programFolders
 }
 

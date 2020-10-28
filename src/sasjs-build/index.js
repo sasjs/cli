@@ -1,6 +1,8 @@
 import find from 'find'
 import path from 'path'
 import chalk from 'chalk'
+import uniqBy from 'lodash.uniqby'
+import groupBy from 'lodash.groupby'
 import { deploy } from '../sasjs-deploy'
 import { createWebAppServices } from '../sasjs-web'
 import {
@@ -406,7 +408,8 @@ export async function loadDependencies(filePath, tgtMacros, programFolders) {
   )
   const programDependencies = await getProgramDependencies(
     fileContent,
-    programFolders
+    programFolders,
+    buildSourceFolder
   )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
@@ -471,37 +474,149 @@ async function getDependencies(filePaths) {
   return dependenciesContent.join('\n')
 }
 
-export async function getProgramDependencies(fileContent, programFolders) {
-  const programsStart = fileContent.split(/\<h4\> SAS Programs \<\/h4\>/gi)
-  let programs = []
-  if (programsStart.length > 1) {
-    let count = 1
-    while (count < programsStart.length) {
-      let program = programsStart[count]
-        .split('**/')[0]
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .filter((d) => !!d)
-        .map((d) => d.replace(/\@li/g, '').trim())
-      const [fileName, fileRef] = program.length ? program[0].split(' ') : null
-      if (fileName && fileRef) {
-        programs = [...programs, { fileName, fileRef }]
-        count++
+export function getProgramList(fileContent) {
+  let fileHeader
+  try {
+    fileHeader = fileContent.split('/**')[1].split('**/')[0]
+  } catch (e) {
+    console.error(
+      chalk.redBright(
+        'File header parse error.\nPlease make sure your file header is in the correct format.'
+      )
+    )
+  }
+  let programsSection
+  try {
+    programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
+  } catch (e) {
+    console.error(
+      chalk.redBright(
+        'File header parse error.\nPlease make sure your SAS program dependencies are specified in the correct format.'
+      )
+    )
+  }
+  const programsList = programsSection
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((l) => !!l)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('@li'))
+    .map((l) => l.replace(/\@li/g, '').trim())
+    .map((l) => {
+      const [fileName, fileRef] = l.split(' ')
+
+      if (!fileName) {
+        throw new Error(
+          `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
+        )
       }
-    }
+
+      if (fileName && !fileRef) {
+        throw new Error(
+          `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
+        )
+      }
+
+      validateFileRef(fileRef)
+      return { fileName, fileRef }
+    })
+
+  validateProgramsList(programsList)
+
+  return uniqBy(programsList, 'fileName')
+}
+
+export function validateProgramsList(programsList) {
+  const areFileRefsUnique =
+    uniqBy(
+      programsList.map((p) => p.fileRef),
+      (x) => x.toLocaleUpperCase()
+    ).length === programsList.length
+
+  if (areFileRefsUnique) {
+    return true
+  }
+
+  const duplicatePrograms = []
+  programsList.forEach((program, index, list) => {
+    const duplicates = list.filter(
+      (p, i) =>
+        i !== index &&
+        p.fileRef.toLocaleUpperCase() === program.fileRef.toLocaleUpperCase() &&
+        !duplicatePrograms.some(
+          (d) =>
+            d.fileName === p.fileName &&
+            d.fileRef.toLocaleUpperCase() === p.fileRef.toLocaleUpperCase()
+        )
+    )
+    duplicatePrograms.push(...duplicates)
+    console.log(duplicatePrograms)
+  })
+  const groupedDuplicates = groupBy(duplicatePrograms, (x) =>
+    x.fileRef.toLocaleUpperCase()
+  )
+  let errorMessage = ''
+  Object.keys(groupedDuplicates).forEach((fileRef) => {
+    errorMessage += `The following files have duplicate fileref '${fileRef}':\n${groupedDuplicates[
+      fileRef
+    ]
+      .map((d) => d.fileName)
+      .join(', ')}\n`
+  })
+  throw new Error(errorMessage)
+}
+
+export function validateFileRef(fileRef) {
+  if (!fileRef) {
+    throw new Error('Missing file ref.')
+  }
+
+  if (fileRef.length > 8) {
+    throw new Error(
+      'File ref is too long. File refs can have a maximum of 8 characters.'
+    )
+  }
+
+  if (!/^[_a-zA-Z][_a-zA-Z0-9]*/.test(fileRef)) {
+    throw new Error(
+      'Invalid file ref. File refs can only start with a letter or an underscore, and contain only letters, numbers and underscores.'
+    )
+  }
+
+  return true
+}
+
+export async function getProgramDependencies(
+  fileContent,
+  programFolders,
+  buildSourceFolder
+) {
+  programFolders = uniqBy(programFolders)
+  const programs = getProgramList(fileContent)
+  if (programs.length) {
     const foundPrograms = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
-        const filePath = path.join(process.cwd(), 'sasjs', programFolder)
-        console.log(filePath)
+        const filePath = path.join(buildSourceFolder, programFolder)
         const filePaths = find.fileSync(program.fileName, filePath)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
+          if (!fileContent) {
+            console.log(
+              chalk.yellowBright(`File ${program.fileName} is empty.`)
+            )
+          }
           const programDependencyContent = getProgramDependencyText(
             fileContent,
             program.fileRef
           )
           foundPrograms.push(programDependencyContent)
+        } else {
+          console.log(
+            chalk.yellowBright(
+              `Skipping ${program.fileName} as program file was not found. Please check your SAS program dependencies.\n`
+            )
+          )
         }
       })
     })
