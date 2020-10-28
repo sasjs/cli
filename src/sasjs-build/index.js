@@ -550,7 +550,6 @@ export function validateProgramsList(programsList) {
         )
     )
     duplicatePrograms.push(...duplicates)
-    console.log(duplicatePrograms)
   })
   const groupedDuplicates = groupBy(duplicatePrograms, (x) =>
     x.fileRef.toLocaleUpperCase()
