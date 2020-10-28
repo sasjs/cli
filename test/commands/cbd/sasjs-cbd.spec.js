@@ -3,8 +3,10 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../src/main'
 
-describe('sasjs context', () => {
+describe('sasjs cbd', () => {
   beforeAll(async () => {
+    dotenv.config()
+
     await saveGlobalRcFile(
       JSON.stringify({
         targets: [
@@ -14,7 +16,12 @@ describe('sasjs context', () => {
             serverUrl: 'https://sas.analytium.co.uk',
             appLoc: '/Public/app/cli-tests',
             tgtServices: ['../test/commands/cbd/testJob'],
-            authInfo: {},
+            authInfo: {
+              client: process.env.client,
+              secret: process.env.secret,
+              access_token: process.env.access_token,
+              refresh_token: process.env.refresh_token
+            },
             deployServicePack: true,
             tgtDeployScripts: []
           }
@@ -23,8 +30,6 @@ describe('sasjs context', () => {
     )
 
     process.projectDir = path.join(process.cwd())
-
-    dotenv.config()
   })
 
   describe('cbd', () => {
