@@ -110,6 +110,16 @@
           ]
         },
         {
+          "folderName": "programs",
+          "files": [
+            {
+              "fileName": "exampleprogram.sas",
+              "content": "%put 'this is sas!';"
+            }
+          ],
+          "subFolders": []
+        },
+        {
           "folderName": "targets",
           "files": [],
           "subFolders": [
@@ -200,6 +210,7 @@
       "numvar": "42"
     },
     "useMacroCore": true,
+    "programFolders": ["programs"],
     "targets": [
       {
         "name": "viya",
@@ -229,7 +240,8 @@
         "assetPaths": [],
         "streamWeb": false,
         "streamWebFolder": "webv",
-        "webSourcePath": "dist"
+        "webSourcePath": "dist",
+        "programFolders": []
       },
       {
         "name": "sas9",
@@ -250,7 +262,8 @@
         "assetPaths": [],
         "streamWeb": false,
         "streamWebFolder": "web9",
-        "webSourcePath": "dist"
+        "webSourcePath": "dist",
+        "programFolders": []
       }
     ]
   }
