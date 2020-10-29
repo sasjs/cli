@@ -83,19 +83,29 @@ async function compile(targetName) {
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
 
+  let { target } = await findTargetInConfiguration(targetName)
+
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
+
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
-      const dependencies = await loadDependencies(
+      
+      let dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
-      )
+        )
+        
+      const preCode = await getPreCodeForServicePack(target.serverType)
+
+      dependencies = preCode + '\n' + dependencies
+
       await createFile(filePath, dependencies)
     })
+
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
       await asyncForEach(fileNames, async (fileName) => {
@@ -302,23 +312,13 @@ async function getPreCodeForServicePack(serverType) {
 
 async function getContentFor(folderPath, folderName, serverType) {
   let content = `\n%let path=${folderName === 'services' ? '' : folderName};\n`
+  
   const contentJSON = {
     name: folderName,
     type: 'folder',
     members: []
   }
-  const files = await getFilesInFolder(folderPath)
-  const preCode = await getPreCodeForServicePack(serverType)
-  await asyncForEach(files, async (file) => {
-    const fileContent = await readFile(path.join(folderPath, file))
-    const transformedContent = getServiceText(file, fileContent, serverType)
-    content += `\n${transformedContent}\n`
-    contentJSON.members.push({
-      name: file.replace('.sas', ''),
-      type: 'service',
-      code: removeComments(`${preCode}\n${fileContent}`)
-    })
-  })
+  
   const subFolders = await getSubFoldersInFolder(folderPath)
   await asyncForEach(subFolders, async (subFolder) => {
     const {
@@ -410,7 +410,7 @@ export async function loadDependencies(filePath, tgtMacros, programFolders) {
     fileContent,
     programFolders,
     buildSourceFolder
-  )
+    )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
@@ -490,6 +490,8 @@ export function getProgramList(fileContent) {
   let programsSection
   try {
     programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
+
+    if (!programsSection) return []
   } catch (e) {
     console.error(
       chalk.redBright(
@@ -497,6 +499,7 @@ export function getProgramList(fileContent) {
       )
     )
   }
+
   const programsList = programsSection
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -522,7 +525,7 @@ export function getProgramList(fileContent) {
       validateFileRef(fileRef)
       return { fileName, fileRef }
     })
-
+    
   validateProgramsList(programsList)
 
   return uniqBy(programsList, 'fileName')
@@ -630,12 +633,10 @@ export async function getProgramDependencies(
 
 function getProgramDependencyText(fileContent, fileRef) {
   let output = `filename ${fileRef} temp;\ndata _null_;\nfile ${fileRef} lrecl=32767;\n`
-
   const sourceLines = fileContent
     .replace(/\r\n/g, '\n')
     .split('\n')
     .filter((l) => !!l)
-
   sourceLines.forEach((line) => {
     const chunkedLines = chunk(line)
     if (chunkedLines.length === 1) {
@@ -683,6 +684,7 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       dependencies = [...dependencies, ...dependency]
       count++
     }
+    
     let dependencyPaths = []
     const foundDependencies = []
     await asyncForEach(sourcePaths, async (sourcePath) => {
