@@ -498,4 +498,14 @@ describe('parseCommandLine', () => {
       expect(command.flags.map((f) => f.value)).toEqual(expectedFlagValues)
     })
   })
+
+  test('not supported command', () => {
+    const commandLine = 'notSupported command'
+
+    const command = new Command(commandLine)
+
+    expect(command.name).toEqual(undefined)
+    expect(command.values).toEqual([])
+    expect(command.flags.map((flag) => flag.name)).toEqual([])
+  })
 })

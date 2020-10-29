@@ -1,3 +1,11 @@
+import { displayResult } from './displayResult'
+
+const showInvalidCommandMessage = () => {
+  displayResult(
+    {},
+    `Invalid command. Run 'sasjs help' to get the list of valid commands.`
+  )
+}
 const arrToObj = (arr) => arr.reduce((o, key) => ({ ...o, [key]: key }), {})
 
 const initialCommands = arrToObj([
@@ -95,14 +103,32 @@ export class Command {
   flags = []
 
   constructor(commandLine) {
-    if (typeof commandLine === 'string') commandLine = commandLine.split(' ')
+    if (typeof commandLine === 'string')
+      commandLine = commandLine.replace(/\s\s+/g, ' ').split(' ')
 
-    if (!Array.isArray(commandLine)) throw 'commandLine should be an array'
+    if (!Array.isArray(commandLine)) {
+      showInvalidCommandMessage()
+
+      return
+    }
+
     const command = commandLine.shift()
 
-    this.name = Object.keys(initialCommands).includes(command)
-      ? command
-      : initialAliases.find((alias) => alias.aliases.includes(command)).name
+    if (Object.keys(initialCommands).includes(command)) {
+      this.name = command
+    } else {
+      const alias = initialAliases.find((alias) =>
+        alias.aliases.includes(command)
+      )
+
+      if (alias) this.name = alias.name
+    }
+
+    if (!this.name) {
+      showInvalidCommandMessage()
+
+      return
+    }
 
     this.aliases = initialAliases.find((alias) => alias.name === this.name)
     this.aliases = this.aliases ? this.aliases.aliases : null
@@ -111,10 +137,7 @@ export class Command {
       (commandFlag) => commandFlag.command === this.name
     )[0].flags
 
-    console.log(`[this]`, this)
-
     for (let i = 0; i < commandLine.length; i++) {
-      console.log(`[commandLine[i]]`, commandLine[i])
       if (/^-/.test(commandLine[i]) && this.supportedFlags) {
         let flag = commandLine[i].split('-').join('')
         const regExp = new RegExp(`^${flag}`)
