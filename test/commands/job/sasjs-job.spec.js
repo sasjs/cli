@@ -2,6 +2,7 @@ import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { processJob } from '../../../src/sasjs-job/index'
+import { processContext } from '../../../src/sasjs-context/index'
 
 describe('sasjs context', () => {
   beforeAll(async () => {
@@ -12,11 +13,7 @@ describe('sasjs context', () => {
             name: 'cli-tests',
             serverType: 'SASVIYA',
             serverUrl: 'https://sas.analytium.co.uk',
-            appLoc: '/Public/app/cli-tests',
-            tgtServices: ['testJob'],
-            tgtDeployVars: {
-              contextName: 'SharedCompute'
-            }
+            appLoc: '/Public/app/cli-tests'
           }
         ]
       })
@@ -25,7 +22,26 @@ describe('sasjs context', () => {
     process.projectDir = path.join(process.cwd())
 
     dotenv.config()
-  })
+
+    const contexts = await processContext(['context', 'list'])
+
+    await saveGlobalRcFile(
+      JSON.stringify({
+        targets: [
+          {
+            name: 'cli-tests',
+            serverType: 'SASVIYA',
+            serverUrl: 'https://sas.analytium.co.uk',
+            appLoc: '/Public/app/cli-tests',
+            tgtServices: ['testJob'],
+            tgtDeployVars: {
+              contextName: contexts[0]
+            }
+          }
+        ]
+      })
+    )
+  }, 4 * 60 * 1000)
 
   describe('execute', () => {
     it(
