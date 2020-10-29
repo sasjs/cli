@@ -477,6 +477,8 @@ async function getDependencies(filePaths) {
 export function getProgramList(fileContent) {
   let fileHeader
   try {
+    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
+    if (!hasFileHeader) return []
     fileHeader = fileContent.split('/**')[1].split('**/')[0]
   } catch (e) {
     console.error(
@@ -627,7 +629,7 @@ export async function getProgramDependencies(
 }
 
 function getProgramDependencyText(fileContent, fileRef) {
-  let output = `filename ${fileRef} temp;\ndata _null;\nfile ${fileRef} lrecl=32767;\n`
+  let output = `filename ${fileRef} temp;\ndata _null_;\nfile ${fileRef} lrecl=32767;\n`
 
   const sourceLines = fileContent
     .replace(/\r\n/g, '\n')

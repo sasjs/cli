@@ -11,7 +11,7 @@ process.projectDir = path.join(process.cwd())
 describe('getProgramDependencies', () => {
   const expectedLines = [
     'filename TEST temp;',
-    'data _null;',
+    'data _null_;',
     'file TEST lrecl=32767;',
     "put '%put ''Hello, world!'';';",
     'run;'
@@ -51,12 +51,12 @@ describe('getProgramDependencies', () => {
     )
     const expectedOutput = [
       'filename TEST temp;',
-      'data _null;',
+      'data _null_;',
       'file TEST lrecl=32767;',
       "put '%put ''Hello, world!'';';",
       'run;',
       'filename TEST2 temp;',
-      'data _null;',
+      'data _null_;',
       'file TEST2 lrecl=32767;',
       "put 'proc sql;';",
       "put 'quit;';",
@@ -165,6 +165,16 @@ describe('getProgramList', () => {
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedOutput)
+    done()
+  })
+
+  test('should return empty list when file header is not present', async (done) => {
+    let fileContent = await readFile(path.join(__dirname, './no-header.sas'))
+    const expectedList = []
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
     done()
   })
 
