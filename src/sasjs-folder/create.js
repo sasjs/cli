@@ -21,7 +21,7 @@ export const create = async (path, sasjs, accessToken, isForced) => {
       if (err.status && err.status === 409) {
         console.log(
           chalk.redBright(
-            `Consider using '-f' or '--force' flag (eg sasjs folder create /Public/folderToCreate -f).\nNOTE: content and all subfolders of initial folder will be deleted.`
+            `Consider using '-f' or '--force' flag, eg 'sasjs folder create /Public/folderToCreate -f'.\nWARNING: When using force, any existing content and subfolders of the target folder will be deleted.`
           )
         )
       }
