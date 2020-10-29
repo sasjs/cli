@@ -1,9 +1,9 @@
 import path from 'path'
-import { readFile } from '../src/utils/file-utils'
+import { readFile } from '../../../src/utils/file-utils'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides
-} from '../src/sasjs-build/index'
+} from '../../../src/sasjs-build/index'
 
 process.projectDir = path.join(process.cwd())
 describe('getDependencyPaths', () => {
