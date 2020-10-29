@@ -114,7 +114,7 @@
           "files": [
             {
               "fileName": "exampleprogram.sas",
-              "content": "%put this is sas!;"
+              "content": "%put 'this is sas!';"
             }
           ],
           "subFolders": []
