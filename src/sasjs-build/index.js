@@ -92,13 +92,13 @@ async function compile(targetName) {
 
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
-      
+
       let dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
-        )
-        
+      )
+
       const preCode = await getPreCodeForServicePack(target.serverType)
 
       dependencies = preCode + '\n' + dependencies
@@ -312,13 +312,13 @@ async function getPreCodeForServicePack(serverType) {
 
 async function getContentFor(folderPath, folderName, serverType) {
   let content = `\n%let path=${folderName === 'services' ? '' : folderName};\n`
-  
+
   const contentJSON = {
     name: folderName,
     type: 'folder',
     members: []
   }
-  
+
   const subFolders = await getSubFoldersInFolder(folderPath)
   await asyncForEach(subFolders, async (subFolder) => {
     const {
@@ -410,7 +410,7 @@ export async function loadDependencies(filePath, tgtMacros, programFolders) {
     fileContent,
     programFolders,
     buildSourceFolder
-    )
+  )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
@@ -525,7 +525,7 @@ export function getProgramList(fileContent) {
       validateFileRef(fileRef)
       return { fileName, fileRef }
     })
-    
+
   validateProgramsList(programsList)
 
   return uniqBy(programsList, 'fileName')
@@ -684,7 +684,7 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       dependencies = [...dependencies, ...dependency]
       count++
     }
-    
+
     let dependencyPaths = []
     const foundDependencies = []
     await asyncForEach(sourcePaths, async (sourcePath) => {
