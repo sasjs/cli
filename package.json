@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sasjs/cli"
+    "url": "git+https://github.com/sasjs/cli.git"
   },
   "keywords": [
     "SAS",
@@ -60,5 +60,9 @@
     "mock-stdin": "^1.0.0",
     "puppeteer": "^5.3.1",
     "semantic-release": "^17.1.1"
+  },
+  "version": "1.0.0",
+  "directories": {
+    "test": "test"
   }
 }
