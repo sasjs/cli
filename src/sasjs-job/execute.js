@@ -8,12 +8,12 @@ import path from 'path'
  * Triggers existing job for execution.
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
- * @param {string} jobPath - location of job at SAS server.
+ * @param {string} jobPath - location of the job on SAS Drive.
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
- * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
- * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder.
+ * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
+ * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}-log.json file will be created in current folder.
  */
 export async function execute(
   sasjs,

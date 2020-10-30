@@ -208,11 +208,15 @@ export async function printHelpText() {
           command example: sasjs job execute /Public/job -t targetName -w
           command example: sasjs job execute /Public/job --target targetName --output
           command example: sasjs job execute /Public/job -t targetName -o
+          command example: sasjs job execute /Public/job -t targetName -o ./outputFolder
           command example: sasjs job execute /Public/job --target targetName --wait --output
           command example: sasjs job execute /Public/job -t targetName -w -o
+          command example: sasjs job execute /Public/job -t targetName --log ./logFolder
+          command example: sasjs job execute /Public/job -t targetName -l ./logFolder
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
           NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.
-          NOTE: Providing output flag (--output or -o) is optional. If present, CLI will print out job output.
+          NOTE: Providing output flag (--output or -o) is optional. If present, CLI will print out job output. If value is provided, it will be treated as file path to save job output.
+          NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.
 
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
