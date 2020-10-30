@@ -48,7 +48,7 @@ Additional documentation can be found on the [SASjs](https://sasjs.io) website.
   1. `sasjs job execute /Public/job --target targetName` - triggers job for execution.
      - `sasjs job execute /Public/job --target targetName --wait` - triggers job for execution and waits for job completion.
      - `sasjs job execute /Public/job --target targetName --output` - triggers job for execution and immediately prints out the response JSON.
-     - `sasjs job execute /Public/job --target targetName --output ./outputFolder` - triggers job for execution and saves its output to local file.
+     - `sasjs job execute /Public/job --target targetName --output ./outputFolder` - triggers job for execution and saves the response JSON to a local file.
      - `sasjs job execute /Public/job --target targetName --log ./logFolder` - riggers job for execution, waits for it to finish, and saves the log to the specified local file.
 
 ## Command Operations
