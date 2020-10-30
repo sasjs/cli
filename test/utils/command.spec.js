@@ -485,12 +485,18 @@ describe('parseCommandLine', () => {
     })
 
     test('short syntax', () => {
-      const commandLine = 'job execute -t targetName -w -o /Public/job'
+      const commandLine =
+        'job execute /Public/job -t targetName -w -o ./output.json -l ./log.json'
 
       const command = new Command(commandLine)
 
-      const expectedFlagNames = ['target', 'wait', 'output']
-      const expectedFlagValues = ['targetName', null, null]
+      const expectedFlagNames = ['target', 'wait', 'output', 'log']
+      const expectedFlagValues = [
+        'targetName',
+        null,
+        './output.json',
+        './log.json'
+      ]
 
       expect(command.name).toEqual(expectedName)
       expect(command.values).toEqual(expectedValues)

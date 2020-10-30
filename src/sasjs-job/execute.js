@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../utils/displayResult'
+import { createFile, createFolder, folderExists } from '../utils/file-utils'
+import path from 'path'
 
 /**
  * Triggers existing job for execution.
@@ -9,7 +11,9 @@ import { displayResult } from '../utils/displayResult'
  * @param {string} jobPath - location of job at SAS server.
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
- * @param {boolean} showOutput = flag indicating if CLI should print out job output.
+ * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
+ * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
+ * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder.
  */
 export async function execute(
   sasjs,
@@ -17,7 +21,8 @@ export async function execute(
   jobPath,
   target,
   waitForJob,
-  showOutput
+  output,
+  log
 ) {
   let result
 
@@ -37,7 +42,7 @@ export async function execute(
       null,
       { contextName: target.tgtDeployVars.contextName },
       accessToken,
-      waitForJob
+      waitForJob || log ? true : false
     )
     .catch((err) => {
       result = err
@@ -64,11 +69,71 @@ export async function execute(
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
 
-    if (showOutput) {
+    if (output || log) {
       try {
-        const output = JSON.stringify(submittedJob, null, 2)
+        const outputJson = JSON.stringify(submittedJob, null, 2)
 
-        console.log(output)
+        if (typeof output === 'string') {
+          const outputPath = path.join(
+            process.cwd(),
+            /\.json$/i.test(output) ? output : path.join(output, 'output.json')
+          )
+
+          let folderPath = outputPath.split('/')
+          folderPath.pop()
+          folderPath = folderPath.join('/')
+
+          if (!(await folderExists(folderPath))) await createFolder(folderPath)
+
+          await createFile(outputPath, outputJson)
+
+          displayResult(null, null, `Output saved to: ${outputPath}`)
+        } else if (output) {
+          console.log(outputJson)
+        }
+
+        if (log) {
+          const logObj = submittedJob.links.find(
+            (link) => link.rel === 'log' && link.method === 'GET'
+          )
+
+          if (logObj) {
+            const logUrl = target.serverUrl + logObj.href
+            const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+            const logJson = JSON.parse(logData)
+
+            let logPath
+
+            if (typeof log === 'string') {
+              logPath = path.join(
+                process.cwd(),
+                /\.json$/i.test(log)
+                  ? log
+                  : path.join(
+                      log,
+                      `${jobPath.split('/').slice(-1).pop()}-log.json`
+                    )
+              )
+            } else {
+              logPath = path.join(
+                process.cwd(),
+                `${jobPath.split('/').slice(-1).pop()}-log.json`
+              )
+            }
+
+            let folderPath = logPath.split('/')
+            folderPath.pop()
+            folderPath = folderPath.join('/')
+
+            if (!(await folderExists(folderPath))) {
+              await createFolder(folderPath)
+            }
+
+            await createFile(logPath, JSON.stringify(logJson, null, 2))
+
+            displayResult(null, null, `Log saved to: ${logPath}`)
+          }
+        }
 
         result = submittedJob
       } catch (error) {

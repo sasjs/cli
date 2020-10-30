@@ -6,20 +6,21 @@ import {
 } from '../utils/config-utils'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
+import { Command } from '../utils/command'
 
 export async function processJob(commandLine) {
-  commandLine.shift() // remove 'job' from command line
+  const command = new Command(commandLine)
 
-  const command = commandLine.shift()
-  const commands = {
+  const subCommand = command.values.shift()
+  const subCommands = {
     execute: 'execute'
   }
 
-  if (!commands.hasOwnProperty(command)) {
+  if (!subCommands.hasOwnProperty(subCommand)) {
     console.log(
       chalk.redBright(
         `Not supported context command. Supported commands are:\n${Object.keys(
-          commands
+          subCommands
         ).join('\n')}`
       )
     )
@@ -27,31 +28,28 @@ export async function processJob(commandLine) {
     return
   }
 
-  let waitFlagIndex = commandLine.indexOf('--wait')
-  if (waitFlagIndex === -1) waitFlagIndex = commandLine.indexOf('-w')
+  let targetName = command.flags.find((flag) => flag.name === 'target')
+  targetName = targetName ? targetName.value : ''
 
-  let outputFlagIndex = commandLine.indexOf('--output')
-  if (outputFlagIndex === -1) outputFlagIndex = commandLine.indexOf('-o')
+  const waitForJob =
+    command.flags.find((flag) => flag.name === 'wait') !== undefined
 
-  let targetName = []
-  let targetNameFlagIndex = commandLine.indexOf('--target')
+  let output = command.flags.find((flag) => flag.name === 'output')
+  output = output ? (output.value ? output.value : true) : null
 
-  if (targetNameFlagIndex === -1)
-    targetNameFlagIndex = commandLine.indexOf('-t')
-
-  if (targetNameFlagIndex !== -1) {
-    for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
-      if (i === waitFlagIndex || i === outputFlagIndex) break
-
-      targetName.push(commandLine[i])
-    }
-  }
-
-  targetName = targetName.join(' ')
+  let log = command.flags.find((flag) => flag.name === 'log')
+  log = log ? (log.value ? log.value : true) : null
 
   const target = await getBuildTarget(targetName)
 
-  let jobPath = commandLine[0]
+  let jobPath = command.values.join('')
+
+  if (!/^\//.test(jobPath)) {
+    const { appLoc } = target
+
+    jobPath = (/\/$/.test(appLoc) ? appLoc : appLoc + '/') + jobPath
+  }
+
   jobPath = sanitizeAppLoc(jobPath)
 
   const sasjs = new SASjs({
@@ -64,19 +62,18 @@ export async function processJob(commandLine) {
     displayResult(err)
   })
 
-  let output
-  const waitForJob = waitFlagIndex !== -1
-  const displayOutput = outputFlagIndex !== -1
+  let result
 
-  switch (command) {
-    case commands.execute:
-      output = await execute(
+  switch (subCommand) {
+    case subCommands.execute:
+      result = await execute(
         sasjs,
         accessToken,
         jobPath,
         target,
         waitForJob,
-        displayOutput
+        output,
+        log
       )
 
       break
@@ -84,5 +81,5 @@ export async function processJob(commandLine) {
       break
   }
 
-  return output
+  return result
 }
