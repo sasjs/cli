@@ -2,8 +2,11 @@ import path from 'path'
 
 import { fileExists, folderExists } from '../src/utils/file-utils'
 import { asyncForEach } from '../src/utils/utils'
-import { getFolders } from '../src/utils/config-utils'
-
+import {
+  getFolders,
+  getGlobalRcFile,
+  saveGlobalRcFile
+} from '../src/utils/config-utils'
 import fileStructureMinimalObj from 'files-minimal-app.json'
 import fileStructureReactObj from 'files-react-app.json'
 import fileStructureAngularrObj from 'files-angular-app.json'
@@ -44,6 +47,11 @@ global.browserGetAuthorizationCode = async ({
       'input[type="checkbox"][name="scope.0"]'
     )
     await openidCheckbox.click()
+
+    const administrativeCheckbox = await page.waitForSelector(
+      'input[type="checkbox"][name="scope.1"]'
+    )
+    await administrativeCheckbox.click()
     const authorizeButton = await page.waitForSelector(
       'button[name="user_oauth_approval"]'
     )
@@ -177,4 +185,25 @@ global.verifyDB = async ({ parentFolderName }) => {
       (await verifyFolderStructure(folder, parentFolderName))
   })
   expect(everythingPresent).toEqual(true)
+}
+
+global.addToGlobalConfigs = async (buildTarget) => {
+  let globalConfig = await getGlobalRcFile()
+  if (globalConfig) {
+    if (globalConfig.targets && globalConfig.targets.length) {
+      globalConfig.targets.push(buildTarget)
+    } else {
+      globalConfig.targets = [buildTarget]
+    }
+  } else {
+    globalConfig = { targets: [buildTarget] }
+  }
+  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
+}
+global.removeFromGlobalConfigs = async (targetName = 'cli-tests-cbd') => {
+  let globalConfig = await getGlobalRcFile()
+  if (globalConfig && globalConfig.targets && globalConfig.targets.length) {
+    const targets = globalConfig.targets.filter((t) => t.name !== targetName)
+    await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
+  }
 }

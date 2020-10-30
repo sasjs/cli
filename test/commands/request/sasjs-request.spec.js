@@ -2,7 +2,6 @@ import dotenv from 'dotenv'
 import path from 'path'
 import fs from 'fs'
 
-import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
 import {
   createFolder,
@@ -11,7 +10,7 @@ import {
 } from '../../../src/utils/file-utils'
 
 describe('sasjs request', () => {
-  const testingAppFolder = 'testing-apps'
+  const testingAppFolder = 'testing-apps-request'
   const projectDirPath = path.join(process.cwd(), testingAppFolder)
 
   const dataPath = path.join(projectDirPath, 'data.json')
@@ -28,34 +27,38 @@ describe('sasjs request', () => {
     table2: [{ col1: 'first col value' }]
   }
 
+  const targetName = 'cli-tests-request'
   beforeAll(async () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
     const config = {
-      name: 'cli-tests',
-      serverType: 'SASVIYA',
-      serverUrl: 'https://sas.analytium.co.uk',
+      name: targetName,
+      serverType: process.env.SERVER_TYPE,
+      serverUrl: process.env.SERVER_URL,
       appLoc: '/Public/app/cli-tests',
       useComputeApi: true,
       contextName: 'SAS Studio compute context',
       tgtServices: ['../test/commands/request/runRequest'],
       authInfo: {
-        client: process.env.client,
-        secret: process.env.secret,
-        access_token: process.env.access_token,
-        refresh_token: process.env.refresh_token
+        client: process.env.CLIENT,
+        secret: process.env.SECRET,
+        access_token: process.env.ACCESS_TOKEN,
+        refresh_token: process.env.REFRESH_TOKEN
+      },
+      tgtDeployVars: {
+        client: process.env.CLIENT,
+        secret: process.env.SECRET
       },
       deployServicePack: true,
       tgtDeployScripts: []
     }
-    await saveGlobalRcFile(
-      JSON.stringify({
-        targets: [config]
-      })
-    )
+    await addToGlobalConfigs(config)
 
-    const command = 'cbd cli-tests -f'.split(' ')
+    const command = `cbd ${targetName} -f`.split(' ')
     await compileBuildDeployServices(command)
+
+    const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
+    await deleteFolder(sasjsBuildDirPath)
 
     await deleteFolder(projectDirPath)
     await createFolder(projectDirPath)
@@ -72,13 +75,12 @@ describe('sasjs request', () => {
             runRequest(
               '/Public/app/cli-tests/runRequest/sendArr',
               dataPathRel,
-              'default'
+              'default',
+              targetName
             )
           ).resolves.toEqual(true)
-
           const rawdata = fs.readFileSync('output.json')
           const output = JSON.parse(rawdata)
-
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
           }
@@ -92,7 +94,8 @@ describe('sasjs request', () => {
             runRequest(
               '/Public/app/cli-tests/runRequest/sendObj',
               dataPathRel,
-              'default'
+              'default',
+              targetName
             )
           ).resolves.toEqual(true)
 
@@ -111,7 +114,7 @@ describe('sasjs request', () => {
         `executing service sendArr`,
         async () => {
           await expect(
-            runRequest('runRequest/sendArr', dataPathRel, 'default')
+            runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
           const rawdata = fs.readFileSync('output.json')
@@ -127,7 +130,7 @@ describe('sasjs request', () => {
         `executing service sendObj`,
         async () => {
           await expect(
-            runRequest('runRequest/sendObj', dataPathRel, 'default')
+            runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
           const rawdata = fs.readFileSync('output.json')
@@ -150,7 +153,8 @@ describe('sasjs request', () => {
             runRequest(
               '/Public/app/cli-tests/runRequest/sendArr',
               dataPathRel,
-              configPathRel
+              configPathRel,
+              targetName
             )
           ).resolves.toEqual(true)
 
@@ -170,7 +174,8 @@ describe('sasjs request', () => {
             runRequest(
               '/Public/app/cli-tests/runRequest/sendObj',
               dataPathRel,
-              configPathRel
+              configPathRel,
+              targetName
             )
           ).resolves.toEqual(true)
 
@@ -189,7 +194,12 @@ describe('sasjs request', () => {
         `executing service sendArr`,
         async () => {
           await expect(
-            runRequest('runRequest/sendArr', dataPathRel, configPathRel)
+            runRequest(
+              'runRequest/sendArr',
+              dataPathRel,
+              configPathRel,
+              targetName
+            )
           ).resolves.toEqual(true)
 
           const rawdata = fs.readFileSync('output.json')
@@ -205,7 +215,12 @@ describe('sasjs request', () => {
         `executing service sendObj`,
         async () => {
           await expect(
-            runRequest('runRequest/sendObj', dataPathRel, configPathRel)
+            runRequest(
+              'runRequest/sendObj',
+              dataPathRel,
+              configPathRel,
+              targetName
+            )
           ).resolves.toEqual(true)
 
           const rawdata = fs.readFileSync('output.json')
@@ -219,4 +234,13 @@ describe('sasjs request', () => {
       )
     })
   })
+
+  afterEach(async () => {
+    const outputFilePath = path.join(process.projectDir, 'output.json')
+    await deleteFolder(outputFilePath)
+  }, 60 * 1000)
+  afterAll(async () => {
+    await deleteFolder(projectDirPath)
+    await removeFromGlobalConfigs(targetName)
+  }, 60 * 1000)
 })

@@ -4,6 +4,7 @@ import {
   getAccessToken,
   sanitizeAppLoc
 } from '../utils/config-utils'
+import { displayResult } from '../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
 import { Command } from '../utils/command'

@@ -5,15 +5,18 @@ import { createFileStructure, buildDBs } from '../../../src/main'
 import { createFolder, deleteFolder } from '../../../src/utils/file-utils'
 
 describe('sasjs db', () => {
-  const testingAppFolder = 'testing-apps'
-  beforeAll(() => {
+  const testingAppFolder = 'testing-apps-db'
+  beforeAll(async () => {
     process.projectDir = path.join(process.cwd(), testingAppFolder)
+
+    const projectDirPath = path.join(process.projectDir)
+    await deleteFolder(projectDirPath)
+
     dotenv.config()
-  })
+  }, 60 * 1000)
 
   beforeEach(async () => {
     const projectDirPath = path.join(process.projectDir)
-    await deleteFolder(projectDirPath)
     await createFolder(projectDirPath)
   }, 60 * 1000)
 
@@ -36,4 +39,9 @@ describe('sasjs db', () => {
       60 * 1000
     )
   })
+
+  afterEach(async () => {
+    const projectDirPath = path.join(process.projectDir)
+    await deleteFolder(projectDirPath)
+  }, 60 * 1000)
 })

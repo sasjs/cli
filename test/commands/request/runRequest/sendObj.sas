@@ -1,4 +1,3 @@
-parmcards4;
   %webout(FETCH)
   %webout(OPEN)
   %macro x();

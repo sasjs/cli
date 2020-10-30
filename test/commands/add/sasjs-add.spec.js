@@ -6,13 +6,15 @@ import {
   getConfiguration,
   getGlobalRcFile
 } from '../../../src/utils/config-utils'
+import { deleteFolder } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs add', () => {
+  const testingAppFolder = 'testing-apps-add'
   let stdin
 
   beforeAll(async () => {
-    process.projectDir = path.join(process.cwd())
+    process.projectDir = path.join(process.cwd(), testingAppFolder)
     dotenv.config()
     stdin = require('mock-stdin').stdin()
   })
@@ -23,12 +25,12 @@ describe('sasjs add', () => {
       async () => {
         const timestamp = generateTimestamp()
 
-        const serverUrl = process.env.serverUrl
+        const serverUrl = process.env.SERVER_URL
         const tgtName = `test-viya-${timestamp}`
-        const username = process.env.username
-        const password = process.env.password
-        const clientId = process.env.client
-        const secretId = process.env.secret
+        const username = process.env.SAS_USERNAME
+        const password = process.env.SAS_PASSWORD
+        const clientId = process.env.CLIENT
+        const secretId = process.env.SECRET
         setTimeout(async () => {
           stdin.send(['\r'])
           stdin.send(['\r'])
@@ -74,12 +76,12 @@ describe('sasjs add', () => {
       async () => {
         const timestamp = generateTimestamp()
 
-        const serverUrl = process.env.serverUrl
+        const serverUrl = process.env.SERVER_URL
         const tgtName = `test-viya-${timestamp}`
-        const username = process.env.username
-        const password = process.env.password
-        const clientId = process.env.client
-        const secretId = process.env.secret
+        const username = process.env.SAS_USERNAME
+        const password = process.env.SAS_PASSWORD
+        const clientId = process.env.CLIENT
+        const secretId = process.env.SECRET
         setTimeout(async () => {
           stdin.send(['2\r'])
           stdin.send(['\r'])
@@ -112,8 +114,19 @@ describe('sasjs add', () => {
         expect(target.tgtBuildVars.secret).toEqual(secretId)
         expect(target.tgtDeployVars.client).toEqual(clientId)
         expect(target.tgtDeployVars.secret).toEqual(secretId)
+
+        await removeFromGlobalConfigs(tgtName)
       },
       60 * 1000
     )
   })
+
+  afterEach(async () => {
+    const sasjsDirPath = path.join(process.projectDir, 'sasjs')
+    await deleteFolder(sasjsDirPath)
+  }, 60 * 1000)
+  afterAll(async () => {
+    const projectDirPath = path.join(process.projectDir)
+    await deleteFolder(projectDirPath)
+  }, 60 * 1000)
 })

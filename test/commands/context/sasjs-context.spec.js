@@ -1,4 +1,3 @@
-import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { processContext } from '../../../src/sasjs-context/index'
@@ -14,30 +13,30 @@ let testContextConfigFile
 let testContextConfigPath
 
 describe('sasjs context', () => {
+  const targetName = 'cli-tests-context'
   beforeAll(async () => {
-    await saveGlobalRcFile(
-      JSON.stringify({
-        targets: [
-          {
-            name: 'cli-tests',
-            serverType: 'SASVIYA',
-            serverUrl: 'https://sas.analytium.co.uk',
-            appLoc: '/Public/app/cli-tests'
-          }
-        ]
-      })
-    )
+    dotenv.config()
+    await addToGlobalConfigs({
+      name: targetName,
+      serverType: process.env.SERVER_TYPE,
+      serverUrl: process.env.SERVER_URL,
+      appLoc: '/Public/app/cli-tests',
+      authInfo: {
+        client: process.env.CLIENT,
+        secret: process.env.SECRET,
+        access_token: process.env.ACCESS_TOKEN,
+        refresh_token: process.env.REFRESH_TOKEN
+      }
+    })
 
     process.projectDir = path.join(process.cwd())
-
-    dotenv.config()
   })
 
   describe('list', () => {
     it(
       'should list accessible compute contexts',
       async () => {
-        const command = ['context', 'list']
+        const command = ['context', 'list', '-t', targetName]
 
         contexts = await processContext(command)
 
@@ -52,7 +51,7 @@ describe('sasjs context', () => {
       'should exports compute context',
       async () => {
         const contextName = contexts[0].name
-        const command = ['context', 'export', contextName]
+        const command = ['context', 'export', contextName, '-t', targetName]
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
@@ -80,7 +79,14 @@ describe('sasjs context', () => {
 
         await createFile(testContextConfigPath, contextConfig)
 
-        const command = ['context', 'create', '-s', testContextConfigFile]
+        const command = [
+          'context',
+          'create',
+          '-s',
+          testContextConfigFile,
+          '-t',
+          targetName
+        ]
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
@@ -105,7 +111,7 @@ describe('sasjs context', () => {
           '-s',
           testContextConfigFile,
           '-t',
-          'cli-tests'
+          targetName
         ]
 
         await expect(processContext(command)).resolves.toEqual(true)
@@ -121,12 +127,18 @@ describe('sasjs context', () => {
         const command = [
           'context',
           'delete',
-          ...testContextConfig.name.split(' ')
+          ...testContextConfig.name.split(' '),
+          '-t',
+          targetName
         ]
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
       60 * 1000
     )
+  })
+
+  afterAll(async () => {
+    await removeFromGlobalConfigs(targetName)
   })
 })

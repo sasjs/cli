@@ -1,29 +1,28 @@
 import dotenv from 'dotenv'
 import path from 'path'
+import rimraf from 'rimraf'
 
 import { createFileStructure } from '../../../src/main'
 import { createFolder, deleteFolder } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs create', () => {
-  const timestamp = generateTimestamp()
-  const testingAppFolder = 'testing-apps'
-  const parentFolderNameTimeStamped = `test-app-${timestamp}`
   beforeAll(() => {
-    process.projectDir = path.join(process.cwd(), testingAppFolder)
     dotenv.config()
   })
 
-  beforeEach(async () => {
-    const projectDirPath = path.join(process.projectDir)
-    await deleteFolder(projectDirPath)
-    await createFolder(projectDirPath)
-  }, 60 * 1000)
-
   describe(`.`, () => {
     it(
-      `should setup in ${testingAppFolder}/ .`,
+      'should setup in .',
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-undefined`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(
           createFileStructure(undefined, undefined)
         ).resolves.toEqual(true)
@@ -32,24 +31,48 @@ describe('sasjs create', () => {
       60 * 1000
     )
     it(
-      `should setup in ${testingAppFolder}/ .`,
+      'should setup in .',
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-.`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(createFileStructure('.', undefined)).resolves.toEqual(true)
         await verifyCreate({ parentFolderName: '.' })
       },
       60 * 1000
     )
     it(
-      `should setup in . (${testingAppFolder}) having apptype 'sasonly'`,
+      "should setup in . having apptype 'sasonly'",
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-sasonly`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(createFileStructure('.', 'sasonly')).resolves.toEqual(true)
         await verifyCreate({ parentFolderName: '.', sasonly: true })
       },
       60 * 1000
     )
     it(
-      `should setup in . (${testingAppFolder}) having apptype 'react'`,
+      "should setup in . having apptype 'react'",
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-react`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(createFileStructure(undefined, 'react')).resolves.toEqual(
           true
         )
@@ -58,10 +81,18 @@ describe('sasjs create', () => {
       120 * 1000
     )
   })
-  describe(`${parentFolderNameTimeStamped}`, () => {
+  describe('test-app-timestamp', () => {
     it(
-      `should create new folder ${testingAppFolder}/${parentFolderNameTimeStamped}/`,
+      `should create new folder test-app-.-timestamp`,
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-${timestamp}`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(
           createFileStructure(`${parentFolderNameTimeStamped}`, undefined)
         ).resolves.toEqual(true)
@@ -70,8 +101,16 @@ describe('sasjs create', () => {
       60 * 1000
     )
     it(
-      `should create new folder ${testingAppFolder}/${parentFolderNameTimeStamped}/ having apptype 'minimal'`,
+      `should create new folder test-app-timestamp-minimal having apptype 'minimal'`,
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-${timestamp}-minimal`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
         await expect(
           createFileStructure(`${parentFolderNameTimeStamped}`, 'minimal')
         ).resolves.toEqual(true)
@@ -83,8 +122,15 @@ describe('sasjs create', () => {
       120 * 1000
     )
     it(
-      `should create new folder ${testingAppFolder}/${parentFolderNameTimeStamped}/ having apptype 'angular'`,
+      `should create new folder test-app-timestamp-angular having apptype 'angular'`,
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-${timestamp}-angular`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
         await expect(
           createFileStructure(`${parentFolderNameTimeStamped}`, 'angular')
         ).resolves.toEqual(true)
@@ -93,7 +139,11 @@ describe('sasjs create', () => {
           appType: 'angular'
         })
       },
-      120 * 1000
+      240 * 1000
     )
   })
+
+  afterAll(async () => {
+    rimraf.sync('./test-app-*')
+  }, 60 * 1000)
 })

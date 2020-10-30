@@ -1,26 +1,29 @@
-import { saveGlobalRcFile } from '../../../src/utils/config-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { processServicepack } from '../../../src/sasjs-servicepack/index'
 
 describe('sasjs servicepack', () => {
+  const targetName = 'cli-tests-servicepack'
   beforeAll(async () => {
-    await saveGlobalRcFile(
-      JSON.stringify({
-        targets: [
-          {
-            name: 'cli-tests',
-            serverType: 'SASVIYA',
-            serverUrl: 'https://sas.analytium.co.uk',
-            appLoc: '/Public/app/cli-tests'
-          }
-        ]
-      })
-    )
+    dotenv.config()
+    await addToGlobalConfigs({
+      name: targetName,
+      serverType: process.env.SERVER_TYPE,
+      serverUrl: process.env.SERVER_URL,
+      appLoc: '/Public/app/cli-tests',
+      authInfo: {
+        client: process.env.CLIENT,
+        secret: process.env.SECRET,
+        access_token: process.env.ACCESS_TOKEN,
+        refresh_token: process.env.REFRESH_TOKEN
+      },
+      tgtDeployVars: {
+        client: process.env.CLIENT,
+        secret: process.env.SECRET
+      }
+    })
 
     process.projectDir = path.join(process.cwd())
-
-    dotenv.config()
   })
 
   describe('processServicepack', () => {
@@ -32,7 +35,9 @@ describe('sasjs servicepack', () => {
           'deploy',
           '-s',
           'test/commands/servicepack/testServicepack.json',
-          '-f'
+          '-f',
+          '-t',
+          targetName
         ]
 
         await expect(processServicepack(command)).resolves.toEqual(true)
@@ -47,12 +52,18 @@ describe('sasjs servicepack', () => {
           'servicepack',
           'deploy',
           '-s',
-          'test/commands/servicepack/testServicepack.json'
+          'test/commands/servicepack/testServicepack.json',
+          '-t',
+          targetName
         ]
 
         await expect(processServicepack(command)).resolves.toEqual(false)
       },
       60 * 1000
     )
+  })
+
+  afterAll(async () => {
+    await removeFromGlobalConfigs(targetName)
   })
 })
