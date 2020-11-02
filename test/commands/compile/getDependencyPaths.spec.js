@@ -128,7 +128,7 @@ describe('getDependencyPaths', () => {
     expect(result).toEqual(['sas/sas9macros/mf_abort.sas'])
   })
 
-  test('it should prioritize overridden dependencies provided specific macroLoc but macro not present', () => {
+  test(`it should prioritize overridden dependencies, if specific 'macroLoc' was provided, but macro at such 'macroLoc' is not present`, () => {
     const dependencyNames = ['mf_abort.sas']
     const dependencyPaths = [
       'node_modules/@sasjs/core/core/mf_abort.sas',
@@ -144,7 +144,7 @@ describe('getDependencyPaths', () => {
     expect(result).toEqual(['sas/macros/mf_abort.sas'])
   })
 
-  test('it should prioritize overridden dependencies provided specific macros and remove extra', () => {
+  test('it should prioritize overridden dependencies and remove extra dependencies, if specific macros were provided', () => {
     const dependencyNames = ['mf_abort.sas']
     const dependencyPaths = [
       'node_modules/@sasjs/core/core/mf_abort.sas',
@@ -163,7 +163,7 @@ describe('getDependencyPaths', () => {
     expect(result).toEqual(['sas/sas9macros/mf_abort.sas'])
   })
 
-  test('it should prioritize overridden dependencies provided specific macros And remove duplicates', () => {
+  test('it should prioritize overridden dependencies and remove duplicated dependencies, if specific macros were provided', () => {
     const dependencyNames = ['mf_abort.sas']
     const dependencyPaths = [
       'node_modules/@sasjs/core/core/mf_abort.sas',
