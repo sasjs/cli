@@ -248,9 +248,8 @@ describe('sasjs request', () => {
 
   afterEach(async () => {
     const outputFilePath = path.join(process.projectDir, 'output.json')
-    console.log('Removing output.json')
+
     await deleteFolder(outputFilePath)
-    console.log('Removed output.json')
   }, 60 * 1000)
 
   afterAll(async () => {
