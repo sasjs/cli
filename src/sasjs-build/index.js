@@ -714,7 +714,7 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       )
     }
 
-    dependencyPaths = prioritizeDependencyOverrides(
+    dependencyPaths = prioritiseDependencyOverrides(
       dependencies,
       dependencyPaths,
       tgtMacros
@@ -726,7 +726,7 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
   }
 }
 
-export function prioritizeDependencyOverrides(
+export function prioritiseDependencyOverrides(
   dependencyNames,
   dependencyPaths,
   tgtMacros = []
