@@ -1,15 +1,16 @@
 import dotenv from 'dotenv'
 import path from 'path'
-
 import { createFileStructure, buildDBs } from '../../../src/main'
 import { createFolder, deleteFolder } from '../../../src/utils/file-utils'
 
 describe('sasjs db', () => {
-  const testingAppFolder = 'testing-apps-db'
+  const testingAppFolder = 'cli-tests-db'
+
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd(), testingAppFolder)
 
     const projectDirPath = path.join(process.projectDir)
+
     await deleteFolder(projectDirPath)
 
     dotenv.config()
@@ -17,6 +18,7 @@ describe('sasjs db', () => {
 
   beforeEach(async () => {
     const projectDirPath = path.join(process.projectDir)
+
     await createFolder(projectDirPath)
   }, 60 * 1000)
 
@@ -31,8 +33,9 @@ describe('sasjs db', () => {
       },
       60 * 1000
     )
+
     it(
-      `fails to populate if app is not setup already db folder`,
+      `should not populate db folder was not already setup`,
       async () => {
         await expect(buildDBs()).resolves.not.toEqual(true)
       },
@@ -42,6 +45,7 @@ describe('sasjs db', () => {
 
   afterEach(async () => {
     const projectDirPath = path.join(process.projectDir)
+
     await deleteFolder(projectDirPath)
   }, 60 * 1000)
 })

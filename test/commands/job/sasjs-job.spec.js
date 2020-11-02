@@ -6,6 +6,7 @@ import { folderExists, fileExists } from '../../../src/utils/file-utils'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'
+
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd())
 
@@ -23,6 +24,7 @@ describe('sasjs job', () => {
         refresh_token: process.env.REFRESH_TOKEN
       }
     }
+
     await addToGlobalConfigs({
       name: targetNameContext,
       ...config
@@ -34,6 +36,7 @@ describe('sasjs job', () => {
       '-t',
       targetNameContext
     ])
+
     await removeFromGlobalConfigs(targetNameContext)
 
     await addToGlobalConfigs({
@@ -87,7 +90,7 @@ describe('sasjs job', () => {
         const folderPath = path.join(process.cwd(), 'testOutput')
         const filePath = path.join(process.cwd(), 'testOutput/output.json')
 
-        const jobOutput = await processJob(command)
+        await processJob(command)
 
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -103,7 +106,7 @@ describe('sasjs job', () => {
         const folderPath = path.join(process.cwd(), 'testLog')
         const filePath = path.join(process.cwd(), 'testLog/testJob-log.json')
 
-        const jobOutput = await processJob(command)
+        await processJob(command)
 
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePath)).resolves.toEqual(true)

@@ -14,6 +14,7 @@ let testContextConfigPath
 
 describe('sasjs context', () => {
   const targetName = 'cli-tests-context'
+
   beforeAll(async () => {
     dotenv.config()
     await addToGlobalConfigs({

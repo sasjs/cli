@@ -1,7 +1,6 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { add } from '../../../src/main'
-
 import {
   getConfiguration,
   getGlobalRcFile
@@ -10,7 +9,7 @@ import { deleteFolder } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs add', () => {
-  const testingAppFolder = 'testing-apps-add'
+  const testingAppFolder = 'cli-tests-add'
   let stdin
 
   beforeAll(async () => {
@@ -21,7 +20,7 @@ describe('sasjs add', () => {
 
   describe('add', () => {
     it(
-      'should lets the user to add a build target to localConfig',
+      'should let user add build target to localConfig',
       async () => {
         const timestamp = generateTimestamp()
 
@@ -31,6 +30,7 @@ describe('sasjs add', () => {
         const password = process.env.SAS_PASSWORD
         const clientId = process.env.CLIENT
         const secretId = process.env.SECRET
+
         setTimeout(async () => {
           stdin.send(['\r'])
           stdin.send(['\r'])
@@ -50,6 +50,7 @@ describe('sasjs add', () => {
           stdin.send([`${authCodeContent}\r`])
           stdin.send([`1\r`])
         }, 1000)
+
         await expect(add()).resolves.toEqual(true)
 
         const buildSourceFolder = require('../../../src/constants')
@@ -71,8 +72,9 @@ describe('sasjs add', () => {
       },
       60 * 1000
     )
+
     it(
-      'should lets the user to add a build target to globalConfig',
+      'should let user add build target to globalConfig',
       async () => {
         const timestamp = generateTimestamp()
 
@@ -82,6 +84,7 @@ describe('sasjs add', () => {
         const password = process.env.SAS_PASSWORD
         const clientId = process.env.CLIENT
         const secretId = process.env.SECRET
+
         setTimeout(async () => {
           stdin.send(['2\r'])
           stdin.send(['\r'])
@@ -101,7 +104,9 @@ describe('sasjs add', () => {
           stdin.send([`${authCodeContent}\r`])
           stdin.send([`1\r`])
         }, 1000)
+
         await expect(add()).resolves.toEqual(true)
+
         const config = await getGlobalRcFile()
 
         expect(config).toEqual(expect.anything())
@@ -123,10 +128,12 @@ describe('sasjs add', () => {
 
   afterEach(async () => {
     const sasjsDirPath = path.join(process.projectDir, 'sasjs')
+
     await deleteFolder(sasjsDirPath)
   }, 60 * 1000)
   afterAll(async () => {
     const projectDirPath = path.join(process.projectDir)
+
     await deleteFolder(projectDirPath)
   }, 60 * 1000)
 })

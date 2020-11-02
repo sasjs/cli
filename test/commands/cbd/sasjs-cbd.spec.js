@@ -5,8 +5,10 @@ import { compileBuildDeployServices } from '../../../src/main'
 
 describe('sasjs cbd', () => {
   const targetName = 'cli-tests-cbd'
+
   beforeAll(async () => {
     dotenv.config()
+
     await addToGlobalConfigs({
       name: targetName,
       serverType: process.env.SERVER_TYPE,
@@ -26,6 +28,7 @@ describe('sasjs cbd', () => {
       },
       tgtDeployScripts: []
     })
+
     process.projectDir = path.join(process.cwd())
   })
 
@@ -43,6 +46,7 @@ describe('sasjs cbd', () => {
 
   afterEach(async () => {
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
+
     await deleteFolder(sasjsBuildDirPath)
   }, 60 * 1000)
   afterAll(async () => {

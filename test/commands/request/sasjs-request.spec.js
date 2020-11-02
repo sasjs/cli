@@ -1,7 +1,6 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import fs from 'fs'
-
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
 import {
   createFolder,
@@ -10,7 +9,7 @@ import {
 } from '../../../src/utils/file-utils'
 
 describe('sasjs request', () => {
-  const testingAppFolder = 'testing-apps-request'
+  const testingAppFolder = 'cli-tests-request'
   const projectDirPath = path.join(process.cwd(), testingAppFolder)
 
   const dataPath = path.join(projectDirPath, 'data.json')
@@ -28,16 +27,18 @@ describe('sasjs request', () => {
   }
 
   const targetName = 'cli-tests-request'
+
   beforeAll(async () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
+
     const config = {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
       appLoc: '/Public/app/cli-tests',
       useComputeApi: true,
-      contextName: 'SAS Studio compute context',
+      contextName: 'SAS Studio compute context', // FIXME: should not be hardcoded
       tgtServices: ['../test/commands/request/runRequest'],
       authInfo: {
         client: process.env.CLIENT,
@@ -52,6 +53,7 @@ describe('sasjs request', () => {
       deployServicePack: true,
       tgtDeployScripts: []
     }
+
     await addToGlobalConfigs(config)
 
     const command = `cbd ${targetName} -f`.split(' ')
@@ -69,7 +71,7 @@ describe('sasjs request', () => {
   describe(`with default config`, () => {
     describe(`having absolute path`, () => {
       it(
-        `executing service sendArr`,
+        `should execute service 'sendArr'`,
         async () => {
           await expect(
             runRequest(
@@ -79,16 +81,19 @@ describe('sasjs request', () => {
               targetName
             )
           ).resolves.toEqual(true)
+
           const rawdata = fs.readFileSync('output.json')
           const output = JSON.parse(rawdata)
+
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
           }
         },
         60 * 1000
       )
+
       it(
-        `executing service sendObj`,
+        `should execute service 'sendObj'`,
         async () => {
           await expect(
             runRequest(
@@ -99,8 +104,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -109,16 +114,17 @@ describe('sasjs request', () => {
         60 * 1000
       )
     })
+
     describe(`having relative path`, () => {
       it(
-        `executing service sendArr`,
+        `should execute service 'sendArr'`,
         async () => {
           await expect(
             runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -126,15 +132,16 @@ describe('sasjs request', () => {
         },
         60 * 1000
       )
+
       it(
-        `executing service sendObj`,
+        `should execute service sendObj`,
         async () => {
           await expect(
             runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -144,10 +151,11 @@ describe('sasjs request', () => {
       )
     })
   })
-  describe(`with useComputeApi: SAS Studio compute context`, () => {
+
+  describe(`with useComputeApi: 'SAS Studio compute context'`, () => {
     describe(`having absolute path`, () => {
       it(
-        `executing service sendArr`,
+        `should execute service 'sendArr'`,
         async () => {
           await expect(
             runRequest(
@@ -158,8 +166,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -167,8 +175,9 @@ describe('sasjs request', () => {
         },
         60 * 1000
       )
+
       it(
-        `executing service sendObj`,
+        `should execute service 'sendObj'`,
         async () => {
           await expect(
             runRequest(
@@ -179,8 +188,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -189,9 +198,10 @@ describe('sasjs request', () => {
         60 * 1000
       )
     })
-    describe(`having relative path`, () => {
+
+    describe(`with relative path`, () => {
       it(
-        `executing service sendArr`,
+        `should execute service 'sendArr'`,
         async () => {
           await expect(
             runRequest(
@@ -202,8 +212,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -211,8 +221,9 @@ describe('sasjs request', () => {
         },
         60 * 1000
       )
+
       it(
-        `executing service sendObj`,
+        `should execute service 'sendObj'`,
         async () => {
           await expect(
             runRequest(
@@ -223,8 +234,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
@@ -237,8 +248,10 @@ describe('sasjs request', () => {
 
   afterEach(async () => {
     const outputFilePath = path.join(process.projectDir, 'output.json')
+
     await deleteFolder(outputFilePath)
   }, 60 * 1000)
+
   afterAll(async () => {
     await deleteFolder(projectDirPath)
     await removeFromGlobalConfigs(targetName)
