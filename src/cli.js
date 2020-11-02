@@ -14,7 +14,8 @@ import {
   runRequest,
   context,
   folderManagement,
-  servicepack
+  servicepack,
+  jobManagement
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -186,7 +187,7 @@ export async function cli(args) {
       break
     }
     case 'db': {
-      await buildDBs(command.parameters[1])
+      await buildDBs()
       break
     }
     case 'compilebuild': {
@@ -237,6 +238,11 @@ export async function cli(args) {
     }
     case 'folder': {
       await folderManagement(command.parameters)
+
+      break
+    }
+    case 'job': {
+      await jobManagement(command.parameters)
 
       break
     }

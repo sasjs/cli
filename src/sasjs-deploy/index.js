@@ -171,6 +171,9 @@ async function deployToSasViyaWithServicePack(buildTarget, isForced) {
 
   if (buildTarget.authInfo) {
     let { access_token } = buildTarget.authInfo
+
+    if (!access_token) access_token = process.env.ACCESS_TOKEN
+
     const { refresh_token } = buildTarget.authInfo
     const isTokenExpiring = isAccessTokenExpiring(access_token)
 
