@@ -1,0 +1,50 @@
+{
+  "files": [
+    { "fileName": "package.json" },
+    { "fileName": "package-lock.json" },
+    { "fileName": "README.md" }
+  ],
+  "subFolders": [
+    {
+      "folderName": "sasjs",
+      "files": [{ "fileName": "sasjsconfig.json" }],
+      "subFolders": [
+        {
+          "folderName": "macros",
+          "files": [],
+          "subFolders": []
+        },
+        {
+          "folderName": "services",
+          "files": [],
+          "subFolders": [
+            {
+              "folderName": "common",
+              "files": [
+                { "fileName": "appinit.sas" },
+                { "fileName": "getdata.sas" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "folderName": "src",
+      "files": [
+        { "fileName": "index.html" },
+        { "fileName": "scripts.js" },
+        { "fileName": "style.css" }
+      ]
+    },
+    {
+      "folderName": "node_modules",
+      "files": [],
+      "subFolders": [
+        {
+          "folderName": "@sasjs"
+        }
+      ]
+    }
+  ]
+}

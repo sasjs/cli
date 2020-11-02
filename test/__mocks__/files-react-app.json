@@ -1,0 +1,78 @@
+{
+  "files": [
+    { "fileName": "package.json" },
+    { "fileName": "package-lock.json" },
+    { "fileName": "tsconfig.json" },
+    { "fileName": "README.md" }
+  ],
+  "subFolders": [
+    {
+      "folderName": "sasjs",
+      "files": [{ "fileName": "sasjsconfig.json" }],
+      "subFolders": [
+        {
+          "folderName": "macros",
+          "files": [],
+          "subFolders": []
+        },
+        {
+          "folderName": "services",
+          "files": [],
+          "subFolders": [
+            {
+              "folderName": "common",
+              "files": [
+                { "fileName": "appinit.sas" },
+                { "fileName": "getdata.sas" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "folderName": "src",
+      "files": [
+        { "fileName": "App.scss" },
+        { "fileName": "cached_data.ts" },
+        { "fileName": "index.scss" },
+        { "fileName": "index.tsx" },
+        { "fileName": "logo.svg" },
+        { "fileName": "react-app-env.d.ts" },
+        { "fileName": "serviceWorker.ts" }
+      ],
+      "subFolders": [
+        {
+          "folderName": "components",
+          "files": [
+            { "fileName": "data-page.component.tsx" },
+            { "fileName": "home-page.component.tsx" },
+            { "fileName": "login.component.tsx" },
+            { "fileName": "request-modal.component.jsx" },
+            { "fileName": "syntax-highlighting.css" },
+            { "fileName": "user-name.component.tsx" }
+          ]
+        },
+        {
+          "folderName": "context",
+          "files": [{ "fileName": "sasContext.tsx" }]
+        },
+        { "folderName": "layouts", "files": [{ "fileName": "Main.jsx" }] },
+        { "folderName": "routes", "files": [{ "fileName": "index.js" }] },
+        { "folderName": "theme", "files": [{ "fileName": "index.js" }] }
+      ]
+    },
+    {
+      "folderName": "node_modules",
+      "files": [],
+      "subFolders": [
+        {
+          "folderName": "@sasjs"
+        },
+        {
+          "folderName": "react"
+        }
+      ]
+    }
+  ]
+}

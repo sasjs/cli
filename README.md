@@ -44,6 +44,12 @@ Additional documentation can be found on the [SASjs](https://sasjs.io) website.
   1. `sasjs folder create /Public/folder --target targetName` - creates new new folder.
   2. `sasjs folder delete /Public/folder --target targetName` - deletes folder.
   3. `sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName` - moves folder to a new location.
+- `sasjs job`: performs job related operations
+  1. `sasjs job execute /Public/job --target targetName` - triggers job for execution.
+     - `sasjs job execute /Public/job --target targetName --wait` - triggers job for execution and waits for job completion.
+     - `sasjs job execute /Public/job --target targetName --output` - triggers job for execution and immediately prints out the response JSON.
+     - `sasjs job execute /Public/job --target targetName --output ./outputFolder` - triggers job for execution and immediately saves the response JSON to the specified local folder or file.
+     - `sasjs job execute /Public/job --target targetName --log ./logFolder` - triggers job for execution, waits for it to finish, and saves the log to the specified local folder or file.
 
 ## Command Operations
 
