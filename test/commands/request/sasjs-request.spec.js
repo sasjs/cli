@@ -82,8 +82,8 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawdata = fs.readFileSync('output.json')
-          const output = JSON.parse(rawdata)
+          const rawData = fs.readFileSync('output.json')
+          const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
             expect(output[tableName]).toEqual(expect.anything())
