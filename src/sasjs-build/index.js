@@ -488,9 +488,13 @@ export function getProgramList(fileContent) {
       )
     )
   }
+
   let programsSection
+
   try {
     programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
+
+    if (!programsSection) return []
   } catch (e) {
     console.error(
       chalk.redBright(
@@ -498,6 +502,7 @@ export function getProgramList(fileContent) {
       )
     )
   }
+
   const programsList = programsSection
     .replace(/\r\n/g, '\n')
     .split('\n')
