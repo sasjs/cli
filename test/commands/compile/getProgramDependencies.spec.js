@@ -5,7 +5,7 @@ import {
   getProgramList,
   validateFileRef,
   validateProgramsList
-} from '../../../src/sasjs-build/index'
+} from '../../../src/commands/build'
 
 process.projectDir = path.join(process.cwd())
 

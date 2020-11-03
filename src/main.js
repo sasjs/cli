@@ -1,17 +1,17 @@
-import { build } from './sasjs-build'
-import { deploy } from './sasjs-deploy'
-import { processServicepack } from './sasjs-servicepack'
-import { buildDB } from './sasjs-db'
-import { create } from './sasjs-create'
-import { printHelpText } from './sasjs-help'
-import { printVersion } from './sasjs-version'
-import { createWebAppServices } from './sasjs-web'
-import { addTarget } from './sasjs-add'
-import { runSasCode } from './sasjs-run'
-import { runSasJob } from './sasjs-request'
-import { processContext } from './sasjs-context'
-import { folder } from './sasjs-folder'
-import { processJob } from './sasjs-job'
+import { build } from './commands/build'
+import { deploy } from './commands/deploy'
+import { processServicepack } from './commands/servicepack'
+import { buildDB } from './commands/db'
+import { create } from './commands/create'
+import { printHelpText } from './commands/help'
+import { printVersion } from './commands/version'
+import { createWebAppServices } from './commands/web'
+import { addTarget } from './commands/add'
+import { runSasCode } from './commands/run'
+import { runSasJob } from './commands/request'
+import { processContext } from './commands/context'
+import { folder } from './commands/folder'
+import { processJob } from './commands/job'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
 
@@ -270,6 +270,7 @@ export async function buildWebApp(targetName) {
 
 export async function add(resourceType = 'target') {
   let result = false
+
   if (resourceType === 'target') {
     await addTarget()
       .then(() => {
@@ -281,6 +282,7 @@ export async function add(resourceType = 'target') {
         result = err
       })
   }
+
   return result
 }
 
