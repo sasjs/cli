@@ -155,16 +155,21 @@ export async function compileBuildServices(targetName) {
         )
       )
     )
-    .catch((err) => {
-      const body = JSON.parse(err.body)
-      const message = body.message || ''
-
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building services.',
-          message
+    .catch((error) => {
+      if (Array.isArray(error)) {
+        const nodeModulesErrors = error.find((err) =>
+          err.includes('node_modules/@sasjs/core')
         )
-      )
+
+        if (nodeModulesErrors)
+          console.log(
+            chalk.yellowBright(
+              `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
+            )
+          )
+      } else {
+        displayResult(error, 'An error has occurred when building services.')
+      }
     })
 }
 

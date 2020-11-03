@@ -75,41 +75,58 @@ export async function build(
 
 async function compile(targetName) {
   await copyFilesToBuildFolder()
+
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+
   const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
 
+  const errors = []
+
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
+
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
+
       const dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
-      )
-      await createFile(filePath, dependencies)
+      ).catch((err) => {
+        errors.push(err)
+      })
+
+      if (dependencies) await createFile(filePath, dependencies)
     })
+
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+
       await asyncForEach(fileNames, async (fileName) => {
         const filePath = path.join(folderPath, subFolder, fileName)
+
         const dependencies = await loadDependencies(
           filePath,
           tgtMacros,
           programFolders
-        )
-        await createFile(filePath, dependencies)
+        ).catch((err) => {
+          errors.push(err)
+        })
+
+        if (dependencies) await createFile(filePath, dependencies)
       })
     })
   })
+
+  if (errors.length) throw errors
 }
 
 async function createFinalSasFiles() {
@@ -697,8 +714,10 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       dependencies = [...dependencies, ...dependency]
       count++
     }
+
     let dependencyPaths = []
     const foundDependencies = []
+
     await asyncForEach(sourcePaths, async (sourcePath) => {
       if (await folderExists(sourcePath)) {
         await asyncForEach(dependencies, async (dep) => {
@@ -713,9 +732,11 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
           dependencyPaths.push(...filePaths)
         })
       } else {
-        console.log(
-          chalk.redBright(`Source path ${sourcePath} does not exist.`)
-        )
+        const errorMessage = `Source path ${sourcePath} does not exist.`
+
+        console.log(chalk.redBright(errorMessage))
+
+        throw errorMessage
       }
     })
 
