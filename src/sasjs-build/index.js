@@ -13,6 +13,7 @@ import {
   createFolder,
   deleteFolder,
   fileExists,
+  folderExists,
   copy
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
@@ -74,41 +75,58 @@ export async function build(
 
 async function compile(targetName) {
   await copyFilesToBuildFolder()
+
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
+
   const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
 
+  const errors = []
+
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
+
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
+
       const dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
-      )
-      await createFile(filePath, dependencies)
+      ).catch((err) => {
+        errors.push(err)
+      })
+
+      if (dependencies) await createFile(filePath, dependencies)
     })
+
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+
       await asyncForEach(fileNames, async (fileName) => {
         const filePath = path.join(folderPath, subFolder, fileName)
+
         const dependencies = await loadDependencies(
           filePath,
           tgtMacros,
           programFolders
-        )
-        await createFile(filePath, dependencies)
+        ).catch((err) => {
+          errors.push(err)
+        })
+
+        if (dependencies) await createFile(filePath, dependencies)
       })
     })
   })
+
+  if (errors.length) throw errors
 }
 
 async function createFinalSasFiles() {
@@ -160,7 +178,14 @@ async function createFinalSasFile(
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, fileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${tgtName}.json`)
-  const buildConfig = await getBuildConfig(appLoc, serverType, tgtMacros)
+  const buildConfig = await getBuildConfig(
+    appLoc,
+    serverType,
+    tgtMacros
+  ).catch((_) => {})
+
+  if (!buildConfig) return
+
   finalSasFileContent += `\n${buildConfig}`
 
   const { content: buildInit, path: buildInitPath } = await getBuildInit()
@@ -689,30 +714,41 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       dependencies = [...dependencies, ...dependency]
       count++
     }
+
     let dependencyPaths = []
     const foundDependencies = []
+
     await asyncForEach(sourcePaths, async (sourcePath) => {
-      await asyncForEach(dependencies, async (dep) => {
-        const filePaths = find.fileSync(dep, sourcePath)
-        if (filePaths.length) {
-          const fileContent = await readFile(filePaths[0])
-          foundDependencies.push(dep)
-          dependencyPaths.push(
-            ...(await getDependencyPaths(fileContent, tgtMacros))
+      if (await folderExists(sourcePath)) {
+        await asyncForEach(dependencies, async (dep) => {
+          const filePaths = find.fileSync(dep, sourcePath)
+          if (filePaths.length) {
+            const fileContent = await readFile(filePaths[0])
+            foundDependencies.push(dep)
+            dependencyPaths.push(
+              ...(await getDependencyPaths(fileContent, tgtMacros))
+            )
+          }
+          dependencyPaths.push(...filePaths)
+        })
+      } else {
+        const errorMessage = `Source path ${sourcePath} does not exist.`
+
+        console.log(chalk.redBright(errorMessage))
+
+        const unFoundDependencies = diff(dependencies, foundDependencies)
+
+        if (unFoundDependencies.length) {
+          console.log(
+            `${chalk.redBright(
+              'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+            )}`
           )
         }
-        dependencyPaths.push(...filePaths)
-      })
-    })
 
-    const unfoundDependencies = diff(dependencies, foundDependencies)
-    if (unfoundDependencies.length) {
-      throw new Error(
-        `${'Unable to locate dependencies:'} ${chalk.cyanBright(
-          unfoundDependencies.join(', ')
-        )}`
-      )
-    }
+        throw errorMessage
+      }
+    })
 
     dependencyPaths = prioritiseDependencyOverrides(
       dependencies,
