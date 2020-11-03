@@ -736,19 +736,19 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
 
         console.log(chalk.redBright(errorMessage))
 
+        const unFoundDependencies = diff(dependencies, foundDependencies)
+
+        if (unFoundDependencies.length) {
+          console.log(
+            `${chalk.redBright(
+              'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+            )}`
+          )
+        }
+
         throw errorMessage
       }
     })
-
-    const unFoundDependencies = diff(dependencies, foundDependencies)
-
-    if (unFoundDependencies.length) {
-      console.log(
-        `${chalk.redBright(
-          'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
-        )}`
-      )
-    }
 
     dependencyPaths = prioritiseDependencyOverrides(
       dependencies,
