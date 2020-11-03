@@ -13,6 +13,7 @@ import {
   createFolder,
   deleteFolder,
   fileExists,
+  folderExists,
   copy
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
@@ -160,7 +161,14 @@ async function createFinalSasFile(
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, fileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${tgtName}.json`)
-  const buildConfig = await getBuildConfig(appLoc, serverType, tgtMacros)
+  const buildConfig = await getBuildConfig(
+    appLoc,
+    serverType,
+    tgtMacros
+  ).catch((_) => {})
+
+  if (!buildConfig) return
+
   finalSasFileContent += `\n${buildConfig}`
 
   const { content: buildInit, path: buildInitPath } = await getBuildInit()
@@ -692,24 +700,31 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
     let dependencyPaths = []
     const foundDependencies = []
     await asyncForEach(sourcePaths, async (sourcePath) => {
-      await asyncForEach(dependencies, async (dep) => {
-        const filePaths = find.fileSync(dep, sourcePath)
-        if (filePaths.length) {
-          const fileContent = await readFile(filePaths[0])
-          foundDependencies.push(dep)
-          dependencyPaths.push(
-            ...(await getDependencyPaths(fileContent, tgtMacros))
-          )
-        }
-        dependencyPaths.push(...filePaths)
-      })
+      if (await folderExists(sourcePath)) {
+        await asyncForEach(dependencies, async (dep) => {
+          const filePaths = find.fileSync(dep, sourcePath)
+          if (filePaths.length) {
+            const fileContent = await readFile(filePaths[0])
+            foundDependencies.push(dep)
+            dependencyPaths.push(
+              ...(await getDependencyPaths(fileContent, tgtMacros))
+            )
+          }
+          dependencyPaths.push(...filePaths)
+        })
+      } else {
+        console.log(
+          chalk.redBright(`Source path ${sourcePath} does not exist.`)
+        )
+      }
     })
 
-    const unfoundDependencies = diff(dependencies, foundDependencies)
-    if (unfoundDependencies.length) {
-      throw new Error(
-        `${'Unable to locate dependencies:'} ${chalk.cyanBright(
-          unfoundDependencies.join(', ')
+    const unFoundDependencies = diff(dependencies, foundDependencies)
+
+    if (unFoundDependencies.length) {
+      console.log(
+        `${chalk.redBright(
+          'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
         )}`
       )
     }
