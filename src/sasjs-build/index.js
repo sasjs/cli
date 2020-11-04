@@ -14,7 +14,8 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
-  copy
+  copy,
+  getList
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
@@ -583,49 +584,6 @@ export function validateFileRef(fileRef) {
   }
 
   return true
-}
-
-export function getList(listHeader, fileContent) {
-  let fileHeader
-  try {
-    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
-    if (!hasFileHeader) return []
-    fileHeader = fileContent.split('/**')[1].split('**/')[0]
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your file header is in the correct format.'
-      )
-    )
-  }
-
-  const list = []
-
-  const lines = fileHeader.split('\n').map((s) => (s ? s.trim() : s))
-  let startIndex = null
-  let endIndex = null
-  for (let i = 0; i < lines.length; i++) {
-    if (new RegExp(listHeader, 'i').test(lines[i])) {
-      startIndex = i + 1
-      break
-    }
-  }
-
-  for (let i = startIndex; i < lines.length; i++) {
-    if (!lines[i]) {
-      endIndex = i
-      break
-    }
-  }
-
-  for (let i = startIndex; i < endIndex; i++) {
-    list.push(lines[i])
-  }
-
-  return list
-    .filter((l) => l.startsWith('@li'))
-    .map((d) => d.replace(/\@li/g, ''))
-    .map((d) => d.trim())
 }
 
 export async function getProgramDependencies(
