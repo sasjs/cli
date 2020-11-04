@@ -5,64 +5,33 @@ import { displayResult } from '../../utils/displayResult'
 import { create } from './create'
 import { move } from './move'
 import { remove } from './remove'
+import { Command } from '../../utils/command'
 
 export async function folder(commandLine) {
-  const command = commandLine[1]
-  const commands = {
+  const command = new Command(commandLine)
+  const subCommand = command.values.shift()
+
+  const subCommands = {
     create: 'create',
     move: 'move',
     delete: 'delete'
   }
 
-  if (!commands.hasOwnProperty(command)) {
-    console.log(
-      chalk.redBright(
-        `Not supported folder command. Supported commands are:\n${Object.keys(
-          commands
-        ).join('\n')}`
-      )
-    )
+  if (!subCommands.hasOwnProperty(subCommand)) {
+    const message = `Not supported folder command. Supported commands are:\n${Object.keys(
+      subCommands
+    ).join('\n')}`
+
+    console.log(chalk.redBright(message))
 
     return
   }
 
-  let forceFlagIndex = commandLine.indexOf('-f')
-
-  if (forceFlagIndex === -1) forceFlagIndex = commandLine.indexOf('--force')
-
-  let targetName = []
-  let targetFlagIndex = commandLine.indexOf('-t')
-
-  if (targetFlagIndex === -1) targetFlagIndex = commandLine.indexOf('--target')
-
-  if (targetFlagIndex !== -1) {
-    for (let i = targetFlagIndex + 1; i < commandLine.length; i++) {
-      if (i === forceFlagIndex) break
-
-      targetName.push(commandLine[i])
-    }
-  }
-
-  targetName = targetName.join(' ')
+  const forceFlag = command.getFlag('force')
+  const targetName = command.getFlagValue('target')
+  let folderPath = command.values.join(' ')
 
   const target = await getBuildTarget(targetName)
-
-  let folderPath = ''
-
-  if (targetFlagIndex === -1 && forceFlagIndex === -1) {
-    folderPath = commandLine.slice(2).join(' ')
-  } else if (targetFlagIndex === -1) {
-    folderPath = commandLine.slice(2, forceFlagIndex).join(' ')
-  } else if (forceFlagIndex === -1) {
-    folderPath = commandLine.slice(2, targetFlagIndex).join(' ')
-  } else {
-    folderPath = commandLine
-      .slice(
-        2,
-        targetFlagIndex > forceFlagIndex ? forceFlagIndex : targetFlagIndex
-      )
-      .join(' ')
-  }
 
   if (!folderPath) {
     console.log(
@@ -74,8 +43,7 @@ export async function folder(commandLine) {
     return
   }
 
-  // Folder path should has prefix '/'
-  if (!/^\//.test(folderPath)) folderPath = '/' + folderPath
+  folderPath = command.prefixAppLoc(target.appLoc, folderPath)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
@@ -86,16 +54,16 @@ export async function folder(commandLine) {
     displayResult(err)
   )
 
-  switch (command) {
-    case commands.create:
-      create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
+  switch (subCommand) {
+    case subCommands.create:
+      create(folderPath, sasjs, accessToken, forceFlag !== undefined)
 
       break
-    case commands.delete:
+    case subCommands.delete:
       remove(folderPath, sasjs, accessToken)
 
       break
-    case commands.move:
+    case subCommands.move:
       move(folderPath, sasjs, accessToken)
 
       break
