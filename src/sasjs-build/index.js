@@ -14,7 +14,8 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
-  copy
+  copy,
+  getList
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
@@ -501,62 +502,29 @@ async function getDependencies(filePaths) {
 }
 
 export function getProgramList(fileContent) {
-  let fileHeader
-  try {
-    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
-    if (!hasFileHeader) return []
-    fileHeader = fileContent.split('/**')[1].split('**/')[0]
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your file header is in the correct format.'
+  let programList = getList('<h4> SAS Programs </h4>', fileContent)
+  programList = programList.map((l) => {
+    const [fileName, fileRef] = l.split(' ')
+
+    if (!fileName) {
+      throw new Error(
+        `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
+    }
 
-  let programsSection
-
-  try {
-    programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
-
-    if (!programsSection) return []
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your SAS program dependencies are specified in the correct format.'
+    if (fileName && !fileRef) {
+      throw new Error(
+        `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
+    }
 
-  const programsList = programsSection
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .filter((l) => !!l)
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith('@li'))
-    .map((l) => l.replace(/\@li/g, '').trim())
-    .map((l) => {
-      const [fileName, fileRef] = l.split(' ')
+    validateFileRef(fileRef)
+    return { fileName, fileRef }
+  })
 
-      if (!fileName) {
-        throw new Error(
-          `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
+  validateProgramsList(programList)
 
-      if (fileName && !fileRef) {
-        throw new Error(
-          `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
-
-      validateFileRef(fileRef)
-      return { fileName, fileRef }
-    })
-
-  validateProgramsList(programsList)
-
-  return uniqBy(programsList, 'fileName')
+  return uniqBy(programList, 'fileName')
 }
 
 export function validateProgramsList(programsList) {
@@ -699,67 +667,53 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       sourcePaths.push(tgtMacroPath)
     })
   }
-  const dependenciesStart = fileContent.split('<h4> Dependencies </h4>')
-  let dependencies = []
-  if (dependenciesStart.length > 1) {
-    let count = 1
-    while (count < dependenciesStart.length) {
-      let dependency = dependenciesStart[count]
-        .split('**/')[0]
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .filter((d) => !!d)
-        .map((d) => d.replace(/\@li/g, '').replace(/ /g, ''))
-        .filter((d) => d.endsWith('.sas'))
-      dependencies = [...dependencies, ...dependency]
-      count++
-    }
+  const dependencies = getList(
+    '<h4> Dependencies </h4>',
+    fileContent
+  ).filter((d) => d.endsWith('.sas'))
 
-    let dependencyPaths = []
-    const foundDependencies = []
+  let dependencyPaths = []
+  const foundDependencies = []
 
-    await asyncForEach(sourcePaths, async (sourcePath) => {
-      if (await folderExists(sourcePath)) {
-        await asyncForEach(dependencies, async (dep) => {
-          const filePaths = find.fileSync(dep, sourcePath)
-          if (filePaths.length) {
-            const fileContent = await readFile(filePaths[0])
-            foundDependencies.push(dep)
-            dependencyPaths.push(
-              ...(await getDependencyPaths(fileContent, tgtMacros))
-            )
-          }
-          dependencyPaths.push(...filePaths)
-        })
-      } else {
-        const errorMessage = `Source path ${sourcePath} does not exist.`
-
-        console.log(chalk.redBright(errorMessage))
-
-        const unFoundDependencies = diff(dependencies, foundDependencies)
-
-        if (unFoundDependencies.length) {
-          console.log(
-            `${chalk.redBright(
-              'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
-            )}`
+  await asyncForEach(sourcePaths, async (sourcePath) => {
+    if (await folderExists(sourcePath)) {
+      await asyncForEach(dependencies, async (dep) => {
+        const filePaths = find.fileSync(dep, sourcePath)
+        if (filePaths.length) {
+          const fileContent = await readFile(filePaths[0])
+          foundDependencies.push(dep)
+          dependencyPaths.push(
+            ...(await getDependencyPaths(fileContent, tgtMacros))
           )
         }
+        dependencyPaths.push(...filePaths)
+      })
+    } else {
+      const errorMessage = `Source path ${sourcePath} does not exist.`
 
-        throw errorMessage
+      console.log(chalk.redBright(errorMessage))
+
+      const unFoundDependencies = diff(dependencies, foundDependencies)
+
+      if (unFoundDependencies.length) {
+        console.log(
+          `${chalk.redBright(
+            'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+          )}`
+        )
       }
-    })
 
-    dependencyPaths = prioritiseDependencyOverrides(
-      dependencies,
-      dependencyPaths,
-      tgtMacros
-    )
+      throw errorMessage
+    }
+  })
 
-    return [...new Set(dependencyPaths)]
-  } else {
-    return []
-  }
+  dependencyPaths = prioritiseDependencyOverrides(
+    dependencies,
+    dependencyPaths,
+    tgtMacros
+  )
+
+  return [...new Set(dependencyPaths)]
 }
 
 export function prioritiseDependencyOverrides(
