@@ -1,8 +1,8 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processJob } from '../../../src/commands/job/index'
-import { processContext } from '../../../src/commands/context/index'
-import { folderExists, fileExists } from '../../../src/utils/file-utils'
+import { processJob } from '../../src/commands'
+import { processContext } from '../../src/commands'
+import { folderExists, fileExists } from '../../src/utils/file-utils'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'

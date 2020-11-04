@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { createFileStructure, buildDBs } from '../../../src/main'
-import { createFolder, deleteFolder } from '../../../src/utils/file-utils'
+import { createFileStructure, buildDBs } from '../../src/main'
+import { createFolder, deleteFolder } from '../../src/utils/file-utils'
 
 describe('sasjs db', () => {
   const testingAppFolder = 'cli-tests-db'

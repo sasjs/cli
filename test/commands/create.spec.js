@@ -1,9 +1,9 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import rimraf from 'rimraf'
-import { createFileStructure } from '../../../src/main'
-import { createFolder } from '../../../src/utils/file-utils'
-import { generateTimestamp } from '../../../src/utils/utils'
+import { createFileStructure } from '../../src/main'
+import { createFolder } from '../../src/utils/file-utils'
+import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs create', () => {
   beforeAll(() => {

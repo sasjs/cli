@@ -1,4 +1,4 @@
-import { runSasCode } from '../../../src/commands/run'
+import { runSasCode } from '../../src/commands'
 
 describe('sasjs run', () => {
   describe('runSasCode', () => {

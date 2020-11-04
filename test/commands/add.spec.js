@@ -1,12 +1,9 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { add } from '../../../src/main'
-import {
-  getConfiguration,
-  getGlobalRcFile
-} from '../../../src/utils/config-utils'
-import { deleteFolder } from '../../../src/utils/file-utils'
-import { generateTimestamp } from '../../../src/utils/utils'
+import { add } from '../../src/main'
+import { getConfiguration, getGlobalRcFile } from '../../src/utils/config-utils'
+import { deleteFolder } from '../../src/utils/file-utils'
+import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs add', () => {
   const testingAppFolder = 'cli-tests-add'
@@ -53,7 +50,7 @@ describe('sasjs add', () => {
 
         await expect(add()).resolves.toEqual(true)
 
-        const buildSourceFolder = require('../../../src/constants')
+        const buildSourceFolder = require('../../src/constants')
           .buildSourceFolder
         const config = await getConfiguration(
           path.join(buildSourceFolder, 'sasjsconfig.json')
