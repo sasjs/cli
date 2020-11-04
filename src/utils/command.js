@@ -1,4 +1,5 @@
 import { displayResult } from './displayResult'
+import { arrToObj } from './utils'
 
 const showInvalidCommandMessage = () => {
   displayResult(
@@ -6,7 +7,6 @@ const showInvalidCommandMessage = () => {
     `Invalid command. Run 'sasjs help' to get the list of valid commands.`
   )
 }
-const arrToObj = (arr) => arr.reduce((o, key) => ({ ...o, [key]: key }), {})
 
 const initialCommands = arrToObj([
   ...new Set([
@@ -173,6 +173,15 @@ export class Command {
         this.values.push(commandLine[i])
       }
     }
+  }
+
+  getFlagValue(flagName) {
+    const flag = this.flags.find((flag) => flag.name === flagName)
+
+    if (!flag) return undefined
+    if (!flag.withValue) return null
+
+    return flag.value
   }
 }
 

@@ -218,3 +218,6 @@ export function generateTimestamp() {
 
   return timestamp
 }
+
+export const arrToObj = (arr) =>
+  arr.reduce((o, key) => ({ ...o, [key]: key }), {})
