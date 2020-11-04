@@ -7,11 +7,13 @@ import { exportContext } from './export'
 import { fileExists, readFile } from '../../utils/file-utils'
 import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
+import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(commandLine) {
-  const command = commandLine[1]
-  const commands = {
+  const command = new Command(commandLine)
+  const subCommand = command.values.shift()
+  const subCommands = {
     create: 'create',
     edit: 'edit',
     delete: 'delete',
@@ -19,11 +21,11 @@ export async function processContext(commandLine) {
     export: 'export'
   }
 
-  if (!commands.hasOwnProperty(command)) {
+  if (!subCommands.hasOwnProperty(subCommand)) {
     console.log(
       chalk.redBright(
         `Not supported context command. Supported commands are:\n${Object.keys(
-          commands
+          subCommands
         ).join('\n')}`
       )
     )
@@ -31,56 +33,25 @@ export async function processContext(commandLine) {
     return
   }
 
+  const targetName = command.getFlagValue('target')
+  const target = await getBuildTarget(targetName)
+
   const commandExample =
     'sasjs context <command> --source ../contextConfig.json --target targetName'
 
-  let targetName = []
-  let targetNameFlagIndex = commandLine.indexOf('--target')
-
-  if (targetNameFlagIndex === -1)
-    targetNameFlagIndex = commandLine.indexOf('-t')
-
-  if (targetNameFlagIndex !== -1) {
-    for (let i = targetNameFlagIndex + 1; i < commandLine.length; i++) {
-      if (commandLine[i] === '--source' || commandLine[i] === '-s') {
-        throw `Target name has to be provided as the last argument (eg ${commandExample})`
-      }
-
-      targetName.push(commandLine[i])
-    }
-  }
-
-  targetName = targetName.join(' ')
-
-  const target = await getBuildTarget(targetName)
-
-  let configPath
-  let config
-  let parsedConfig
-  let configPathFlagIndex
-
   const getConfig = async () => {
-    configPathFlagIndex = commandLine.indexOf('--source')
+    const configPath = command.getFlagValue('source')
 
-    if (configPathFlagIndex === -1)
-      configPathFlagIndex = commandLine.indexOf('-s')
+    if (!configPath) {
+      const message = `'--source' flag is missing (eg '${commandExample}')`
 
-    if (configPathFlagIndex === -1) {
-      console.log(
-        chalk.redBright(`'--source' flag is missing (eg '${commandExample}')`)
-      )
+      console.log(chalk.redBright(message))
 
       return
-    }
+    } else if (!validateConfigPath(configPath)) {
+      const message = `Provide a path to context config file (eg '${commandExample}')`
 
-    configPath = commandLine[configPathFlagIndex + 1]
-
-    if (!configPath || !validateConfigPath(configPath)) {
-      console.log(
-        chalk.redBright(
-          `Provide a path to context config file (eg '${commandExample}')`
-        )
-      )
+      console.log(chalk.redBright(message))
 
       return
     }
@@ -88,23 +59,13 @@ export async function processContext(commandLine) {
     return await readFile(configPath)
   }
 
-  const getContextName = (upToSourceFlag = false) => {
-    let contextName = ''
+  const getContextName = () => {
+    let contextName = command.values.join(' ')
 
-    if (targetNameFlagIndex === -1) {
-      contextName = commandLine.slice(2).join(' ')
-    } else {
-      contextName = commandLine
-        .slice(2, upToSourceFlag ? configPathFlagIndex : targetNameFlagIndex)
-        .join(' ')
-    }
+    if (!contextName) {
+      const message = `Provide a context name (eg 'sasjs context <command> contextName')`
 
-    if (!contextName && !upToSourceFlag) {
-      console.log(
-        chalk.redBright(
-          `Provide a context name (eg 'sasjs context <command> contextName')`
-        )
-      )
+      console.log(chalk.redBright(message))
 
       return null
     }
@@ -122,10 +83,12 @@ export async function processContext(commandLine) {
     displayResult(err)
   })
 
+  let config
+  let parsedConfig
   let output
 
-  switch (command) {
-    case commands.create:
+  switch (subCommand) {
+    case subCommands.create:
       config = await getConfig()
 
       if (!config) break
@@ -135,7 +98,7 @@ export async function processContext(commandLine) {
       output = await create(parsedConfig, sasjs, accessToken)
 
       break
-    case commands.edit: {
+    case subCommands.edit: {
       config = await getConfig()
 
       const contextName = getContextName(true)
@@ -146,7 +109,7 @@ export async function processContext(commandLine) {
 
       break
     }
-    case commands.delete: {
+    case subCommands.delete: {
       const contextName = getContextName()
 
       if (contextName) {
@@ -155,11 +118,11 @@ export async function processContext(commandLine) {
 
       break
     }
-    case commands.list:
+    case subCommands.list:
       output = list(target, sasjs, accessToken)
 
       break
-    case commands.export: {
+    case subCommands.export: {
       const contextName = getContextName()
 
       if (contextName) {
