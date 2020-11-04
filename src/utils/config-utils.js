@@ -15,8 +15,6 @@ export async function getConfiguration(pathToFile) {
     console.log(err)
   )
 
-  console.log(`[config]`, config)
-
   if (config) {
     const configJson = JSON.parse(config)
     return Promise.resolve(configJson.config ? configJson.config : configJson)
