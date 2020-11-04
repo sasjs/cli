@@ -189,6 +189,44 @@ describe('getProgramList', () => {
     done()
   })
 
+  test('it should return programs list when SAS programs are listed first', async (done) => {
+    const fileContent = await readFile(
+      path.join(__dirname, './example-reversed.sas')
+    )
+    const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
+  test('it should be able to handle extra newlines', async (done) => {
+    const fileContent = await readFile(path.join(__dirname, './newlines.sas'))
+    const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
+  test('it should be able to handle irregular spacing', async (done) => {
+    const fileContent = await readFile(path.join(__dirname, './spacing.sas'))
+    const expectedList = [
+      { fileName: 'test.sas', fileRef: 'TEST' },
+      { fileName: 'test2.sas', fileRef: 'TEST2' }
+    ]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
   test('it should get program dependencies when header is mixed case', async (done) => {
     let fileContent = await readFile(path.join(__dirname, './example.sas'))
     fileContent = fileContent.replace('SAS Programs', 'sas PROGRaMS')
