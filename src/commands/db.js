@@ -9,8 +9,8 @@ import {
   createFolder,
   deleteFolder,
   fileExists
-} from '../../utils/file-utils'
-import { asyncForEach } from '../../utils/utils'
+} from '../utils/file-utils'
+import { asyncForEach } from '../utils/utils'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
 let buildDestinationFolder = ''
@@ -18,7 +18,7 @@ let buildSourceDBFolder = ''
 let buildDestinationDBFolder = ''
 
 export async function buildDB() {
-  const CONSTANTS = require('../../constants')
+  const CONSTANTS = require('../constants')
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildSourceDBFolder = CONSTANTS.buildSourceDBFolder
   buildDestinationDBFolder = CONSTANTS.buildDestinationDBFolder

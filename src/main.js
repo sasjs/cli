@@ -1,17 +1,19 @@
-import { build } from './commands/build'
-import { deploy } from './commands/deploy'
-import { processServicepack } from './commands/servicepack'
-import { buildDB } from './commands/db'
-import { create } from './commands/create'
-import { printHelpText } from './commands/help'
-import { printVersion } from './commands/version'
-import { createWebAppServices } from './commands/web'
-import { addTarget } from './commands/add'
-import { runSasCode } from './commands/run'
-import { runSasJob } from './commands/request'
-import { processContext } from './commands/context'
-import { folder } from './commands/folder'
-import { processJob } from './commands/job'
+import {
+  addTarget,
+  build,
+  processContext,
+  create,
+  buildDB,
+  deploy,
+  folder,
+  printHelpText,
+  processJob,
+  runSasJob,
+  runSasCode,
+  processServicepack,
+  printVersion,
+  createWebAppServices
+} from './commands'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
 

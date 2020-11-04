@@ -1,5 +1,5 @@
-import { create } from '../create'
-import { getAndValidateField } from '../../utils/input-utils'
+import { create } from './create'
+import { getAndValidateField } from '../utils/input-utils'
 import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
@@ -8,9 +8,9 @@ import {
   getGlobalRcFile,
   saveGlobalRcFile,
   getConfiguration
-} from '../../utils/config-utils'
-import { createFile } from '../../utils/file-utils'
-import { getNewAccessToken } from '../../utils/auth-utils'
+} from '../utils/config-utils'
+import { createFile } from '../utils/file-utils'
+import { getNewAccessToken } from '../utils/auth-utils'
 
 export async function addTarget() {
   const scope = await getAndValidateScope()
@@ -61,7 +61,7 @@ export async function addTarget() {
 }
 
 async function getLocalConfig() {
-  const buildSourceFolder = require('../../constants').buildSourceFolder
+  const buildSourceFolder = require('../constants').buildSourceFolder
   const config = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
@@ -70,7 +70,7 @@ async function getLocalConfig() {
 }
 
 async function saveToLocalConfig(buildTarget) {
-  const buildSourceFolder = require('../../constants').buildSourceFolder
+  const buildSourceFolder = require('../constants').buildSourceFolder
   let config = await getLocalConfig()
   if (config) {
     if (config.targets && config.targets.length) {

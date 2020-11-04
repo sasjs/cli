@@ -1,24 +1,20 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { findTargetInConfiguration } from '../../utils/config-utils'
-import {
-  asyncForEach,
-  executeShellScript,
-  getVariable
-} from '../../utils/utils'
+import { findTargetInConfiguration } from '../utils/config-utils'
+import { asyncForEach, executeShellScript, getVariable } from '../utils/utils'
 import {
   isSasFile,
   isShellScript,
   readFile,
   folderExists,
   createFile
-} from '../../utils/file-utils'
+} from '../utils/file-utils'
 import {
   getAccessToken,
   isAccessTokenExpiring,
   refreshTokens
-} from '../../utils/auth-utils'
+} from '../utils/auth-utils'
 
 let targetToBuild = null
 let executionSession
@@ -164,7 +160,7 @@ async function deployToSasViyaWithServicePack(buildTarget, isForced) {
     serverType: buildTarget.serverType
   })
 
-  const CONSTANTS = require('../../constants')
+  const CONSTANTS = require('../constants')
   const buildDestinationFolder = CONSTANTS.buildDestinationFolder
   const finalFilePathJSON = path.join(
     buildDestinationFolder,

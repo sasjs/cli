@@ -7,19 +7,19 @@ import {
   createReactApp,
   createAngularApp,
   createMinimalApp
-} from '../../utils/utils'
-import { getFolders, getConfiguration } from '../../utils/config-utils'
+} from '../utils/utils'
+import { getFolders, getConfiguration } from '../utils/config-utils'
 import {
   createFolderStructure,
   createFolder,
   createFile,
   fileExists
-} from '../../utils/file-utils'
+} from '../utils/file-utils'
 import chalk from 'chalk'
 
 export async function create(parentFolderName = '.', appType = '') {
   const configPath =
-    appType === 'sasonly' ? '../../config-sasonly.json' : '../../config.json'
+    appType === 'sasonly' ? '../config-sasonly.json' : '../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
   const fileStructure = await getFileStructure(appType === 'sasonly')
   console.log(chalk.greenBright('Creating folders and files...'))

@@ -4,9 +4,9 @@ import SASjs from '@sasjs/adapter/node'
 import {
   findTargetInConfiguration,
   getAccessToken
-} from '../../utils/config-utils'
-import { readFile, createFile } from '../../utils/file-utils'
-import { getVariable, generateTimestamp } from '../../utils/utils'
+} from '../utils/config-utils'
+import { readFile, createFile } from '../utils/file-utils'
+import { getVariable, generateTimestamp } from '../utils/utils'
 
 /**
  * Runs SAS code from a given file on the specified target.

@@ -1,14 +1,14 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration } from '../../utils/config-utils'
+import { findTargetInConfiguration } from '../utils/config-utils'
 import {
   readFile,
   folderExists,
   createFile,
   createFolder
-} from '../../utils/file-utils'
-import { getAccessToken } from '../../utils/config-utils'
-import { displayResult } from '../../utils/displayResult'
+} from '../utils/file-utils'
+import { getAccessToken } from '../utils/config-utils'
+import { displayResult } from '../utils/displayResult'
 
 export async function runSasJob(
   sasJobLocation,
