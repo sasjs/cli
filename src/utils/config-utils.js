@@ -10,7 +10,6 @@ import path from 'path'
 import chalk from 'chalk'
 
 export async function getConfiguration(pathToFile) {
-  console.log(`[pathToFile]`, pathToFile)
   const config = await readFile(pathToFile, false, true).catch((err) =>
     console.log(err)
   )
