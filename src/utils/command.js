@@ -175,13 +175,26 @@ export class Command {
     }
   }
 
+  getFlag(flagName) {
+    return this.flags.find((flag) => flag.name === flagName)
+  }
+
   getFlagValue(flagName) {
-    const flag = this.flags.find((flag) => flag.name === flagName)
+    const flag = this.getFlag(flagName)
 
     if (!flag) return undefined
     if (!flag.withValue) return null
 
     return flag.value
+  }
+
+  prefixAppLoc(appLoc, path) {
+    if (!/^\//.test(appLoc)) appLoc = '/' + appLoc
+
+    return path
+      .split(' ')
+      .map((p) => (/^\//.test(p) ? path : `${appLoc}/${p}`))
+      .join(' ')
   }
 }
 
