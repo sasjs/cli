@@ -13,7 +13,9 @@ import {
   createFolder,
   deleteFolder,
   fileExists,
-  copy
+  folderExists,
+  copy,
+  getList
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
@@ -107,32 +109,50 @@ async function compile(targetName) {
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
+  let { target } = await findTargetInConfiguration(targetName)
+
+  const errors = []
 
   await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
     const folderPath = path.join(buildDestinationServ, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
+
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
-      const dependencies = await loadDependencies(
+
+      let dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
       )
-      await createFile(filePath, dependencies)
+
+      const preCode = await getPreCodeForServicePack(target.serverType)
+
+      dependencies = `${preCode}\n${dependencies}`
+
+      if (dependencies) await createFile(filePath, dependencies)
     })
+
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+
       await asyncForEach(fileNames, async (fileName) => {
         const filePath = path.join(folderPath, subFolder, fileName)
+
         const dependencies = await loadDependencies(
           filePath,
           tgtMacros,
           programFolders
-        )
-        await createFile(filePath, dependencies)
+        ).catch((err) => {
+          errors.push(err)
+        })
+
+        if (dependencies) await createFile(filePath, dependencies)
       })
     })
+
+    if (errors.length) throw errors
   })
 
   await asyncForEach(jobNamesToCompileUniq, async (buildFolder) => {
@@ -204,7 +224,14 @@ async function createFinalSasFile(
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, fileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${tgtName}.json`)
-  const buildConfig = await getBuildConfig(appLoc, serverType, tgtMacros)
+  const buildConfig = await getBuildConfig(
+    appLoc,
+    serverType,
+    tgtMacros
+  ).catch((_) => {})
+
+  if (!buildConfig) return
+
   finalSasFileContent += `\n${buildConfig}`
 
   const { content: buildInit, path: buildInitPath } = await getBuildInit()
@@ -352,7 +379,6 @@ async function getContentFor(folderPath, folderName, serverType) {
     members: []
   }
   const files = await getFilesInFolder(folderPath)
-  const preCode = await getPreCodeForServicePack(serverType)
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
     const transformedContent = getServiceText(file, fileContent, serverType)
@@ -360,7 +386,7 @@ async function getContentFor(folderPath, folderName, serverType) {
     contentJSON.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
-      code: removeComments(`${preCode}\n${fileContent}`)
+      code: removeComments(fileContent)
     })
   })
   const subFolders = await getSubFoldersInFolder(folderPath)
@@ -495,7 +521,8 @@ async function getTargetSpecificVars(typeOfVars) {
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  if (configuration[`cmn${typeOfVars}`])
+
+  if (configuration && configuration[`cmn${typeOfVars}`])
     variables = { ...configuration[`cmn${typeOfVars}`] }
 
   if (targetToBuild && targetToBuild[`tgt${typeOfVars}`])
@@ -531,57 +558,29 @@ async function getDependencies(filePaths) {
 }
 
 export function getProgramList(fileContent) {
-  let fileHeader
-  try {
-    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
-    if (!hasFileHeader) return []
-    fileHeader = fileContent.split('/**')[1].split('**/')[0]
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your file header is in the correct format.'
+  let programList = getList('<h4> SAS Programs </h4>', fileContent)
+  programList = programList.map((l) => {
+    const [fileName, fileRef] = l.split(' ')
+
+    if (!fileName) {
+      throw new Error(
+        `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
-  let programsSection
-  try {
-    programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your SAS program dependencies are specified in the correct format.'
+    }
+
+    if (fileName && !fileRef) {
+      throw new Error(
+        `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
-  const programsList = programsSection
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .filter((l) => !!l)
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith('@li'))
-    .map((l) => l.replace(/\@li/g, '').trim())
-    .map((l) => {
-      const [fileName, fileRef] = l.split(' ')
+    }
 
-      if (!fileName) {
-        throw new Error(
-          `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
+    validateFileRef(fileRef)
+    return { fileName, fileRef }
+  })
 
-      if (fileName && !fileRef) {
-        throw new Error(
-          `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
+  validateProgramsList(programList)
 
-      validateFileRef(fileRef)
-      return { fileName, fileRef }
-    })
-
-  validateProgramsList(programsList)
-
-  return uniqBy(programsList, 'fileName')
+  return uniqBy(programList, 'fileName')
 }
 
 export function validateProgramsList(programsList) {
@@ -724,24 +723,16 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       sourcePaths.push(tgtMacroPath)
     })
   }
-  const dependenciesStart = fileContent.split('<h4> Dependencies </h4>')
-  let dependencies = []
-  if (dependenciesStart.length > 1) {
-    let count = 1
-    while (count < dependenciesStart.length) {
-      let dependency = dependenciesStart[count]
-        .split('**/')[0]
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .filter((d) => !!d)
-        .map((d) => d.replace(/\@li/g, '').replace(/ /g, ''))
-        .filter((d) => d.endsWith('.sas'))
-      dependencies = [...dependencies, ...dependency]
-      count++
-    }
-    let dependencyPaths = []
-    const foundDependencies = []
-    await asyncForEach(sourcePaths, async (sourcePath) => {
+  const dependencies = getList(
+    '<h4> Dependencies </h4>',
+    fileContent
+  ).filter((d) => d.endsWith('.sas'))
+
+  let dependencyPaths = []
+  const foundDependencies = []
+
+  await asyncForEach(sourcePaths, async (sourcePath) => {
+    if (await folderExists(sourcePath)) {
       await asyncForEach(dependencies, async (dep) => {
         const filePaths = find.fileSync(dep, sourcePath)
         if (filePaths.length) {
@@ -753,27 +744,32 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
         }
         dependencyPaths.push(...filePaths)
       })
-    })
+    } else {
+      const errorMessage = `Source path ${sourcePath} does not exist.`
 
-    const unfoundDependencies = diff(dependencies, foundDependencies)
-    if (unfoundDependencies.length) {
-      throw new Error(
-        `${'Unable to locate dependencies:'} ${chalk.cyanBright(
-          unfoundDependencies.join(', ')
-        )}`
-      )
+      console.log(chalk.redBright(errorMessage))
+
+      const unFoundDependencies = diff(dependencies, foundDependencies)
+
+      if (unFoundDependencies.length) {
+        console.log(
+          `${chalk.redBright(
+            'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+          )}`
+        )
+      }
+
+      throw errorMessage
     }
+  })
 
-    dependencyPaths = prioritiseDependencyOverrides(
-      dependencies,
-      dependencyPaths,
-      tgtMacros
-    )
+  dependencyPaths = prioritiseDependencyOverrides(
+    dependencies,
+    dependencyPaths,
+    tgtMacros
+  )
 
-    return [...new Set(dependencyPaths)]
-  } else {
-    return []
-  }
+  return [...new Set(dependencyPaths)]
 }
 
 export function prioritiseDependencyOverrides(
@@ -836,7 +832,7 @@ async function getAllServices(pathToFile) {
   const configuration = await getConfiguration(pathToFile)
   let allServices = []
 
-  if (configuration.cmnServices)
+  if (configuration && configuration.cmnServices)
     allServices = [...allServices, ...configuration.cmnServices]
 
   if (targetToBuild && targetToBuild.tgtServices)

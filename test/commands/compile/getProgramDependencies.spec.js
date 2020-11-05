@@ -8,6 +8,7 @@ import {
 } from '../../../src/sasjs-build/index'
 
 process.projectDir = path.join(process.cwd())
+
 describe('getProgramDependencies', () => {
   const expectedLines = [
     'filename TEST temp;',
@@ -28,6 +29,7 @@ describe('getProgramDependencies', () => {
     const actualLines = dependencies.split('\n')
 
     expect(actualLines).toEqual(expectedLines)
+
     done()
   })
 
@@ -42,6 +44,7 @@ describe('getProgramDependencies', () => {
     const actualLines = dependencies.split('\n')
 
     expect(actualLines).toEqual(expectedLines)
+
     done()
   })
 
@@ -71,6 +74,7 @@ describe('getProgramDependencies', () => {
     const actualLines = dependencies.split('\n')
 
     expect(actualLines).toEqual(expectedOutput)
+
     done()
   })
 
@@ -84,6 +88,7 @@ describe('getProgramDependencies', () => {
     ).rejects.toThrow(
       `SAS Program test.sas is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
     )
+
     done()
   })
 })
@@ -113,7 +118,7 @@ describe('validateFileRef', () => {
     expect(validateFileRef(fileRef)).toBeTruthy()
   })
 
-  test('it should throw an error when the file ref is too long', () => {
+  test('it should throw an error when the file ref is longer than 8 chars', () => {
     const fileRef = '_TES_T12435'
 
     expect(() => validateFileRef(fileRef)).toThrow(
@@ -127,7 +132,7 @@ describe('validateFileRef', () => {
     expect(() => validateFileRef(fileRef)).toThrow('Missing file ref.')
   })
 
-  test('it should throw an error when the file ref does not conform to specifications', () => {
+  test('it should throw an error when the file ref does not conform to specification', () => {
     const fileRef = '123ASDF'
 
     expect(() => validateFileRef(fileRef)).toThrow(
@@ -137,25 +142,29 @@ describe('validateFileRef', () => {
 })
 
 describe('getProgramList', () => {
-  test('should get program dependencies when header is lowercase', async (done) => {
+  test('it should get program dependencies when header is lowercase', async (done) => {
     let fileContent = await readFile(path.join(__dirname, './example.sas'))
     fileContent = fileContent.replace('SAS Programs', 'sas programs')
+
     const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
 
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedList)
+
     done()
   })
 
-  test('should get program dependencies when header is uppercase', async (done) => {
+  test('it should get program dependencies when header is uppercase', async (done) => {
     let fileContent = await readFile(path.join(__dirname, './example.sas'))
     fileContent = fileContent.replace('SAS Programs', 'SAS PROGRAMS')
+
     const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
 
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedList)
+
     done()
   })
 
@@ -165,27 +174,69 @@ describe('getProgramList', () => {
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedOutput)
+
     done()
   })
 
-  test('should return empty list when file header is not present', async (done) => {
-    let fileContent = await readFile(path.join(__dirname, './no-header.sas'))
+  test('it should return empty list when file header is not present', async (done) => {
+    const fileContent = await readFile(path.join(__dirname, './no-header.sas'))
     const expectedList = []
 
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedList)
+
     done()
   })
 
-  test('should get program dependencies when header is mixed case', async (done) => {
-    let fileContent = await readFile(path.join(__dirname, './example.sas'))
-    fileContent = fileContent.replace('SAS Programs', 'sas PROGRaMS')
+  test('it should return programs list when SAS programs are listed first', async (done) => {
+    const fileContent = await readFile(
+      path.join(__dirname, './example-reversed.sas')
+    )
     const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
 
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
+  test('it should be able to handle extra newlines', async (done) => {
+    const fileContent = await readFile(path.join(__dirname, './newlines.sas'))
+    const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
+  test('it should be able to handle irregular spacing', async (done) => {
+    const fileContent = await readFile(path.join(__dirname, './spacing.sas'))
+    const expectedList = [
+      { fileName: 'test.sas', fileRef: 'TEST' },
+      { fileName: 'test2.sas', fileRef: 'TEST2' }
+    ]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
+  test('it should get program dependencies when header is mixed case', async (done) => {
+    let fileContent = await readFile(path.join(__dirname, './example.sas'))
+    fileContent = fileContent.replace('SAS Programs', 'sas PROGRaMS')
+
+    const expectedList = [{ fileName: 'test.sas', fileRef: 'TEST' }]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
     done()
   })
 
@@ -196,6 +247,7 @@ describe('getProgramList', () => {
     const actualList = await getProgramList(fileContent)
 
     expect(actualList).toEqual(expectedList)
+
     done()
   })
 })
@@ -213,7 +265,7 @@ describe('validateProgramsList', () => {
     )
   })
 
-  test('it should recognise non-unique filerefs regardless of case', () => {
+  test('it should recognize non-unique filerefs regardless of case', () => {
     const programsList = [
       { fileName: 'test.sas', fileRef: 'TEST' },
       { fileName: 'test2.sas', fileRef: 'test' }

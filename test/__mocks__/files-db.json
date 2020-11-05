@@ -1,0 +1,20 @@
+{
+  "subFolders": [
+    {
+      "folderName": "sasjsbuild",
+      "subFolders": [
+        {
+          "folderName": "db",
+          "files": [
+            {
+              "fileName": "LIBREF1.ddl"
+            },
+            {
+              "fileName": "LIBREF1.sas"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -45,7 +45,7 @@ export function getCommandParameterLastMultiWord(
 
   if (parameterFlagIndex !== -1) {
     for (let i = parameterFlagIndex + 1; i < commandLine.length; i++) {
-      if (commandLine[i].includes('-')) {
+      if (commandLine[i].startsWith('-')) {
         const errorMessage = `Parameter '${
           commandFlagLong || commandFlag
         }' has to be provided as the last argument ${

@@ -172,7 +172,7 @@ export async function printHelpText() {
     The target can exist either in the local project configuration or in the global .sasjsrc file.
 
     * ${chalk.greenBright(
-      'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>`.'
+      'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>'
     )} - Lets the user run a SAS job against a specified target.
     The target can exist either in the local project configuration or in the global .sasjsrc file.
     <sasProgramPath> - If this has a leading slash (eg /Public/app/folder/servicename) then it must
@@ -199,6 +199,24 @@ export async function printHelpText() {
           command example: sasjs folder move /Public/sourceFolder /Public/targetFolder -t targetName
           command example: sasjs folder move /Public/sourceFolder /Public/targetFolder
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+
+    * ${chalk.greenBright('job <command>')} - performs operations on jobs.
+        * ${chalk.cyanBright('execute')} - triggers job for execution.
+          command example: sasjs job execute /Public/job --target targetName
+          command example: sasjs job execute /Public/job -t targetName
+          command example: sasjs job execute /Public/job --target targetName --wait
+          command example: sasjs job execute /Public/job -t targetName -w
+          command example: sasjs job execute /Public/job --target targetName --output
+          command example: sasjs job execute /Public/job -t targetName -o
+          command example: sasjs job execute /Public/job -t targetName -o ./outputFolder/output.json
+          command example: sasjs job execute /Public/job --target targetName --wait --output
+          command example: sasjs job execute /Public/job -t targetName -w -o
+          command example: sasjs job execute /Public/job -t targetName --log ./logFolder/log.json
+          command example: sasjs job execute /Public/job -t targetName -l ./logFolder/log.json
+          NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
+          NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.
+          NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.
+          NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.
 
     ${chalk.cyan('Alias commands:')}
     * ${chalk.greenBright('build-DB')}, ${chalk.cyanBright(
