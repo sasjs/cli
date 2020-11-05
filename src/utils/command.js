@@ -183,13 +183,17 @@ export class Command {
     const flag = this.getFlag(flagName)
 
     if (!flag) return undefined
-    if (!flag.withValue) return null
+    if (!flag.withValue) return true
 
     return flag.value
   }
 
-  prefixAppLoc(appLoc, path) {
+  prefixAppLoc(appLoc = '', path = '') {
+    if (!path) return null
+
     if (!/^\//.test(appLoc)) appLoc = '/' + appLoc
+
+    if (Array.isArray(path)) path = path.join(' ')
 
     return path
       .split(' ')
