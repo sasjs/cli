@@ -159,7 +159,7 @@ async function compile(targetName) {
   })
 
   await asyncForEach(jobNamesToCompileUniq, async (buildFolder) => {
-    const folderPath = path.join(buildDestinationServ, buildFolder)
+    const folderPath = path.join(buildDestinationJobs, buildFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
     await asyncForEach(filesNamesInPath, async (fileName) => {
@@ -458,7 +458,7 @@ async function copyFilesToBuildFolder() {
   await asyncForEach(jobsToCompile, async (buildFolder) => {
     const sourcePath = path.join(buildSourceFolder, buildFolder)
     const buildFolderName = buildFolder.split('/').pop()
-    const destinationPath = path.join(buildDestinationServ, buildFolderName)
+    const destinationPath = path.join(buildDestinationJobs, buildFolderName)
     await copy(sourcePath, destinationPath)
   })
 }
