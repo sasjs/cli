@@ -825,8 +825,8 @@ async function getCommonServices(pathToFile) {
 async function getAllJobs(pathToFile) {
   let allJobs = []
 
-  if (targetToBuild && targetToBuild.tgtJobs)
-    allJobs = [...allJobs, ...targetToBuild.tgtJobs]
+  if (targetToBuild && targetToBuild.jobs)
+    allJobs = [...allJobs, ...targetToBuild.jobs]
 
   return Promise.resolve(allJobs)
 }
