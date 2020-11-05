@@ -9,11 +9,7 @@ const buildDestinationServ = path.join(
   'sasjsbuild',
   'services'
 )
-const buildDestinationJobs = path.join(
-  process.projectDir,
-  'sasjsbuild',
-  'jobs'
-)
+const buildDestinationJobs = path.join(process.projectDir, 'sasjsbuild', 'jobs')
 const buildDestinationDBFolder = path.join(
   process.projectDir,
   'sasjsbuild',

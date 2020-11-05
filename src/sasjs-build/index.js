@@ -41,7 +41,7 @@ export async function build(
   isForced = false
 ) {
   const CONSTANTS = require('../constants')
-  
+
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildDestinationServ = CONSTANTS.buildDestinationServ
@@ -76,7 +76,10 @@ export async function build(
   const jobNamesToCompile = jobsToCompile.map((s) => s.split('/').pop())
   const jobNamesToCompileUniq = [...new Set(jobNamesToCompile)]
 
-  const result = await validCompiled(serviceNamesToCompileUniq, jobNamesToCompileUniq)
+  const result = await validCompiled(
+    serviceNamesToCompileUniq,
+    jobNamesToCompileUniq
+  )
 
   if (result.compiled) {
     // no need to compile again
@@ -96,14 +99,14 @@ async function compile(targetName) {
   const servicesToCompile = await getAllServices(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  
+
   const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
   const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
 
   const jobsToCompile = await getAllJobs(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  
+
   const jobNamesToCompile = jobsToCompile.map((s) => s.split('/').pop())
   const jobNamesToCompileUniq = [...new Set(jobNamesToCompile)]
 
@@ -444,7 +447,7 @@ async function copyFilesToBuildFolder() {
   const jobsToCompile = await getAllJobs(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  
+
   await asyncForEach(servicesToCompile, async (buildFolder) => {
     const sourcePath = path.join(buildSourceFolder, buildFolder)
     const buildFolderName = buildFolder.split('/').pop()
@@ -851,9 +854,13 @@ async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
 
   const subFolders = await getSubFoldersInFolder(buildDestinationServ)
 
-  const servicesPresent = servicesBuildFolders.every((folder) => subFolders.includes(folder))
-  const jobsPresent = jobsBuildFolders.every((folder) => subFolders.includes(folder))
-  
+  const servicesPresent = servicesBuildFolders.every((folder) =>
+    subFolders.includes(folder)
+  )
+  const jobsPresent = jobsBuildFolders.every((folder) =>
+    subFolders.includes(folder)
+  )
+
   if (servicesPresent && jobsPresent) {
     let returnObj = {
       compiled: true,
