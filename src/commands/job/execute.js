@@ -69,7 +69,7 @@ export async function execute(
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
 
-    if (output || log) {
+    if (output !== undefined || log) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 

@@ -29,29 +29,14 @@ export async function processJob(commandLine) {
     return
   }
 
-  let targetName = command.flags.find((flag) => flag.name === 'target')
-  targetName = targetName ? targetName.value : ''
-
-  const waitForJob =
-    command.flags.find((flag) => flag.name === 'wait') !== undefined
-
-  let output = command.flags.find((flag) => flag.name === 'output')
-  output = output ? (output.value ? output.value : true) : null
-
-  let log = command.flags.find((flag) => flag.name === 'log')
-  log = log ? (log.value ? log.value : true) : null
+  const targetName = command.getFlagValue('target')
+  const waitForJob = command.getFlagValue('wait')
+  const output = command.getFlagValue('output')
+  const log = command.getFlagValue('log')
 
   const target = await getBuildTarget(targetName)
 
-  let jobPath = command.values.join('')
-
-  if (!/^\//.test(jobPath)) {
-    const { appLoc } = target
-
-    jobPath = (/\/$/.test(appLoc) ? appLoc : appLoc + '/') + jobPath
-  }
-
-  jobPath = sanitizeAppLoc(jobPath)
+  const jobPath = command.prefixAppLoc(target.appLoc, command.values)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,

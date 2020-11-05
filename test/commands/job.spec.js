@@ -101,7 +101,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job log',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -l testLog`
+        const command = `job execute testJob -t ${targetName} -l testLog`
 
         const folderPath = path.join(process.cwd(), 'testLog')
         const filePath = path.join(process.cwd(), 'testLog/testJob-log.json')
