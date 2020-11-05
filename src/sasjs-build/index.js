@@ -86,6 +86,7 @@ async function compile(targetName) {
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
+  let { target } = await findTargetInConfiguration(targetName)
 
   const errors = []
 
@@ -97,13 +98,15 @@ async function compile(targetName) {
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
 
-      const dependencies = await loadDependencies(
+      let dependencies = await loadDependencies(
         filePath,
         tgtMacros,
         programFolders
-      ).catch((err) => {
-        errors.push(err)
-      })
+      )
+
+      const preCode = await getPreCodeForServicePack(target.serverType)
+
+      dependencies = `${preCode}\n${dependencies}`
 
       if (dependencies) await createFile(filePath, dependencies)
     })
@@ -334,7 +337,6 @@ async function getContentFor(folderPath, folderName, serverType) {
     members: []
   }
   const files = await getFilesInFolder(folderPath)
-  const preCode = await getPreCodeForServicePack(serverType)
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
     const transformedContent = getServiceText(file, fileContent, serverType)
@@ -342,7 +344,7 @@ async function getContentFor(folderPath, folderName, serverType) {
     contentJSON.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
-      code: removeComments(`${preCode}\n${fileContent}`)
+      code: removeComments(fileContent)
     })
   })
   const subFolders = await getSubFoldersInFolder(folderPath)
