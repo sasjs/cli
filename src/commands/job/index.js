@@ -12,7 +12,7 @@ import { Command } from '../../utils/command'
 export async function processJob(commandLine) {
   const command = new Command(commandLine)
 
-  const subCommand = command.values.shift()
+  const subCommand = command.getSubCommand()
   const subCommands = {
     execute: 'execute'
   }

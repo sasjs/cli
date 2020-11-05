@@ -12,7 +12,7 @@ import SASjs from '@sasjs/adapter/node'
 
 export async function processContext(commandLine) {
   const command = new Command(commandLine)
-  const subCommand = command.values.shift()
+  const subCommand = command.getSubCommand()
   const subCommands = {
     create: 'create',
     edit: 'edit',

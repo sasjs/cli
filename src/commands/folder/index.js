@@ -9,7 +9,7 @@ import { Command } from '../../utils/command'
 
 export async function folder(commandLine) {
   const command = new Command(commandLine)
-  const subCommand = command.values.shift()
+  const subCommand = command.getSubCommand()
 
   const subCommands = {
     create: 'create',

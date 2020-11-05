@@ -78,7 +78,7 @@ const commandFlags = [
   },
   {
     command: initialCommands.servicepack,
-    flags: [initialFlags.target, initialFlags.source]
+    flags: [initialFlags.target, initialFlags.source, initialFlags.force]
   },
   { command: initialCommands.run, flags: [initialFlags.target] },
   {
@@ -173,6 +173,10 @@ export class Command {
         this.values.push(commandLine[i])
       }
     }
+  }
+
+  getSubCommand() {
+    return this.values.shift()
   }
 
   getFlag(flagName) {
