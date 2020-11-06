@@ -31,7 +31,11 @@ describe('sasjs cbd', () => {
         client: process.env.CLIENT,
         secret: process.env.SECRET
       },
-      tgtDeployScripts: []
+      tgtDeployScripts: [],
+      jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
+      jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
+      tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
+      tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
     })
 
     process.projectDir = path.join(process.cwd())
@@ -57,13 +61,17 @@ describe('sasjs cbd', () => {
 
         const jobContent = await readFile(jobPath)
         expect(jobContent).not.toEqual('')
-        expect(/^\* Service Variables start;*/.test(jobContent)).toEqual(true) // does not have a pre code
+        expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true) // does not have a pre code
+        expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
+        expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
 
         const serviceContent = await readFile(servicePath)
         expect(serviceContent).not.toEqual('')
         expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(
           false
         ) // does have a pre code
+        expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
+        expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
       },
       60 * 1000
     )
