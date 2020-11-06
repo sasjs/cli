@@ -545,8 +545,16 @@ async function getServiceInit() {
   return (await getTargetSpecificFile('ServiceInit', targetToBuild)).content
 }
 
+async function getJobInit() {
+  return (await getTargetSpecificFile('jobInit', targetToBuild)).content
+}
+
 async function getServiceTerm() {
   return (await getTargetSpecificFile('ServiceTerm', targetToBuild)).content
+}
+
+async function getJobTerm() {
+  return (await getTargetSpecificFile('jobTerm', targetToBuild)).content
 }
 
 async function getBuildTerm() {
