@@ -66,21 +66,21 @@ export async function build(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
 
-  const jobsToCompile = await getAllJobPaths(
+  const jobPathsToCompile = await getAllJobPaths(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
 
-  const serviceNamesToCompile = servicePathsToCompile.map((s) =>
+  const serviceFoldersToCompile = servicePathsToCompile.map((s) =>
     s.split('/').pop()
   )
-  const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
+  const serviceFoldersToCompileUniq = [...new Set(serviceFoldersToCompile)]
 
-  const jobNamesToCompile = jobsToCompile.map((s) => s.split('/').pop())
-  const jobNamesToCompileUniq = [...new Set(jobNamesToCompile)]
+  const jobFoldersToCompile = jobPathsToCompile.map((s) => s.split('/').pop())
+  const jobFoldersToCompileUniq = [...new Set(jobFoldersToCompile)]
 
   const result = await validCompiled(
-    serviceNamesToCompileUniq,
-    jobNamesToCompileUniq
+    serviceFoldersToCompileUniq,
+    jobFoldersToCompileUniq
   )
 
   if (result.compiled) {
