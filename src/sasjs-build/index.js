@@ -509,11 +509,26 @@ export async function loadDependencies(
 
   if (type === 'service') {
     serviceVars = await getServiceVars()
+
     init = await getServiceInit()
+    init = init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
+
     term = await getServiceTerm()
+    term = term ? `\n* ServiceTerm start;\n${term}\n* ServiceTerm end;` : ''
+
+    fileContent = fileContent
+      ? `\n* Service start;\n${fileContent}\n* Service end;`
+      : ''
   } else {
     init = await getJobInit()
+    init = init ? `\n* JobInit start;\n${init}\n* JobInit end;` : ''
+
     term = await getJobTerm()
+    term = term ? `\n* JobTerm start;\n${term}\n* JobTerm end;` : ''
+
+    fileContent = fileContent
+      ? `\n* Job start;\n${fileContent}\n* Job end;`
+      : ''
   }
 
   const dependencyFilePaths = await getDependencyPaths(
@@ -528,10 +543,10 @@ export async function loadDependencies(
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
 
+  fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
+
   if (type === 'service') {
-    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${init}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${term}\n* ServiceTerm end;`
-  } else {
-    fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* JobInit start;\n${init}\n* JobInit end;\n* Job start;\n${fileContent}\n* Job end;\n* JobTerm start;\n${term}\n* JobTerm end;`
+    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
   }
 
   return fileContent
