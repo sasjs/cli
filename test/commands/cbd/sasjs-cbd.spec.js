@@ -1,4 +1,8 @@
-import { deleteFolder } from '../../../src/utils/file-utils'
+import {
+  deleteFolder,
+  fileExists,
+  readFile
+} from '../../../src/utils/file-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../src/main'
@@ -15,6 +19,7 @@ describe('sasjs cbd', () => {
       serverUrl: process.env.SERVER_URL,
       appLoc: '/Public/app/cli-tests',
       tgtServices: ['../test/commands/cbd/testJob'],
+      jobs: ['../test/commands/cbd/testJob'],
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -37,8 +42,28 @@ describe('sasjs cbd', () => {
       'should compile, build and deploy',
       async () => {
         const command = `cbd ${targetName} -f`.split(' ')
+        const servicePath = path.join(
+          process.cwd(),
+          'sasjsbuild/services/testJob/job.sas'
+        )
+        const jobPath = path.join(
+          process.cwd(),
+          'sasjsbuild/jobs/testJob/job.sas'
+        )
 
         await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
+        await expect(fileExists(servicePath)).resolves.toEqual(true)
+        await expect(fileExists(jobPath)).resolves.toEqual(true)
+
+        const jobContent = await readFile(jobPath)
+        expect(jobContent).not.toEqual('')
+        expect(/^\* Service Variables start;*/.test(jobContent)).toEqual(true) // does not have a pre code
+
+        const serviceContent = await readFile(servicePath)
+        expect(serviceContent).not.toEqual('')
+        expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(
+          false
+        ) // does have a pre code
       },
       60 * 1000
     )
