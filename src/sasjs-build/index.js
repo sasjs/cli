@@ -168,14 +168,24 @@ async function compile(targetName) {
     const filesNamesInPath = await getFilesInFolder(folderPath)
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folderPath, fileName)
-      const dependencies = await loadDependencies(filePath, tgtMacros)
+      const dependencies = await loadDependencies(
+        filePath,
+        tgtMacros,
+        programFolders,
+        'job'
+      )
       await createFile(filePath, dependencies)
     })
     await asyncForEach(subFolders, async (subFolder) => {
       const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
       await asyncForEach(fileNames, async (fileName) => {
         const filePath = path.join(folderPath, subFolder, fileName)
-        const dependencies = await loadDependencies(filePath, tgtMacros)
+        const dependencies = await loadDependencies(
+          filePath,
+          tgtMacros,
+          programFolders,
+          'job'
+        )
         await createFile(filePath, dependencies)
       })
     })
@@ -483,16 +493,31 @@ async function recreateBuildFolder() {
   await createFolder(path.join(buildDestinationServ))
 }
 
-export async function loadDependencies(filePath, tgtMacros, programFolders) {
+export async function loadDependencies(
+  filePath,
+  tgtMacros,
+  programFolders,
+  type = 'service'
+) {
   console.log(
     chalk.greenBright('Loading dependencies for', chalk.cyanBright(filePath))
   )
   let fileContent = await readFile(filePath)
-  const serviceVars = await getServiceVars()
-  const serviceInit = await getServiceInit()
-  const serviceTerm = await getServiceTerm()
+  let init
+  let term
+  let serviceVars = ''
+
+  if (type === 'service') {
+    serviceVars = await getServiceVars()
+    init = await getServiceInit()
+    term = await getServiceTerm()
+  } else {
+    init = await getJobInit()
+    term = await getJobTerm()
+  }
+
   const dependencyFilePaths = await getDependencyPaths(
-    `${fileContent}\n${serviceInit}\n${serviceTerm}`,
+    `${fileContent}\n${init}\n${term}`,
     tgtMacros
   )
   const programDependencies = await getProgramDependencies(
@@ -502,7 +527,12 @@ export async function loadDependencies(filePath, tgtMacros, programFolders) {
   )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
-  fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
+
+  if (type === 'service') {
+    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${init}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${term}\n* ServiceTerm end;`
+  } else {
+    fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* JobInit start;\n${init}\n* JobInit end;\n* Job start;\n${fileContent}\n* Job end;\n* JobTerm start;\n${term}\n* JobTerm end;`
+  }
 
   return fileContent
 }
