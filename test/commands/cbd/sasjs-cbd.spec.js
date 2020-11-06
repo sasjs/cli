@@ -1,4 +1,8 @@
-import { deleteFolder } from '../../../src/utils/file-utils'
+import {
+  deleteFolder,
+  fileExists,
+  readFile
+} from '../../../src/utils/file-utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../src/main'
@@ -15,6 +19,7 @@ describe('sasjs cbd', () => {
       serverUrl: process.env.SERVER_URL,
       appLoc: '/Public/app/cli-tests',
       tgtServices: ['../test/commands/cbd/testJob'],
+      jobs: ['../test/commands/cbd/testJob'],
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -26,7 +31,11 @@ describe('sasjs cbd', () => {
         client: process.env.CLIENT,
         secret: process.env.SECRET
       },
-      tgtDeployScripts: []
+      tgtDeployScripts: [],
+      jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
+      jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
+      tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
+      tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
     })
 
     process.projectDir = path.join(process.cwd())
@@ -37,8 +46,32 @@ describe('sasjs cbd', () => {
       'should compile, build and deploy',
       async () => {
         const command = `cbd ${targetName} -f`.split(' ')
+        const servicePath = path.join(
+          process.cwd(),
+          'sasjsbuild/services/testJob/job.sas'
+        )
+        const jobPath = path.join(
+          process.cwd(),
+          'sasjsbuild/jobs/testJob/job.sas'
+        )
 
         await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
+        await expect(fileExists(servicePath)).resolves.toEqual(true)
+        await expect(fileExists(jobPath)).resolves.toEqual(true)
+
+        const jobContent = await readFile(jobPath)
+        expect(jobContent).not.toEqual('')
+        expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true) // does not have a pre code
+        expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
+        expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
+
+        const serviceContent = await readFile(servicePath)
+        expect(serviceContent).not.toEqual('')
+        expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(
+          false
+        ) // does have a pre code
+        expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
+        expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
       },
       60 * 1000
     )

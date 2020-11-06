@@ -314,22 +314,35 @@ export function sanitizeAppLoc(appLoc) {
 }
 
 export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
+  const isJob = typeOfFile.includes('job')
+  const tgtPrefix = 'tgt'
+  const cmnPrefix = 'cmn'
   const { buildSourceFolder } = require('../constants')
   let toBuildPath = ''
-  if (targetToBuild[`tgt${typeOfFile}`] == undefined) {
+
+  if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`] == undefined) {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjsconfig.json')
     )
-    if (configuration && configuration[`cmn${typeOfFile}`])
-      toBuildPath = configuration[`cmn${typeOfFile}`]
-  } else if (targetToBuild[`tgt${typeOfFile}`] == false) toBuildPath = ''
-  else if (targetToBuild[`tgt${typeOfFile}`].length)
-    toBuildPath = targetToBuild[`tgt${typeOfFile}`]
+
+    if (
+      configuration &&
+      configuration[`${isJob ? '' : cmnPrefix}${typeOfFile}`]
+    ) {
+      toBuildPath = configuration[`${isJob ? '' : cmnPrefix}${typeOfFile}`]
+    }
+  } else if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`] == false) {
+    toBuildPath = ''
+  } else if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`].length) {
+    toBuildPath = targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`]
+  }
 
   if (toBuildPath.length == 0) return { path: 'Not Provided', content: '' }
+
   const toBuildContent = await readFile(
     path.join(buildSourceFolder, toBuildPath)
   )
+
   return {
     path: path.join(buildSourceFolder, toBuildPath),
     content: toBuildContent
