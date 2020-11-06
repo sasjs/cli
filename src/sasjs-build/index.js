@@ -511,20 +511,16 @@ export async function loadDependencies(
     serviceVars = await getServiceVars()
 
     init = await getServiceInit()
-    init = init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
 
     term = await getServiceTerm()
-    term = term ? `\n* ServiceTerm start;\n${term}\n* ServiceTerm end;` : ''
 
     fileContent = fileContent
       ? `\n* Service start;\n${fileContent}\n* Service end;`
       : ''
   } else {
     init = await getJobInit()
-    init = init ? `\n* JobInit start;\n${init}\n* JobInit end;` : ''
 
     term = await getJobTerm()
-    term = term ? `\n* JobTerm start;\n${term}\n* JobTerm end;` : ''
 
     fileContent = fileContent
       ? `\n* Job start;\n${fileContent}\n* Job end;`
@@ -557,19 +553,25 @@ async function getBuildInit() {
 }
 
 async function getServiceInit() {
-  return (await getTargetSpecificFile('ServiceInit', targetToBuild)).content
+  const init = (await getTargetSpecificFile('ServiceInit', targetToBuild))
+    .content
+  return init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
 }
 
 async function getJobInit() {
-  return (await getTargetSpecificFile('jobInit', targetToBuild)).content
+  const init = (await getTargetSpecificFile('jobInit', targetToBuild)).content
+  return init ? `\n* JobInit start;\n${init}\n* JobInit end;` : ''
 }
 
 async function getServiceTerm() {
-  return (await getTargetSpecificFile('ServiceTerm', targetToBuild)).content
+  const term = (await getTargetSpecificFile('ServiceTerm', targetToBuild))
+    .content
+  return term ? `\n* ServiceTerm start;\n${term}\n* ServiceTerm end;` : ''
 }
 
 async function getJobTerm() {
-  return (await getTargetSpecificFile('jobTerm', targetToBuild)).content
+  const term = (await getTargetSpecificFile('jobTerm', targetToBuild)).content
+  return term ? `\n* JobTerm start;\n${term}\n* JobTerm end;` : ''
 }
 
 async function getBuildTerm() {
