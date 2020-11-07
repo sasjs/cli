@@ -335,8 +335,16 @@ function getWebServiceScriptInvocation(serverType) {
   }
 }
 
+/**
+ * Folders inside of `SASJS` folder are converted to JSON structure.
+ * That JSON file is used to deploy services and jobs.
+ * Services are deployed as direct subfolders within the appLoc.
+ * Jobs are deployed within a jobs folder within the appLoc.
+ * @param {Server type as a string, either VIYA or SAS9} serverType
+ */
 async function getFolderContent(serverType) {
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
+
   let folderContent = ''
   let folderContentJSON = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
@@ -345,9 +353,16 @@ async function getFolderContent(serverType) {
       subFolder,
       serverType
     )
+
     folderContent += `\n${content}`
-    folderContentJSON.members.push(contentJSON)
+
+    if (contentJSON.name === 'services') {
+      folderContentJSON.members.push(...contentJSON.members)
+    } else {
+      folderContentJSON.members.push(contentJSON)
+    }
   })
+
   return { folderContent, folderContentJSON }
 }
 
