@@ -64,22 +64,31 @@ describe('sasjs cbd', () => {
         await expect(fileExists(servicePath)).resolves.toEqual(true)
         await expect(fileExists(jobPath)).resolves.toEqual(true)
 
+        /**
+         * test to ensure that jobs does not have a pre code
+         */
         const jobContent = await readFile(jobPath)
         expect(jobContent).not.toEqual('')
-        expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true) // does not have a pre code
+        expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true)
         expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
         expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
 
+        /**
+         * test to ensure that services are deployed as direct subfolders, not in a subfolder of a folder called services
+         *  */
         const jsonContent = JSON.parse(await readFile(buildJsonPath))
         expect(
           !!jsonContent.members.find((x) => x.name === 'services')
         ).toEqual(false)
 
+        /**
+         * test to ensure service does have a pre code
+         */
         const serviceContent = await readFile(servicePath)
         expect(serviceContent).not.toEqual('')
         expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(
           false
-        ) // does have a pre code
+        )
         expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
         expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
       },

@@ -340,7 +340,7 @@ function getWebServiceScriptInvocation(serverType) {
  * That JSON file is used to deploy services and jobs.
  * Services are deployed as direct subfolders within the appLoc.
  * Jobs are deployed within a jobs folder within the appLoc.
- * @param {Server type as a string, either VIYA or SAS9} serverType 
+ * @param {Server type as a string, either VIYA or SAS9} serverType
  */
 async function getFolderContent(serverType) {
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
