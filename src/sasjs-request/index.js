@@ -29,7 +29,7 @@ export async function runSasJob(
       throw new Error('Provided data file must be valid json.')
     }
 
-    const dataFile = await readFile(path.join(process.cwd(), dataFilePath))
+    const dataFile = await readFile(path.join(process.projectDir, dataFilePath))
 
     try {
       dataJson = JSON.parse(dataFile)
@@ -43,7 +43,9 @@ export async function runSasJob(
       throw new Error('Provided config file must be valid json.')
     }
 
-    const configFile = await readFile(path.join(process.cwd(), configFilePath))
+    const configFile = await readFile(
+      path.join(process.projectDir, configFilePath)
+    )
 
     try {
       configJson = JSON.parse(configFile)
@@ -62,6 +64,7 @@ export async function runSasJob(
 
   if (!dataJson) dataJson = null
 
+  let result
   await sasjs
     .request(
       sasJobLocation,
@@ -81,10 +84,13 @@ export async function runSasJob(
         } catch (error) {
           displayResult(null, null, 'Request finished.')
 
-          return
+          return error
         }
 
-        let outputPath = path.join(process.cwd(), isLocal ? '/sasjsbuild' : '')
+        let outputPath = path.join(
+          process.projectDir,
+          isLocal ? '/sasjsbuild' : ''
+        )
 
         if (!(await folderExists(outputPath))) {
           await createFolder(outputPath)
@@ -93,7 +99,7 @@ export async function runSasJob(
         outputPath += '/output.json'
 
         await createFile(outputPath, output)
-
+        result = true
         displayResult(
           null,
           null,
@@ -101,6 +107,7 @@ export async function runSasJob(
         )
       },
       (err) => {
+        result = err
         displayResult(
           err,
           'An error occurred while executing the request.',
@@ -108,4 +115,5 @@ export async function runSasJob(
         )
       }
     )
+  return result
 }

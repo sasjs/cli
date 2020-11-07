@@ -1,6 +1,8 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import fs from 'fs'
+import rimraf from 'rimraf'
+import { readFile } from '../../../src/utils/file-utils'
+import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
 import {
   createFolder,
@@ -9,14 +11,9 @@ import {
 } from '../../../src/utils/file-utils'
 
 describe('sasjs request', () => {
-  const testingAppFolder = 'cli-tests-request'
-  const projectDirPath = path.join(process.cwd(), testingAppFolder)
-
-  const dataPath = path.join(projectDirPath, 'data.json')
-  const configPath = path.join(projectDirPath, 'sasjsconfig-temp.json')
-
-  const dataPathRel = `${testingAppFolder}/data.json`
-  const configPathRel = `${testingAppFolder}/sasjsconfig-temp.json`
+  let config
+  const dataPathRel = 'data.json'
+  const configPathRel = 'sasjsconfig-temp.json'
 
   const sampleDataJson = {
     table1: [
@@ -25,6 +22,30 @@ describe('sasjs request', () => {
     ],
     table2: [{ col1: 'first col value' }]
   }
+  const expectedDataArr = {
+    table1: [
+      ['first col value1', 'second col value1'],
+      ['first col value2', 'second col value2']
+    ],
+    table2: [['first col value']]
+  }
+  const expectedDataObj = {
+    table1: [
+      {
+        COL1: 'first col value1',
+        COL2: 'second col value1'
+      },
+      {
+        COL1: 'first col value2',
+        COL2: 'second col value2'
+      }
+    ],
+    table2: [
+      {
+        COL1: 'first col value'
+      }
+    ]
+  }
 
   const targetName = 'cli-tests-request'
 
@@ -32,7 +53,7 @@ describe('sasjs request', () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
 
-    const config = {
+    config = {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
@@ -57,15 +78,27 @@ describe('sasjs request', () => {
     await addToGlobalConfigs(config)
 
     const command = `cbd ${targetName} -f`.split(' ')
-    await compileBuildDeployServices(command)
+    await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
 
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
+  }, 60 * 1000)
 
-    await deleteFolder(projectDirPath)
-    await createFolder(projectDirPath)
-    await createFile(configPath, JSON.stringify(config, null, 2))
-    await createFile(dataPath, JSON.stringify(sampleDataJson, null, 2))
+  beforeEach(async () => {
+    const timestamp = generateTimestamp()
+    const parentFolderNameTimeStamped = `cli-tests-request-${timestamp}`
+
+    process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+
+    await createFolder(process.projectDir)
+    await createFile(
+      path.join(process.projectDir, configPathRel),
+      JSON.stringify(config, null, 2)
+    )
+    await createFile(
+      path.join(process.projectDir, dataPathRel),
+      JSON.stringify(sampleDataJson, null, 2)
+    )
   }, 60 * 1000)
 
   describe(`with default config`, () => {
@@ -81,12 +114,11 @@ describe('sasjs request', () => {
               targetName
             )
           ).resolves.toEqual(true)
-
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataArr[tableName])
           }
         },
         60 * 1000
@@ -103,12 +135,11 @@ describe('sasjs request', () => {
               targetName
             )
           ).resolves.toEqual(true)
-
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataObj[tableName])
           }
         },
         60 * 1000
@@ -123,11 +154,11 @@ describe('sasjs request', () => {
             runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataArr[tableName])
           }
         },
         60 * 1000
@@ -140,11 +171,11 @@ describe('sasjs request', () => {
             runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataObj[tableName])
           }
         },
         60 * 1000
@@ -166,11 +197,11 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataArr[tableName])
           }
         },
         60 * 1000
@@ -188,11 +219,11 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataObj[tableName])
           }
         },
         60 * 1000
@@ -212,11 +243,11 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataArr[tableName])
           }
         },
         60 * 1000
@@ -234,26 +265,19 @@ describe('sasjs request', () => {
             )
           ).resolves.toEqual(true)
 
-          const rawData = fs.readFileSync('output.json')
+          const rawData = await readFile(`${process.projectDir}/output.json`)
           const output = JSON.parse(rawData)
 
           for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expect.anything())
+            expect(output[tableName]).toEqual(expectedDataObj[tableName])
           }
         },
         60 * 1000
       )
     })
   })
-
-  afterEach(async () => {
-    const outputFilePath = path.join(process.projectDir, 'output.json')
-
-    await deleteFolder(outputFilePath)
-  }, 60 * 1000)
-
   afterAll(async () => {
-    await deleteFolder(projectDirPath)
+    rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })

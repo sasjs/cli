@@ -13,7 +13,9 @@ import {
   createFolder,
   deleteFolder,
   fileExists,
-  copy
+  folderExists,
+  copy,
+  getList
 } from '../utils/file-utils'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
@@ -28,6 +30,7 @@ import {
 let buildSourceFolder = ''
 let buildDestinationFolder = ''
 let buildDestinationServ = ''
+let buildDestinationJobs = ''
 let targetToBuild = null
 
 export async function build(
@@ -38,9 +41,12 @@ export async function build(
   isForced = false
 ) {
   const CONSTANTS = require('../constants')
+
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildDestinationServ = CONSTANTS.buildDestinationServ
+  buildDestinationJobs = CONSTANTS.buildDestinationJobs
+
   const { target } = await findTargetInConfiguration(targetName)
   targetToBuild = target
 
@@ -49,18 +55,34 @@ export async function build(
     await createFinalSasFiles()
     return await deploy(targetName, targetToBuild, isForced)
   }
+
   if (compileBuildOnly) {
     await compile(targetName)
     return await createFinalSasFiles()
   }
   if (compileOnly) return await compile(targetName)
 
-  const servicesToCompile = await getAllServices(
+  const servicePathsToCompile = await getAllServicePaths(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
-  const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
-  const result = await validCompiled(serviceNamesToCompileUniq)
+
+  const jobPathsToCompile = await getAllJobPaths(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
+  const serviceFoldersToCompile = servicePathsToCompile.map((s) =>
+    s.split('/').pop()
+  )
+  const serviceFoldersToCompileUniq = [...new Set(serviceFoldersToCompile)]
+
+  const jobFoldersToCompile = jobPathsToCompile.map((s) => s.split('/').pop())
+  const jobFoldersToCompileUniq = [...new Set(jobFoldersToCompile)]
+
+  const result = await validCompiled(
+    serviceFoldersToCompileUniq,
+    jobFoldersToCompileUniq
+  )
+
   if (result.compiled) {
     // no need to compile again
     console.log(chalk.greenBright(result.message))
@@ -69,22 +91,79 @@ export async function build(
     console.log(chalk.redBright(result.message))
     await compile()
   }
+
   await createFinalSasFiles()
 }
 
 async function compile(targetName) {
   await copyFilesToBuildFolder()
-  const servicesToCompile = await getAllServices(
+
+  const servicePathsToCompile = await getAllServicePaths(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  const serviceNamesToCompile = servicesToCompile.map((s) => s.split('/').pop())
-  const serviceNamesToCompileUniq = [...new Set(serviceNamesToCompile)]
+
+  const serviceFoldersToCompile = servicePathsToCompile.map((s) =>
+    s.split('/').pop()
+  )
+  const serviceFoldersToCompileUniq = [...new Set(serviceFoldersToCompile)]
+
+  const jobPathsToCompile = await getAllJobPaths(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
+  const jobFoldersToCompile = jobPathsToCompile.map((s) => s.split('/').pop())
+  const jobFoldersToCompileUniq = [...new Set(jobFoldersToCompile)]
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
+  let { target } = await findTargetInConfiguration(targetName)
 
-  await asyncForEach(serviceNamesToCompileUniq, async (buildFolder) => {
-    const folderPath = path.join(buildDestinationServ, buildFolder)
+  const errors = []
+
+  await asyncForEach(serviceFoldersToCompileUniq, async (serviceFolder) => {
+    const folderPath = path.join(buildDestinationServ, serviceFolder)
+    const subFolders = await getSubFoldersInFolder(folderPath)
+    const filesNamesInPath = await getFilesInFolder(folderPath)
+
+    await asyncForEach(filesNamesInPath, async (fileName) => {
+      const filePath = path.join(folderPath, fileName)
+
+      let dependencies = await loadDependencies(
+        filePath,
+        tgtMacros,
+        programFolders
+      )
+
+      const preCode = await getPreCodeForServicePack(target.serverType)
+
+      dependencies = `${preCode}\n${dependencies}`
+
+      if (dependencies) await createFile(filePath, dependencies)
+    })
+
+    await asyncForEach(subFolders, async (subFolder) => {
+      const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+
+      await asyncForEach(fileNames, async (fileName) => {
+        const filePath = path.join(folderPath, subFolder, fileName)
+
+        const dependencies = await loadDependencies(
+          filePath,
+          tgtMacros,
+          programFolders
+        ).catch((err) => {
+          errors.push(err)
+        })
+
+        if (dependencies) await createFile(filePath, dependencies)
+      })
+    })
+
+    if (errors.length) throw errors
+  })
+
+  await asyncForEach(jobFoldersToCompileUniq, async (jobFolder) => {
+    const folderPath = path.join(buildDestinationJobs, jobFolder)
     const subFolders = await getSubFoldersInFolder(folderPath)
     const filesNamesInPath = await getFilesInFolder(folderPath)
     await asyncForEach(filesNamesInPath, async (fileName) => {
@@ -92,7 +171,8 @@ async function compile(targetName) {
       const dependencies = await loadDependencies(
         filePath,
         tgtMacros,
-        programFolders
+        programFolders,
+        'job'
       )
       await createFile(filePath, dependencies)
     })
@@ -103,7 +183,8 @@ async function compile(targetName) {
         const dependencies = await loadDependencies(
           filePath,
           tgtMacros,
-          programFolders
+          programFolders,
+          'job'
         )
         await createFile(filePath, dependencies)
       })
@@ -160,7 +241,14 @@ async function createFinalSasFile(
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, fileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${tgtName}.json`)
-  const buildConfig = await getBuildConfig(appLoc, serverType, tgtMacros)
+  const buildConfig = await getBuildConfig(
+    appLoc,
+    serverType,
+    tgtMacros
+  ).catch((_) => {})
+
+  if (!buildConfig) return
+
   finalSasFileContent += `\n${buildConfig}`
 
   const { content: buildInit, path: buildInitPath } = await getBuildInit()
@@ -247,8 +335,16 @@ function getWebServiceScriptInvocation(serverType) {
   }
 }
 
+/**
+ * Folders inside of `SASJS` folder are converted to JSON structure.
+ * That JSON file is used to deploy services and jobs.
+ * Services are deployed as direct subfolders within the appLoc.
+ * Jobs are deployed within a jobs folder within the appLoc.
+ * @param {Server type as a string, either VIYA or SAS9} serverType
+ */
 async function getFolderContent(serverType) {
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
+
   let folderContent = ''
   let folderContentJSON = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
@@ -257,9 +353,16 @@ async function getFolderContent(serverType) {
       subFolder,
       serverType
     )
+
     folderContent += `\n${content}`
-    folderContentJSON.members.push(contentJSON)
+
+    if (contentJSON.name === 'services') {
+      folderContentJSON.members.push(...contentJSON.members)
+    } else {
+      folderContentJSON.members.push(contentJSON)
+    }
   })
+
   return { folderContent, folderContentJSON }
 }
 
@@ -308,7 +411,6 @@ async function getContentFor(folderPath, folderName, serverType) {
     members: []
   }
   const files = await getFilesInFolder(folderPath)
-  const preCode = await getPreCodeForServicePack(serverType)
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
     const transformedContent = getServiceText(file, fileContent, serverType)
@@ -316,7 +418,7 @@ async function getContentFor(folderPath, folderName, serverType) {
     contentJSON.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
-      code: removeComments(`${preCode}\n${fileContent}`)
+      code: removeComments(fileContent)
     })
   })
   const subFolders = await getSubFoldersInFolder(folderPath)
@@ -367,13 +469,25 @@ function getLines(text) {
 async function copyFilesToBuildFolder() {
   await recreateBuildFolder()
   console.log(chalk.greenBright('Copying files to build folder...'))
-  const servicesToCompile = await getAllServices(
+  const servicePathsToCompile = await getAllServicePaths(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
-  await asyncForEach(servicesToCompile, async (buildFolder) => {
+
+  const jobsToCompile = await getAllJobPaths(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
+  await asyncForEach(servicePathsToCompile, async (buildFolder) => {
     const sourcePath = path.join(buildSourceFolder, buildFolder)
     const buildFolderName = buildFolder.split('/').pop()
     const destinationPath = path.join(buildDestinationServ, buildFolderName)
+    await copy(sourcePath, destinationPath)
+  })
+
+  await asyncForEach(jobsToCompile, async (buildFolder) => {
+    const sourcePath = path.join(buildSourceFolder, buildFolder)
+    const buildFolderName = buildFolder.split('/').pop()
+    const destinationPath = path.join(buildDestinationJobs, buildFolderName)
     await copy(sourcePath, destinationPath)
   })
 }
@@ -394,16 +508,42 @@ async function recreateBuildFolder() {
   await createFolder(path.join(buildDestinationServ))
 }
 
-export async function loadDependencies(filePath, tgtMacros, programFolders) {
+export async function loadDependencies(
+  filePath,
+  tgtMacros,
+  programFolders,
+  type = 'service'
+) {
   console.log(
     chalk.greenBright('Loading dependencies for', chalk.cyanBright(filePath))
   )
   let fileContent = await readFile(filePath)
-  const serviceVars = await getServiceVars()
-  const serviceInit = await getServiceInit()
-  const serviceTerm = await getServiceTerm()
+  let init
+  let term
+  let serviceVars = ''
+
+  if (type === 'service') {
+    serviceVars = await getServiceVars()
+
+    init = await getServiceInit()
+
+    term = await getServiceTerm()
+
+    fileContent = fileContent
+      ? `\n* Service start;\n${fileContent}\n* Service end;`
+      : ''
+  } else {
+    init = await getJobInit()
+
+    term = await getJobTerm()
+
+    fileContent = fileContent
+      ? `\n* Job start;\n${fileContent}\n* Job end;`
+      : ''
+  }
+
   const dependencyFilePaths = await getDependencyPaths(
-    `${fileContent}\n${serviceInit}\n${serviceTerm}`,
+    `${fileContent}\n${init}\n${term}`,
     tgtMacros
   )
   const programDependencies = await getProgramDependencies(
@@ -413,7 +553,12 @@ export async function loadDependencies(filePath, tgtMacros, programFolders) {
   )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
-  fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;\n* ServiceInit start;\n${serviceInit}\n* ServiceInit end;\n* Service start;\n${fileContent}\n* Service end;\n* ServiceTerm start;\n${serviceTerm}\n* ServiceTerm end;`
+
+  fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
+
+  if (type === 'service') {
+    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
+  }
 
   return fileContent
 }
@@ -423,11 +568,25 @@ async function getBuildInit() {
 }
 
 async function getServiceInit() {
-  return (await getTargetSpecificFile('ServiceInit', targetToBuild)).content
+  const init = (await getTargetSpecificFile('ServiceInit', targetToBuild))
+    .content
+  return init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
+}
+
+async function getJobInit() {
+  const init = (await getTargetSpecificFile('jobInit', targetToBuild)).content
+  return init ? `\n* JobInit start;\n${init}\n* JobInit end;` : ''
 }
 
 async function getServiceTerm() {
-  return (await getTargetSpecificFile('ServiceTerm', targetToBuild)).content
+  const term = (await getTargetSpecificFile('ServiceTerm', targetToBuild))
+    .content
+  return term ? `\n* ServiceTerm start;\n${term}\n* ServiceTerm end;` : ''
+}
+
+async function getJobTerm() {
+  const term = (await getTargetSpecificFile('jobTerm', targetToBuild)).content
+  return term ? `\n* JobTerm start;\n${term}\n* JobTerm end;` : ''
 }
 
 async function getBuildTerm() {
@@ -476,62 +635,29 @@ async function getDependencies(filePaths) {
 }
 
 export function getProgramList(fileContent) {
-  let fileHeader
-  try {
-    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
-    if (!hasFileHeader) return []
-    fileHeader = fileContent.split('/**')[1].split('**/')[0]
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your file header is in the correct format.'
+  let programList = getList('<h4> SAS Programs </h4>', fileContent)
+  programList = programList.map((l) => {
+    const [fileName, fileRef] = l.split(' ')
+
+    if (!fileName) {
+      throw new Error(
+        `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
+    }
 
-  let programsSection
-
-  try {
-    programsSection = fileHeader.split(/\<h4\> SAS Programs \<\/h4\>/i)[1]
-
-    if (!programsSection) return []
-  } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your SAS program dependencies are specified in the correct format.'
+    if (fileName && !fileRef) {
+      throw new Error(
+        `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
       )
-    )
-  }
+    }
 
-  const programsList = programsSection
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .filter((l) => !!l)
-    .map((l) => l.trim())
-    .filter((l) => l.startsWith('@li'))
-    .map((l) => l.replace(/\@li/g, '').trim())
-    .map((l) => {
-      const [fileName, fileRef] = l.split(' ')
+    validateFileRef(fileRef)
+    return { fileName, fileRef }
+  })
 
-      if (!fileName) {
-        throw new Error(
-          `SAS Program ${fileName} is missing file name. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
+  validateProgramsList(programList)
 
-      if (fileName && !fileRef) {
-        throw new Error(
-          `SAS Program ${fileName} is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
-        )
-      }
-
-      validateFileRef(fileRef)
-      return { fileName, fileRef }
-    })
-
-  validateProgramsList(programsList)
-
-  return uniqBy(programsList, 'fileName')
+  return uniqBy(programList, 'fileName')
 }
 
 export function validateProgramsList(programsList) {
@@ -674,24 +800,16 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       sourcePaths.push(tgtMacroPath)
     })
   }
-  const dependenciesStart = fileContent.split('<h4> Dependencies </h4>')
-  let dependencies = []
-  if (dependenciesStart.length > 1) {
-    let count = 1
-    while (count < dependenciesStart.length) {
-      let dependency = dependenciesStart[count]
-        .split('**/')[0]
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .filter((d) => !!d)
-        .map((d) => d.replace(/\@li/g, '').replace(/ /g, ''))
-        .filter((d) => d.endsWith('.sas'))
-      dependencies = [...dependencies, ...dependency]
-      count++
-    }
-    let dependencyPaths = []
-    const foundDependencies = []
-    await asyncForEach(sourcePaths, async (sourcePath) => {
+  const dependencies = getList(
+    '<h4> Dependencies </h4>',
+    fileContent
+  ).filter((d) => d.endsWith('.sas'))
+
+  let dependencyPaths = []
+  const foundDependencies = []
+
+  await asyncForEach(sourcePaths, async (sourcePath) => {
+    if (await folderExists(sourcePath)) {
       await asyncForEach(dependencies, async (dep) => {
         const filePaths = find.fileSync(dep, sourcePath)
         if (filePaths.length) {
@@ -703,27 +821,32 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
         }
         dependencyPaths.push(...filePaths)
       })
-    })
+    } else {
+      const errorMessage = `Source path ${sourcePath} does not exist.`
 
-    const unfoundDependencies = diff(dependencies, foundDependencies)
-    if (unfoundDependencies.length) {
-      throw new Error(
-        `${'Unable to locate dependencies:'} ${chalk.cyanBright(
-          unfoundDependencies.join(', ')
-        )}`
-      )
+      console.log(chalk.redBright(errorMessage))
+
+      const unFoundDependencies = diff(dependencies, foundDependencies)
+
+      if (unFoundDependencies.length) {
+        console.log(
+          `${chalk.redBright(
+            'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+          )}`
+        )
+      }
+
+      throw errorMessage
     }
+  })
 
-    dependencyPaths = prioritiseDependencyOverrides(
-      dependencies,
-      dependencyPaths,
-      tgtMacros
-    )
+  dependencyPaths = prioritiseDependencyOverrides(
+    dependencies,
+    dependencyPaths,
+    tgtMacros
+  )
 
-    return [...new Set(dependencyPaths)]
-  } else {
-    return []
-  }
+  return [...new Set(dependencyPaths)]
 }
 
 export function prioritiseDependencyOverrides(
@@ -768,7 +891,25 @@ export function prioritiseDependencyOverrides(
   return dependencyPaths
 }
 
-async function getAllServices(pathToFile) {
+async function getCommonServices(pathToFile) {
+  const configuration = await getConfiguration(pathToFile)
+  return Promise.resolve(configuration.cmnServices)
+}
+
+async function getAllJobPaths(pathToFile) {
+  const configuration = await getConfiguration(pathToFile)
+  let allJobs = []
+
+  if (configuration && configuration.jobs)
+    allJobs = [...allJobs, ...configuration.jobs]
+
+  if (targetToBuild && targetToBuild.jobs)
+    allJobs = [...allJobs, ...targetToBuild.jobs]
+
+  return Promise.resolve(allJobs)
+}
+
+async function getAllServicePaths(pathToFile) {
   const configuration = await getConfiguration(pathToFile)
   let allServices = []
 
@@ -781,7 +922,7 @@ async function getAllServices(pathToFile) {
   return Promise.resolve(allServices)
 }
 
-async function validCompiled(buildFolders) {
+async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
   const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists)
     return {
@@ -790,13 +931,21 @@ async function validCompiled(buildFolders) {
     }
 
   const subFolders = await getSubFoldersInFolder(buildDestinationServ)
-  const present = buildFolders.every((folder) => subFolders.includes(folder))
-  if (present) {
+
+  const servicesPresent = servicesBuildFolders.every((folder) =>
+    subFolders.includes(folder)
+  )
+  const jobsPresent = jobsBuildFolders.every((folder) =>
+    subFolders.includes(folder)
+  )
+
+  if (servicesPresent && jobsPresent) {
     let returnObj = {
       compiled: true,
-      message: `All services are already present.`
+      message: `All services and jobs are already present.`
     }
-    await asyncForEach(buildFolders, async (buildFolder) => {
+
+    await asyncForEach(servicesBuildFolders, async (buildFolder) => {
       if (returnObj.compiled) {
         const folderPath = path.join(buildDestinationServ, buildFolder)
         const subFolders = await getSubFoldersInFolder(folderPath)
@@ -809,7 +958,23 @@ async function validCompiled(buildFolders) {
         }
       }
     })
+
+    if (returnObj.compiled) {
+      await asyncForEach(jobsBuildFolders, async (buildFolder) => {
+        const folderPath = path.join(buildDestinationServ, buildFolder)
+        const subFolders = await getSubFoldersInFolder(folderPath)
+        const filesNamesInPath = await getFilesInFolder(folderPath)
+        if (subFolders.length == 0 && filesNamesInPath.length == 0) {
+          returnObj = {
+            compiled: false,
+            message: `Jobs folder ${buildFolder} is empty.`
+          }
+        }
+      })
+    }
+
     return returnObj
   }
-  return { compiled: false, message: 'All services are not present.' }
+
+  return { compiled: false, message: 'All services and jobs are not present.' }
 }

@@ -61,11 +61,15 @@ describe('getDependencyPaths', () => {
   })
 
   test('it should throw an error when a dependency is not found', async (done) => {
-    const fileContent = await readFile(
-      path.join(__dirname, './missing-dependency.sas')
-    )
+    const missingDependency = './missing-dependency.sas'
 
-    await expect(getDependencyPaths(fileContent)).rejects.toThrow()
+    const fileContent = await readFile(path.join(__dirname, missingDependency))
+
+    const dependencyPaths = await getDependencyPaths(fileContent)
+
+    expect(
+      dependencyPaths.find((dep) => dep.includes(missingDependency))
+    ).toEqual(undefined)
 
     done()
   })
