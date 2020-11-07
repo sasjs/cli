@@ -65,7 +65,7 @@ describe('sasjs cbd', () => {
         await expect(fileExists(jobPath)).resolves.toEqual(true)
 
         /**
-         * test to ensure that jobs does not have a pre code
+         * test to ensure that jobs do not have web service pre code
          */
         const jobContent = await readFile(jobPath)
         expect(jobContent).not.toEqual('')
@@ -82,7 +82,7 @@ describe('sasjs cbd', () => {
         ).toEqual(false)
 
         /**
-         * test to ensure service does have a pre code
+         * test to ensure that web services do have pre code
          */
         const serviceContent = await readFile(servicePath)
         expect(serviceContent).not.toEqual('')
