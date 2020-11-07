@@ -355,7 +355,7 @@ async function getFolderContent(serverType) {
       folderContentJSON.members.push(contentJSON)
     }
   })
-  cd
+
   return { folderContent, folderContentJSON }
 }
 

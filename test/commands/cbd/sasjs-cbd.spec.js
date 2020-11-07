@@ -55,6 +55,11 @@ describe('sasjs cbd', () => {
           'sasjsbuild/jobs/testJob/job.sas'
         )
 
+        const buildJsonPath = path.join(
+          process.cwd(),
+          `sasjsbuild/${targetName}.json`
+        )
+
         await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
         await expect(fileExists(servicePath)).resolves.toEqual(true)
         await expect(fileExists(jobPath)).resolves.toEqual(true)
@@ -64,6 +69,11 @@ describe('sasjs cbd', () => {
         expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true) // does not have a pre code
         expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
         expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
+
+        const jsonContent = JSON.parse(await readFile(buildJsonPath))
+        expect(
+          !!jsonContent.members.find((x) => x.name === 'services')
+        ).toEqual(false)
 
         const serviceContent = await readFile(servicePath)
         expect(serviceContent).not.toEqual('')
