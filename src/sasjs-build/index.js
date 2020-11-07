@@ -337,6 +337,7 @@ function getWebServiceScriptInvocation(serverType) {
 
 async function getFolderContent(serverType) {
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
+
   let folderContent = ''
   let folderContentJSON = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
@@ -345,9 +346,16 @@ async function getFolderContent(serverType) {
       subFolder,
       serverType
     )
+
     folderContent += `\n${content}`
-    folderContentJSON.members.push(contentJSON)
+
+    if (contentJSON.name === 'services') {
+      folderContentJSON.members.push(...contentJSON.members)
+    } else {
+      folderContentJSON.members.push(contentJSON)
+    }
   })
+  cd
   return { folderContent, folderContentJSON }
 }
 
