@@ -16,6 +16,7 @@ import {
 } from './commands'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
+import { Command } from './utils/command'
 
 export async function createFileStructure(parentFolderName, appType) {
   let result
@@ -270,10 +271,11 @@ export async function buildWebApp(commandLine) {
     })
 }
 
-export async function add(resourceType = 'target') {
+export async function add(commandLine) {
+  const command = new Command(commandLine)
   let result = false
 
-  if (resourceType === 'target') {
+  if (command && command.name === 'add') {
     await addTarget()
       .then(() => {
         console.log(chalk.greenBright('Target successfully added!'))

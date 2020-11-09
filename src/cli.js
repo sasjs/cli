@@ -211,7 +211,7 @@ export async function cli(args) {
       break
     }
     case 'add': {
-      await add(command.parameters[1])
+      await add(command.parameters)
       break
     }
     case 'run': {

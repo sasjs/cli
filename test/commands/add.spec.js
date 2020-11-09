@@ -48,7 +48,7 @@ describe('sasjs add', () => {
           stdin.send([`1\r`])
         }, 1000)
 
-        await expect(add()).resolves.toEqual(true)
+        await expect(add('add')).resolves.toEqual(true)
 
         const buildSourceFolder = require('../../src/constants')
           .buildSourceFolder
@@ -102,7 +102,7 @@ describe('sasjs add', () => {
           stdin.send([`1\r`])
         }, 1000)
 
-        await expect(add()).resolves.toEqual(true)
+        await expect(add('add')).resolves.toEqual(true)
 
         const config = await getGlobalRcFile()
 
