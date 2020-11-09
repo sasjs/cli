@@ -207,7 +207,7 @@ export async function cli(args) {
       break
     }
     case 'web': {
-      await buildWebApp(command.parameters[1])
+      await buildWebApp(command.parameters)
       break
     }
     case 'add': {

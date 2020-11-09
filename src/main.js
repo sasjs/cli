@@ -249,8 +249,8 @@ export async function buildDBs() {
   return result
 }
 
-export async function buildWebApp(targetName) {
-  await createWebAppServices(targetName)
+export async function buildWebApp(commandLine) {
+  await createWebAppServices(commandLine)
     .then(() =>
       console.log(
         chalk.greenBright.bold.italic(

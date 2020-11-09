@@ -16,6 +16,7 @@ import jsdom from 'jsdom'
 import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
+import { Command } from '../../utils/command'
 
 let buildDestinationFolder = ''
 const permittedServerTypes = {
@@ -24,14 +25,23 @@ const permittedServerTypes = {
 }
 
 export async function createWebAppServices(
-  targetName = null,
+  commandLine = null,
   preTargetToBuild = null
 ) {
-  const CONSTANTS = require('../constants')
+  const command = new Command(commandLine)
+
+  let targetName = command.getFlagValue('target')
+  targetName = targetName ? targetName : null
+
+  const CONSTANTS = require('../../constants')
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
+
   console.log(chalk.greenBright('Building web app services...'))
+
   await createBuildDestinationFolder()
+
   let targetToBuild = null
+
   if (preTargetToBuild) targetToBuild = preTargetToBuild
   else {
     const { target } = await findTargetInConfiguration(targetName)
