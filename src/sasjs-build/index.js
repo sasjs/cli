@@ -542,17 +542,24 @@ export async function loadDependencies(
       : ''
   }
 
-  const dependencyFilePaths = await getDependencyPaths(
+  const fileDependencyPaths = await getDependencyPaths(
     `${fileContent}\n${init}\n${term}`,
     tgtMacros
   )
+  const initDependencyPaths = await getDependencyPaths(init, tgtMacros)
+  const termDependencyPaths = await getDependencyPaths(term, tgtMacros)
+  const allDependencyPaths = [
+    ...initDependencyPaths,
+    ...fileDependencyPaths,
+    ...termDependencyPaths
+  ]
   const programDependencies = await getProgramDependencies(
     fileContent,
     programFolders,
     buildSourceFolder
   )
 
-  const dependenciesContent = await getDependencies(dependencyFilePaths)
+  const dependenciesContent = await getDependencies(allDependencyPaths)
 
   fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
 
@@ -567,7 +574,7 @@ async function getBuildInit() {
   return await getTargetSpecificFile('BuildInit', targetToBuild)
 }
 
-async function getServiceInit() {
+export async function getServiceInit() {
   const init = (await getTargetSpecificFile('ServiceInit', targetToBuild))
     .content
   return init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
