@@ -141,9 +141,11 @@ export class Command {
     this.aliases = initialAliases.find((alias) => alias.name === this.name)
     this.aliases = this.aliases ? this.aliases.aliases : null
 
-    this.supportedFlags = commandFlags.filter(
-      (commandFlag) => commandFlag.command === this.name
-    )[0].flags
+    const supportedFlags = commandFlags.filter(
+      (flag) => flag.command === this.name
+    )[0]
+
+    if (supportedFlags) this.supportedFlags = supportedFlags.flags
 
     for (let i = 0; i < commandLine.length; i++) {
       if (/^-/.test(commandLine[i]) && this.supportedFlags) {
