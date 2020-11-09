@@ -1,3 +1,5 @@
+import * as thisModule from './index'
+
 import find from 'find'
 import path from 'path'
 import chalk from 'chalk'
@@ -525,17 +527,17 @@ export async function loadDependencies(
   if (type === 'service') {
     serviceVars = await getServiceVars()
 
-    init = await getServiceInit()
+    init = await thisModule.getServiceInit()
 
-    term = await getServiceTerm()
+    term = await thisModule.getServiceTerm()
 
     fileContent = fileContent
       ? `\n* Service start;\n${fileContent}\n* Service end;`
       : ''
   } else {
-    init = await getJobInit()
+    init = await thisModule.getJobInit()
 
-    term = await getJobTerm()
+    term = await thisModule.getJobTerm()
 
     fileContent = fileContent
       ? `\n* Job start;\n${fileContent}\n* Job end;`
@@ -580,18 +582,18 @@ export async function getServiceInit() {
   return init ? `\n* ServiceInit start;\n${init}\n* ServiceInit end;` : ''
 }
 
-async function getJobInit() {
+export async function getJobInit() {
   const init = (await getTargetSpecificFile('jobInit', targetToBuild)).content
   return init ? `\n* JobInit start;\n${init}\n* JobInit end;` : ''
 }
 
-async function getServiceTerm() {
+export async function getServiceTerm() {
   const term = (await getTargetSpecificFile('ServiceTerm', targetToBuild))
     .content
   return term ? `\n* ServiceTerm start;\n${term}\n* ServiceTerm end;` : ''
 }
 
-async function getJobTerm() {
+export async function getJobTerm() {
   const term = (await getTargetSpecificFile('jobTerm', targetToBuild)).content
   return term ? `\n* JobTerm start;\n${term}\n* JobTerm end;` : ''
 }
