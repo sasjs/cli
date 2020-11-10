@@ -14,6 +14,7 @@ describe('sasjs request', () => {
   let config
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
+  const timestamp = generateTimestamp()
 
   const sampleDataJson = {
     table1: [
@@ -53,7 +54,7 @@ describe('sasjs request', () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
 
-    config = createConfig(targetName)
+    config = createConfig(targetName, timestamp)
 
     await addToGlobalConfigs(config)
 
@@ -88,7 +89,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendArr',
+              `/Public/app/cli-tests=${timestamp}/runRequest/sendArr`,
               dataPathRel,
               'default',
               targetName
@@ -109,7 +110,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendObj',
+              `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
               dataPathRel,
               'default',
               targetName
@@ -170,7 +171,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendArr',
+              `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
               dataPathRel,
               configPathRel,
               targetName
@@ -192,7 +193,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendObj',
+              `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
               dataPathRel,
               configPathRel,
               targetName
@@ -262,11 +263,11 @@ describe('sasjs request', () => {
   }, 60 * 1000)
 })
 
-const createConfig = (targetName) => ({
+const createConfig = (targetName, timestamp) => ({
   name: targetName,
   serverType: process.env.SERVER_TYPE,
   serverUrl: process.env.SERVER_URL,
-  appLoc: '/Public/app/cli-tests',
+  appLoc: `/Public/app/cli-tests-${timestamp}`,
   useComputeApi: true,
   contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],
