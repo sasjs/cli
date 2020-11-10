@@ -268,7 +268,7 @@ const createConfig = (targetName) => ({
   serverUrl: process.env.SERVER_URL,
   appLoc: '/Public/app/cli-tests',
   useComputeApi: true,
-  contextName: 'SAS Studio compute context', // FIXME: should not be hardcoded
+  contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],
   authInfo: {
     client: process.env.CLIENT,
