@@ -89,7 +89,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `/Public/app/cli-tests=${timestamp}/runRequest/sendArr`,
+              `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
               dataPathRel,
               'default',
               targetName
