@@ -1,13 +1,13 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import rimraf from 'rimraf'
-import { readFile } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
 import {
   createFolder,
   deleteFolder,
-  createFile
+  createFile,
+  readFile
 } from '../../../src/utils/file-utils'
 
 describe('sasjs request', () => {
@@ -53,27 +53,8 @@ describe('sasjs request', () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
 
-    config = {
-      name: targetName,
-      serverType: process.env.SERVER_TYPE,
-      serverUrl: process.env.SERVER_URL,
-      appLoc: '/Public/app/cli-tests',
-      useComputeApi: true,
-      contextName: 'SAS Studio compute context', // FIXME: should not be hardcoded
-      tgtServices: ['../test/commands/request/runRequest'],
-      authInfo: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET,
-        access_token: process.env.ACCESS_TOKEN,
-        refresh_token: process.env.REFRESH_TOKEN
-      },
-      tgtDeployVars: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET
-      },
-      deployServicePack: true,
-      tgtDeployScripts: []
-    }
+    await createFiles()
+    config = createConfig()
 
     await addToGlobalConfigs(config)
 
@@ -276,8 +257,66 @@ describe('sasjs request', () => {
       )
     })
   })
+
   afterAll(async () => {
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })
+
+const createConfig = () => ({
+  name: targetName,
+  serverType: process.env.SERVER_TYPE,
+  serverUrl: process.env.SERVER_URL,
+  appLoc: '/Public/app/cli-tests',
+  useComputeApi: true,
+  contextName: 'SAS Studio compute context', // FIXME: should not be hardcoded
+  tgtServices: ['../test/commands/request/runRequest'],
+  authInfo: {
+    client: process.env.CLIENT,
+    secret: process.env.SECRET,
+    access_token: process.env.ACCESS_TOKEN,
+    refresh_token: process.env.REFRESH_TOKEN
+  },
+  tgtDeployVars: {
+    client: process.env.CLIENT,
+    secret: process.env.SECRET
+  },
+  deployServicePack: true,
+  tgtDeployScripts: []
+})
+
+const createFiles = async () => {
+  const now = new Date()
+  const timestamp = `${now.getFullYear()}${now.getMonth() + 1}${now.getDate()}${
+    now.getHours() + 1
+  }${now.getMinutes()}${now.getSeconds()}`
+
+  const sendArrFileName = `sendArr-${timestamp}.sas`
+  await createFile(sendArrFileName, sendArr)
+
+  const sendObjFileName = `sendObj-${timestamp}.sas`
+  await createFile(sendObjFileName, sendObj)
+}
+
+const sendArr = `%webout(FETCH)
+%webout(OPEN)
+%macro x();
+%do i=1 %to %sysfunc(countw(&sasjs_tables));
+  %let table=%scan(&sasjs_tables,&i);
+  %webout(ARR,&table)
+%end;
+%mend;
+%x()
+%webout(CLOSE)`
+
+const sendObj = `%webout(FETCH)
+%webout(OPEN)
+%macro x();
+%do i=1 %to %sysfunc(countw(&sasjs_tables));
+  %let table=%scan(&sasjs_tables,&i);
+  %webout(OBJ,&table)
+%end;
+%mend;
+%x()
+%webout(CLOSE)`
