@@ -84,181 +84,202 @@ describe('sasjs request', () => {
     )
   }, 60 * 1000)
 
-  describe(`with default config`, () => {
-    describe(`having absolute path`, () => {
-      it(
-        `should execute service 'sendArr'`,
-        async () => {
-          await expect(
-            runRequest(
-              `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
-              dataPathRel,
-              'default',
-              targetName
-            )
-          ).resolves.toEqual(true)
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  it(
+    `should execute service 'sendArr'`,
+    async () => {
+      await expect(
+        runRequest(
+          `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
+          dataPathRel,
+          'default',
+          targetName
+        )
+      ).resolves.toEqual(true)
+      const rawData = await readFile(`${process.projectDir}/output.json`)
+      const output = JSON.parse(rawData)
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataArr[tableName])
-          }
-        },
-        60 * 1000
-      )
+      for (const tableName in sampleDataJson) {
+        expect(output[tableName]).toEqual(expectedDataArr[tableName])
+      }
+    },
+    60 * 1000
+  )
 
-      it(
-        `should execute service 'sendObj'`,
-        async () => {
-          await expect(
-            runRequest(
-              `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
-              dataPathRel,
-              'default',
-              targetName
-            )
-          ).resolves.toEqual(true)
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  // describe(`with default config`, () => {
+  //   describe(`having absolute path`, () => {
+  //     it(
+  //       `should execute service 'sendArr'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
+  //             dataPathRel,
+  //             'default',
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataObj[tableName])
-          }
-        },
-        60 * 1000
-      )
-    })
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataArr[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
 
-    describe(`having relative path`, () => {
-      it(
-        `should execute service 'sendArr'`,
-        async () => {
-          await expect(
-            runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
-          ).resolves.toEqual(true)
+  //     it(
+  //       `should execute service 'sendObj'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
+  //             dataPathRel,
+  //             'default',
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataObj[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
+  //   })
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataArr[tableName])
-          }
-        },
-        60 * 1000
-      )
+  //   describe(`having relative path`, () => {
+  //     it(
+  //       `should execute service 'sendArr'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
+  //         ).resolves.toEqual(true)
 
-      it(
-        `should execute service sendObj`,
-        async () => {
-          await expect(
-            runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
-          ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataArr[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataObj[tableName])
-          }
-        },
-        60 * 1000
-      )
-    })
-  })
+  //     it(
+  //       `should execute service sendObj`,
+  //       async () => {
+  //         await expect(
+  //           runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
+  //         ).resolves.toEqual(true)
 
-  describe(`with useComputeApi: 'SAS Studio compute context'`, () => {
-    describe(`having absolute path`, () => {
-      it(
-        `should execute service 'sendArr'`,
-        async () => {
-          await expect(
-            runRequest(
-              `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
-              dataPathRel,
-              configPathRel,
-              targetName
-            )
-          ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataObj[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
+  //   })
+  // })
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataArr[tableName])
-          }
-        },
-        60 * 1000
-      )
+  // describe(`with useComputeApi: 'SAS Studio compute context'`, () => {
+  //   describe(`having absolute path`, () => {
+  //     it(
+  //       `should execute service 'sendArr'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
+  //             dataPathRel,
+  //             configPathRel,
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
 
-      it(
-        `should execute service 'sendObj'`,
-        async () => {
-          await expect(
-            runRequest(
-              `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
-              dataPathRel,
-              configPathRel,
-              targetName
-            )
-          ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataArr[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataObj[tableName])
-          }
-        },
-        60 * 1000
-      )
-    })
+  //     it(
+  //       `should execute service 'sendObj'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             `/Public/app/cli-tests-${timestamp}/runRequest/sendObj`,
+  //             dataPathRel,
+  //             configPathRel,
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
 
-    describe(`with relative path`, () => {
-      it(
-        `should execute service 'sendArr'`,
-        async () => {
-          await expect(
-            runRequest(
-              'runRequest/sendArr',
-              dataPathRel,
-              configPathRel,
-              targetName
-            )
-          ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataObj[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
+  //   })
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataArr[tableName])
-          }
-        },
-        60 * 1000
-      )
+  //   describe(`with relative path`, () => {
+  //     it(
+  //       `should execute service 'sendArr'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             'runRequest/sendArr',
+  //             dataPathRel,
+  //             configPathRel,
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
 
-      it(
-        `should execute service 'sendObj'`,
-        async () => {
-          await expect(
-            runRequest(
-              'runRequest/sendObj',
-              dataPathRel,
-              configPathRel,
-              targetName
-            )
-          ).resolves.toEqual(true)
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
 
-          const rawData = await readFile(`${process.projectDir}/output.json`)
-          const output = JSON.parse(rawData)
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataArr[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
 
-          for (const tableName in sampleDataJson) {
-            expect(output[tableName]).toEqual(expectedDataObj[tableName])
-          }
-        },
-        60 * 1000
-      )
-    })
-  })
+  //     it(
+  //       `should execute service 'sendObj'`,
+  //       async () => {
+  //         await expect(
+  //           runRequest(
+  //             'runRequest/sendObj',
+  //             dataPathRel,
+  //             configPathRel,
+  //             targetName
+  //           )
+  //         ).resolves.toEqual(true)
+
+  //         const rawData = await readFile(`${process.projectDir}/output.json`)
+  //         const output = JSON.parse(rawData)
+
+  //         for (const tableName in sampleDataJson) {
+  //           expect(output[tableName]).toEqual(expectedDataObj[tableName])
+  //         }
+  //       },
+  //       60 * 1000
+  //     )
+  //   })
+  // })
   afterAll(async () => {
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
