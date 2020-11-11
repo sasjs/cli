@@ -67,18 +67,6 @@ describe('sasjs request', () => {
     await deleteFolder(sasjsBuildDirPath)
   }, 60 * 1000)
 
-  afterAll(async () => {
-    const adapter = new SASjs({
-      appLoc: config.appLoc,
-      serverType: config.serverType,
-      useComputeApi: config.useComputeApi
-    })
-
-    await expect(
-      remove(adapter.appLoc, adapter, process.env.ACCESS_TOKEN)
-    ).resolves.toEqual(true)
-  })
-
   beforeEach(async () => {
     const timestamp = generateTimestamp()
     const parentFolderNameTimeStamped = `cli-tests-request-${timestamp}`
@@ -274,6 +262,13 @@ describe('sasjs request', () => {
   afterAll(async () => {
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
+    const adapter = new SASjs({
+      appLoc: config.appLoc,
+      serverType: config.serverType,
+      useComputeApi: config.useComputeApi
+    })
+
+    await remove(adapter.appLoc, adapter, process.env.ACCESS_TOKEN)
   }, 60 * 1000)
 })
 
