@@ -3,7 +3,7 @@
   "description": "Command line interface for SASjs",
   "main": "index.js",
   "scripts": {
-    "test": "jest --silent",
+    "test": "jest",
     "semantic-release": "semantic-release",
     "lint:fix": "npx prettier --write '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'",
     "lint": "npx prettier --check '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'"
