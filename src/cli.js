@@ -25,7 +25,8 @@ import { exit } from 'process'
 function parseCommand(rawArgs) {
   checkNodeVersion()
 
-  const args = rawArgs.slice(2)
+  // should update paths converted by POSIX in case of process.env.MSYSTEM is present
+  const args = rawArgs.slice(2).map((arg) => arg.replace(/(.*)\/Git\//i, '/'))
 
   if (args.length) {
     const name = getUnaliasedCommand(args[0])
