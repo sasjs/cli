@@ -9,6 +9,8 @@ import {
   deleteFolder,
   createFile
 } from '../../../src/utils/file-utils'
+import { remove } from '../../../src/sasjs-folder/remove'
+import { SASjs } from '@sasjs/adapter/node'
 
 describe('sasjs request', () => {
   let config
@@ -64,6 +66,18 @@ describe('sasjs request', () => {
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
   }, 60 * 1000)
+
+  afterAll(async () => {
+    const adapter = new SASjs({
+      appLoc: config.appLoc,
+      serverType: config.serverType,
+      useComputeApi: config.useComputeApi
+    })
+
+    await expect(
+      remove(adapter.appLoc, adapter, process.env.ACCESS_TOKEN)
+    ).resolves.toEqual(true)
+  })
 
   beforeEach(async () => {
     const timestamp = generateTimestamp()
