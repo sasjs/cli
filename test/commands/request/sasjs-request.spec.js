@@ -282,6 +282,7 @@ describe('sasjs request', () => {
   })
 
   afterAll(async () => {
+    console.log('Cleaning up')
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
     const adapter = new SASjs({
