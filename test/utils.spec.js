@@ -17,7 +17,7 @@ describe('generateTimestamp', () => {
   })
 
   test('should generate a timestamp in the correct format', () => {
-    const expectedTimestamp = '202092101010'
+    const expectedTimestamp = '2020102101010'
 
     const timestamp = generateTimestamp()
 
