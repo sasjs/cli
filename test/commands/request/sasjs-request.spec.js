@@ -289,8 +289,8 @@ describe('sasjs request', () => {
       serverType: config.serverType,
       useComputeApi: config.useComputeApi
     })
-
-    await remove(adapter.appLoc, adapter, process.env.ACCESS_TOKEN)
+    console.log(`Removing server folder: ${config.appLoc}`)
+    await remove(config.appLoc, adapter, process.env.ACCESS_TOKEN)
   }, 60 * 1000)
 })
 
