@@ -107,7 +107,7 @@ export async function asyncForEach(array, callback) {
 }
 
 export function removeComments(text) {
-  const lines = text.split('\n').map((l) => l.trim())
+  const lines = text.split('\n')
   const linesWithoutComment = []
   let inCommentBlock = false
   lines.forEach((line) => {
