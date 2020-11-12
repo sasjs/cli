@@ -111,6 +111,11 @@ export async function compileServices(targetName) {
 }
 
 export async function deployServices(targetName, isForced) {
+  /**
+   * Deploying is forced by default
+   */
+  isForced = true
+
   await deploy(targetName, null, isForced)
     .then(() =>
       console.log(
