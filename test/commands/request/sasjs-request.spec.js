@@ -10,7 +10,7 @@ import {
   createFile
 } from '../../../src/utils/file-utils'
 import { remove } from '../../../src/sasjs-folder/remove'
-import { SASjs } from '@sasjs/adapter/node'
+import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs request', () => {
   let config
