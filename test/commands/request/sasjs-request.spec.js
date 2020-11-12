@@ -86,27 +86,6 @@ describe('sasjs request', () => {
     done()
   }, 60 * 1000)
 
-  it(
-    `should execute service 'sendArr'`,
-    async () => {
-      await expect(
-        runRequest(
-          `/Public/app/cli-tests-${timestamp}/runRequest/sendArr`,
-          dataPathRel,
-          'default',
-          targetName
-        )
-      ).resolves.toEqual(true)
-      const rawData = await readFile(`${process.projectDir}/output.json`)
-      const output = JSON.parse(rawData)
-
-      for (const tableName in sampleDataJson) {
-        expect(output[tableName]).toEqual(expectedDataArr[tableName])
-      }
-    },
-    60 * 1000
-  )
-
   describe(`with default config`, () => {
     describe(`having absolute path`, () => {
       it(
