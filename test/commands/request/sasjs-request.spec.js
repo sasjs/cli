@@ -52,7 +52,7 @@ describe('sasjs request', () => {
 
   const targetName = 'cli-tests-request'
 
-  beforeAll(async () => {
+  beforeAll(async (done) => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
 
@@ -65,9 +65,10 @@ describe('sasjs request', () => {
 
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
+    done()
   }, 60 * 1000)
 
-  beforeEach(async () => {
+  beforeEach(async (done) => {
     const timestamp = generateTimestamp()
     const parentFolderNameTimeStamped = `cli-tests-request-${timestamp}`
 
@@ -82,6 +83,7 @@ describe('sasjs request', () => {
       path.join(process.projectDir, dataPathRel),
       JSON.stringify(sampleDataJson, null, 2)
     )
+    done()
   }, 60 * 1000)
 
   it(
@@ -282,7 +284,6 @@ describe('sasjs request', () => {
   })
 
   afterAll(async (done) => {
-    console.log('Cleaning up')
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
     const adapter = new SASjs({
@@ -291,7 +292,8 @@ describe('sasjs request', () => {
       serverType: config.serverType,
       useComputeApi: config.useComputeApi
     })
-    console.log(`Removing server folder: ${config.appLoc}`)
+
+    // Remove server folder
     await remove(config.appLoc, adapter, process.env.ACCESS_TOKEN)
     done()
   }, 60 * 1000)

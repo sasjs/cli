@@ -10,7 +10,6 @@ export const remove = async (path, sasjs, accessToken) => {
   const deletedFolder = await sasjs
     .deleteFolder(path, accessToken)
     .catch((err) => {
-      console.log(`Error deleting folder - ${path}`)
       displayResult(err)
     })
 
