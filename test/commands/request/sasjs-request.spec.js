@@ -287,6 +287,7 @@ describe('sasjs request', () => {
     await removeFromGlobalConfigs(targetName)
     const adapter = new SASjs({
       appLoc: config.appLoc,
+      serverUrl: config.serverUrl,
       serverType: config.serverType,
       useComputeApi: config.useComputeApi
     })
