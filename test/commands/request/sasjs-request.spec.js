@@ -281,7 +281,7 @@ describe('sasjs request', () => {
     })
   })
 
-  afterAll(async () => {
+  afterAll(async (done) => {
     console.log('Cleaning up')
     rimraf.sync('./cli-tests-request-*')
     await removeFromGlobalConfigs(targetName)
@@ -292,6 +292,7 @@ describe('sasjs request', () => {
     })
     console.log(`Removing server folder: ${config.appLoc}`)
     await remove(config.appLoc, adapter, process.env.ACCESS_TOKEN)
+    done()
   }, 60 * 1000)
 })
 
