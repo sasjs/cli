@@ -1,5 +1,5 @@
 import path from 'path'
-import * as compileModule from '../../../src/sasjs-build/index'
+import * as compileModule from '../../../src/commands/build'
 
 const fakeServiceInit = `/**
   @file serviceinit.sas

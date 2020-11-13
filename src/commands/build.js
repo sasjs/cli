@@ -1,4 +1,4 @@
-import * as thisModule from './index'
+import * as thisModule from './build'
 
 import find from 'find'
 import path from 'path'

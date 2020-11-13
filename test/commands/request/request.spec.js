@@ -9,7 +9,7 @@ import {
   deleteFolder,
   createFile
 } from '../../../src/utils/file-utils'
-import { remove } from '../../../src/sasjs-folder/remove'
+import { remove } from '../../../src/commands/folder/remove'
 import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs request', () => {
