@@ -54,10 +54,7 @@ export async function servicePackDeploy(
   return success
 }
 
-async function deployToSasViyaWithServicePack(
-  jsonFilePath,
-  buildTarget
-) {
+async function deployToSasViyaWithServicePack(jsonFilePath, buildTarget) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,

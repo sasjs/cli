@@ -19,10 +19,7 @@ import {
 let targetToBuild = null
 let executionSession
 
-export async function deploy(
-  targetName = null,
-  preTargetToBuild = null
-) {
+export async function deploy(targetName = null, preTargetToBuild = null) {
   if (preTargetToBuild) targetToBuild = preTargetToBuild
   else {
     const { target } = await findTargetInConfiguration(targetName)
