@@ -407,23 +407,30 @@ async function getPreCodeForServicePack(serverType) {
 
 async function getContentFor(folderPath, folderName, serverType) {
   let content = `\n%let path=${folderName === 'services' ? '' : folderName};\n`
+
   const contentJSON = {
     name: folderName,
     type: 'folder',
     members: []
   }
+
   const files = await getFilesInFolder(folderPath)
+
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
     const transformedContent = getServiceText(file, fileContent, serverType)
+
     content += `\n${transformedContent}\n`
+
     contentJSON.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
       code: removeComments(fileContent)
     })
   })
+
   const subFolders = await getSubFoldersInFolder(folderPath)
+
   await asyncForEach(subFolders, async (subFolder) => {
     const {
       content: childContent,
@@ -436,6 +443,7 @@ async function getContentFor(folderPath, folderName, serverType) {
     contentJSON.members.push(childContentJSON)
     content += childContent
   })
+
   return { content, contentJSON }
 }
 
