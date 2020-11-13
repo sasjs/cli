@@ -35,9 +35,6 @@ function parseCommand(rawArgs) {
       case 'run':
         parameters = processRunParameters(args.slice(1))
         return { name, parameters }
-      case 'request':
-        parameters = processRequestParameters(args.slice(1))
-        return { name, parameters }
     }
 
     return { name, parameters: args }
@@ -214,14 +211,7 @@ export async function cli(args) {
       break
     }
     case 'request': {
-      const {
-        sasJobLocation,
-        dataFilePath,
-        configFilePath,
-        targetName
-      } = command.parameters
-
-      await runRequest(sasJobLocation, dataFilePath, configFilePath, targetName)
+      await runRequest(command.parameters)
 
       break
     }

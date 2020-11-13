@@ -9,13 +9,15 @@ import {
 } from '../utils/file-utils'
 import { getAccessToken } from '../utils/config-utils'
 import { displayResult } from '../utils/displayResult'
+import { Command } from '../utils/command'
 
-export async function runSasJob(
-  sasJobLocation,
-  dataFilePath,
-  configFilePath,
-  targetName
-) {
+export async function runSasJob(commandLine) {
+  const command = new Command(commandLine)
+  const sasJobLocation = command.values.shift()
+  const dataFilePath = command.getFlagValue('datafile')
+  const configFilePath = command.getFlagValue('configfile')
+  const targetName = command.getFlagValue('target')
+
   const { target, isLocal } = await findTargetInConfiguration(targetName, true)
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')

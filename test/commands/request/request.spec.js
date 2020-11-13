@@ -108,10 +108,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendArr',
-              dataPathRel,
-              'default',
-              targetName
+              `request /Public/app/cli-tests/runRequest/sendArr -d ${dataPathRel} -c default -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -129,10 +126,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendObj',
-              dataPathRel,
-              'default',
-              targetName
+              `request /Public/app/cli-tests/runRequest/sendObj -d ${dataPathRel} -c default -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -151,7 +145,9 @@ describe('sasjs request', () => {
         `should execute service 'sendArr'`,
         async () => {
           await expect(
-            runRequest('runRequest/sendArr', dataPathRel, 'default', targetName)
+            runRequest(
+              `request runRequest/sendArr -d ${dataPathRel} -c default -t ${targetName}`
+            )
           ).resolves.toEqual(true)
 
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -168,7 +164,9 @@ describe('sasjs request', () => {
         `should execute service sendObj`,
         async () => {
           await expect(
-            runRequest('runRequest/sendObj', dataPathRel, 'default', targetName)
+            runRequest(
+              `request runRequest/sendObj -d ${dataPathRel} -c default -t ${targetName}`
+            )
           ).resolves.toEqual(true)
 
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -190,10 +188,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendArr',
-              dataPathRel,
-              configPathRel,
-              targetName
+              `request /Public/app/cli-tests/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -212,10 +207,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              '/Public/app/cli-tests/runRequest/sendObj',
-              dataPathRel,
-              configPathRel,
-              targetName
+              `request /Public/app/cli-tests/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -236,10 +228,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              'runRequest/sendArr',
-              dataPathRel,
-              configPathRel,
-              targetName
+              `request runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -258,10 +247,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              'runRequest/sendObj',
-              dataPathRel,
-              configPathRel,
-              targetName
+              `request runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
