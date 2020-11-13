@@ -64,7 +64,8 @@ async function deployToSasViyaWithServicePack(
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    debug: true
   })
 
   const CONSTANTS = require('../constants')

@@ -33,7 +33,7 @@ export async function createFileStructure(parentFolderName, appType) {
       console.log(
         chalk.redBright(
           'An error has occurred whilst creating your project.',
-          err
+          JSON.stringify(err)
         )
       )
     })
@@ -73,7 +73,7 @@ export async function buildServices(targetName) {
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when building services.', err)
+          chalk.redBright('An error has occurred when building services.', JSON.stringify(err))
         )
       }
     })
@@ -104,7 +104,7 @@ export async function compileServices(targetName) {
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when building services.', err)
+          chalk.redBright('An error has occurred when building services.', JSON.stringify(err))
         )
       }
     })
@@ -138,7 +138,7 @@ export async function deployServices(targetName, isForced) {
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when deploying services.', err)
+          chalk.redBright('An error has occurred when deploying services.', JSON.stringify(err))
         )
       }
     })
@@ -217,7 +217,7 @@ export async function compileBuildDeployServices(commandLine) {
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when building services.', err)
+          chalk.redBright('An error has occurred when building services.', JSON.stringify(err))
         )
       }
     })
@@ -241,7 +241,7 @@ export async function buildDBs() {
     .catch((err) => {
       result = err
       console.log(
-        chalk.redBright('An error has occurred when building DBs.', err)
+        chalk.redBright('An error has occurred when building DBs.', JSON.stringify(err))
       )
     })
   return result
@@ -262,7 +262,7 @@ export async function buildWebApp(targetName) {
       console.log(
         chalk.redBright(
           'An error has occurred when building web app services.',
-          err
+          JSON.stringify(err)
         )
       )
     })
@@ -277,7 +277,7 @@ export async function add(resourceType = 'target') {
         result = true
       })
       .catch((err) => {
-        displayResult(err, 'An error has occurred when adding the target.')
+        displayResult(JSON.stringify(err), 'An error has occurred when adding the target.')
         result = err
       })
   }
@@ -287,7 +287,7 @@ export async function add(resourceType = 'target') {
 export async function run(filePath, targetName) {
   await runSasCode(filePath, targetName).catch((err) => {
     console.log(
-      chalk.redBright('An error has occurred when running your SAS code.', err)
+      chalk.redBright('An error has occurred when running your SAS code.', JSON.stringify(err))
     )
   })
 }
@@ -304,7 +304,7 @@ export async function runRequest(
     .catch((err) => {
       result = err
       console.log(
-        chalk.redBright('An error has occurred when running your SAS job', err)
+        chalk.redBright('An error has occurred when running your SAS job', JSON.stringify(err))
       )
     })
   return result
@@ -318,7 +318,7 @@ export async function context(command) {
 
   await processContext(command).catch((err) =>
     console.log(
-      chalk.redBright('An error has occurred when processing context.', err)
+      chalk.redBright('An error has occurred when processing context.', JSON.stringify(err))
     )
   )
 }
@@ -331,7 +331,7 @@ export async function servicepack(command) {
 
   await processServicepack(command).catch((err) =>
     console.log(
-      chalk.redBright('An error has occurred when processing servicepack.', err)
+      chalk.redBright('An error has occurred when processing servicepack.', JSON.stringify(err))
     )
   )
 }
@@ -346,7 +346,7 @@ export async function folderManagement(command) {
     console.log(
       chalk.redBright(
         'An error has occurred when processing folder operation.',
-        err
+        JSON.stringify(err)
       )
     )
   })
@@ -360,7 +360,7 @@ export async function jobManagement(command) {
     console.log(
       chalk.redBright(
         'An error has occurred when processing job operation.',
-        err
+        JSON.stringify(err)
       )
     )
   })

@@ -41,7 +41,8 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    debug: true
   })
   const contextName = await getVariable('contextName', buildTarget)
 
@@ -67,7 +68,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     accessToken,
     executionSession.id
   )
-
+  
   let log
   try {
     log = executionResult.log.items
@@ -117,7 +118,8 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    debug: true
   })
   const executionResult = await sasjs.executeScriptSAS9(
     linesToExecute,

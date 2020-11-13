@@ -115,7 +115,8 @@ export async function processContext(commandLine) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
-    serverType: target.serverType
+    serverType: target.serverType,
+    debug: true
   })
 
   const accessToken = await getAccessToken(target).catch((err) => {
