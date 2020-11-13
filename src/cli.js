@@ -161,10 +161,7 @@ export async function cli(args) {
   }
   switch (command.name) {
     case 'create': {
-      const { projectName, appType } = processCreateParameters(
-        command.parameters
-      )
-      await createFileStructure(projectName, appType)
+      await createFileStructure(command.parameters)
       break
     }
     case 'compile': {

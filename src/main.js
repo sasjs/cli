@@ -18,11 +18,17 @@ import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
 import { Command } from './utils/command'
 
-export async function createFileStructure(parentFolderName, appType) {
+export async function createFileStructure(commandLine) {
+  const command = new Command(commandLine)
+  const template = command.getFlagValue('template')
+  const parentFolderName = command.values.shift()
+
   let result
-  await create(parentFolderName, appType)
+
+  await create(parentFolderName || '.', template)
     .then(() => {
       result = true
+
       console.log(
         chalk.greenBright.bold.italic(
           `Project ${
@@ -33,6 +39,7 @@ export async function createFileStructure(parentFolderName, appType) {
     })
     .catch((err) => {
       result = err
+
       console.log(
         chalk.redBright(
           'An error has occurred whilst creating your project.',
@@ -40,6 +47,7 @@ export async function createFileStructure(parentFolderName, appType) {
         )
       )
     })
+
   return result
 }
 

@@ -24,9 +24,7 @@ describe('sasjs create', () => {
 
         await createFolder(process.projectDir)
 
-        await expect(
-          createFileStructure(undefined, undefined)
-        ).resolves.toEqual(true)
+        await expect(createFileStructure('sasjs create')).resolves.toEqual(true)
 
         await verifyCreate({ parentFolderName: '.' })
       },
@@ -46,7 +44,9 @@ describe('sasjs create', () => {
 
         await createFolder(process.projectDir)
 
-        await expect(createFileStructure('.', undefined)).resolves.toEqual(true)
+        await expect(createFileStructure('sasjs create .')).resolves.toEqual(
+          true
+        )
 
         await verifyCreate({ parentFolderName: '.' })
       },
@@ -66,7 +66,9 @@ describe('sasjs create', () => {
 
         await createFolder(process.projectDir)
 
-        await expect(createFileStructure('.', 'sasonly')).resolves.toEqual(true)
+        await expect(
+          createFileStructure('sasjs create . -t sasonly')
+        ).resolves.toEqual(true)
 
         await verifyCreate({ parentFolderName: '.', sasonly: true })
       },
@@ -86,7 +88,7 @@ describe('sasjs create', () => {
 
         await createFolder(process.projectDir)
 
-        await expect(createFileStructure(undefined, 'react')).resolves.toEqual(
+        await expect(createFileStructure('create -t react')).resolves.toEqual(
           true
         )
 
@@ -111,7 +113,7 @@ describe('sasjs create', () => {
         await createFolder(process.projectDir)
 
         await expect(
-          createFileStructure(`${parentFolderNameTimeStamped}`, undefined)
+          createFileStructure(`create ${parentFolderNameTimeStamped}`)
         ).resolves.toEqual(true)
 
         await verifyCreate({ parentFolderName: parentFolderNameTimeStamped })
@@ -133,7 +135,9 @@ describe('sasjs create', () => {
         await createFolder(process.projectDir)
 
         await expect(
-          createFileStructure(`${parentFolderNameTimeStamped}`, 'minimal')
+          createFileStructure(
+            `create ${parentFolderNameTimeStamped} --template minimal`
+          )
         ).resolves.toEqual(true)
 
         await verifyCreateWeb({
@@ -158,7 +162,9 @@ describe('sasjs create', () => {
         await createFolder(process.projectDir)
 
         await expect(
-          createFileStructure(`${parentFolderNameTimeStamped}`, 'angular')
+          createFileStructure(
+            `create ${parentFolderNameTimeStamped} -t angular`
+          )
         ).resolves.toEqual(true)
 
         await verifyCreateWeb({

@@ -17,7 +17,7 @@ import {
 } from '../utils/file-utils'
 import chalk from 'chalk'
 
-export async function create(parentFolderName = '.', appType = '') {
+export async function create(parentFolderName, appType) {
   const configPath =
     appType === 'sasonly' ? '../config-sasonly.json' : '../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
