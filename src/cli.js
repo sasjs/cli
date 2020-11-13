@@ -25,7 +25,16 @@ import { exit } from 'process'
 function parseCommand(rawArgs) {
   checkNodeVersion()
 
-  const args = rawArgs.slice(2)
+  const isWin = process.platform === 'win32'
+  const isMSys = !!process.env.MSYSTEM
+  const prefix = process.env.EXEPATH
+    ? process.env.EXEPATH.replace(/\\/g, '/')
+    : ''
+
+  const args =
+    isWin && isMSys
+      ? rawArgs.slice(2).map((arg) => arg.replace(prefix, ''))
+      : rawArgs.slice(2)
 
   if (args.length) {
     const name = getUnaliasedCommand(args[0])

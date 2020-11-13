@@ -106,8 +106,19 @@ export async function asyncForEach(array, callback) {
   }
 }
 
+/**
+ * Removes comments from a given block of text.
+ * Preserves single line block comments and inline comments.
+ * @param {string} text - the text to remove comments from.
+ */
 export function removeComments(text) {
-  const lines = text.split('\n').map((l) => l.trim())
+  if (!text) return ''
+
+  const lines = text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trimEnd())
+
   const linesWithoutComment = []
   let inCommentBlock = false
   lines.forEach((line) => {
@@ -214,7 +225,9 @@ export async function getVariable(name, target) {
  */
 export function generateTimestamp() {
   const date = new Date()
-  const timestamp = `${date.getUTCFullYear()}${date.getUTCMonth()}${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
+  const timestamp = `${date.getUTCFullYear()}${
+    date.getUTCMonth() + 1
+  }${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
 
   return timestamp
 }
