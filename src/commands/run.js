@@ -7,13 +7,18 @@ import {
 } from '../utils/config-utils'
 import { readFile, createFile } from '../utils/file-utils'
 import { getVariable, generateTimestamp } from '../utils/utils'
+import { Command } from '../utils/command'
 
 /**
  * Runs SAS code from a given file on the specified target.
  * @param {string} filePath - the path to the file containing SAS code.
  * @param {string} targetName - the name of the target to run the SAS code on.
  */
-export async function runSasCode(filePath, targetName) {
+export async function runSasCode(commandLine) {
+  const command = new Command(commandLine)
+  const filePath = command.values.shift()
+  const targetName = command.getFlagValue('target')
+
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
   }

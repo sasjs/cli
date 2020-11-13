@@ -29,13 +29,6 @@ function parseCommand(rawArgs) {
 
   if (args.length) {
     const name = getUnaliasedCommand(args[0])
-    let parameters
-
-    switch (name) {
-      case 'run':
-        parameters = processRunParameters(args.slice(1))
-        return { name, parameters }
-    }
 
     return { name, parameters: args }
   }
@@ -206,8 +199,7 @@ export async function cli(args) {
       break
     }
     case 'run': {
-      const { filePath, targetName } = command.parameters
-      await run(filePath, targetName)
+      await run(command.parameters)
       break
     }
     case 'request': {

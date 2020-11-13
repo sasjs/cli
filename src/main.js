@@ -313,8 +313,8 @@ export async function add(commandLine) {
   return result
 }
 
-export async function run(filePath, targetName) {
-  await runSasCode(filePath, targetName).catch((err) => {
+export async function run(commandLine) {
+  await runSasCode(commandLine).catch((err) => {
     console.log(
       chalk.redBright('An error has occurred when running your SAS code.', err)
     )
