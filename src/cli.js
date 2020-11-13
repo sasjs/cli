@@ -173,10 +173,7 @@ export async function cli(args) {
       break
     }
     case 'deploy': {
-      await deployServices(
-        command.parameters[1],
-        command.parameters[2] === '-f'
-      )
+      await deployServices(command.parameters)
       break
     }
     case 'servicepack': {

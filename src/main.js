@@ -128,7 +128,15 @@ export async function compileServices(targetName) {
     })
 }
 
-export async function deployServices(targetName, isForced) {
+export async function deployServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+  const isForced = command.getFlagValue('force')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
   await deploy(targetName, null, isForced)
     .then(() =>
       console.log(
