@@ -106,7 +106,7 @@ export async function printHelpText() {
           command example: sasjs servicepack deploy --source ./path/services.json --target targetName
 
           NOTE: Providing target name (--target targetName or -t targetName) is optional.
-                You can force deploy (overwrite an existing deploy) by passing the (-f) flag.
+                By default deploy will overwrite an existing deploy (force deploy).
                 Default target name will be used if target name was omitted.
 
       NOTE: The sasjs servicepack operation is only supported for SAS Viya build targets.

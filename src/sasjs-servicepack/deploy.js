@@ -10,13 +10,11 @@ import {
 
 export async function servicePackDeploy(
   jsonFilePath = null,
-  targetName = null,
-  isForced = false
+  targetName = null
 ) {
   console.log({
     jsonFilePath,
-    targetName,
-    isForced
+    targetName
   })
 
   if (path.extname(jsonFilePath) !== '.json') {
@@ -41,7 +39,7 @@ export async function servicePackDeploy(
 
   let success
 
-  await deployToSasViyaWithServicePack(jsonFilePath, target, isForced)
+  await deployToSasViyaWithServicePack(jsonFilePath, target)
     .then((_) => {
       displayResult(null, null, 'Servicepack successfully deployed!')
 
@@ -58,8 +56,7 @@ export async function servicePackDeploy(
 
 async function deployToSasViyaWithServicePack(
   jsonFilePath,
-  buildTarget,
-  isForced
+  buildTarget
 ) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
@@ -106,6 +103,6 @@ async function deployToSasViyaWithServicePack(
     null,
     null,
     access_token,
-    isForced
+    true
   )
 }

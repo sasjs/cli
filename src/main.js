@@ -110,13 +110,8 @@ export async function compileServices(targetName) {
     })
 }
 
-export async function deployServices(targetName, isForced) {
-  /**
-   * Deploying is forced by default
-   */
-  isForced = true
-
-  await deploy(targetName, null, isForced)
+export async function deployServices(targetName) {
+  await deploy(targetName, null)
     .then(() =>
       console.log(
         chalk.greenBright.bold.italic(
@@ -213,11 +208,7 @@ export async function compileBuildDeployServices(commandLine) {
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            `${message}${
-              status === 409
-                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-                : ''
-            }${details ? '\n' + details : ''}`
+            `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {

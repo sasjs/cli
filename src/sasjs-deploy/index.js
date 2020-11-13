@@ -21,8 +21,7 @@ let executionSession
 
 export async function deploy(
   targetName = null,
-  preTargetToBuild = null,
-  isForced = false
+  preTargetToBuild = null
 ) {
   if (preTargetToBuild) targetToBuild = preTargetToBuild
   else {
@@ -48,7 +47,7 @@ export async function deploy(
       chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
     )
 
-    await deployToSasViyaWithServicePack(targetToBuild, isForced)
+    await deployToSasViyaWithServicePack(targetToBuild)
 
     console.log('Job execution completed!')
   }
@@ -153,7 +152,7 @@ async function getSASjsAndAccessToken(buildTarget) {
   }
 }
 
-async function deployToSasViyaWithServicePack(buildTarget, isForced) {
+async function deployToSasViyaWithServicePack(buildTarget) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
@@ -194,11 +193,11 @@ async function deployToSasViyaWithServicePack(buildTarget, isForced) {
       null,
       null,
       access_token,
-      isForced
+      true
     )
   }
 
-  return await sasjs.deployServicePack(jsonObject, null, null, null, isForced)
+  return await sasjs.deployServicePack(jsonObject, null, null, null)
 }
 
 async function deployToSasViya(
