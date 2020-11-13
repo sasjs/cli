@@ -16,15 +16,11 @@ const buildDestinationDBFolder = path.join(
   'db'
 )
 
-const isWin = process.platform === 'win32'
-const slashInPath = isWin ? '\\' : '/'
-
 module.exports = {
   buildSourceFolder,
   buildSourceDBFolder,
   buildDestinationFolder,
   buildDestinationServ,
   buildDestinationJobs,
-  buildDestinationDBFolder,
-  slashInPath
+  buildDestinationDBFolder
 }
