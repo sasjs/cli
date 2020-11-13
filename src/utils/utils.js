@@ -106,8 +106,19 @@ export async function asyncForEach(array, callback) {
   }
 }
 
+/**
+ * Removes comments from a given block of text.
+ * Preserves single line block comments and inline comments.
+ * @param {string} text - the text to remove comments from.
+ */
 export function removeComments(text) {
-  const lines = text.split('\n')
+  if (!text) return ''
+
+  const lines = text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trimEnd())
+
   const linesWithoutComment = []
   let inCommentBlock = false
   lines.forEach((line) => {
