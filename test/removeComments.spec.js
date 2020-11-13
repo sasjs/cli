@@ -14,8 +14,8 @@ describe('removeComments', () => {
 
   test('should remove all comments from the provided SAS file', () => {
     const expected = `%macro mv_createfolder(path=
-,access_token_var=ACCESS_TOKEN
-,grant_type=authorization_code
+  ,access_token_var=ACCESS_TOKEN
+  ,grant_type=authorization_code
 );`
     expect(removeComments(sampleSasProgram)).toEqual(expected)
   })
