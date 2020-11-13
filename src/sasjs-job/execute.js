@@ -4,6 +4,8 @@ import { displayResult } from '../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../utils/file-utils'
 import path from 'path'
 
+let slashInPath
+
 /**
  * Triggers existing job for execution.
  * @param {object} sasjs - configuration object of SAS adapter.
@@ -24,6 +26,7 @@ export async function execute(
   output,
   log
 ) {
+  slashInPath = require('../constants').slashInPath
   let result
 
   const startTime = new Date().getTime()
@@ -79,9 +82,9 @@ export async function execute(
             /\.json$/i.test(output) ? output : path.join(output, 'output.json')
           )
 
-          let folderPath = outputPath.split('/')
+          let folderPath = outputPath.split(slashInPath)
           folderPath.pop()
-          folderPath = folderPath.join('/')
+          folderPath = folderPath.join(slashInPath)
 
           if (!(await folderExists(folderPath))) await createFolder(folderPath)
 
@@ -121,9 +124,9 @@ export async function execute(
               )
             }
 
-            let folderPath = logPath.split('/')
+            let folderPath = logPath.split(slashInPath)
             folderPath.pop()
-            folderPath = folderPath.join('/')
+            folderPath = folderPath.join(slashInPath)
 
             if (!(await folderExists(folderPath))) {
               await createFolder(folderPath)
