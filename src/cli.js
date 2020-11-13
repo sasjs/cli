@@ -172,7 +172,7 @@ export async function cli(args) {
       break
     }
     case 'build': {
-      await buildServices(command.parameters[1])
+      await buildServices(command.parameters)
       break
     }
     case 'deploy': {

@@ -51,7 +51,14 @@ export async function showVersion() {
   await printVersion()
 }
 
-export async function buildServices(targetName) {
+export async function buildServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
   await build(targetName)
     .then(() =>
       console.log(
