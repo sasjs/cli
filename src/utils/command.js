@@ -1,10 +1,22 @@
 import { displayResult } from './displayResult'
 import { arrToObj } from './utils'
+import chalk from 'chalk'
 
 const showInvalidCommandMessage = () => {
   displayResult(
     {},
     `Invalid command. Run 'sasjs help' to get the list of valid commands.`
+  )
+}
+
+const showInvalidFlagMessage = (flagMessage, supportedFlags) => {
+  displayResult(
+    {},
+    `${flagMessage}${
+      supportedFlags
+        ? ` Supported flags are:\n${supportedFlags.join('\n')}`
+        : ''
+    }`
   )
 }
 
@@ -156,20 +168,24 @@ export class Command {
           .filter((f) => regExp.test(f))
           .filter((f) => this.supportedFlags.includes(f))[0]
 
-        flag = new Flag(flag)
+        try {
+          flag = new Flag(flag)
 
-        this.flags.push(flag)
+          this.flags.push(flag)
 
-        if (flag.withValue) {
-          if (/^-/.test(commandLine[i + 1])) continue
+          if (flag.withValue) {
+            if (/^-/.test(commandLine[i + 1])) continue
 
-          i++
+            i++
 
-          const value = commandLine[i]
+            const value = commandLine[i]
 
-          if (value) {
-            this.flags.find((f) => f.name === flag.name).setValue(value)
+            if (value) {
+              this.flags.find((f) => f.name === flag.name).setValue(value)
+            }
           }
+        } catch (error) {
+          showInvalidFlagMessage(error, this.supportedFlags)
         }
       } else {
         this.values.push(commandLine[i])
@@ -206,13 +222,30 @@ export class Command {
       .map((p) => (/^\//.test(p) ? path : `${appLoc}/${p}`))
       .join(' ')
   }
+
+  getTargetWithoutFlag() {
+    const deprecationDate = new Date(2021, 10, 2)
+    const today = new Date()
+
+    if (today < deprecationDate && this.values.length) {
+      console.log(
+        chalk.yellowBright(
+          `WARNING: use --target or -t flag to specify the target name. Specifying the target name without a flag will not be supported starting from November 1, 2021.`
+        )
+      )
+
+      return this.values.shift()
+    }
+
+    return undefined
+  }
 }
 
 class Flag {
   value = null
 
   constructor(name) {
-    if (!name || typeof name !== 'string') throw 'Not valid flag name!'
+    if (!name || typeof name !== 'string') throw `Not valid flag name!`
 
     this.name = name
     this.longSyntax = '--' + name
