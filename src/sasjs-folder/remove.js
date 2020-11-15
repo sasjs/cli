@@ -19,5 +19,7 @@ export const remove = async (path, sasjs, accessToken) => {
       null,
       `Folder '${path}' has been moved to 'Recycle Bin'.`
     )
+    return Promise.resolve(true)
   }
+  return Promise.reject()
 }

@@ -88,17 +88,11 @@ export async function folder(commandLine) {
 
   switch (command) {
     case commands.create:
-      create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
-
-      break
+      return await create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
     case commands.delete:
-      remove(folderPath, sasjs, accessToken)
-
-      break
+      return await remove(folderPath, sasjs, accessToken)
     case commands.move:
-      move(folderPath, sasjs, accessToken)
-
-      break
+      return await move(folderPath, sasjs, accessToken)
     default:
       break
   }
