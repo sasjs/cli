@@ -773,9 +773,9 @@ export async function getProgramDependencies(
     if (unfoundProgramNames.length) {
       console.log(
         chalk.yellowBright(
-          `Skipped these programs as program files were not found:
+          `The following files were listed under SAS Programs but could not be found:
 ${unfoundProgramNames.join(', ')}
-Please check your SAS program dependencies.\n`
+Please check they exist in the folder(s) listed in the programFolders array of the sasjsconfig.json file.\n`
         )
       )
     }
