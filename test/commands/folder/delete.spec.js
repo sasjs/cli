@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
 import { folder } from '../../../src/sasjs-folder/index'
-import * as removeModule from '../../../src/sasjs-folder/remove'
+import * as removeModule from '../../../src/commands/folder/remove'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 const createConfig = (targetName, timestamp) => ({
@@ -25,7 +25,7 @@ const createConfig = (targetName, timestamp) => ({
   tgtDeployScripts: []
 })
 
-jest.mock('../../../src/sasjs-folder/remove')
+jest.mock('../../../src/commands/folder/remove')
 
 describe('sasjs folder delete', () => {
   let config
