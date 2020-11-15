@@ -28,10 +28,10 @@ describe('sasjs folder delete', () => {
   const timestamp = generateTimestamp()
   const targetName = 'cli-tests-folder-delete'
   config = createConfig(targetName, timestamp)
+  process.projectDir = process.cwd()
 
   beforeAll(async (done) => {
     dotenv.config()
-    process.projectDir = process.cwd()
     await addToGlobalConfigs(config)
     done()
   })
