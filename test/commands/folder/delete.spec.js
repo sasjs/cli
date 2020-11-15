@@ -31,6 +31,7 @@ describe('sasjs folder delete', () => {
 
   beforeAll(async (done) => {
     dotenv.config()
+    process.projectDir = process.cwd()
     await addToGlobalConfigs(config)
     done()
   })
