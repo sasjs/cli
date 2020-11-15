@@ -30,13 +30,9 @@ describe('sasjs folder delete', () => {
   config = createConfig(targetName, timestamp)
   process.projectDir = process.cwd()
 
-  beforeAll(async (done) => {
+  it('should delete folders when a relative path is provided', async (done) => {
     dotenv.config()
     await addToGlobalConfigs(config)
-    done()
-  })
-
-  it('should delete folders when a relative path is provided', async (done) => {
     await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
 
     await expect(
@@ -46,6 +42,8 @@ describe('sasjs folder delete', () => {
   })
 
   it('should delete folders when an absolute path is provided', async (done) => {
+    dotenv.config()
+    await addToGlobalConfigs(config)
     await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
 
     await expect(
