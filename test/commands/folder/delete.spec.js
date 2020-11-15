@@ -1,12 +1,13 @@
 import dotenv from 'dotenv'
 import { folder } from '../../../src/sasjs-folder/index'
+import * as removeModule from '../../../src/sasjs-folder/remove'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 const createConfig = (targetName, timestamp) => ({
   name: targetName,
   serverType: process.env.SERVER_TYPE,
   serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests-${timestamp}`,
+  appLoc: `/Public/app/cli-tests-folder-remove-${timestamp}`,
   useComputeApi: true,
   contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],
@@ -24,6 +25,8 @@ const createConfig = (targetName, timestamp) => ({
   tgtDeployScripts: []
 })
 
+jest.mock('../../../src/sasjs-folder/remove')
+
 describe('sasjs folder delete', () => {
   let config
   const timestamp = generateTimestamp()
@@ -31,25 +34,39 @@ describe('sasjs folder delete', () => {
   config = createConfig(targetName, timestamp)
   process.projectDir = process.cwd()
 
-  it('should delete folders when a relative path is provided', async (done) => {
+  beforeAll(async (done) => {
     dotenv.config()
     await addToGlobalConfigs(config)
-    await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
-
-    await expect(
-      folder(['folder', 'delete', `test-${timestamp}`])
-    ).resolves.toEqual(true)
+    removeModule.remove.mockImplementation((folderPath, adapter, _) =>
+      Promise.resolve(folderPath)
+    )
     done()
   })
 
-  it('should delete folders when an absolute path is provided', async (done) => {
-    dotenv.config()
-    await addToGlobalConfigs(config)
-    await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
+  afterAll(async (done) => {
+    await removeFromGlobalConfigs(targetName)
+    done()
+  })
+
+  it(
+    'should append appLoc to relative folder paths',
+    async (done) => {
+      const relativeFolderPath = `test-${timestamp}`
+
+      await expect(
+        folder(['folder', 'delete', relativeFolderPath, '-t', targetName])
+      ).resolves.toEqual(`${config.appLoc}/test-${timestamp}`)
+      done()
+    },
+    120 * 1000
+  )
+
+  it('should leave absolute file paths unaltered', async (done) => {
+    const absoluteFolderPath = `${config.appLoc}/test-${timestamp}`
 
     await expect(
-      folder(['folder', 'delete', `${config.appLoc}/test-${timestamp}`])
-    ).resolves.toEqual(true)
+      folder(['folder', 'delete', absoluteFolderPath])
+    ).resolves.toEqual(`${config.appLoc}/test-${timestamp}`)
     done()
   })
 })
