@@ -4,12 +4,11 @@ import { generateTimestamp } from '../../../src/utils/utils'
 describe('sasjs folder delete', () => {
   let config
   const timestamp = generateTimestamp()
+  const targetName = 'cli-tests-folder-delete'
+  config = createConfig(targetName, timestamp)
 
   beforeAll(async (done) => {
     dotenv.config()
-    const targetName = 'cli-tests-folder-delete'
-    config = createConfig(targetName, timestamp)
-
     await addToGlobalConfigs(config)
     done()
   })
