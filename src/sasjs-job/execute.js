@@ -79,9 +79,9 @@ export async function execute(
             /\.json$/i.test(output) ? output : path.join(output, 'output.json')
           )
 
-          let folderPath = outputPath.split('/')
+          let folderPath = outputPath.split(path.sep)
           folderPath.pop()
-          folderPath = folderPath.join('/')
+          folderPath = folderPath.join(path.sep)
 
           if (!(await folderExists(folderPath))) await createFolder(folderPath)
 
@@ -121,9 +121,9 @@ export async function execute(
               )
             }
 
-            let folderPath = logPath.split('/')
+            let folderPath = logPath.split(path.sep)
             folderPath.pop()
-            folderPath = folderPath.join('/')
+            folderPath = folderPath.join(path.sep)
 
             if (!(await folderExists(folderPath))) {
               await createFolder(folderPath)
