@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import { folder } from '../../../src/sasjs-folder/index'
 import { generateTimestamp } from '../../../src/utils/utils'
 
