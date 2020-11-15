@@ -1,6 +1,28 @@
 import { folder } from '../../../src/sasjs-folder/index'
 import { generateTimestamp } from '../../../src/utils/utils'
 
+const createConfig = (targetName, timestamp) => ({
+  name: targetName,
+  serverType: process.env.SERVER_TYPE,
+  serverUrl: process.env.SERVER_URL,
+  appLoc: `/Public/app/cli-tests-${timestamp}`,
+  useComputeApi: true,
+  contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
+  tgtServices: ['../test/commands/request/runRequest'],
+  authInfo: {
+    client: process.env.CLIENT,
+    secret: process.env.SECRET,
+    access_token: process.env.ACCESS_TOKEN,
+    refresh_token: process.env.REFRESH_TOKEN
+  },
+  tgtDeployVars: {
+    client: process.env.CLIENT,
+    secret: process.env.SECRET
+  },
+  deployServicePack: true,
+  tgtDeployScripts: []
+})
+
 describe('sasjs folder delete', () => {
   let config
   const timestamp = generateTimestamp()
@@ -30,26 +52,4 @@ describe('sasjs folder delete', () => {
     ).resolves.toEqual(true)
     done()
   })
-})
-
-const createConfig = (targetName, timestamp) => ({
-  name: targetName,
-  serverType: process.env.SERVER_TYPE,
-  serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests-${timestamp}`,
-  useComputeApi: true,
-  contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
-  tgtServices: ['../test/commands/request/runRequest'],
-  authInfo: {
-    client: process.env.CLIENT,
-    secret: process.env.SECRET,
-    access_token: process.env.ACCESS_TOKEN,
-    refresh_token: process.env.REFRESH_TOKEN
-  },
-  tgtDeployVars: {
-    client: process.env.CLIENT,
-    secret: process.env.SECRET
-  },
-  deployServicePack: true,
-  tgtDeployScripts: []
 })
