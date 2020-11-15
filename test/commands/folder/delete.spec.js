@@ -7,6 +7,7 @@ describe('sasjs folder delete', () => {
 
   beforeAll(async (done) => {
     dotenv.config()
+    const targetName = 'cli-tests-folder-delete'
     config = createConfig(targetName, timestamp)
 
     await addToGlobalConfigs(config)
