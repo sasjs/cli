@@ -745,6 +745,7 @@ export async function getProgramDependencies(
   const programs = getProgramList(fileContent)
   if (programs.length) {
     const foundPrograms = []
+    const foundProgramNames = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
         const filePath = path.join(buildSourceFolder, programFolder)
@@ -761,16 +762,23 @@ export async function getProgramDependencies(
             program.fileRef
           )
           foundPrograms.push(programDependencyContent)
-        } else {
-          console.log(
-            chalk.yellowBright(
-              `Skipping ${program.fileName} as program file was not found. Please check your SAS program dependencies.\n`
-            )
-          )
+          foundProgramNames.push(program.fileName)
         }
       })
     })
 
+    const unfoundProgramNames = programs.filter(
+      (program) => !foundProgramNames.includes(program.fileName)
+    )
+    if (unfoundProgramNames.length) {
+      console.log(
+        chalk.yellowBright(
+          `The following files were listed under SAS Programs but could not be found:
+${unfoundProgramNames.join(', ')}
+Please check they exist in the folder(s) listed in the programFolders array of the sasjsconfig.json file.\n`
+        )
+      )
+    }
     return foundPrograms.join('\n')
   }
 
