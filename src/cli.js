@@ -255,15 +255,15 @@ async function checkProjectDirectory() {
     if (pathExists) {
       found = true
     } else {
-      let strBreak = newBSF.split('/')
+      let strBreak = newBSF.split(path.sep)
       strBreak.splice(-1, 1)
-      newBSF = strBreak.join('/')
+      newBSF = strBreak.join(path.sep)
     }
   } while (newBSF.length && !found)
   if (found) {
-    let strBreak = newBSF.split('/')
+    let strBreak = newBSF.split(path.sep)
     strBreak.splice(-1, 1)
-    let newProDir = strBreak.join('/')
+    let newProDir = strBreak.join(path.sep)
     process.projectDir = newProDir
     console.log(
       chalk.cyanBright(
