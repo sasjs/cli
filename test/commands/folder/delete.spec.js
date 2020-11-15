@@ -36,19 +36,19 @@ describe('sasjs folder delete', () => {
   })
 
   it('should delete folders when a relative path is provided', async (done) => {
-    await folder(`folder create ${config.appLoc}/test-${timestamp}`)
+    await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
 
-    await expect(folder(`folder delete test-${timestamp}`)).resolves.toEqual(
-      true
-    )
+    await expect(
+      folder(['folder', 'delete', `test-${timestamp}`])
+    ).resolves.toEqual(true)
     done()
   })
 
   it('should delete folders when an absolute path is provided', async (done) => {
-    await folder(`folder create ${config.appLoc}/test-${timestamp}`)
+    await folder(['folder', 'create', `${config.appLoc}/test-${timestamp}`])
 
     await expect(
-      folder(`folder delete ${config.appLoc}/test-${timestamp}`)
+      folder(['folder', 'delete', `${config.appLoc}/test-${timestamp}`])
     ).resolves.toEqual(true)
     done()
   })
