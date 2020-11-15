@@ -1,5 +1,5 @@
 import dotenv from 'dotenv'
-import { folder } from '../../../src/sasjs-folder/index'
+import { folder } from '../../../src/commands/folder/index'
 import * as removeModule from '../../../src/commands/folder/remove'
 import { generateTimestamp } from '../../../src/utils/utils'
 
