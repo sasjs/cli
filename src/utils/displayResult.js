@@ -19,7 +19,9 @@ export function displayResult(err, failureMessage, successMessage) {
         console.log(chalk.redBright(failureMessage, err.body))
       }
     } else {
-      console.log(chalk.redBright(failureMessage, err))
+      console.log(
+        chalk.redBright(failureMessage, Object.keys(err).length ? err : '')
+      )
     }
   }
 
