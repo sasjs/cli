@@ -166,18 +166,14 @@ export async function printHelpText() {
         `performs operations on contexts.`,
         `* ${chalk.cyanBright('create')} - creates new context.`,
         `[2spaces]command example: sasjs context create --source ../contextConfig.json --target targetName`,
-        ``,
         `* ${chalk.cyanBright('edit')} - edits existing context.`,
         `[2spaces]command example: sasjs context edit contextName --source ../contextConfig.json --target targetName`,
-        ``,
         `* ${chalk.cyanBright('delete')} - deletes existing context.`,
         `[2spaces]command example: sasjs context delete contextName --target targetName`,
-        ``,
         `* ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.`,
         `[2spaces]command example: sasjs context list --target targetName`,
-        ``,
         `* ${chalk.cyanBright(
           'export'
         )} - exports context to contextName.json in the current folder.`,
