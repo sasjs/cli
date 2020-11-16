@@ -89,6 +89,9 @@ export async function printHelpText() {
             'serverUrl'
           )} - The full path to the server (eg https://yourserver)
           * ${chalk.cyanBright('serverType')} - Eg SAS9 or SASVIYA
+
+      NOTE: By default deploy will overwrite an existing deploy (force deploy).
+      
     * ${chalk.greenBright(
       'compilebuilddeploy <targetName>'
     )} - executes script file specified in the ${chalk.cyanBright(
@@ -106,7 +109,7 @@ export async function printHelpText() {
           command example: sasjs servicepack deploy --source ./path/services.json --target targetName
 
           NOTE: Providing target name (--target targetName or -t targetName) is optional.
-                By default deploy will overwrite an existing deploy (force deploy).
+                You can force deploy (overwrite an existing deploy) by passing the (-f) flag.
                 Default target name will be used if target name was omitted.
 
       NOTE: The sasjs servicepack operation is only supported for SAS Viya build targets.

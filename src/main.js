@@ -129,11 +129,8 @@ export async function deployServices(targetName) {
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            `${message}${
-              status === 409
-                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-                : ''
-            }${details ? '\n' + details : ''}`
+            `${message}
+            ${details ? '\n' + details : ''}`
           )
         )
       } else {

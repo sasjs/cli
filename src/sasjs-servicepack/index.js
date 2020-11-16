@@ -45,7 +45,9 @@ export async function processServicepack(commandLine) {
         commandExample
       )
 
-      output = await servicePackDeploy(jsonFilePath, targetName)
+      const isForced = isFlagPresent('-f', commandLine)
+
+      output = await servicePackDeploy(jsonFilePath, targetName, isForced)
       break
   }
 
