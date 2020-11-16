@@ -147,7 +147,6 @@ export async function printHelpText() {
         `* ${chalk.cyanBright(
           'deploy'
         )} - deploys service pack from json file.`,
-        `[2spaces]command example: sasjs servicepack deploy -s ./path/services.json -t targetName`,
         `[2spaces]command example: sasjs servicepack deploy --source ./path/services.json --target targetName`,
         ``,
         `[2spaces]NOTE: Providing target name (--target targetName or -t targetName) is optional.`,
@@ -167,27 +166,22 @@ export async function printHelpText() {
         `performs operations on contexts.`,
         `* ${chalk.cyanBright('create')} - creates new context.`,
         `[2spaces]command example: sasjs context create --source ../contextConfig.json --target targetName`,
-        `[2spaces]command example: sasjs context create -s ../contextConfig.json -t targetName`,
         ``,
         `* ${chalk.cyanBright('edit')} - edits existing context.`,
         `[2spaces]command example: sasjs context edit contextName --source ../contextConfig.json --target targetName`,
-        `[2spaces]command example: sasjs context edit contextName -s ../contextConfig.json -t targetName`,
         ``,
         `* ${chalk.cyanBright('delete')} - deletes existing context.`,
         `[2spaces]command example: sasjs context delete contextName --target targetName`,
-        `[2spaces]command example: sasjs context delete contextName -t targetName`,
         ``,
         `* ${chalk.cyanBright(
           'list'
         )} - lists all accessible and inaccessible contexts.`,
         `[2spaces]command example: sasjs context list --target targetName`,
-        `[2spaces]command example: sasjs context list -t targetName`,
         ``,
         `* ${chalk.cyanBright(
           'export'
         )} - exports context to contextName.json in the current folder.`,
         `[2spaces]command example: sasjs context export contextName --target targetName`,
-        `[2spaces]command example: sasjs context export contextName -t targetName`,
         `[2spaces]exported context example:
         [4spaces]{
           [4spaces]"createdBy": "admin",
@@ -240,22 +234,19 @@ export async function printHelpText() {
       description: [
         `performs operations on folders.`,
         `* ${chalk.cyanBright('create')} - creates new folder.`,
-        `[2spaces]command example: sasjs folder create /Public/folder --target targetName`,
-        `[2spaces]command example: sasjs folder create /Public/folder -t targetName`,
-        `[2spaces]command example: sasjs folder create /Public/folder -t targetName -f`,
         `[2spaces]command example: sasjs folder create /Public/folder`,
+        `[2spaces]command example: sasjs folder create /Public/folder --target targetName`,
+        `[2spaces]command example: sasjs folder create /Public/folder -t targetName -f`,
         ``,
         `[2spaces]NOTE: Providing force flag (-f or --force) is optional. If provided and target folder already exists, its content and all subfolders will be deleted.`,
         ``,
         `* ${chalk.cyanBright('delete')} - deletes folder.`,
-        `[2spaces]command example: sasjs folder delete /Public/folder --target targetName`,
-        `[2spaces]command example: sasjs folder delete /Public/folder -t targetName`,
         `[2spaces]command example: sasjs folder delete /Public/folder`,
+        `[2spaces]command example: sasjs folder delete /Public/folder --target targetName`,
         ``,
         `* ${chalk.cyanBright('move')} - moves folder to a new location`,
-        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName`,
-        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder -t targetName`,
         `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder`,
+        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName`,
         ``,
         `NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.`
       ]
@@ -269,16 +260,11 @@ export async function printHelpText() {
           'execute'
         )} - triggers job for execution.`,
         `[2spaces]command example: sasjs job execute /Public/job --target targetName`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName`,
         `[2spaces]command example: sasjs job execute /Public/job --target targetName --wait`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName -w`,
         `[2spaces]command example: sasjs job execute /Public/job --target targetName --output`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName -o`,
         `[2spaces]command example: sasjs job execute /Public/job -t targetName -o ./outputFolder/output.json`,
         `[2spaces]command example: sasjs job execute /Public/job --target targetName --wait --output`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName -w -o`,
         `[2spaces]command example: sasjs job execute /Public/job -t targetName --log ./logFolder/log.json`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName -l ./logFolder/log.json`,
         ``,
         `[2spaces]NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.`,
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
