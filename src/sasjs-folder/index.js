@@ -74,13 +74,13 @@ export async function folder(commandLine) {
     return
   }
 
-  // Folder path should has prefix '/'
-  if (!/^\//.test(folderPath)) folderPath = '/' + folderPath
-
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType
   })
+
+  // Folder paths not starting with a slash are prefixed with the appLoc
+  if (!/^\//.test(folderPath)) folderPath = `${target.appLoc}/${folderPath}`
 
   const accessToken = await getAccessToken(target).catch((err) =>
     displayResult(err)
@@ -88,17 +88,11 @@ export async function folder(commandLine) {
 
   switch (command) {
     case commands.create:
-      create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
-
-      break
+      return await create(folderPath, sasjs, accessToken, forceFlagIndex !== -1)
     case commands.delete:
-      remove(folderPath, sasjs, accessToken)
-
-      break
+      return await remove(folderPath, sasjs, accessToken)
     case commands.move:
-      move(folderPath, sasjs, accessToken)
-
-      break
+      return await move(folderPath, sasjs, accessToken)
     default:
       break
   }

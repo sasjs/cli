@@ -406,23 +406,30 @@ async function getPreCodeForServicePack(serverType) {
 
 async function getContentFor(folderPath, folderName, serverType) {
   let content = `\n%let path=${folderName === 'services' ? '' : folderName};\n`
+
   const contentJSON = {
     name: folderName,
     type: 'folder',
     members: []
   }
+
   const files = await getFilesInFolder(folderPath)
+
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
     const transformedContent = getServiceText(file, fileContent, serverType)
+
     content += `\n${transformedContent}\n`
+
     contentJSON.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
       code: removeComments(fileContent)
     })
   })
+
   const subFolders = await getSubFoldersInFolder(folderPath)
+
   await asyncForEach(subFolders, async (subFolder) => {
     const {
       content: childContent,
@@ -435,6 +442,7 @@ async function getContentFor(folderPath, folderName, serverType) {
     contentJSON.members.push(childContentJSON)
     content += childContent
   })
+
   return { content, contentJSON }
 }
 
@@ -736,6 +744,7 @@ export async function getProgramDependencies(
   const programs = getProgramList(fileContent)
   if (programs.length) {
     const foundPrograms = []
+    const foundProgramNames = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
         const filePath = path.join(buildSourceFolder, programFolder)
@@ -752,16 +761,23 @@ export async function getProgramDependencies(
             program.fileRef
           )
           foundPrograms.push(programDependencyContent)
-        } else {
-          console.log(
-            chalk.yellowBright(
-              `Skipping ${program.fileName} as program file was not found. Please check your SAS program dependencies.\n`
-            )
-          )
+          foundProgramNames.push(program.fileName)
         }
       })
     })
 
+    const unfoundProgramNames = programs.filter(
+      (program) => !foundProgramNames.includes(program.fileName)
+    )
+    if (unfoundProgramNames.length) {
+      console.log(
+        chalk.yellowBright(
+          `The following files were listed under SAS Programs but could not be found:
+${unfoundProgramNames.join(', ')}
+Please check they exist in the folder(s) listed in the programFolders array of the sasjsconfig.json file.\n`
+        )
+      )
+    }
     return foundPrograms.join('\n')
   }
 
