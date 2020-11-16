@@ -1,25 +1,34 @@
-import { build } from './sasjs-build'
-import { deploy } from './sasjs-deploy'
-import { processServicepack } from './sasjs-servicepack'
-import { buildDB } from './sasjs-db'
-import { create } from './sasjs-create'
-import { printHelpText } from './sasjs-help'
-import { printVersion } from './sasjs-version'
-import { createWebAppServices } from './sasjs-web'
-import { addTarget } from './sasjs-add'
-import { runSasCode } from './sasjs-run'
-import { runSasJob } from './sasjs-request'
-import { processContext } from './sasjs-context'
-import { folder } from './sasjs-folder'
-import { processJob } from './sasjs-job'
+import {
+  addTarget,
+  build,
+  processContext,
+  create,
+  buildDB,
+  deploy,
+  folder,
+  printHelpText,
+  processJob,
+  runSasJob,
+  runSasCode,
+  processServicepack,
+  printVersion,
+  createWebAppServices
+} from './commands'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
+import { Command } from './utils/command'
 
-export async function createFileStructure(parentFolderName, appType) {
+export async function createFileStructure(commandLine) {
+  const command = new Command(commandLine)
+  const template = command.getFlagValue('template')
+  const parentFolderName = command.values.shift()
+
   let result
-  await create(parentFolderName, appType)
+
+  await create(parentFolderName || '.', template)
     .then(() => {
       result = true
+
       console.log(
         chalk.greenBright.bold.italic(
           `Project ${
@@ -30,6 +39,7 @@ export async function createFileStructure(parentFolderName, appType) {
     })
     .catch((err) => {
       result = err
+
       console.log(
         chalk.redBright(
           'An error has occurred whilst creating your project.',
@@ -37,6 +47,7 @@ export async function createFileStructure(parentFolderName, appType) {
         )
       )
     })
+
   return result
 }
 
@@ -48,7 +59,14 @@ export async function showVersion() {
   await printVersion()
 }
 
-export async function buildServices(targetName) {
+export async function buildServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
   await build(targetName)
     .then(() =>
       console.log(
@@ -110,7 +128,15 @@ export async function compileServices(targetName) {
     })
 }
 
-export async function deployServices(targetName, isForced) {
+export async function deployServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+  const isForced = command.getFlagValue('force')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
   await deploy(targetName, null, isForced)
     .then(() =>
       console.log(
@@ -247,8 +273,8 @@ export async function buildDBs() {
   return result
 }
 
-export async function buildWebApp(targetName) {
-  await createWebAppServices(targetName)
+export async function buildWebApp(commandLine) {
+  await createWebAppServices(commandLine)
     .then(() =>
       console.log(
         chalk.greenBright.bold.italic(
@@ -268,9 +294,11 @@ export async function buildWebApp(targetName) {
     })
 }
 
-export async function add(resourceType = 'target') {
+export async function add(commandLine) {
+  const command = new Command(commandLine)
   let result = false
-  if (resourceType === 'target') {
+
+  if (command && command.name === 'add') {
     await addTarget()
       .then(() => {
         console.log(chalk.greenBright('Target successfully added!'))
@@ -281,25 +309,22 @@ export async function add(resourceType = 'target') {
         result = err
       })
   }
+
   return result
 }
 
-export async function run(filePath, targetName) {
-  await runSasCode(filePath, targetName).catch((err) => {
+export async function run(commandLine) {
+  await runSasCode(commandLine).catch((err) => {
     console.log(
       chalk.redBright('An error has occurred when running your SAS code.', err)
     )
   })
 }
 
-export async function runRequest(
-  sasJobLocation,
-  dataFilePath,
-  configFilePath,
-  targetName
-) {
+export async function runRequest(commandLine) {
   let result = false
-  await runSasJob(sasJobLocation, dataFilePath, configFilePath, targetName)
+
+  await runSasJob(commandLine)
     .then((res) => (result = res))
     .catch((err) => {
       result = err
@@ -307,6 +332,7 @@ export async function runRequest(
         chalk.redBright('An error has occurred when running your SAS job', err)
       )
     })
+
   return result
 }
 
