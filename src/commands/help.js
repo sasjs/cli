@@ -149,7 +149,6 @@ export async function printHelpText() {
         )} - deploys service pack from json file.`,
         `[2spaces]command example: sasjs servicepack deploy --source ./path/services.json --target targetName`,
         ``,
-        `[2spaces]NOTE: Providing target name (--target targetName or -t targetName) is optional.`,
         `[4spaces]You can force deploy (overwrite an existing deploy) by passing the (-f) flag.`,
         `[4spaces]Default target name will be used if target name was omitted.`,
         ``,
@@ -187,8 +186,6 @@ export async function printHelpText() {
           [4spaces]"name": "Compute Context"
         [4spaces]}`,
         ``,
-        `NOTE: Providing target name (--target targetName or -t targetName) is optional.`,
-        `[2spaces]Default target name will be used if target name was omitted.`,
         `NOTE: The sasjs context operation is only supported for SAS Viya build targets. More information available in the online documentation: ${chalk.cyanBright(
           'https://sasjs.io/sasjs-cli-context'
         )}`
@@ -230,21 +227,15 @@ export async function printHelpText() {
       description: [
         `performs operations on folders.`,
         `* ${chalk.cyanBright('create')} - creates new folder.`,
-        `[2spaces]command example: sasjs folder create /Public/folder`,
-        `[2spaces]command example: sasjs folder create /Public/folder --target targetName`,
         `[2spaces]command example: sasjs folder create /Public/folder -t targetName -f`,
         ``,
         `[2spaces]NOTE: Providing force flag (-f or --force) is optional. If provided and target folder already exists, its content and all subfolders will be deleted.`,
         ``,
         `* ${chalk.cyanBright('delete')} - deletes folder.`,
-        `[2spaces]command example: sasjs folder delete /Public/folder`,
         `[2spaces]command example: sasjs folder delete /Public/folder --target targetName`,
         ``,
         `* ${chalk.cyanBright('move')} - moves folder to a new location`,
-        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder`,
-        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName`,
-        ``,
-        `NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.`
+        `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName`
       ]
     },
     {
@@ -255,18 +246,12 @@ export async function printHelpText() {
         `[2spaces]* ${chalk.cyanBright(
           'execute'
         )} - triggers job for execution.`,
-        `[2spaces]command example: sasjs job execute /Public/job --target targetName`,
-        `[2spaces]command example: sasjs job execute /Public/job --target targetName --wait`,
-        `[2spaces]command example: sasjs job execute /Public/job --target targetName --output`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName -o ./outputFolder/output.json`,
-        `[2spaces]command example: sasjs job execute /Public/job --target targetName --wait --output`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName --log ./logFolder/log.json`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --output ./outputFolder/output.json`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --wait --log ./logFolder/log.json`,
         ``,
         `[2spaces]NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.`,
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
-        `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`,
-        ``,
-        `NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.`
+        `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`
       ]
     }
   ]
@@ -302,6 +287,11 @@ export async function printHelpText() {
             .join(`\n\t`)}`
       ).join(`
     `)}
+
+
+    ${limitLineLength(
+      'GENERAL NOTE: Providing target name (--target targetName or -t targetName) is optional. [8spaces]Default target name will be used if target name was omitted.'
+    )}
 
     ${chalk.cyan('Alias commands:')}
     ${aliases
