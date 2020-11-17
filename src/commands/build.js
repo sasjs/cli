@@ -91,7 +91,7 @@ export async function build(
     console.log(chalk.white('Skipping compiling of build folders...'))
   } else {
     console.log(chalk.redBright(result.message))
-    await compile()
+    await compile(targetName)
   }
 
   await createFinalSasFiles()
