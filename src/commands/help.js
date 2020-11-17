@@ -211,8 +211,8 @@ export async function printHelpText() {
           command example: sasjs job execute /Public/job -t targetName -o ./outputFolder/output.json
           command example: sasjs job execute /Public/job --target targetName --wait --output
           command example: sasjs job execute /Public/job -t targetName -w -o
-          command example: sasjs job execute /Public/job -t targetName --log ./logFolder/log.json
-          command example: sasjs job execute /Public/job -t targetName -l ./logFolder/log.json
+          command example: sasjs job execute /Public/job -t targetName --log ./logFolder/jobLog.log
+          command example: sasjs job execute /Public/job -t targetName -l ./logFolder/jobLog.log
           NOTE: Providing target name (--target targetName or -t targetName) is optional. Default target name will be used if target name was omitted.
           NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.
           NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.
