@@ -29,9 +29,13 @@ export async function createFileStructure(commandLine) {
     .then(() => {
       result = true
 
-      displayResult(null, null, `Project ${
-        parentFolderName ? `${parentFolderName} created` : `updated`
-      } successfully.\nGet ready to Unleash your SAS!`)
+      displayResult(
+        null,
+        null,
+        `Project ${
+          parentFolderName ? `${parentFolderName} created` : `updated`
+        } successfully.\nGet ready to Unleash your SAS!`
+      )
     })
     .catch((err) => {
       result = err
@@ -60,9 +64,13 @@ export async function buildServices(commandLine) {
 
   await build(targetName)
     .then(() =>
-      displayResult(null, null, `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
+      )
     )
     .catch((err) => {
       displayResult(err, 'An error has occurred when building services.')
@@ -72,9 +80,13 @@ export async function buildServices(commandLine) {
 export async function compileServices(targetName) {
   await build(targetName, true) // compileOnly is true
     .then(() =>
-      displayResult(null, null, `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
+      )
     )
     .catch((err) => {
       displayResult(err, 'An error has occurred when building services.')
@@ -102,18 +114,26 @@ export async function deployServices(commandLine) {
 export async function compileBuildServices(targetName) {
   await build(targetName, null, true) // enforcing compile & build
     .then(() =>
-      displayResult(null, null, `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
+      )
     )
     .catch((error) => {
       if (Array.isArray(error)) {
         const nodeModulesErrors = error.find((err) =>
           err.includes('node_modules/@sasjs/core')
         )
-        
+
         if (nodeModulesErrors)
-          displayResult(null, null, `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`)
+          displayResult(
+            null,
+            null,
+            `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
+          )
       } else {
         displayResult(error, 'An error has occurred when building services.')
       }
@@ -135,9 +155,13 @@ export async function compileBuildDeployServices(commandLine) {
     .then(() => {
       result = true
 
-      displayResult(null, null, `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
+      )
     })
     .catch((err) => {
       result = err
@@ -148,7 +172,10 @@ export async function compileBuildDeployServices(commandLine) {
         const status = err.status
 
         if (status === 409) {
-          displayResult(err, '\nIf you still want to deploy, use force flag (-f) after target name.')
+          displayResult(
+            err,
+            '\nIf you still want to deploy, use force flag (-f) after target name.'
+          )
         }
       }
     })
@@ -161,9 +188,13 @@ export async function buildDBs() {
   await buildDB()
     .then(() => {
       result = true
-      displayResult(null, null, `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild/db'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild/db'
+        )} directory.`
+      )
     })
     .catch((err) => {
       result = err
@@ -175,12 +206,19 @@ export async function buildDBs() {
 export async function buildWebApp(commandLine) {
   await createWebAppServices(commandLine)
     .then(() =>
-      displayResult(null, null, `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-        'sasjsbuild'
-      )} directory.`)
+      displayResult(
+        null,
+        null,
+        `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
+      )
     )
     .catch((err) => {
-      displayResult(err, 'An error has occurred when building web app services.')
+      displayResult(
+        err,
+        'An error has occurred when building web app services.'
+      )
     })
 }
 
@@ -195,10 +233,7 @@ export async function add(commandLine) {
         result = true
       })
       .catch((err) => {
-        displayResult(
-          err,
-          'An error has occurred when adding the target.'
-        )
+        displayResult(err, 'An error has occurred when adding the target.')
         result = err
       })
   }
@@ -249,13 +284,16 @@ export async function folderManagement(command) {
     displayResult(null, `Please provide action for the 'folder' command.`)
 
   await folder(command).catch((err) => {
-    displayResult(err, 'An error has occurred when processing folder operation.')
+    displayResult(
+      err,
+      'An error has occurred when processing folder operation.'
+    )
   })
 }
 
 export async function jobManagement(command) {
   if (!command)
-  displayResult(null, `Please provide action for the 'job' command.`)
+    displayResult(null, `Please provide action for the 'job' command.`)
 
   await processJob(command).catch((err) => {
     displayResult(err, 'An error has occurred when processing job operation.')
