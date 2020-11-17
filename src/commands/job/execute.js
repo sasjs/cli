@@ -110,10 +110,7 @@ export async function execute(
                 process.cwd(),
                 /\.log$/i.test(log)
                   ? log
-                  : path.join(
-                      log,
-                      `${jobPath.split('/').slice(-1).pop()}.log`
-                    )
+                  : path.join(log, `${jobPath.split('/').slice(-1).pop()}.log`)
               )
             } else {
               logPath = path.join(

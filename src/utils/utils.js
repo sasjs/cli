@@ -222,7 +222,7 @@ export async function getVariable(name, target) {
 
 /**
  * Extracts plain text job log from fetched json log
- * @param {object} logJson 
+ * @param {object} logJson
  */
 export function parseLogLines(logJson) {
   let logLines = ''
