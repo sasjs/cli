@@ -47,7 +47,8 @@ export async function folder(commandLine) {
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
-    serverType: target.serverType
+    serverType: target.serverType,
+    debug: true
   })
 
   const accessToken = await getAccessToken(target).catch((err) =>

@@ -73,7 +73,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     accessToken,
     executionSession.id
   )
-  
+
   let log
   try {
     log = executionResult.log.items
