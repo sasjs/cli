@@ -303,7 +303,7 @@ export async function printHelpText() {
 
 
   ${limitLineLength(
-    'GENERAL NOTE: Providing target name (--target targetName or -t targetName) is optional. [8spaces]Default target name will be used if target name was omitted.'
+    'GENERAL NOTE: Providing target name (--target targetName or -t targetName) is optional. [6spaces]Default target name will be used if target name was omitted.'
   )}
 
   ${chalk.cyan('Alias commands:')}
