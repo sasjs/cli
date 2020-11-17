@@ -107,17 +107,17 @@ export async function execute(
             if (typeof log === 'string') {
               logPath = path.join(
                 process.cwd(),
-                /\.json$/i.test(log)
+                /\.log$/i.test(log)
                   ? log
                   : path.join(
                       log,
-                      `${jobPath.split('/').slice(-1).pop()}-log.json`
+                      `${jobPath.split('/').slice(-1).pop()}.log`
                     )
               )
             } else {
               logPath = path.join(
                 process.cwd(),
-                `${jobPath.split('/').slice(-1).pop()}-log.json`
+                `${jobPath.split('/').slice(-1).pop()}.log`
               )
             }
 
