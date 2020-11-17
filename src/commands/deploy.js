@@ -88,7 +88,7 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
       if (targetToBuild.serverType === 'SASVIYA') {
-        await deployToSasAViya(
+        await deployToSasViya(
           deployScript,
           targetToBuild,
           linesToExecute,
