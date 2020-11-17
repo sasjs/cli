@@ -38,16 +38,6 @@ function parseCommand(rawArgs) {
 
   if (args.length) {
     const name = getUnaliasedCommand(args[0])
-    let parameters
-
-    switch (name) {
-      case 'run':
-        parameters = processRunParameters(args.slice(1))
-        return { name, parameters }
-      case 'request':
-        parameters = processRequestParameters(args.slice(1))
-        return { name, parameters }
-    }
 
     return { name, parameters: args }
   }
@@ -170,10 +160,7 @@ export async function cli(args) {
   }
   switch (command.name) {
     case 'create': {
-      const { projectName, appType } = processCreateParameters(
-        command.parameters
-      )
-      await createFileStructure(projectName, appType)
+      await createFileStructure(command.parameters)
       break
     }
     case 'compile': {
@@ -181,14 +168,11 @@ export async function cli(args) {
       break
     }
     case 'build': {
-      await buildServices(command.parameters[1])
+      await buildServices(command.parameters)
       break
     }
     case 'deploy': {
-      await deployServices(
-        command.parameters[1],
-        command.parameters[2] === '-f'
-      )
+      await deployServices(command.parameters)
       break
     }
     case 'servicepack': {
@@ -216,27 +200,19 @@ export async function cli(args) {
       break
     }
     case 'web': {
-      await buildWebApp(command.parameters[1])
+      await buildWebApp(command.parameters)
       break
     }
     case 'add': {
-      await add(command.parameters[1])
+      await add(command.parameters)
       break
     }
     case 'run': {
-      const { filePath, targetName } = command.parameters
-      await run(filePath, targetName)
+      await run(command.parameters)
       break
     }
     case 'request': {
-      const {
-        sasJobLocation,
-        dataFilePath,
-        configFilePath,
-        targetName
-      } = command.parameters
-
-      await runRequest(sasJobLocation, dataFilePath, configFilePath, targetName)
+      await runRequest(command.parameters)
 
       break
     }
@@ -279,15 +255,15 @@ async function checkProjectDirectory() {
     if (pathExists) {
       found = true
     } else {
-      let strBreak = newBSF.split('/')
+      let strBreak = newBSF.split(path.sep)
       strBreak.splice(-1, 1)
-      newBSF = strBreak.join('/')
+      newBSF = strBreak.join(path.sep)
     }
   } while (newBSF.length && !found)
   if (found) {
-    let strBreak = newBSF.split('/')
+    let strBreak = newBSF.split(path.sep)
     strBreak.splice(-1, 1)
-    let newProDir = strBreak.join('/')
+    let newProDir = strBreak.join(path.sep)
     process.projectDir = newProDir
     console.log(
       chalk.cyanBright(
