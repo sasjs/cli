@@ -59,8 +59,7 @@ export async function runSasJob(commandLine) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
-    serverType: target.serverType,
-    debug: true
+    serverType: target.serverType
   })
 
   const accessToken = await getAccessToken(target)

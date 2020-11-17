@@ -255,8 +255,7 @@ describe('sasjs request', () => {
       appLoc: config.appLoc,
       serverUrl: config.serverUrl,
       serverType: config.serverType,
-      useComputeApi: config.useComputeApi,
-      debug: true
+      useComputeApi: config.useComputeApi
     })
 
     // Remove server folder

@@ -270,8 +270,7 @@ async function getAndValidateSasViyaFields(serverUrl) {
 
   const sasjs = new SASjs({
     serverUrl: serverUrl,
-    serverType: 'SASVIYA',
-    debug: true
+    serverType: 'SASVIYA'
   })
 
   const authResponse = await getNewAccessToken(sasjs, client, secret, {

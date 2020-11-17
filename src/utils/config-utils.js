@@ -402,8 +402,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      serverType: target.serverType,
-      debug: true
+      serverType: target.serverType
     })
 
     const client =
