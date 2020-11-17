@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file-utils'
+import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 
 /**
@@ -129,7 +130,9 @@ export async function execute(
               await createFolder(folderPath)
             }
 
-            await createFile(logPath, JSON.stringify(logJson, null, 2))
+            let logLines = parseLogLines(logJson)
+
+            await createFile(logPath, logLines)
 
             displayResult(null, null, `Log saved to: ${logPath}`)
           }
