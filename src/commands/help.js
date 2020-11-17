@@ -271,40 +271,46 @@ export async function printHelpText() {
     { name: 'request', aliases: ['rq'] }
   ]
 
-  console.log(
-    `
-    ${chalk.yellow.bold('Welcome to the Command Line Interface for SASjs!')}
+  const outputCommands = `${commands
+    .sort((a, b) => (a.name < b.name ? -1 : 1))
+    .map(
+      (command) =>
+        `* ${chalk.greenBright(
+          limitLineLength(command.title)
+        )} - ${command.description
+          .map((line) => limitLineLength(line))
+          .join(`\n\t`)}`
+    ).join(`
+  `)}`
 
-    ${chalk.cyan('Here are the commands currently available:')}
-    ${commands
-      .sort((a, b) => (a.name < b.name ? -1 : 1))
-      .map(
-        (command) =>
-          `* ${chalk.greenBright(
-            limitLineLength(command.title)
-          )} - ${command.description
-            .map((line) => limitLineLength(line))
-            .join(`\n\t`)}`
-      ).join(`
-    `)}
+  const outputAliases = `${aliases
+    .sort((a, b) => (a.name < b.name ? -1 : 1))
+    .map(
+      (alias) =>
+        `* ${chalk.greenBright(alias.name)} : ${alias.aliases
+          .sort((a, b) => (a > b ? -1 : 1))
+          .join(', ')}`
+    ).join(`
+  `)}`
+
+  // const output =
+
+  console.log(`
+  ${chalk.yellow.bold('Welcome to the Command Line Interface for SASjs!')}
+
+  ${chalk.cyan('Here are the commands currently available:')}
+  ${outputCommands}
 
 
-    ${limitLineLength(
-      'GENERAL NOTE: Providing target name (--target targetName or -t targetName) is optional. [8spaces]Default target name will be used if target name was omitted.'
-    )}
+  ${limitLineLength(
+    'GENERAL NOTE: Providing target name (--target targetName or -t targetName) is optional. [8spaces]Default target name will be used if target name was omitted.'
+  )}
 
-    ${chalk.cyan('Alias commands:')}
-    ${aliases
-      .sort((a, b) => (a.name < b.name ? -1 : 1))
-      .map(
-        (alias) =>
-          `* ${chalk.greenBright(alias.name)} : ${alias.aliases
-            .sort((a, b) => (a > b ? -1 : 1))
-            .join(', ')}`
-      ).join(`
-    `)}
-    `
-  )
+  ${chalk.cyan('Alias commands:')}
+  ${outputAliases}
+  `)
+
+  return { outputCommands, outputAliases }
 }
 
 const limitLineLength = (str, maxLength = 80) => {
