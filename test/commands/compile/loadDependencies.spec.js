@@ -75,7 +75,7 @@ describe('loadDependencies', () => {
       [],
       'service'
     )
-    console.log(dependencies)
+
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
