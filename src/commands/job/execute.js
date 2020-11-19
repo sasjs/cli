@@ -167,9 +167,8 @@ export async function execute(
 }
 
 async function displayStatus(submittedJob, statusOfJob, result = {}) {
-  const adapterStatus = submittedJob?.state
-    ? submittedJob.state
-    : 'Not Available'
+  const adapterStatus =
+    submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
   const status = `Job Status: ${adapterStatus}`
 
   if (adapterStatus === 'completed') displayResult(null, null, status)
