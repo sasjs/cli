@@ -39,14 +39,16 @@ export async function execute(
 
   spinner.start()
 
-  const waitEffective = waitForJob || log ? true : false
+  if (statusOfJob !== undefined)
+    displayStatus({ state: 'Initiating' }, statusOfJob)
+
   const submittedJob = await sasjs
     .startComputeJob(
       jobPath,
       null,
       { contextName: target.tgtDeployVars.contextName },
       accessToken,
-      waitEffective
+      waitForJob || log ? true : false
     )
     .catch((err) => {
       result = err
@@ -59,7 +61,7 @@ export async function execute(
   const endTime = new Date().getTime()
 
   if (statusOfJob !== undefined)
-    displayStatus(submittedJob, statusOfJob, waitEffective, result)
+    displayStatus(submittedJob, statusOfJob, result)
 
   if (submittedJob && submittedJob.links) {
     result = true
@@ -164,7 +166,7 @@ export async function execute(
   return result
 }
 
-async function displayStatus(submittedJob, statusOfJob, wait, result = {}) {
+async function displayStatus(submittedJob, statusOfJob, result = {}) {
   const adapterStatus = submittedJob?.state
     ? submittedJob.state
     : 'Not Available'
