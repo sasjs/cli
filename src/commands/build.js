@@ -90,7 +90,7 @@ export async function build(
     console.log(chalk.white('Skipping compiling of build folders...'))
   } else {
     console.log(chalk.redBright(result.message))
-    await compile()
+    await compile(targetName)
   }
 
   await createFinalSasFiles()
@@ -954,13 +954,16 @@ async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
       message: `Build Folder doesn't exists: ${buildDestinationFolder}`
     }
 
-  const subFolders = await getSubFoldersInFolder(buildDestinationServ)
+  const serviceSubFolders = await getSubFoldersInFolder(buildDestinationServ)
 
   const servicesPresent = servicesBuildFolders.every((folder) =>
-    subFolders.includes(folder)
+    serviceSubFolders.includes(folder)
   )
+
+  const jobSubFolders = await getSubFoldersInFolder(buildDestinationJobs)
+
   const jobsPresent = jobsBuildFolders.every((folder) =>
-    subFolders.includes(folder)
+    jobSubFolders.includes(folder)
   )
 
   if (servicesPresent && jobsPresent) {
@@ -985,7 +988,7 @@ async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
 
     if (returnObj.compiled) {
       await asyncForEach(jobsBuildFolders, async (buildFolder) => {
-        const folderPath = path.join(buildDestinationServ, buildFolder)
+        const folderPath = path.join(buildDestinationJobs, buildFolder)
         const subFolders = await getSubFoldersInFolder(folderPath)
         const filesNamesInPath = await getFilesInFolder(folderPath)
         if (subFolders.length == 0 && filesNamesInPath.length == 0) {

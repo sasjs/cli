@@ -29,7 +29,7 @@ jobs:
         run: npm run lint
 
       - name: Run unit tests
-        run: npm test
+        run: npm test -- --runInBand
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}

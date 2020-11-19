@@ -196,17 +196,17 @@ export async function compileBuildServices(targetName) {
 }
 
 export async function compileBuildDeployServices(commandLine) {
-  commandLine.shift()
+  const command = new Command(commandLine)
+  const isForced = command.getFlagValue('force')
+  let targetName = command.getFlagValue('target')
 
-  const indexOfForceFlag = commandLine.indexOf('-f')
-
-  if (indexOfForceFlag !== -1) commandLine.splice(indexOfForceFlag, 1)
-
-  const targetName = commandLine.join('')
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
 
   let result
 
-  await build(targetName, null, null, true, indexOfForceFlag !== -1) // enforcing compile & build & deploy
+  await build(targetName, null, null, true, isForced) // enforcing compile & build & deploy
     .then(() => {
       result = true
 
