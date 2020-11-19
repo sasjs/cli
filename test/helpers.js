@@ -191,6 +191,9 @@ global.addToGlobalConfigs = async (buildTarget) => {
   let globalConfig = await getGlobalRcFile()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
+      if (globalConfig.targets.some((t) => t.name === buildTarget.name)) {
+        throw new Error('Target already exists.')
+      }
       globalConfig.targets.push(buildTarget)
     } else {
       globalConfig.targets = [buildTarget]
