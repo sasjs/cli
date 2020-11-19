@@ -31,6 +31,9 @@ export async function execute(
 
   const startTime = new Date().getTime()
 
+  if (statusOfJob !== undefined)
+    displayStatus({ state: 'Initiating' }, statusOfJob)
+
   const spinner = ora(
     `Job located at ${chalk.greenBright(
       jobPath
@@ -38,9 +41,6 @@ export async function execute(
   )
 
   spinner.start()
-
-  if (statusOfJob !== undefined)
-    displayStatus({ state: 'Initiating' }, statusOfJob)
 
   const submittedJob = await sasjs
     .startComputeJob(
@@ -52,7 +52,7 @@ export async function execute(
     )
     .catch((err) => {
       result = err
-
+      // need to fix this error return, it's not printing `err` on console
       displayResult(err, 'An error has occurred when executing a job.', null)
     })
 
@@ -169,7 +169,10 @@ export async function execute(
 async function displayStatus(submittedJob, statusOfJob, result = {}) {
   const adapterStatus =
     submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
-  const status = `Job Status: ${adapterStatus}`
+  const status =
+    adapterStatus === 'Not Available'
+      ? `Job Status: ${adapterStatus}\n\nDetails: ${result}`
+      : `Job Status: ${adapterStatus}`
 
   if (adapterStatus === 'completed') displayResult(null, null, status)
   else displayResult(result, status, null)
