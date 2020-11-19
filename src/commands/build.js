@@ -825,10 +825,14 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       sourcePaths.push(tgtMacroPath)
     })
   }
-  const dependencies = getList(
-    '<h4> Dependencies </h4>',
-    fileContent
-  ).filter((d) => d.endsWith('.sas'))
+
+  const dependenciesHeader = fileContent.includes('<h4> SAS Macros </h4>')
+    ? '<h4> SAS Macros </h4>'
+    : '<h4> Dependencies </h4>'
+
+  let dependencies = getList(dependenciesHeader, fileContent).filter((d) =>
+    d.endsWith('.sas')
+  )
 
   let dependencyPaths = []
   const foundDependencies = []
