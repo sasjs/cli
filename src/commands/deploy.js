@@ -194,7 +194,7 @@ async function deployToSasViyaWithServicePack(buildTarget) {
     )
   }
 
-  return await sasjs.deployServicePack(jsonObject, null, null, null)
+  return await sasjs.deployServicePack(jsonObject, null, null, null, true)
 }
 
 async function deployToSasViya(
