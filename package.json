@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.17.0",
+    "@sasjs/adapter": "^1.18.0",
     "@sasjs/core": "^1.7.4",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
