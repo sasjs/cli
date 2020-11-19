@@ -86,7 +86,7 @@ const commandFlags = [
   { command: initialCommands.deploy, flags: [initialFlags.target] },
   {
     command: initialCommands.compilebuilddeploy,
-    flags: [initialFlags.target]
+    flags: [initialFlags.target, initialFlags.force]
   },
   {
     command: initialCommands.servicepack,
