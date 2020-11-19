@@ -27,7 +27,7 @@ export async function execute(
   output,
   log
 ) {
-  let result
+  let result = {}
 
   const startTime = new Date().getTime()
 
@@ -58,6 +58,9 @@ export async function execute(
 
   const endTime = new Date().getTime()
 
+  if (statusOfJob !== undefined)
+    displayStatus(submittedJob, statusOfJob, waitEffective, result)
+
   if (submittedJob && submittedJob.links) {
     result = true
 
@@ -72,10 +75,8 @@ export async function execute(
         ? `Job located at '${jobPath}' has been executed.\nJob details`
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
-    if (waitEffective) displayResult(null, null, 'Job Status: success')
     if (output !== undefined || log) {
       try {
-        if (waitEffective) submittedJob.status = 'success'
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
         if (typeof output === 'string') {
@@ -152,8 +153,6 @@ export async function execute(
         )
       }
     }
-  } else if (result !== null && waitEffective) {
-    displayResult(result, 'Job Status: error', null)
   }
 
   console.log(
@@ -163,4 +162,26 @@ export async function execute(
   )
 
   return result
+}
+
+async function displayStatus(submittedJob, statusOfJob, wait, result = {}) {
+  const adapterStatus = submittedJob?.state
+    ? submittedJob.state
+    : 'Not Available'
+  const status = `Job Status: ${adapterStatus}`
+
+  if (adapterStatus === 'completed') displayResult(null, null, status)
+  else displayResult(result, status, null)
+
+  if (typeof statusOfJob === 'string') {
+    const statusPath = path.join(process.cwd(), statusOfJob)
+
+    let folderPath = statusPath.split(path.sep)
+    folderPath.pop()
+    folderPath = folderPath.join(path.sep)
+
+    if (!(await folderExists(folderPath))) await createFolder(folderPath)
+
+    await createFile(statusPath, status)
+  }
 }

@@ -184,6 +184,24 @@ describe('sasjs job', () => {
       },
       60 * 1000
     )
+
+    it(
+      'should submit a job and create a file with provided job log filename and status file',
+      async () => {
+        const command = `job execute testJob -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/status.txt`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+
+        await processJob(command)
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
   })
 
   afterAll(async () => {

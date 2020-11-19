@@ -117,6 +117,7 @@ const flagsWithValue = [
   initialFlags.datafile,
   initialFlags.configfile,
   initialFlags.output,
+  initialFlags.status,
   initialFlags.logFile
 ]
 
