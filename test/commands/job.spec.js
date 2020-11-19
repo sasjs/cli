@@ -99,6 +99,47 @@ describe('sasjs job', () => {
     )
 
     it(
+      'should submit a job and create a file with job output and wait',
+      async () => {
+        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput -w`
+
+        const folderPath = path.join(process.cwd(), 'testOutput')
+        const filePath = path.join(process.cwd(), 'testOutput/output.json')
+
+        await processJob(command)
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should submit a job and create a file with job output, log and auto-wait',
+      async () => {
+        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput -l testLog`
+
+        const folderPathOutput = path.join(process.cwd(), 'testOutput')
+        const filePathOutput = path.join(
+          process.cwd(),
+          'testOutput/output.json'
+        )
+
+        const folderPathLog = path.join(process.cwd(), 'testLog')
+        const filePathLog = path.join(process.cwd(), 'testLog/testJob.log')
+
+        await processJob(command)
+
+        await expect(folderExists(folderPathOutput)).resolves.toEqual(true)
+        await expect(fileExists(filePathOutput)).resolves.toEqual(true)
+
+        await expect(folderExists(folderPathLog)).resolves.toEqual(true)
+        await expect(fileExists(filePathLog)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
       'should submit a job and create a file with job log',
       async () => {
         const command = `job execute testJob -t ${targetName} -l testLog`

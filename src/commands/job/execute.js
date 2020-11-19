@@ -12,6 +12,7 @@ import path from 'path'
  * @param {string} jobPath - location of the job on SAS Drive.
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
+ * @param {boolean} statusOfJob - flag indicating status of job will be printed in file/console if wait flag is present.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
  * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}.log file will be created in current folder.
@@ -22,6 +23,7 @@ export async function execute(
   jobPath,
   target,
   waitForJob,
+  statusOfJob,
   output,
   log
 ) {
@@ -37,13 +39,14 @@ export async function execute(
 
   spinner.start()
 
+  const waitEffective = waitForJob || log ? true : false
   const submittedJob = await sasjs
     .startComputeJob(
       jobPath,
       null,
       { contextName: target.tgtDeployVars.contextName },
       accessToken,
-      waitForJob || log ? true : false
+      waitEffective
     )
     .catch((err) => {
       result = err
@@ -69,15 +72,18 @@ export async function execute(
         ? `Job located at '${jobPath}' has been executed.\nJob details`
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
-
+    if (waitEffective) displayResult(null, null, 'Job Status: success')
     if (output !== undefined || log) {
       try {
+        if (waitEffective) submittedJob.status = 'success'
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
         if (typeof output === 'string') {
           const outputPath = path.join(
             process.cwd(),
-            /\.json$/i.test(output) ? output : path.join(output, 'output.json')
+            /\.[a-z]{3,4}$/i.test(output)
+              ? output
+              : path.join(output, 'output.json')
           )
 
           let folderPath = outputPath.split(path.sep)
@@ -146,6 +152,8 @@ export async function execute(
         )
       }
     }
+  } else if (result !== null && waitEffective) {
+    displayResult(result, 'Job Status: error', null)
   }
 
   console.log(
