@@ -235,6 +235,10 @@ export function isSasFile(filePath) {
   return path.extname(filePath) === '.sas'
 }
 
+export function isJsonFile(filePath) {
+  return path.extname(filePath) === '.json'
+}
+
 export function isShellScript(filePath) {
   return path.extname(filePath) === '.sh'
 }

@@ -15,7 +15,8 @@ import {
   context,
   folderManagement,
   servicepack,
-  jobManagement
+  jobManagement,
+  flowManagement
 } from './main'
 import { fileExists } from './utils/file-utils'
 import path from 'path'
@@ -228,6 +229,11 @@ export async function cli(args) {
     }
     case 'job': {
       await jobManagement(command.parameters)
+
+      break
+    }
+    case 'flow': {
+      await flowManagement(command.parameters)
 
       break
     }

@@ -1,9 +1,5 @@
 import chalk from 'chalk'
-import {
-  getBuildTarget,
-  getAccessToken,
-  sanitizeAppLoc
-} from '../../utils/config-utils'
+import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
