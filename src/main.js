@@ -106,7 +106,6 @@ export async function deployServices(commandLine) {
       displayResult(null, null, `Services have been successfully deployed!`)
     )
     .catch((err) => {
-      
       if (err.hasOwnProperty('body')) {
         displayResult(err, 'An error has occurred when building services.')
       } else {
@@ -176,10 +175,7 @@ export async function compileBuildDeployServices(commandLine) {
         const status = err.status
 
         if (status === 409) {
-          displayResult(
-            err,
-            '\nAn error has occurred when building services.'
-          )
+          displayResult(err, '\nAn error has occurred when building services.')
         }
       }
     })
