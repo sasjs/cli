@@ -131,13 +131,12 @@ export async function compileServices(targetName) {
 export async function deployServices(commandLine) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
-  const isForced = command.getFlagValue('force')
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  await deploy(targetName, null, isForced)
+  await deploy(targetName, null)
     .then(() =>
       console.log(
         chalk.greenBright.bold.italic(
@@ -155,11 +154,8 @@ export async function deployServices(commandLine) {
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            `${message}${
-              status === 409
-                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-                : ''
-            }${details ? '\n' + details : ''}`
+            `${message}
+            ${details ? '\n' + details : ''}`
           )
         )
       } else {
@@ -200,17 +196,17 @@ export async function compileBuildServices(targetName) {
 }
 
 export async function compileBuildDeployServices(commandLine) {
-  commandLine.shift()
+  const command = new Command(commandLine)
+  const isForced = command.getFlagValue('force')
+  let targetName = command.getFlagValue('target')
 
-  const indexOfForceFlag = commandLine.indexOf('-f')
-
-  if (indexOfForceFlag !== -1) commandLine.splice(indexOfForceFlag, 1)
-
-  const targetName = commandLine.join('')
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
 
   let result
 
-  await build(targetName, null, null, true, indexOfForceFlag !== -1) // enforcing compile & build & deploy
+  await build(targetName, null, null, true, isForced) // enforcing compile & build & deploy
     .then(() => {
       result = true
 
@@ -234,11 +230,7 @@ export async function compileBuildDeployServices(commandLine) {
         console.log(
           chalk.redBright(
             'An error has occurred when building services.',
-            `${message}${
-              status === 409
-                ? '\nIf you still want to deploy, use force flag (-f) after target name.'
-                : ''
-            }${details ? '\n' + details : ''}`
+            `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {

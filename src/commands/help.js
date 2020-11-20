@@ -124,7 +124,8 @@ export async function printHelpText() {
         `[2spaces]* ${chalk.cyanBright(
           'serverUrl'
         )} - The full path to the server (eg https://yourserver)`,
-        `[2spaces]* ${chalk.cyanBright('serverType')} - Eg SAS9 or SASVIYA`
+        `[2spaces]* ${chalk.cyanBright('serverType')} - Eg SAS9 or SASVIYA`,
+        `NOTE: By default deploy will overwrite an existing deploy (force deploy).`
       ]
     },
     {
@@ -136,7 +137,8 @@ export async function printHelpText() {
         )} OR ${chalk.cyanBright('tgtDeployScript')}.`,
         `It will also perform ${chalk.greenBright('compilebuild')} command.`,
         ``,
-        `NOTE: If no target name is specified/matched, it will build the first target present in config.json.`
+        `NOTE: If no target name is specified/matched, it will build the first target present in config.json.`,
+        `NOTE: By default deploy will overwrite an existing deploy (force deploy).`
       ]
     },
     {
