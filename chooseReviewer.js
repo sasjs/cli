@@ -12,4 +12,4 @@ const shuffle = (sourceArray) => {
   return sourceArray
 }
 
-console.log(shuffle(reviewers).join(' --> '))
+console.log('Reviewer chain: ' + shuffle(reviewers).join(' --> '))
