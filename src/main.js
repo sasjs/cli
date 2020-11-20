@@ -96,18 +96,22 @@ export async function compileServices(targetName) {
 export async function deployServices(commandLine) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
-  const isForced = command.getFlagValue('force')
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  await deploy(targetName, null, isForced)
+  await deploy(targetName, null)
     .then(() =>
       displayResult(null, null, `Services have been successfully deployed!`)
     )
     .catch((err) => {
-      displayResult(err, 'An error has occurred when building services.')
+      
+      if (err.hasOwnProperty('body')) {
+        displayResult(err, 'An error has occurred when building services.')
+      } else {
+        displayResult(err, 'An error has occurred when deploying services.')
+      }
     })
 }
 
@@ -174,7 +178,7 @@ export async function compileBuildDeployServices(commandLine) {
         if (status === 409) {
           displayResult(
             err,
-            '\nIf you still want to deploy, use force flag (-f) after target name.'
+            '\nAn error has occurred when building services.'
           )
         }
       }

@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file-utils'
+import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 
 /**
@@ -13,7 +14,7 @@ import path from 'path'
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
- * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}-log.json file will be created in current folder.
+ * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}.log file will be created in current folder.
  */
 export async function execute(
   sasjs,
@@ -107,17 +108,14 @@ export async function execute(
             if (typeof log === 'string') {
               logPath = path.join(
                 process.cwd(),
-                /\.json$/i.test(log)
+                /\.log$/i.test(log)
                   ? log
-                  : path.join(
-                      log,
-                      `${jobPath.split('/').slice(-1).pop()}-log.json`
-                    )
+                  : path.join(log, `${jobPath.split('/').slice(-1).pop()}.log`)
               )
             } else {
               logPath = path.join(
                 process.cwd(),
-                `${jobPath.split('/').slice(-1).pop()}-log.json`
+                `${jobPath.split('/').slice(-1).pop()}.log`
               )
             }
 
@@ -129,7 +127,9 @@ export async function execute(
               await createFolder(folderPath)
             }
 
-            await createFile(logPath, JSON.stringify(logJson, null, 2))
+            let logLines = parseLogLines(logJson)
+
+            await createFile(logPath, logLines)
 
             displayResult(null, null, `Log saved to: ${logPath}`)
           }
