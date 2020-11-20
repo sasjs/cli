@@ -39,8 +39,7 @@ export async function build(
   targetName = null,
   compileOnly = false,
   compileBuildOnly = false,
-  compileBuildDeployOnly = false,
-  isForced = false
+  compileBuildDeployOnly = false
 ) {
   const CONSTANTS = require('../constants')
 
@@ -55,7 +54,7 @@ export async function build(
   if (compileBuildDeployOnly) {
     await compile(targetName)
     await createFinalSasFiles()
-    return await deploy(targetName, targetToBuild, isForced)
+    return await deploy(targetName, targetToBuild)
   }
 
   if (compileBuildOnly) {
