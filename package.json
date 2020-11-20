@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.17.0",
+    "@sasjs/adapter": "^1.18.2",
     "@sasjs/core": "^1.8.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
@@ -46,7 +46,7 @@
     "fs": "0.0.1-security",
     "fs-extra": "^9.0.1",
     "jsdom": "^16.4.0",
-    "jwt-decode": "^2.2.0",
+    "jwt-decode": "^3.1.2",
     "lodash.groupby": "^4.6.0",
     "lodash.uniqby": "^4.7.0",
     "ora": "^5.1.0",

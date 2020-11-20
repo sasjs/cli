@@ -104,7 +104,37 @@ describe('sasjs job', () => {
         const command = `job execute testJob -t ${targetName} -l testLog`
 
         const folderPath = path.join(process.cwd(), 'testLog')
-        const filePath = path.join(process.cwd(), 'testLog/testJob-log.json')
+        const filePath = path.join(process.cwd(), 'testLog/testJob.log')
+
+        await processJob(command)
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should submit a job and create a file with provided job log filename',
+      async () => {
+        const command = `job execute testJob -t ${targetName} -l mycustom.log`
+
+        const filePath = path.join(process.cwd(), 'mycustom.log')
+
+        await processJob(command)
+
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should submit a job and create a file with provided job log filename and path',
+      async () => {
+        const command = `job execute testJob -t ${targetName} -l ./my/folder/mycustom.log`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
 
         await processJob(command)
 
