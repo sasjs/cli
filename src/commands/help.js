@@ -89,6 +89,9 @@ export async function printHelpText() {
             'serverUrl'
           )} - The full path to the server (eg https://yourserver)
           * ${chalk.cyanBright('serverType')} - Eg SAS9 or SASVIYA
+
+      NOTE: By default deploy will overwrite an existing deploy (force deploy).
+      
     * ${chalk.greenBright(
       'compilebuilddeploy <targetName>'
     )} - executes script file specified in the ${chalk.cyanBright(
