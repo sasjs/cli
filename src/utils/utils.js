@@ -221,6 +221,20 @@ export async function getVariable(name, target) {
 }
 
 /**
+ * Extracts plain text job log from fetched json log
+ * @param {object} logJson
+ */
+export function parseLogLines(logJson) {
+  let logLines = ''
+
+  for (let item of logJson.items) {
+    logLines += `${item.line}\n`
+  }
+
+  return logLines
+}
+
+/**
  * Returns a timestamp in YYYYMMDDSS format
  */
 export function generateTimestamp() {

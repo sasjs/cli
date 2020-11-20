@@ -1,4 +1,4 @@
-import { generateTimestamp } from '../src/utils/utils'
+import { generateTimestamp, parseLogLines } from '../src/utils/utils'
 
 describe('generateTimestamp', () => {
   let realDate
@@ -22,6 +22,29 @@ describe('generateTimestamp', () => {
     const timestamp = generateTimestamp()
 
     expect(timestamp).toEqual(expectedTimestamp)
+  })
+
+  test('should generate plain text log from json', () => {
+    const expectedLog = `line1\nline2\nline3\nline4\n`
+
+    const json = {
+      items: [
+        {
+          line: 'line1'
+        },
+        {
+          line: 'line2'
+        },
+        {
+          line: 'line3'
+        },
+        {
+          line: 'line4'
+        }
+      ]
+    }
+
+    expect(parseLogLines(json)).toEqual(expectedLog)
   })
 
   afterAll(() => {
