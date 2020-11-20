@@ -49,10 +49,10 @@ const initialFlags = arrToObj([
     'datafile',
     'configfile',
     'wait',
-    'status',
     'output',
     'force',
-    'logFile'
+    'logFile',
+    'status'
   ])
 ])
 
@@ -103,9 +103,9 @@ const commandFlags = [
     flags: [
       initialFlags.target,
       initialFlags.wait,
-      initialFlags.status,
       initialFlags.output,
-      initialFlags.logFile
+      initialFlags.logFile,
+      initialFlags.status
     ]
   }
 ]
@@ -117,8 +117,8 @@ const flagsWithValue = [
   initialFlags.datafile,
   initialFlags.configfile,
   initialFlags.output,
-  initialFlags.status,
-  initialFlags.logFile
+  initialFlags.logFile,
+  initialFlags.status
 ]
 
 export class Command {

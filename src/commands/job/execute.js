@@ -12,10 +12,10 @@ import path from 'path'
  * @param {string} jobPath - location of the job on SAS Drive.
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
- * @param {boolean} statusOfJob - flag indicating status of job will be printed in file/console if wait flag is present.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
  * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
  */
 export async function execute(
   sasjs,
@@ -23,16 +23,16 @@ export async function execute(
   jobPath,
   target,
   waitForJob,
-  statusOfJob,
   output,
-  log
+  log,
+  statusFile
 ) {
   let result = {}
 
   const startTime = new Date().getTime()
 
-  if (statusOfJob !== undefined)
-    displayStatus({ state: 'Initiating' }, statusOfJob)
+  if (statusFile !== undefined)
+    displayStatus({ state: 'Initiating' }, statusFile)
 
   const spinner = ora(
     `Job located at ${chalk.greenBright(
@@ -51,17 +51,17 @@ export async function execute(
       waitForJob || log ? true : false
     )
     .catch((err) => {
-      result = err
-      // need to fix this error return, it's not printing `err` on console
-      displayResult(err, 'An error has occurred when executing a job.', null)
+      err = typeof err === 'object' ? JSON.stringify(err) : err
+      spinner.stop()
+      if (statusFile !== undefined) displayStatus(null, statusFile, err)
+      throw new Error(err)
     })
 
   spinner.stop()
 
   const endTime = new Date().getTime()
 
-  if (statusOfJob !== undefined)
-    displayStatus(submittedJob, statusOfJob, result)
+  if (statusFile !== undefined) displayStatus(submittedJob, statusFile)
 
   if (submittedJob && submittedJob.links) {
     result = true
@@ -166,19 +166,20 @@ export async function execute(
   return result
 }
 
-async function displayStatus(submittedJob, statusOfJob, result = {}) {
+async function displayStatus(submittedJob, statusFile, error = '') {
   const adapterStatus =
     submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
+
   const status =
     adapterStatus === 'Not Available'
-      ? `Job Status: ${adapterStatus}\n\nDetails: ${result}`
+      ? `Job Status: ${adapterStatus}\nDetails: ${error}\n`
       : `Job Status: ${adapterStatus}`
 
   if (adapterStatus === 'completed') displayResult(null, null, status)
-  else displayResult(result, status, null)
+  else displayResult({}, status, null)
 
-  if (typeof statusOfJob === 'string') {
-    const statusPath = path.join(process.cwd(), statusOfJob)
+  if (typeof statusFile === 'string') {
+    const statusPath = path.join(process.cwd(), statusFile)
 
     let folderPath = statusPath.split(path.sep)
     folderPath.pop()
