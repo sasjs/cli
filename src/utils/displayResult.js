@@ -4,7 +4,7 @@ export function displayResult(err, failureMessage, successMessage) {
   if (err) {
     if (err.hasOwnProperty('error')) {
       let body = err.error || null
-      
+
       if (err.error) {
         body = err.error
       }

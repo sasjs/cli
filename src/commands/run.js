@@ -67,19 +67,21 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
       throw e
     })
 
-  const executionResult = await sasjs.executeScriptSASViya(
-    path.basename(filePath),
-    linesToExecute,
-    contextName,
-    accessToken,
-    executionSession.id
-  ).catch( async (err) => {
-    let log = err.log
+  const executionResult = await sasjs
+    .executeScriptSASViya(
+      path.basename(filePath),
+      linesToExecute,
+      contextName,
+      accessToken,
+      executionSession.id
+    )
+    .catch(async (err) => {
+      let log = err.log
 
-    await createOutputFile(log)
+      await createOutputFile(log)
 
-    throw new ErrorResponse('Find more error details in the log file.')
-  })
+      throw new ErrorResponse('Find more error details in the log file.')
+    })
 
   let log
   try {
@@ -133,17 +135,15 @@ async function executeOnSas9(buildTarget, linesToExecute) {
     serverType: buildTarget.serverType,
     debug: true
   })
-  const executionResult = await sasjs.executeScriptSAS9(
-    linesToExecute,
-    serverName,
-    repositoryName
-  ).catch( async (err) => {
-    let log = err.payload.log
+  const executionResult = await sasjs
+    .executeScriptSAS9(linesToExecute, serverName, repositoryName)
+    .catch(async (err) => {
+      let log = err.payload.log
 
-    await createOutputFile(log)
+      await createOutputFile(log)
 
-    throw new ErrorResponse('Find more error details in the log file.')
-  })
+      throw new ErrorResponse('Find more error details in the log file.')
+    })
 
   let parsedLog
   try {
