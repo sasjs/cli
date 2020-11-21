@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
+import { ErrorResponse } from '@sasjs/adapter/node'
 import {
   findTargetInConfiguration,
   getAccessToken
@@ -72,7 +73,13 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     contextName,
     accessToken,
     executionSession.id
-  )
+  ).catch( async (err) => {
+    let log = err.log
+
+    await createOutputFile(log)
+
+    throw new ErrorResponse('Find more error details in the log file.')
+  })
 
   let log
   try {
@@ -130,7 +137,13 @@ async function executeOnSas9(buildTarget, linesToExecute) {
     linesToExecute,
     serverName,
     repositoryName
-  )
+  ).catch( async (err) => {
+    let log = err.payload.log
+
+    await createOutputFile(log)
+
+    throw new ErrorResponse('Find more error details in the log file.')
+  })
 
   let parsedLog
   try {
