@@ -48,7 +48,7 @@ export async function execute(
       null,
       { contextName: target.tgtDeployVars.contextName },
       accessToken,
-      waitForJob || logFile ? true : false
+      waitForJob || logFile !== undefined ? true : false
     )
     .catch((err) => {
       err = typeof err === 'object' ? JSON.stringify(err) : err
@@ -77,7 +77,7 @@ export async function execute(
         ? `Job located at '${jobPath}' has been executed.\nJob details`
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
-    if (output !== undefined || logFile) {
+    if (output !== undefined || logFile !== undefined) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
@@ -102,7 +102,7 @@ export async function execute(
           console.log(outputJson)
         }
 
-        if (logFile) {
+        if (logFile !== undefined) {
           const logObj = submittedJob.links.find(
             (link) => link.rel === 'log' && link.method === 'GET'
           )
