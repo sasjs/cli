@@ -142,7 +142,7 @@ async function getSASjsAndAccessToken(buildTarget) {
     serverType: buildTarget.serverType
   })
 
-  const accessToken = await getAccessToken(buildTarget, sasjs)
+  const accessToken = await getAccessToken(buildTarget)
   return {
     sasjs,
     accessToken
@@ -165,36 +165,15 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  if (buildTarget.authInfo) {
-    let { access_token } = buildTarget.authInfo
+  const accessToken = await getAccessToken(buildTarget)
 
-    if (!access_token) access_token = process.env.ACCESS_TOKEN
-
-    const { refresh_token } = buildTarget.authInfo
-    const isTokenExpiring = isAccessTokenExpiring(access_token)
-
-    if (isTokenExpiring) {
-      const { client, secret } = buildTarget.tgtDeployVars
-      const newAuthResponse = await refreshTokens(
-        sasjs,
-        client,
-        secret,
-        refresh_token
-      )
-
-      access_token = newAuthResponse.access_token
-    }
-
-    return await sasjs.deployServicePack(
-      jsonObject,
-      null,
-      null,
-      access_token,
-      true
-    )
-  }
-
-  return await sasjs.deployServicePack(jsonObject, null, null, null, true)
+  return await sasjs.deployServicePack(
+    jsonObject,
+    null,
+    null,
+    accessToken,
+    true
+  )
 }
 
 async function deployToSasViya(
