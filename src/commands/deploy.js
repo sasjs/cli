@@ -167,35 +167,6 @@ async function deployToSasViyaWithServicePack(buildTarget) {
 
   const access_token = await getAccessToken(buildTarget)
 
-  if (buildTarget.authInfo) {
-    let { access_token } = buildTarget.authInfo
-
-    if (!access_token) access_token = process.env.ACCESS_TOKEN
-
-    const { refresh_token } = buildTarget.authInfo
-    const isTokenExpiring = isAccessTokenExpiring(access_token)
-
-    if (isTokenExpiring) {
-      const { client, secret } = buildTarget.tgtDeployVars
-      const newAuthResponse = await refreshTokens(
-        sasjs,
-        client,
-        secret,
-        refresh_token
-      )
-
-      access_token = newAuthResponse.access_token
-    }
-
-    return await sasjs.deployServicePack(
-      jsonObject,
-      null,
-      null,
-      access_token,
-      true
-    )
-  }
-
   return await sasjs.deployServicePack(
     jsonObject,
     null,
