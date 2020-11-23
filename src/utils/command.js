@@ -253,6 +253,14 @@ export class Command {
 
     return undefined
   }
+
+  getAllSupportedCommands() {
+    return Object.keys(initialCommands)
+  }
+
+  getAllSupportedAliases() {
+    return initialAliases.map((alias) => alias.name)
+  }
 }
 
 class Flag {
