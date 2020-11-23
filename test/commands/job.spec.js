@@ -202,6 +202,22 @@ describe('sasjs job', () => {
       },
       60 * 1000
     )
+
+    it(
+      "should submit a job that doesn't exist and create a status file",
+      async () => {
+        const command = `job execute job-no-present -t ${targetName} --wait --status ./my/folder/status.txt`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+
+        await expect(processJob(command)).rejects.toThrow('{}')
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
   })
 
   afterAll(async () => {
