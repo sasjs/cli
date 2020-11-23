@@ -165,13 +165,13 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  const access_token = await getAccessToken(buildTarget)
+  const accessToken = await getAccessToken(buildTarget)
 
   return await sasjs.deployServicePack(
     jsonObject,
     null,
     null,
-    access_token,
+    accessToken,
     true
   )
 }
