@@ -1,6 +1,7 @@
 name: 'Assign Reviewer'
 on:
   pull_request:
+    types: [opened]
 
 jobs:
   test:
