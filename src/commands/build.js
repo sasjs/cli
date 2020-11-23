@@ -825,7 +825,7 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
     })
   }
 
-  const dependenciesHeader = '<h4> SAS Macros </h4>'
+  let dependenciesHeader = '<h4> SAS Macros </h4>'
 
   if (fileContent.includes('<h4> Dependencies </h4>')) {
     dependenciesHeader = '<h4> Dependencies </h4>'
