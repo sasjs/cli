@@ -14,7 +14,7 @@ import path from 'path'
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
- * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {boolean | string} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
  * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
  */
 export async function execute(
@@ -24,7 +24,7 @@ export async function execute(
   target,
   waitForJob,
   output,
-  log,
+  logFile,
   statusFile
 ) {
   let result = {}
@@ -48,7 +48,7 @@ export async function execute(
       null,
       { contextName: target.tgtDeployVars.contextName },
       accessToken,
-      waitForJob || log ? true : false
+      waitForJob || logFile ? true : false
     )
     .catch((err) => {
       err = typeof err === 'object' ? JSON.stringify(err) : err
@@ -77,7 +77,7 @@ export async function execute(
         ? `Job located at '${jobPath}' has been executed.\nJob details`
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
-    if (output !== undefined || log) {
+    if (output !== undefined || logFile) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
@@ -102,7 +102,7 @@ export async function execute(
           console.log(outputJson)
         }
 
-        if (log) {
+        if (logFile) {
           const logObj = submittedJob.links.find(
             (link) => link.rel === 'log' && link.method === 'GET'
           )
@@ -114,13 +114,8 @@ export async function execute(
 
             let logPath
 
-            if (typeof log === 'string') {
-              logPath = path.join(
-                process.cwd(),
-                /\.log$/i.test(log)
-                  ? log
-                  : path.join(log, `${jobPath.split('/').slice(-1).pop()}.log`)
-              )
+            if (typeof logFile === 'string') {
+              logPath = path.join(process.cwd(), logFile)
             } else {
               logPath = path.join(
                 process.cwd(),
