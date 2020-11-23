@@ -1,7 +1,10 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { findTargetInConfiguration } from '../utils/config-utils'
+import {
+  getAccessToken,
+  findTargetInConfiguration
+} from '../utils/config-utils'
 import { asyncForEach, executeShellScript, getVariable } from '../utils/utils'
 import {
   isSasFile,
@@ -10,11 +13,7 @@ import {
   folderExists,
   createFile
 } from '../utils/file-utils'
-import {
-  getAccessToken,
-  isAccessTokenExpiring,
-  refreshTokens
-} from '../utils/auth-utils'
+import { isAccessTokenExpiring, refreshTokens } from '../utils/auth-utils'
 
 let targetToBuild = null
 let executionSession
@@ -26,10 +25,11 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
     targetToBuild = target
   }
 
-  if (targetToBuild.serverType === 'SASVIYA' && !targetToBuild.authInfo) {
+  const accessToken = await getAccessToken(targetToBuild)
+  if (targetToBuild.serverType === 'SASVIYA' && !accessToken) {
     console.log(
       chalk.redBright.bold(
-        `Deployment failed. Request is not authenticated.\nRun 'sasjs add' command and provide 'client' and 'secret'.`
+        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
       )
     )
 
