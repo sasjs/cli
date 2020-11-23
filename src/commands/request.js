@@ -66,6 +66,8 @@ export async function runSasJob(commandLine) {
 
   if (!dataJson) dataJson = null
 
+  console.log(configJson)
+
   let result
   await sasjs
     .request(
@@ -111,7 +113,7 @@ export async function runSasJob(commandLine) {
       (err) => {
         result = err
         displayResult(
-          err,
+          JSON.stringify(err),
           'An error occurred while executing the request.',
           null
         )
