@@ -486,7 +486,7 @@ describe('parseCommandLine', () => {
 
     test('short syntax', () => {
       const commandLine =
-        'job execute /Public/job -t targetName -w -o ./output.json -l ./log.json -s ./status.txt'
+        'job execute /Public/job -t targetName -w -o ./output.json -l ./log.txt -s ./status.txt'
 
       const command = new Command(commandLine)
 
@@ -501,7 +501,7 @@ describe('parseCommandLine', () => {
         'targetName',
         null,
         './output.json',
-        './log.json',
+        './log.txt',
         './status.txt'
       ]
 
