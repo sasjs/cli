@@ -142,7 +142,7 @@ async function getSASjsAndAccessToken(buildTarget) {
     serverType: buildTarget.serverType
   })
 
-  const accessToken = await getAccessToken(buildTarget, sasjs)
+  const accessToken = await getAccessToken(buildTarget)
   return {
     sasjs,
     accessToken
