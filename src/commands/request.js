@@ -26,7 +26,7 @@ export async function runSasJob(commandLine) {
   let dataJson
   let configJson
 
-  if (dataFilePath !== 'default') {
+  if (dataFilePath) {
     if (dataFilePath.split('.').slice(-1)[0] !== 'json') {
       throw new Error('Provided data file must be valid json.')
     }
@@ -40,7 +40,7 @@ export async function runSasJob(commandLine) {
     }
   }
 
-  if (configFilePath !== 'default') {
+  if (configFilePath) {
     if (configFilePath.split('.').slice(-1)[0] !== 'json') {
       throw new Error('Provided config file must be valid json.')
     }
