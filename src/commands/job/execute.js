@@ -27,7 +27,7 @@ export async function execute(
   logFile,
   statusFile
 ) {
-  let result = {}
+  let result
 
   const startTime = new Date().getTime()
 
@@ -52,7 +52,12 @@ export async function execute(
     )
     .catch((err) => {
       spinner.stop()
-      if (statusFile !== undefined) displayStatus(null, statusFile, err)
+      err =
+        typeof err === 'object' && Object.keys(err).length
+          ? JSON.stringify(err)
+          : err
+      if (statusFile !== undefined)
+        displayStatus({ state: 'Error' }, statusFile, err)
       throw new Error(err)
     })
 
@@ -76,6 +81,7 @@ export async function execute(
         ? `Job located at '${jobPath}' has been executed.\nJob details`
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
+
     if (output !== undefined || logFile !== undefined) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
@@ -165,7 +171,7 @@ async function displayStatus(submittedJob, statusFile, error = '') {
     submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
 
   const status =
-    adapterStatus === 'Not Available'
+    adapterStatus === 'Not Available' || adapterStatus === 'Error'
       ? `Job Status: ${adapterStatus}\nDetails: ${error}\n`
       : `Job Status: ${adapterStatus}`
 

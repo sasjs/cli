@@ -53,7 +53,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName}`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName}`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -63,7 +63,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -w`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -73,7 +73,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -w -o`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w -o`
 
         const jobOutput = await processJob(command)
 
@@ -85,7 +85,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput`
 
         const folderPath = path.join(process.cwd(), 'testOutput')
         const filePath = path.join(process.cwd(), 'testOutput/output.json')
@@ -101,7 +101,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput -w`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -w`
 
         const folderPath = path.join(process.cwd(), 'testOutput')
         const filePath = path.join(process.cwd(), 'testOutput/output.json')
@@ -117,7 +117,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput -l testLog.txt`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
 
         const folderPathOutput = path.join(process.cwd(), 'testOutput')
         const filePathOutput = path.join(
@@ -140,10 +140,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job log',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l`
+        const command = `job execute testJob/job -t ${targetName} -l`
 
-        const filePath = path.join(process.cwd(), 'testJob.log')
-
+        const filePath = path.join(process.cwd(), 'job.log')
         await processJob(command)
 
         await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -154,7 +153,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l mycustom.log`
+        const command = `job execute testJob/job -t ${targetName} -l mycustom.log`
 
         const filePath = path.join(process.cwd(), 'mycustom.log')
 
@@ -168,7 +167,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and path',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l ./my/folder/mycustom.log`
+        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
@@ -184,7 +183,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and status file',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/status.txt`
+        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/status.txt`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
@@ -202,7 +201,7 @@ describe('sasjs job', () => {
     it(
       "should submit a job that doesn't exist and create a status file",
       async () => {
-        const command = `job execute job-no-present -t ${targetName} --wait --status ./my/folder/status.txt`
+        const command = `job execute job-not-present -t ${targetName} --wait --status ./my/folder/status.txt`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
@@ -210,7 +209,20 @@ describe('sasjs job', () => {
         await expect(processJob(command)).rejects.toThrow(
           'Error: Job was not found.'
         )
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
 
+    it(
+      'should submit a job that fails and create a status file',
+      async () => {
+        const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/status.txt`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+        await expect(processJob(command)).rejects.toThrow('{}')
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePathStatus)).resolves.toEqual(true)
       },
