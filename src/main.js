@@ -116,13 +116,13 @@ export async function compileServices(targetName) {
 
         console.log(
           chalk.redBright(
-            'An error has occurred when building services.',
+            'An error has occurred when compiling services.',
             `${message}${details ? '\n' + details : ''}`
           )
         )
       } else {
         console.log(
-          chalk.redBright('An error has occurred when building services.', err)
+          chalk.redBright('An error has occurred when compiling services.', err)
         )
       }
     })
@@ -153,7 +153,7 @@ export async function deployServices(commandLine) {
 
         console.log(
           chalk.redBright(
-            'An error has occurred when building services.',
+            'An error has occurred when deploying services.',
             `${message}
             ${details ? '\n' + details : ''}`
           )
