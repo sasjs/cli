@@ -51,7 +51,6 @@ export async function execute(
       waitForJob || logFile !== undefined ? true : false
     )
     .catch((err) => {
-      err = typeof err === 'object' ? JSON.stringify(err) : err
       spinner.stop()
       if (statusFile !== undefined) displayStatus(null, statusFile, err)
       throw new Error(err)
