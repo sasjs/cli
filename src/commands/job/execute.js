@@ -32,7 +32,7 @@ export async function execute(
   const startTime = new Date().getTime()
 
   if (statusFile !== undefined)
-    displayStatus({ state: 'Initiating' }, statusFile)
+    await displayStatus({ state: 'Initiating' }, statusFile)
 
   const spinner = ora(
     `Job located at ${chalk.greenBright(
@@ -69,7 +69,7 @@ export async function execute(
   if (result)
     displayResult(result, 'An error has occurred when executing a job.', null)
   if (statusFile !== undefined)
-    displayStatus(submittedJob, statusFile, result, true)
+    await displayStatus(submittedJob, statusFile, result, true)
 
   if (submittedJob && submittedJob.links) {
     if (!result) result = true

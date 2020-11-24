@@ -32,14 +32,14 @@ function parseCommand(rawArgs) {
     : ''
   const homedir = require('os').homedir()
 
-  const args =
+  const argsTemp =
     isWin && isMSys
       ? rawArgs.slice(2).map((arg) => arg.replace(prefix, ''))
-      : isWin
-      ? rawArgs
-          .slice(2)
-          .map((arg) => arg.replace('~', homedir.replace(/\\/g, '/')))
       : rawArgs.slice(2)
+
+  const args = argsTemp.map((arg) =>
+    arg.replace('~', homedir.replace(/\\/g, '/'))
+  )
 
   if (args.length) {
     const name = getUnaliasedCommand(args[0])

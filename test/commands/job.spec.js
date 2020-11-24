@@ -3,7 +3,7 @@ import path from 'path'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
 import { getContextName } from '../../src/commands/job/execute'
-import { folderExists, fileExists } from '../../src/utils/file-utils'
+import { folderExists, fileExists, readFile } from '../../src/utils/file-utils'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'
@@ -184,17 +184,24 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and status file',
       async () => {
-        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/status.txt`
+        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
-        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+        const filePathStatus = path.join(
+          process.cwd(),
+          'my/folder/testJob.status'
+        )
 
         await processJob(command)
 
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePath)).resolves.toEqual(true)
         await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(statusContent.includes('Job Status: completed')).toEqual(true)
       },
       60 * 1000
     )
@@ -212,6 +219,14 @@ describe('sasjs job', () => {
         )
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(
+          statusContent.includes(
+            'Job Status: Not Available\nDetails: Error: Job was not found.'
+          )
+        ).toEqual(true)
       },
       60 * 1000
     )
@@ -219,15 +234,19 @@ describe('sasjs job', () => {
     it(
       'should submit a job that fails and create a status file',
       async () => {
-        const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/status.txt`
+        const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/job.status`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
-        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/job.status')
 
         await expect(processJob(command)).resolves.toEqual('{"state":"error"}')
 
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(statusContent.includes('Job Status: error')).toEqual(true)
       },
       60 * 1000
     )
