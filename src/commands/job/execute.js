@@ -53,10 +53,10 @@ export async function execute(
     .catch((err) => {
       result =
         typeof err === 'object' && Object.keys(err).length
-          ? JSON.stringify({ state: err.result.state })
+          ? JSON.stringify({ state: err.job.state })
           : `${err}`
-      if (err.result) {
-        return err.result
+      if (err.job) {
+        return err.job
       }
     })
 
