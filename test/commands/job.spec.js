@@ -206,7 +206,7 @@ describe('sasjs job', () => {
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
 
-        await expect(processJob(command)).rejects.toThrow(
+        await expect(processJob(command)).resolves.toEqual(
           'Error: Job was not found.'
         )
         await expect(folderExists(folderPath)).resolves.toEqual(true)
@@ -222,7 +222,9 @@ describe('sasjs job', () => {
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
-        await expect(processJob(command)).rejects.toThrow('{}')
+
+        await expect(processJob(command)).resolves.toEqual('{"state":"error"}')
+
         await expect(folderExists(folderPath)).resolves.toEqual(true)
         await expect(fileExists(filePathStatus)).resolves.toEqual(true)
       },

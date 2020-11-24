@@ -51,24 +51,25 @@ export async function execute(
       waitForJob || logFile !== undefined ? true : false
     )
     .catch((err) => {
-      spinner.stop()
-      err =
+      result =
         typeof err === 'object' && Object.keys(err).length
-          ? JSON.stringify(err)
-          : err
-      if (statusFile !== undefined)
-        displayStatus({ state: 'Error' }, statusFile, err)
-      throw new Error(err)
+          ? JSON.stringify({ state: err.result.state })
+          : `${err}`
+      if (err.result) {
+        return err.result
+      }
     })
 
   spinner.stop()
 
   const endTime = new Date().getTime()
 
-  if (statusFile !== undefined) displayStatus(submittedJob, statusFile)
+  if (result)
+    displayResult(result, 'An error has occurred when executing a job.', null)
+  if (statusFile !== undefined) displayStatus(submittedJob, statusFile, result)
 
   if (submittedJob && submittedJob.links) {
-    result = true
+    if (!result) result = true
 
     const sessionLink = submittedJob.links.find(
       (l) => l.method === 'GET' && l.rel === 'self'
