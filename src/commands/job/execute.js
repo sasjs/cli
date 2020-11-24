@@ -90,8 +90,9 @@ export async function execute(
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
         if (typeof output === 'string') {
+          const currentDirPath = path.isAbsolute(output) ? '' : process.cwd()
           const outputPath = path.join(
-            process.cwd(),
+            currentDirPath,
             /\.[a-z]{3,4}$/i.test(output)
               ? output
               : path.join(output, 'output.json')
@@ -123,7 +124,10 @@ export async function execute(
             let logPath
 
             if (typeof logFile === 'string') {
-              logPath = path.join(process.cwd(), logFile)
+              const currentDirPath = path.isAbsolute(logFile)
+                ? ''
+                : process.cwd()
+              logPath = path.join(currentDirPath, logFile)
             } else {
               logPath = path.join(
                 process.cwd(),
@@ -202,7 +206,8 @@ async function displayStatus(submittedJob, statusFile, error = '') {
   else displayResult({}, status, null)
 
   if (typeof statusFile === 'string') {
-    const statusPath = path.join(process.cwd(), statusFile)
+    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.cwd()
+    const statusPath = path.join(currentDirPath, statusFile)
 
     let folderPath = statusPath.split(path.sep)
     folderPath.pop()
