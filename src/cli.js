@@ -30,10 +30,13 @@ function parseCommand(rawArgs) {
   const prefix = process.env.EXEPATH
     ? process.env.EXEPATH.replace(/\\/g, '/')
     : ''
+  const homedir = require('os').homedir()
 
   const args =
     isWin && isMSys
       ? rawArgs.slice(2).map((arg) => arg.replace(prefix, ''))
+      : isWin
+      ? rawArgs.slice(2).map((arg) => arg.replace('~', homedir.replace(/\\/g, '/')))
       : rawArgs.slice(2)
 
   if (args.length) {
