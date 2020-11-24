@@ -68,7 +68,8 @@ export async function execute(
 
   if (result)
     displayResult(result, 'An error has occurred when executing a job.', null)
-  if (statusFile !== undefined) displayStatus(submittedJob, statusFile, result)
+  if (statusFile !== undefined)
+    displayStatus(submittedJob, statusFile, result, true)
 
   if (submittedJob && submittedJob.links) {
     if (!result) result = true
@@ -193,16 +194,22 @@ export function getContextName(target) {
   return defaultContextName
 }
 
-async function displayStatus(submittedJob, statusFile, error = '') {
+async function displayStatus(
+  submittedJob,
+  statusFile,
+  error = '',
+  displayStatusFilePath = false
+) {
   const adapterStatus =
     submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
 
   const status =
-    adapterStatus === 'Not Available' || adapterStatus === 'Error'
+    adapterStatus === 'Not Available'
       ? `Job Status: ${adapterStatus}\nDetails: ${error}\n`
       : `Job Status: ${adapterStatus}`
 
-  if (adapterStatus === 'completed') displayResult(null, null, status)
+  if (adapterStatus === 'Initiating' || adapterStatus === 'completed')
+    displayResult(null, null, status)
   else displayResult({}, status, null)
 
   if (typeof statusFile === 'string') {
@@ -216,5 +223,7 @@ async function displayStatus(submittedJob, statusFile, error = '') {
     if (!(await folderExists(folderPath))) await createFolder(folderPath)
 
     await createFile(statusPath, status)
+    if (displayStatusFilePath)
+      displayResult(null, null, `Status saved to: ${statusPath}`)
   }
 }
