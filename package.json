@@ -5,8 +5,8 @@
   "scripts": {
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release",
-    "lint:fix": "npx prettier --write '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'",
-    "lint": "npx prettier --check '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'"
+    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
+    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\""
   },
   "release": {
     "branches": [
@@ -35,7 +35,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.18.2",
+    "@sasjs/adapter": "^1.18.3",
     "@sasjs/core": "^1.8.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
