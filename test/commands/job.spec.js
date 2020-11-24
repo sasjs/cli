@@ -2,6 +2,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
+import { getContextName } from '../../src/commands/job/execute'
 import { folderExists, fileExists } from '../../src/utils/file-utils'
 
 describe('sasjs job', () => {
@@ -234,5 +235,27 @@ describe('sasjs job', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfigs(targetName)
+  })
+})
+
+describe('getContextName', () => {
+  beforeAll(() => {
+    jest.mock('chalk')
+  })
+
+  afterAll(() => {
+    jest.unmock('chalk')
+  })
+
+  it.only('should return the context name if specified in the target', () => {
+    const target = { contextName: 'Test Context' }
+
+    expect(getContextName(target)).toEqual('Test Context')
+  })
+
+  it.only('should return the default context if context name is not specified', () => {
+    const target = { contextName: undefined }
+
+    expect(getContextName(target)).toEqual('SAS Job Execution compute context')
   })
 })

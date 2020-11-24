@@ -42,11 +42,13 @@ export async function execute(
 
   spinner.start()
 
+  const contextName = getContextName(target)
+
   const submittedJob = await sasjs
     .startComputeJob(
       jobPath,
       null,
-      { contextName: target.tgtDeployVars.contextName },
+      { contextName },
       accessToken,
       waitForJob || logFile !== undefined ? true : false
     )
@@ -165,6 +167,26 @@ export async function execute(
   )
 
   return result
+}
+
+export function getContextName(target) {
+  const defaultContextName = 'SAS Job Execution compute context'
+  if (target && target.contextName) {
+    return target.contextName
+  }
+
+  console.log(
+    chalk.yellowBright(
+      `contextName was not provided. Using ${defaultContextName} by default.`
+    )
+  )
+  console.log(
+    chalk.whiteBright(
+      `You can specify the context name in your target configuration.`
+    )
+  )
+
+  return defaultContextName
 }
 
 async function displayStatus(submittedJob, statusFile, error = '') {
