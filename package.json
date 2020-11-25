@@ -6,7 +6,7 @@
     "build/**/*"
   ],
   "scripts": {
-    "start": "nodemon --watch 'src/**/*' --exec 'npm run build'",
+    "start": "nodemon --watch 'src/**/*' --exec 'npm run build && npm link'",
     "build": "rimraf build && tsc -p . && cp ./src/*.json build",
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release -d",
