@@ -13,26 +13,18 @@ export function displayResult(err, failureMessage, successMessage) {
         if (typeof details === 'object') details = JSON.stringify(details)
         if (typeof raw === 'object') raw = JSON.stringify(raw)
 
-        const failureDetails = `${message}${details ? '\n' + details : ''}${raw ? '\n' + raw : ''}`
-  
-        console.log(
-          chalk.redBright(
-            failureMessage,
-            failureDetails
-          )
-        )
+        const failureDetails = `${message}${details ? '\n' + details : ''}${
+          raw ? '\n' + raw : ''
+        }`
+
+        console.log(chalk.redBright(failureMessage, failureDetails))
 
         return `${failureMessage}\n${failureDetails}`
       }
     } else {
       const failureDetails = typeof err === 'object' ? JSON.stringify(err) : err
 
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          failureDetails
-        )
-      )
+      console.log(chalk.redBright(failureMessage, failureDetails))
 
       return `${failureMessage}\n${failureDetails}`
     }
