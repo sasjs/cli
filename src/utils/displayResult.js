@@ -5,41 +5,38 @@ export function displayResult(err, failureMessage, successMessage) {
     if (err.hasOwnProperty('error')) {
       let body = err.error || null
 
-      if (err.error) {
-        body = err.error
-      }
+      if (body) {
+        const message = body.message || ''
+        const details = body.details || ''
 
-      if (!body) {
-        try {
-          body = JSON.parse(err.error)
-        } catch (parseError) {
-          console.log(chalk.redBright('Unable to parse error\n', parseError))
-          console.log(chalk.redBright(failureMessage, err.body))
-
-          return
-        }
-      }
-
-      const message = body.message || ''
-      const details = body.details || ''
-
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          `${message}${details ? '\n' + details : ''}`
+        const failureDetails = `${message}${details ? '\n' + details : ''}`
+  
+        console.log(
+          chalk.redBright(
+            failureMessage,
+            failureDetails
+          )
         )
-      )
+
+        return `${failureMessage}\n${failureDetails}`
+      }
     } else {
+      const failureDetails = err === `[object Object]` ? JSON.stringify(err) : err
+
       console.log(
         chalk.redBright(
           failureMessage,
-          err !== `[object Object]` ? err : JSON.stringify(err)
+          failureDetails
         )
       )
+
+      return failureDetails
     }
   }
 
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
+
+    return successMessagea
   }
 }
