@@ -10,8 +10,6 @@
     "build": "rimraf build && tsc -p . && cp ./src/*.json build",
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release -d",
-    "prepublishOnly": "cp -r ./build/* . && rm -rf ./build",
-    "postpublish": "git clean -fd",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\""
   },
