@@ -14,7 +14,8 @@ import path from 'path'
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
  * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
- * @param {boolean | string} log - flag indicating if CLI should fetch and save log to the local folder. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {boolean | string} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
  */
 export async function execute(
   sasjs,
@@ -23,11 +24,15 @@ export async function execute(
   target,
   waitForJob,
   output,
-  log
+  logFile,
+  statusFile
 ) {
   let result
 
   const startTime = new Date().getTime()
+
+  if (statusFile !== undefined)
+    await displayStatus({ state: 'Initiating' }, statusFile)
 
   const spinner = ora(
     `Job located at ${chalk.greenBright(
@@ -37,26 +42,37 @@ export async function execute(
 
   spinner.start()
 
+  const contextName = getContextName(target)
+
   const submittedJob = await sasjs
     .startComputeJob(
       jobPath,
       null,
-      { contextName: target.tgtDeployVars.contextName },
+      { contextName },
       accessToken,
-      waitForJob || log ? true : false
+      waitForJob || logFile !== undefined ? true : false
     )
     .catch((err) => {
-      result = err
-
-      displayResult(err, 'An error has occurred when executing a job.', null)
+      result =
+        typeof err === 'object' && Object.keys(err).length
+          ? JSON.stringify({ state: err.job.state })
+          : `${err}`
+      if (err.job) {
+        return err.job
+      }
     })
 
   spinner.stop()
 
   const endTime = new Date().getTime()
 
+  if (result)
+    displayResult(result, 'An error has occurred when executing a job.', null)
+  if (statusFile !== undefined)
+    await displayStatus(submittedJob, statusFile, result, true)
+
   if (submittedJob && submittedJob.links) {
-    result = true
+    if (!result) result = true
 
     const sessionLink = submittedJob.links.find(
       (l) => l.method === 'GET' && l.rel === 'self'
@@ -70,14 +86,17 @@ export async function execute(
         : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
     )
 
-    if (output !== undefined || log) {
+    if (output !== undefined || logFile !== undefined) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
         if (typeof output === 'string') {
+          const currentDirPath = path.isAbsolute(output) ? '' : process.cwd()
           const outputPath = path.join(
-            process.cwd(),
-            /\.json$/i.test(output) ? output : path.join(output, 'output.json')
+            currentDirPath,
+            /\.[a-z]{3,4}$/i.test(output)
+              ? output
+              : path.join(output, 'output.json')
           )
 
           let folderPath = outputPath.split(path.sep)
@@ -93,7 +112,7 @@ export async function execute(
           console.log(outputJson)
         }
 
-        if (log) {
+        if (logFile !== undefined) {
           const logObj = submittedJob.links.find(
             (link) => link.rel === 'log' && link.method === 'GET'
           )
@@ -105,13 +124,11 @@ export async function execute(
 
             let logPath
 
-            if (typeof log === 'string') {
-              logPath = path.join(
-                process.cwd(),
-                /\.log$/i.test(log)
-                  ? log
-                  : path.join(log, `${jobPath.split('/').slice(-1).pop()}.log`)
-              )
+            if (typeof logFile === 'string') {
+              const currentDirPath = path.isAbsolute(logFile)
+                ? ''
+                : process.cwd()
+              logPath = path.join(currentDirPath, logFile)
             } else {
               logPath = path.join(
                 process.cwd(),
@@ -155,4 +172,58 @@ export async function execute(
   )
 
   return result
+}
+
+export function getContextName(target) {
+  const defaultContextName = 'SAS Job Execution compute context'
+  if (target && target.contextName) {
+    return target.contextName
+  }
+
+  console.log(
+    chalk.yellowBright(
+      `contextName was not provided. Using ${defaultContextName} by default.`
+    )
+  )
+  console.log(
+    chalk.whiteBright(
+      `You can specify the context name in your target configuration.`
+    )
+  )
+
+  return defaultContextName
+}
+
+async function displayStatus(
+  submittedJob,
+  statusFile,
+  error = '',
+  displayStatusFilePath = false
+) {
+  const adapterStatus =
+    submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
+
+  const status =
+    adapterStatus === 'Not Available'
+      ? `Job Status: ${adapterStatus}\nDetails: ${error}\n`
+      : `Job Status: ${adapterStatus}`
+
+  if (adapterStatus === 'Initiating' || adapterStatus === 'completed')
+    displayResult(null, null, status)
+  else displayResult({}, status, null)
+
+  if (typeof statusFile === 'string') {
+    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.cwd()
+    const statusPath = path.join(currentDirPath, statusFile)
+
+    let folderPath = statusPath.split(path.sep)
+    folderPath.pop()
+    folderPath = folderPath.join(path.sep)
+
+    if (!(await folderExists(folderPath))) await createFolder(folderPath)
+
+    await createFile(statusPath, status)
+    if (displayStatusFilePath)
+      displayResult(null, null, `Status saved to: ${statusPath}`)
+  }
 }

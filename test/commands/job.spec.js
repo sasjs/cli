@@ -2,7 +2,8 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
-import { folderExists, fileExists } from '../../src/utils/file-utils'
+import { getContextName } from '../../src/commands/job/execute'
+import { folderExists, fileExists, readFile } from '../../src/utils/file-utils'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'
@@ -53,7 +54,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName}`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName}`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -63,7 +64,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -w`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -73,7 +74,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -w -o`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w -o`
 
         const jobOutput = await processJob(command)
 
@@ -85,7 +86,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob -t ${targetName} -o testOutput`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput`
 
         const folderPath = path.join(process.cwd(), 'testOutput')
         const filePath = path.join(process.cwd(), 'testOutput/output.json')
@@ -99,12 +100,12 @@ describe('sasjs job', () => {
     )
 
     it(
-      'should submit a job and create a file with job log',
+      'should submit a job and create a file with job output and wait',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l testLog`
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -w`
 
-        const folderPath = path.join(process.cwd(), 'testLog')
-        const filePath = path.join(process.cwd(), 'testLog/testJob.log')
+        const folderPath = path.join(process.cwd(), 'testOutput')
+        const filePath = path.join(process.cwd(), 'testOutput/output.json')
 
         await processJob(command)
 
@@ -115,9 +116,45 @@ describe('sasjs job', () => {
     )
 
     it(
+      'should submit a job and create a file with job output, log and auto-wait',
+      async () => {
+        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
+
+        const folderPathOutput = path.join(process.cwd(), 'testOutput')
+        const filePathOutput = path.join(
+          process.cwd(),
+          'testOutput/output.json'
+        )
+
+        const filePathLog = path.join(process.cwd(), 'testLog.txt')
+
+        await processJob(command)
+
+        await expect(folderExists(folderPathOutput)).resolves.toEqual(true)
+        await expect(fileExists(filePathOutput)).resolves.toEqual(true)
+
+        await expect(fileExists(filePathLog)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should submit a job and create a file with job log',
+      async () => {
+        const command = `job execute testJob/job -t ${targetName} -l`
+
+        const filePath = path.join(process.cwd(), 'job.log')
+        await processJob(command)
+
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
       'should submit a job and create a file with provided job log filename',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l mycustom.log`
+        const command = `job execute testJob/job -t ${targetName} -l mycustom.log`
 
         const filePath = path.join(process.cwd(), 'mycustom.log')
 
@@ -131,7 +168,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and path',
       async () => {
-        const command = `job execute testJob -t ${targetName} -l ./my/folder/mycustom.log`
+        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log`
 
         const folderPath = path.join(process.cwd(), 'my/folder')
         const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
@@ -143,9 +180,101 @@ describe('sasjs job', () => {
       },
       60 * 1000
     )
+
+    it(
+      'should submit a job and create a file with provided job log filename and status file',
+      async () => {
+        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
+        const filePathStatus = path.join(
+          process.cwd(),
+          'my/folder/testJob.status'
+        )
+
+        await processJob(command)
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(statusContent.includes('Job Status: completed')).toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      "should submit a job that doesn't exist and create a status file",
+      async () => {
+        const command = `job execute job-not-present -t ${targetName} --wait --status ./my/folder/status.txt`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+
+        await expect(processJob(command)).resolves.toEqual(
+          'Error: Job was not found.'
+        )
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(
+          statusContent.includes(
+            'Job Status: Not Available\nDetails: Error: Job was not found.'
+          )
+        ).toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should submit a job that fails and create a status file',
+      async () => {
+        const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/job.status`
+
+        const folderPath = path.join(process.cwd(), 'my/folder')
+        const filePathStatus = path.join(process.cwd(), 'my/folder/job.status')
+
+        await expect(processJob(command)).resolves.toEqual('{"state":"error"}')
+
+        await expect(folderExists(folderPath)).resolves.toEqual(true)
+        await expect(fileExists(filePathStatus)).resolves.toEqual(true)
+
+        const statusContent = await readFile(filePathStatus)
+        expect(statusContent).not.toEqual('')
+        expect(statusContent.includes('Job Status: error')).toEqual(true)
+      },
+      60 * 1000
+    )
   })
 
   afterAll(async () => {
     await removeFromGlobalConfigs(targetName)
+  })
+})
+
+describe('getContextName', () => {
+  beforeAll(() => {
+    jest.mock('chalk')
+  })
+
+  afterAll(() => {
+    jest.unmock('chalk')
+  })
+
+  it.only('should return the context name if specified in the target', () => {
+    const target = { contextName: 'Test Context' }
+
+    expect(getContextName(target)).toEqual('Test Context')
+  })
+
+  it.only('should return the default context if context name is not specified', () => {
+    const target = { contextName: undefined }
+
+    expect(getContextName(target)).toEqual('SAS Job Execution compute context')
   })
 })
