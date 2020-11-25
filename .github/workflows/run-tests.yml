@@ -45,4 +45,4 @@ jobs:
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
       - name: Run smoke tests
-        run: sh ./test.sh
+        run: cp -r ./build/* . && sh ./test.sh

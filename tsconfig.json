@@ -3,6 +3,7 @@
         "target": "es5",
         "allowJs": true,
         "module": "commonjs",
+        "downlevelIteration": true,
         "lib": [
             "ES2018",
             "DOM",
