@@ -2,8 +2,11 @@
   "name": "@sasjs/cli",
   "description": "Command line interface for SASjs",
   "main": "index.js",
+  "files": [
+    "build/**/*"
+  ],
   "scripts": {
-    "start": "nodemon --watch 'src/**/*' --exec 'npm run build'",
+    "start": "nodemon --watch 'src/**/*' --exec 'npm run build && npm link'",
     "build": "rimraf build && tsc -p . && cp ./src/*.json build",
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release -d",
@@ -18,7 +21,7 @@
     ]
   },
   "bin": {
-    "sasjs": "./index.js"
+    "sasjs": "./build/index.js"
   },
   "repository": {
     "type": "git",
