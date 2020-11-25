@@ -12,6 +12,7 @@
         "outDir": "build",
         "rootDir": "src",
         "strict": true,
+        "types": ["node"],
         "typeRoots": ["./node_modules/@types"],
         "esModuleInterop": true,
         "resolveJsonModule": true
