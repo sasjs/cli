@@ -18,7 +18,7 @@
     ]
   },
   "bin": {
-    "sasjs": "./build/index.js"
+    "sasjs": "./index.js"
   },
   "repository": {
     "type": "git",
