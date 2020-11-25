@@ -7,9 +7,13 @@ export function displayResult(err, failureMessage, successMessage) {
 
       if (body) {
         const message = body.message || ''
-        const details = body.details || ''
+        let details = body.details || ''
+        let raw = body.raw || ''
 
-        const failureDetails = `${message}${details ? '\n' + details : ''}`
+        if (typeof details === 'object') details = JSON.stringify(details)
+        if (typeof raw === 'object') raw = JSON.stringify(raw)
+
+        const failureDetails = `${message}${details ? '\n' + details : ''}${raw ? '\n' + raw : ''}`
   
         console.log(
           chalk.redBright(
@@ -21,7 +25,7 @@ export function displayResult(err, failureMessage, successMessage) {
         return `${failureMessage}\n${failureDetails}`
       }
     } else {
-      const failureDetails = err === `[object Object]` ? JSON.stringify(err) : err
+      const failureDetails = typeof err === 'object' ? JSON.stringify(err) : err
 
       console.log(
         chalk.redBright(
@@ -30,13 +34,13 @@ export function displayResult(err, failureMessage, successMessage) {
         )
       )
 
-      return failureDetails
+      return `${failureMessage}\n${failureDetails}`
     }
   }
 
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
 
-    return successMessagea
+    return successMessage
   }
 }
