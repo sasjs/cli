@@ -3,10 +3,14 @@
   "description": "Command line interface for SASjs",
   "main": "index.js",
   "scripts": {
+    "start": "nodemon --watch 'src/**/*' --exec 'npm run build'",
+    "build": "rimraf build && tsc -p . && cp ./src/*.json build",
     "test": "jest --silent --runInBand",
-    "semantic-release": "semantic-release",
-    "lint:fix": "npx prettier --write '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'",
-    "lint": "npx prettier --check '{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}'"
+    "semantic-release": "semantic-release -d",
+    "prepublishOnly": "cp -r ./build/* . && rm -rf ./build",
+    "postpublish": "git clean -fd",
+    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
+    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\""
   },
   "release": {
     "branches": [
@@ -14,7 +18,7 @@
     ]
   },
   "bin": {
-    "sasjs": "bin/sasjs"
+    "sasjs": "./index.js"
   },
   "repository": {
     "type": "git",
@@ -57,11 +61,15 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.5",
+    "@types/node": "^14.14.10",
     "babel-jest": "^26.5.0",
     "jest-cli": "^26.5.0",
     "mock-stdin": "^1.0.0",
+    "nodemon": "^2.0.6",
     "puppeteer": "^5.3.1",
-    "semantic-release": "^17.1.1"
+    "semantic-release": "^17.1.1",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.1.2"
   },
   "version": "1.0.0",
   "directories": {

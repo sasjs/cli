@@ -32,7 +32,8 @@ export async function processJob(commandLine) {
   const targetName = command.getFlagValue('target')
   const waitForJob = command.getFlagValue('wait')
   const output = command.getFlagValue('output')
-  const log = command.getFlagValue('log')
+  const log = command.getFlagValue('logFile')
+  const status = command.getFlagValue('status')
 
   const target = await getBuildTarget(targetName)
 
@@ -60,7 +61,8 @@ export async function processJob(commandLine) {
         target,
         waitForJob,
         output,
-        log
+        log,
+        status
       )
 
       break

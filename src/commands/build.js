@@ -527,6 +527,22 @@ export async function loadDependencies(
     chalk.greenBright('Loading dependencies for', chalk.cyanBright(filePath))
   )
   let fileContent = await readFile(filePath)
+
+  if (fileContent.includes('<h4> Dependencies </h4>')) {
+    const deprecationDate = new Date(2021, 10, 2)
+    const today = new Date()
+
+    if (today < deprecationDate) {
+      console.log(
+        chalk.yellowBright(
+          `WARNING: use <h4> SAS Macros </h4> syntax to specify dependencies. Specifying dependencies with a <h4> Dependencies </h4> syntax will not be supported starting from November 1, 2021.`
+        )
+      )
+    } else {
+      throw 'Using <h4> Dependencies </h4> syntax is deprecated. Please use <h4> SAS Macros </h4> instead.'
+    }
+  }
+
   let init
   let term
   let serviceVars = ''
@@ -824,10 +840,14 @@ export async function getDependencyPaths(fileContent, tgtMacros = []) {
       sourcePaths.push(tgtMacroPath)
     })
   }
-  const dependencies = getList(
-    '<h4> Dependencies </h4>',
-    fileContent
-  ).filter((d) => d.endsWith('.sas'))
+
+  const dependenciesHeader = fileContent.includes('<h4> SAS Macros </h4>')
+    ? '<h4> SAS Macros </h4>'
+    : '<h4> Dependencies </h4>'
+
+  let dependencies = getList(dependenciesHeader, fileContent).filter((d) =>
+    d.endsWith('.sas')
+  )
 
   let dependencyPaths = []
   const foundDependencies = []

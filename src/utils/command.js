@@ -51,7 +51,8 @@ const initialFlags = arrToObj([
     'wait',
     'output',
     'force',
-    'log'
+    'logFile',
+    'status'
   ])
 ])
 
@@ -103,7 +104,8 @@ const commandFlags = [
       initialFlags.target,
       initialFlags.wait,
       initialFlags.output,
-      initialFlags.log
+      initialFlags.logFile,
+      initialFlags.status
     ]
   }
 ]
@@ -115,7 +117,8 @@ const flagsWithValue = [
   initialFlags.datafile,
   initialFlags.configfile,
   initialFlags.output,
-  initialFlags.log
+  initialFlags.logFile,
+  initialFlags.status
 ]
 
 export class Command {
@@ -238,6 +241,14 @@ export class Command {
     }
 
     return undefined
+  }
+
+  getAllSupportedCommands() {
+    return Object.keys(initialCommands)
+  }
+
+  getAllSupportedAliases() {
+    return initialAliases.map((alias) => alias.name)
   }
 }
 

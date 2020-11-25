@@ -28,6 +28,9 @@ jobs:
       - name: Check code style
         run: npm run lint
 
+      - name: Build Project
+        run: npm run build
+
       - name: Run unit tests
         run: npm test -- --runInBand
         env:
@@ -42,4 +45,4 @@ jobs:
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
       - name: Run smoke tests
-        run: sh ./test.sh
+        run: cp -r ./build/* . && sh ./test.sh
