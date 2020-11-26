@@ -19,7 +19,7 @@
     ]
   },
   "bin": {
-    "sasjs": "./build/index.js"
+    "sasjs": "build/index.js"
   },
   "repository": {
     "type": "git",
@@ -40,8 +40,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.18.3",
-    "@sasjs/core": "^1.8.0",
+    "@sasjs/adapter": "^1.18.7",
+    "@sasjs/core": "^1.11.2",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
