@@ -1,14 +1,15 @@
 import { displayResult } from '../../utils/displayResult'
 import { fileExists, readFile, isJsonFile } from '../../utils/file-utils'
 import { getAccessToken } from '../../utils/config-utils'
+import { Target } from '../../types'
 import SASjs from '@sasjs/adapter/node'
 
 export async function execute(
-  source,
-  logFolder,
-  csvFile,
-  target,
-  prefixAppLoc
+  source: string,
+  logFolder: string,
+  csvFile: string,
+  target: Target,
+  prefixAppLoc: Function
 ) {
   console.log(`[{source,logFolder,csvFile,target}]`, {
     source,
@@ -120,7 +121,7 @@ export async function execute(
 
     if (flow.predecessors && flow.predecessors.length) {
     } else {
-      flow.jobs.forEach((job) => {
+      flow.jobs.forEach((job: { location: string }) => {
         sasjs
           .startComputeJob(
             prefixAppLoc(target.appLoc, job.location),
@@ -131,10 +132,10 @@ export async function execute(
             accessToken,
             true
           )
-          .then((res) => {
+          .then((res: any) => {
             console.log(`[res]`, res)
           })
-          .catch((err) => {
+          .catch((err: object) => {
             displayResult(
               err,
               'An error has occurred when executing a job.',

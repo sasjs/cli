@@ -40,7 +40,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.18.3",
+    "@sasjs/adapter": "^1.18.6",
     "@sasjs/core": "^1.8.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
