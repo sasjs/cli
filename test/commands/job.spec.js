@@ -266,13 +266,13 @@ describe('getContextName', () => {
     jest.unmock('chalk')
   })
 
-  it.only('should return the context name if specified in the target', () => {
+  it('should return the context name if specified in the target', () => {
     const target = { contextName: 'Test Context' }
 
     expect(getContextName(target)).toEqual('Test Context')
   })
 
-  it.only('should return the default context if context name is not specified', () => {
+  it('should return the default context if context name is not specified', () => {
     const target = { contextName: undefined }
 
     expect(getContextName(target)).toEqual('SAS Job Execution compute context')
