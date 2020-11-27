@@ -84,7 +84,8 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     .catch(async (err) => {
       let log = err.log
 
-      if (!log) throw new ErrorResponse('We werent able to fetch the log this time.')
+      if (!log)
+        throw new ErrorResponse('We werent able to fetch the log this time.')
 
       await createOutputFile(log)
 
@@ -148,7 +149,7 @@ async function executeOnSas9(buildTarget, linesToExecute) {
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
-        
+
         await createOutputFile(log)
 
         throw new ErrorResponse('Find more error details in the log file.')
