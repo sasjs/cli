@@ -170,14 +170,6 @@ export async function compileBuildDeployServices(commandLine) {
       result = err
 
       displayResult(err, 'An error has occurred when building services')
-
-      if (err.hasOwnProperty('body')) {
-        const status = err.status
-
-        if (status === 409) {
-          displayResult(err, '\nAn error has occurred when building services.')
-        }
-      }
     })
 
   return result
