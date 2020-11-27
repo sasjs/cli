@@ -54,6 +54,15 @@ describe('display result error', () => {
 
     expect(result).toEqual(expected)
   })
+
+  test('error JS Error object', () => {
+    let error = new Error('Something went wrong')
+
+    let result = displayResult(error, 'Execution error')
+    let expected = `Execution error\nSomething went wrong`
+
+    expect(result).toEqual(expected)
+  })
 })
 
 describe('display result success', () => {

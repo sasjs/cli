@@ -64,6 +64,12 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     .createSession(contextName, accessToken)
     .catch((e) => {
       console.log(chalk.redBright.bold('Error creating execution session'))
+      console.log(
+        chalk.redBright.bold(
+          ` Url: ${buildTarget.serverUrl}\n App loc: ${buildTarget.appLoc}\n Context: ${contextName}`
+        )
+      )
+
       throw e
     })
 
