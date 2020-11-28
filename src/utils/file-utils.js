@@ -80,6 +80,16 @@ export async function readFile(fileName, debug = false, silent = false) {
   })
 }
 
+export async function writeFile(fileName, data, encoding = 'utf8') {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(fileName, data, encoding, (err) => {
+      if (err) return reject(err)
+
+      resolve()
+    })
+  })
+}
+
 export async function base64EncodeFile(fileName, debug = false) {
   if (debug) {
     console.log('Encoding file: ', chalk.cyan(fileName))
@@ -237,6 +247,10 @@ export function isSasFile(filePath) {
 
 export function isJsonFile(filePath) {
   return path.extname(filePath) === '.json'
+}
+
+export function isCsvFile(filePath) {
+  return path.extname(filePath) === '.csv'
 }
 
 export function isShellScript(filePath) {

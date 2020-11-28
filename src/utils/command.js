@@ -53,7 +53,9 @@ const initialFlags = arrToObj([
     'output',
     'force',
     'logFile',
-    'status'
+    'status',
+    'logFolder',
+    'csvFile'
   ])
 ])
 
@@ -128,7 +130,8 @@ const flagsWithValue = [
   initialFlags.configfile,
   initialFlags.output,
   initialFlags.logFile,
-  initialFlags.status
+  initialFlags.status,
+  initialFlags.csvFile
 ]
 
 export class Command {
