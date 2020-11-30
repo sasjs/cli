@@ -43,6 +43,7 @@
   "dependencies": {
     "@sasjs/adapter": "^1.18.7",
     "@sasjs/core": "^1.11.2",
+    "@sasjs/utils": "file:../utils/build/sasjs-utils-5.0.0.tgz",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",

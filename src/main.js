@@ -1,4 +1,5 @@
 import {
+  addCredential,
   addTarget,
   build,
   processContext,
@@ -288,18 +289,41 @@ export async function buildWebApp(commandLine) {
 
 export async function add(commandLine) {
   const command = new Command(commandLine)
+  const subCommand = command.getSubCommand()
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
   let result = false
 
   if (command && command.name === 'add') {
-    await addTarget()
-      .then(() => {
-        console.log(chalk.greenBright('Target successfully added!'))
-        result = true
-      })
-      .catch((err) => {
-        displayResult(err, 'An error has occurred when adding the target.')
-        result = err
-      })
+    if (subCommand === 'cred') {
+      await addCredential(targetName)
+        .then(() => {
+          console.log(chalk.greenBright('Credential successfully added!'))
+          result = true
+        })
+        .catch((err) => {
+          console.log(err)
+          displayResult(
+            err,
+            'An error has occurred when adding the credential.'
+          )
+          result = err
+        })
+    } else if (subCommand === 'target' || !subCommand) {
+      await addTarget()
+        .then(() => {
+          console.log(chalk.greenBright('Target successfully added!'))
+          result = true
+        })
+        .catch((err) => {
+          displayResult(err, 'An error has occurred when adding the target.')
+          result = err
+        })
+    }
   }
 
   return result

@@ -1,4 +1,5 @@
 export { addTarget } from './add'
+export { addCredential } from './add-cred'
 
 export {
   build,

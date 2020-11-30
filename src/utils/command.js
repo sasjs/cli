@@ -78,6 +78,7 @@ const commandFlags = [
     command: initialCommands.context,
     flags: [initialFlags.target, initialFlags.source]
   },
+  { command: initialCommands.add, flags: [initialFlags.target] },
   { command: initialCommands.create, flags: [initialFlags.template] },
   { command: initialCommands.web, flags: [initialFlags.target] },
   { command: initialCommands['build-DB'], flags: [initialFlags.target] },
