@@ -131,7 +131,8 @@ const flagsWithValue = [
   initialFlags.output,
   initialFlags.logFile,
   initialFlags.status,
-  initialFlags.csvFile
+  initialFlags.csvFile,
+  initialFlags.logFolder
 ]
 
 export class Command {

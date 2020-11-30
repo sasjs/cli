@@ -3,7 +3,7 @@ import { getBuildTarget } from '../../utils/config-utils'
 import { execute } from './execute'
 
 // sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv --target targetName
-export async function processFlow(commandLine: string[]) {
+export async function processFlow(commandLine: string[] | string) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
   const source = command.getFlagValue('source')

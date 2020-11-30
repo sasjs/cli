@@ -255,6 +255,17 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
         `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`
       ]
+    },
+    {
+      name: 'flow',
+      title: 'flow <command>',
+      description: [
+        `performs operations on flows of jobs.`,
+        `[2spaces]* ${chalk.cyanBright(
+          'execute'
+        )} - triggers flow for execution.`,
+        `[2spaces]command example: sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv`
+      ]
     }
   ]
 

@@ -1,3 +1,4 @@
+import path from 'path'
 import { displayResult } from '../../utils/displayResult'
 import {
   fileExists,
@@ -5,8 +6,11 @@ import {
   isJsonFile,
   isCsvFile,
   createFile,
-  writeFile
+  writeFile,
+  folderExists,
+  createFolder
 } from '../../utils/file-utils'
+import { generateTimestamp, parseLogLines } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config-utils'
 import { Target } from '../../types'
 import SASjs from '@sasjs/adapter/node'
@@ -22,6 +26,7 @@ export async function execute(
   prefixAppLoc: Function
 ) {
   const commandExample = `sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv --target targetName`
+  const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
   if (!source || !isJsonFile(source)) {
     displayResult(
@@ -145,13 +150,22 @@ export async function execute(
               contextName: target.tgtDeployVars.contextName
             },
             accessToken,
-            true
+            true,
+            pollOptions
           )
           .then(async (res: any) => {
             if (res) {
               let details = parseJobDetails(res)
 
-              job.status = res.state === 'completed' ? 'success' : 'failure'
+              const logName = await saveLog(
+                logFolder,
+                res.links,
+                target,
+                sasjs,
+                accessToken,
+                flowName,
+                job.location
+              ).catch((err) => console.log(`[err]`, err))
 
               await saveToCsv(
                 csvFile,
@@ -159,8 +173,11 @@ export async function execute(
                 ['none'],
                 job.location,
                 res.state || 'failure',
-                details
+                details,
+                logName ? path.join(logFolder, logName as string) : ''
               )
+
+              job.status = res.state === 'completed' ? 'success' : 'failure'
 
               displayResult(
                 null,
@@ -187,7 +204,9 @@ export async function execute(
                 prefixAppLoc,
                 target,
                 accessToken,
-                csvFile
+                csvFile,
+                pollOptions,
+                logFolder
               )
             } else if (
               flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -248,7 +267,8 @@ const saveToCsv = async (
   predecessors: any,
   location: string,
   status: string,
-  details = ''
+  details = '',
+  logName = ''
 ) => {
   const timerId = setInterval(async () => {
     if (csvFileAbleToSave) {
@@ -270,6 +290,7 @@ const saveToCsv = async (
         predecessors: 'Predecessors',
         name: 'Location',
         status: 'Status',
+        logLocation: 'Log location',
         details: 'Details'
       }
 
@@ -281,6 +302,7 @@ const saveToCsv = async (
         predecessors.join(' | '),
         location,
         status,
+        logName,
         details
       ]
 
@@ -311,7 +333,9 @@ const checkPredecessors = (
   prefixAppLoc: any,
   target: any,
   accessToken: any,
-  csvFile: any
+  csvFile: any,
+  pollOptions: any,
+  logFolder: any
 ) => {
   const successors = Object.keys(flows)
     .filter(
@@ -342,13 +366,22 @@ const checkPredecessors = (
             contextName: target.tgtDeployVars.contextName
           },
           accessToken,
-          true
+          true,
+          pollOptions
         )
         .then(async (res: any) => {
           if (res) {
             let details = parseJobDetails(res)
 
-            job.status = res.state === 'completed' ? 'success' : 'failure'
+            const logName = await saveLog(
+              logFolder,
+              res.links,
+              target,
+              sasjs,
+              accessToken,
+              successor,
+              job.location
+            ).catch((err) => console.log(`[err]`, err))
 
             await saveToCsv(
               csvFile,
@@ -356,9 +389,11 @@ const checkPredecessors = (
               flows[successor].predecessors || ['none'],
               job.location,
               res.state || 'failure',
-              details
+              details,
+              logName ? path.join(logFolder, logName as string) : ''
             )
 
+            job.status = res.state === 'completed' ? 'success' : 'failure' // TODO: handle status 'running'
             displayResult(
               null,
               null,
@@ -401,7 +436,9 @@ const checkPredecessors = (
                 prefixAppLoc,
                 target,
                 accessToken,
-                csvFile
+                csvFile,
+                pollOptions,
+                logFolder
               )
             }
           }
@@ -435,10 +472,50 @@ const checkPredecessors = (
   })
 }
 
-const saveLog = (links: any, target: any, sasjs: any) => {
-  const logObj = links.find(
-    (link: any) => link.rel === 'log' && link.method === 'GET'
-  )
+const saveLog = async (
+  logFolder: any,
+  links: any,
+  target: any,
+  sasjs: any,
+  accessToken: any,
+  flowName: any,
+  jobLocation: any
+) => {
+  return new Promise(async (resolve, reject) => {
+    if (!logFolder) reject('No log folder provided')
+
+    const logObj = links.find(
+      (link: any) => link.rel === 'log' && link.method === 'GET'
+    )
+
+    if (logObj) {
+      const logUrl = target.serverUrl + logObj.href
+      const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+      const logJson = JSON.parse(logData)
+
+      const logParsed = parseLogLines(logJson)
+
+      if (!(await folderExists(logFolder))) {
+        await createFolder(logFolder)
+      }
+
+      const generateFileName = () =>
+        `${flowName}_${jobLocation.replace(
+          /\W/g,
+          '_'
+        )}_${generateTimestamp()}.log`
+
+      let logName = generateFileName()
+
+      while (await fileExists(path.join(logFolder, logName))) {
+        logName = generateFileName()
+      }
+
+      await createFile(path.join(logFolder, logName), logParsed)
+
+      resolve(logName)
+    }
+  })
 }
 
 const parseJobDetails = (res: any) => {
