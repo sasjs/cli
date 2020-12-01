@@ -179,11 +179,11 @@ export function chunk(text, maxLength = 220) {
 
 export async function getVariable(name, target) {
   let value = process.env[name]
-  
+
   if (value) {
     return value
   }
-  
+
   value = target && target.tgtDeployVars ? target.tgtDeployVars[name] : null
   if (value) {
     return value

@@ -50,7 +50,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     serverType: buildTarget.serverType,
     debug: true
   })
-  
+
   const contextName = await getVariable('contextName', buildTarget)
 
   if (!contextName) {
