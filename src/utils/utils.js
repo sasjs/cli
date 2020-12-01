@@ -3,7 +3,6 @@ import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'
 import { fileExists, createFile, readFile } from './file-utils'
-import { getLocalRcFile } from './config-utils'
 
 async function inExistingProject(folderPath) {
   const packageJsonExists = await fileExists(
@@ -180,44 +179,22 @@ export function chunk(text, maxLength = 220) {
 
 export async function getVariable(name, target) {
   let value = process.env[name]
+  
   if (value) {
     return value
   }
+  
   value = target && target.tgtDeployVars ? target.tgtDeployVars[name] : null
   if (value) {
     return value
   }
+
   value = target && target.tgtBuildVars ? target.tgtBuildVars[name] : null
   if (value) {
     return value
   }
 
-  const localRcFile = await getLocalRcFile()
-  if (localRcFile && localRcFile.targets) {
-    const currentTarget = localRcFile.targets.find(
-      (t) => t.name === target.name
-    )
-    if (currentTarget) {
-      value =
-        currentTarget && currentTarget.tgtDeployVars
-          ? currentTarget.tgtDeployVars[name]
-          : null
-      if (value) {
-        return value
-      }
-      value =
-        currentTarget && currentTarget.tgtBuildVars
-          ? currentTarget.tgtBuildVars[name]
-          : null
-      if (value) {
-        return value
-      }
-      return currentTarget && currentTarget.authInfo
-        ? currentTarget.authInfo[name]
-        : null
-    }
-    return null
-  }
+  return null
 }
 
 /**

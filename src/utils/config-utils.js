@@ -151,15 +151,6 @@ export async function getGlobalRcFile() {
     : sasjsRcFileContent
 }
 
-export async function getLocalRcFile() {
-  const projectRoot = await getProjectRoot()
-  if (!projectRoot) {
-    return null
-  }
-  const config = await getConfiguration(path.join(projectRoot, '.sasjsrc'))
-  return config
-}
-
 export async function saveGlobalRcFile(content) {
   const homeDir = require('os').homedir()
   const rcFilePath = path.join(homeDir, '.sasjsrc')
@@ -167,11 +158,6 @@ export async function saveGlobalRcFile(content) {
   await createFile(rcFilePath, content)
 
   console.log(chalk.greenBright(`Config saved to '${rcFilePath}'.`))
-}
-
-export async function saveLocalRcFile(content) {
-  const projectRoot = await getProjectRoot()
-  await createFile(path.join(projectRoot, '.sasjsrc'), content)
 }
 
 export async function getFolders(sasOnly = false) {

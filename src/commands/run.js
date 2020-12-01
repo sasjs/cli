@@ -50,12 +50,11 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     serverType: buildTarget.serverType,
     debug: true
   })
+  
   const contextName = await getVariable('contextName', buildTarget)
 
   if (!contextName) {
-    throw new Error(
-      'Compute Context Name is required for SAS Viya deployments.\n Please ensure that `contextName` is present in your build target configuration or in your .env file, and try again.\n'
-    )
+    contextName = sasjs.getSasjsConfig().contextName
   }
 
   const accessToken = await getAccessToken(buildTarget)
