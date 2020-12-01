@@ -1,0 +1,37 @@
+{
+  "name": "myAmazingFlow",
+  "flows": {
+    "firstFlow": {
+      "jobs": [
+        {
+          "location": "jobs/testJob"
+        },
+        {
+          "location": "/Public/app/cli-tests/jobs/testJob"
+        }
+      ],
+      "predecessors": []
+    },
+    "secondFlow": {
+      "jobs": [
+        {
+          "location": "jobs/testJob"
+        }
+      ],
+      "predecessors": [
+        "firstFlow"
+      ]
+    },
+    "thirdFlow": {
+      "jobs": [
+        {
+          "location": "jobs/testJobWrong"
+        }
+      ],
+      "predecessors": [
+        "firstFlow",
+        "secondFlow"
+      ]
+    }
+  }
+}
