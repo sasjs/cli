@@ -128,12 +128,29 @@ export async function execute(
         {},
         `Please provide csv file location (--csvFile).\nCommand example: ${commandExample}`
       )
+
+      return
     }
 
-    if (!(await fileExists(csvFile))) {
-      await createFile(csvFile, '')
-    }
+    await createFile(csvFile, '')
   }
+
+  if (logFolder && !(await folderExists(logFolder))) {
+    await createFolder(logFolder)
+  }
+
+  const defaultContextName = 'SAS Job Execution compute context'
+  const contextName = target.tgtDeployVars
+    ? target.tgtDeployVars.contextName
+      ? target.tgtDeployVars.contextName
+      : defaultContextName
+    : defaultContextName
+
+  displayResult(
+    null,
+    null,
+    `Executing flow for '${target.name}' target with app location '${target.appLoc}':`
+  )
 
   Object.keys(flows).forEach((flowName) => {
     const flow = flows[flowName]
@@ -141,95 +158,40 @@ export async function execute(
     if (!flow.jobs || !Array.isArray(flow.jobs)) return
 
     if (!flow.predecessors || flow.predecessors.length === 0) {
-      flow.jobs.forEach((job: any) => {
-        sasjs
+      flow.jobs.forEach(async (job: any) => {
+        const jobLocation = prefixAppLoc(target.appLoc, job.location)
+
+        const submittedJob: any = await sasjs
           .startComputeJob(
-            prefixAppLoc(target.appLoc, job.location),
+            jobLocation,
             null,
             {
-              contextName: target.tgtDeployVars.contextName
+              contextName: contextName
             },
             accessToken,
             true,
             pollOptions
           )
-          .then(async (res: any) => {
-            if (res) {
-              let details = parseJobDetails(res)
-
-              const logName = await saveLog(
-                logFolder,
-                res.links,
-                target,
-                sasjs,
-                accessToken,
-                flowName,
-                job.location
-              ).catch((err) => console.log(`[err]`, err))
-
-              await saveToCsv(
-                csvFile,
-                flowName,
-                ['none'],
-                job.location,
-                res.state || 'failure',
-                details,
-                logName ? path.join(logFolder, logName as string) : ''
-              )
-
-              job.status = res.state === 'completed' ? 'success' : 'failure'
-
-              displayResult(
-                null,
-                null,
-                `'${flowName}' flow's job located at: '${job.location}' completed.`
-              )
-            }
-
-            if (
-              flow.jobs.filter((j: any) => j.status === 'success').length ===
-              flow.jobs.length
-            ) {
-              displayResult(
-                null,
-                null,
-                `'${flowName}' flow completed successfully!`
-              )
-
-              checkPredecessors(
-                sasjs,
-                flows,
-                flow,
-                flowName,
-                prefixAppLoc,
-                target,
-                accessToken,
-                csvFile,
-                pollOptions,
-                logFolder
-              )
-            } else if (
-              flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
-                .length === flow.jobs.length
-            ) {
-              displayResult({}, `'${flowName}' flow failed!`)
-            }
-          })
-          .catch(async (err: { message: string | undefined }) => {
-            job.status = 'failure'
-
-            await saveToCsv(
-              csvFile,
+          .catch(async (err: any) => {
+            const logName = await saveLog(
+              err.job ? (err.job.links ? err.job.links : []) : [],
               flowName,
-              ['none'],
-              job.location,
-              'failure',
-              err.message || ''
+              jobLocation
             )
 
+            await saveToCsv(
+              flowName,
+              ['none'],
+              jobLocation,
+              'failure',
+              err.message || '',
+              logName ? path.join(logFolder, logName as string) : ''
+            )
+
+            job.status = 'failure'
             displayResult(
-              err,
-              `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`,
+              {},
+              `An error has occurred when executing '${flowName}' flow's job located at: '${jobLocation}'.`,
               null
             )
 
@@ -240,6 +202,54 @@ export async function execute(
               displayResult({}, `'${flowName}' flow failed!`)
             }
           })
+
+        if (submittedJob) {
+          let details = parseJobDetails(submittedJob)
+
+          const logName = await saveLog(
+            submittedJob.links,
+            flowName,
+            prefixAppLoc(target.appLoc, jobLocation)
+          ).catch((err: any) =>
+            displayResult(err, 'Error while saving log file.')
+          )
+
+          await saveToCsv(
+            flowName,
+            ['none'],
+            prefixAppLoc(target.appLoc, jobLocation),
+            submittedJob.state || 'failure',
+            details,
+            logName ? path.join(logFolder, logName as string) : ''
+          )
+
+          job.status =
+            submittedJob.state === 'completed' ? 'success' : 'failure'
+
+          displayResult(
+            null,
+            null,
+            `'${flowName}' flow's job located at: '${jobLocation}' completed.`
+          )
+
+          if (
+            flow.jobs.filter((j: any) => j.status === 'success').length ===
+            flow.jobs.length
+          ) {
+            displayResult(
+              null,
+              null,
+              `'${flowName}' flow completed successfully!`
+            )
+
+            checkPredecessors(flow, flowName)
+          } else if (
+            flow.jobs.filter((j: any) => j.hasOwnProperty('status')).length ===
+            flow.jobs.length
+          ) {
+            displayResult({}, `'${flowName}' flow failed!`)
+          }
+        }
       })
     } else {
       flow.predecessors.forEach((predecessor: any) => {
@@ -257,293 +267,259 @@ export async function execute(
       })
     }
   })
-}
 
-let csvFileAbleToSave = true
+  const saveLog = async (
+    links: any[],
+    flowName: string,
+    jobLocation: string
+  ) => {
+    return new Promise(async (resolve, reject) => {
+      if (!logFolder) reject('No log folder provided')
 
-const saveToCsv = async (
-  csvFile: string,
-  flowName: string,
-  predecessors: any,
-  location: string,
-  status: string,
-  details = '',
-  logName = ''
-) => {
-  const timerId = setInterval(async () => {
-    if (csvFileAbleToSave) {
-      csvFileAbleToSave = false
-      if (!csvFile) return
+      const logObj = links.find(
+        (link: any) => link.rel === 'log' && link.method === 'GET'
+      )
 
-      let csvData = await readFile(csvFile)
+      if (logObj) {
+        const logUrl = target.serverUrl + logObj.href
+        const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+        const logJson = JSON.parse(logData as string)
 
-      if (typeof csvData === 'string') {
-        csvData = csvData
-          .split('\n')
-          .filter((row) => row.length)
-          .map((data) => data.split(','))
-      }
+        const logParsed = parseLogLines(logJson)
 
-      const columns = {
-        id: 'id',
-        flow: 'Flow',
-        predecessors: 'Predecessors',
-        name: 'Location',
-        status: 'Status',
-        logLocation: 'Log location',
-        details: 'Details'
-      }
+        const generateFileName = () =>
+          `${flowName}_${jobLocation.replace(
+            /\W/g,
+            '_'
+          )}_${generateTimestamp()}.log`
 
-      const id = csvData.length === 0 ? 1 : csvData.length
+        let logName = generateFileName()
 
-      const data = [
-        id,
-        flowName,
-        predecessors.join(' | '),
-        location,
-        status,
-        logName,
-        details
-      ]
-
-      csvData.push(data)
-
-      stringify(
-        csvData,
-        { header: csvData.length === 1, columns: columns },
-        async (err, output) => {
-          if (err) throw err // FIXME
-
-          await writeFile(csvFile, output)
-
-          csvFileAbleToSave = true
-
-          clearInterval(timerId)
+        while (await fileExists(path.join(logFolder, logName))) {
+          logName = generateFileName()
         }
-      )
-    }
-  }, 100)
-}
 
-const checkPredecessors = (
-  sasjs: any,
-  flows: any,
-  flow: any,
-  flowName: any,
-  prefixAppLoc: any,
-  target: any,
-  accessToken: any,
-  csvFile: any,
-  pollOptions: any,
-  logFolder: any
-) => {
-  const successors = Object.keys(flows)
-    .filter(
-      (name) =>
-        flows[name].predecessors && flows[name].predecessors.includes(flowName)
-    )
-    .filter((name) => name !== flowName)
+        await createFile(path.join(logFolder, logName), logParsed)
 
-  successors.forEach((successor) => {
-    const flowPredecessors = flows[successor].predecessors
+        resolve(logName)
+      }
+    })
+  }
 
-    if (flowPredecessors.length > 1) {
-      const successFullPredecessors = flowPredecessors.map(
-        (flPred: any) =>
-          flows[flPred].jobs.length ===
-          flows[flPred].jobs.filter((j: any) => j.status === 'success').length
-      )
+  let csvFileAbleToSave = true
 
-      if (successFullPredecessors.includes(false)) return
-    }
+  const saveToCsv = async (
+    flowName: string,
+    predecessors: any,
+    location: string,
+    status: string,
+    details = '',
+    logName = ''
+  ) => {
+    if (!csvFile) return
 
-    flows[successor].jobs.forEach((job: any) => {
-      sasjs
-        .startComputeJob(
-          prefixAppLoc(target.appLoc, job.location),
-          null,
-          {
-            contextName: target.tgtDeployVars.contextName
-          },
-          accessToken,
-          true,
-          pollOptions
+    const timerId = setInterval(async () => {
+      if (csvFileAbleToSave) {
+        csvFileAbleToSave = false
+
+        let csvData = await readFile(csvFile)
+
+        if (typeof csvData === 'string') {
+          csvData = csvData
+            .split('\n')
+            .filter((row) => row.length)
+            .map((data) => data.split(','))
+        }
+
+        const columns = {
+          id: 'id',
+          flow: 'Flow',
+          predecessors: 'Predecessors',
+          name: 'Location',
+          status: 'Status',
+          logLocation: 'Log location',
+          details: 'Details'
+        }
+
+        const id = csvData.length === 0 ? 1 : csvData.length
+
+        const data = [
+          id,
+          flowName,
+          predecessors.join(' | '),
+          location,
+          status,
+          logName,
+          details
+        ]
+
+        csvData.push(data)
+
+        stringify(
+          csvData,
+          { header: csvData.length === 1, columns: columns },
+          async (err, output) => {
+            if (err) throw err // FIXME
+
+            await writeFile(csvFile, output)
+
+            csvFileAbleToSave = true
+
+            clearInterval(timerId)
+          }
         )
-        .then(async (res: any) => {
-          if (res) {
-            let details = parseJobDetails(res)
+      }
+    }, 100)
+  }
 
-            const logName = await saveLog(
-              logFolder,
-              res.links,
-              target,
-              sasjs,
-              accessToken,
-              successor,
-              job.location
-            ).catch((err) => console.log(`[err]`, err))
+  const checkPredecessors = (flow: any, flowName: any) => {
+    const successors = Object.keys(flows)
+      .filter(
+        (name) =>
+          flows[name].predecessors &&
+          flows[name].predecessors.includes(flowName)
+      )
+      .filter((name) => name !== flowName)
 
-            await saveToCsv(
-              csvFile,
-              successor,
-              flows[successor].predecessors || ['none'],
-              job.location,
-              res.state || 'failure',
-              details,
-              logName ? path.join(logFolder, logName as string) : ''
-            )
+    successors.forEach((successor) => {
+      const flowPredecessors = flows[successor].predecessors
 
-            job.status = res.state === 'completed' ? 'success' : 'failure' // TODO: handle status 'running'
-            displayResult(
-              null,
-              null,
-              `'${successor}' flow's job located at: '${job.location}' completed.`
-            )
+      if (flowPredecessors.length > 1) {
+        const successFullPredecessors = flowPredecessors.map(
+          (flPred: any) =>
+            flows[flPred].jobs.length ===
+            flows[flPred].jobs.filter((j: any) => j.status === 'success').length
+        )
 
-            if (
-              flow.jobs.filter((j: any) => j.status === 'success').length ===
-              flow.jobs.length
-            ) {
+        if (successFullPredecessors.includes(false)) return
+      }
+
+      flows[successor].jobs.forEach((job: any) => {
+        const jobLocation = prefixAppLoc(target.appLoc, job.location)
+
+        sasjs
+          .startComputeJob(
+            jobLocation,
+            null,
+            {
+              contextName: contextName
+            },
+            accessToken,
+            true,
+            pollOptions
+          )
+          .then(async (res: any) => {
+            if (res) {
+              let details = parseJobDetails(res)
+
+              const logName = await saveLog(
+                res.links,
+                successor,
+                jobLocation
+              ).catch((err: any) => console.log(`[err]`, err))
+
+              await saveToCsv(
+                successor,
+                flows[successor].predecessors || ['none'],
+                jobLocation,
+                res.state || 'failure',
+                details,
+                logName ? path.join(logFolder, logName as string) : ''
+              )
+
+              job.status = res.state === 'completed' ? 'success' : 'failure' // TODO: handle status 'running'
               displayResult(
                 null,
                 null,
-                `'${successor}' flow completed successfully!`
+                `'${successor}' flow's job located at: '${jobLocation}' completed.`
               )
-            }
 
-            const allJobs = Object.keys(flows)
-              .map((key) => flows[key].jobs)
-              .reduce((acc, val) => acc.concat(val), [])
-            const allJobsWithStatus = Object.keys(flows)
-              .map((key) =>
-                flows[key].jobs.filter((job: any) =>
-                  job.hasOwnProperty('status')
+              if (
+                flow.jobs.filter((j: any) => j.status === 'success').length ===
+                flow.jobs.length
+              ) {
+                displayResult(
+                  null,
+                  null,
+                  `'${successor}' flow completed successfully!`
                 )
-              )
-              .reduce((acc, val) => acc.concat(val), [])
+              }
 
-            if (allJobs.length === allJobsWithStatus.length) return
+              const allJobs = Object.keys(flows)
+                .map((key) => flows[key].jobs)
+                .reduce((acc, val) => acc.concat(val), [])
+              const allJobsWithStatus = Object.keys(flows)
+                .map((key) =>
+                  flows[key].jobs.filter((job: any) =>
+                    job.hasOwnProperty('status')
+                  )
+                )
+                .reduce((acc, val) => acc.concat(val), [])
+
+              if (allJobs.length === allJobsWithStatus.length) return
+
+              if (
+                flow.jobs.filter((j: any) => j.status === 'success').length ===
+                flow.jobs.length
+              ) {
+                checkPredecessors(flow, successor)
+              }
+            }
+          })
+          .catch(async (err: any) => {
+            const logName = await saveLog(
+              err.job ? (err.job.links ? err.job.links : []) : [],
+              successor,
+              jobLocation
+            )
+
+            await saveToCsv(
+              successor,
+              flows[successor].predecessors || ['none'],
+              jobLocation,
+              'failure',
+              err.message || '',
+              logName ? path.join(logFolder, logName as string) : ''
+            )
+
+            job.status = 'failure'
+
+            displayResult(
+              {},
+              `An error has occurred when executing '${successor}' flow's job located at: '${jobLocation}'.`,
+              null
+            )
 
             if (
-              flow.jobs.filter((j: any) => j.status === 'success').length ===
-              flow.jobs.length
+              flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
+                .length === flow.jobs.length
             ) {
-              checkPredecessors(
-                sasjs,
-                flows,
-                flow,
-                successor,
-                prefixAppLoc,
-                target,
-                accessToken,
-                csvFile,
-                pollOptions,
-                logFolder
-              )
+              displayResult({}, `'${successor}' flow failed!`)
             }
-          }
-        })
-        .catch(async (err: { message: string | undefined }) => {
-          job.status = 'failure'
-
-          await saveToCsv(
-            csvFile,
-            successor,
-            flows[successor].predecessors || ['none'],
-            job.location,
-            'failure',
-            err.message || ''
-          )
-
-          displayResult(
-            err,
-            `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`,
-            null
-          )
-
-          if (
-            flow.jobs.filter((j: any) => j.hasOwnProperty('status')).length ===
-            flow.jobs.length
-          ) {
-            displayResult({}, `'${successor}' flow failed!`)
-          }
-        })
+          })
+      })
     })
-  })
+  }
 }
 
-const saveLog = async (
-  logFolder: any,
-  links: any,
-  target: any,
-  sasjs: any,
-  accessToken: any,
-  flowName: any,
-  jobLocation: any
-) => {
-  return new Promise(async (resolve, reject) => {
-    if (!logFolder) reject('No log folder provided')
+const parseJobDetails = (response: any) => {
+  if (!response) return
 
-    const logObj = links.find(
-      (link: any) => link.rel === 'log' && link.method === 'GET'
-    )
-
-    if (logObj) {
-      const logUrl = target.serverUrl + logObj.href
-      const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
-      const logJson = JSON.parse(logData)
-
-      const logParsed = parseLogLines(logJson)
-
-      if (!(await folderExists(logFolder))) {
-        await createFolder(logFolder)
-      }
-
-      const generateFileName = () =>
-        `${flowName}_${jobLocation.replace(
-          /\W/g,
-          '_'
-        )}_${generateTimestamp()}.log`
-
-      let logName = generateFileName()
-
-      while (await fileExists(path.join(logFolder, logName))) {
-        logName = generateFileName()
-      }
-
-      await createFile(path.join(logFolder, logName), logParsed)
-
-      resolve(logName)
-    }
-  })
-}
-
-const parseJobDetails = (res: any) => {
   let details = ''
 
-  if (res.statistics) {
-    details = `Statistics: ${Object.keys(res.statistics)
-      .map((key) => `${key}: ${res.statistics[key]}`)
-      .join('; ')}`
+  const concatDetails = (data: any, title: string) => {
+    if (data)
+      details = details.concat(
+        details.length ? ' | ' : '',
+        `${title}: ${Object.keys(data)
+          .map((key) => `${key}: ${data[key]}`)
+          .join('; ')}}`
+      )
   }
 
-  if (res.listingStatistics) {
-    details = details.concat(
-      ' | ',
-      `Listing Statistics: ${Object.keys(res.listingStatistics)
-        .map((key) => `${key}: ${res.listingStatistics[key]}`)
-        .join('; ')}`
-    )
-  }
-
-  if (res.logStatistics) {
-    details = details.concat(
-      ' | ',
-      `Log Statistics: ${Object.keys(res.logStatistics)
-        .map((key) => `${key}: ${res.logStatistics[key]}`)
-        .join('; ')}`
-    )
-  }
+  concatDetails(response.statistics, 'Statistics')
+  concatDetails(response.listingStatistics, 'Listing Statistics')
+  concatDetails(response.logStatistics, 'Log Statistics')
 
   return details
 }
