@@ -658,7 +658,7 @@ export async function getBuildVars() {
 
 async function getDependencies(filePaths) {
   let dependenciesContent = []
-  await asyncForEach(filePaths, async (filePath) => {
+  await asyncForEach([...new Set(filePaths)], async (filePath) => {
     const depFileContent = await readFile(filePath)
     dependenciesContent.push(depFileContent)
   })
