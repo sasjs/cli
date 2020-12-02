@@ -146,7 +146,11 @@ export async function execute(
 
           if (logObj) {
             const logUrl = target.serverUrl + logObj.href
-            const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+            const logCount = submittedJob.logStatistics.lineCount
+            const logData = await sasjs.fetchLogFileContent(
+              `${logUrl}?limit=${logCount}`,
+              accessToken
+            )
             const logJson = JSON.parse(logData)
 
             let logPath
