@@ -6,12 +6,12 @@ import { exportContext } from '../../../src/commands/context/export'
 
 describe('sasjs run', () => {
   const targetName = 'cli-tests-job'
-  
+
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd())
 
     dotenv.config()
-    
+
     const config = {
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
@@ -38,15 +38,19 @@ describe('sasjs run', () => {
       await expect(runSasCode(`run ${file}`)).rejects.toEqual(error)
     })
 
-    it('should get the log on successfull execution', async () => {
-      const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
+    it(
+      'should get the log on successfull execution',
+      async () => {
+        const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-      let result = await runSasCode(`run test/commands/run/testServices/logJob.sas`)
+        let result = await runSasCode(
+          `run test/commands/run/testServices/logJob.sas`
+        )
 
-      expect(result.log.includes(logPart)).toBeTruthy()
-    },
-    
-    60 * 1000
+        expect(result.log.includes(logPart)).toBeTruthy()
+      },
+
+      60 * 1000
     )
   })
 
