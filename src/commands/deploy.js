@@ -131,7 +131,13 @@ async function getSASjsAndAccessToken(buildTarget) {
     serverType: buildTarget.serverType
   })
 
-  const accessToken = await getAccessToken(buildTarget)
+  try {
+    const accessToken = await getAccessToken(buildTarget)
+  } catch (e) {
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+    )
+  }
   return {
     sasjs,
     accessToken
@@ -154,7 +160,13 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  const accessToken = await getAccessToken(buildTarget)
+  try {
+    const accessToken = await getAccessToken(buildTarget)
+  } catch (e) {
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+    )
+  }
 
   return await sasjs.deployServicePack(
     jsonObject,
