@@ -10,12 +10,17 @@ import {
   folderExists,
   createFolder
 } from '../../utils/file-utils'
-import { generateTimestamp, parseLogLines } from '../../utils/utils'
+import {
+  generateTimestamp,
+  parseLogLines,
+  millisecondsDdToHhMmSs
+} from '../../utils/utils'
 import { getAccessToken } from '../../utils/config-utils'
 import { Target } from '../../types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
+import examples from './examples'
 
 export async function execute(
   source: string,
@@ -58,55 +63,7 @@ export async function execute(
   if (!flows) {
     displayResult(
       true,
-      `Source file is not valid. Source file example:
-{
-  "name": "myAmazingFlow",
-  "flows": {
-    "firstFlow": {
-      "jobs": [
-        {
-          "location": "/Projects/job1"
-        },
-        {
-          "location": "/Projects/job2"
-        },
-        {
-          "location": "/Projects/job3"
-        }
-      ],
-      "predecessors": []
-    },
-    "secondFlow": {
-      "jobs": [
-        {
-          "location": "/Projects/job11"
-        }
-      ],
-      "predecessors": [
-        "firstFlow"
-      ]
-    },
-    "anotherFlow": {
-      "jobs": [
-        {
-          "location": "/Public/job15"
-        }
-      ],
-      "predecessors": [
-        "firstFlow",
-        "secondFlow"
-      ]
-    },
-    "yetAnotherFlow": {
-      "jobs": [
-        {
-          "location": "/Public/job115"
-        }
-      ],
-      "predecessors": []
-    }
-  }
-}`
+      `Source file is not valid. Source file example:${examples.source}`
     )
 
     return false
@@ -191,7 +148,7 @@ export async function execute(
 
             displayResult(
               {},
-              `An error has occurred when executing '${flowName}' flow's job located at: '${jobLocation}'.`,
+              `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`,
               null
             )
 
@@ -209,7 +166,7 @@ export async function execute(
           const logName = await saveLog(
             submittedJob.links,
             flowName,
-            prefixAppLoc(target.appLoc, jobLocation)
+            jobLocation
           ).catch((err: any) =>
             displayResult(err, 'Error while saving log file.')
           )
@@ -217,20 +174,36 @@ export async function execute(
           await saveToCsv(
             flowName,
             ['none'],
-            prefixAppLoc(target.appLoc, jobLocation),
+            jobLocation,
             submittedJob.state || 'failure',
             details,
             logName ? path.join(logFolder, logName as string) : ''
           )
 
           job.status =
-            submittedJob.state === 'completed' ? 'success' : 'failure'
+            submittedJob.state === 'completed'
+              ? 'success'
+              : submittedJob.state || 'failure'
 
-          displayResult(
-            null,
-            null,
-            `'${flowName}' flow's job located at: '${jobLocation}' completed.`
-          )
+          if (job.status === 'success') {
+            displayResult(
+              null,
+              null,
+              `'${flowName}' flow's job located at: '${job.location}' completed.`
+            )
+          } else {
+            displayResult(
+              {},
+              `'${flowName}' flow's job located at: '${
+                job.location
+              }' failed with the status '${job.status}'.${
+                job.status === 'running' &&
+                ` Job had been aborted due to timeout(${millisecondsDdToHhMmSs(
+                  pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
+                )}).`
+              }`
+            )
+          }
 
           if (
             flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -427,12 +400,28 @@ export async function execute(
                 logName ? path.join(logFolder, logName as string) : ''
               )
 
-              job.status = res.state === 'completed' ? 'success' : 'failure' // TODO: handle status 'running'
-              displayResult(
-                null,
-                null,
-                `'${successor}' flow's job located at: '${jobLocation}' completed.`
-              )
+              job.status =
+                res.state === 'completed' ? 'success' : res.state || 'failure'
+
+              if (job.status === 'success') {
+                displayResult(
+                  null,
+                  null,
+                  `'${successor}' flow's job located at: '${job.location}' completed.`
+                )
+              } else {
+                displayResult(
+                  {},
+                  `'${successor}' flow's job located at: '${
+                    job.location
+                  }' failed with the status '${job.status}'.${
+                    job.status === 'running' &&
+                    ` Job had been aborted due to timeout(${millisecondsDdToHhMmSs(
+                      pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
+                    )}).`
+                  }`
+                )
+              }
 
               if (
                 flows[successor].jobs.filter((j: any) => j.status === 'success')
@@ -492,7 +481,7 @@ export async function execute(
 
             displayResult(
               {},
-              `An error has occurred when executing '${successor}' flow's job located at: '${jobLocation}'.`,
+              `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`,
               null
             )
 
