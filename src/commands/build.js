@@ -51,6 +51,8 @@ export async function build(
   const { target } = await findTargetInConfiguration(targetName)
   targetToBuild = target
 
+  console.log(chalk.white(`Target appLoc: ${target.appLoc}`))
+
   if (compileBuildDeployOnly) {
     await compile(targetName)
     await createFinalSasFiles()
