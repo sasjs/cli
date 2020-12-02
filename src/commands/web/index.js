@@ -28,10 +28,19 @@ export async function createWebAppServices(
   commandLine = null,
   preTargetToBuild = null
 ) {
-  const command = new Command(commandLine)
+  let targetToBuild = null
 
-  let targetName = command.getFlagValue('target')
-  targetName = targetName ? targetName : null
+  if (commandLine === null && typeof preTargetToBuild === 'object') {
+    targetToBuild = preTargetToBuild
+  } else {
+    const command = new Command(commandLine)
+
+    let targetName = command.getFlagValue('target')
+    targetName = targetName ? targetName : null
+
+    const { target } = await findTargetInConfiguration(targetName)
+    targetToBuild = target
+  }
 
   const CONSTANTS = require('../../constants').get()
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
@@ -39,14 +48,6 @@ export async function createWebAppServices(
   console.log(chalk.greenBright('Building web app services...'))
 
   await createBuildDestinationFolder()
-
-  let targetToBuild = null
-
-  if (preTargetToBuild) targetToBuild = preTargetToBuild
-  else {
-    const { target } = await findTargetInConfiguration(targetName)
-    targetToBuild = target
-  }
 
   if (targetToBuild) {
     console.log(
