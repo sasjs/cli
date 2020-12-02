@@ -264,7 +264,7 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with a warning and return it's status`,
       async () => {
-        const command = `job execute testJob/jobWithWarning -t ${targetName} --wait --returnStatusOnly`
+        const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(1)
       },
@@ -274,7 +274,7 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with ignored warning and return it's status`,
       async () => {
-        const command = `job execute testJob/jobWithWarning -t ${targetName} --wait --returnStatusOnly --ignoreWarnings`
+        const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
 
         await expect(processJob(command)).resolves.toEqual(0)
       },
@@ -284,7 +284,7 @@ describe('sasjs job', () => {
     it(
       `should submit a job that fails and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob -t ${targetName} --wait --returnStatusOnly`
+        const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
       },
@@ -294,7 +294,7 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --wait --returnStatusOnly`
+        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
       },

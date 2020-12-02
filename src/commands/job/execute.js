@@ -31,6 +31,16 @@ export async function execute(
   returnStatusOnly,
   ignoreWarnings
 ) {
+  if (returnStatusOnly && !waitForJob) waitForJob = true
+
+  if (ignoreWarnings && !returnStatusOnly) {
+    console.log(
+      chalk.yellowBright(
+        `WARNING: using 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the command.`
+      )
+    )
+  }
+
   let statusReturned = false
   let result
 
