@@ -92,6 +92,8 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     })
 
   let log
+  let isOutput = false
+
   try {
     log = executionResult.log.items
       ? executionResult.log.items.map((i) => i.line)
@@ -99,22 +101,22 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   } catch (e) {
     console.log(
       chalk.redBright(
-        `An error occurred when parsing the execution response: ${chalk.redBright.bold(
+        `An error occurred when parsing the execution log: ${chalk.redBright.bold(
           e.message
         )}`
       )
     )
-    console.log(
-      chalk.redBright(
-        `Please check your ${chalk.cyanBright('tgtDeployVars')} and try again.`
-      )
-    )
+
+    console.log(chalk.redBright(`So we put execution output in the log file.`))
+
     log = JSON.stringify(executionResult)
+
+    isOutput = true
   }
 
   console.log(chalk.greenBright('Job execution completed!'))
 
-  await createOutputFile(log)
+  await createOutputFile(log, isOutput)
 }
 
 async function executeOnSas9(buildTarget, linesToExecute) {
@@ -170,13 +172,17 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   await createOutputFile(JSON.stringify(parsedLog, null, 2))
 }
 
-async function createOutputFile(log) {
+async function createOutputFile(log, isOutput = false) {
   const timestamp = generateTimestamp()
   const outputFilePath = path.join(process.cwd(), `sasjs-run-${timestamp}.log`)
 
   await createFile(outputFilePath, log)
 
   console.log(
-    chalk.whiteBright(`Log is available in ${chalk.cyanBright(outputFilePath)}`)
+    chalk.whiteBright(
+      `${isOutput ? 'Output' : 'Log'} is available in ${chalk.cyanBright(
+        outputFilePath
+      )}`
+    )
   )
 }
