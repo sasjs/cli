@@ -25,17 +25,6 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
     targetToBuild = target
   }
 
-  const accessToken = await getAccessToken(targetToBuild)
-  if (targetToBuild.serverType === 'SASVIYA' && !accessToken) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      )
-    )
-
-    return
-  }
-
   if (
     targetToBuild.serverType === 'SASVIYA' &&
     targetToBuild.deployServicePack
