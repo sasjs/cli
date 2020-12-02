@@ -17,7 +17,6 @@ import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
 
-// TODO: check if 'lf' alias is working
 export async function execute(
   source: string,
   logFolder: string,
@@ -189,6 +188,7 @@ export async function execute(
             )
 
             job.status = 'failure'
+
             displayResult(
               {},
               `An error has occurred when executing '${flowName}' flow's job located at: '${jobLocation}'.`,
@@ -435,14 +435,20 @@ export async function execute(
               )
 
               if (
-                flow.jobs.filter((j: any) => j.status === 'success').length ===
-                flow.jobs.length
+                flows[successor].jobs.filter((j: any) => j.status === 'success')
+                  .length === flows[successor].jobs.length
               ) {
                 displayResult(
                   null,
                   null,
                   `'${successor}' flow completed successfully!`
                 )
+              } else if (
+                flows[successor].jobs.filter((j: any) =>
+                  j.hasOwnProperty('status')
+                ).length === flows[successor].jobs.length
+              ) {
+                displayResult({}, `'${successor}' flow failed!`)
               }
 
               const allJobs = Object.keys(flows)
@@ -459,10 +465,10 @@ export async function execute(
               if (allJobs.length === allJobsWithStatus.length) return
 
               if (
-                flow.jobs.filter((j: any) => j.status === 'success').length ===
-                flow.jobs.length
+                flows[successor].jobs.filter((j: any) => j.status === 'success')
+                  .length === flows[successor].jobs.length
               ) {
-                checkPredecessors(flow, successor)
+                checkPredecessors(flows[successor], successor)
               }
             }
           })
@@ -491,8 +497,9 @@ export async function execute(
             )
 
             if (
-              flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
-                .length === flow.jobs.length
+              flows[successor].jobs.filter((j: any) =>
+                j.hasOwnProperty('status')
+              ).length === flows[successor].jobs.length
             ) {
               displayResult({}, `'${successor}' flow failed!`)
             }

@@ -43,7 +43,7 @@
   "dependencies": {
     "@babel/preset-typescript": "^7.12.7",
     "@sasjs/adapter": "^1.19.0",
-    "@sasjs/core": "^1.12.2",
+    "@sasjs/core": "^1.12.3",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
