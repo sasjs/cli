@@ -31,9 +31,9 @@ export async function runSasCode(commandLine) {
   const sasFile = await readFile(path.join(process.cwd(), filePath))
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === 'SASVIYA') {
-    await executeOnSasViya(filePath, target, linesToExecute)
+    return await executeOnSasViya(filePath, target, linesToExecute)
   } else {
-    await executeOnSas9(target, linesToExecute)
+    return await executeOnSas9(target, linesToExecute)
   }
 }
 
@@ -51,7 +51,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     debug: true
   })
 
-  const contextName = await getVariable('contextName', buildTarget)
+  let contextName = await getVariable('contextName', buildTarget)
 
   if (!contextName) {
     contextName = sasjs.getSasjsConfig().contextName
@@ -117,6 +117,8 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   console.log(chalk.greenBright('Job execution completed!'))
 
   await createOutputFile(log, isOutput)
+
+  return { log }
 }
 
 async function executeOnSas9(buildTarget, linesToExecute) {
@@ -170,6 +172,8 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   console.log(chalk.greenBright('Job execution completed!'))
 
   await createOutputFile(JSON.stringify(parsedLog, null, 2))
+
+  return { parsedLog }
 }
 
 async function createOutputFile(log, isOutput = false) {
