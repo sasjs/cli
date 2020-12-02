@@ -33,7 +33,7 @@ export async function createWebAppServices(
   let targetName = command.getFlagValue('target')
   targetName = targetName ? targetName : null
 
-  const CONSTANTS = require('../../constants')
+  const CONSTANTS = require('../../constants').get()
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
 
   console.log(chalk.greenBright('Building web app services...'))
