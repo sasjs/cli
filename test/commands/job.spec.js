@@ -250,6 +250,56 @@ describe('sasjs job', () => {
       },
       60 * 1000
     )
+
+    it(
+      `should submit a job that completes and return it's status`,
+      async () => {
+        const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
+
+        await expect(processJob(command)).resolves.toEqual(0)
+      },
+      60 * 1000
+    )
+
+    it(
+      `should submit a job that completes with a warning and return it's status`,
+      async () => {
+        const command = `job execute testJob/jobWithWarning -t ${targetName} --wait --returnStatusOnly`
+
+        await expect(processJob(command)).resolves.toEqual(1)
+      },
+      60 * 1000
+    )
+
+    it(
+      `should submit a job that completes with ignored warning and return it's status`,
+      async () => {
+        const command = `job execute testJob/jobWithWarning -t ${targetName} --wait --returnStatusOnly --ignoreWarnings`
+
+        await expect(processJob(command)).resolves.toEqual(0)
+      },
+      60 * 1000
+    )
+
+    it(
+      `should submit a job that fails and return it's status`,
+      async () => {
+        const command = `job execute testJob/failingJob -t ${targetName} --wait --returnStatusOnly`
+
+        await expect(processJob(command)).resolves.toEqual(2)
+      },
+      60 * 1000
+    )
+
+    it(
+      `should submit a job that does not exist and return it's status`,
+      async () => {
+        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --wait --returnStatusOnly`
+
+        await expect(processJob(command)).resolves.toEqual(2)
+      },
+      60 * 1000
+    )
   })
 
   afterAll(async () => {
