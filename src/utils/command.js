@@ -55,7 +55,7 @@ const initialFlags = arrToObj([
     'logFile',
     'status',
     'logFolder',
-    'csvFile'
+    'csvFile',
     'returnStatusOnly',
     'ignoreWarnings'
   ])
