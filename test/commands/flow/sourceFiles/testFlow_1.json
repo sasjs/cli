@@ -7,7 +7,7 @@
           "location": "jobs/testJob/job"
         },
         {
-          "location": "jobs/testJob/failingJob"
+          "location": "jobs/testJob/job"
         }
       ],
       "predecessors": []
