@@ -16,6 +16,8 @@ import path from 'path'
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
  * @param {boolean | string} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
  * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
+ * @param {boolean | undefined} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error). Works only if waitForJob flag was provided.
+ * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  */
 export async function execute(
   sasjs,
@@ -25,13 +27,26 @@ export async function execute(
   waitForJob,
   output,
   logFile,
-  statusFile
+  statusFile,
+  returnStatusOnly,
+  ignoreWarnings
 ) {
+  if (returnStatusOnly && !waitForJob) waitForJob = true
+
+  if (ignoreWarnings && !returnStatusOnly) {
+    console.log(
+      chalk.yellowBright(
+        `WARNING: using 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the command.`
+      )
+    )
+  }
+
+  let statusReturned = false
   let result
 
   const startTime = new Date().getTime()
 
-  if (statusFile !== undefined)
+  if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus({ state: 'Initiating' }, statusFile)
 
   const spinner = ora(
@@ -40,9 +55,9 @@ export async function execute(
     )} has been submitted for execution...\n`
   )
 
-  spinner.start()
+  if (!returnStatusOnly) spinner.start()
 
-  const contextName = getContextName(target)
+  const contextName = getContextName(target, returnStatusOnly)
 
   const submittedJob = await sasjs
     .startComputeJob(
@@ -53,10 +68,18 @@ export async function execute(
       waitForJob || logFile !== undefined ? true : false
     )
     .catch((err) => {
-      result =
-        typeof err === 'object' && Object.keys(err).length
-          ? JSON.stringify({ state: err.job.state })
-          : `${err}`
+      if (returnStatusOnly) {
+        console.log(2)
+
+        statusReturned = true
+      }
+
+      result = returnStatusOnly
+        ? 2
+        : typeof err === 'object' && Object.keys(err).length
+        ? JSON.stringify({ state: err.job.state })
+        : `${err}`
+
       if (err.job) {
         return err.job
       }
@@ -66,9 +89,9 @@ export async function execute(
 
   const endTime = new Date().getTime()
 
-  if (result)
+  if (result && !returnStatusOnly)
     displayResult(result, 'An error has occurred when executing a job.', null)
-  if (statusFile !== undefined)
+  if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
 
   if (submittedJob && submittedJob.links) {
@@ -78,13 +101,16 @@ export async function execute(
       (l) => l.method === 'GET' && l.rel === 'self'
     ).href
 
-    displayResult(
-      null,
-      null,
-      (waitForJob
-        ? `Job located at '${jobPath}' has been executed.\nJob details`
-        : `Job session`) + ` can be found at ${target.serverUrl + sessionLink}`
-    )
+    if (!returnStatusOnly) {
+      displayResult(
+        null,
+        null,
+        (waitForJob
+          ? `Job located at '${jobPath}' has been executed.\nJob details`
+          : `Job session`) +
+          ` can be found at ${target.serverUrl + sessionLink}`
+      )
+    }
 
     if (output !== undefined || logFile !== undefined) {
       try {
@@ -107,9 +133,10 @@ export async function execute(
 
           await createFile(outputPath, outputJson)
 
-          displayResult(null, null, `Output saved to: ${outputPath}`)
+          if (!returnStatusOnly)
+            displayResult(null, null, `Output saved to: ${outputPath}`)
         } else if (output) {
-          console.log(outputJson)
+          if (!returnStatusOnly) console.log(outputJson)
         }
 
         if (logFile !== undefined) {
@@ -119,7 +146,11 @@ export async function execute(
 
           if (logObj) {
             const logUrl = target.serverUrl + logObj.href
-            const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+            const logCount = submittedJob.logStatistics.lineCount
+            const logData = await sasjs.fetchLogFileContent(
+              `${logUrl}?limit=${logCount}`,
+              accessToken
+            )
             const logJson = JSON.parse(logData)
 
             let logPath
@@ -148,7 +179,8 @@ export async function execute(
 
             await createFile(logPath, logLines)
 
-            displayResult(null, null, `Log saved to: ${logPath}`)
+            if (!returnStatusOnly)
+              displayResult(null, null, `Log saved to: ${logPath}`)
           }
         }
 
@@ -156,40 +188,69 @@ export async function execute(
       } catch (error) {
         result = false
 
-        displayResult(
-          null,
-          'An error has occurred when parsing an output of the job.',
-          null
-        )
+        if (!returnStatusOnly) {
+          displayResult(
+            null,
+            'An error has occurred when parsing an output of the job.',
+            null
+          )
+        }
+      }
+    }
+
+    if (waitForJob && returnStatusOnly && submittedJob.state) {
+      if (!statusReturned) {
+        switch (submittedJob.state) {
+          case 'completed':
+            result = 0
+            console.log(result)
+            break
+          case 'warning':
+            result = ignoreWarnings ? 0 : 1
+            console.log(result)
+            break
+          case 'error':
+            result = 2
+            console.log(result)
+            break
+          default:
+            break
+        }
+
+        statusReturned = true
       }
     }
   }
 
-  console.log(
-    chalk.whiteBright(
-      `This operation took ${(endTime - startTime) / 1000} seconds`
+  if (!returnStatusOnly) {
+    console.log(
+      chalk.whiteBright(
+        `This operation took ${(endTime - startTime) / 1000} seconds`
+      )
     )
-  )
+  }
 
   return result
 }
 
-export function getContextName(target) {
+export function getContextName(target, returnStatusOnly) {
   const defaultContextName = 'SAS Job Execution compute context'
   if (target && target.contextName) {
     return target.contextName
   }
 
-  console.log(
-    chalk.yellowBright(
-      `contextName was not provided. Using ${defaultContextName} by default.`
+  if (!returnStatusOnly) {
+    console.log(
+      chalk.yellowBright(
+        `contextName was not provided. Using ${defaultContextName} by default.`
+      )
     )
-  )
-  console.log(
-    chalk.whiteBright(
-      `You can specify the context name in your target configuration.`
+    console.log(
+      chalk.whiteBright(
+        `You can specify the context name in your target configuration.`
+      )
     )
-  )
+  }
 
   return defaultContextName
 }

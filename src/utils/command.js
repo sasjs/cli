@@ -56,6 +56,8 @@ const initialFlags = arrToObj([
     'status',
     'logFolder',
     'csvFile'
+    'returnStatusOnly',
+    'ignoreWarnings'
   ])
 ])
 
@@ -108,7 +110,9 @@ const commandFlags = [
       initialFlags.wait,
       initialFlags.output,
       initialFlags.logFile,
-      initialFlags.status
+      initialFlags.status,
+      initialFlags.returnStatusOnly,
+      initialFlags.ignoreWarnings
     ]
   },
   {

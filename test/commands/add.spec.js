@@ -50,7 +50,7 @@ describe('sasjs add', () => {
 
         await expect(add('add')).resolves.toEqual(true)
 
-        const buildSourceFolder = require('../../src/constants')
+        const buildSourceFolder = require('../../src/constants').get()
           .buildSourceFolder
         const config = await getConfiguration(
           path.join(buildSourceFolder, 'sasjsconfig.json')

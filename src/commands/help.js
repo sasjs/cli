@@ -248,12 +248,14 @@ export async function printHelpText() {
         `[2spaces]* ${chalk.cyanBright(
           'execute'
         )} - triggers job for execution.`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName --output ./outputFolder/output.json`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName --wait --log ./logFolder/log.json`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --output ./outputFolder/output.json --returnStatusOnly --ignoreWarnings`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --wait --log ./logFolder/log.json -r -i`,
         ``,
         `[2spaces]NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.`,
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
-        `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`
+        `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`,
+        `[2spaces]NOTE: Providing return status only (--returnStatusOnly or -r) flag is optional. If present and wait flag is provided, CLI will job status only (0 = success, 1 = warning, 3 = error).`,
+        `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present and return status only is provided, CLI will return status '0', when the job state is warning.`
       ]
     },
     {
