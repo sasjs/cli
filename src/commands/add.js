@@ -61,7 +61,7 @@ export async function addTarget() {
 }
 
 async function getLocalConfig() {
-  const buildSourceFolder = require('../constants').buildSourceFolder
+  const buildSourceFolder = require('../constants').get().buildSourceFolder
   const config = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
@@ -70,7 +70,7 @@ async function getLocalConfig() {
 }
 
 async function saveToLocalConfig(buildTarget) {
-  const buildSourceFolder = require('../constants').buildSourceFolder
+  const buildSourceFolder = require('../constants').get().buildSourceFolder
   let config = await getLocalConfig()
   if (config) {
     if (config.targets && config.targets.length) {

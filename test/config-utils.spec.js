@@ -8,6 +8,11 @@ jest.mock('@sasjs/adapter/node')
 
 describe('Config Utils', () => {
   let authUtils
+
+  beforeAll(() => {
+    process.projectDir = process.cwd()
+  })
+
   beforeEach(() => {
     process.env.ACCESS_TOKEN = null
 

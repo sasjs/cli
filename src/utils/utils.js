@@ -56,6 +56,7 @@ function createApp(folderPath, repoUrl, installDependencies = true) {
 }
 
 export async function setupNpmProject(folderPath) {
+  folderPath = path.join(process.projectDir, folderPath)
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {

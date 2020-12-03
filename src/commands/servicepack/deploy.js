@@ -67,7 +67,7 @@ async function deployToSasViyaWithServicePack(
     serverType: buildTarget.serverType
   })
 
-  const CONSTANTS = require('../../constants')
+  const CONSTANTS = require('../../constants').get()
   const buildDestinationFolder = CONSTANTS.buildDestinationFolder
 
   const finalFilePathJSON = path.join(

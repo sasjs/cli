@@ -221,7 +221,7 @@ export async function getBuildTargets(buildSourceFolder) {
  * @param {string} targetName - name of the configuration.
  */
 export async function getBuildTarget(targetName) {
-  const { buildSourceFolder } = require('../constants')
+  const { buildSourceFolder } = require('../constants').get()
   let targets = await getBuildTargets(buildSourceFolder)
 
   if (targets.length === 0) {
@@ -319,7 +319,7 @@ export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
   const isJob = typeOfFile.includes('job')
   const tgtPrefix = 'tgt'
   const cmnPrefix = 'cmn'
-  const { buildSourceFolder } = require('../constants')
+  const { buildSourceFolder } = require('../constants').get()
   let toBuildPath = ''
 
   if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`] == undefined) {
@@ -355,7 +355,7 @@ export async function getProjectRoot() {
   let root = '',
     rootFound = false,
     i = 1
-  let currentLocation = process.cwd()
+  let currentLocation = process.projectDir
   const maxLevels = 4
   while (!rootFound && i <= maxLevels) {
     const isRoot = await folderExists(path.join(currentLocation, 'sasjs'))

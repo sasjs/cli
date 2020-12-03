@@ -41,7 +41,7 @@ export async function build(
   compileBuildOnly = false,
   compileBuildDeployOnly = false
 ) {
-  const CONSTANTS = require('../constants')
+  const CONSTANTS = require('../constants').get()
 
   buildSourceFolder = CONSTANTS.buildSourceFolder
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
@@ -50,6 +50,8 @@ export async function build(
 
   const { target } = await findTargetInConfiguration(targetName)
   targetToBuild = target
+
+  console.log(chalk.white(`Target appLoc: ${target.appLoc}`))
 
   if (compileBuildDeployOnly) {
     await compile(targetName)
@@ -114,6 +116,9 @@ async function compile(targetName) {
 
   const jobFoldersToCompile = jobPathsToCompile.map((s) => s.split('/').pop())
   const jobFoldersToCompileUniq = [...new Set(jobFoldersToCompile)]
+
+  if (serviceFoldersToCompileUniq.length == 0 && jobFoldersToCompileUniq == 0)
+    throw 'Either Services or Jobs should be present'
 
   const tgtMacros = targetToBuild ? targetToBuild.tgtMacros : []
   const programFolders = await getProgramFolders(targetName)
@@ -658,7 +663,7 @@ export async function getBuildVars() {
 
 async function getDependencies(filePaths) {
   let dependenciesContent = []
-  await asyncForEach(filePaths, async (filePath) => {
+  await asyncForEach([...new Set(filePaths)], async (filePath) => {
     const depFileContent = await readFile(filePath)
     dependenciesContent.push(depFileContent)
   })
@@ -974,54 +979,64 @@ async function validCompiled(servicesBuildFolders, jobsBuildFolders) {
       message: `Build Folder doesn't exists: ${buildDestinationFolder}`
     }
 
-  const serviceSubFolders = await getSubFoldersInFolder(buildDestinationServ)
+  if (servicesBuildFolders.length) {
+    const serviceSubFolders = await getSubFoldersInFolder(buildDestinationServ)
+    const servicesPresent = servicesBuildFolders.every((folder) =>
+      serviceSubFolders.includes(folder)
+    )
+    if (!servicesPresent)
+      return { compiled: false, message: 'All services are not present.' }
+  }
 
-  const servicesPresent = servicesBuildFolders.every((folder) =>
-    serviceSubFolders.includes(folder)
-  )
+  if (jobsBuildFolders.length) {
+    const jobSubFolders = await getSubFoldersInFolder(buildDestinationJobs)
 
-  const jobSubFolders = await getSubFoldersInFolder(buildDestinationJobs)
+    const jobsPresent = jobsBuildFolders.every((folder) =>
+      jobSubFolders.includes(folder)
+    )
+    if (!jobsPresent)
+      return { compiled: false, message: 'All jobs are not present.' }
+  }
 
-  const jobsPresent = jobsBuildFolders.every((folder) =>
-    jobSubFolders.includes(folder)
-  )
-
-  if (servicesPresent && jobsPresent) {
-    let returnObj = {
-      compiled: true,
-      message: `All services and jobs are already present.`
+  if (servicesBuildFolders.length == 0 && jobsBuildFolders.length == 0) {
+    return {
+      compiled: false,
+      message: 'Either Services or Jobs should be present'
     }
+  }
 
-    await asyncForEach(servicesBuildFolders, async (buildFolder) => {
-      if (returnObj.compiled) {
-        const folderPath = path.join(buildDestinationServ, buildFolder)
-        const subFolders = await getSubFoldersInFolder(folderPath)
-        const filesNamesInPath = await getFilesInFolder(folderPath)
-        if (subFolders.length == 0 && filesNamesInPath.length == 0) {
-          returnObj = {
-            compiled: false,
-            message: `Service folder ${buildFolder} is empty.`
-          }
+  let returnObj = {
+    compiled: true,
+    message: `All services and jobs are already present.`
+  }
+
+  await asyncForEach(servicesBuildFolders, async (buildFolder) => {
+    if (returnObj.compiled) {
+      const folderPath = path.join(buildDestinationServ, buildFolder)
+      const subFolders = await getSubFoldersInFolder(folderPath)
+      const filesNamesInPath = await getFilesInFolder(folderPath)
+      if (subFolders.length == 0 && filesNamesInPath.length == 0) {
+        returnObj = {
+          compiled: false,
+          message: `Service folder ${buildFolder} is empty.`
+        }
+      }
+    }
+  })
+
+  if (returnObj.compiled) {
+    await asyncForEach(jobsBuildFolders, async (buildFolder) => {
+      const folderPath = path.join(buildDestinationJobs, buildFolder)
+      const subFolders = await getSubFoldersInFolder(folderPath)
+      const filesNamesInPath = await getFilesInFolder(folderPath)
+      if (subFolders.length == 0 && filesNamesInPath.length == 0) {
+        returnObj = {
+          compiled: false,
+          message: `Jobs folder ${buildFolder} is empty.`
         }
       }
     })
-
-    if (returnObj.compiled) {
-      await asyncForEach(jobsBuildFolders, async (buildFolder) => {
-        const folderPath = path.join(buildDestinationJobs, buildFolder)
-        const subFolders = await getSubFoldersInFolder(folderPath)
-        const filesNamesInPath = await getFilesInFolder(folderPath)
-        if (subFolders.length == 0 && filesNamesInPath.length == 0) {
-          returnObj = {
-            compiled: false,
-            message: `Jobs folder ${buildFolder} is empty.`
-          }
-        }
-      })
-    }
-
-    return returnObj
   }
 
-  return { compiled: false, message: 'All services and jobs are not present.' }
+  return returnObj
 }

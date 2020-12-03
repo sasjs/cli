@@ -62,8 +62,11 @@ export async function buildServices(commandLine) {
     targetName = command.getTargetWithoutFlag()
   }
 
+  let result
   await build(targetName)
-    .then(() =>
+    .then(() => {
+      result = true
+      
       displayResult(
         null,
         null,
@@ -71,10 +74,13 @@ export async function buildServices(commandLine) {
           'sasjsbuild'
         )} directory.`
       )
-    )
+    })
     .catch((err) => {
+      result = err
+      
       displayResult(err, 'An error has occurred when building services.')
     })
+  return result
 }
 
 export async function compileServices(targetName) {
