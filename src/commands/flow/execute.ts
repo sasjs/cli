@@ -23,7 +23,6 @@ import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
 import examples from './examples'
 
-// TODO: handle cases when job wasn't found
 export async function execute(
   source: string,
   logFolder: string,
@@ -289,10 +288,12 @@ export async function execute(
 
       if (jobsCount === jobsWithSuccessStatus) resolve(true)
       if (jobsCount === jobsWithNotSuccessStatus) resolve(false)
-      if (jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus)
+      if (jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus) {
         resolve(false)
+      }
     }
 
+    // REFACTOR: move to utility
     const saveLog = async (
       links: any[],
       flowName: string,
@@ -335,6 +336,7 @@ export async function execute(
 
     let csvFileAbleToSave = true
 
+    // REFACTOR: move to utility
     const saveToCsv = async (
       flowName: string,
       predecessors: any,
@@ -387,7 +389,7 @@ export async function execute(
               csvData,
               { header: csvData.length === 1, columns: columns },
               async (err, output) => {
-                if (err) throw err // FIXME
+                if (err) reject(err)
 
                 await writeFile(csvFile, output)
 
@@ -423,7 +425,6 @@ export async function execute(
                 .length
           )
 
-          // if (successFullPredecessors.includes(false)) reject(false)
           if (successFullPredecessors.includes(false)) return
         }
 
