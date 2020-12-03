@@ -211,8 +211,7 @@ async function deployToSasViya(
     path.basename(deployScript),
     linesToExecute,
     contextName,
-    accessToken,
-    executionSession.id
+    accessToken
   )
 
   let log

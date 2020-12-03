@@ -77,8 +77,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
       path.basename(filePath),
       linesToExecute,
       contextName,
-      accessToken,
-      executionSession.id
+      accessToken
     )
     .catch(async (err) => {
       let log = err.log
