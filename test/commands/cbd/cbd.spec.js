@@ -191,7 +191,6 @@ describe('sasjs cbd (creating new app)', () => {
 
         process.projectDir = path.join(
           process.cwd(),
-          'cli-tests-cbd-with-app', // extra level of directory to avoid reading .env file from parent
           parentFolderNameTimeStamped
         )
 
@@ -305,6 +304,6 @@ describe('sasjs cbd (creating new app)', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./cli-tests-cbd-with-app*')
+    rimraf.sync('./cli-tests-cbd-with-app-*')
   }, 60 * 1000)
 })
