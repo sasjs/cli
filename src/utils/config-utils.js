@@ -10,7 +10,9 @@ import path from 'path'
 import chalk from 'chalk'
 
 export async function getConfiguration(pathToFile) {
-  const config = await readFile(pathToFile, false, true)
+  const config = await readFile(pathToFile, false, true).catch((err) => {
+    Promise.resolve(null)
+  })
 
   if (config) {
     const configJson = JSON.parse(config)
