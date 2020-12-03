@@ -13,7 +13,7 @@ import {
 import {
   generateTimestamp,
   parseLogLines,
-  millisecondsDdToHhMmSs
+  millisecondsToDdHhMmSs
 } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config-utils'
 import { Target } from '../../types'
@@ -22,6 +22,7 @@ import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
 import examples from './examples'
 
+// TODO: handle cases when job wasn't found
 export async function execute(
   source: string,
   logFolder: string,
@@ -129,11 +130,14 @@ export async function execute(
             pollOptions
           )
           .catch(async (err: any) => {
+            console.log(`[err]`, err)
             const logName = await saveLog(
               err.job ? (err.job.links ? err.job.links : []) : [],
               flowName,
               jobLocation
             )
+
+            console.log(`[logName]`, logName)
 
             await saveToCsv(
               flowName,
@@ -198,7 +202,7 @@ export async function execute(
                 job.location
               }' failed with the status '${job.status}'.${
                 job.status === 'running' &&
-                ` Job had been aborted due to timeout(${millisecondsDdToHhMmSs(
+                ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
                   pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
                 )}).`
               }`
@@ -276,6 +280,8 @@ export async function execute(
 
         resolve(logName)
       }
+
+      resolve(null)
     })
   }
 
@@ -416,7 +422,7 @@ export async function execute(
                     job.location
                   }' failed with the status '${job.status}'.${
                     job.status === 'running' &&
-                    ` Job had been aborted due to timeout(${millisecondsDdToHhMmSs(
+                    ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
                       pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
                     )}).`
                   }`
