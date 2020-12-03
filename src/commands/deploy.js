@@ -41,25 +41,21 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
   const deployScripts = getDeployScripts()
 
   if (deployScripts.length === 0 && !targetToBuild.deployServicePack) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
-      )
+    throw new Error(
+      `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
     )
-
-    return
   }
 
   const pathExistsInCurrentFolder = await folderExists(
-    path.join(process.cwd(), 'sasjsbuild')
+    path.join(process.projectDir, 'sasjsbuild')
   )
   const pathExistsInParentFolder = await folderExists(
-    path.join(process.cwd(), '..', 'sasjsbuild')
+    path.join(process.projectDir, '..', 'sasjsbuild')
   )
   const logFilePath = pathExistsInCurrentFolder
-    ? path.join(process.cwd(), 'sasjsbuild')
+    ? path.join(process.projectDir, 'sasjsbuild')
     : pathExistsInParentFolder
-    ? path.join(process.cwd(), '..', 'sasjsbuild')
+    ? path.join(process.projectDir, '..', 'sasjsbuild')
     : null
   await asyncForEach(deployScripts, async (deployScript) => {
     if (isSasFile(deployScript)) {
@@ -72,7 +68,7 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       )
       // get content of file
       const deployScriptFile = await readFile(
-        path.join(process.cwd(), deployScript)
+        path.join(process.projectDir, deployScript)
       )
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
@@ -102,7 +98,7 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       await executeShellScript(
         deployScript,
         path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild',
           `${path.basename(deployScript).replace('.sh', '')}.log`
         )
