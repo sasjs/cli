@@ -59,7 +59,7 @@ export async function execute(
 
   const contextName = getContextName(target, returnStatusOnly)
 
-  const submittedJob = await sasjs
+  const response = await sasjs
     .startComputeJob(
       jobPath,
       null,
@@ -84,8 +84,10 @@ export async function execute(
         return err.job
       }
     })
-
+  
   spinner.stop()
+
+  const submittedJob = response ? response.job || response : response
 
   const endTime = new Date().getTime()
 
