@@ -306,5 +306,3 @@ describe('sasjs flow', () => {
     await (global as any).removeFromGlobalConfigs(targetName)
   })
 })
-
-// TODO: delete appLoc folder after test
