@@ -7,7 +7,7 @@ import {
   createReactApp,
   createAngularApp,
   createMinimalApp,
-  createSASonlyApp
+  createTemplateApp
 } from '../utils/utils'
 import { getFolders, getConfiguration } from '../utils/config-utils'
 import {
@@ -33,8 +33,11 @@ export async function create(parentFolderName, appType) {
     await createAngularApp(path.join(process.projectDir, parentFolderName))
   } else if (appType === 'minimal') {
     await createMinimalApp(path.join(process.projectDir, parentFolderName))
-  } else if (appType === 'sasonly') {
-    await createSASonlyApp(path.join(process.projectDir, parentFolderName))
+  } else if (appType) {
+    await createTemplateApp(
+      path.join(process.projectDir, parentFolderName),
+      appType
+    )
   } else {
     await asyncForEach(fileStructure, async (folder, index) => {
       const pathExists = await fileExists(
