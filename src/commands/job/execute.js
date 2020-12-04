@@ -84,7 +84,7 @@ export async function execute(
         return err.job
       }
     })
-  
+
   spinner.stop()
 
   const submittedJob = response ? response.job || response : response

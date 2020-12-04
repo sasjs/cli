@@ -66,7 +66,7 @@ export async function buildServices(commandLine) {
   await build(targetName)
     .then(() => {
       result = true
-      
+
       displayResult(
         null,
         null,
@@ -77,7 +77,7 @@ export async function buildServices(commandLine) {
     })
     .catch((err) => {
       result = err
-      
+
       displayResult(err, 'An error has occurred when building services.')
     })
   return result
