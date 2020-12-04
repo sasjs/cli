@@ -6,7 +6,6 @@ import {
   isJsonFile,
   isCsvFile,
   createFile,
-  writeFile,
   folderExists,
   createFolder
 } from '../../utils/file-utils'
@@ -391,7 +390,7 @@ export async function execute(
               async (err, output) => {
                 if (err) reject(err)
 
-                await writeFile(csvFile, output)
+                await createFile(csvFile, output)
 
                 csvFileAbleToSave = true
 

@@ -80,16 +80,6 @@ export async function readFile(fileName, debug = false, silent = false) {
   })
 }
 
-export async function writeFile(fileName, data, encoding = 'utf8') {
-  return new Promise((resolve, reject) => {
-    fs.writeFile(fileName, data, encoding, (err) => {
-      if (err) return reject(err)
-
-      resolve()
-    })
-  })
-}
-
 export async function deleteFile(fileName) {
   return new Promise((resolve, reject) => {
     fs.unlink(fileName, (err) => {
