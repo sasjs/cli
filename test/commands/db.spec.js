@@ -29,7 +29,7 @@ describe('sasjs db', () => {
         await expect(createFileStructure('.', undefined)).resolves.toEqual(true)
         await expect(buildDBs()).resolves.toEqual(true)
 
-        await verifyDB({ parentFolderName: '.' })
+        await verifyStep({ parentFolderName: '.', step: 'db' })
       },
       60 * 1000
     )

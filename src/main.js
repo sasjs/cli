@@ -101,9 +101,18 @@ export async function buildServices(commandLine) {
   return result
 }
 
-export async function compileServices(targetName) {
+export async function compileServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
+  let result
   await build(targetName, true) // compileOnly is true
-    .then(() =>
+    .then(() => {
+      result = true
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
@@ -111,8 +120,9 @@ export async function compileServices(targetName) {
           )} directory.`
         )
       )
-    )
+    })
     .catch((err) => {
+      result = err
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
@@ -130,6 +140,7 @@ export async function compileServices(targetName) {
         )
       }
     })
+  return result
 }
 
 export async function deployServices(commandLine) {
@@ -170,9 +181,18 @@ export async function deployServices(commandLine) {
     })
 }
 
-export async function compileBuildServices(targetName) {
+export async function compileBuildServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
+  let result
   await build(targetName, null, true) // enforcing compile & build
-    .then(() =>
+    .then(() => {
+      result = true
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
@@ -180,8 +200,9 @@ export async function compileBuildServices(targetName) {
           )} directory.`
         )
       )
-    )
+    })
     .catch((error) => {
+      result = error
       if (Array.isArray(error)) {
         const nodeModulesErrors = error.find((err) =>
           err.includes('node_modules/@sasjs/core')
@@ -197,6 +218,7 @@ export async function compileBuildServices(targetName) {
         displayResult(error, 'An error has occurred when building services.')
       }
     })
+  return result
 }
 
 export async function compileBuildDeployServices(commandLine) {
