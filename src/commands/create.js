@@ -6,7 +6,8 @@ import {
   asyncForEach,
   createReactApp,
   createAngularApp,
-  createMinimalApp
+  createMinimalApp,
+  createSASonlyApp
 } from '../utils/utils'
 import { getFolders, getConfiguration } from '../utils/config-utils'
 import {
@@ -18,10 +19,9 @@ import {
 import chalk from 'chalk'
 
 export async function create(parentFolderName, appType) {
-  const configPath =
-    appType === 'sasonly' ? '../config-sasonly.json' : '../config.json'
+  const configPath = '../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
-  const fileStructure = await getFileStructure(appType === 'sasonly')
+  const fileStructure = await getFolders()
   console.log(chalk.greenBright('Creating folders and files...'))
   if (parentFolderName !== '.') {
     await createFolder(path.join(process.projectDir, parentFolderName))
@@ -33,6 +33,8 @@ export async function create(parentFolderName, appType) {
     await createAngularApp(path.join(process.projectDir, parentFolderName))
   } else if (appType === 'minimal') {
     await createMinimalApp(path.join(process.projectDir, parentFolderName))
+  } else if (appType === 'sasonly') {
+    await createSASonlyApp(path.join(process.projectDir, parentFolderName))
   } else {
     await asyncForEach(fileStructure, async (folder, index) => {
       const pathExists = await fileExists(
@@ -60,12 +62,8 @@ export async function create(parentFolderName, appType) {
     })
   }
 
-  if (!appType || appType === 'sasonly') {
+  if (!appType) {
     await setupNpmProject(parentFolderName)
   }
   await setupGitIgnore(parentFolderName)
-}
-
-async function getFileStructure(sasOnly = false) {
-  return await getFolders(sasOnly)
 }

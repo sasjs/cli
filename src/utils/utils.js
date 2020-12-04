@@ -37,6 +37,13 @@ export async function createMinimalApp(folderPath) {
   })
 }
 
+export async function createSASonlyApp(folderPath) {
+  return new Promise(async (resolve, _) => {
+    createApp(folderPath, 'https://github.com/sasjs/template_sasonly.git')
+    return resolve()
+  })
+}
+
 function createApp(folderPath, repoUrl, installDependencies = true) {
   const spinner = ora(
     chalk.greenBright('Creating web app in', chalk.cyanBright(folderPath))
