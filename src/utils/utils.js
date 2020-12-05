@@ -153,10 +153,16 @@ export function getUniqServicesObj(services) {
 
 export async function executeShellScript(filePath, logFilePath) {
   return new Promise(async (resolve, reject) => {
-    const result = shelljs.exec(`bash ${filePath}`, {
-      silent: true,
-      async: false
-    })
+    // fix for cli test executions
+    // using cli, process.cwd() and process.projectDir should be same
+    const currentCWD = process.cwd()
+    const result = shelljs.exec(
+      `cd ${process.projectDir} && bash ${filePath} && cd ${currentCWD}`,
+      {
+        silent: true,
+        async: false
+      }
+    )
     if (result.code) {
       console.error(chalk.redBright('Error:\n'), chalk.red(result.stderr))
       reject(result.code)

@@ -1,0 +1,18 @@
+{
+  "cmnMacros": ["macros"],
+  "cmnServices": ["services/common"],
+  "useMacroCore": true,
+  "targets": [
+    {
+      "name": "",
+      "serverType": "",
+      "serverUrl": "",
+      "appLoc": "/Public/app/cli-tests",
+      "deployServicePack": false,
+      "assetPaths": [],
+      "streamWeb": true,
+      "streamWebFolder": "webv",
+      "webSourcePath": "src"
+    }
+  ]
+}

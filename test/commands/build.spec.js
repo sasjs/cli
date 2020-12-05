@@ -14,48 +14,40 @@ describe('sasjs build', () => {
     dotenv.config()
   })
 
-  describe('test-app-timestamp', () => {
-    it(
-      `should build with minimal template`,
-      async () => {
-        const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-build-minimal${timestamp}`
+  it(
+    `should build with minimal template`,
+    async () => {
+      const timestamp = generateTimestamp()
+      const parentFolderNameTimeStamped = `test-app-build-minimal${timestamp}`
 
-        process.projectDir = path.join(
-          process.cwd(),
-          parentFolderNameTimeStamped
-        )
+      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
-        await createFolder(process.projectDir)
+      await createFolder(process.projectDir)
 
-        await createFileStructure(`create --template minimal`)
+      await createFileStructure(`create --template minimal`)
 
-        await expect(buildServices(`build`)).resolves.toEqual(true)
-      },
-      2 * 60 * 1000
-    )
+      await expect(buildServices(`build`)).resolves.toEqual(true)
+    },
+    2 * 60 * 1000
+  )
 
-    it(
-      `should compile and build(skipping compile)`,
-      async () => {
-        const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-build-${timestamp}`
+  it(
+    `should compile and build(skipping compile)`,
+    async () => {
+      const timestamp = generateTimestamp()
+      const parentFolderNameTimeStamped = `test-app-build-${timestamp}`
 
-        process.projectDir = path.join(
-          process.cwd(),
-          parentFolderNameTimeStamped
-        )
+      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
-        await createFolder(process.projectDir)
+      await createFolder(process.projectDir)
 
-        await createFileStructure(`create`)
+      await createFileStructure(`create`)
 
-        await compileServices(`compile`)
-        await expect(buildServices(`build`)).resolves.toEqual(true)
-      },
-      2 * 60 * 1000
-    )
-  })
+      await compileServices(`compile`)
+      await expect(buildServices(`build`)).resolves.toEqual(true)
+    },
+    2 * 60 * 1000
+  )
 
   afterAll(async () => {
     rimraf.sync('./test-app-build-*')
