@@ -1,16 +1,20 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { processServicepack } from '../../../src/commands/servicepack'
+import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs servicepack', () => {
+  let config
   const targetName = 'cli-tests-servicepack'
+
   beforeAll(async () => {
     dotenv.config()
-    await addToGlobalConfigs({
+    const timestamp = generateTimestamp()
+    config = {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: '/Public/app/cli-tests',
+      appLoc: `/Public/app/cli-tests/${timestamp}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -21,7 +25,8 @@ describe('sasjs servicepack', () => {
         client: process.env.CLIENT,
         secret: process.env.SECRET
       }
-    })
+    }
+    await addToGlobalConfigs(config)
 
     process.projectDir = path.join(process.cwd())
   })
@@ -65,5 +70,7 @@ describe('sasjs servicepack', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfigs(targetName)
+
+    await removeAppLocOnServer(config)
   })
 })

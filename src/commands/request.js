@@ -66,8 +66,6 @@ export async function runSasJob(commandLine) {
 
   if (!dataJson) dataJson = null
 
-  console.log(configJson)
-
   let result
   await sasjs
     .request(

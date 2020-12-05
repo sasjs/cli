@@ -15,15 +15,18 @@ import {
 } from '../../../src/main'
 import { generateTimestamp } from '../../../src/utils/utils'
 
-describe('sasjs cbd', () => {
+describe('sasjs cbd (global config)', () => {
+  let config
   const targetName = 'cli-tests-cbd'
+
   beforeAll(async () => {
     dotenv.config()
-    await addToGlobalConfigs({
+    const timestamp = generateTimestamp()
+    config = {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: '/Public/app/cli-tests',
+      appLoc: `/Public/app/cli-tests/${timestamp}`,
       tgtServices: ['../../test/commands/cbd/testJob'],
       jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
@@ -42,7 +45,8 @@ describe('sasjs cbd', () => {
       jobTerm: '../../test/commands/cbd/testServices/serviceterm.sas',
       tgtServiceInit: '../../test/commands/cbd/testServices/serviceinit.sas',
       tgtServiceTerm: '../../test/commands/cbd/testServices/serviceterm.sas'
-    })
+    }
+    await addToGlobalConfigs(config)
   })
   describe('cbd', () => {
     it(
@@ -115,20 +119,28 @@ describe('sasjs cbd', () => {
   afterAll(async () => {
     rimraf.sync('./test-app-cbd-*')
     await removeFromGlobalConfigs(targetName)
-  })
+
+    await removeAppLocOnServer(config)
+  }, 60 * 1000)
 })
 
-describe('sasjs cbd (creating new app)', () => {
+describe('sasjs cbd (creating new app having local config)', () => {
   const targetName = 'cli-tests-cbd-with-app'
   const testConfigPath = './test/commands/cbd/testConfig/config.json'
   const testScriptPath = './test/commands/cbd/testScript/copyscript.sh'
-  let server_type = 'SASVIYA'
-  let server_url = 'https://sas.analytium.co.uk'
+  let target
 
   beforeAll(async () => {
     dotenv.config()
-    server_type = process.env.SERVER_TYPE
-    server_url = process.env.SERVER_URL
+
+    const timestamp = generateTimestamp()
+    target = {
+      name: targetName,
+      serverType: process.env.SERVER_TYPE,
+      serverUrl: process.env.SERVER_URL,
+      appLoc: `/Public/app/cli-tests/${timestamp}`
+    }
+
     const envConfig = dotenv.parse(
       await readFile(path.join(process.cwd(), '.env.example'))
     )
@@ -155,10 +167,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           tgtDeployScripts: ['sasjs/build/copyscript.sh'],
           deployServicePack: false
         }
@@ -198,10 +207,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           deployServicePack: true
         }
 
@@ -246,10 +252,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           tgtDeployScripts: ['sasjs/build/copyscript.sh'],
           deployServicePack: false
         }
@@ -294,10 +297,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           deployServicePack: false
         }
 
@@ -321,5 +321,7 @@ describe('sasjs cbd (creating new app)', () => {
 
   afterAll(async () => {
     rimraf.sync('./cli-tests-cbd-with-app-*')
+
+    await removeAppLocOnServer(target)
   }, 60 * 1000)
 })

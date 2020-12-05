@@ -59,7 +59,7 @@ export async function execute(
 
   const contextName = getContextName(target, returnStatusOnly)
 
-  const submittedJob = await sasjs
+  const response = await sasjs
     .startComputeJob(
       jobPath,
       null,
@@ -79,7 +79,6 @@ export async function execute(
         : typeof err === 'object' && Object.keys(err).length
         ? JSON.stringify({ state: err.job.state })
         : `${err}`
-
       if (err.job) {
         return err.job
       }
@@ -88,6 +87,8 @@ export async function execute(
   spinner.stop()
 
   const endTime = new Date().getTime()
+
+  const submittedJob = response ? response.job || response : {}
 
   if (result && !returnStatusOnly)
     displayResult(result, 'An error has occurred when executing a job.', null)

@@ -4,29 +4,32 @@ import rimraf from 'rimraf'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
 import { getContextName } from '../../src/commands/job/execute'
+import { compileBuildDeployServices } from '../../src/main'
 import {
   folderExists,
   fileExists,
   readFile,
-  createFolder
+  createFolder,
+  deleteFolder
 } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
 
 const testOutputFolder = 'test-app-job-output-'
 
 describe('sasjs job', () => {
+  let config
   const targetName = 'cli-tests-job'
+  const timestampAppLoc = generateTimestamp()
 
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd())
 
     dotenv.config()
 
-    const targetNameContext = 'cli-tests-context'
-    const config = {
+    config = {
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: '/Public/app/cli-tests',
+      appLoc: `/Public/app/cli-tests/${timestampAppLoc}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -34,36 +37,35 @@ describe('sasjs job', () => {
         refresh_token: process.env.REFRESH_TOKEN
       }
     }
+    const context = await getAvailableContext(config)
 
-    await addToGlobalConfigs({
-      name: targetNameContext,
-      ...config
-    })
-
-    const contexts = await processContext([
-      'context',
-      'list',
-      '-t',
-      targetNameContext
-    ])
-
-    await removeFromGlobalConfigs(targetNameContext)
+    await deployTestJob(config)
 
     await addToGlobalConfigs({
       name: targetName,
       ...config,
       tgtServices: ['testJob'],
+      contextName: context.name,
       tgtDeployVars: {
-        contextName: contexts[0]
+        contextName: context
       }
     })
   }, 4 * 60 * 1000)
+
+  beforeEach(async () => {
+    const timestamp = generateTimestamp()
+    const parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
+
+    process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+
+    await createFolder(process.projectDir)
+  }, 60 * 1000)
 
   describe('execute', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName}`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName}`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -73,7 +75,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName} -w`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -83,7 +85,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -w -o`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName} -w -o`
 
         const jobOutput = await processJob(command)
 
@@ -95,9 +97,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        await setupTimeStampedFolder()
-
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -113,9 +113,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
-        await setupTimeStampedFolder()
-
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -w`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -w`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -131,8 +129,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
-        await setupTimeStampedFolder()
-        const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
+        const command = `job execute /Public/app/cli-tests/${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
 
         const folderPathOutput = path.join(process.projectDir, 'testOutput')
         const filePathOutput = path.join(
@@ -155,8 +152,6 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job log',
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/job -t ${targetName} -l`
 
         const filePath = path.join(process.projectDir, 'job.log')
@@ -170,8 +165,6 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename',
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/job -t ${targetName} -l mycustom.log`
 
         const filePath = path.join(process.projectDir, 'mycustom.log')
@@ -186,8 +179,6 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and path',
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log`
 
         const folderPath = path.join(process.projectDir, 'my/folder')
@@ -204,8 +195,6 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and status file',
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
 
         const folderPath = path.join(process.projectDir, 'my/folder')
@@ -231,8 +220,6 @@ describe('sasjs job', () => {
     it(
       "should submit a job that doesn't exist and create a status file",
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute job-not-present -t ${targetName} --wait --status ./my/folder/status.txt`
 
         const folderPath = path.join(process.projectDir, 'my/folder')
@@ -261,8 +248,6 @@ describe('sasjs job', () => {
     it(
       'should submit a job that fails and create a status file',
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/job.status`
 
         const folderPath = path.join(process.projectDir, 'my/folder')
@@ -286,8 +271,6 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes and return it's status`,
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(0)
@@ -298,8 +281,6 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with a warning and return it's status`,
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(1)
@@ -310,8 +291,6 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with ignored warning and return it's status`,
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
 
         await expect(processJob(command)).resolves.toEqual(0)
@@ -322,8 +301,6 @@ describe('sasjs job', () => {
     it(
       `should submit a job that fails and return it's status`,
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
@@ -334,8 +311,6 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
-        await setupTimeStampedFolder()
-
         const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
@@ -347,6 +322,8 @@ describe('sasjs job', () => {
   afterAll(async () => {
     await removeFromGlobalConfigs(targetName)
     rimraf.sync(`./${testOutputFolder}*`)
+
+    await removeAppLocOnServer(config)
   })
 })
 
@@ -372,11 +349,51 @@ describe('getContextName', () => {
   })
 })
 
-async function setupTimeStampedFolder() {
-  const timestamp = generateTimestamp()
-  const parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
+async function getAvailableContext(config) {
+  const targetNameContext = 'cli-tests-context'
 
-  process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+  await addToGlobalConfigs({
+    name: targetNameContext,
+    ...config
+  })
 
-  await createFolder(process.projectDir)
+  const contexts = await processContext([
+    'context',
+    'list',
+    '-t',
+    targetNameContext
+  ])
+
+  await removeFromGlobalConfigs(targetNameContext)
+
+  return contexts[0]
+}
+
+async function deployTestJob(config) {
+  const targetName = 'cli-tests-cbd-for-job'
+  config = {
+    ...config,
+    name: targetName,
+    tgtServices: ['../test/commands/cbd/testJob'],
+    jobs: ['../test/commands/cbd/testJob'],
+    deployServicePack: true,
+    tgtDeployVars: {
+      client: process.env.CLIENT,
+      secret: process.env.SECRET
+    },
+    tgtDeployScripts: [],
+    jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
+    jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
+    tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
+    tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
+  }
+  await addToGlobalConfigs(config)
+
+  const command = `cbd ${targetName} -f`.split(' ')
+  await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
+
+  const sasjsBuildDirPath = path.join(process.cwd(), 'sasjsbuild')
+  await deleteFolder(sasjsBuildDirPath)
+
+  await removeFromGlobalConfigs(targetName)
 }
