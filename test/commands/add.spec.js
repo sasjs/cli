@@ -2,7 +2,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { add } from '../../src/main'
 import { getConfiguration, getGlobalRcFile } from '../../src/utils/config-utils'
-import { deleteFolder } from '../../src/utils/file-utils'
+import { deleteFolder, createFolder } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs add', () => {
@@ -11,6 +11,7 @@ describe('sasjs add', () => {
 
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd(), testingAppFolder)
+    await createFolder(process.projectDir)
     dotenv.config()
     stdin = require('mock-stdin').stdin()
   })
