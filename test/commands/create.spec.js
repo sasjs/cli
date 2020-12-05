@@ -15,7 +15,7 @@ describe('sasjs create', () => {
       'should setup in .',
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-undefined`
+        const parentFolderNameTimeStamped = `test-app-create-.-${timestamp}-undefined`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -35,7 +35,7 @@ describe('sasjs create', () => {
       'should setup in current folder',
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-.`
+        const parentFolderNameTimeStamped = `test-app-create-.-${timestamp}-.`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -57,7 +57,7 @@ describe('sasjs create', () => {
       `should setup in current folder having apptype 'sasonly'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-sasonly`
+        const parentFolderNameTimeStamped = `test-app-create-.-${timestamp}-sasonly`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -79,7 +79,7 @@ describe('sasjs create', () => {
       `should setup in current folder having apptype 'react'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-.-${timestamp}-react`
+        const parentFolderNameTimeStamped = `test-app-create-.-${timestamp}-react`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -103,7 +103,7 @@ describe('sasjs create', () => {
       `should create new folder 'test-app-.-timestamp'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-create-${timestamp}`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -125,7 +125,7 @@ describe('sasjs create', () => {
       `should create new folder 'test-app-timestamp-minimal' having apptype 'minimal'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-${timestamp}-minimal`
+        const parentFolderNameTimeStamped = `test-app-create-${timestamp}-minimal`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -152,7 +152,7 @@ describe('sasjs create', () => {
       `should create new folder 'test-app-timestamp-angular' having apptype 'angular'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-${timestamp}-angular`
+        const parentFolderNameTimeStamped = `test-app-create-${timestamp}-angular`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -177,6 +177,6 @@ describe('sasjs create', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./test-app-*')
+    rimraf.sync('./test-app-create-*')
   }, 60 * 1000)
 })

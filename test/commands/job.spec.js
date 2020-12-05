@@ -1,9 +1,18 @@
 import dotenv from 'dotenv'
 import path from 'path'
+import rimraf from 'rimraf'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
 import { getContextName } from '../../src/commands/job/execute'
-import { folderExists, fileExists, readFile } from '../../src/utils/file-utils'
+import {
+  folderExists,
+  fileExists,
+  readFile,
+  createFolder
+} from '../../src/utils/file-utils'
+import { generateTimestamp } from '../../src/utils/utils'
+
+const testOutputFolder = 'test-app-job-output-'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'
@@ -86,10 +95,12 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput`
 
-        const folderPath = path.join(process.cwd(), 'testOutput')
-        const filePath = path.join(process.cwd(), 'testOutput/output.json')
+        const folderPath = path.join(process.projectDir, 'testOutput')
+        const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
         await processJob(command)
 
@@ -102,10 +113,12 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -w`
 
-        const folderPath = path.join(process.cwd(), 'testOutput')
-        const filePath = path.join(process.cwd(), 'testOutput/output.json')
+        const folderPath = path.join(process.projectDir, 'testOutput')
+        const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
         await processJob(command)
 
@@ -118,15 +131,16 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
+        await setupTimeStampedFolder()
         const command = `job execute /Public/app/cli-tests/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
 
-        const folderPathOutput = path.join(process.cwd(), 'testOutput')
+        const folderPathOutput = path.join(process.projectDir, 'testOutput')
         const filePathOutput = path.join(
-          process.cwd(),
+          process.projectDir,
           'testOutput/output.json'
         )
 
-        const filePathLog = path.join(process.cwd(), 'testLog.txt')
+        const filePathLog = path.join(process.projectDir, 'testLog.txt')
 
         await processJob(command)
 
@@ -141,9 +155,11 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job log',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/job -t ${targetName} -l`
 
-        const filePath = path.join(process.cwd(), 'job.log')
+        const filePath = path.join(process.projectDir, 'job.log')
         await processJob(command)
 
         await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -154,9 +170,11 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/job -t ${targetName} -l mycustom.log`
 
-        const filePath = path.join(process.cwd(), 'mycustom.log')
+        const filePath = path.join(process.projectDir, 'mycustom.log')
 
         await processJob(command)
 
@@ -168,10 +186,12 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and path',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log`
 
-        const folderPath = path.join(process.cwd(), 'my/folder')
-        const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
+        const folderPath = path.join(process.projectDir, 'my/folder')
+        const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
 
         await processJob(command)
 
@@ -184,12 +204,14 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and status file',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
 
-        const folderPath = path.join(process.cwd(), 'my/folder')
-        const filePath = path.join(process.cwd(), 'my/folder/mycustom.log')
+        const folderPath = path.join(process.projectDir, 'my/folder')
+        const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
         const filePathStatus = path.join(
-          process.cwd(),
+          process.projectDir,
           'my/folder/testJob.status'
         )
 
@@ -209,10 +231,15 @@ describe('sasjs job', () => {
     it(
       "should submit a job that doesn't exist and create a status file",
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute job-not-present -t ${targetName} --wait --status ./my/folder/status.txt`
 
-        const folderPath = path.join(process.cwd(), 'my/folder')
-        const filePathStatus = path.join(process.cwd(), 'my/folder/status.txt')
+        const folderPath = path.join(process.projectDir, 'my/folder')
+        const filePathStatus = path.join(
+          process.projectDir,
+          'my/folder/status.txt'
+        )
 
         await expect(processJob(command)).resolves.toEqual(
           'Error: Job was not found.'
@@ -234,10 +261,15 @@ describe('sasjs job', () => {
     it(
       'should submit a job that fails and create a status file',
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/job.status`
 
-        const folderPath = path.join(process.cwd(), 'my/folder')
-        const filePathStatus = path.join(process.cwd(), 'my/folder/job.status')
+        const folderPath = path.join(process.projectDir, 'my/folder')
+        const filePathStatus = path.join(
+          process.projectDir,
+          'my/folder/job.status'
+        )
 
         await expect(processJob(command)).resolves.toEqual('{"state":"error"}')
 
@@ -254,6 +286,8 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes and return it's status`,
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(0)
@@ -264,6 +298,8 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with a warning and return it's status`,
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(1)
@@ -274,6 +310,8 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with ignored warning and return it's status`,
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
 
         await expect(processJob(command)).resolves.toEqual(0)
@@ -284,6 +322,8 @@ describe('sasjs job', () => {
     it(
       `should submit a job that fails and return it's status`,
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
@@ -294,6 +334,8 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
+        await setupTimeStampedFolder()
+
         const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --returnStatusOnly`
 
         await expect(processJob(command)).resolves.toEqual(2)
@@ -304,6 +346,7 @@ describe('sasjs job', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfigs(targetName)
+    rimraf.sync(`./${testOutputFolder}*`)
   })
 })
 
@@ -328,3 +371,12 @@ describe('getContextName', () => {
     expect(getContextName(target)).toEqual('SAS Job Execution compute context')
   })
 })
+
+async function setupTimeStampedFolder() {
+  const timestamp = generateTimestamp()
+  const parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
+
+  process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+
+  await createFolder(process.projectDir)
+}

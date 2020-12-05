@@ -1,11 +1,15 @@
 import {
+  createFolder,
   deleteFolder,
   fileExists,
-  readFile
+  readFile,
+  copy
 } from '../../../src/utils/file-utils'
 import dotenv from 'dotenv'
 import path from 'path'
+import rimraf from 'rimraf'
 import { compileBuildDeployServices } from '../../../src/main'
+import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs cbd', () => {
   const targetName = 'cli-tests-cbd'
@@ -18,8 +22,8 @@ describe('sasjs cbd', () => {
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
       appLoc: '/Public/app/cli-tests',
-      tgtServices: ['../test/commands/cbd/testJob'],
-      jobs: ['../test/commands/cbd/testJob'],
+      tgtServices: ['../../test/commands/cbd/testJob'],
+      jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -32,31 +36,47 @@ describe('sasjs cbd', () => {
         secret: process.env.SECRET
       },
       tgtDeployScripts: [],
-      jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
-      jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
-      tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
-      tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
+      jobInit: '../../test/commands/cbd/testServices/serviceinit.sas',
+      jobTerm: '../../test/commands/cbd/testServices/serviceterm.sas',
+      tgtServiceInit: '../../test/commands/cbd/testServices/serviceinit.sas',
+      tgtServiceTerm: '../../test/commands/cbd/testServices/serviceterm.sas'
     })
-
-    process.projectDir = path.join(process.cwd())
   })
 
   describe('cbd', () => {
     it(
       'should compile, build and deploy',
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-cbd-${timestamp}`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
+        const macroCores = path.join(process.cwd(), 'node_modules', '@sasjs')
+        const macroCoresDestination = path.join(
+          process.projectDir,
+          'node_modules',
+          '@sasjs'
+        )
+
+        await createFolder(macroCoresDestination)
+        await copy(macroCores, macroCoresDestination)
+
         const command = `cbd ${targetName} -f`.split(' ')
         const servicePath = path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild/services/testJob/job.sas'
         )
         const jobPath = path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild/jobs/testJob/job.sas'
         )
 
         const buildJsonPath = path.join(
-          process.cwd(),
+          process.projectDir,
           `sasjsbuild/${targetName}.json`
         )
 
@@ -96,12 +116,8 @@ describe('sasjs cbd', () => {
     )
   })
 
-  afterEach(async () => {
-    const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
-
-    await deleteFolder(sasjsBuildDirPath)
-  }, 60 * 1000)
   afterAll(async () => {
+    rimraf.sync('./test-app-cbd-*')
     await removeFromGlobalConfigs(targetName)
   })
 })
