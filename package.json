@@ -7,8 +7,7 @@
   ],
   "scripts": {
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm link --force\"",
-    "build": "rimraf build && tsc -p . && npm run cp-json",
-    "cp-json": "cp-cli ./src/config.json build/config.json && cp-cli ./src/config-sasonly.json build/config-sasonly.json",
+    "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",

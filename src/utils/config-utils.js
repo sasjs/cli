@@ -176,8 +176,8 @@ export async function saveLocalRcFile(content) {
   await createFile(path.join(projectRoot, '.sasjsrc'), content)
 }
 
-export async function getFolders(sasOnly = false) {
-  const configPath = sasOnly ? '../config-sasonly.json' : '../config.json'
+export async function getFolders() {
+  const configPath = '../config.json'
   const config = await readFile(path.join(__dirname, configPath))
   if (config) {
     const configJson = JSON.parse(config)
