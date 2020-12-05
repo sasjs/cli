@@ -68,7 +68,7 @@ describe('sasjs request', () => {
 
   beforeEach(async (done) => {
     const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `cli-tests-request-${timestamp}`
+    const parentFolderNameTimeStamped = `test-app-request-${timestamp}`
 
     process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
@@ -247,7 +247,7 @@ describe('sasjs request', () => {
   })
 
   afterAll(async (done) => {
-    rimraf.sync('./cli-tests-request-*')
+    rimraf.sync('./test-app-request-*')
     await removeFromGlobalConfigs(targetName)
 
     await removeAppLocOnServer(config)

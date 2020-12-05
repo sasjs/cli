@@ -154,7 +154,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       `should deploy through servicepack using .env`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -199,7 +199,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       `deploy should fail for no .env`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         const configContent = await readFile(
@@ -239,7 +239,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       `should deploy with deploy script`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -284,7 +284,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       `deploy should fail for no deploy script`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -320,7 +320,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./cli-tests-cbd-with-app-*')
+    rimraf.sync('./test-app-cbd-with-app-*')
 
     await removeAppLocOnServer(target)
   }, 60 * 1000)
