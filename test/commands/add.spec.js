@@ -1,20 +1,27 @@
 import dotenv from 'dotenv'
 import path from 'path'
+import rimraf from 'rimraf'
 import { add } from '../../src/main'
 import { getConfiguration, getGlobalRcFile } from '../../src/utils/config-utils'
 import { deleteFolder, createFolder } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs add', () => {
-  const testingAppFolder = 'cli-tests-add'
   let stdin
 
   beforeAll(async () => {
-    process.projectDir = path.join(process.cwd(), testingAppFolder)
-    await createFolder(process.projectDir)
     dotenv.config()
     stdin = require('mock-stdin').stdin()
   })
+
+  beforeEach(async () => {
+    const timestamp = generateTimestamp()
+    const parentFolderNameTimeStamped = `test-app-add-${timestamp}`
+
+    process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+
+    await createFolder(process.projectDir)
+  }, 60 * 1000)
 
   describe('add', () => {
     it(
@@ -124,14 +131,7 @@ describe('sasjs add', () => {
     )
   })
 
-  afterEach(async () => {
-    const sasjsDirPath = path.join(process.projectDir, 'sasjs')
-
-    await deleteFolder(sasjsDirPath)
-  }, 60 * 1000)
   afterAll(async () => {
-    const projectDirPath = path.join(process.projectDir)
-
-    await deleteFolder(projectDirPath)
+    rimraf.sync(`./test-app-add-*`)
   }, 60 * 1000)
 })
