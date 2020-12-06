@@ -8,6 +8,7 @@ import {
 import { getVariable } from './utils'
 import path from 'path'
 import chalk from 'chalk'
+import dotenv from 'dotenv'
 
 export async function getConfiguration(pathToFile) {
   const config = await readFile(pathToFile, false, true).catch((err) =>
@@ -392,6 +393,14 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     target && target.authInfo && target.authInfo.access_token
       ? target.authInfo.access_token
       : process.env.ACCESS_TOKEN
+
+  if (!accessToken || accessToken.trim() === 'null') {
+    // Check .env file for target if available
+    dotenv.config({
+      path: path.join(process.projectDir, `.env.${target.name}`)
+    })
+    accessToken = process.env.ACCESS_TOKEN
+  }
 
   if (!accessToken || accessToken.trim() === 'null') {
     throw new Error(
