@@ -27,7 +27,7 @@ export const addCredential = async (targetName: string): Promise<void> => {
   await createEnvFile(targetName, client, secret, access_token, refresh_token)
 }
 
-const validateTargetName = (targetName: string): string => {
+export const validateTargetName = (targetName: string): string => {
   if (!targetName)
     throw new Error(
       'Target name is required.\nPlease specify a valid target name using the `-t` or `--target` argument.'
@@ -64,7 +64,7 @@ const getCredentialsInput = async () => {
   return { client, secret }
 }
 
-const getTokens = async (
+export const getTokens = async (
   target: Target,
   logger: Logger,
   client: string,
@@ -90,7 +90,7 @@ const getTokens = async (
   return authResponse
 }
 
-const createEnvFile = async (
+export const createEnvFile = async (
   targetName: string,
   client: string,
   secret: string,
