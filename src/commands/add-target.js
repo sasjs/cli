@@ -40,16 +40,19 @@ export async function addTarget() {
       secret,
       contextName,
       authInfo
-    } = await getAndValidateSasViyaFields(serverUrl)
+    } = await getAndValidateSasViyaFields(serverUrl, scope)
 
     buildTarget = {
       ...buildTarget,
       appLoc,
       tgtBuildVars: { client, secret, contextName },
       tgtDeployVars: { client, secret, contextName },
-      authInfo: authInfo,
       deployServicePack: true,
       tgtDeployScripts: []
+    }
+
+    if (scope === 1) {
+      buildTarget.authInfo = authInfo
     }
   }
 
@@ -233,6 +236,11 @@ async function getAndValidateSas9Fields() {
 }
 
 async function getAndValidateSasViyaFields(serverUrl) {
+  let client, secret, authResponse
+  const sasjs = new SASjs({
+    serverUrl: serverUrl,
+    serverType: 'SASVIYA'
+  })
   const clientField = {
     name: 'client',
     description: chalk.cyanBright(

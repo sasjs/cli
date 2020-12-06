@@ -7,6 +7,12 @@ import { getNewAccessToken } from '../utils/auth-utils'
 import SASjs from '@sasjs/adapter/node'
 import { createFile } from '../utils/file-utils'
 
+/**
+ * Creates a .env file for the specified target.
+ * The file will contain the client ID, secret, access token and refresh token.
+ * Its name will be of the form `.env.{targetName}`
+ * @param {string} targetName- the name of the target to create the env file for.
+ */
 export const addCredential = async (targetName: string): Promise<void> => {
   targetName = validateTargetName(targetName)
 
@@ -24,7 +30,14 @@ export const addCredential = async (targetName: string): Promise<void> => {
     secret
   )
 
-  await createEnvFile(targetName, client, secret, access_token, refresh_token)
+  await createEnvFile(
+    target.name,
+    client,
+    secret,
+    access_token,
+    refresh_token,
+    logger
+  )
 }
 
 export const validateTargetName = (targetName: string): string => {
@@ -95,9 +108,11 @@ export const createEnvFile = async (
   client: string,
   secret: string,
   accessToken: string,
-  refreshToken: string
+  refreshToken: string,
+  logger: Logger
 ): Promise<void> => {
   const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
   await createFile(envFilePath, envFileContent)
+  logger.success(`Environment file saved at ${envFilePath}`)
 }

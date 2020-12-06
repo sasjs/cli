@@ -103,6 +103,8 @@ describe('getTokens', () => {
 })
 
 describe('createEnvFile', () => {
+  const testLogger = new Logger(LogLevel.Off)
+
   it('should create a dotenv file with the supplied information', async (done) => {
     const targetName = 'testAddCredential'
     const clientId = 'cli3nt'
@@ -116,7 +118,14 @@ describe('createEnvFile', () => {
       .spyOn(fileUtils, 'createFile')
       .mockImplementation(() => Promise.resolve())
 
-    await createEnvFile(targetName, clientId, secret, accessToken, refreshToken)
+    await createEnvFile(
+      targetName,
+      clientId,
+      secret,
+      accessToken,
+      refreshToken,
+      testLogger
+    )
 
     expect(createSpy).toHaveBeenCalledWith(
       expectedEnvFilePath,
