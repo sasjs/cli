@@ -174,6 +174,28 @@ describe('sasjs create', () => {
       },
       4 * 60 * 1000
     )
+
+    it(
+      `should fail having unknown apptype 'xyz'`,
+      async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-${timestamp}-xyz`
+
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+
+        await createFolder(process.projectDir)
+
+        await expect(
+          createFileStructure(
+            `create ${parentFolderNameTimeStamped} --template xyz`
+          )
+        ).resolves.toEqual('Template provided is not found')
+      },
+      2 * 60 * 1000
+    )
   })
 
   afterAll(async () => {

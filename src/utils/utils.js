@@ -37,6 +37,27 @@ export async function createMinimalApp(folderPath) {
   })
 }
 
+export async function createTemplateApp(folderPath, template) {
+  const {
+    stdout
+  } = shelljs.exec(
+    `curl https://api.github.com/repos/sasjs/template_${template}`,
+    { silent: true }
+  )
+  const response = JSON.parse(stdout)
+
+  if (response.message && response.message === 'Not Found')
+    throw 'Template provided is not found'
+
+  if (response.full_name !== `sasjs/template_${template}`)
+    throw 'Template provided is not sasjs template'
+
+  return new Promise(async (resolve, _) => {
+    createApp(folderPath, `https://github.com/sasjs/template_${template}.git`)
+    return resolve()
+  })
+}
+
 function createApp(folderPath, repoUrl, installDependencies = true) {
   const spinner = ora(
     chalk.greenBright('Creating web app in', chalk.cyanBright(folderPath))
@@ -57,6 +78,7 @@ function createApp(folderPath, repoUrl, installDependencies = true) {
 }
 
 export async function setupNpmProject(folderPath) {
+  folderPath = path.join(process.projectDir, folderPath)
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {
@@ -152,10 +174,16 @@ export function getUniqServicesObj(services) {
 
 export async function executeShellScript(filePath, logFilePath) {
   return new Promise(async (resolve, reject) => {
-    const result = shelljs.exec(`bash ${filePath}`, {
-      silent: true,
-      async: false
-    })
+    // fix for cli test executions
+    // using cli, process.cwd() and process.projectDir should be same
+    const currentCWD = process.cwd()
+    const result = shelljs.exec(
+      `cd ${process.projectDir} && bash ${filePath} && cd ${currentCWD}`,
+      {
+        silent: true,
+        async: false
+      }
+    )
     if (result.code) {
       console.error(chalk.redBright('Error:\n'), chalk.red(result.stderr))
       reject(result.code)
@@ -248,3 +276,16 @@ export function generateTimestamp() {
 
 export const arrToObj = (arr) =>
   arr.reduce((o, key) => ({ ...o, [key]: key }), {})
+
+export const millisecondsToDdHhMmSs = (milliseconds) => {
+  if (typeof milliseconds !== 'number') throw 'Not supported attribute type.'
+
+  milliseconds = Math.abs(milliseconds)
+
+  const days = Math.floor(milliseconds / 1000 / 60 / 60 / 24)
+  const hours = Math.floor(milliseconds / 1000 / 60 / 60) % 24
+  const minutes = Math.floor(milliseconds / 1000 / 60) % 60
+  const seconds = Math.floor(milliseconds / 1000) % 60
+
+  return `${days} day(s); ${hours} hour(s); ${minutes} minute(s); ${seconds} second(s)`
+}

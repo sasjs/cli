@@ -36,7 +36,8 @@ const initialCommands = arrToObj([
     'run',
     'request',
     'folder',
-    'job'
+    'job',
+    'flow'
   ])
 ])
 
@@ -52,7 +53,11 @@ const initialFlags = arrToObj([
     'output',
     'force',
     'logFile',
-    'status'
+    'status',
+    'logFolder',
+    'csvFile',
+    'returnStatusOnly',
+    'ignoreWarnings'
   ])
 ])
 
@@ -106,7 +111,18 @@ const commandFlags = [
       initialFlags.wait,
       initialFlags.output,
       initialFlags.logFile,
-      initialFlags.status
+      initialFlags.status,
+      initialFlags.returnStatusOnly,
+      initialFlags.ignoreWarnings
+    ]
+  },
+  {
+    command: initialCommands.flow,
+    flags: [
+      initialFlags.target,
+      initialFlags.source,
+      initialFlags.logFolder,
+      initialFlags.csvFile
     ]
   }
 ]
@@ -119,7 +135,9 @@ const flagsWithValue = [
   initialFlags.configfile,
   initialFlags.output,
   initialFlags.logFile,
-  initialFlags.status
+  initialFlags.status,
+  initialFlags.csvFile,
+  initialFlags.logFolder
 ]
 
 export class Command {

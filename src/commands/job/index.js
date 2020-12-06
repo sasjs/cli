@@ -1,9 +1,5 @@
 import chalk from 'chalk'
-import {
-  getBuildTarget,
-  getAccessToken,
-  sanitizeAppLoc
-} from '../../utils/config-utils'
+import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
@@ -34,6 +30,8 @@ export async function processJob(commandLine) {
   const output = command.getFlagValue('output')
   const log = command.getFlagValue('logFile')
   const status = command.getFlagValue('status')
+  const returnStatusOnly = command.getFlagValue('returnStatusOnly')
+  const ignoreWarnings = command.getFlagValue('ignoreWarnings')
 
   const target = await getBuildTarget(targetName)
 
@@ -61,7 +59,9 @@ export async function processJob(commandLine) {
         waitForJob,
         output,
         log,
-        status
+        status,
+        returnStatusOnly,
+        ignoreWarnings
       )
 
       break

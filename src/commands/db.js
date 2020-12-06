@@ -18,7 +18,7 @@ let buildSourceDBFolder = ''
 let buildDestinationDBFolder = ''
 
 export async function buildDB() {
-  const CONSTANTS = require('../constants')
+  const CONSTANTS = require('../constants').get()
   buildDestinationFolder = CONSTANTS.buildDestinationFolder
   buildSourceDBFolder = CONSTANTS.buildSourceDBFolder
   buildDestinationDBFolder = CONSTANTS.buildDestinationDBFolder

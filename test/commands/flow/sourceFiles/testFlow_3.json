@@ -1,0 +1,16 @@
+{
+  "name": "myAmazingFlow",
+  "flows": {
+    "firstFlow": {
+      "jobs": [
+        {
+          "location": "jobs/testJob/job"
+        },
+        {
+          "location": "jobs/testJob/DOES_NOT_EXIST"
+        }
+      ],
+      "predecessors": []
+    }
+  }
+}

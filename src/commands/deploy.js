@@ -25,17 +25,6 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
     targetToBuild = target
   }
 
-  const accessToken = await getAccessToken(targetToBuild)
-  if (targetToBuild.serverType === 'SASVIYA' && !accessToken) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      )
-    )
-
-    return
-  }
-
   if (
     targetToBuild.serverType === 'SASVIYA' &&
     targetToBuild.deployServicePack
@@ -52,25 +41,21 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
   const deployScripts = getDeployScripts()
 
   if (deployScripts.length === 0 && !targetToBuild.deployServicePack) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
-      )
+    throw new Error(
+      `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
     )
-
-    return
   }
 
   const pathExistsInCurrentFolder = await folderExists(
-    path.join(process.cwd(), 'sasjsbuild')
+    path.join(process.projectDir, 'sasjsbuild')
   )
   const pathExistsInParentFolder = await folderExists(
-    path.join(process.cwd(), '..', 'sasjsbuild')
+    path.join(process.projectDir, '..', 'sasjsbuild')
   )
   const logFilePath = pathExistsInCurrentFolder
-    ? path.join(process.cwd(), 'sasjsbuild')
+    ? path.join(process.projectDir, 'sasjsbuild')
     : pathExistsInParentFolder
-    ? path.join(process.cwd(), '..', 'sasjsbuild')
+    ? path.join(process.projectDir, '..', 'sasjsbuild')
     : null
   await asyncForEach(deployScripts, async (deployScript) => {
     if (isSasFile(deployScript)) {
@@ -83,7 +68,7 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       )
       // get content of file
       const deployScriptFile = await readFile(
-        path.join(process.cwd(), deployScript)
+        path.join(process.projectDir, deployScript)
       )
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
@@ -113,7 +98,7 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       await executeShellScript(
         deployScript,
         path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild',
           `${path.basename(deployScript).replace('.sh', '')}.log`
         )
@@ -142,7 +127,14 @@ async function getSASjsAndAccessToken(buildTarget) {
     serverType: buildTarget.serverType
   })
 
-  const accessToken = await getAccessToken(buildTarget)
+  let accessToken = null
+  try {
+    accessToken = await getAccessToken(buildTarget)
+  } catch (e) {
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+    )
+  }
   return {
     sasjs,
     accessToken
@@ -156,7 +148,7 @@ async function deployToSasViyaWithServicePack(buildTarget) {
     serverType: buildTarget.serverType
   })
 
-  const CONSTANTS = require('../constants')
+  const CONSTANTS = require('../constants').get()
   const buildDestinationFolder = CONSTANTS.buildDestinationFolder
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -165,7 +157,14 @@ async function deployToSasViyaWithServicePack(buildTarget) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  const accessToken = await getAccessToken(buildTarget)
+  let accessToken = null
+  try {
+    accessToken = await getAccessToken(buildTarget)
+  } catch (e) {
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+    )
+  }
 
   return await sasjs.deployServicePack(
     jsonObject,

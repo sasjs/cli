@@ -1,34 +1,32 @@
 {
-    "compilerOptions": {
-        "target": "es5",
-        "allowJs": true,
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "downlevelIteration": true,
-        "lib": [
-            "ES2018",
-            "DOM",
-            "ES2019.String"
-        ],
-        "declaration": true,
-        "outDir": "build",
-        "rootDir": "src",
-        "strict": true,
-        "types": ["node"],
-        "typeRoots": ["./node_modules/@types"],
-        "esModuleInterop": true,
-        "resolveJsonModule": true
-    },
-    "exclude": [
-        "test/**/*",
-        "node_modules",
-        "**/*.spec.ts",
-        "PULL_REQUEST_TEMPLATE.md",
-        "test.sh",
-        "jest.config.js",
-        "babel.config.js",
-        ".env*",
-        ".prettierrc"
+  "compilerOptions": {
+    "target": "es5",
+    "allowJs": true,
+    "module": "commonjs",
+    "downlevelIteration": true,
+    "lib": [
+        "ES2018",
+        "DOM",
+        "ES2019.String"
     ],
-    "include": ["src/**/*"]
+    "declaration": true,
+    "outDir": "build",
+    "rootDir": "src",
+    "strict": true,
+    "typeRoots": ["./node_modules/@types"],
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "exclude": [
+    "test/**/*",
+    "node_modules",
+    "**/*.spec.ts",
+    "PULL_REQUEST_TEMPLATE.md",
+    "test.sh",
+    "jest.config.js",
+    "babel.config.js",
+    ".env*",
+    ".prettierrc"
+  ],
+  "include": ["src/**/*"]
 }

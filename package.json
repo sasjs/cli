@@ -7,8 +7,7 @@
   ],
   "scripts": {
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm link --force\"",
-    "build": "rimraf build && tsc -p . && npm run cp-json",
-    "cp-json": "cp-cli ./src/config.json build/config.json && cp-cli ./src/config-sasonly.json build/config-sasonly.json",
+    "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
     "test": "jest --silent --runInBand",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
@@ -41,12 +40,13 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.18.7",
+    "@sasjs/adapter": "^1.19.1",
     "@sasjs/core": "^1.12.3",
     "@sasjs/utils": "^1.1.1",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
+    "csv-stringify": "^5.5.3",
     "dotenv": "^8.2.0",
     "esm": "^3.2.25",
     "find": "^0.3.0",
@@ -64,6 +64,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.5",
+    "@babel/preset-typescript": "^7.12.7",
     "@types/node": "^14.14.10",
     "babel-jest": "^26.5.0",
     "cp-cli": "^2.0.0",

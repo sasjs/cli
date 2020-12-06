@@ -13,7 +13,8 @@ import {
   runSasCode,
   processServicepack,
   printVersion,
-  createWebAppServices
+  createWebAppServices,
+  processFlow
 } from './commands'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
@@ -68,8 +69,10 @@ export async function buildServices(commandLine) {
     targetName = command.getTargetWithoutFlag()
   }
 
+  let result
   await build(targetName)
-    .then(() =>
+    .then(() => {
+      result = true
       console.log(
         chalk.greenBright.bold.italic(
           `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
@@ -77,8 +80,9 @@ export async function buildServices(commandLine) {
           )} directory.`
         )
       )
-    )
+    })
     .catch((err) => {
+      result = err
       if (err.hasOwnProperty('body')) {
         const body = JSON.parse(err.body)
         const message = body.message || ''
@@ -96,6 +100,7 @@ export async function buildServices(commandLine) {
         )
       }
     })
+  return result
 }
 
 export async function compileServices(targetName) {
@@ -402,6 +407,22 @@ export async function jobManagement(command) {
     console.log(
       chalk.redBright(
         'An error has occurred when processing job operation.',
+        err
+      )
+    )
+  })
+}
+
+export async function flowManagement(command) {
+  if (!command)
+    console.log(
+      chalk.redBright(`Please provide action for the 'flow' command.`)
+    )
+
+  await processFlow(command).catch((err) => {
+    console.log(
+      chalk.redBright(
+        'An error has occurred when processing flow operation.',
         err
       )
     )
