@@ -29,6 +29,12 @@ describe('validateTargetName', () => {
     expect(validateTargetName(targetName)).toEqual(targetName)
   })
 
+  it('should return the target name if valid', () => {
+    const targetName = 'valid-target-123'
+
+    expect(validateTargetName(targetName)).toEqual(targetName)
+  })
+
   it('should throw an error if the target name is falsy', () => {
     const targetName = ''
 
@@ -45,7 +51,7 @@ describe('validateTargetName', () => {
     )
   })
 
-  it('should throw an error if the target name is not alphanumeric', () => {
+  it('should throw an error if the target name contains invalid characters', () => {
     const targetName = 'target#name!'
 
     expect(() => validateTargetName(targetName)).toThrow(

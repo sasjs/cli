@@ -61,7 +61,7 @@ export const validateTargetName = (targetName: string): string => {
       'Target names cannot include spaces. Please try again with a valid target name.'
     )
 
-  if (!/^[a-z0-9]+$/i.test(targetName))
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9\-]+$/i.test(targetName))
     throw Error(
       'Target names can only contain alphanumeric characters. Please try again with a valid target name.'
     )
