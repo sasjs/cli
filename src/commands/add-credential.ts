@@ -1,8 +1,12 @@
 import path from 'path'
+import dotenv from 'dotenv'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
-import { readAndValidateInput } from '@sasjs/utils/input'
+import { getString } from '@sasjs/utils/input'
 import { SasAuthResponse, Target } from '@sasjs/utils/types'
-import { findTargetInConfiguration } from '../utils/config-utils'
+import {
+  findTargetInConfiguration,
+  saveToGlobalConfig
+} from '../utils/config-utils'
 import { getNewAccessToken } from '../utils/auth-utils'
 import SASjs from '@sasjs/adapter/node'
 import { createFile } from '../utils/file-utils'
@@ -19,9 +23,9 @@ export const addCredential = async (targetName: string): Promise<void> => {
   const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
   const logger = new Logger(logLevel)
 
-  const { target } = await findTargetInConfiguration(targetName)
+  const { target, isLocal } = await findTargetInConfiguration(targetName)
 
-  const { client, secret } = await getCredentialsInput()
+  const { client, secret } = await getCredentialsInput(target.name)
 
   const { access_token, refresh_token } = await getTokens(
     target,
@@ -30,14 +34,19 @@ export const addCredential = async (targetName: string): Promise<void> => {
     secret
   )
 
-  await createEnvFile(
-    target.name,
-    client,
-    secret,
-    access_token,
-    refresh_token,
-    logger
-  )
+  if (isLocal) {
+    await createEnvFile(
+      target.name,
+      client,
+      secret,
+      access_token,
+      refresh_token,
+      logger
+    )
+  } else {
+    target.authInfo = { client, secret, access_token, refresh_token }
+    await saveToGlobalConfig(target)
+  }
 }
 
 export const validateTargetName = (targetName: string): string => {
@@ -60,21 +69,42 @@ export const validateTargetName = (targetName: string): string => {
   return targetName
 }
 
-const getCredentialsInput = async () => {
-  const { client } = await readAndValidateInput(
-    'text',
+const getCredentialsInput = async (targetName: string) => {
+  const defaultValues = getDefaultValues(targetName)
+
+  const { client } = await getString(
     'client',
     'Please enter your Client ID: ',
-    (v) => !!v || 'Client ID is required.'
+    (v) => !!v || 'Client ID is required.',
+    defaultValues.client
   )
-  const { secret } = await readAndValidateInput(
-    'text',
+  const { secret } = await getString(
     'secret',
     'Please enter your Client Secret: ',
-    (v) => !!v || 'Client Secret is required.'
+    (v) => !!v || 'Client Secret is required.',
+    defaultValues.secret
   )
 
   return { client, secret }
+}
+
+export const getDefaultValues = (targetName: string) => {
+  dotenv.config({ path: path.join(process.projectDir, `.env.${targetName}`) })
+
+  const defaultClient =
+    process.env.CLIENT === 'undefined' ||
+    process.env.CLIENT === 'null' ||
+    !process.env.CLIENT
+      ? ''
+      : process.env.CLIENT
+  const defaultSecret =
+    process.env.SECRET === 'undefined' ||
+    process.env.SECRET === 'null' ||
+    !process.env.SECRET
+      ? ''
+      : process.env.SECRET
+
+  return { client: defaultClient, secret: defaultSecret }
 }
 
 export const getTokens = async (

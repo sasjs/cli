@@ -169,7 +169,27 @@ export async function saveGlobalRcFile(content) {
 
   await createFile(rcFilePath, content)
 
-  console.log(chalk.greenBright(`Config saved to '${rcFilePath}'.`))
+  return rcFilePath
+}
+
+export async function saveToGlobalConfig(buildTarget) {
+  let globalConfig = await getGlobalRcFile()
+  if (globalConfig) {
+    if (globalConfig.targets && globalConfig.targets.length) {
+      const existingTargetIndex = globalConfig.targets.findIndex(
+        (t) => t.name === buildTarget.name
+      )
+      if (existingTargetIndex > -1) {
+        globalConfig.targets[existingTargetIndex] = buildTarget
+      }
+      globalConfig.targets.push(buildTarget)
+    } else {
+      globalConfig.targets = [buildTarget]
+    }
+  } else {
+    globalConfig = { targets: [buildTarget] }
+  }
+  return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 export async function saveLocalRcFile(content) {

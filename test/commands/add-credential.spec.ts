@@ -1,7 +1,8 @@
 import {
   validateTargetName,
   getTokens,
-  createEnvFile
+  createEnvFile,
+  getDefaultValues
 } from '../../src/commands/add-credential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
@@ -132,5 +133,31 @@ describe('createEnvFile', () => {
       expectedEnvFileContent
     )
     done()
+  })
+})
+
+describe('getDefaultValues', () => {
+  afterEach(() => {
+    dotenv.config()
+  })
+
+  it('should return values for client and secret if available', () => {
+    process.env.CLIENT = 'cl13nt'
+    process.env.SECRET = 's3cr3t'
+
+    const defaultValues = getDefaultValues('test')
+
+    expect(defaultValues.client).toEqual('cl13nt')
+    expect(defaultValues.secret).toEqual('s3cr3t')
+  })
+
+  it('should return empty strings for client and secret if unavailable', () => {
+    process.env.CLIENT = undefined
+    process.env.SECRET = undefined
+
+    const defaultValues = getDefaultValues('test')
+
+    expect(defaultValues.client).toEqual('')
+    expect(defaultValues.secret).toEqual('')
   })
 })
