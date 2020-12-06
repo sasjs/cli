@@ -20,7 +20,10 @@ export function displayResult(err, failureMessage, successMessage) {
       }
     } else {
       console.log(
-        chalk.redBright(failureMessage, Object.keys(err).length ? err : '')
+        chalk.redBright(
+          failureMessage,
+          Object.keys(err).length ? err : err.message || ''
+        )
       )
     }
   }

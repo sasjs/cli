@@ -36,3 +36,5 @@ export { processServicepack } from './servicepack'
 export { printVersion } from './version'
 
 export { createWebAppServices } from './web'
+
+export { processFlow } from './flow'

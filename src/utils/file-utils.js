@@ -80,6 +80,16 @@ export async function readFile(fileName, debug = false, silent = false) {
   })
 }
 
+export async function deleteFile(fileName) {
+  return new Promise((resolve, reject) => {
+    fs.unlink(fileName, (err) => {
+      if (err) return reject(err)
+
+      resolve()
+    })
+  })
+}
+
 export async function base64EncodeFile(fileName, debug = false) {
   if (debug) {
     console.log('Encoding file: ', chalk.cyan(fileName))
@@ -233,6 +243,14 @@ export async function copy(source, destination, debug = false) {
 
 export function isSasFile(filePath) {
   return path.extname(filePath) === '.sas'
+}
+
+export function isJsonFile(filePath) {
+  return path.extname(filePath) === '.json'
+}
+
+export function isCsvFile(filePath) {
+  return path.extname(filePath) === '.csv'
 }
 
 export function isShellScript(filePath) {
