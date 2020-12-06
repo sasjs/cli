@@ -88,30 +88,3 @@ export async function getNewAccessToken(
 
   return authResponse
 }
-
-async function getAuthInfo(target, clientId, clientSecret, sasjsInstance) {
-  if (target.authInfo) {
-    const { access_token, refresh_token } = target.authInfo
-    const isTokenExpiring = isAccessTokenExpiring(access_token)
-    if (!isTokenExpiring) {
-      return target.authInfo
-    }
-    const newAuthResponse = await refreshTokens(
-      sasjsInstance,
-      clientId,
-      clientSecret,
-      refresh_token
-    )
-
-    return newAuthResponse
-  } else {
-    const newAuthResponse = await getNewAccessToken(
-      sasjsInstance,
-      clientId,
-      clientSecret,
-      target
-    )
-
-    return newAuthResponse
-  }
-}
