@@ -14,7 +14,7 @@ describe('sasjs servicepack', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/${timestamp}`,
+      appLoc: `/Public/app/cli-tests/servicepack-${timestamp}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,

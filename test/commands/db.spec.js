@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import { createFileStructure, buildDBs } from '../../src/main'
 import { createFolder, deleteFolder } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
@@ -49,6 +48,6 @@ describe('sasjs db', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./test-app-DB-*')
+    await deleteFolder('./test-app-DB-*')
   }, 60 * 1000)
 })

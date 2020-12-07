@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import { add } from '../../src/main'
 import { getConfiguration, getGlobalRcFile } from '../../src/utils/config-utils'
 import { deleteFolder, createFolder } from '../../src/utils/file-utils'
@@ -132,6 +131,6 @@ describe('sasjs add', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync(`./test-app-add-*`)
+    await deleteFolder('./test-app-add-*')
   }, 60 * 1000)
 })

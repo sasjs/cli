@@ -1,8 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import { createFileStructure } from '../../src/main'
-import { createFolder } from '../../src/utils/file-utils'
+import { deleteFolder, createFolder } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs create', () => {
@@ -199,6 +198,6 @@ describe('sasjs create', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./test-app-create-*')
+    await deleteFolder('./test-app-create-*')
   }, 60 * 1000)
 })

@@ -8,7 +8,6 @@ import {
 } from '../../../src/utils/file-utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import {
   createFileStructure,
   compileBuildDeployServices
@@ -26,7 +25,7 @@ describe('sasjs cbd (global config)', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/${timestamp}`,
+      appLoc: `/Public/app/cli-tests/cbd-${timestamp}`,
       tgtServices: ['../../test/commands/cbd/testJob'],
       jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
@@ -117,7 +116,7 @@ describe('sasjs cbd (global config)', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./test-app-cbd-*')
+    await deleteFolder('./test-app-cbd-*')
     await removeFromGlobalConfigs(targetName)
 
     await removeAppLocOnServer(config)
@@ -138,7 +137,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/${timestamp}`
+      appLoc: `/Public/app/cli-tests/cbd-${timestamp}`
     }
 
     const envConfig = dotenv.parse(
@@ -320,7 +319,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./test-app-cbd-with-app-*')
+    await deleteFolder('./test-app-cbd-with-app-*')
 
     await removeAppLocOnServer(target)
   }, 60 * 1000)
