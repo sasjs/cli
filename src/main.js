@@ -30,23 +30,18 @@ export async function createFileStructure(commandLine) {
     .then(() => {
       result = true
 
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Project ${
-            parentFolderName ? `${parentFolderName} created` : `updated`
-          } successfully.\nGet ready to Unleash your SAS!`
-        )
+      displayResult(
+        null,
+        null,
+        `Project ${
+          parentFolderName ? `${parentFolderName} created` : `updated`
+        } successfully.\nGet ready to Unleash your SAS!`
       )
     })
     .catch((err) => {
       result = err
 
-      console.log(
-        chalk.redBright(
-          'An error has occurred whilst creating your project.',
-          err
-        )
-      )
+      displayResult(err, 'An error has occurred whilst creating your project.')
     })
 
   return result
@@ -72,32 +67,19 @@ export async function buildServices(commandLine) {
   await build(targetName)
     .then(() => {
       result = true
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild'
-          )} directory.`
-        )
+
+      displayResult(
+        null,
+        null,
+        `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
       )
     })
     .catch((err) => {
       result = err
-      if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const details = body.details || ''
 
-        console.log(
-          chalk.redBright(
-            'An error has occurred when building services.',
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } else {
-        console.log(
-          chalk.redBright('An error has occurred when building services.', err)
-        )
-      }
+      displayResult(err, 'An error has occurred when building services.')
     })
   return result
 }
@@ -105,31 +87,16 @@ export async function buildServices(commandLine) {
 export async function compileServices(targetName) {
   await build(targetName, true) // compileOnly is true
     .then(() =>
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild'
-          )} directory.`
-        )
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
       )
     )
     .catch((err) => {
-      if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const details = body.details || ''
-
-        console.log(
-          chalk.redBright(
-            'An error has occurred when compiling services.',
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } else {
-        console.log(
-          chalk.redBright('An error has occurred when compiling services.', err)
-        )
-      }
+      displayResult(err, 'An error has occurred when building services.')
     })
 }
 
@@ -143,30 +110,13 @@ export async function deployServices(commandLine) {
 
   await deploy(targetName, null)
     .then(() =>
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Services have been successfully deployed!\n`
-        )
-      )
+      displayResult(null, null, `Services have been successfully deployed!`)
     )
     .catch((err) => {
       if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const status = err.status
-        const details = body.details || ''
-
-        console.log(
-          chalk.redBright(
-            'An error has occurred when deploying services.',
-            `${message}
-            ${details ? '\n' + details : ''}`
-          )
-        )
+        displayResult(err, 'An error has occurred when building services.')
       } else {
-        console.log(
-          chalk.redBright('An error has occurred when deploying services.', err)
-        )
+        displayResult(err, 'An error has occurred when deploying services.')
       }
     })
 }
@@ -174,12 +124,12 @@ export async function deployServices(commandLine) {
 export async function compileBuildServices(targetName) {
   await build(targetName, null, true) // enforcing compile & build
     .then(() =>
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild'
-          )} directory.`
-        )
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
       )
     )
     .catch((error) => {
@@ -189,10 +139,10 @@ export async function compileBuildServices(targetName) {
         )
 
         if (nodeModulesErrors)
-          console.log(
-            chalk.yellowBright(
-              `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
-            )
+          displayResult(
+            null,
+            null,
+            `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
           )
       } else {
         displayResult(error, 'An error has occurred when building services.')
@@ -215,34 +165,18 @@ export async function compileBuildDeployServices(commandLine) {
     .then(() => {
       result = true
 
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild'
-          )} directory.`
-        )
+      displayResult(
+        null,
+        null,
+        `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
       )
     })
     .catch((err) => {
       result = err
 
-      if (err.hasOwnProperty('body')) {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const status = err.status
-        const details = body.details || ''
-
-        console.log(
-          chalk.redBright(
-            'An error has occurred when building services.',
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } else {
-        console.log(
-          chalk.redBright('An error has occurred when building services.', err)
-        )
-      }
+      displayResult(err, 'An error has occurred when building services')
     })
 
   return result
@@ -253,19 +187,17 @@ export async function buildDBs() {
   await buildDB()
     .then(() => {
       result = true
-      console.log(
-        chalk.greenBright.bold.italic(
-          `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild/db'
-          )} directory.`
-        )
+      displayResult(
+        null,
+        null,
+        `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild/db'
+        )} directory.`
       )
     })
     .catch((err) => {
       result = err
-      console.log(
-        chalk.redBright('An error has occurred when building DBs.', err)
-      )
+      displayResult(err, 'An error has occurred when building DBs.')
     })
   return result
 }
@@ -273,20 +205,18 @@ export async function buildDBs() {
 export async function buildWebApp(commandLine) {
   await createWebAppServices(commandLine)
     .then(() =>
-      console.log(
-        chalk.greenBright.bold.italic(
-          `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
-            'sasjsbuild'
-          )} directory.`
-        )
+      displayResult(
+        null,
+        null,
+        `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
+          'sasjsbuild'
+        )} directory.`
       )
     )
     .catch((err) => {
-      console.log(
-        chalk.redBright(
-          'An error has occurred when building web app services.',
-          err
-        )
+      displayResult(
+        err,
+        'An error has occurred when building web app services.'
       )
     })
 }
@@ -298,7 +228,7 @@ export async function add(commandLine) {
   if (command && command.name === 'add') {
     await addTarget()
       .then(() => {
-        console.log(chalk.greenBright('Target successfully added!'))
+        displayResult(null, null, 'Target successfully added!')
         result = true
       })
       .catch((err) => {
@@ -312,9 +242,7 @@ export async function add(commandLine) {
 
 export async function run(commandLine) {
   await runSasCode(commandLine).catch((err) => {
-    console.log(
-      chalk.redBright('An error has occurred when running your SAS code.', err)
-    )
+    displayResult(err, 'An error has occurred when running your SAS code.')
   })
 }
 
@@ -325,9 +253,8 @@ export async function runRequest(commandLine) {
     .then((res) => (result = res))
     .catch((err) => {
       result = err
-      console.log(
-        chalk.redBright('An error has occurred when running your SAS job', err)
-      )
+
+      displayResult(err, 'An error has occurred when running your SAS job')
     })
 
   return result
@@ -335,57 +262,40 @@ export async function runRequest(commandLine) {
 
 export async function context(command) {
   if (!command)
-    console.log(
-      chalk.redBright(`Please provide action for the 'context' command.`)
-    )
+    displayResult(null, `Please provide action for the 'context' command.`)
 
   await processContext(command).catch((err) =>
-    console.log(
-      chalk.redBright('An error has occurred when processing context.', err)
-    )
+    displayResult(err, 'An error has occurred when processing context.')
   )
 }
 
 export async function servicepack(command) {
   if (!command)
-    console.log(
-      chalk.redBright(`Please provide action for the 'servicepack' command.`)
-    )
+    displayResult(null, `Please provide action for the 'servicepack' command.`)
 
   await processServicepack(command).catch((err) =>
-    console.log(
-      chalk.redBright('An error has occurred when processing servicepack.', err)
-    )
+    displayResult(err, 'An error has occurred when processing servicepack.')
   )
 }
 
 export async function folderManagement(command) {
   if (!command)
-    console.log(
-      chalk.redBright(`Please provide action for the 'folder' command.`)
-    )
+    displayResult(null, `Please provide action for the 'folder' command.`)
 
   await folder(command).catch((err) => {
-    console.log(
-      chalk.redBright(
-        'An error has occurred when processing folder operation.',
-        err
-      )
+    displayResult(
+      err,
+      'An error has occurred when processing folder operation.'
     )
   })
 }
 
 export async function jobManagement(command) {
   if (!command)
-    console.log(chalk.redBright(`Please provide action for the 'job' command.`))
+    displayResult(null, `Please provide action for the 'job' command.`)
 
   await processJob(command).catch((err) => {
-    console.log(
-      chalk.redBright(
-        'An error has occurred when processing job operation.',
-        err
-      )
-    )
+    displayResult(err, 'An error has occurred when processing job operation.')
   })
 }
 
