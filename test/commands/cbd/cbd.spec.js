@@ -118,10 +118,10 @@ describe('sasjs cbd (global config)', () => {
   })
 
   afterAll(async () => {
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder('./test-app-cbd-*')
-
     await removeFromGlobalConfigs(targetName)
+
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })
 
@@ -327,6 +327,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
 
   afterAll(async () => {
     await deleteFolder('./test-app-cbd-with-app-*')
+
     await folder(`folder delete ${target.appLoc} -t ${target.targetName}`)
   }, 60 * 1000)
 })

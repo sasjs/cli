@@ -246,10 +246,10 @@ describe('sasjs request', () => {
   })
 
   afterAll(async (done) => {
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder('./test-app-request-*')
-
     await removeFromGlobalConfigs(targetName)
+
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     done()
   }, 60 * 1000)
 })

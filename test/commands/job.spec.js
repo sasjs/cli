@@ -320,10 +320,10 @@ describe('sasjs job', () => {
   })
 
   afterAll(async () => {
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder(`./${testOutputFolder}*`)
-
     await removeFromGlobalConfigs(targetName)
+
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })
 

@@ -69,8 +69,8 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
-
     await removeFromGlobalConfigs(targetName)
+
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })
