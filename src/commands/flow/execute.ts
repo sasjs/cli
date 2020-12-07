@@ -12,8 +12,7 @@ import {
 import {
   generateTimestamp,
   parseLogLines,
-  millisecondsToDdHhMmSs,
-  asyncForEach
+  millisecondsToDdHhMmSs
 } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config-utils'
 import { Target } from '../../types'
@@ -173,7 +172,8 @@ export async function execute(
             const logName = await saveLog(
               submittedJob.links,
               flowName,
-              jobLocation
+              jobLocation,
+              details!.lineCount
             ).catch((err: any) =>
               displayResult(err, 'Error while saving log file.')
             )
@@ -183,7 +183,7 @@ export async function execute(
               ['none'],
               jobLocation,
               submittedJob.state || 'failure',
-              details,
+              details?.details,
               logName ? path.join(logFolder, logName as string) : ''
             )
 
@@ -299,7 +299,8 @@ export async function execute(
     const saveLog = async (
       links: any[],
       flowName: string,
-      jobLocation: string
+      jobLocation: string,
+      lineCount: number = 1000000
     ) => {
       return new Promise(async (resolve, reject) => {
         if (!logFolder) return reject('No log folder provided')
@@ -310,7 +311,7 @@ export async function execute(
         )
 
         if (logObj) {
-          const logUrl = target.serverUrl + logObj.href
+          const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
           const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
           const logJson = JSON.parse(logData as string)
 
@@ -349,7 +350,7 @@ export async function execute(
       logName = ''
     ) => {
       return new Promise(async (resolve, reject) => {
-        if (!csvFile) reject()
+        if (!csvFile) reject('No csvFile provided.')
 
         const timerId = setInterval(async () => {
           if (csvFileAbleToSave) {
@@ -454,7 +455,8 @@ export async function execute(
                 const logName = await saveLog(
                   res.links,
                   successor,
-                  jobLocation
+                  jobLocation,
+                  details?.lineCount
                 ).catch((err: any) => {
                   displayResult(err, 'Error while saving log file.')
                 })
@@ -464,7 +466,7 @@ export async function execute(
                   flows[successor].predecessors || ['none'],
                   jobLocation,
                   res.state || 'failure',
-                  details,
+                  details?.details,
                   logName ? path.join(logFolder, logName as string) : ''
                 )
 
@@ -601,5 +603,11 @@ const parseJobDetails = (response: any) => {
   concatDetails(response.listingStatistics, 'Listing Statistics')
   concatDetails(response.logStatistics, 'Log Statistics')
 
-  return details
+  let lineCount = 1000000
+
+  if (response.logStatistics && response.logStatistics.lineCount) {
+    lineCount = parseInt(response.logStatistics.lineCount)
+  }
+
+  return { details, lineCount }
 }
