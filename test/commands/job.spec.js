@@ -4,6 +4,7 @@ import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
 import { getContextName } from '../../src/commands/job/execute'
 import { compileBuildDeployServices } from '../../src/main'
+import { folder } from '../../src/commands/folder/index'
 import {
   folderExists,
   fileExists,
