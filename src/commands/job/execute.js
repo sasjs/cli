@@ -87,8 +87,6 @@ export async function execute(
 
   spinner.stop()
 
-  const submittedJob = response ? response.job || response : response
-
   const endTime = new Date().getTime()
 
   if (result && !returnStatusOnly)
