@@ -118,7 +118,7 @@ export async function execute(
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
-          const submittedJob: any = await sasjs
+          let submittedJob: any = await sasjs
             .startComputeJob(
               jobLocation,
               null,
@@ -165,8 +165,10 @@ export async function execute(
               }
             })
 
-          if (submittedJob) {
-            let details = parseJobDetails(submittedJob)
+          if (submittedJob && submittedJob.job) {
+            submittedJob = submittedJob.job
+
+            const details = parseJobDetails(submittedJob)
 
             const logName = await saveLog(
               submittedJob.links,
@@ -202,10 +204,11 @@ export async function execute(
                 `'${flowName}' flow's job located at: '${
                   job.location
                 }' failed with the status '${job.status}'.${
-                  job.status === 'running' &&
-                  ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                    pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
-                  )}).`
+                  job.status === 'running'
+                    ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
+                        pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
+                      )}).`
+                    : ''
                 }`
               )
             }
@@ -299,7 +302,8 @@ export async function execute(
       jobLocation: string
     ) => {
       return new Promise(async (resolve, reject) => {
-        if (!logFolder) reject('No log folder provided')
+        if (!logFolder) return reject('No log folder provided')
+        if (!links) return reject('No links provided')
 
         const logObj = links.find(
           (link: any) => link.rel === 'log' && link.method === 'GET'
@@ -326,10 +330,10 @@ export async function execute(
 
           await createFile(path.join(logFolder, logName), logParsed)
 
-          resolve(logName)
+          return resolve(logName)
         }
 
-        resolve(null)
+        return resolve(null)
       })
     }
 
@@ -442,14 +446,18 @@ export async function execute(
               pollOptions
             )
             .then(async (res: any) => {
-              if (res) {
-                let details = parseJobDetails(res)
+              if (res && res.job) {
+                res = res.job
+
+                const details = parseJobDetails(res)
 
                 const logName = await saveLog(
                   res.links,
                   successor,
                   jobLocation
-                ).catch((err: any) => console.log(`[err]`, err))
+                ).catch((err: any) => {
+                  displayResult(err, 'Error while saving log file.')
+                })
 
                 await saveToCsv(
                   successor,
@@ -475,10 +483,12 @@ export async function execute(
                     `'${successor}' flow's job located at: '${
                       job.location
                     }' failed with the status '${job.status}'.${
-                      job.status === 'running' &&
-                      ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                        pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
-                      )}).`
+                      job.status === 'running'
+                        ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
+                            pollOptions.MAX_POLL_COUNT *
+                              pollOptions.POLL_INTERVAL
+                          )}).`
+                        : ''
                     }`
                   )
                 }
