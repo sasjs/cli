@@ -110,8 +110,9 @@ export async function runSasJob(commandLine) {
       },
       (err) => {
         result = err
+
         displayResult(
-          JSON.stringify(err),
+          err,
           'An error occurred while executing the request.',
           null
         )

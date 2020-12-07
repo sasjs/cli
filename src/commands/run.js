@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
+import { ErrorResponse } from '@sasjs/adapter/node'
 import {
   findTargetInConfiguration,
   getAccessToken
@@ -30,9 +31,9 @@ export async function runSasCode(commandLine) {
   const sasFile = await readFile(path.join(process.cwd(), filePath))
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === 'SASVIYA') {
-    await executeOnSasViya(filePath, target, linesToExecute)
+    return await executeOnSasViya(filePath, target, linesToExecute)
   } else {
-    await executeOnSas9(target, linesToExecute)
+    return await executeOnSas9(target, linesToExecute)
   }
 }
 
@@ -46,14 +47,14 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    debug: true
   })
-  const contextName = await getVariable('contextName', buildTarget)
+
+  let contextName = await getVariable('contextName', buildTarget)
 
   if (!contextName) {
-    throw new Error(
-      'Compute Context Name is required for SAS Viya deployments.\n Please ensure that `contextName` is present in your build target configuration or in your .env file, and try again.\n'
-    )
+    contextName = sasjs.getSasjsConfig().contextName
   }
 
   const accessToken = await getAccessToken(buildTarget)
@@ -62,18 +63,36 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     .createSession(contextName, accessToken)
     .catch((e) => {
       console.log(chalk.redBright.bold('Error creating execution session'))
+      console.log(
+        chalk.redBright.bold(
+          ` Url: ${buildTarget.serverUrl}\n App loc: ${buildTarget.appLoc}\n Context: ${contextName}`
+        )
+      )
+
       throw e
     })
 
-  const executionResult = await sasjs.executeScriptSASViya(
-    path.basename(filePath),
-    linesToExecute,
-    contextName,
-    accessToken,
-    executionSession.id
-  )
+  const executionResult = await sasjs
+    .executeScriptSASViya(
+      path.basename(filePath),
+      linesToExecute,
+      contextName,
+      accessToken
+    )
+    .catch(async (err) => {
+      let log = err.log
+
+      if (!log)
+        throw new ErrorResponse('We werent able to fetch the log this time.')
+
+      await createOutputFile(log)
+
+      throw new ErrorResponse('Find more error details in the log file.')
+    })
 
   let log
+  let isOutput = false
+
   try {
     log = executionResult.log.items
       ? executionResult.log.items.map((i) => i.line)
@@ -81,22 +100,24 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
   } catch (e) {
     console.log(
       chalk.redBright(
-        `An error occurred when parsing the execution response: ${chalk.redBright.bold(
+        `An error occurred when parsing the execution log: ${chalk.redBright.bold(
           e.message
         )}`
       )
     )
-    console.log(
-      chalk.redBright(
-        `Please check your ${chalk.cyanBright('tgtDeployVars')} and try again.`
-      )
-    )
+
+    console.log(chalk.redBright(`So we put execution output in the log file.`))
+
     log = JSON.stringify(executionResult)
+
+    isOutput = true
   }
 
   console.log(chalk.greenBright('Job execution completed!'))
 
-  await createOutputFile(log)
+  await createOutputFile(log, isOutput)
+
+  return { log }
 }
 
 async function executeOnSas9(buildTarget, linesToExecute) {
@@ -122,13 +143,22 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    debug: true
   })
-  const executionResult = await sasjs.executeScriptSAS9(
-    linesToExecute,
-    serverName,
-    repositoryName
-  )
+  const executionResult = await sasjs
+    .executeScriptSAS9(linesToExecute, serverName, repositoryName)
+    .catch(async (err) => {
+      if (err && err.payload && err.payload.log) {
+        let log = err.payload.log
+
+        await createOutputFile(log)
+
+        throw new ErrorResponse('Find more error details in the log file.')
+      } else {
+        throw err
+      }
+    })
 
   let parsedLog
   try {
@@ -141,15 +171,21 @@ async function executeOnSas9(buildTarget, linesToExecute) {
   console.log(chalk.greenBright('Job execution completed!'))
 
   await createOutputFile(JSON.stringify(parsedLog, null, 2))
+
+  return { parsedLog }
 }
 
-async function createOutputFile(log) {
+async function createOutputFile(log, isOutput = false) {
   const timestamp = generateTimestamp()
   const outputFilePath = path.join(process.cwd(), `sasjs-run-${timestamp}.log`)
 
   await createFile(outputFilePath, log)
 
   console.log(
-    chalk.whiteBright(`Log is available in ${chalk.cyanBright(outputFilePath)}`)
+    chalk.whiteBright(
+      `${isOutput ? 'Output' : 'Log'} is available in ${chalk.cyanBright(
+        outputFilePath
+      )}`
+    )
   )
 }

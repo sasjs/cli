@@ -2,33 +2,39 @@ import chalk from 'chalk'
 
 export function displayResult(err, failureMessage, successMessage) {
   if (err) {
-    if (err.hasOwnProperty('body')) {
-      try {
-        const body = JSON.parse(err.body)
-        const message = body.message || ''
-        const details = body.details || ''
+    let failureDetails = ''
 
-        console.log(
-          chalk.redBright(
-            failureMessage,
-            `${message}${details ? '\n' + details : ''}`
-          )
-        )
-      } catch (parseError) {
-        console.log(chalk.redBright('Unable to parse error\n', parseError))
-        console.log(chalk.redBright(failureMessage, err.body))
+    if (err.hasOwnProperty('error')) {
+      let body = err.error || null
+
+      if (body) {
+        const message = body.message || ''
+        let details = body.details || ''
+        let raw = body.raw || ''
+
+        if (typeof details === 'object') details = JSON.stringify(details)
+        if (typeof raw === 'object') raw = JSON.stringify(raw)
+
+        failureDetails = `${message}${details ? '\n' + details : ''}${
+          raw ? '\n' + raw : ''
+        }`
+
+        console.log(chalk.redBright(failureMessage, failureDetails))
+        return `${failureMessage}\n${failureDetails}`
       }
+    } else if (err.hasOwnProperty('message')) {
+      failureDetails = err.message
     } else {
-      console.log(
-        chalk.redBright(
-          failureMessage,
-          Object.keys(err).length ? err : err.message || ''
-        )
-      )
+      failureDetails = typeof err === 'object' ? JSON.stringify(err) : err
+      failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
+
+    console.log(chalk.redBright(failureMessage, failureDetails))
+    return `${failureMessage}\n${failureDetails}`
   }
 
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
+    return successMessage
   }
 }
