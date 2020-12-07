@@ -28,7 +28,7 @@ describe('sasjs job', () => {
     config = {
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/job-${timestampAppLoc}`,
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestampAppLoc}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -64,7 +64,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName}`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName}`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -74,7 +74,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName} -w`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -84,7 +84,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName} -w -o`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w -o`
 
         const jobOutput = await processJob(command)
 
@@ -96,7 +96,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -112,7 +112,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -w`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -w`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -128,7 +128,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/job-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
+        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
 
         const folderPathOutput = path.join(process.projectDir, 'testOutput')
         const filePathOutput = path.join(
@@ -319,11 +319,11 @@ describe('sasjs job', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfigs(targetName)
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder(`./${testOutputFolder}*`)
 
-    await removeAppLocOnServer(config)
-  })
+    await removeFromGlobalConfigs(targetName)
+  }, 60 * 1000)
 })
 
 describe('getContextName', () => {

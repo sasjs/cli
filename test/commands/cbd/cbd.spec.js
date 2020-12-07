@@ -12,6 +12,7 @@ import {
   createFileStructure,
   compileBuildDeployServices
 } from '../../../src/main'
+import { folder } from '../../../src/commands/folder/index'
 import { generateTimestamp } from '../../../src/utils/utils'
 
 describe('sasjs cbd (global config)', () => {
@@ -25,7 +26,7 @@ describe('sasjs cbd (global config)', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/cbd-${timestamp}`,
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
       tgtServices: ['../../test/commands/cbd/testJob'],
       jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
@@ -47,6 +48,7 @@ describe('sasjs cbd (global config)', () => {
     }
     await addToGlobalConfigs(config)
   })
+
   describe('cbd', () => {
     it(
       'should compile, build and deploy',
@@ -116,10 +118,10 @@ describe('sasjs cbd (global config)', () => {
   })
 
   afterAll(async () => {
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder('./test-app-cbd-*')
-    await removeFromGlobalConfigs(targetName)
 
-    await removeAppLocOnServer(config)
+    await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })
 
@@ -128,6 +130,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
   const testConfigPath = './test/commands/cbd/testConfig/config.json'
   const testScriptPath = './test/commands/cbd/testScript/copyscript.sh'
   let target
+  let access_token
 
   beforeAll(async () => {
     dotenv.config()
@@ -137,8 +140,9 @@ describe('sasjs cbd (creating new app having local config)', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/cbd-${timestamp}`
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`
     }
+    access_token = process.env.ACCESS_TOKEN
 
     const envConfig = dotenv.parse(
       await readFile(path.join(process.cwd(), '.env.example'))
@@ -167,8 +171,11 @@ describe('sasjs cbd (creating new app having local config)', () => {
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
           ...target,
+          authInfo: {
+            access_token
+          },
           tgtDeployScripts: ['sasjs/build/copyscript.sh'],
-          deployServicePack: false
+          deployServicePack: true
         }
         const scriptContent = await readFile(
           path.join(process.cwd(), testScriptPath)
@@ -320,7 +327,6 @@ describe('sasjs cbd (creating new app having local config)', () => {
 
   afterAll(async () => {
     await deleteFolder('./test-app-cbd-with-app-*')
-
-    await removeAppLocOnServer(target)
+    await folder(`folder delete ${target.appLoc} -t ${target.targetName}`)
   }, 60 * 1000)
 })

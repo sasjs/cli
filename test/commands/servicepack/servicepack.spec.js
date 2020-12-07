@@ -14,7 +14,7 @@ describe('sasjs servicepack', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/cli-tests/servicepack-${timestamp}`,
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -69,8 +69,8 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfigs(targetName)
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
 
-    await removeAppLocOnServer(config)
-  })
+    await removeFromGlobalConfigs(targetName)
+  }, 60 * 1000)
 })

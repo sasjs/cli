@@ -90,7 +90,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/request-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -108,7 +108,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/request-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -170,7 +170,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/request-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -189,7 +189,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/request-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -246,10 +246,10 @@ describe('sasjs request', () => {
   })
 
   afterAll(async (done) => {
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     await deleteFolder('./test-app-request-*')
-    await removeFromGlobalConfigs(targetName)
 
-    await removeAppLocOnServer(config)
+    await removeFromGlobalConfigs(targetName)
     done()
   }, 60 * 1000)
 })
@@ -258,7 +258,7 @@ const createConfig = (targetName, timestamp) => ({
   name: targetName,
   serverType: process.env.SERVER_TYPE,
   serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests/request-${timestamp}`,
+  appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
   useComputeApi: true,
   contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],
