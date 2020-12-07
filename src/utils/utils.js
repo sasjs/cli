@@ -276,3 +276,16 @@ export function generateTimestamp() {
 
 export const arrToObj = (arr) =>
   arr.reduce((o, key) => ({ ...o, [key]: key }), {})
+
+export const millisecondsToDdHhMmSs = (milliseconds) => {
+  if (typeof milliseconds !== 'number') throw 'Not supported attribute type.'
+
+  milliseconds = Math.abs(milliseconds)
+
+  const days = Math.floor(milliseconds / 1000 / 60 / 60 / 24)
+  const hours = Math.floor(milliseconds / 1000 / 60 / 60) % 24
+  const minutes = Math.floor(milliseconds / 1000 / 60) % 60
+  const seconds = Math.floor(milliseconds / 1000) % 60
+
+  return `${days} day(s); ${hours} hour(s); ${minutes} minute(s); ${seconds} second(s)`
+}

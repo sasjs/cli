@@ -59,7 +59,7 @@ export async function execute(
 
   const contextName = getContextName(target, returnStatusOnly)
 
-  const response = await sasjs
+  let submittedJob = await sasjs
     .startComputeJob(
       jobPath,
       null,
@@ -88,10 +88,9 @@ export async function execute(
 
   const endTime = new Date().getTime()
 
-  const submittedJob = response ? response.job || response : {}
-
   if (result && !returnStatusOnly)
     displayResult(result, 'An error has occurred when executing a job.', null)
+  if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
 
@@ -236,6 +235,7 @@ export async function execute(
   return result
 }
 
+// REFACTOR: should be a utility
 export function getContextName(target, returnStatusOnly) {
   const defaultContextName = 'SAS Job Execution compute context'
   if (target && target.contextName) {

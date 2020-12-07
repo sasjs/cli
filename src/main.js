@@ -12,7 +12,8 @@ import {
   runSasCode,
   processServicepack,
   printVersion,
-  createWebAppServices
+  createWebAppServices,
+  processFlow
 } from './commands'
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
@@ -404,6 +405,22 @@ export async function jobManagement(command) {
     console.log(
       chalk.redBright(
         'An error has occurred when processing job operation.',
+        err
+      )
+    )
+  })
+}
+
+export async function flowManagement(command) {
+  if (!command)
+    console.log(
+      chalk.redBright(`Please provide action for the 'flow' command.`)
+    )
+
+  await processFlow(command).catch((err) => {
+    console.log(
+      chalk.redBright(
+        'An error has occurred when processing flow operation.',
         err
       )
     )
