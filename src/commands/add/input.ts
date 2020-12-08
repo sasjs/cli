@@ -16,7 +16,6 @@ import {
   findTargetInConfiguration,
   getGlobalRcFile
 } from '../../utils/config-utils'
-import { addCredential } from './add-credential'
 import { getLocalConfig } from './config'
 
 export async function getCommonFields() {
@@ -32,6 +31,7 @@ export async function getCommonFields() {
 }
 
 async function getAndValidateScope(): Promise<TargetScope> {
+  const errorMessage = 'Target scope must be either 1 or 2.'
   const { scope } = await getChoice(
     'scope',
     'Please pick a scope for the new target: ',
@@ -42,12 +42,19 @@ async function getAndValidateScope(): Promise<TargetScope> {
       { title: '1. Local project config file' },
       { title: '2. Global config file' }
     ]
-  )
+  ).catch(() => {
+    throw new Error(errorMessage)
+  })
+
+  if (scope === null || scope === undefined || Number.isNaN(scope)) {
+    throw new Error(errorMessage)
+  }
 
   return scope === 0 ? TargetScope.Local : TargetScope.Global
 }
 
 async function getAndValidateServerType(): Promise<ServerType> {
+  const errorMessage = 'Server type must be either 1 or 2.'
   const { serverType } = await getChoice(
     'serverType',
     'Please pick a server type: ',
@@ -55,7 +62,17 @@ async function getAndValidateServerType(): Promise<ServerType> {
       value === 0 || value === 1 || 'Please choose either option 1 or 2.',
     0,
     [{ title: '1. SAS Viya' }, { title: '2. SAS 9' }]
-  )
+  ).catch(() => {
+    throw new Error(errorMessage)
+  })
+
+  if (
+    serverType === null ||
+    serverType === undefined ||
+    Number.isNaN(serverType)
+  ) {
+    throw new Error(errorMessage)
+  }
 
   return serverType === 0 ? ServerType.SasViya : ServerType.Sas9
 }
@@ -65,7 +82,13 @@ export async function getAndValidateServerUrl() {
     'serverUrl',
     'Please enter a target server URL (including port, if relevant): ',
     'Server URL is required.'
-  )
+  ).catch(() => {
+    throw new Error('Server URL is required.')
+  })
+
+  if (!serverUrl) {
+    throw new Error('Server URL is required.')
+  }
 
   return serverUrl
 }
@@ -105,6 +128,8 @@ async function getAndValidateTargetName(
     return true
   }
 
+  const errorMessage =
+    'Target name must be alphanumeric, can not contain spaces, and must be unique across your set of targets.'
   const defaultName = serverType === ServerType.SasViya ? 'viya' : 'sas9'
 
   const { targetName } = await getString(
@@ -112,7 +137,13 @@ async function getAndValidateTargetName(
     'Please enter a target name: ',
     validator,
     defaultName
-  )
+  ).catch(() => {
+    throw new Error(errorMessage)
+  })
+
+  if (!targetName) {
+    throw new Error(errorMessage)
+  }
 
   return targetName
 }
@@ -125,12 +156,21 @@ export async function getAndValidateSas9Fields() {
     'SASApp'
   )
 
+  if (!serverName) {
+    throw new Error('Server name is required.')
+  }
+
   const { repositoryName } = await getString(
     'repositoryName',
     'Please enter a repository name (default is Foundation): ',
     (v) => !!v || 'Repository name is required.',
     'Foundation'
   )
+
+  if (!repositoryName) {
+    throw new Error('Repository name is required.')
+  }
+
   return { serverName, repositoryName }
 }
 
@@ -138,6 +178,7 @@ export async function getAndValidateSasViyaFields(
   targetName: string,
   scope: TargetScope,
   serverUrl: string,
+  authenticateCallback: (targetName: string) => Promise<void>,
   logger: Logger
 ): Promise<{
   contextName: string
@@ -150,7 +191,7 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await addCredential(targetName)
+    await authenticateCallback(targetName)
 
     const sasjs = new SASjs({
       serverUrl,
@@ -181,13 +222,25 @@ export async function getAndValidateSasViyaFields(
       )
     )
 
+    const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
     const { contextNumber } = await getNumber(
       'contextNumber',
       'Please enter your SAS Viya execution context number: ',
       (v: number) =>
         (v >= 1 && v <= contexts.length) || 'Context number is invalid.',
       1
-    )
+    ).catch(() => {
+      throw new Error(contextNumberErrorMessage)
+    })
+
+    if (
+      Number.isNaN(contextNumber) ||
+      contextNumber > contexts.length ||
+      contextNumber < 1
+    ) {
+      throw new Error(contextNumberErrorMessage)
+    }
+
     contextName = contexts[contextNumber - 1].name
 
     return { contextName }
@@ -199,12 +252,19 @@ export async function getAndValidateSasViyaFields(
 }
 
 async function getAndValidateAppLoc(targetName: string): Promise<string> {
+  const errorMessage = 'App location is required.'
   const { appLoc } = await getString(
     'appLoc',
     'Please provide an app location: ',
-    (v: string) => !!v || 'App location is required.',
+    (v: string) => !!v || errorMessage,
     `/Public/app/${targetName}`
-  )
+  ).catch(() => {
+    throw new Error(errorMessage)
+  })
+
+  if (!appLoc) {
+    throw new Error(errorMessage)
+  }
 
   return appLoc
 }

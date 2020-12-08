@@ -3,7 +3,7 @@ import {
   getTokens,
   createEnvFile,
   getDefaultValues
-} from '../../src/commands/add-credential'
+} from '../../src/commands/add/add-credential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'

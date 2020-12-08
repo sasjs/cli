@@ -15,6 +15,7 @@ import {
   getAndValidateSas9Fields
 } from './input'
 import { getLocalConfig } from './config'
+import { addCredential } from './add-credential'
 
 export async function addTarget(): Promise<boolean> {
   const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
@@ -43,6 +44,7 @@ export async function addTarget(): Promise<boolean> {
       name,
       scope,
       serverUrl,
+      addCredential,
       logger
     )
 
