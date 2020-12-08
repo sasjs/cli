@@ -181,8 +181,9 @@ export async function saveToGlobalConfig(buildTarget) {
       )
       if (existingTargetIndex > -1) {
         globalConfig.targets[existingTargetIndex] = buildTarget
+      } else {
+        globalConfig.targets.push(buildTarget)
       }
-      globalConfig.targets.push(buildTarget)
     } else {
       globalConfig.targets = [buildTarget]
     }

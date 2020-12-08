@@ -4,11 +4,15 @@ import path from 'path'
 import * as inputModule from '../../src/commands/add/input'
 import { addTarget } from '../../src/commands/add/add-target'
 import { TargetScope } from '../../src/types/TargetScope'
-import { getConfiguration, getGlobalRcFile } from '../../src/utils/config-utils'
+import {
+  getConfiguration,
+  getGlobalRcFile,
+  saveGlobalRcFile
+} from '../../src/utils/config-utils'
 import { deleteFolder, createFolder } from '../../src/utils/file-utils'
 import { generateTimestamp } from '../../src/utils/utils'
 
-describe('mocked addTarget', () => {
+describe('addTarget', () => {
   const testingAppFolder = `cli-tests-add-${generateTimestamp()}`
   const targetName = `test-viya-${generateTimestamp()}`
 
@@ -21,6 +25,14 @@ describe('mocked addTarget', () => {
   afterAll(async () => {
     const projectDirPath = path.join(process.projectDir)
     await deleteFolder(projectDirPath)
+
+    const globalConfig = await getGlobalRcFile()
+    if (globalConfig && globalConfig.targets) {
+      globalConfig.targets = globalConfig.targets.filter(
+        (t: Target) => t.name !== targetName
+      )
+      await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
+    }
   }, 60 * 1000)
 
   afterEach(async () => {
@@ -63,8 +75,7 @@ describe('mocked addTarget', () => {
     done()
   })
 
-  it('should create a target in the global .sasjsrc file', async (done) => {
-    const targetName = `test-viya-${generateTimestamp()}`
+  it.only('should create a target in the global .sasjsrc file', async (done) => {
     const commonFields = {
       scope: TargetScope.Global,
       serverType: ServerType.SasViya,
@@ -86,9 +97,11 @@ describe('mocked addTarget', () => {
     const config = await getGlobalRcFile()
     expect(config).toBeTruthy()
     expect(config.targets).toBeTruthy()
-    const target: Target = config.targets.find(
+    const matchingTargets: Target[] = config.targets.filter(
       (t: Target) => t.name === targetName
     )
+    expect(matchingTargets.length).toEqual(1)
+    const target = matchingTargets[0]
     expect(target.name).toEqual(targetName)
     expect(target.serverType).toEqual(ServerType.SasViya)
     expect(target.appLoc).toEqual('/Public/app')
