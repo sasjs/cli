@@ -15,7 +15,7 @@ import {
   millisecondsToDdHhMmSs
 } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config-utils'
-import { Target } from '../../types'
+import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
