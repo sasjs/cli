@@ -3,7 +3,9 @@ import {
   deleteFolder,
   fileExists,
   createFile,
-  createFolder
+  createFolder,
+  copy,
+  readFile
 } from '../../../src/utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
