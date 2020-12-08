@@ -16,7 +16,6 @@ import { generateTimestamp } from '../../src/utils/utils'
 
 const testOutputFolder = 'test-app-job-output-'
 
-
 describe('sasjs job', () => {
   let config
   const targetName = 'cli-tests-job'

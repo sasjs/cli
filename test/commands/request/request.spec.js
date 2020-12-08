@@ -3,11 +3,7 @@ import path from 'path'
 import { readFile } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
-import {
-  createFolder,
-  deleteFolder,
-  createFile
-} from '../../../src/utils/file'
+import { createFolder, deleteFolder, createFile } from '../../../src/utils/file'
 
 describe('sasjs request', () => {
   let config
