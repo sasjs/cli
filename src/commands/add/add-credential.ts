@@ -11,6 +11,7 @@ import {
   saveToGlobalConfig
 } from '../../utils/config-utils'
 import { createFile } from '../../utils/file-utils'
+import { getAndValidateServerUrl } from './input'
 
 /**
  * Creates a .env file for the specified target.
@@ -25,6 +26,11 @@ export const addCredential = async (targetName: string): Promise<void> => {
   const logger = new Logger(logLevel)
 
   const { target, isLocal } = await findTargetInConfiguration(targetName)
+
+  if (!target.serverUrl) {
+    const serverUrl = await getAndValidateServerUrl()
+    target.serverUrl = serverUrl
+  }
 
   const { client, secret } = await getCredentialsInput(target.name)
 

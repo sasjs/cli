@@ -60,7 +60,7 @@ async function getAndValidateServerType(): Promise<ServerType> {
   return serverType === 0 ? ServerType.SasViya : ServerType.Sas9
 }
 
-async function getAndValidateServerUrl() {
+export async function getAndValidateServerUrl() {
   const { serverUrl } = await getUrl(
     'serverUrl',
     'Please enter a target server URL (including port, if relevant): ',
