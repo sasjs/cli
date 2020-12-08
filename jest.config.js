@@ -83,7 +83,10 @@ module.exports = {
     'files-db.json': '<rootDir>/test/__mocks__/files-db.json',
     'files-minimal-app.json': '<rootDir>/test/__mocks__/files-minimal-app.json',
     'files-react-app.json': '<rootDir>/test/__mocks__/files-react-app.json',
-    'files-angular-app.json': '<rootDir>/test/__mocks__/files-angular-app.json'
+    'files-angular-app.json': '<rootDir>/test/__mocks__/files-angular-app.json',
+    'files-compiled.json':
+      '<rootDir>/test/__mocks__/files-compiled-for-new-app.json',
+    'files-built.json': '<rootDir>/test/__mocks__/files-built-for-new-app.json'
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

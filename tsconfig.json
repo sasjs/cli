@@ -4,11 +4,7 @@
     "allowJs": true,
     "module": "commonjs",
     "downlevelIteration": true,
-    "lib": [
-        "ES2018",
-        "DOM",
-        "ES2019.String"
-    ],
+    "lib": ["ES2018", "DOM", "ES2019.String"],
     "declaration": true,
     "outDir": "build",
     "rootDir": "src",
@@ -17,6 +13,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
+  "files": ["./test/helpers.d.ts"],
   "exclude": [
     "test/**/*",
     "node_modules",

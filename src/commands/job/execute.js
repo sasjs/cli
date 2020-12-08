@@ -79,7 +79,6 @@ export async function execute(
         : typeof err === 'object' && Object.keys(err).length
         ? JSON.stringify({ state: err.job.state })
         : `${err}`
-
       if (err.job) {
         return err.job
       }
@@ -118,7 +117,9 @@ export async function execute(
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
         if (typeof output === 'string') {
-          const currentDirPath = path.isAbsolute(output) ? '' : process.cwd()
+          const currentDirPath = path.isAbsolute(output)
+            ? ''
+            : process.projectDir
           const outputPath = path.join(
             currentDirPath,
             /\.[a-z]{3,4}$/i.test(output)
@@ -159,11 +160,11 @@ export async function execute(
             if (typeof logFile === 'string') {
               const currentDirPath = path.isAbsolute(logFile)
                 ? ''
-                : process.cwd()
+                : process.projectDir
               logPath = path.join(currentDirPath, logFile)
             } else {
               logPath = path.join(
-                process.cwd(),
+                process.projectDir,
                 `${jobPath.split('/').slice(-1).pop()}.log`
               )
             }
@@ -276,7 +277,7 @@ async function displayStatus(
   else displayResult({}, status, null)
 
   if (typeof statusFile === 'string') {
-    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.cwd()
+    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.projectDir
     const statusPath = path.join(currentDirPath, statusFile)
 
     let folderPath = statusPath.split(path.sep)

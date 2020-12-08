@@ -11,9 +11,9 @@ import chalk from 'chalk'
 import dotenv from 'dotenv'
 
 export async function getConfiguration(pathToFile) {
-  const config = await readFile(pathToFile, false, true).catch((err) =>
-    console.log(err)
-  )
+  const config = await readFile(pathToFile, false, true).catch((err) => {
+    Promise.resolve(null)
+  })
 
   if (config) {
     const configJson = JSON.parse(config)
@@ -69,7 +69,7 @@ export async function findTargetInConfiguration(
       chalk.yellowBright(
         `No build target specified. Using ${chalk.cyanBright(
           fallBackTarget.name
-        )} by default.`
+        )} by default.\nTarget is found in local config.`
       )
     )
 
@@ -85,7 +85,7 @@ export async function findTargetInConfiguration(
       chalk.yellowBright(
         `No build target specified. Using ${chalk.cyanBright(
           fallBackTarget.name
-        )} by default.`
+        )} by default.\nTarget is found in global config.`
       )
     )
 

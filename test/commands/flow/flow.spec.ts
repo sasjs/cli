@@ -26,7 +26,7 @@ describe('sasjs flow', () => {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: `/Public/app/${targetName}`,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -62,7 +62,7 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
 
@@ -90,11 +90,11 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
           'gm'
         )
 
@@ -123,11 +123,11 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/DOES_NOT_EXIST,failure,,Job was not found.`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/DOES_NOT_EXIST,failure,,Job was not found.`,
           'gm'
         )
 
@@ -156,11 +156,11 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
           'gm'
         )
 
@@ -189,15 +189,15 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowFirstFlowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowSecondFlowCompletedRegExp = new RegExp(
-          `\\d,secondFlow,firstFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,secondFlow,firstFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(
-          `\\d,secondFlow,firstFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
+          `\\d,secondFlow,firstFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
           'gm'
         )
 
@@ -227,11 +227,11 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowFirstFlowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(
-          `\\d,secondFlow,firstFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
+          `\\d,secondFlow,firstFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
           'gm'
         )
 
@@ -260,27 +260,27 @@ describe('sasjs flow', () => {
           '^id,Flow,Predecessors,Location,Status,Log location,Details'
         )
         const csvRowFirstFlowCompletedRegExp = new RegExp(
-          `\\d,firstFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowSecondFlowCompletedRegExp = new RegExp(
-          `\\d,secondFlow,firstFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,secondFlow,firstFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowThirdFlowCompletedRegExp = new RegExp(
-          `\\d,thirdFlow,firstFlow \\| secondFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,thirdFlow,firstFlow \\| secondFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowThirdFlowFailedRegExp = new RegExp(
-          `\\d,thirdFlow,firstFlow \\| secondFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
+          `\\d,thirdFlow,firstFlow \\| secondFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/failingJob,failure,`,
           'gm'
         )
         const csvRowFourthFlowCompletedRegExp = new RegExp(
-          `\\d,fourthFlow,secondFlow,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,fourthFlow,secondFlow,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowSixthFlowCompletedRegExp = new RegExp(
-          `\\d,sixFlow,none,\/Public\/app\/${targetName}\/jobs\/testJob\/job,completed,`,
+          `\\d,sixFlow,none,\/Public\/app\/cli-tests\/${targetName}\/jobs\/testJob\/job,completed,`,
           'gm'
         )
         const csvRowFailedRegExp = new RegExp(`fifthFlow`, 'gm')
@@ -298,7 +298,9 @@ describe('sasjs flow', () => {
   })
 
   afterAll(async () => {
-    await folder(`folder delete /Public/app/${targetName} -t ${targetName}`)
+    await folder(
+      `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
+    )
     await deleteFile(csvPath)
     await deleteFolder(logPath)
     await deleteFolder(path.join(cwd, 'sasjsbuild'))

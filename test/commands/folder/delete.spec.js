@@ -7,7 +7,7 @@ const createConfig = (targetName, timestamp) => ({
   name: targetName,
   serverType: process.env.SERVER_TYPE,
   serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests-folder-remove-${timestamp}`,
+  appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
   useComputeApi: true,
   contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],
