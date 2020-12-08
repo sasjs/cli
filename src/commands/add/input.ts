@@ -1,6 +1,3 @@
-import { create } from './create'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
-import { Target, ServerType } from '@sasjs/utils/types'
 import {
   getNumber,
   getString,
@@ -8,91 +5,21 @@ import {
   getChoice,
   getUrl
 } from '@sasjs/utils/input'
+import { Target, ServerType } from '@sasjs/utils/types'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 import chalk from 'chalk'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
+import { TargetScope } from '../../types/TargetScope'
 import {
-  getGlobalRcFile,
-  getConfiguration,
   findTargetInConfiguration,
-  saveToGlobalConfig
-} from '../utils/config-utils'
-import { createFile } from '../utils/file-utils'
+  getGlobalRcFile
+} from '../../utils/config-utils'
 import { addCredential } from './add-credential'
+import { getLocalConfig } from './config'
 
-export enum TargetScope {
-  Global = 'Global',
-  Local = 'Local'
-}
-
-export async function addTarget() {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-  const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()
-
-  let target: Partial<Target> | Target = {
-    name,
-    serverType: serverType,
-    serverUrl,
-    appLoc
-  }
-
-  let filePath = await saveConfig(scope, target as Target)
-  logger.info(`Target configuration has been saved to ${filePath}.`)
-
-  if (serverType === ServerType.Sas9) {
-    const sas9FieldValues = await getAndValidateSas9Fields()
-    target = {
-      ...target,
-      tgtBuildVars: sas9FieldValues,
-      tgtDeployVars: sas9FieldValues
-    }
-  } else {
-    const { contextName } = await getAndValidateSasViyaFields(
-      name,
-      scope,
-      serverUrl,
-      logger
-    )
-
-    target = {
-      ...target,
-      tgtBuildVars: { contextName },
-      tgtDeployVars: { contextName },
-      deployServicePack: true,
-      tgtDeployScripts: []
-    }
-
-    const { target: currentTarget } = await findTargetInConfiguration(name)
-    target = { ...currentTarget, ...target }
-  }
-
-  filePath = await saveConfig(scope, target as Target)
-  logger.info(`Target configuration has been saved to ${filePath}.`)
-}
-
-async function saveConfig(scope: TargetScope, target: Target) {
-  let filePath = ''
-  if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(target as Target)
-  } else if (scope === TargetScope.Global) {
-    filePath = await saveToGlobalConfig(target as Target)
-  }
-
-  return filePath
-}
-
-async function getLocalConfig() {
-  const buildSourceFolder = require('../constants').get().buildSourceFolder
-  const config = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-  if (!config) await create('.', 'sasonly')
-  return config
-}
-
-async function getCommonFields() {
+export async function getCommonFields() {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
   const name = await getAndValidateTargetName(scope, serverType)
@@ -102,33 +29,6 @@ async function getCommonFields() {
   const serverUrl = await getAndValidateServerUrl()
 
   return { scope, serverType, name, appLoc, serverUrl }
-}
-
-async function saveToLocalConfig(buildTarget: Target) {
-  const buildSourceFolder = require('../constants').get().buildSourceFolder
-  let config = await getLocalConfig()
-  if (config) {
-    if (config.targets && config.targets.length) {
-      const existingTargetIndex = config.targets.findIndex(
-        (t: Target) => t.name === buildTarget.name
-      )
-      if (existingTargetIndex > -1) {
-        config.targets[existingTargetIndex] = buildTarget
-      } else {
-        config.targets.push(buildTarget)
-      }
-    } else {
-      config.targets = [buildTarget]
-    }
-  } else {
-    config = { targets: [buildTarget] }
-  }
-
-  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
-
-  await createFile(configPath, JSON.stringify(config, null, 2))
-
-  return configPath
 }
 
 async function getAndValidateScope(): Promise<TargetScope> {
@@ -217,7 +117,7 @@ async function getAndValidateTargetName(
   return targetName
 }
 
-async function getAndValidateSas9Fields() {
+export async function getAndValidateSas9Fields() {
   const { serverName } = await getString(
     'serverName',
     'Please enter a server name (default is SASApp): ',
@@ -234,7 +134,7 @@ async function getAndValidateSas9Fields() {
   return { serverName, repositoryName }
 }
 
-async function getAndValidateSasViyaFields(
+export async function getAndValidateSasViyaFields(
   targetName: string,
   scope: TargetScope,
   serverUrl: string,

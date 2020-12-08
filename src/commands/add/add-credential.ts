@@ -3,13 +3,14 @@ import dotenv from 'dotenv'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { getString } from '@sasjs/utils/input'
 import { SasAuthResponse, Target } from '@sasjs/utils/types'
+
+import SASjs from '@sasjs/adapter/node'
+import { getNewAccessToken } from '../../utils/auth-utils'
 import {
   findTargetInConfiguration,
   saveToGlobalConfig
-} from '../utils/config-utils'
-import { getNewAccessToken } from '../utils/auth-utils'
-import SASjs from '@sasjs/adapter/node'
-import { createFile } from '../utils/file-utils'
+} from '../../utils/config-utils'
+import { createFile } from '../../utils/file-utils'
 
 /**
  * Creates a .env file for the specified target.
