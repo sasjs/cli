@@ -2,7 +2,7 @@ import {
   generateTimestamp,
   parseLogLines,
   millisecondsToDdHhMmSs
-} from '../src/utils/utils'
+} from '../../src/utils/utils'
 
 describe('utils', () => {
   describe('generateTimestamp', () => {
@@ -10,7 +10,9 @@ describe('utils', () => {
     beforeAll(() => {
       const currentDate = new Date('2020-10-02T10:10:10.10Z')
       realDate = Date
-      global.Date = class extends Date {
+      global.Date = class extends (
+        Date
+      ) {
         constructor(date) {
           if (date) {
             return super(date)

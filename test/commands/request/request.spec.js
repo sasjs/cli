@@ -1,14 +1,10 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import rimraf from 'rimraf'
-import { readFile } from '../../../src/utils/file-utils'
+import { readFile } from '../../../src/utils/file'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
-import {
-  createFolder,
-  deleteFolder,
-  createFile
-} from '../../../src/utils/file-utils'
+import { createFolder, deleteFolder, createFile } from '../../../src/utils/file'
 import { remove } from '../../../src/commands/folder/remove'
 import SASjs from '@sasjs/adapter/node'
 

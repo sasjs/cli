@@ -1,5 +1,5 @@
 import path from 'path'
-import { readFile } from '../../../src/utils/file-utils'
+import { readFile } from '../../../src/utils/file'
 import {
   getProgramDependencies,
   getProgramList,

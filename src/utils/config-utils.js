@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { readFile, fileExists, folderExists, createFile } from './file-utils'
+import { readFile, fileExists, folderExists, createFile } from './file'
 import {
   isAccessTokenExpiring,
   getNewAccessToken,

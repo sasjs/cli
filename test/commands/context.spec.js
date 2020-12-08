@@ -1,11 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { processContext } from '../../src/commands'
-import {
-  sanitizeFileName,
-  readFile,
-  createFile
-} from '../../src/utils/file-utils'
+import { sanitizeFileName, readFile, createFile } from '../../src/utils/file'
 
 let contexts
 let testContextConfig

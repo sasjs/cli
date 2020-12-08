@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import path from 'path'
 import prompt from 'prompt'
-import { createFile } from './file-utils'
+import { createFile } from './file'
 import {
   getLocalRcFile,
   getGlobalRcFile,

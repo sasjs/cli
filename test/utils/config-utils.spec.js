@@ -1,9 +1,9 @@
-import { getAccessToken, sanitizeAppLoc } from '../src/utils/config-utils'
+import { getAccessToken, sanitizeAppLoc } from '../../src/utils/config-utils'
 import {
   isAccessTokenExpiring,
   refreshTokens,
   getNewAccessToken
-} from '../src/utils/auth-utils'
+} from '../../src/utils/auth-utils'
 jest.mock('@sasjs/adapter/node')
 
 describe('Config Utils', () => {
@@ -16,8 +16,8 @@ describe('Config Utils', () => {
   beforeEach(() => {
     process.env.ACCESS_TOKEN = null
 
-    jest.unmock('../src/utils/auth-utils')
-    authUtils = require('../src/utils/auth-utils')
+    jest.unmock('../../src/utils/auth-utils')
+    authUtils = require('../../src/utils/auth-utils')
   })
 
   afterEach(() => {

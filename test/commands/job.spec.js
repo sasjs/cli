@@ -3,7 +3,7 @@ import path from 'path'
 import { processJob } from '../../src/commands'
 import { processContext } from '../../src/commands'
 import { getContextName } from '../../src/commands/job/execute'
-import { folderExists, fileExists, readFile } from '../../src/utils/file-utils'
+import { folderExists, fileExists, readFile } from '../../src/utils/file'
 
 describe('sasjs job', () => {
   const targetName = 'cli-tests-job'

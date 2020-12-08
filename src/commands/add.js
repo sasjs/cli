@@ -9,7 +9,7 @@ import {
   saveGlobalRcFile,
   getConfiguration
 } from '../utils/config-utils'
-import { createFile } from '../utils/file-utils'
+import { createFile } from '../utils/file'
 import { getNewAccessToken } from '../utils/auth-utils'
 
 export async function addTarget() {

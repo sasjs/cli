@@ -4,7 +4,7 @@ import {
   readFile,
   createFile,
   createFolder
-} from '../../../src/utils/file-utils'
+} from '../../../src/utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
 import rimraf from 'rimraf'
