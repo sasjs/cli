@@ -9,7 +9,7 @@ import {
   getGlobalRcFile,
   saveGlobalRcFile
 } from '../../src/utils/config-utils'
-import { deleteFolder, createFolder } from '../../src/utils/file-utils'
+import { deleteFolder, createFolder } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('addTarget', () => {
