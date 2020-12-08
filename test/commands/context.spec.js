@@ -113,6 +113,7 @@ describe('sasjs context', () => {
   })
 
   afterAll(async () => {
+    deleteFolder(testContextConfigPath)
     await removeFromGlobalConfigs(targetName)
   })
 })

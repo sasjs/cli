@@ -1,0 +1,26 @@
+{
+  "subFolders": [
+    {
+      "folderName": "sasjsbuild",
+      "subFolders": [
+        {
+          "folderName": "services",
+          "subFolders": [
+            {
+              "folderName": "admin",
+              "files": [{ "fileName": "dostuff.sas" }]
+            },
+            {
+              "folderName": "common",
+              "files": [
+                { "fileName": "appinit.sas" },
+                { "fileName": "example.sas" },
+                { "fileName": "getdata.sas" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

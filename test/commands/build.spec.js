@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import {
   createFileStructure,
   buildServices,
@@ -18,7 +17,7 @@ describe('sasjs build', () => {
     `should build with minimal template`,
     async () => {
       const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-${timestamp}-minimal`
+      const parentFolderNameTimeStamped = `test-app-build-minimal${timestamp}`
 
       process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
@@ -35,7 +34,7 @@ describe('sasjs build', () => {
     `should compile and build(skipping compile)`,
     async () => {
       const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-${timestamp}`
+      const parentFolderNameTimeStamped = `test-app-build-${timestamp}`
 
       process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
@@ -50,6 +49,6 @@ describe('sasjs build', () => {
   )
 
   afterAll(async () => {
-    rimraf.sync('./test-app-*')
+    await deleteFolder('./test-app-build-*')
   }, 60 * 1000)
 })

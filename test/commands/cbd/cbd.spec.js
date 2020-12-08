@@ -1,30 +1,33 @@
 import {
+  createFolder,
   deleteFolder,
   fileExists,
-  readFile,
   createFile,
   createFolder
 } from '../../../src/utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import {
   createFileStructure,
   compileBuildDeployServices
 } from '../../../src/main'
+import { folder } from '../../../src/commands/folder/index'
 import { generateTimestamp } from '../../../src/utils/utils'
 
-describe('sasjs cbd', () => {
+describe('sasjs cbd (global config)', () => {
+  let config
   const targetName = 'cli-tests-cbd'
+
   beforeAll(async () => {
     dotenv.config()
-    await addToGlobalConfigs({
+    const timestamp = generateTimestamp()
+    config = {
       name: targetName,
       serverType: process.env.SERVER_TYPE,
       serverUrl: process.env.SERVER_URL,
-      appLoc: '/Public/app/cli-tests',
-      tgtServices: ['../test/commands/cbd/testJob'],
-      jobs: ['../test/commands/cbd/testJob'],
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+      tgtServices: ['../../test/commands/cbd/testJob'],
+      jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
         client: process.env.CLIENT,
         secret: process.env.SECRET,
@@ -37,28 +40,47 @@ describe('sasjs cbd', () => {
         secret: process.env.SECRET
       },
       tgtDeployScripts: [],
-      jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
-      jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
-      tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
-      tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
-    })
-    process.projectDir = path.join(process.cwd())
+      jobInit: '../../test/commands/cbd/testServices/serviceinit.sas',
+      jobTerm: '../../test/commands/cbd/testServices/serviceterm.sas',
+      tgtServiceInit: '../../test/commands/cbd/testServices/serviceinit.sas',
+      tgtServiceTerm: '../../test/commands/cbd/testServices/serviceterm.sas'
+    }
+    await addToGlobalConfigs(config)
   })
+
   describe('cbd', () => {
     it(
       'should compile, build and deploy',
       async () => {
+        const timestamp = generateTimestamp()
+        const parentFolderNameTimeStamped = `test-app-cbd-${timestamp}`
+        process.projectDir = path.join(
+          process.cwd(),
+          parentFolderNameTimeStamped
+        )
+        await createFolder(process.projectDir)
+
+        const macroCores = path.join(process.cwd(), 'node_modules', '@sasjs')
+        const macroCoresDestination = path.join(
+          process.projectDir,
+          'node_modules',
+          '@sasjs'
+        )
+
+        await createFolder(macroCoresDestination)
+        await copy(macroCores, macroCoresDestination)
+
         const command = `cbd ${targetName} -f`.split(' ')
         const servicePath = path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild/services/testJob/job.sas'
         )
         const jobPath = path.join(
-          process.cwd(),
+          process.projectDir,
           'sasjsbuild/jobs/testJob/job.sas'
         )
         const buildJsonPath = path.join(
-          process.cwd(),
+          process.projectDir,
           `sasjsbuild/${targetName}.json`
         )
         await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
@@ -93,26 +115,34 @@ describe('sasjs cbd', () => {
       60 * 1000
     )
   })
-  afterEach(async () => {
-    const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
-    await deleteFolder(sasjsBuildDirPath)
-  }, 60 * 1000)
+
   afterAll(async () => {
+    await deleteFolder('./test-app-cbd-*')
     await removeFromGlobalConfigs(targetName)
-  })
+
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+  }, 60 * 1000)
 })
 
-describe('sasjs cbd (creating new app)', () => {
+describe('sasjs cbd (creating new app having local config)', () => {
   const targetName = 'cli-tests-cbd-with-app'
   const testConfigPath = './test/commands/cbd/testConfig/config.json'
   const testScriptPath = './test/commands/cbd/testScript/copyscript.sh'
-  let server_type = 'SASVIYA'
-  let server_url = 'https://sas.analytium.co.uk'
+  let target
+  let access_token
 
   beforeAll(async () => {
     dotenv.config()
-    server_type = process.env.SERVER_TYPE
-    server_url = process.env.SERVER_URL
+
+    const timestamp = generateTimestamp()
+    target = {
+      name: targetName,
+      serverType: process.env.SERVER_TYPE,
+      serverUrl: process.env.SERVER_URL,
+      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`
+    }
+    access_token = process.env.ACCESS_TOKEN
+
     const envConfig = dotenv.parse(
       await readFile(path.join(process.cwd(), '.env.example'))
     )
@@ -126,7 +156,7 @@ describe('sasjs cbd (creating new app)', () => {
       `should deploy through servicepack using .env`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -139,12 +169,12 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
+          authInfo: {
+            access_token
+          },
           tgtDeployScripts: ['sasjs/build/copyscript.sh'],
-          deployServicePack: false
+          deployServicePack: true
         }
         const scriptContent = await readFile(
           path.join(process.cwd(), testScriptPath)
@@ -174,7 +204,7 @@ describe('sasjs cbd (creating new app)', () => {
       `deploy should fail for no .env`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         const configContent = await readFile(
@@ -182,10 +212,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           deployServicePack: true
         }
 
@@ -217,7 +244,7 @@ describe('sasjs cbd (creating new app)', () => {
       `should deploy with deploy script`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -230,10 +257,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           tgtDeployScripts: ['sasjs/build/copyscript.sh'],
           deployServicePack: false
         }
@@ -265,7 +289,7 @@ describe('sasjs cbd (creating new app)', () => {
       `deploy should fail for no deploy script`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `cli-tests-cbd-with-app-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-with-app-${timestamp}`
         const targetName = 'cli-tests-cbd-with-app'
 
         process.projectDir = path.join(
@@ -278,10 +302,7 @@ describe('sasjs cbd (creating new app)', () => {
         )
         const configJSON = JSON.parse(configContent)
         configJSON.targets[0] = {
-          name: targetName,
-          serverType: server_type,
-          serverUrl: server_url,
-          appLoc: '/Public/app/cli-tests',
+          ...target,
           deployServicePack: false
         }
 
@@ -304,6 +325,8 @@ describe('sasjs cbd (creating new app)', () => {
   })
 
   afterAll(async () => {
-    rimraf.sync('./cli-tests-cbd-with-app-*')
+    await deleteFolder('./test-app-cbd-with-app-*')
+
+    await folder(`folder delete ${target.appLoc} -t ${target.targetName}`)
   }, 60 * 1000)
 })

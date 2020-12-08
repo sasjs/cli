@@ -84,9 +84,18 @@ export async function buildServices(commandLine) {
   return result
 }
 
-export async function compileServices(targetName) {
+export async function compileServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
+  let result
   await build(targetName, true) // compileOnly is true
-    .then(() =>
+    .then(() => {
+      result = true
       displayResult(
         null,
         null,
@@ -94,10 +103,12 @@ export async function compileServices(targetName) {
           'sasjsbuild'
         )} directory.`
       )
-    )
+    })
     .catch((err) => {
+      result = err
       displayResult(err, 'An error has occurred when building services.')
     })
+  return result
 }
 
 export async function deployServices(commandLine) {
@@ -121,9 +132,18 @@ export async function deployServices(commandLine) {
     })
 }
 
-export async function compileBuildServices(targetName) {
+export async function compileBuildServices(commandLine) {
+  const command = new Command(commandLine)
+  let targetName = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
+  let result
   await build(targetName, null, true) // enforcing compile & build
-    .then(() =>
+    .then(() => {
+      result = true
       displayResult(
         null,
         null,
@@ -131,8 +151,9 @@ export async function compileBuildServices(targetName) {
           'sasjsbuild'
         )} directory.`
       )
-    )
+    })
     .catch((error) => {
+      result = error
       if (Array.isArray(error)) {
         const nodeModulesErrors = error.find((err) =>
           err.includes('node_modules/@sasjs/core')
@@ -148,6 +169,7 @@ export async function compileBuildServices(targetName) {
         displayResult(error, 'An error has occurred when building services.')
       }
     })
+  return result
 }
 
 export async function compileBuildDeployServices(commandLine) {
