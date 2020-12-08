@@ -8,6 +8,7 @@ import {
 import { getVariable } from './utils'
 import path from 'path'
 import chalk from 'chalk'
+import dotenv from 'dotenv'
 
 export async function getConfiguration(pathToFile) {
   const config = await readFile(pathToFile, false, true).catch((err) => {
@@ -168,7 +169,28 @@ export async function saveGlobalRcFile(content) {
 
   await createFile(rcFilePath, content)
 
-  console.log(chalk.greenBright(`Config saved to '${rcFilePath}'.`))
+  return rcFilePath
+}
+
+export async function saveToGlobalConfig(buildTarget) {
+  let globalConfig = await getGlobalRcFile()
+  if (globalConfig) {
+    if (globalConfig.targets && globalConfig.targets.length) {
+      const existingTargetIndex = globalConfig.targets.findIndex(
+        (t) => t.name === buildTarget.name
+      )
+      if (existingTargetIndex > -1) {
+        globalConfig.targets[existingTargetIndex] = buildTarget
+      } else {
+        globalConfig.targets.push(buildTarget)
+      }
+    } else {
+      globalConfig.targets = [buildTarget]
+    }
+  } else {
+    globalConfig = { targets: [buildTarget] }
+  }
+  return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 export async function saveLocalRcFile(content) {
@@ -392,6 +414,14 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     target && target.authInfo && target.authInfo.access_token
       ? target.authInfo.access_token
       : process.env.ACCESS_TOKEN
+
+  if (!accessToken || accessToken.trim() === 'null') {
+    // Check .env file for target if available
+    dotenv.config({
+      path: path.join(process.projectDir, `.env.${target.name}`)
+    })
+    accessToken = process.env.ACCESS_TOKEN
+  }
 
   if (!accessToken || accessToken.trim() === 'null') {
     throw new Error(
