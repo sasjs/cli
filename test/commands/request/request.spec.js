@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import rimraf from 'rimraf'
 import { readFile } from '../../../src/utils/file-utils'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
@@ -9,14 +8,12 @@ import {
   deleteFolder,
   createFile
 } from '../../../src/utils/file-utils'
-import { remove } from '../../../src/commands/folder/remove'
-import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs request', () => {
   let config
+  const timestampAppLoc = generateTimestamp()
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
-  const timestamp = generateTimestamp()
 
   const sampleDataJson = {
     table1: [
@@ -56,7 +53,7 @@ describe('sasjs request', () => {
     dotenv.config()
     process.projectDir = path.join(process.cwd())
 
-    config = createConfig(targetName, timestamp)
+    config = createConfig(targetName, timestampAppLoc)
 
     await addToGlobalConfigs(config)
 
@@ -70,7 +67,7 @@ describe('sasjs request', () => {
 
   beforeEach(async (done) => {
     const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `cli-tests-request-${timestamp}`
+    const parentFolderNameTimeStamped = `test-app-request-${timestamp}`
 
     process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
@@ -93,7 +90,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests-${timestamp}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -111,7 +108,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests-${timestamp}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -173,7 +170,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests-${timestamp}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -192,7 +189,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests-${timestamp}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -249,17 +246,10 @@ describe('sasjs request', () => {
   })
 
   afterAll(async (done) => {
-    rimraf.sync('./cli-tests-request-*')
+    await deleteFolder('./test-app-request-*')
     await removeFromGlobalConfigs(targetName)
-    const adapter = new SASjs({
-      appLoc: config.appLoc,
-      serverUrl: config.serverUrl,
-      serverType: config.serverType,
-      useComputeApi: config.useComputeApi
-    })
 
-    // Remove server folder
-    await remove(config.appLoc, adapter, process.env.ACCESS_TOKEN)
+    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
     done()
   }, 60 * 1000)
 })
@@ -268,7 +258,7 @@ const createConfig = (targetName, timestamp) => ({
   name: targetName,
   serverType: process.env.SERVER_TYPE,
   serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests-${timestamp}`,
+  appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
   useComputeApi: true,
   contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
   tgtServices: ['../test/commands/request/runRequest'],

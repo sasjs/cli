@@ -11,6 +11,8 @@ import fileStructureMinimalObj from 'files-minimal-app.json'
 import fileStructureReactObj from 'files-react-app.json'
 import fileStructureAngularrObj from 'files-angular-app.json'
 import fileStructureDBObj from 'files-db.json'
+import fileStructureCompileObj from 'files-compiled.json'
+import fileStructureBuildObj from 'files-built.json'
 
 const puppeteer = require('puppeteer')
 
@@ -159,7 +161,10 @@ global.verifyCreateWeb = async ({ parentFolderName, appType }) => {
       : appType === 'angular'
       ? fileStructureAngularrObj
       : null
-  await asyncForEach(fileStructure.files, async (file, index) => {
+
+  const fileStructureClone = JSON.parse(JSON.stringify(fileStructure))
+
+  await asyncForEach(fileStructureClone.files, async (file, index) => {
     const filePath = path.join(
       process.projectDir,
       parentFolderName,
@@ -168,7 +173,7 @@ global.verifyCreateWeb = async ({ parentFolderName, appType }) => {
     everythingPresent = everythingPresent && (await fileExists(filePath))
   })
   if (everythingPresent) {
-    await asyncForEach(fileStructure.subFolders, async (folder, index) => {
+    await asyncForEach(fileStructureClone.subFolders, async (folder, index) => {
       everythingPresent =
         everythingPresent &&
         (await verifyFolderStructure(folder, parentFolderName))
@@ -177,9 +182,20 @@ global.verifyCreateWeb = async ({ parentFolderName, appType }) => {
   expect(everythingPresent).toEqual(true)
 }
 
-global.verifyDB = async ({ parentFolderName }) => {
+global.verifyStep = async ({ parentFolderName, step }) => {
   let everythingPresent = true
-  await asyncForEach(fileStructureDBObj.subFolders, async (folder, index) => {
+  const fileStructure =
+    step === 'db'
+      ? fileStructureDBObj
+      : step === 'compile'
+      ? fileStructureCompileObj
+      : step === 'build'
+      ? fileStructureBuildObj
+      : null
+
+  const fileStructureClone = JSON.parse(JSON.stringify(fileStructure))
+
+  await asyncForEach(fileStructureClone.subFolders, async (folder, index) => {
     everythingPresent =
       everythingPresent &&
       (await verifyFolderStructure(folder, parentFolderName))

@@ -170,7 +170,7 @@ export async function cli(args) {
       break
     }
     case 'compile': {
-      await compileServices(command.parameters[1])
+      await compileServices(command.parameters)
       break
     }
     case 'build': {
@@ -190,7 +190,7 @@ export async function cli(args) {
       break
     }
     case 'compilebuild': {
-      await compileBuildServices(command.parameters[1])
+      await compileBuildServices(command.parameters)
       break
     }
     case 'compilebuilddeploy': {

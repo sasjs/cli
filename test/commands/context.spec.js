@@ -4,7 +4,8 @@ import { processContext } from '../../src/commands'
 import {
   sanitizeFileName,
   readFile,
-  createFile
+  createFile,
+  deleteFolder
 } from '../../src/utils/file-utils'
 
 let contexts
@@ -117,6 +118,7 @@ describe('sasjs context', () => {
   })
 
   afterAll(async () => {
+    deleteFolder(testContextConfigPath)
     await removeFromGlobalConfigs(targetName)
   })
 })
