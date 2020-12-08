@@ -17,9 +17,9 @@ describe('addTarget', () => {
   const targetName = `test-viya-${generateTimestamp()}`
 
   beforeAll(async () => {
+    dotenv.config()
     process.projectDir = path.join(process.cwd(), testingAppFolder)
     await createFolder(process.projectDir)
-    dotenv.config()
   })
 
   afterAll(async () => {
