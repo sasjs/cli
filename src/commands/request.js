@@ -1,12 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { findTargetInConfiguration } from '../utils/config-utils'
-import {
-  readFile,
-  folderExists,
-  createFile,
-  createFolder
-} from '../utils/file-utils'
+import { readFile, folderExists, createFile, createFolder } from '../utils/file'
 import { getAccessToken } from '../utils/config-utils'
 import { displayResult } from '../utils/displayResult'
 import { Command } from '../utils/command'

@@ -1,5 +1,6 @@
 export default {
-  source: `
+  command: `Command example: sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv --target targetName`,
+  source: `Source file is not valid. Source file example:
 {
   "name": "myAmazingFlow",
   "flows": {

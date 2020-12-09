@@ -6,7 +6,7 @@ import {
   readFile,
   createFile,
   deleteFolder
-} from '../../src/utils/file-utils'
+} from '../../src/utils/file'
 import { ServerType } from '@sasjs/utils/types'
 
 let contexts: [any]

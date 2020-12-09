@@ -11,7 +11,7 @@ import {
   readFile,
   createFolder,
   deleteFolder
-} from '../../src/utils/file-utils'
+} from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 

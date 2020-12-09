@@ -15,7 +15,7 @@ import {
   createFolder,
   createFile,
   fileExists
-} from '../utils/file-utils'
+} from '../utils/file'
 import chalk from 'chalk'
 
 export async function create(parentFolderName, appType) {

@@ -1,13 +1,9 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { readFile } from '../../../src/utils/file-utils'
+import { readFile } from '../../../src/utils/file'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../src/main'
-import {
-  createFolder,
-  deleteFolder,
-  createFile
-} from '../../../src/utils/file-utils'
+import { createFolder, deleteFolder, createFile } from '../../../src/utils/file'
 import { folder } from '../../../src/commands/folder/index'
 import { ServerType, Target } from '@sasjs/utils/types'
 

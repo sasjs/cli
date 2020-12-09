@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { fileExists, folderExists } from '../src/utils/file-utils'
+import { fileExists, folderExists } from '../src/utils/file'
 import { asyncForEach } from '../src/utils/utils'
 import {
   getFolders,

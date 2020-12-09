@@ -3,9 +3,10 @@ import {
   deleteFolder,
   fileExists,
   createFile,
-  readFile,
-  copy
-} from '../../../src/utils/file-utils'
+  createFolder,
+  copy,
+  readFile
+} from '../../../src/utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
 import {

@@ -1,7 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { readFile } from '../../utils/file-utils'
+import { readFile } from '../../utils/file'
 import { displayResult } from '../../utils/displayResult'
 import {
   getAccessToken,
