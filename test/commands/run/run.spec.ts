@@ -4,10 +4,12 @@ import { execPath } from 'process'
 import { runSasCode } from '../../../src/commands'
 import { exportContext } from '../../../src/commands/context/export'
 import { deleteFolder } from '../../../src/utils/file'
+import { generateTimestamp } from '../../../src/utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 
 describe('sasjs run', () => {
-  const targetName = 'cli-tests-job'
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-run-${timestamp}`
 
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd())

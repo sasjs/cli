@@ -7,6 +7,7 @@ import {
   createFile,
   deleteFolder
 } from '../../src/utils/file'
+import { generateTimestamp } from '../../src/utils/utils'
 import { ServerType } from '@sasjs/utils/types'
 
 let contexts: [any]
@@ -15,7 +16,8 @@ let testContextConfigFile: string
 let testContextConfigPath: string
 
 describe('sasjs context', () => {
-  const targetName = 'cli-tests-context'
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-context-${timestamp}`
 
   beforeAll(async () => {
     dotenv.config()
