@@ -18,7 +18,7 @@ import {
   jobManagement,
   flowManagement
 } from './main'
-import { fileExists } from './utils/file-utils'
+import { fileExists } from './utils/file'
 import path from 'path'
 import chalk from 'chalk'
 import { exit } from 'process'

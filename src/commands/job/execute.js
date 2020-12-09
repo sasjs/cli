@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { displayResult } from '../../utils/displayResult'
-import { createFile, createFolder, folderExists } from '../../utils/file-utils'
+import { createFile, createFolder, folderExists } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 

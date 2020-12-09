@@ -191,7 +191,16 @@ export async function createFile(fileName, content, debug = false) {
   if (debug) {
     console.log('Creating file %s', chalk.cyan(fileName))
   }
-  return new Promise((resolve, reject) => {
+
+  return new Promise(async (resolve, reject) => {
+    if (fileName.split(path.sep).length > 1) {
+      let folderPath = fileName.split(path.sep)
+      folderPath.pop()
+      folderPath = folderPath.join(path.sep)
+
+      if (!(await folderExists(folderPath))) await createFolder(folderPath)
+    }
+
     fs.writeFile(fileName, content, function (error, data) {
       if (error) {
         console.log(

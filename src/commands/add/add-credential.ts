@@ -10,7 +10,7 @@ import {
   findTargetInConfiguration,
   saveToGlobalConfig
 } from '../../utils/config-utils'
-import { createFile } from '../../utils/file-utils'
+import { createFile } from '../../utils/file'
 import { getAndValidateServerUrl } from './input'
 
 /**

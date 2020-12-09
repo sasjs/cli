@@ -12,7 +12,7 @@ import {
   readFile,
   folderExists,
   createFile
-} from '../utils/file-utils'
+} from '../utils/file'
 import { isAccessTokenExpiring, refreshTokens } from '../utils/auth-utils'
 
 let targetToBuild = null

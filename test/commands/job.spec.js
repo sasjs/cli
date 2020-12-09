@@ -11,7 +11,7 @@ import {
   readFile,
   createFolder,
   deleteFolder
-} from '../../src/utils/file-utils'
+} from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 
 const testOutputFolder = 'test-app-job-output-'

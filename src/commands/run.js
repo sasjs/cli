@@ -6,7 +6,7 @@ import {
   findTargetInConfiguration,
   getAccessToken
 } from '../utils/config-utils'
-import { readFile, createFile } from '../utils/file-utils'
+import { readFile, createFile } from '../utils/file'
 import { getVariable, generateTimestamp } from '../utils/utils'
 import { Command } from '../utils/command'
 

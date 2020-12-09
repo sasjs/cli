@@ -8,7 +8,7 @@ import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as authUtils from '../../src/utils/auth-utils'
-import * as fileUtils from '../../src/utils/file-utils'
+import * as fileUtils from '../../src/utils/file'
 
 describe('validateTargetName', () => {
   it('should return the target name if valid', () => {

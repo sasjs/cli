@@ -9,7 +9,7 @@ import {
   createFile,
   deleteFolder,
   getFilesInFolder
-} from '../../utils/file-utils'
+} from '../../utils/file'
 import path from 'path'
 import chalk from 'chalk'
 import jsdom from 'jsdom'
