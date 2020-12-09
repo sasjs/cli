@@ -1,3 +1,5 @@
+import { Target } from '@sasjs/utils/types'
+
 interface GetAuthCodeInput {
   serverUrl: string
   clientId: string
