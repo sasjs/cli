@@ -102,6 +102,7 @@ describe('Config Utils', () => {
           secret: '53CR3T'
         }
       }
+      process.env.REFRESH_TOKEN = null
 
       const token = await getAccessToken(target, true)
 

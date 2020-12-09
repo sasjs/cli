@@ -441,6 +441,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
         : await getVariable('client', target)
 
     client = client || process.env.CLIENT
+    client = client && client.trim() === 'null' ? null : client
 
     if (!client) {
       throw new Error(
@@ -455,6 +456,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
         : await getVariable('secret', target)
 
     secret = secret || process.env.SECRET
+    secret = secret && secret.trim() === 'null' ? null : secret
 
     if (!secret) {
       throw new Error(
@@ -469,6 +471,8 @@ export async function getAccessToken(target, checkIfExpiring = true) {
         : await getVariable('refresh_token', target)
 
     refreshToken = refreshToken || process.env.REFRESH_TOKEN
+    refreshToken =
+      refreshToken && refreshToken.trim() === 'null' ? null : refreshToken
 
     let authInfo
 
