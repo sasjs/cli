@@ -2,44 +2,52 @@ import dotenv from 'dotenv'
 import { folder } from '../../../src/commands/folder/index'
 import * as removeModule from '../../../src/commands/folder/remove'
 import { generateTimestamp } from '../../../src/utils/utils'
+import { ServerType, Target } from '@sasjs/utils/types'
 
-const createConfig = (targetName, timestamp) => ({
-  name: targetName,
-  serverType: process.env.SERVER_TYPE,
-  serverUrl: process.env.SERVER_URL,
-  appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
-  useComputeApi: true,
-  contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
-  tgtServices: ['../test/commands/request/runRequest'],
-  authInfo: {
-    client: process.env.CLIENT,
-    secret: process.env.SECRET,
-    access_token: process.env.ACCESS_TOKEN,
-    refresh_token: process.env.REFRESH_TOKEN
-  },
-  tgtDeployVars: {
-    client: process.env.CLIENT,
-    secret: process.env.SECRET
-  },
-  deployServicePack: true,
-  tgtDeployScripts: []
-})
+const createConfig = (targetName: string, timestamp: string): Target => {
+  const serverType: ServerType =
+    process.env.SERVER_TYPE === ServerType.SasViya
+      ? ServerType.SasViya
+      : ServerType.Sas9
+  return {
+    name: targetName,
+    serverType: serverType,
+    serverUrl: process.env.SERVER_URL as string,
+    appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+    useComputeApi: true,
+    contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
+    tgtServices: ['../test/commands/request/runRequest'],
+    authInfo: {
+      client: process.env.CLIENT as string,
+      secret: process.env.SECRET as string,
+      access_token: process.env.ACCESS_TOKEN as string,
+      refresh_token: process.env.REFRESH_TOKEN as string
+    },
+    tgtDeployVars: {
+      client: process.env.CLIENT as string,
+      secret: process.env.SECRET as string
+    },
+    deployServicePack: true,
+    tgtDeployScripts: []
+  }
+}
 
 jest.mock('../../../src/commands/folder/remove')
 
 describe('sasjs folder delete', () => {
-  let config
   const timestamp = generateTimestamp()
   const targetName = 'cli-tests-folder-delete'
-  config = createConfig(targetName, timestamp)
+  const config = createConfig(targetName, timestamp)
   process.projectDir = process.cwd()
 
   beforeAll(async (done) => {
     dotenv.config()
     await addToGlobalConfigs(config)
-    removeModule.remove.mockImplementation((folderPath, adapter, _) =>
-      Promise.resolve(folderPath)
-    )
+    jest
+      .spyOn(removeModule, 'remove')
+      .mockImplementation((folderPath, adapter, _) =>
+        Promise.resolve(folderPath as any)
+      )
     done()
   })
 
