@@ -1,5 +1,3 @@
-import { Target } from '@sasjs/utils/types'
-
 interface GetAuthCodeInput {
   serverUrl: string
   clientId: string
@@ -24,5 +22,5 @@ declare function browserGetAuthorizationCode(
 declare function verifyCreate(input: VerifyCreateStepInput): Promise<any>
 declare function verifyCreateWeb(input: VerifyCreateStepInput): Promise<any>
 declare function verifyStep(input: VerifyBuildStepInput): Promise<any>
-declare function addToGlobalConfigs(input: Target): Promise<any>
+declare function addToGlobalConfigs(input: any): Promise<any>
 declare function removeFromGlobalConfigs(input: string): Promise<any>

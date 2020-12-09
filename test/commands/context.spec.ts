@@ -25,7 +25,7 @@ describe('sasjs context', () => {
         : ServerType.Sas9
     await addToGlobalConfigs({
       name: targetName,
-      serverType: ServerType,
+      serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
       appLoc: '/Public/app/cli-tests',
       authInfo: {

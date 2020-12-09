@@ -3,7 +3,6 @@ import {
   deleteFolder,
   fileExists,
   createFile,
-  createFolder,
   copy,
   readFile
 } from '../../../src/utils/file'

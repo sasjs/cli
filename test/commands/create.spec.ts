@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { createFileStructure } from '../../src/main'
-import { createFolder } from '../../src/utils/file'
+import { createFolder, deleteFolder } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs create', () => {
