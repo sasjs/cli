@@ -8,7 +8,7 @@ import {
   createFile,
   folderExists,
   createFolder
-} from '../../utils/file-utils'
+} from '../../utils/file'
 import {
   generateTimestamp,
   parseLogLines,

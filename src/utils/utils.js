@@ -2,7 +2,7 @@ import shelljs from 'shelljs'
 import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, createFile, readFile } from './file-utils'
+import { fileExists, createFile, readFile } from './file'
 
 async function inExistingProject(folderPath) {
   const packageJsonExists = await fileExists(

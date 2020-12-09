@@ -9,7 +9,7 @@ import {
   createFolder,
   deleteFolder,
   fileExists
-} from '../utils/file-utils'
+} from '../utils/file'
 import { asyncForEach } from '../utils/utils'
 
 const whiteListedDBExtensions = ['ddl', 'sas']

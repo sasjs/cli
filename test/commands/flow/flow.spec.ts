@@ -8,7 +8,7 @@ import {
   folderExists,
   deleteFolder,
   deleteFile
-} from '../../../src/utils/file-utils'
+} from '../../../src/utils/file'
 import { processFlow } from '../../../src/commands'
 import { folder } from '../../../src/commands/folder'
 import examples from '../../../src/commands/flow/examples'

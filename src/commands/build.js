@@ -18,7 +18,7 @@ import {
   folderExists,
   copy,
   getList
-} from '../utils/file-utils'
+} from '../utils/file'
 import { asyncForEach, removeComments, chunk, diff } from '../utils/utils'
 import {
   getSourcePaths,

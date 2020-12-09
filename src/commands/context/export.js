@@ -1,6 +1,6 @@
 import { displayResult } from '../../utils/displayResult'
 import path from 'path'
-import { createFile, sanitizeFileName } from '../../utils/file-utils'
+import { createFile, sanitizeFileName } from '../../utils/file'
 
 /**
  * Export compute context to json file in current folder.
