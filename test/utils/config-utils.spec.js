@@ -4,13 +4,15 @@ import {
   refreshTokens,
   getNewAccessToken
 } from '../../src/utils/auth-utils'
+import dotenv from 'dotenv'
 jest.mock('@sasjs/adapter/node')
 
 describe('Config Utils', () => {
   let authUtils
 
-  beforeAll(() => {
+  beforeEach(() => {
     process.projectDir = process.cwd()
+    dotenv.config()
   })
 
   beforeEach(() => {
@@ -120,6 +122,7 @@ describe('Config Utils', () => {
           secret: '53CR3T'
         }
       }
+      process.env.CLIENT = null
 
       await expect(getAccessToken(target)).rejects.toThrow()
     })
@@ -132,6 +135,7 @@ describe('Config Utils', () => {
           client: 'CL13NT'
         }
       }
+      process.env.SECRET = null
 
       await expect(getAccessToken(target)).rejects.toThrow()
     })
