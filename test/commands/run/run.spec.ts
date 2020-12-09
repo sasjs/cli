@@ -3,6 +3,7 @@ import path from 'path'
 import { execPath } from 'process'
 import { runSasCode } from '../../../src/commands'
 import { exportContext } from '../../../src/commands/context/export'
+import { deleteFolder } from '../../../src/utils/file'
 import { ServerType, Target } from '@sasjs/utils/types'
 
 describe('sasjs run', () => {
@@ -48,7 +49,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        let result = await runSasCode(
+        let result: any = await runSasCode(
           `run test/commands/run/testServices/logJob.sas`
         )
 
@@ -60,6 +61,7 @@ describe('sasjs run', () => {
   })
 
   afterAll(async () => {
+    await deleteFolder('./sasjs-run-*')
     await removeFromGlobalConfigs(targetName)
   })
 })
