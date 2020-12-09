@@ -23,7 +23,7 @@ describe('sasjs db', () => {
 
         await createFolder(process.projectDir)
 
-        await expect(createFileStructure('.', undefined)).resolves.toEqual(true)
+        await expect(createFileStructure('.')).resolves.toEqual(true)
         await expect(buildDBs()).resolves.toEqual(true)
 
         await verifyStep({ parentFolderName: '.', step: 'db' })

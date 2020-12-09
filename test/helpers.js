@@ -132,8 +132,8 @@ async function verifyFolderStructure(folder, parentFolderName = '.') {
   return everythingPresent
 }
 
-global.verifyCreate = async ({ parentFolderName, sasonly }) => {
-  const fileStructure = await getFolders(sasonly)
+global.verifyCreate = async ({ parentFolderName }) => {
+  const fileStructure = await getFolders()
   let everythingPresent = false
   await asyncForEach(fileStructure, async (folder, index) => {
     everythingPresent = await verifyFolderStructure(folder, parentFolderName)

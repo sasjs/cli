@@ -7,27 +7,32 @@ import {
   createFile,
   deleteFolder
 } from '../../src/utils/file-utils'
+import { ServerType } from '@sasjs/utils/types'
 
-let contexts
-let testContextConfig
-let testContextConfigFile
-let testContextConfigPath
+let contexts: [any]
+let testContextConfig: any
+let testContextConfigFile: string
+let testContextConfigPath: string
 
 describe('sasjs context', () => {
   const targetName = 'cli-tests-context'
 
   beforeAll(async () => {
     dotenv.config()
+    const serverType: ServerType =
+      process.env.SERVER_TYPE === ServerType.SasViya
+        ? ServerType.SasViya
+        : ServerType.Sas9
     await addToGlobalConfigs({
       name: targetName,
-      serverType: process.env.SERVER_TYPE,
-      serverUrl: process.env.SERVER_URL,
+      serverType: ServerType,
+      serverUrl: process.env.SERVER_URL as string,
       appLoc: '/Public/app/cli-tests',
       authInfo: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET,
-        access_token: process.env.ACCESS_TOKEN,
-        refresh_token: process.env.REFRESH_TOKEN
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
       }
     })
 

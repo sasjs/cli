@@ -19,7 +19,7 @@ describe('sasjs flow', () => {
   const targetName = 'cli-tests-flow-' + generateTimestamp()
 
   beforeAll(async () => {
-    ;(process as any).projectDir = path.join(process.cwd())
+    process.projectDir = path.join(process.cwd())
     dotenv.config()
 
     await (global as any).addToGlobalConfigs({
@@ -305,6 +305,6 @@ describe('sasjs flow', () => {
     await deleteFolder(logPath)
     await deleteFolder(path.join(cwd, 'sasjsbuild'))
 
-    await (global as any).removeFromGlobalConfigs(targetName)
+    await removeFromGlobalConfigs(targetName)
   })
 })

@@ -69,7 +69,7 @@ describe('sasjs create', () => {
           createFileStructure('sasjs create . -t sasonly')
         ).resolves.toEqual(true)
 
-        await verifyCreate({ parentFolderName: '.', sasonly: true })
+        await verifyCreate({ parentFolderName: '.' })
       },
       60 * 1000
     )

@@ -30,7 +30,7 @@ describe('sasjs help', () => {
 })
 
 // delete extra characters inserted by chalk
-const sanitizeChalkInsertions = (str) =>
+const sanitizeChalkInsertions = (str: string) =>
   str.replace(
     /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
     ''
