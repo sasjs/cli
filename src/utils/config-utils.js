@@ -435,10 +435,13 @@ export async function getAccessToken(target, checkIfExpiring = true) {
       serverType: target.serverType
     })
 
-    const client =
+    let client =
       target.authInfo && target.authInfo.client
         ? target.authInfo.client
         : await getVariable('client', target)
+
+    client = client || process.env.CLIENT
+
     if (!client) {
       throw new Error(
         `Client ID was not found.
@@ -446,10 +449,13 @@ export async function getAccessToken(target, checkIfExpiring = true) {
       )
     }
 
-    const secret =
+    let secret =
       target.authInfo && target.authInfo.secret
         ? target.authInfo.secret
         : await getVariable('secret', target)
+
+    secret = secret || process.env.SECRET
+
     if (!secret) {
       throw new Error(
         `Client secret was not found.
@@ -457,10 +463,13 @@ export async function getAccessToken(target, checkIfExpiring = true) {
       )
     }
 
-    const refreshToken =
+    let refreshToken =
       target.authInfo && target.authInfo.refresh_token
         ? target.authInfo.refresh_token
         : await getVariable('refresh_token', target)
+
+    refreshToken = refreshToken || process.env.REFRESH_TOKEN
+
     let authInfo
 
     if (refreshToken) {
