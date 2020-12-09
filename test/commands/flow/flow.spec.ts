@@ -11,6 +11,7 @@ import {
 } from '../../../src/utils/file'
 import { processFlow } from '../../../src/commands'
 import { folder } from '../../../src/commands/folder'
+import examples from '../../../src/commands/flow/examples'
 
 describe('sasjs flow', () => {
   const cwd = process.cwd()
@@ -41,6 +42,65 @@ describe('sasjs flow', () => {
   }, 60 * 1000)
 
   describe('execute', () => {
+    it('should return an error if provided source file is not JSON', async () => {
+      const sourcePath = path.join(
+        cwd,
+        'test/commands/flow/sourceFiles/not_valid.txt'
+      )
+
+      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+
+      await expect(processFlow(command)).resolves.toEqual(
+        `Please provide flow source (--source) file.\n${examples.command}`
+      )
+    })
+
+    it('should return an error if provided source file does not exist', async () => {
+      const sourcePath = path.join(
+        cwd,
+        'test/commands/flow/sourceFiles/does_not_exist.json'
+      )
+
+      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+
+      await expect(processFlow(command)).resolves.toEqual(
+        `Source file does not exist.\n${examples.command}`
+      )
+    })
+
+    it('should return an error if provided not valid source file', async () => {
+      const sourcePath = path.join(
+        cwd,
+        'test/commands/flow/sourceFiles/not_valid_1.json'
+      )
+
+      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+
+      await expect(processFlow(command)).resolves.toEqual(examples.source)
+    })
+
+    it('should return an error if provided source file does not have flows property', async () => {
+      const sourcePath = path.join(
+        cwd,
+        'test/commands/flow/sourceFiles/not_valid_2.json'
+      )
+
+      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+
+      await expect(processFlow(command)).resolves.toEqual(examples.source)
+    })
+
+    it('should return an error if provided source file does not have jobs property', async () => {
+      const sourcePath = path.join(
+        cwd,
+        'test/commands/flow/sourceFiles/not_valid_3.json'
+      )
+
+      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+
+      await expect(processFlow(command)).resolves.toEqual(examples.source)
+    })
+
     it(
       'should execute flow with 2 successful jobs',
       async () => {

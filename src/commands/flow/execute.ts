@@ -29,45 +29,29 @@ export async function execute(
   prefixAppLoc: Function
 ) {
   return new Promise(async (resolve, reject) => {
-    const commandExample = `sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv --target targetName`
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
     if (!source || !isJsonFile(source)) {
-      displayResult(
-        {},
-        `Please provide flow source (--source) file.\nCommand example: ${commandExample}`
+      return reject(
+        `Please provide flow source (--source) file.\n${examples.command}`
       )
-
-      reject(false)
     }
 
     if (!(await fileExists(source))) {
-      displayResult(
-        true,
-        `Source file does not exist.\nCommand example: ${commandExample}`
-      )
-
-      reject(false)
+      return reject(`Source file does not exist.\n${examples.command}`)
     }
 
     let sourceConfig = await readFile(source)
 
     try {
       sourceConfig = JSON.parse(sourceConfig)
-    } catch (error) {
-      throw `Invalid json file.`
+    } catch (_) {
+      return reject(examples.source)
     }
 
     let flows = sourceConfig.flows
 
-    if (!flows) {
-      displayResult(
-        true,
-        `Source file is not valid. Source file example:${examples.source}`
-      )
-
-      reject(false)
-    }
+    if (!flows) return reject(examples.source)
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
@@ -80,12 +64,9 @@ export async function execute(
 
     if (csvFile) {
       if (!isCsvFile(csvFile)) {
-        displayResult(
-          {},
-          `Please provide csv file location (--csvFile).\nCommand example: ${commandExample}`
+        return reject(
+          `Please provide csv file location (--csvFile).\n${examples.command}`
         )
-
-        reject(false)
       }
 
       await createFile(csvFile, '')
@@ -111,7 +92,8 @@ export async function execute(
     await Object.keys(flows).forEach((flowName) => {
       const flow = flows[flowName]
 
-      if (!flow.jobs || !Array.isArray(flow.jobs)) reject(false)
+      if (!flow.jobs || !Array.isArray(flow.jobs))
+        return reject(examples.source)
 
       if (!flow.predecessors || flow.predecessors.length === 0) {
         flow.jobs.forEach(async (job: any) => {
