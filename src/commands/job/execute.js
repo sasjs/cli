@@ -31,6 +31,8 @@ export async function execute(
   returnStatusOnly,
   ignoreWarnings
 ) {
+  const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
   if (ignoreWarnings && !returnStatusOnly) {
@@ -41,7 +43,6 @@ export async function execute(
     )
   }
 
-  let statusReturned = false
   let result
 
   const startTime = new Date().getTime()
@@ -65,14 +66,11 @@ export async function execute(
       null,
       { contextName },
       accessToken,
-      waitForJob || logFile !== undefined ? true : false
+      waitForJob || logFile !== undefined ? true : false,
+      pollOptions
     )
     .catch((err) => {
-      if (returnStatusOnly) {
-        console.log(2)
-
-        statusReturned = true
-      }
+      if (returnStatusOnly) process.exit(2)
 
       result = returnStatusOnly
         ? 2
@@ -201,27 +199,19 @@ export async function execute(
     }
 
     if (waitForJob && returnStatusOnly && submittedJob.state) {
-      if (!statusReturned) {
-        switch (submittedJob.state) {
-          case 'completed':
-            result = 0
-            console.log(result)
-            break
-          case 'warning':
-            result = ignoreWarnings ? 0 : 1
-            console.log(result)
-            break
-          case 'error':
-            result = 2
-            console.log(result)
-            break
-          default:
-            break
-        }
-
-        statusReturned = true
+      switch (submittedJob.state) {
+        case 'completed':
+          process.exit(0)
+        case 'warning':
+          process.exit(ignoreWarnings ? 0 : 1)
+        case 'error':
+          process.exit(2)
+        default:
+          break
       }
     }
+  } else if (returnStatusOnly && result === 2) {
+    process.exit(2)
   }
 
   if (!returnStatusOnly) {
