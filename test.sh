@@ -63,3 +63,11 @@ else
   echo $'\e[91mfailure: test failed.'
   exit 1
 fi
+sasjs job execute testJob/jobWithWarning -t cli-tests-job --wait --returnStatusOnly
+if [ $? -eq 1 ]
+then
+  echo $'\e[32mSuccess: test passed.'
+else
+  echo $'\e[91mfailure: test failed.'
+  exit 1
+fi
