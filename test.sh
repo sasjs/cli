@@ -53,6 +53,12 @@ sasjs create test1
 # sasjs cb
 # process_result $?
 
+pwd
+ls -a
+cd
+ls-a
+cat .sasjsrc
+
 echo $'\e[34mSASjs Job Execute Test'
 cd test1
 sasjs job execute testJob/job -t cli-tests-job --wait --returnStatusOnly
