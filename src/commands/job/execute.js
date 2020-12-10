@@ -31,6 +31,8 @@ export async function execute(
   returnStatusOnly,
   ignoreWarnings
 ) {
+  const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
   if (ignoreWarnings && !returnStatusOnly) {
@@ -65,7 +67,8 @@ export async function execute(
       null,
       { contextName },
       accessToken,
-      waitForJob || logFile !== undefined ? true : false
+      waitForJob || logFile !== undefined ? true : false,
+      pollOptions
     )
     .catch((err) => {
       if (returnStatusOnly) {

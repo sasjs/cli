@@ -52,3 +52,14 @@ echo $'\e[34mSASjs Compile Build'
 cd test5
 sasjs cb
 process_result $?
+
+// const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
+echo $'\e[34mSASjs Job Execute Test'
+sasjs job execute testJob/job -t cli-tests-job --wait --returnStatusOnly
+if [ $? -eq 0 ]
+then
+  echo $'\e[32mSuccess: test passed.'
+else
+  echo $'\e[91mfailure: test failed.'
+  exit 1
+fi
