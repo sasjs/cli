@@ -43,7 +43,6 @@ export async function execute(
     )
   }
 
-  let statusReturned = false
   let result
 
   const startTime = new Date().getTime()
@@ -71,11 +70,7 @@ export async function execute(
       pollOptions
     )
     .catch((err) => {
-      if (returnStatusOnly) {
-        console.log(2)
-
-        statusReturned = true
-      }
+      if (returnStatusOnly) process.exit(2)
 
       result = returnStatusOnly
         ? 2
@@ -204,21 +199,19 @@ export async function execute(
     }
 
     if (waitForJob && returnStatusOnly && submittedJob.state) {
-      if (!statusReturned) {
-        switch (submittedJob.state) {
-          case 'completed':
-            process.exit(0)
-          case 'warning':
-            process.exit(ignoreWarnings ? 0 : 1)
-          case 'error':
-            process.exit(2)
-          default:
-            break
-        }
-
-        statusReturned = true
+      switch (submittedJob.state) {
+        case 'completed':
+          process.exit(0)
+        case 'warning':
+          process.exit(ignoreWarnings ? 0 : 1)
+        case 'error':
+          process.exit(2)
+        default:
+          break
       }
     }
+  } else if (returnStatusOnly && result === 2) {
+    process.exit(2)
   }
 
   if (!returnStatusOnly) {
