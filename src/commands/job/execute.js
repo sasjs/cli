@@ -204,17 +204,11 @@ export async function execute(
       if (!statusReturned) {
         switch (submittedJob.state) {
           case 'completed':
-            result = 0
-            console.log(result)
-            break
+            process.exit(0)
           case 'warning':
-            result = ignoreWarnings ? 0 : 1
-            console.log(result)
-            break
+            process.exit(ignoreWarnings ? 0 : 1)
           case 'error':
-            result = 2
-            console.log(result)
-            break
+            process.exit(2)
           default:
             break
         }
