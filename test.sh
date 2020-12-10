@@ -56,7 +56,8 @@ sasjs create test1
 pwd
 ls -a
 cd
-ls-a
+pwd
+ls -a
 cat .sasjsrc
 
 echo $'\e[34mSASjs Job Execute Test'
