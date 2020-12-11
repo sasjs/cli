@@ -33,6 +33,35 @@ export async function execute(
 ) {
   const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
+  const saveLog = async (logData) => {
+    let logPath
+
+    if (typeof logFile === 'string') {
+      const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
+      logPath = path.join(currentDirPath, logFile)
+    } else {
+      logPath = path.join(
+        process.projectDir,
+        `${jobPath.split('/').slice(-1).pop()}.log`
+      )
+    }
+
+    let folderPath = logPath.split(path.sep)
+    folderPath.pop()
+    folderPath = folderPath.join(path.sep)
+
+    if (!(await folderExists(folderPath))) {
+      await createFolder(folderPath)
+    }
+
+    let logLines =
+      typeof logData === 'object' ? parseLogLines(logData) : logData
+
+    await createFile(logPath, logLines)
+
+    if (!returnStatusOnly) displayResult(null, null, `Log saved to: ${logPath}`)
+  }
+
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
   if (ignoreWarnings && !returnStatusOnly) {
@@ -69,7 +98,11 @@ export async function execute(
       waitForJob || logFile !== undefined ? true : false,
       pollOptions
     )
-    .catch((err) => {
+    .catch(async (err) => {
+      if (err && err.log && logFile !== undefined) {
+        await saveLog(err.log)
+      }
+
       if (returnStatusOnly) process.exit(2)
 
       result = returnStatusOnly
@@ -151,36 +184,9 @@ export async function execute(
               `${logUrl}?limit=${logCount}`,
               accessToken
             )
-            const logJson = JSON.parse(logData)
+            const logData = JSON.parse(logData)
 
-            let logPath
-
-            if (typeof logFile === 'string') {
-              const currentDirPath = path.isAbsolute(logFile)
-                ? ''
-                : process.projectDir
-              logPath = path.join(currentDirPath, logFile)
-            } else {
-              logPath = path.join(
-                process.projectDir,
-                `${jobPath.split('/').slice(-1).pop()}.log`
-              )
-            }
-
-            let folderPath = logPath.split(path.sep)
-            folderPath.pop()
-            folderPath = folderPath.join(path.sep)
-
-            if (!(await folderExists(folderPath))) {
-              await createFolder(folderPath)
-            }
-
-            let logLines = parseLogLines(logJson)
-
-            await createFile(logPath, logLines)
-
-            if (!returnStatusOnly)
-              displayResult(null, null, `Log saved to: ${logPath}`)
+            await saveLog(logData)
           }
         }
 
