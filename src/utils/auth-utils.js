@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import prompt from 'prompt'
+import { getString } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
 
 export function getAuthUrl(serverUrl, clientId) {
@@ -28,19 +28,11 @@ export async function getAuthCode(authUrl) {
     )
   )
 
-  prompt.message = ''
-  prompt.start()
-  return new Promise((resolve, reject) => {
-    prompt.get(
-      [{ name: 'authCode', description: 'Authorization Code' }],
-      (error, result) => {
-        if (error) {
-          reject(error)
-        }
-        resolve(result.authCode)
-      }
-    )
-  })
+  const authCode = await getString(
+    'Please enter your authorization code: ',
+    (v) => !!v || 'Authorization code is required'
+  )
+  return authCode
 }
 
 export function isAccessTokenExpiring(token) {
