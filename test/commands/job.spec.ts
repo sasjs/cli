@@ -68,6 +68,11 @@ describe('sasjs job', () => {
   }, 60 * 1000)
 
   describe('execute', () => {
+    const mockProcessExit = () =>
+      jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+        return undefined as never
+      })
+
     it(
       'should submit a job for execution',
       async () => {
@@ -279,7 +284,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(0)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(0)
       },
       60 * 1000
     )
@@ -289,7 +298,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(1)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(1)
       },
       60 * 1000
     )
@@ -299,7 +312,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
 
-        await expect(processJob(command)).resolves.toEqual(0)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(0)
       },
       60 * 1000
     )
@@ -309,7 +326,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(2)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(2)
       },
       60 * 1000
     )
@@ -317,12 +338,20 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --returnStatusOnly`
+        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --wait --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(2)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(2)
       },
       60 * 1000
     )
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
   })
 
   afterAll(async () => {
