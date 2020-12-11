@@ -170,7 +170,7 @@ export async function getAndValidateSasViyaFields(
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
     const contextNumber = await getChoice(
-      'Please enter your SAS Viya execution context number: ',
+      'Please pick your SAS Viya execution context: ',
       contextNumberErrorMessage,
       contexts.map((c) => ({ title: c.name }))
     )
