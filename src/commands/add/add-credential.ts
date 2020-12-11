@@ -79,14 +79,12 @@ export const validateTargetName = (targetName: string): string => {
 const getCredentialsInput = async (targetName: string) => {
   const defaultValues = getDefaultValues(targetName)
 
-  const { client } = await getString(
-    'client',
+  const client = await getString(
     'Please enter your Client ID: ',
     (v) => !!v || 'Client ID is required.',
     defaultValues.client
   )
-  const { secret } = await getString(
-    'secret',
+  const secret = await getString(
     'Please enter your Client Secret: ',
     (v) => !!v || 'Client Secret is required.',
     defaultValues.secret
