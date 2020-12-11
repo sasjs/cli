@@ -32,12 +32,9 @@ export async function getCommonFields() {
 
 async function getAndValidateScope(): Promise<TargetScope> {
   const errorMessage = 'Target scope must be either 1 or 2.'
-  const { scope } = await getChoice(
-    'scope',
+  const scope = await getChoice(
     'Please pick a scope for the new target: ',
-    (value: number) =>
-      value === 0 || value === 1 || 'Please choose either option 1 or 2.',
-    0,
+    'Please choose either option 1 or 2.',
     [
       { title: '1. Local project config file' },
       { title: '2. Global config file' }
@@ -50,45 +47,25 @@ async function getAndValidateScope(): Promise<TargetScope> {
     throw new Error(errorMessage)
   }
 
-  return scope === 0 ? TargetScope.Local : TargetScope.Global
+  return scope === 1 ? TargetScope.Local : TargetScope.Global
 }
 
 async function getAndValidateServerType(): Promise<ServerType> {
   const errorMessage = 'Server type must be either 1 or 2.'
-  const { serverType } = await getChoice(
-    'serverType',
+  const serverType = await getChoice(
     'Please pick a server type: ',
-    (value: any) =>
-      value === 0 || value === 1 || 'Please choose either option 1 or 2.',
-    0,
+    'Please choose either option 1 or 2.',
     [{ title: '1. SAS Viya' }, { title: '2. SAS 9' }]
-  ).catch(() => {
-    throw new Error(errorMessage)
-  })
+  )
 
-  if (
-    serverType === null ||
-    serverType === undefined ||
-    Number.isNaN(serverType)
-  ) {
-    throw new Error(errorMessage)
-  }
-
-  return serverType === 0 ? ServerType.SasViya : ServerType.Sas9
+  return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
 }
 
 export async function getAndValidateServerUrl() {
-  const { serverUrl } = await getUrl(
-    'serverUrl',
+  const serverUrl = await getUrl(
     'Please enter a target server URL (including port, if relevant): ',
     'Server URL is required.'
-  ).catch(() => {
-    throw new Error('Server URL is required.')
-  })
-
-  if (!serverUrl) {
-    throw new Error('Server URL is required.')
-  }
+  )
 
   return serverUrl
 }
@@ -132,44 +109,27 @@ async function getAndValidateTargetName(
     'Target name must be alphanumeric, can not contain spaces, and must be unique across your set of targets.'
   const defaultName = serverType === ServerType.SasViya ? 'viya' : 'sas9'
 
-  const { targetName } = await getString(
-    'targetName',
+  const targetName = await getString(
     'Please enter a target name: ',
     validator,
     defaultName
-  ).catch(() => {
-    throw new Error(errorMessage)
-  })
-
-  if (!targetName) {
-    throw new Error(errorMessage)
-  }
+  )
 
   return targetName
 }
 
 export async function getAndValidateSas9Fields() {
-  const { serverName } = await getString(
-    'serverName',
+  const serverName = await getString(
     'Please enter a server name (default is SASApp): ',
     (v) => !!v || 'Server name is required.',
     'SASApp'
   )
 
-  if (!serverName) {
-    throw new Error('Server name is required.')
-  }
-
-  const { repositoryName } = await getString(
-    'repositoryName',
+  const repositoryName = await getString(
     'Please enter a repository name (default is Foundation): ',
     (v) => !!v || 'Repository name is required.',
     'Foundation'
   )
-
-  if (!repositoryName) {
-    throw new Error('Repository name is required.')
-  }
 
   return { serverName, repositoryName }
 }
@@ -184,8 +144,7 @@ export async function getAndValidateSasViyaFields(
   contextName: string
 }> {
   let contextName = 'SAS Job Execution compute context'
-  const { shouldAuthenticate } = await getConfirmation(
-    'shouldAuthenticate',
+  const shouldAuthenticate = await getConfirmation(
     'Would you like to authenticate against this target?',
     true
   )
@@ -209,37 +168,12 @@ export async function getAndValidateSasViyaFields(
       contexts = await sasjs.getAllContexts(target.authInfo.access_token)
     }
 
-    logger.log(
-      chalk.cyanBright(
-        'Here are all the available execution contexts on this server:\n'
-      )
-    )
-    logger.log(
-      chalk.cyanBright(
-        `${contexts
-          .map((c, i) => chalk.yellowBright(`${i + 1}. `) + c.name)
-          .join('\n')}`
-      )
-    )
-
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
-    const { contextNumber } = await getNumber(
-      'contextNumber',
-      'Please enter your SAS Viya execution context number: ',
-      (v: number) =>
-        (v >= 1 && v <= contexts.length) || 'Context number is invalid.',
-      1
-    ).catch(() => {
-      throw new Error(contextNumberErrorMessage)
-    })
-
-    if (
-      Number.isNaN(contextNumber) ||
-      contextNumber > contexts.length ||
-      contextNumber < 1
-    ) {
-      throw new Error(contextNumberErrorMessage)
-    }
+    const contextNumber = await getChoice(
+      'Please pick your SAS Viya execution context: ',
+      contextNumberErrorMessage,
+      contexts.map((c) => ({ title: c.name }))
+    )
 
     contextName = contexts[contextNumber - 1].name
 
@@ -253,18 +187,11 @@ export async function getAndValidateSasViyaFields(
 
 async function getAndValidateAppLoc(targetName: string): Promise<string> {
   const errorMessage = 'App location is required.'
-  const { appLoc } = await getString(
-    'appLoc',
+  const appLoc = await getString(
     'Please provide an app location: ',
     (v: string) => !!v || errorMessage,
     `/Public/app/${targetName}`
-  ).catch(() => {
-    throw new Error(errorMessage)
-  })
-
-  if (!appLoc) {
-    throw new Error(errorMessage)
-  }
+  )
 
   return appLoc
 }
