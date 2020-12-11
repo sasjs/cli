@@ -170,21 +170,19 @@ describe('getProgramList', () => {
 
   test('it should handle empty programs list', async (done) => {
     const fileContent = await readFile(path.join(__dirname, './empty-list.sas'))
-    const expectedOutput = []
     const actualList = await getProgramList(fileContent)
 
-    expect(actualList).toEqual(expectedOutput)
+    expect(actualList).toEqual([])
 
     done()
   })
 
   test('it should return empty list when file header is not present', async (done) => {
     const fileContent = await readFile(path.join(__dirname, './no-header.sas'))
-    const expectedList = []
 
     const actualList = await getProgramList(fileContent)
 
-    expect(actualList).toEqual(expectedList)
+    expect(actualList).toEqual([])
 
     done()
   })

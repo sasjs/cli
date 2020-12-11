@@ -3,7 +3,6 @@ import {
   deleteFolder,
   fileExists,
   createFile,
-  createFolder,
   copy,
   readFile
 } from '../../../src/utils/file'
@@ -15,31 +14,36 @@ import {
 } from '../../../src/main'
 import { folder } from '../../../src/commands/folder/index'
 import { generateTimestamp } from '../../../src/utils/utils'
+import { ServerType, Target } from '@sasjs/utils/types'
 
 describe('sasjs cbd (global config)', () => {
-  let config
+  let config: Target
   const targetName = 'cli-tests-cbd'
 
   beforeAll(async () => {
     dotenv.config()
     const timestamp = generateTimestamp()
+    const serverType: ServerType =
+      process.env.SERVER_TYPE === ServerType.SasViya
+        ? ServerType.SasViya
+        : ServerType.Sas9
     config = {
       name: targetName,
-      serverType: process.env.SERVER_TYPE,
-      serverUrl: process.env.SERVER_URL,
+      serverType,
+      serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
       tgtServices: ['../../test/commands/cbd/testJob'],
       jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET,
-        access_token: process.env.ACCESS_TOKEN,
-        refresh_token: process.env.REFRESH_TOKEN
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
       },
       deployServicePack: true,
       tgtDeployVars: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string
       },
       tgtDeployScripts: [],
       jobInit: '../../test/commands/cbd/testServices/serviceinit.sas',
@@ -101,7 +105,7 @@ describe('sasjs cbd (global config)', () => {
          *  */
         const jsonContent = JSON.parse(await readFile(buildJsonPath))
         expect(
-          !!jsonContent.members.find((x) => x.name === 'services')
+          !!jsonContent.members.find((x: any) => x.name === 'services')
         ).toEqual(false)
         /**
          * test to ensure that web services do have pre code
@@ -130,20 +134,24 @@ describe('sasjs cbd (creating new app having local config)', () => {
   const targetName = 'cli-tests-cbd-with-app'
   const testConfigPath = './test/commands/cbd/testConfig/config.json'
   const testScriptPath = './test/commands/cbd/testScript/copyscript.sh'
-  let target
-  let access_token
+  let target: Target
+  let access_token: string
 
   beforeAll(async () => {
     dotenv.config()
 
     const timestamp = generateTimestamp()
+    const serverType: ServerType =
+      process.env.SERVER_TYPE === ServerType.SasViya
+        ? ServerType.SasViya
+        : ServerType.Sas9
     target = {
       name: targetName,
-      serverType: process.env.SERVER_TYPE,
-      serverUrl: process.env.SERVER_URL,
+      serverType: serverType,
+      serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`
     }
-    access_token = process.env.ACCESS_TOKEN
+    access_token = process.env.ACCESS_TOKEN as string
 
     const envConfig = dotenv.parse(
       await readFile(path.join(process.cwd(), '.env.example'))
@@ -329,6 +337,6 @@ describe('sasjs cbd (creating new app having local config)', () => {
   afterAll(async () => {
     await deleteFolder('./test-app-cbd-with-app-*')
 
-    await folder(`folder delete ${target.appLoc} -t ${target.targetName}`)
+    await folder(`folder delete ${target.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })

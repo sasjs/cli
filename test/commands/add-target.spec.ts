@@ -75,7 +75,7 @@ describe('addTarget', () => {
     done()
   })
 
-  it.only('should create a target in the global .sasjsrc file', async (done) => {
+  it('should create a target in the global .sasjsrc file', async (done) => {
     const commonFields = {
       scope: TargetScope.Global,
       serverType: ServerType.SasViya,

@@ -13,11 +13,12 @@ import {
   deleteFolder
 } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
+import { ServerType, Target } from '@sasjs/utils/types'
 
 const testOutputFolder = 'test-app-job-output-'
 
 describe('sasjs job', () => {
-  let config
+  let config: Target
   const targetName = 'cli-tests-job'
   const timestampAppLoc = generateTimestamp()
 
@@ -26,15 +27,20 @@ describe('sasjs job', () => {
 
     dotenv.config()
 
+    const serverType: ServerType =
+      process.env.SERVER_TYPE === ServerType.SasViya
+        ? ServerType.SasViya
+        : ServerType.Sas9
     config = {
-      serverType: process.env.SERVER_TYPE,
-      serverUrl: process.env.SERVER_URL,
+      name: '',
+      serverType: serverType,
+      serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestampAppLoc}`,
       authInfo: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET,
-        access_token: process.env.ACCESS_TOKEN,
-        refresh_token: process.env.REFRESH_TOKEN
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
       }
     }
     const context = await getAvailableContext(config)
@@ -42,8 +48,8 @@ describe('sasjs job', () => {
     await deployTestJob(config)
 
     await addToGlobalConfigs({
-      name: targetName,
       ...config,
+      name: targetName,
       tgtServices: ['testJob'],
       contextName: context.name,
       tgtDeployVars: {
@@ -62,6 +68,11 @@ describe('sasjs job', () => {
   }, 60 * 1000)
 
   describe('execute', () => {
+    const mockProcessExit = () =>
+      jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+        return undefined as never
+      })
+
     it(
       'should submit a job for execution',
       async () => {
@@ -273,7 +284,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(0)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(0)
       },
       60 * 1000
     )
@@ -283,7 +298,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(1)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(1)
       },
       60 * 1000
     )
@@ -293,7 +312,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
 
-        await expect(processJob(command)).resolves.toEqual(0)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(0)
       },
       60 * 1000
     )
@@ -303,7 +326,11 @@ describe('sasjs job', () => {
       async () => {
         const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(2)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(2)
       },
       60 * 1000
     )
@@ -311,12 +338,20 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --returnStatusOnly`
+        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --wait --returnStatusOnly`
 
-        await expect(processJob(command)).resolves.toEqual(2)
+        const mockExit = mockProcessExit()
+
+        await processJob(command)
+
+        expect(mockExit).toHaveBeenCalledWith(2)
       },
       60 * 1000
     )
+  })
+
+  afterEach(() => {
+    jest.clearAllMocks()
   })
 
   afterAll(async () => {
@@ -349,12 +384,12 @@ describe('getContextName', () => {
   })
 })
 
-async function getAvailableContext(config) {
+async function getAvailableContext(config: Target) {
   const targetNameContext = 'cli-tests-context'
 
   await addToGlobalConfigs({
-    name: targetNameContext,
-    ...config
+    ...config,
+    name: targetNameContext
   })
 
   const contexts = await processContext([
@@ -369,7 +404,7 @@ async function getAvailableContext(config) {
   return contexts[0]
 }
 
-async function deployTestJob(config) {
+async function deployTestJob(config: Target) {
   const targetName = 'cli-tests-cbd-for-job'
   config = {
     ...config,
@@ -378,8 +413,8 @@ async function deployTestJob(config) {
     jobs: ['../test/commands/cbd/testJob'],
     deployServicePack: true,
     tgtDeployVars: {
-      client: process.env.CLIENT,
-      secret: process.env.SECRET
+      client: process.env.CLIENT as string,
+      secret: process.env.SECRET as string
     },
     tgtDeployScripts: [],
     jobInit: '../test/commands/cbd/testServices/serviceinit.sas',

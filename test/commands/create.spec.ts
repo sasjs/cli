@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { createFileStructure } from '../../src/main'
-import { createFolder } from '../../src/utils/file'
+import { createFolder, deleteFolder } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs create', () => {
@@ -69,7 +69,7 @@ describe('sasjs create', () => {
           createFileStructure('sasjs create . -t sasonly')
         ).resolves.toEqual(true)
 
-        await verifyCreate({ parentFolderName: '.', sasonly: true })
+        await verifyCreate({ parentFolderName: '.' })
       },
       60 * 1000
     )
