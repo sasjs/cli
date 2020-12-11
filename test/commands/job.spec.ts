@@ -16,6 +16,7 @@ import { generateTimestamp } from '../../src/utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 
 const testOutputFolder = 'test-app-job-output-'
+let parentFolderNameTimeStamped: string
 
 describe('sasjs job', () => {
   let config: Target
@@ -60,7 +61,7 @@ describe('sasjs job', () => {
 
   beforeEach(async () => {
     const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
+    parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
 
     process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
 
@@ -324,13 +325,29 @@ describe('sasjs job', () => {
     it(
       `should submit a job that fails and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly`
+        const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly -l`
 
         const mockExit = mockProcessExit()
 
         await processJob(command)
 
         expect(mockExit).toHaveBeenCalledWith(2)
+        await expect(
+          folderExists(`./${parentFolderNameTimeStamped}`)
+        ).resolves.toEqual(true)
+
+        const logPath = `./${parentFolderNameTimeStamped}/failingJob.log`
+
+        await expect(fileExists(logPath)).resolves.toEqual(true)
+
+        const logData = await readFile(logPath)
+
+        expect(
+          logData.match(
+            'ERROR: The %ABORT statement is not valid in open code.'
+          )
+        ).toBeTruthy()
+        expect(logData.match(/\* ServiceTerm end;$/gm)).toBeTruthy()
       },
       60 * 1000
     )
