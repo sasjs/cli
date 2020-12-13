@@ -384,7 +384,7 @@ async function getPreCodeForServicePack(serverType) {
         '/* so we provide instead as __program */\n' +
         '%global __program _program;\n' +
         '%let _program=%sysfunc(coalescec(&__program,&_program));\n' +
-        '%macro webout(action,ds,dslabel=,fmt=);\n' +
+        '%macro (action,ds,dslabel=,fmt=);\n' +
         '%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
         '%mend;\n'
       break
@@ -406,6 +406,11 @@ async function getPreCodeForServicePack(serverType) {
         )} and ${chalk.cyanBright('SAS9')}`
       )
   }
+  content +=
+        '/* provide additional debug info */\n' +
+        '%put user=%mf_getuser();\n' +
+        '%put pgm=&_program;\n' +
+        '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
   return content
 }
 
