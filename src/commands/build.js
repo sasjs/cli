@@ -384,7 +384,7 @@ async function getPreCodeForServicePack(serverType) {
         '/* so we provide instead as __program */\n' +
         '%global __program _program;\n' +
         '%let _program=%sysfunc(coalescec(&__program,&_program));\n' +
-        '%macro (action,ds,dslabel=,fmt=);\n' +
+        '%macro webout(action,ds,dslabel=,fmt=);\n' +
         '%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
         '%mend;\n'
       break
