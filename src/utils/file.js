@@ -232,6 +232,24 @@ export async function deleteFolder(folderName, debug = false) {
   })
 }
 
+export async function deleteFile(filePath, debug = false) {
+  if (debug) {
+    console.log('Deleting file %s', chalk.cyan(filePath))
+  }
+  return new Promise((resolve, reject) => {
+    rimraf(filePath, function (error) {
+      if (error) {
+        console.log(
+          chalk.red(`Error deleting file %s`),
+          chalk.redBright.bold(filePath)
+        )
+        reject(error)
+      }
+      resolve()
+    })
+  })
+}
+
 export async function copy(source, destination, debug = false) {
   if (debug) {
     console.log('Copying %s to %s', chalk.cyan(source), chalk.cyan(destination))

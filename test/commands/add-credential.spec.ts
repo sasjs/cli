@@ -2,13 +2,37 @@ import {
   validateTargetName,
   getTokens,
   createEnvFile,
-  getDefaultValues
+  addCredential
 } from '../../src/commands/add/add-credential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as authUtils from '../../src/utils/auth-utils'
 import * as fileUtils from '../../src/utils/file'
+import * as configUtils from '../../src/utils/config-utils'
+import * as inputModule from '../../src/commands/add/input'
+import * as configModule from '../../src/commands/add/config'
+import { getDefaultValues } from '../../src/commands/add/input'
+
+describe('addCredential', () => {
+  it('prompts the user to enter the server URL if not found', async (done) => {
+    process.projectDir = '.'
+    setupMocks()
+    await addCredential('test-target')
+
+    expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
+    expect(configModule.saveToLocalConfig).toHaveBeenCalledWith({
+      name: 'test-target',
+      serverUrl: 'http://server.com',
+      appLoc: '/test'
+    })
+
+    await fileUtils.deleteFile(path.join('.', '.env.test-target'))
+    jest.clearAllMocks()
+
+    done()
+  })
+})
 
 describe('validateTargetName', () => {
   it('should return the target name if valid', () => {
@@ -167,3 +191,32 @@ describe('getDefaultValues', () => {
     expect(defaultValues.secret).toEqual('')
   })
 })
+
+const setupMocks = () => {
+  jest
+    .spyOn(inputModule, 'getAndValidateServerUrl')
+    .mockImplementation(() => Promise.resolve('http://server.com'))
+  jest
+    .spyOn(inputModule, 'getCredentialsInput')
+    .mockImplementation(() =>
+      Promise.resolve({ client: 'client', secret: 'secret' })
+    )
+  jest
+    .spyOn(authUtils, 'getNewAccessToken')
+    .mockImplementation(() =>
+      Promise.resolve({ access_token: 'access', refresh_token: 'refresh' })
+    )
+  jest
+    .spyOn(configModule, 'saveToLocalConfig')
+    .mockImplementation(() => Promise.resolve('.'))
+  jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
+    Promise.resolve({
+      target: {
+        name: 'test-target',
+        serverUrl: null,
+        appLoc: '/test'
+      },
+      isLocal: true
+    })
+  )
+}
