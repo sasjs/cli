@@ -41,7 +41,9 @@ export async function execute(
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
-    let sourceConfig = await readFile(source)
+    let sourceConfig = await readFile(source).catch((err) =>
+      displayResult(err, 'Error while reading source file.')
+    )
 
     try {
       sourceConfig = JSON.parse(sourceConfig)
@@ -59,7 +61,7 @@ export async function execute(
       serverType: target.serverType
     })
     const accessToken = await getAccessToken(target).catch((err) => {
-      displayResult(err)
+      displayResult(err, 'Error while getting access token.')
     })
 
     if (csvFile) {
@@ -69,11 +71,15 @@ export async function execute(
         )
       }
 
-      await createFile(csvFile, '')
+      await createFile(csvFile, '').catch((err) =>
+        displayResult(err, 'Error while creating CSV file.')
+      )
     }
 
     if (logFolder && !(await folderExists(logFolder))) {
-      await createFolder(logFolder)
+      await createFolder(logFolder).catch((err) =>
+        displayResult(err, 'Error while creating log folder file.')
+      )
     }
 
     const defaultContextName = 'SAS Job Execution compute context'
@@ -115,6 +121,8 @@ export async function execute(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
                 jobLocation
+              ).catch((err) =>
+                displayResult(err, 'Error while saving log file.')
               )
 
               await saveToCsv(
@@ -124,6 +132,8 @@ export async function execute(
                 'failure',
                 err.message || '',
                 logName ? path.join(logFolder, logName as string) : ''
+              ).catch((err) =>
+                displayResult(err, 'Error while saving CSV file.')
               )
 
               job.status = 'failure'
@@ -167,7 +177,7 @@ export async function execute(
               submittedJob.state || 'failure',
               details?.details,
               logName ? path.join(logFolder, logName as string) : ''
-            )
+            ).catch((err) => displayResult(err, 'Error while saving CSV file.'))
 
             job.status =
               submittedJob.state === 'completed'
@@ -294,7 +304,11 @@ export async function execute(
 
         if (logObj) {
           const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
-          const logData = await sasjs.fetchLogFileContent(logUrl, accessToken)
+          const logData = await sasjs
+            .fetchLogFileContent(logUrl, accessToken)
+            .catch((err) =>
+              displayResult(err, 'Error while fetching log content.')
+            )
           const logJson = JSON.parse(logData as string)
 
           const logParsed = parseLogLines(logJson)
@@ -311,7 +325,10 @@ export async function execute(
             logName = generateFileName()
           }
 
-          await createFile(path.join(logFolder, logName), logParsed)
+          await createFile(
+            path.join(logFolder, logName),
+            logParsed
+          ).catch((err) => displayResult(err, 'Error while creating log file.'))
 
           return resolve(logName)
         }
@@ -338,7 +355,9 @@ export async function execute(
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
 
-            let csvData = await readFile(csvFile)
+            let csvData = await readFile(csvFile).catch((err) =>
+              displayResult(err, 'Error while reading CSV file.')
+            )
 
             if (typeof csvData === 'string') {
               csvData = csvData
@@ -377,7 +396,9 @@ export async function execute(
               async (err, output) => {
                 if (err) reject(err)
 
-                await createFile(csvFile, output)
+                await createFile(csvFile, output).catch((err) =>
+                  displayResult(err, 'Error while creating CSV file.')
+                )
 
                 csvFileAbleToSave = true
 
@@ -450,6 +471,8 @@ export async function execute(
                   res.state || 'failure',
                   details?.details,
                   logName ? path.join(logFolder, logName as string) : ''
+                ).catch((err) =>
+                  displayResult(err, 'Error while saving CSV file.')
                 )
 
                 job.status =
@@ -529,6 +552,8 @@ export async function execute(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
                 jobLocation
+              ).catch((err) =>
+                displayResult(err, 'Error while saving log file.')
               )
 
               await saveToCsv(
@@ -538,6 +563,8 @@ export async function execute(
                 'failure',
                 err.message || '',
                 logName ? path.join(logFolder, logName as string) : ''
+              ).catch((err) =>
+                displayResult(err, 'Error while saving CSV file.')
               )
 
               job.status = 'failure'
