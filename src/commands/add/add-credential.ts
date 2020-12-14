@@ -1,7 +1,5 @@
 import path from 'path'
-import dotenv from 'dotenv'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
-import { getString } from '@sasjs/utils/input'
 import { SasAuthResponse, Target } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
@@ -11,7 +9,8 @@ import {
   saveToGlobalConfig
 } from '../../utils/config-utils'
 import { createFile } from '../../utils/file'
-import { getAndValidateServerUrl } from './input'
+import { getAndValidateServerUrl, getCredentialsInput } from './input'
+import { saveToLocalConfig } from './config'
 
 /**
  * Creates a .env file for the specified target.
@@ -50,6 +49,7 @@ export const addCredential = async (targetName: string): Promise<void> => {
       refresh_token,
       logger
     )
+    await saveToLocalConfig(target)
   } else {
     target.authInfo = { client, secret, access_token, refresh_token }
     await saveToGlobalConfig(target)
@@ -74,42 +74,6 @@ export const validateTargetName = (targetName: string): string => {
     )
 
   return targetName
-}
-
-const getCredentialsInput = async (targetName: string) => {
-  const defaultValues = getDefaultValues(targetName)
-
-  const client = await getString(
-    'Please enter your Client ID: ',
-    (v) => !!v || 'Client ID is required.',
-    defaultValues.client
-  )
-  const secret = await getString(
-    'Please enter your Client Secret: ',
-    (v) => !!v || 'Client Secret is required.',
-    defaultValues.secret
-  )
-
-  return { client, secret }
-}
-
-export const getDefaultValues = (targetName: string) => {
-  dotenv.config({ path: path.join(process.projectDir, `.env.${targetName}`) })
-
-  const defaultClient =
-    process.env.CLIENT === 'undefined' ||
-    process.env.CLIENT === 'null' ||
-    !process.env.CLIENT
-      ? ''
-      : process.env.CLIENT
-  const defaultSecret =
-    process.env.SECRET === 'undefined' ||
-    process.env.SECRET === 'null' ||
-    !process.env.SECRET
-      ? ''
-      : process.env.SECRET
-
-  return { client: defaultClient, secret: defaultSecret }
 }
 
 export const getTokens = async (
