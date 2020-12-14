@@ -1,5 +1,4 @@
 import {
-  getNumber,
   getString,
   getConfirmation,
   getChoice,
@@ -7,7 +6,6 @@ import {
 } from '@sasjs/utils/input'
 import { Target, ServerType } from '@sasjs/utils/types'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
-import chalk from 'chalk'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
@@ -51,7 +49,6 @@ async function getAndValidateScope(): Promise<TargetScope> {
 }
 
 async function getAndValidateServerType(): Promise<ServerType> {
-  const errorMessage = 'Server type must be either 1 or 2.'
   const serverType = await getChoice(
     'Please pick a server type: ',
     'Please choose either option 1 or 2.',
@@ -105,8 +102,6 @@ async function getAndValidateTargetName(
     return true
   }
 
-  const errorMessage =
-    'Target name must be alphanumeric, can not contain spaces, and must be unique across your set of targets.'
   const defaultName = serverType === ServerType.SasViya ? 'viya' : 'sas9'
 
   const targetName = await getString(
@@ -194,4 +189,40 @@ async function getAndValidateAppLoc(targetName: string): Promise<string> {
   )
 
   return appLoc
+}
+
+export const getCredentialsInput = async (targetName: string) => {
+  const defaultValues = getDefaultValues(targetName)
+
+  const client = await getString(
+    'Please enter your Client ID: ',
+    (v) => !!v || 'Client ID is required.',
+    defaultValues.client
+  )
+  const secret = await getString(
+    'Please enter your Client Secret: ',
+    (v) => !!v || 'Client Secret is required.',
+    defaultValues.secret
+  )
+
+  return { client, secret }
+}
+
+export const getDefaultValues = (targetName: string) => {
+  dotenv.config({ path: path.join(process.projectDir, `.env.${targetName}`) })
+
+  const defaultClient =
+    process.env.CLIENT === 'undefined' ||
+    process.env.CLIENT === 'null' ||
+    !process.env.CLIENT
+      ? ''
+      : process.env.CLIENT
+  const defaultSecret =
+    process.env.SECRET === 'undefined' ||
+    process.env.SECRET === 'null' ||
+    !process.env.SECRET
+      ? ''
+      : process.env.SECRET
+
+  return { client: defaultClient, secret: defaultSecret }
 }
