@@ -191,7 +191,7 @@ describe('sasjs create', () => {
           createFileStructure(
             `create ${parentFolderNameTimeStamped} --template xyz`
           )
-        ).resolves.toEqual('Template provided is not found')
+        ).resolves.toEqual('Template "xyz" is not sasjs template')
       },
       2 * 60 * 1000
     )
