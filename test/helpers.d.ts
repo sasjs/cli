@@ -24,3 +24,4 @@ declare function verifyCreateWeb(input: VerifyCreateStepInput): Promise<any>
 declare function verifyStep(input: VerifyBuildStepInput): Promise<any>
 declare function addToGlobalConfigs(input: any): Promise<any>
 declare function removeFromGlobalConfigs(input: string): Promise<any>
+declare function setupFolderForTesting(input: string): Promise<any>

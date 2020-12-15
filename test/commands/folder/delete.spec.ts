@@ -4,7 +4,7 @@ import * as removeModule from '../../../src/commands/folder/remove'
 import { generateTimestamp } from '../../../src/utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 
-const createConfig = (targetName: string, timestamp: string): Target => {
+const createConfig = (targetName: string): Target => {
   const serverType: ServerType =
     process.env.SERVER_TYPE === ServerType.SasViya
       ? ServerType.SasViya
@@ -13,7 +13,7 @@ const createConfig = (targetName: string, timestamp: string): Target => {
     name: targetName,
     serverType: serverType,
     serverUrl: process.env.SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
     useComputeApi: true,
     contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
     tgtServices: ['../test/commands/request/runRequest'],
@@ -36,8 +36,8 @@ jest.mock('../../../src/commands/folder/remove')
 
 describe('sasjs folder delete', () => {
   const timestamp = generateTimestamp()
-  const targetName = 'cli-tests-folder-delete'
-  const config = createConfig(targetName, timestamp)
+  const targetName = `cli-tests-folder-delete-${timestamp}`
+  const config = createConfig(targetName)
   process.projectDir = process.cwd()
 
   beforeAll(async (done) => {

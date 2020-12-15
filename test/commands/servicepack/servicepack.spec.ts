@@ -7,11 +7,11 @@ import { ServerType, Target } from '@sasjs/utils/types'
 
 describe('sasjs servicepack', () => {
   let config: Target
-  const targetName = 'cli-tests-servicepack'
+  const targetTimestamp = generateTimestamp()
+  const targetName = `cli-tests-servicepack-${targetTimestamp}`
 
   beforeAll(async () => {
     dotenv.config()
-    const timestamp = generateTimestamp()
     const serverType: ServerType =
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
@@ -20,7 +20,7 @@ describe('sasjs servicepack', () => {
       name: targetName,
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
       authInfo: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
@@ -75,8 +75,8 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfigs(targetName)
-
     await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+
+    await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })

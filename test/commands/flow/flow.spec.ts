@@ -7,6 +7,8 @@ import {
   readFile,
   folderExists,
   deleteFolder,
+  createFolder,
+  copy,
   deleteFile
 } from '../../../src/utils/file'
 import { processFlow } from '../../../src/commands'
@@ -20,7 +22,6 @@ describe('sasjs flow', () => {
   const targetName = 'cli-tests-flow-' + generateTimestamp()
 
   beforeAll(async () => {
-    process.projectDir = path.join(process.cwd())
     dotenv.config()
 
     await (global as any).addToGlobalConfigs({
@@ -34,9 +35,11 @@ describe('sasjs flow', () => {
         access_token: process.env.ACCESS_TOKEN,
         refresh_token: process.env.REFRESH_TOKEN
       },
-      jobs: ['../test/commands/cbd/testJob'],
+      jobs: ['../../test/commands/cbd/testJob'],
       deployServicePack: true
     })
+
+    await setupFolderForTesting(targetName)
 
     await compileBuildDeployServices(`cbd ${targetName} -f`)
   }, 60 * 1000)
@@ -358,12 +361,12 @@ describe('sasjs flow', () => {
   })
 
   afterAll(async () => {
+    await deleteFile(csvPath)
+    await deleteFolder(logPath)
+    await deleteFolder(path.join(cwd, targetName))
     await folder(
       `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
     )
-    await deleteFile(csvPath)
-    await deleteFolder(logPath)
-    await deleteFolder(path.join(cwd, 'sasjsbuild'))
 
     await removeFromGlobalConfigs(targetName)
   })

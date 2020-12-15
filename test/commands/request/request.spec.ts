@@ -10,6 +10,7 @@ import { ServerType, Target } from '@sasjs/utils/types'
 describe('sasjs request', () => {
   let config: Target
   const timestampAppLoc = generateTimestamp()
+  const targetName = `cli-tests-request-${timestampAppLoc}`
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
@@ -45,21 +46,23 @@ describe('sasjs request', () => {
     ]
   }
 
-  const targetName = 'cli-tests-request'
-
   beforeAll(async (done) => {
     dotenv.config()
-    process.projectDir = path.join(process.cwd())
 
-    config = createConfig(targetName, timestampAppLoc)
+    config = createConfig(targetName)
 
     await addToGlobalConfigs(config)
+
+    const cbdFolderName = `cbd-for-request-${generateTimestamp()}`
+
+    await setupFolderForTesting(cbdFolderName)
 
     const command = `cbd ${targetName} -f`.split(' ')
     await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
 
-    const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
-    await deleteFolder(sasjsBuildDirPath)
+    const cbdFolderPath = path.join(process.cwd(), cbdFolderName)
+    await deleteFolder(cbdFolderPath)
+
     done()
   }, 60 * 1000)
 
@@ -88,7 +91,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -105,7 +108,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
           const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -164,7 +167,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -182,7 +185,7 @@ describe('sasjs request', () => {
         async () => {
           await expect(
             runRequest(
-              `request /Public/app/cli-tests/${targetName}-${timestampAppLoc}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
+              `request /Public/app/cli-tests/${targetName}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
             )
           ).resolves.toEqual(true)
 
@@ -237,14 +240,14 @@ describe('sasjs request', () => {
 
   afterAll(async (done) => {
     await deleteFolder('./test-app-request-*')
-    await removeFromGlobalConfigs(targetName)
-
     await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+
+    await removeFromGlobalConfigs(targetName)
     done()
   }, 60 * 1000)
 })
 
-const createConfig = (targetName: string, timestamp: string): Target => {
+const createConfig = (targetName: string): Target => {
   const serverType: ServerType =
     process.env.SERVER_TYPE === ServerType.SasViya
       ? ServerType.SasViya
@@ -253,10 +256,10 @@ const createConfig = (targetName: string, timestamp: string): Target => {
     name: targetName,
     serverType: serverType,
     serverUrl: process.env.SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
     useComputeApi: true,
     contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
-    tgtServices: ['../test/commands/request/runRequest'],
+    tgtServices: ['../../test/commands/request/runRequest'],
     authInfo: {
       client: process.env.CLIENT as string,
       secret: process.env.SECRET as string,

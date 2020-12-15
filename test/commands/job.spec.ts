@@ -20,8 +20,8 @@ let parentFolderNameTimeStamped: string
 
 describe('sasjs job', () => {
   let config: Target
-  const targetName = 'cli-tests-job'
   const timestampAppLoc = generateTimestamp()
+  const targetName = `cli-tests-job-${timestampAppLoc}`
 
   beforeAll(async () => {
     process.projectDir = path.join(process.cwd())
@@ -36,7 +36,7 @@ describe('sasjs job', () => {
       name: '',
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestampAppLoc}`,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
       authInfo: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
@@ -77,7 +77,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName}`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName}`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -87,7 +87,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName} -w`
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -97,7 +97,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w -o`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName} -w -o`
 
         const jobOutput = await processJob(command)
 
@@ -109,7 +109,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName} -o testOutput`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -125,7 +125,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -w`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName} -o testOutput -w`
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -141,7 +141,7 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
+        const command = `job execute /Public/app/cli-tests/${targetName}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
 
         const folderPathOutput = path.join(process.projectDir, 'testOutput')
         const filePathOutput = path.join(
@@ -373,9 +373,9 @@ describe('sasjs job', () => {
 
   afterAll(async () => {
     await deleteFolder(`./${testOutputFolder}*`)
-    await removeFromGlobalConfigs(targetName)
-
     await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+
+    await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })
 
@@ -402,7 +402,8 @@ describe('getContextName', () => {
 })
 
 async function getAvailableContext(config: Target) {
-  const targetNameContext = 'cli-tests-context'
+  const timestamp = generateTimestamp()
+  const targetNameContext = `cli-tests-context-${timestamp}`
 
   await addToGlobalConfigs({
     ...config,
@@ -422,7 +423,8 @@ async function getAvailableContext(config: Target) {
 }
 
 async function deployTestJob(config: Target) {
-  const targetName = 'cli-tests-cbd-for-job'
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-cbd-for-job-${timestamp}`
   config = {
     ...config,
     name: targetName,

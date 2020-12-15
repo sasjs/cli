@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { fileExists, folderExists } from '../src/utils/file'
+import { fileExists, folderExists, createFolder, copy } from '../src/utils/file'
 import { asyncForEach } from '../src/utils/utils'
 import {
   getFolders,
@@ -225,4 +225,19 @@ global.removeFromGlobalConfigs = async (targetName = 'cli-tests-cbd') => {
     const targets = globalConfig.targets.filter((t) => t.name !== targetName)
     await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
   }
+}
+
+global.setupFolderForTesting = async (folderName) => {
+  process.projectDir = path.join(process.cwd(), folderName)
+  await createFolder(process.projectDir)
+
+  const macroCores = path.join(process.cwd(), 'node_modules', '@sasjs')
+  const macroCoresDestination = path.join(
+    process.projectDir,
+    'node_modules',
+    '@sasjs'
+  )
+
+  await createFolder(macroCoresDestination)
+  await copy(macroCores, macroCoresDestination)
 }

@@ -18,11 +18,12 @@ import { ServerType, Target } from '@sasjs/utils/types'
 
 describe('sasjs cbd (global config)', () => {
   let config: Target
-  const targetName = 'cli-tests-cbd'
+  const targetTimestamp = generateTimestamp()
+  const targetName = `cli-tests-cbd-${targetTimestamp}`
 
   beforeAll(async () => {
     dotenv.config()
-    const timestamp = generateTimestamp()
+
     const serverType: ServerType =
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
@@ -31,7 +32,7 @@ describe('sasjs cbd (global config)', () => {
       name: targetName,
       serverType,
       serverUrl: process.env.SERVER_URL as string,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
       tgtServices: ['../../test/commands/cbd/testJob'],
       jobs: ['../../test/commands/cbd/testJob'],
       authInfo: {
@@ -59,7 +60,7 @@ describe('sasjs cbd (global config)', () => {
       'should compile, build and deploy',
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-cbd-${timestamp}`
+        const parentFolderNameTimeStamped = `test-app-cbd-without-app-${timestamp}`
         process.projectDir = path.join(
           process.cwd(),
           parentFolderNameTimeStamped
@@ -123,15 +124,16 @@ describe('sasjs cbd (global config)', () => {
   })
 
   afterAll(async () => {
-    await deleteFolder('./test-app-cbd-*')
-    await removeFromGlobalConfigs(targetName)
-
+    await deleteFolder('./test-app-cbd-without-app-*')
     await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+
+    await removeFromGlobalConfigs(targetName)
   }, 60 * 1000)
 })
 
 describe('sasjs cbd (creating new app having local config)', () => {
-  const targetName = 'cli-tests-cbd-with-app'
+  const targetTimestamp = generateTimestamp()
+  const targetName = `cli-tests-cbd-with-app-${targetTimestamp}`
   const testConfigPath = './test/commands/cbd/testConfig/config.json'
   const testScriptPath = './test/commands/cbd/testScript/copyscript.sh'
   let target: Target
@@ -140,7 +142,6 @@ describe('sasjs cbd (creating new app having local config)', () => {
   beforeAll(async () => {
     dotenv.config()
 
-    const timestamp = generateTimestamp()
     const serverType: ServerType =
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
@@ -149,7 +150,7 @@ describe('sasjs cbd (creating new app having local config)', () => {
       name: targetName,
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`
+      appLoc: `/Public/app/cli-tests/${targetName}`
     }
     access_token = process.env.ACCESS_TOKEN as string
 
