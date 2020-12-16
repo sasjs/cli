@@ -38,18 +38,14 @@ export async function createMinimalApp(folderPath) {
 
 export async function createTemplateApp(folderPath, template) {
   const { stdout, stderr, code } = shelljs.exec(
-    `git ls-remote git@github.com:sasjs/template_${template}`,
+    `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
     {
       silent: true
     }
   )
 
-  if (stderr.startsWith('ERROR: Repository not found.')) {
+  if (stderr.includes('Repository not found') || code) {
     throw `Template "${template}" is not sasjs template`
-  }
-
-  if (code) {
-    throw `\n${stderr}`
   }
 
   if (!stdout) {

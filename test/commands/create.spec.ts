@@ -178,7 +178,7 @@ describe('sasjs create', () => {
       `should fail having unknown apptype 'xyz'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-${timestamp}-xyz`
+        const parentFolderNameTimeStamped = `test-app-create-${timestamp}-xyz`
 
         process.projectDir = path.join(
           process.cwd(),
