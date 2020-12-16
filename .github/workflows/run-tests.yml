@@ -31,7 +31,7 @@ jobs:
         run: npm run build
 
       - name: Run unit tests
-        run: npm test -- --runInBand
+        run: npm test
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
