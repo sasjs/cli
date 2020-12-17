@@ -1,4 +1,4 @@
-import { create } from '../create/create'
+import { create } from '../create'
 import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import { createFile } from '../../utils/file'
