@@ -62,6 +62,7 @@ export async function execute(
     })
     const accessToken = await getAccessToken(target).catch((err) => {
       displayResult(err, 'Error while getting access token.')
+      throw err
     })
 
     if (csvFile) {
