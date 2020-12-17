@@ -18,7 +18,6 @@ import { getAccessToken } from '../../utils/config-utils'
 import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
-import { setInterval } from 'timers'
 import examples from './examples'
 
 export async function execute(
@@ -37,7 +36,11 @@ export async function execute(
       )
     }
 
-    if (!(await fileExists(source))) {
+    if (
+      !(await fileExists(source).catch((err) =>
+        displayResult(err, 'Error while checking if source file exists.')
+      ))
+    ) {
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
@@ -76,7 +79,12 @@ export async function execute(
       )
     }
 
-    if (logFolder && !(await folderExists(logFolder))) {
+    if (
+      logFolder &&
+      !(await folderExists(logFolder).catch((err) =>
+        displayResult(err, 'Error while checking if log folder exists.')
+      ))
+    ) {
       await createFolder(logFolder).catch((err) =>
         displayResult(err, 'Error while creating log folder file.')
       )
@@ -314,14 +322,19 @@ export async function execute(
           const logParsed = parseLogLines(logJson)
 
           const generateFileName = () =>
-            `${flowName}_${jobLocation.replace(
-              /\W/g,
-              '_'
-            )}_${generateTimestamp()}.log`
+            `${flowName}_${jobLocation
+              .split('/')
+              .splice(-1, 1)
+              .join('')
+              .replace(/\W/g, '_')}_${generateTimestamp()}.log`
 
           let logName = generateFileName()
 
-          while (await fileExists(path.join(logFolder, logName))) {
+          while (
+            await fileExists(path.join(logFolder, logName)).catch((err) =>
+              displayResult(err, 'Error while checking if log file exists.')
+            )
+          ) {
             logName = generateFileName()
           }
 
@@ -354,6 +367,16 @@ export async function execute(
         const timerId = setInterval(async () => {
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
+
+            if (
+              !(await fileExists(csvFile).catch((err) =>
+                displayResult(err, 'Error while checking if csv file exists.')
+              ))
+            ) {
+              await createFile(csvFile, '').catch((err) =>
+                displayResult(err, 'Error while creating CSV file.')
+              )
+            }
 
             let csvData = await readFile(csvFile).catch((err) =>
               displayResult(err, 'Error while reading CSV file.')
