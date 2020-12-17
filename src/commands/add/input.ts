@@ -160,7 +160,13 @@ export async function getAndValidateSasViyaFields(
       contexts = await sasjs.getAllContexts(process.env.ACCESS_TOKEN as string)
     } else {
       const { target } = await findTargetInConfiguration(targetName)
-      contexts = await sasjs.getAllContexts(target.authInfo.access_token)
+      if (!target.authConfig || !target.authConfig.access_token) {
+        throw new Error(
+          `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${targetName}\` to authenticate.`
+        )
+      }
+
+      contexts = await sasjs.getAllContexts(target.authConfig.access_token)
     }
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`

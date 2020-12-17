@@ -1,4 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
+import { Target } from '@sasjs/utils/types'
 import { readFile, fileExists, folderExists, createFile } from './file'
 import {
   isAccessTokenExpiring,
@@ -8,15 +9,18 @@ import {
 import path from 'path'
 import chalk from 'chalk'
 import dotenv from 'dotenv'
+import { Configuration } from '../types'
 
-export async function getConfiguration(pathToFile) {
-  const config = await readFile(pathToFile, false, true).catch((err) => {
+export async function getConfiguration(pathToFile: string) {
+  const config = await readFile(pathToFile, false, true).catch(() => {
     Promise.resolve(null)
   })
 
   if (config) {
     const configJson = JSON.parse(config)
-    return Promise.resolve(configJson.config ? configJson.config : configJson)
+    return Promise.resolve<Configuration>(
+      configJson.config ? configJson.config : configJson
+    )
   }
 
   return Promise.resolve(null)
@@ -31,16 +35,18 @@ export async function getConfiguration(pathToFile) {
  * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
  */
 export async function findTargetInConfiguration(
-  targetName,
+  targetName: string,
   viyaSpecific = false
-) {
+): Promise<{ target: Target; isLocal: boolean }> {
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
 
   if (localConfig && localConfig.targets) {
-    const target = localConfig.targets.find((t) => t.name === targetName)
+    const target = localConfig.targets.find(
+      (t: Target) => t.name === targetName
+    )
     if (target) {
       return { target, isLocal: true }
     }
@@ -49,7 +55,9 @@ export async function findTargetInConfiguration(
   const globalConfig = await getGlobalRcFile()
 
   if (globalConfig && globalConfig.targets) {
-    const target = globalConfig.targets.find((t) => t.name === targetName)
+    const target = globalConfig.targets.find(
+      (t: Target) => t.name === targetName
+    )
     if (target) {
       return { target, isLocal: false }
     }
@@ -59,7 +67,7 @@ export async function findTargetInConfiguration(
 
   if (localConfig && localConfig.targets) {
     fallBackTarget = viyaSpecific
-      ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
+      ? localConfig.targets.find((t: Target) => t.serverType === 'SASVIYA')
       : localConfig.targets[0]
   }
 
@@ -76,7 +84,7 @@ export async function findTargetInConfiguration(
   }
 
   fallBackTarget = viyaSpecific
-    ? globalConfig.targets.find((t) => t.serverType === 'SASVIYA')
+    ? globalConfig.targets.find((t: Target) => t.serverType === 'SASVIYA')
     : globalConfig.targets[0]
 
   if (fallBackTarget) {
@@ -162,7 +170,7 @@ export async function getLocalRcFile() {
   return config
 }
 
-export async function saveGlobalRcFile(content) {
+export async function saveGlobalRcFile(content: string) {
   const homeDir = require('os').homedir()
   const rcFilePath = path.join(homeDir, '.sasjsrc')
 
@@ -171,12 +179,12 @@ export async function saveGlobalRcFile(content) {
   return rcFilePath
 }
 
-export async function saveToGlobalConfig(buildTarget) {
+export async function saveToGlobalConfig(buildTarget: Target) {
   let globalConfig = await getGlobalRcFile()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
-        (t) => t.name === buildTarget.name
+        (t: Target) => t.name === buildTarget.name
       )
       if (existingTargetIndex > -1) {
         globalConfig.targets[existingTargetIndex] = buildTarget
@@ -192,7 +200,7 @@ export async function saveToGlobalConfig(buildTarget) {
   return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
-export async function saveLocalRcFile(content) {
+export async function saveLocalRcFile(content: string) {
   const projectRoot = await getProjectRoot()
   await createFile(path.join(projectRoot, '.sasjsrc'), content)
 }
@@ -207,31 +215,31 @@ export async function getFolders() {
   return Promise.reject()
 }
 
-export async function getSourcePaths(buildSourceFolder) {
+export async function getSourcePaths(buildSourceFolder: string) {
   let configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
   if (!configuration) {
-    configuration = { cmnMacros: [], useMacroCore: true }
+    configuration = { macroFolders: [] }
   }
 
-  const sourcePaths = configuration.cmnMacros
-    ? configuration.cmnMacros.map((l) => path.join(buildSourceFolder, l))
+  const sourcePaths = configuration.macroFolders
+    ? configuration.macroFolders.map((macroPath: string) =>
+        path.join(buildSourceFolder, macroPath)
+      )
     : []
-  if (configuration.useMacroCore) {
-    const macroCorePath = path.join(
-      process.projectDir,
-      'node_modules',
-      '@sasjs',
-      'core'
-    )
-    sourcePaths.push(macroCorePath)
-  }
+  const macroCorePath = path.join(
+    process.projectDir,
+    'node_modules',
+    '@sasjs',
+    'core'
+  )
+  sourcePaths.push(macroCorePath)
 
   return sourcePaths
 }
 
-export async function getBuildTargets(buildSourceFolder) {
+export async function getBuildTargets(buildSourceFolder: string) {
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
@@ -243,7 +251,7 @@ export async function getBuildTargets(buildSourceFolder) {
  * Returns SAS server configuration.
  * @param {string} targetName - name of the configuration.
  */
-export async function getBuildTarget(targetName) {
+export async function getBuildTarget(targetName: string) {
   const { buildSourceFolder } = require('../constants').get()
   let targets = await getBuildTargets(buildSourceFolder)
 
@@ -257,7 +265,7 @@ export async function getBuildTarget(targetName) {
 
   let target = null
 
-  if (targetName) target = targets.find((t) => t.name === targetName)
+  if (targetName) target = targets.find((t: Target) => t.name === targetName)
 
   if (!target) {
     target = targets[0]
@@ -273,7 +281,7 @@ export async function getBuildTarget(targetName) {
     )
   }
 
-  if (target.appLoc) target.appLoc = sanitizeAppLoc(target.appLoc)
+  // if (target.appLoc) target.appLoc = sanitizeAppLoc(target.appLoc)
 
   return target
 }
@@ -283,8 +291,8 @@ export async function getBuildTarget(targetName) {
  * This list includes both common and target-specific folders.
  * @param {string} targetName - name of the configuration.
  */
-export async function getProgramFolders(targetName) {
-  let programFolders = []
+export async function getProgramFolders(targetName: string) {
+  let programFolders: string[] = []
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
@@ -293,7 +301,7 @@ export async function getProgramFolders(targetName) {
     programFolders = programFolders.concat(localConfig.programFolders)
   }
 
-  const target = await findTargetInConfiguration(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
 
   if (!target) {
     throw new Error(
@@ -315,6 +323,43 @@ export async function getProgramFolders(targetName) {
   return programFolders
 }
 
+/**
+ * Returns SAS macro folders from configuration.
+ * This list includes both common and target-specific folders.
+ * @param {string} targetName - name of the configuration.
+ */
+export async function getMacroFolders(targetName: string) {
+  let macroFolders: string[] = []
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+  if (localConfig && localConfig.programFolders) {
+    macroFolders = macroFolders.concat(localConfig.programFolders)
+  }
+
+  const { target } = await findTargetInConfiguration(targetName)
+
+  if (!target) {
+    throw new Error(
+      'Target not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
+    )
+  }
+
+  if (target.programFolders) {
+    macroFolders = macroFolders.concat(target.programFolders)
+  }
+
+  if (!macroFolders.length) {
+    console.log(
+      chalk.yellowBright(
+        'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
+      )
+    )
+  }
+  return macroFolders
+}
+
 export function getMacroCorePath() {
   return path.join(process.projectDir, 'node_modules', '@sasjs/core')
 }
@@ -323,7 +368,7 @@ export function getMacroCorePath() {
  * Sanitizes app location string.
  * @param {string} appLoc - app location
  */
-export function sanitizeAppLoc(appLoc) {
+export function sanitizeAppLoc(appLoc: string) {
   if (!appLoc || typeof appLoc !== 'string') return
 
   // Removes trailing '/'
@@ -336,42 +381,6 @@ export function sanitizeAppLoc(appLoc) {
   appLoc = appLoc.replace(/^\/{2,}/, '/')
 
   return appLoc
-}
-
-export async function getTargetSpecificFile(typeOfFile, targetToBuild = {}) {
-  const isJob = typeOfFile.includes('job')
-  const tgtPrefix = 'tgt'
-  const cmnPrefix = 'cmn'
-  const { buildSourceFolder } = require('../constants').get()
-  let toBuildPath = ''
-
-  if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`] == undefined) {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
-    )
-
-    if (
-      configuration &&
-      configuration[`${isJob ? '' : cmnPrefix}${typeOfFile}`]
-    ) {
-      toBuildPath = configuration[`${isJob ? '' : cmnPrefix}${typeOfFile}`]
-    }
-  } else if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`] == false) {
-    toBuildPath = ''
-  } else if (targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`].length) {
-    toBuildPath = targetToBuild[`${isJob ? '' : tgtPrefix}${typeOfFile}`]
-  }
-
-  if (toBuildPath.length == 0) return { path: 'Not Provided', content: '' }
-
-  const toBuildContent = await readFile(
-    path.join(buildSourceFolder, toBuildPath)
-  )
-
-  return {
-    path: path.join(buildSourceFolder, toBuildPath),
-    content: toBuildContent
-  }
 }
 
 export async function getProjectRoot() {
@@ -408,10 +417,10 @@ export async function getProjectRoot() {
  * @param {object} target - the target to get an access token for.
  * @param {string} checkIfExpiring - flag that indicates whether to do an expiry check.
  */
-export async function getAccessToken(target, checkIfExpiring = true) {
+export async function getAccessToken(target: Target, checkIfExpiring = true) {
   let accessToken =
-    target && target.authInfo && target.authInfo.access_token
-      ? target.authInfo.access_token
+    target && target.authConfig && target.authConfig.access_token
+      ? target.authConfig.access_token
       : process.env.ACCESS_TOKEN
 
   if (!accessToken || accessToken.trim() === 'null') {
@@ -435,47 +444,47 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     })
 
     let client =
-      target.authInfo && target.authInfo.client
-        ? target.authInfo.client
+      target.authConfig && target.authConfig.client
+        ? target.authConfig.client
         : process.env.CLIENT
-    client = client && client.trim() === 'null' ? null : client
+    client = client && client.trim() === 'null' ? undefined : client
 
     if (!client) {
       throw new Error(
         `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authInfo in your global ~/.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
       )
     }
 
     let secret =
-      target.authInfo && target.authInfo.secret
-        ? target.authInfo.secret
+      target.authConfig && target.authConfig.secret
+        ? target.authConfig.secret
         : process.env.SECRET
-    secret = secret && secret.trim() === 'null' ? null : secret
+    secret = secret && secret.trim() === 'null' ? undefined : secret
 
     if (!secret) {
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authInfo in your global ~/.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
       )
     }
 
     let refreshToken =
-      target.authInfo && target.authInfo.refresh_token
-        ? target.authInfo.refresh_token
+      target.authConfig && target.authConfig.refresh_token
+        ? target.authConfig.refresh_token
         : process.env.REFRESH_TOKEN
     refreshToken =
-      refreshToken && refreshToken.trim() === 'null' ? null : refreshToken
+      refreshToken && refreshToken.trim() === 'null' ? undefined : refreshToken
 
-    let authInfo
+    let authConfig
 
     if (refreshToken) {
-      authInfo = await refreshTokens(sasjs, client, secret, refreshToken)
+      authConfig = await refreshTokens(sasjs, client, secret, refreshToken)
     } else {
-      authInfo = await getNewAccessToken(sasjs, client, secret, target)
+      authConfig = await getNewAccessToken(sasjs, client, secret, target)
     }
 
-    accessToken = authInfo.access_token
+    accessToken = authConfig.access_token
   }
 
   return accessToken

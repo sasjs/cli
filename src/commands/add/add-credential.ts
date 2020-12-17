@@ -24,11 +24,11 @@ export const addCredential = async (targetName: string): Promise<void> => {
   const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
   const logger = new Logger(logLevel)
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
+  let { target, isLocal } = await findTargetInConfiguration(targetName)
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl()
-    target.serverUrl = serverUrl
+    target = new Target({ ...target, serverUrl })
   }
 
   const { client, secret } = await getCredentialsInput(target.name)
@@ -51,7 +51,10 @@ export const addCredential = async (targetName: string): Promise<void> => {
     )
     await saveToLocalConfig(target)
   } else {
-    target.authInfo = { client, secret, access_token, refresh_token }
+    target = new Target({
+      ...target,
+      authInfo: { client, secret, access_token, refresh_token }
+    })
     await saveToGlobalConfig(target)
   }
 }

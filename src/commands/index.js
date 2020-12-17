@@ -12,7 +12,7 @@ export {
   getProgramDependencies,
   getDependencyPaths,
   prioritiseDependencyOverrides
-} from './build'
+} from './build/build'
 
 export { processContext } from './context'
 
