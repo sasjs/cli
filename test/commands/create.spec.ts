@@ -178,7 +178,7 @@ describe('sasjs create', () => {
       `should fail having unknown apptype 'xyz'`,
       async () => {
         const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-${timestamp}-xyz`
+        const parentFolderNameTimeStamped = `test-app-create-${timestamp}-xyz`
 
         process.projectDir = path.join(
           process.cwd(),
@@ -191,7 +191,7 @@ describe('sasjs create', () => {
           createFileStructure(
             `create ${parentFolderNameTimeStamped} --template xyz`
           )
-        ).resolves.toEqual('Template provided is not found')
+        ).resolves.toEqual('Template "xyz" is not sasjs template')
       },
       2 * 60 * 1000
     )
