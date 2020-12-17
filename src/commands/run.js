@@ -7,7 +7,7 @@ import {
   getAccessToken
 } from '../utils/config-utils'
 import { readFile, createFile } from '../utils/file'
-import { getVariable, generateTimestamp } from '../utils/utils'
+import { generateTimestamp } from '../utils/utils'
 import { Command } from '../utils/command'
 
 /**
@@ -51,7 +51,7 @@ async function executeOnSasViya(filePath, buildTarget, linesToExecute) {
     debug: true
   })
 
-  let contextName = await getVariable('contextName', buildTarget)
+  let contextName = buildTarget.contextName
 
   if (!contextName) {
     contextName = sasjs.getSasjsConfig().contextName

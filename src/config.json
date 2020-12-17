@@ -194,22 +194,27 @@
     }
   ],
   "config": {
-    "cmnBuildInit": "build/buildinit.sas",
-    "cmnBuildTerm": "build/buildterm.sas",
-    "cmnBuildVars": {
-      "name": "value",
-      "numvar": "42"
+    "buildConfig": {
+      "initProgram": "build/buildinit.sas",
+      "termProgram": "build/buildterm.sas",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
     },
-    "cmnDeployScript": "build/deployscript.sh",
-    "cmnMacros": ["macros"],
-    "cmnServices": ["services/common", "services/admin"],
-    "cmnServiceInit": "build/serviceinit.sas",
-    "cmnServiceTerm": "build/serviceterm.sas",
-    "cmnServiceVars": {
-      "name": "value",
-      "numvar": "42"
+    "deployConfig": {
+      "deployScripts": ["build/deployscript.sh"]
     },
-    "useMacroCore": true,
+    "serviceConfig": {
+      "serviceFolders": ["services/common", "services/admin"],
+      "initProgram": "build/serviceinit.sas",
+      "termProgram": "build/serviceterm.sas",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
+    },
+    "macroFolders": ["macros"],
     "programFolders": ["programs"],
     "targets": [
       {
@@ -217,30 +222,41 @@
         "serverType": "SASVIYA",
         "serverUrl": "http://sas.analytium.co.uk",
         "appLoc": "/Public/app",
-        "buildOutputFileName": "myviyadeploy.sas",
-        "deployServicePack": true,
-        "tgtBuildInit": "build/buildinitviya.sas",
-        "tgtBuildTerm": "targets/viya/viyabuildterm.sas",
-        "tgtBuildVars": {
-          "name": "viyavalue",
-          "extravar": "this too"
+        "contextName": "SAS Job Execution compute context",
+        "buildConfig": {
+          "buildOutputFileName": "myviyadeploy.sas",
+          "initProgram": "build/buildinitviya.sas",
+          "termProgram": "targets/viya/viyabuildterm.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
         },
-        "tgtDeployScripts": ["sasjsbuild/myviyadeploy.sas"],
-        "tgtDeployVars": {
-          "access_token": "AT0K3N",
-          "contextName": "Import 9 service compute context"
+        "deployConfig": {
+          "deployServicePack": true,
+          "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
         },
-        "tgtMacros": ["targets/viya/macros"],
-        "tgtServices": ["targets/viya/services/admin"],
-        "tgtServiceInit": "build/serviceinit.sas",
-        "tgtServiceVars": {
-          "name": "viyavalue",
-          "extravar": "this too"
+        "serviceConfig": {
+          "serviceFolders": ["targets/viya/services/admin"],
+          "initProgram": "build/serviceinit.sas",
+          "termProgram": "build/serviceinit.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
         },
-        "assetPaths": [],
-        "streamWeb": false,
-        "streamWebFolder": "webv",
-        "webSourcePath": "dist",
+        "jobConfig": {
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "webv",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["targets/viya/macros"],
         "programFolders": []
       },
       {
@@ -248,21 +264,31 @@
         "serverType": "SAS9",
         "serverUrl": "http://sas.analytium.co.uk:7980",
         "appLoc": "/User Folders/&sysuserid/My Folder",
-        "buildOutputFileName": "mysas9deploy.sas",
-        "tgtBuildInit": false,
-        "tgtDeployScripts": ["build/deploysas9.sh"],
-        "tgtDeployVars": {
-          "serverName": "SASApp",
-          "repositoryName": "Foundation"
+        "serverName": "Foundation",
+        "repositoryName": "SASApp",
+        "buildConfig": {
+          "buildOutputFileName": "mysas9deploy.sas",
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
         },
-        "tgtMacros": ["targets/sas9/macros"],
-        "tgtServices": ["targets/sas9/services/admin"],
-        "tgtServiceInit": "",
-        "tgtServiceTerm": "build/servicetermother.sas",
-        "assetPaths": [],
-        "streamWeb": false,
-        "streamWebFolder": "web9",
-        "webSourcePath": "dist",
+        "deployConfig": {
+          "deployScripts": ["build/deploysas9.sh"],
+          "deployServicePack": false
+        },
+        "serviceConfig": {
+          "serviceFolders": ["targets/sas9/services/admin"],
+          "initProgram": "",
+          "termProgram": "build/servicetermother.sas",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "web9",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["targets/sas9/macros"],
         "programFolders": []
       }
     ]

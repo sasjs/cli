@@ -5,7 +5,7 @@ import {
   getAccessToken,
   findTargetInConfiguration
 } from '../utils/config-utils'
-import { asyncForEach, executeShellScript, getVariable } from '../utils/utils'
+import { asyncForEach, executeShellScript } from '../utils/utils'
 import {
   isSasFile,
   isShellScript,
@@ -13,7 +13,6 @@ import {
   folderExists,
   createFile
 } from '../utils/file'
-import { isAccessTokenExpiring, refreshTokens } from '../utils/auth-utils'
 
 let targetToBuild = null
 let executionSession
@@ -187,7 +186,7 @@ async function deployToSasViya(
     )
   )
 
-  const contextName = await getVariable('contextName', buildTarget)
+  const contextName = buildTarget.contextName
 
   if (!contextName) {
     throw new Error(

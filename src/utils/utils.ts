@@ -1,42 +1,46 @@
 import shelljs from 'shelljs'
+import { Target } from '@sasjs/utils/types'
 import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'
 import { fileExists, createFile, readFile } from './file'
 
-async function inExistingProject(folderPath) {
+async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
     path.join(process.projectDir, folderPath, 'package.json')
   )
   return packageJsonExists
 }
 
-export function diff(x, y) {
+export function diff(x: any[], y: any[]) {
   return x.filter((a) => !y.includes(a))
 }
 
-export async function createReactApp(folderPath) {
+export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
     return resolve()
   })
 }
 
-export async function createAngularApp(folderPath) {
+export async function createAngularApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/angular-seed-app.git')
     return resolve()
   })
 }
 
-export async function createMinimalApp(folderPath) {
+export async function createMinimalApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/minimal-seed-app.git')
     return resolve()
   })
 }
 
-export async function createTemplateApp(folderPath, template) {
+export async function createTemplateApp(
+  folderPath: string,
+  template: string
+): Promise<void> {
   const {
     stdout
   } = shelljs.exec(
@@ -57,7 +61,11 @@ export async function createTemplateApp(folderPath, template) {
   })
 }
 
-function createApp(folderPath, repoUrl, installDependencies = true) {
+function createApp(
+  folderPath: string,
+  repoUrl: string,
+  installDependencies = true
+) {
   const spinner = ora(
     chalk.greenBright('Creating web app in', chalk.cyanBright(folderPath))
   )
@@ -76,7 +84,7 @@ function createApp(folderPath, repoUrl, installDependencies = true) {
   }
 }
 
-export async function setupNpmProject(folderPath) {
+export async function setupNpmProject(folderPath: string): Promise<void> {
   folderPath = path.join(process.projectDir, folderPath)
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
@@ -101,7 +109,7 @@ export async function setupNpmProject(folderPath) {
   })
 }
 
-export async function setupGitIgnore(folderPath) {
+export async function setupGitIgnore(folderPath: string): Promise<void> {
   const gitIgnoreFilePath = path.join(
     process.projectDir,
     folderPath,
@@ -121,7 +129,10 @@ export async function setupGitIgnore(folderPath) {
   }
 }
 
-export async function asyncForEach(array, callback) {
+export async function asyncForEach(
+  array: any[],
+  callback: (item: any, index: number, originalArray: any[]) => any
+) {
   for (let index = 0; index < array.length; index++) {
     await callback(array[index], index, array)
   }
@@ -132,7 +143,7 @@ export async function asyncForEach(array, callback) {
  * Preserves single line block comments and inline comments.
  * @param {string} text - the text to remove comments from.
  */
-export function removeComments(text) {
+export function removeComments(text: string) {
   if (!text) return ''
 
   const lines = text
@@ -140,7 +151,7 @@ export function removeComments(text) {
     .split('\n')
     .map((l) => l.trimEnd())
 
-  const linesWithoutComment = []
+  const linesWithoutComment: string[] = []
   let inCommentBlock = false
   lines.forEach((line) => {
     if (line.includes('/*') && line.includes('*/')) {
@@ -160,18 +171,21 @@ export function removeComments(text) {
   return linesWithoutComment.filter((l) => !!l.trim()).join('\n')
 }
 
-export function getUniqServicesObj(services) {
-  let returnObj = {}
+export function getUniqServicesObj(services: string[]) {
+  let returnObj: any = {}
   if (!services) return returnObj
   services.forEach((service) => {
     const serviceName = service.split('/').pop()
-    if (returnObj[serviceName]) return
-    returnObj[serviceName] = service
+    if (returnObj[serviceName!]) return
+    returnObj[serviceName!] = service
   })
   return returnObj
 }
 
-export async function executeShellScript(filePath, logFilePath) {
+export async function executeShellScript(
+  filePath: string,
+  logFilePath: string
+) {
   return new Promise(async (resolve, reject) => {
     // fix for cli test executions
     // using cli, process.cwd() and process.projectDir should be same
@@ -196,40 +210,20 @@ export async function executeShellScript(filePath, logFilePath) {
   })
 }
 
-export function chunk(text, maxLength = 220) {
+export function chunk(text: string, maxLength = 220) {
   if (text.length <= maxLength) {
     return [text]
   }
-  return `${text}`
-    .match(new RegExp('.{1,' + maxLength + '}', 'g'))
-    .filter((m) => !!m)
-}
-
-export async function getVariable(name, target) {
-  let value = process.env[name]
-
-  if (value) {
-    return value
-  }
-
-  value = target && target.tgtDeployVars ? target.tgtDeployVars[name] : null
-  if (value) {
-    return value
-  }
-
-  value = target && target.tgtBuildVars ? target.tgtBuildVars[name] : null
-  if (value) {
-    return value
-  }
-
-  return null
+  return (text.match(new RegExp('.{1,' + maxLength + '}', 'g')) || []).filter(
+    (m) => !!m
+  )
 }
 
 /**
  * Extracts plain text job log from fetched json log
  * @param {object} logJson
  */
-export function parseLogLines(logJson) {
+export function parseLogLines(logJson: { items: { line: string }[] }) {
   let logLines = ''
 
   for (let item of logJson.items) {
@@ -242,7 +236,7 @@ export function parseLogLines(logJson) {
 /**
  * Returns a timestamp in YYYYMMDDSS format
  */
-export function generateTimestamp() {
+export function generateTimestamp(): string {
   const date = new Date()
   const timestamp = `${date.getUTCFullYear()}${
     date.getUTCMonth() + 1
@@ -251,10 +245,10 @@ export function generateTimestamp() {
   return timestamp
 }
 
-export const arrToObj = (arr) =>
+export const arrToObj = (arr: any[]): any =>
   arr.reduce((o, key) => ({ ...o, [key]: key }), {})
 
-export const millisecondsToDdHhMmSs = (milliseconds) => {
+export const millisecondsToDdHhMmSs = (milliseconds: number): string => {
   if (typeof milliseconds !== 'number') throw 'Not supported attribute type.'
 
   milliseconds = Math.abs(milliseconds)

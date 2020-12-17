@@ -16,7 +16,7 @@ export {
 
 export { processContext } from './context'
 
-export { create } from './create'
+export { create } from './create/create'
 
 export { buildDB } from './db'
 

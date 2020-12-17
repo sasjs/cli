@@ -1,4 +1,4 @@
-import { create } from '../create'
+import { create } from '../create/create'
 import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import { createFile } from '../../utils/file'
@@ -6,10 +6,15 @@ import { getConfiguration } from '../../utils/config-utils'
 
 export async function getLocalConfig() {
   const buildSourceFolder = require('../../constants').get().buildSourceFolder
-  const config = await getConfiguration(
+  let config = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')
   )
   if (!config) await create('.', 'sasonly')
+
+  config = await getConfiguration(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
   return config
 }
 

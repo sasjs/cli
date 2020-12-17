@@ -9,7 +9,7 @@ import { Logger, LogLevel } from '@sasjs/utils/logger'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
-import { TargetScope } from '../../types/TargetScope'
+import { TargetScope } from '../../types/targetScope'
 import {
   findTargetInConfiguration,
   getGlobalRcFile

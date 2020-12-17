@@ -82,12 +82,7 @@ export async function execute(
       )
     }
 
-    const defaultContextName = 'SAS Job Execution compute context'
-    const contextName = target.tgtDeployVars
-      ? target.tgtDeployVars.contextName
-        ? target.tgtDeployVars.contextName
-        : defaultContextName
-      : defaultContextName
+    const contextName = target.contextName
 
     displayResult(
       null,

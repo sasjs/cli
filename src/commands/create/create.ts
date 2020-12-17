@@ -8,17 +8,18 @@ import {
   createAngularApp,
   createMinimalApp,
   createTemplateApp
-} from '../utils/utils'
-import { getFolders, getConfiguration } from '../utils/config-utils'
+} from '../../utils/utils'
+import { getFolders, getConfiguration } from '../../utils/config-utils'
 import {
   createFolderStructure,
   createFolder,
   createFile,
   fileExists
-} from '../utils/file'
+} from '../../utils/file'
 import chalk from 'chalk'
+import { Folder } from '../../types'
 
-export async function create(parentFolderName, appType) {
+export async function create(parentFolderName: string, appType: string) {
   const configPath = '../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
   const fileStructure = await getFolders()
@@ -39,7 +40,7 @@ export async function create(parentFolderName, appType) {
       appType
     )
   } else {
-    await asyncForEach(fileStructure, async (folder, index) => {
+    await asyncForEach(fileStructure, async (folder: Folder, index: number) => {
       const pathExists = await fileExists(
         path.join(process.projectDir, parentFolderName, folder.folderName)
       )

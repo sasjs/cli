@@ -4,7 +4,7 @@ import {
   findTargetInConfiguration,
   saveToGlobalConfig
 } from '../../utils/config-utils'
-import { TargetScope } from '../../types/TargetScope'
+import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,
   getAndValidateSasViyaFields,
@@ -29,11 +29,11 @@ export async function addTarget(): Promise<boolean> {
   logger.info(`Target configuration has been saved to ${filePath}.`)
 
   if (serverType === ServerType.Sas9) {
-    const sas9FieldValues = await getAndValidateSas9Fields()
+    const { serverName, repositoryName } = await getAndValidateSas9Fields()
     target = {
       ...target,
-      tgtBuildVars: sas9FieldValues,
-      tgtDeployVars: sas9FieldValues
+      serverName,
+      repositoryName
     }
   } else {
     const { contextName } = await getAndValidateSasViyaFields(
@@ -46,10 +46,11 @@ export async function addTarget(): Promise<boolean> {
 
     target = {
       ...target,
-      tgtBuildVars: { contextName },
-      tgtDeployVars: { contextName },
-      deployServicePack: true,
-      tgtDeployScripts: []
+      contextName,
+      deployConfig: {
+        deployServicePack: true,
+        deployScripts: []
+      }
     }
 
     const { target: currentTarget } = await findTargetInConfiguration(name)

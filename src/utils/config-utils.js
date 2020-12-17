@@ -5,7 +5,6 @@ import {
   getNewAccessToken,
   refreshTokens
 } from './auth-utils'
-import { getVariable } from './utils'
 import path from 'path'
 import chalk from 'chalk'
 import dotenv from 'dotenv'
@@ -438,9 +437,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     let client =
       target.authInfo && target.authInfo.client
         ? target.authInfo.client
-        : await getVariable('client', target)
-
-    client = client || process.env.CLIENT
+        : process.env.CLIENT
     client = client && client.trim() === 'null' ? null : client
 
     if (!client) {
@@ -453,9 +450,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     let secret =
       target.authInfo && target.authInfo.secret
         ? target.authInfo.secret
-        : await getVariable('secret', target)
-
-    secret = secret || process.env.SECRET
+        : process.env.SECRET
     secret = secret && secret.trim() === 'null' ? null : secret
 
     if (!secret) {
@@ -468,9 +463,7 @@ export async function getAccessToken(target, checkIfExpiring = true) {
     let refreshToken =
       target.authInfo && target.authInfo.refresh_token
         ? target.authInfo.refresh_token
-        : await getVariable('refresh_token', target)
-
-    refreshToken = refreshToken || process.env.REFRESH_TOKEN
+        : process.env.REFRESH_TOKEN
     refreshToken =
       refreshToken && refreshToken.trim() === 'null' ? null : refreshToken
 
