@@ -4,7 +4,7 @@ import { getConstants } from '../../constants'
 import { getConfiguration } from '../../utils/config-utils'
 import { readFile } from '../../utils/file'
 
-export async function getBuildInit(target: Target) {
+export const getBuildInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let buildInitContent = ''
   if (target && target.buildConfig && target.buildConfig.initProgram) {
@@ -31,7 +31,7 @@ export async function getBuildInit(target: Target) {
     : ''
 }
 
-export async function getBuildTerm(target: Target) {
+export const getBuildTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let buildTermContent = ''
   if (target && target.buildConfig && target.buildConfig.termProgram) {
@@ -58,7 +58,7 @@ export async function getBuildTerm(target: Target) {
     : ''
 }
 
-export async function getServiceInit(target: Target) {
+export const getServiceInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let serviceInitContent = ''
   if (target && target.serviceConfig && target.serviceConfig.initProgram) {
@@ -85,7 +85,7 @@ export async function getServiceInit(target: Target) {
     : ''
 }
 
-export async function getServiceTerm(target: Target) {
+export const getServiceTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let serviceTermContent = ''
   if (target && target.serviceConfig && target.serviceConfig.termProgram) {
@@ -112,7 +112,7 @@ export async function getServiceTerm(target: Target) {
     : ''
 }
 
-export async function getJobInit(target: Target) {
+export const getJobInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let jobInitContent = ''
   if (target && target.jobConfig && target.jobConfig.initProgram) {
@@ -139,7 +139,7 @@ export async function getJobInit(target: Target) {
     : ''
 }
 
-export async function getJobTerm(target: Target) {
+export const getJobTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let jobTermContent = ''
   if (target && target.jobConfig && target.jobConfig.termProgram) {
