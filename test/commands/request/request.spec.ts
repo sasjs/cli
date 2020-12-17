@@ -7,44 +7,45 @@ import { createFolder, deleteFolder, createFile } from '../../../src/utils/file'
 import { folder } from '../../../src/commands/folder/index'
 import { ServerType, Target } from '@sasjs/utils/types'
 
+let config: Target
+const dataPathRel = 'data.json'
+const configPathRel = 'sasjsconfig-temp.json'
+
+const sampleDataJson = {
+  table1: [
+    { col1: 'first col value1', col2: 'second col value1' },
+    { col1: 'first col value2', col2: 'second col value2' }
+  ],
+  table2: [{ col1: 'first col value' }]
+}
+const expectedDataArr = {
+  table1: [
+    ['first col value1', 'second col value1'],
+    ['first col value2', 'second col value2']
+  ],
+  table2: [['first col value']]
+}
+const expectedDataObj = {
+  table1: [
+    {
+      COL1: 'first col value1',
+      COL2: 'second col value1'
+    },
+    {
+      COL1: 'first col value2',
+      COL2: 'second col value2'
+    }
+  ],
+  table2: [
+    {
+      COL1: 'first col value'
+    }
+  ]
+}
+
 describe('sasjs request', () => {
-  let config: Target
   const timestampAppLoc = generateTimestamp()
   const targetName = `cli-tests-request-${timestampAppLoc}`
-  const dataPathRel = 'data.json'
-  const configPathRel = 'sasjsconfig-temp.json'
-
-  const sampleDataJson = {
-    table1: [
-      { col1: 'first col value1', col2: 'second col value1' },
-      { col1: 'first col value2', col2: 'second col value2' }
-    ],
-    table2: [{ col1: 'first col value' }]
-  }
-  const expectedDataArr = {
-    table1: [
-      ['first col value1', 'second col value1'],
-      ['first col value2', 'second col value2']
-    ],
-    table2: [['first col value']]
-  }
-  const expectedDataObj = {
-    table1: [
-      {
-        COL1: 'first col value1',
-        COL2: 'second col value1'
-      },
-      {
-        COL1: 'first col value2',
-        COL2: 'second col value2'
-      }
-    ],
-    table2: [
-      {
-        COL1: 'first col value'
-      }
-    ]
-  }
 
   beforeAll(async (done) => {
     dotenv.config()
@@ -64,31 +65,14 @@ describe('sasjs request', () => {
     await deleteFolder(cbdFolderPath)
 
     done()
-  }, 60 * 1000)
-
-  beforeEach(async (done) => {
-    const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `test-app-request-${timestamp}`
-
-    process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-
-    await createFolder(process.projectDir)
-    await createFile(
-      path.join(process.projectDir, configPathRel),
-      JSON.stringify(config, null, 2)
-    )
-    await createFile(
-      path.join(process.projectDir, dataPathRel),
-      JSON.stringify(sampleDataJson, null, 2)
-    )
-    done()
-  }, 60 * 1000)
+  }, 120 * 1000)
 
   describe(`with default config`, () => {
     describe(`having absolute path`, () => {
       it(
         `should execute service 'sendArr'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request /Public/app/cli-tests/${targetName}/runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
@@ -100,12 +84,13 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataArr.table1)
           expect(output.table2).toEqual(expectedDataArr.table2)
         },
-        60 * 1000
+        120 * 1000
       )
 
       it(
         `should execute service 'sendObj'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request /Public/app/cli-tests/${targetName}/runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
@@ -117,7 +102,7 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataObj.table1)
           expect(output.table2).toEqual(expectedDataObj.table2)
         },
-        60 * 1000
+        120 * 1000
       )
     })
 
@@ -125,6 +110,7 @@ describe('sasjs request', () => {
       it(
         `should execute service 'sendArr'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request runRequest/sendArr -d ${dataPathRel} -t ${targetName}`
@@ -137,12 +123,13 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataArr.table1)
           expect(output.table2).toEqual(expectedDataArr.table2)
         },
-        60 * 1000
+        120 * 1000
       )
 
       it(
         `should execute service sendObj`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request runRequest/sendObj -d ${dataPathRel} -t ${targetName}`
@@ -155,7 +142,7 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataObj.table1)
           expect(output.table2).toEqual(expectedDataObj.table2)
         },
-        60 * 1000
+        120 * 1000
       )
     })
   })
@@ -165,6 +152,7 @@ describe('sasjs request', () => {
       it(
         `should execute service 'sendArr'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request /Public/app/cli-tests/${targetName}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
@@ -177,12 +165,13 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataArr.table1)
           expect(output.table2).toEqual(expectedDataArr.table2)
         },
-        60 * 1000
+        120 * 1000
       )
 
       it(
         `should execute service 'sendObj'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request /Public/app/cli-tests/${targetName}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
@@ -195,7 +184,7 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataObj.table1)
           expect(output.table2).toEqual(expectedDataObj.table2)
         },
-        60 * 1000
+        120 * 1000
       )
     })
 
@@ -203,6 +192,7 @@ describe('sasjs request', () => {
       it(
         `should execute service 'sendArr'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
@@ -215,12 +205,13 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataArr.table1)
           expect(output.table2).toEqual(expectedDataArr.table2)
         },
-        60 * 1000
+        120 * 1000
       )
 
       it(
         `should execute service 'sendObj'`,
         async () => {
+          await setupParentFolderForTest()
           await expect(
             runRequest(
               `request runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${targetName}`
@@ -233,7 +224,7 @@ describe('sasjs request', () => {
           expect(output.table1).toEqual(expectedDataObj.table1)
           expect(output.table2).toEqual(expectedDataObj.table2)
         },
-        60 * 1000
+        120 * 1000
       )
     })
   })
@@ -244,7 +235,7 @@ describe('sasjs request', () => {
 
     await removeFromGlobalConfigs(targetName)
     done()
-  }, 60 * 1000)
+  }, 120 * 1000)
 })
 
 const createConfig = (targetName: string): Target => {
@@ -273,4 +264,21 @@ const createConfig = (targetName: string): Target => {
     deployServicePack: true,
     tgtDeployScripts: []
   }
+}
+
+async function setupParentFolderForTest() {
+  const timestamp = generateTimestamp()
+  const parentFolderNameTimeStamped = `test-app-request-${timestamp}`
+
+  process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+
+  await createFolder(process.projectDir)
+  await createFile(
+    path.join(process.projectDir, configPathRel),
+    JSON.stringify(config, null, 2)
+  )
+  await createFile(
+    path.join(process.projectDir, dataPathRel),
+    JSON.stringify(sampleDataJson, null, 2)
+  )
 }
