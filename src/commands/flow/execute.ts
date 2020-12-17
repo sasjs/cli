@@ -113,6 +113,12 @@ export async function execute(
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
+          displayResult(
+            null,
+            null,
+            `'${job.location}' has been submitted for execution.`
+          )
+
           let submittedJob: any = await sasjs
             .startComputeJob(
               jobLocation,
@@ -460,6 +466,12 @@ export async function execute(
 
         flows[successor].jobs.forEach((job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
+
+          displayResult(
+            null,
+            null,
+            `'${job.location}' has been submitted for execution.`
+          )
 
           sasjs
             .startComputeJob(
