@@ -39,41 +39,45 @@ describe('addTarget', () => {
     const sasjsDirPath = path.join(process.projectDir, 'sasjs')
     await deleteFolder(sasjsDirPath)
   }, 60 * 1000)
-  it('should create a target in the local sasjsconfig.json file', async (done) => {
-    const commonFields = {
-      scope: TargetScope.Local,
-      serverType: ServerType.SasViya,
-      name: targetName,
-      appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string
-    }
-    jest
-      .spyOn(inputModule, 'getCommonFields')
-      .mockImplementation(() => Promise.resolve(commonFields))
-    jest
-      .spyOn(inputModule, 'getAndValidateSasViyaFields')
-      .mockImplementation(() =>
-        Promise.resolve({ contextName: 'Test Context' })
+  it(
+    'should create a target in the local sasjsconfig.json file',
+    async (done) => {
+      const commonFields = {
+        scope: TargetScope.Local,
+        serverType: ServerType.SasViya,
+        name: targetName,
+        appLoc: '/Public/app',
+        serverUrl: process.env.SERVER_URL as string
+      }
+      jest
+        .spyOn(inputModule, 'getCommonFields')
+        .mockImplementation(() => Promise.resolve(commonFields))
+      jest
+        .spyOn(inputModule, 'getAndValidateSasViyaFields')
+        .mockImplementation(() =>
+          Promise.resolve({ contextName: 'Test Context' })
+        )
+
+      await expect(addTarget()).resolves.toEqual(true)
+
+      const buildSourceFolder = require('../../src/constants').get()
+        .buildSourceFolder
+      const config = await getConfiguration(
+        path.join(buildSourceFolder, 'sasjsconfig.json')
       )
-
-    await expect(addTarget()).resolves.toEqual(true)
-
-    const buildSourceFolder = require('../../src/constants').get()
-      .buildSourceFolder
-    const config = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
-    )
-    expect(config).toBeTruthy()
-    expect(config.targets).toBeTruthy()
-    const target: Target = config.targets.find(
-      (t: Target) => t.name === targetName
-    )
-    expect(target.name).toEqual(targetName)
-    expect(target.serverType).toEqual(ServerType.SasViya)
-    expect(target.appLoc).toEqual('/Public/app')
-    expect(target.serverUrl).toEqual(process.env.SERVER_URL)
-    done()
-  })
+      expect(config).toBeTruthy()
+      expect(config.targets).toBeTruthy()
+      const target: Target = config.targets.find(
+        (t: Target) => t.name === targetName
+      )
+      expect(target.name).toEqual(targetName)
+      expect(target.serverType).toEqual(ServerType.SasViya)
+      expect(target.appLoc).toEqual('/Public/app')
+      expect(target.serverUrl).toEqual(process.env.SERVER_URL)
+      done()
+    },
+    10 * 1000
+  )
 
   it('should create a target in the global .sasjsrc file', async (done) => {
     const commonFields = {
