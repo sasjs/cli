@@ -45,9 +45,7 @@ export async function findTargetInConfiguration(
   ).catch(() => null)
 
   if (localConfig && localConfig.targets) {
-    const targetJson = localConfig.targets.find(
-      (t: Target) => t.name === targetName
-    )
+    const targetJson = localConfig.targets.find((t) => t.name === targetName)
     if (targetJson) {
       return { target: new Target(targetJson), isLocal: true }
     }
@@ -68,7 +66,7 @@ export async function findTargetInConfiguration(
 
   if (localConfig && localConfig.targets) {
     fallBackTargetJson = viyaSpecific
-      ? localConfig.targets.find((t: Target) => t.serverType === 'SASVIYA')
+      ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
       : localConfig.targets[0]
   }
 
@@ -225,22 +223,23 @@ export async function getLocalConfig() {
 
 export async function saveToLocalConfig(target: Target) {
   const { buildSourceFolder } = getConstants()
+  const targetJson = target.toJson()
   let config = await getLocalConfig()
   if (config) {
     if (config.targets && config.targets.length) {
       const existingTargetIndex = config.targets.findIndex(
-        (t: Target) => t.name === target.name
+        (t) => t.name === target.name
       )
       if (existingTargetIndex > -1) {
-        config.targets[existingTargetIndex] = target
+        config.targets[existingTargetIndex] = targetJson
       } else {
-        config.targets.push(target)
+        config.targets.push(targetJson)
       }
     } else {
-      config.targets = [target]
+      config.targets = [targetJson]
     }
   } else {
-    config = { targets: [target] }
+    config = { targets: [targetJson] }
   }
 
   const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
@@ -310,7 +309,7 @@ export async function getBuildTarget(targetName: string) {
 
   let target = null
 
-  if (targetName) target = targets.find((t: Target) => t.name === targetName)
+  if (targetName) target = targets.find((t) => t.name === targetName)
 
   if (!target) {
     target = targets[0]

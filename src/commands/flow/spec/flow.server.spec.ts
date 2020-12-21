@@ -9,7 +9,7 @@ import {
   deleteFile
 } from '../../../utils/file'
 import { processFlow } from '..'
-import { folder } from '../../../commands/folder'
+import { folder } from '../../folder'
 import {
   createTestApp,
   createTestGlobalTarget,

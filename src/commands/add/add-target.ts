@@ -18,20 +18,20 @@ export async function addTarget(): Promise<boolean> {
   const logger = new Logger(logLevel)
   const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()
 
-  let target: Partial<Target> | Target = {
+  let targetJson: any = {
     name,
     serverType: serverType,
     serverUrl,
     appLoc
   }
 
-  let filePath = await saveConfig(scope, target as Target)
+  let filePath = await saveConfig(scope, new Target(targetJson))
   logger.info(`Target configuration has been saved to ${filePath}.`)
 
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName } = await getAndValidateSas9Fields()
-    target = {
-      ...target,
+    targetJson = {
+      ...targetJson,
       serverName,
       repositoryName
     }
@@ -44,8 +44,8 @@ export async function addTarget(): Promise<boolean> {
       logger
     )
 
-    target = {
-      ...target,
+    targetJson = {
+      ...targetJson,
       contextName,
       deployConfig: {
         deployServicePack: true,
@@ -54,10 +54,10 @@ export async function addTarget(): Promise<boolean> {
     }
 
     const { target: currentTarget } = await findTargetInConfiguration(name)
-    target = { ...currentTarget, ...target }
+    targetJson = { ...currentTarget.toJson(), ...targetJson }
   }
 
-  filePath = await saveConfig(scope, target as Target)
+  filePath = await saveConfig(scope, new Target(targetJson))
   logger.info(`Target configuration has been saved to ${filePath}.`)
   return true
 }

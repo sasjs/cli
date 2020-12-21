@@ -11,7 +11,6 @@ import * as authUtils from '../../../utils/auth-utils'
 import * as fileUtils from '../../../utils/file'
 import * as configUtils from '../../../utils/config-utils'
 import * as inputModule from '../internal/input'
-import * as configModule from '../internal/config'
 import { getDefaultValues } from '../internal/input'
 
 describe('addCredential', () => {
@@ -21,7 +20,7 @@ describe('addCredential', () => {
     await addCredential('test-target')
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
-    expect(configModule.saveToLocalConfig).toHaveBeenCalledWith(
+    expect(configUtils.saveToLocalConfig).toHaveBeenCalledWith(
       new Target({
         name: 'test-target',
         serverUrl: 'http://server.com',
@@ -210,7 +209,7 @@ const setupMocks = () => {
       Promise.resolve({ access_token: 'access', refresh_token: 'refresh' })
     )
   jest
-    .spyOn(configModule, 'saveToLocalConfig')
+    .spyOn(configUtils, 'saveToLocalConfig')
     .mockImplementation(() => Promise.resolve('.'))
   jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
     Promise.resolve({
