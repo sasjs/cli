@@ -21,7 +21,7 @@ import { displayResult } from './utils/displayResult'
 import { Command } from './utils/command'
 import { compile } from './commands/compile/compile'
 
-export async function createFileStructure(commandLine) {
+export async function createFileStructure(commandLine: string | string[]) {
   const command = new Command(commandLine)
   const template = command.getFlagValue('template')
   const parentFolderName = command.values.shift()
@@ -57,7 +57,7 @@ export async function showVersion() {
   await printVersion()
 }
 
-export async function buildServices(commandLine) {
+export async function buildServices(commandLine: string | string[]) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
 
@@ -86,7 +86,7 @@ export async function buildServices(commandLine) {
   return result
 }
 
-export async function compileServices(commandLine) {
+export async function compileServices(commandLine: string | string[]) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
 
@@ -113,7 +113,7 @@ export async function compileServices(commandLine) {
   return result
 }
 
-export async function deployServices(commandLine) {
+export async function deployServices(commandLine: string | string[]) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
 
@@ -134,7 +134,7 @@ export async function deployServices(commandLine) {
     })
 }
 
-export async function compileBuildServices(commandLine) {
+export async function compileBuildServices(commandLine: string | string[]) {
   const command = new Command(commandLine)
   let targetName = command.getFlagValue('target')
 
@@ -143,7 +143,8 @@ export async function compileBuildServices(commandLine) {
   }
 
   let result
-  await build(targetName, null, true) // enforcing compile & build
+  await compileServices(commandLine)
+  await build(targetName)
     .then(() => {
       result = true
       displayResult(
@@ -174,9 +175,10 @@ export async function compileBuildServices(commandLine) {
   return result
 }
 
-export async function compileBuildDeployServices(commandLine) {
+export async function compileBuildDeployServices(
+  commandLine: string | string[]
+) {
   const command = new Command(commandLine)
-  const isForced = command.getFlagValue('force')
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -185,7 +187,8 @@ export async function compileBuildDeployServices(commandLine) {
 
   let result
 
-  await build(targetName, null, null, true, isForced) // enforcing compile & build & deploy
+  await build(targetName) // enforcing compile & build & deploy
+  await deployServices(commandLine)
     .then(() => {
       result = true
 
@@ -226,7 +229,7 @@ export async function buildDBs() {
   return result
 }
 
-export async function buildWebApp(commandLine) {
+export async function buildWebApp(commandLine: string | string[]) {
   await createWebAppServices(commandLine)
     .then(() =>
       displayResult(
@@ -245,7 +248,7 @@ export async function buildWebApp(commandLine) {
     })
 }
 
-export async function add(commandLine) {
+export async function add(commandLine: string | string[]) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target')
@@ -287,14 +290,14 @@ export async function add(commandLine) {
   return result
 }
 
-export async function run(commandLine) {
+export async function run(commandLine: string | string[]) {
   await runSasCode(commandLine).catch((err) => {
     displayResult(err, 'An error has occurred when running your SAS code.')
   })
 }
 
-export async function runRequest(commandLine) {
-  let result = false
+export async function runRequest(commandLine: string | string[]) {
+  let result: any = false
 
   await runSasJob(commandLine)
     .then((res) => (result = res))
@@ -307,29 +310,29 @@ export async function runRequest(commandLine) {
   return result
 }
 
-export async function context(command) {
-  if (!command)
+export async function context(commandLine: string | string[]) {
+  if (!commandLine)
     displayResult(null, `Please provide action for the 'context' command.`)
 
-  await processContext(command).catch((err) =>
+  await processContext(commandLine).catch((err) =>
     displayResult(err, 'An error has occurred when processing context.')
   )
 }
 
-export async function servicepack(command) {
-  if (!command)
+export async function servicepack(commandLine: string | string[]) {
+  if (!commandLine)
     displayResult(null, `Please provide action for the 'servicepack' command.`)
 
-  await processServicepack(command).catch((err) =>
+  await processServicepack(commandLine).catch((err) =>
     displayResult(err, 'An error has occurred when processing servicepack.')
   )
 }
 
-export async function folderManagement(command) {
-  if (!command)
+export async function folderManagement(commandLine: string | string[]) {
+  if (!commandLine)
     displayResult(null, `Please provide action for the 'folder' command.`)
 
-  await folder(command).catch((err) => {
+  await folder(commandLine).catch((err) => {
     displayResult(
       err,
       'An error has occurred when processing folder operation.'
@@ -337,22 +340,22 @@ export async function folderManagement(command) {
   })
 }
 
-export async function jobManagement(command) {
-  if (!command)
+export async function jobManagement(commandLine: string | string[]) {
+  if (!commandLine)
     displayResult(null, `Please provide action for the 'job' command.`)
 
-  await processJob(command).catch((err) => {
+  await processJob(commandLine).catch((err) => {
     displayResult(err, 'An error has occurred when processing job operation.')
   })
 }
 
-export async function flowManagement(command) {
-  if (!command)
+export async function flowManagement(commandLine: string | string[]) {
+  if (!commandLine)
     console.log(
       chalk.redBright(`Please provide action for the 'flow' command.`)
     )
 
-  await processFlow(command).catch((err) => {
+  await processFlow(commandLine).catch((err) => {
     console.log(
       chalk.redBright(
         'An error has occurred when processing flow operation.',

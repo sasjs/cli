@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import path from 'path'
 import {
   getProgramFolders,
@@ -81,7 +80,6 @@ async function copyFilesToBuildFolder(target: Target, logger: Logger) {
   })
 
   await asyncForEach(jobPaths, async (jobPath) => {
-    console.log('JobPath: ', jobPath)
     const sourcePath = path.join(buildSourceFolder, jobPath)
     const jobFolder = jobPath.split('/').pop() as string
     const destinationPath = path.join(buildDestinationJobsFolder, jobFolder)
@@ -172,7 +170,7 @@ async function getPreCodeForServicePack(serverType: ServerType) {
         '%mend;\n'
       break
 
-    case 'SAS9':
+    case ServerType.Sas9:
       content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)
       content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
       content += await readFile(`${macroCorePath}/meta/mm_webout.sas`)
@@ -184,9 +182,7 @@ async function getPreCodeForServicePack(serverType: ServerType) {
 
     default:
       throw new Error(
-        `Invalid server type: valid options are ${chalk.cyanBright(
-          'SASVIYA'
-        )} and ${chalk.cyanBright('SAS9')}`
+        `Invalid server type: valid options are 'SASVIYA' and 'SAS9'.`
       )
   }
   content +=
@@ -216,10 +212,8 @@ export async function loadDependencies(
     const today = new Date()
 
     if (today < deprecationDate) {
-      console.log(
-        chalk.yellowBright(
-          `WARNING: use <h4> SAS Macros </h4> syntax to specify dependencies. Specifying dependencies with a <h4> Dependencies </h4> syntax will not be supported starting from November 1, 2021.`
-        )
+      logger.warn(
+        `Please use <h4> SAS Macros </h4> syntax to specify dependencies. Specifying dependencies with a <h4> Dependencies </h4> syntax will not be supported starting from November 1, 2021.`
       )
     } else {
       throw 'Using <h4> Dependencies </h4> syntax is deprecated. Please use <h4> SAS Macros </h4> instead.'

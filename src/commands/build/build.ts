@@ -21,29 +21,10 @@ import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getDependencyPaths } from '../shared/dependencies'
 
-export async function build(
-  targetName: string,
-  compileOnly = false,
-  compileBuildOnly = false,
-  compileBuildDeployOnly = false
-) {
+export async function build(targetName: string) {
   const { target } = await findTargetInConfiguration(targetName)
 
-  console.log(chalk.white(`Target appLoc: ${target.appLoc}`))
-
-  if (compileBuildDeployOnly) {
-    await compile(targetName)
-    await createFinalSasFiles(target)
-    return await deploy(targetName)
-  }
-
-  if (compileBuildOnly) {
-    await compile(targetName)
-    return await createFinalSasFiles(target)
-  }
-  if (compileOnly) return await compile(targetName)
-
-  const result = await validCompiled(target)
+  const result = await checkCompileStatus(target)
 
   if (result.compiled) {
     // no need to compile again
@@ -332,7 +313,7 @@ const convertVarsToSasFormat = (vars: { [key: string]: string }): string => {
   return varsContent
 }
 
-async function validCompiled(target: Target) {
+async function checkCompileStatus(target: Target) {
   const {
     buildSourceFolder,
     buildDestinationFolder,
