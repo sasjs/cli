@@ -4,9 +4,9 @@ import {
   createFileStructure,
   buildServices,
   compileServices
-} from '../../src/main'
-import { createFolder, deleteFolder } from '../../src/utils/file'
-import { generateTimestamp } from '../../src/utils/utils'
+} from '../../../main'
+import { createFolder, deleteFolder } from '../../../utils/file'
+import { generateTimestamp } from '../../../utils/utils'
 
 describe('sasjs build', () => {
   beforeAll(() => {

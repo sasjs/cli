@@ -1,11 +1,11 @@
 import path from 'path'
-import { readFile } from '../../../src/utils/file'
+import { readFile } from '../../../utils/file'
 import {
   getProgramDependencies,
   getProgramList,
   validateFileRef,
   validateProgramsList
-} from '../../../src/commands/build'
+} from '../../shared/dependencies'
 
 process.projectDir = path.join(process.cwd())
 

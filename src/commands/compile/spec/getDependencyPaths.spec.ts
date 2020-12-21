@@ -1,9 +1,9 @@
 import path from 'path'
-import { readFile } from '../../../src/utils/file'
+import { readFile } from '../../../utils/file'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides
-} from '../../../src/commands/build'
+} from '../../shared/dependencies'
 
 process.projectDir = path.join(process.cwd())
 describe('getDependencyPaths', () => {

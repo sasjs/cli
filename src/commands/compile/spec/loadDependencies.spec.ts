@@ -1,5 +1,7 @@
 import path from 'path'
-import * as compileModule from '../../../src/commands/build'
+import { Target, ServerType } from '@sasjs/utils/types'
+import * as internalModule from '../internal/config'
+import * as compileModule from '../compile'
 
 const fakeServiceInit = `/**
   @file serviceinit.sas
@@ -59,17 +61,25 @@ const fakeServiceTerm2 = `/**
 
 %put service is finishing.  Thanks, SASjs!;`
 
+const target = new Target({
+  name: 'load-dependencies-test',
+  serverType: ServerType.SasViya,
+  serverUrl: '',
+  appLoc: '/test'
+})
+
 process.projectDir = path.join(process.cwd())
 describe('loadDependencies', () => {
   test('it should load dependencies for a service with <h4> Dependencies </h4>', async (done) => {
-    spyOn(compileModule, 'getServiceInit').and.returnValue(
+    spyOn(internalModule, 'getServiceInit').and.returnValue(
       `\n* ServiceInit start;\n${fakeServiceInit}\n* ServiceInit end;`
     )
-    spyOn(compileModule, 'getServiceTerm').and.returnValue(
+    spyOn(internalModule, 'getServiceTerm').and.returnValue(
       `\n* ServiceTerm start;\n${fakeServiceTerm}\n* ServiceTerm end;`
     )
 
     const dependencies = await compileModule.loadDependencies(
+      target,
       path.join(__dirname, './service.sas'),
       [],
       [],
@@ -87,14 +97,15 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> Dependencies </h4>', async (done) => {
-    spyOn(compileModule, 'getJobInit').and.returnValue(
+    spyOn(internalModule, 'getJobInit').and.returnValue(
       `\n* JobInit start;\n${fakeServiceInit}\n* JobInit end;`
     )
-    spyOn(compileModule, 'getJobTerm').and.returnValue(
+    spyOn(internalModule, 'getJobTerm').and.returnValue(
       `\n* JobTerm start;\n${fakeServiceTerm}\n* JobTerm end;`
     )
 
     const dependencies = await compileModule.loadDependencies(
+      target,
       path.join(__dirname, './service.sas'),
       [],
       [],
@@ -112,14 +123,15 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a service with <h4> SAS MAcros </h4>', async (done) => {
-    spyOn(compileModule, 'getServiceInit').and.returnValue(
+    spyOn(internalModule, 'getServiceInit').and.returnValue(
       `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`
     )
-    spyOn(compileModule, 'getServiceTerm').and.returnValue(
+    spyOn(internalModule, 'getServiceTerm').and.returnValue(
       `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`
     )
 
     const dependencies = await compileModule.loadDependencies(
+      target,
       path.join(__dirname, './service.sas'),
       [],
       [],
@@ -137,14 +149,15 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> SAS MAcros </h4>', async (done) => {
-    spyOn(compileModule, 'getJobInit').and.returnValue(
+    spyOn(internalModule, 'getJobInit').and.returnValue(
       `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`
     )
-    spyOn(compileModule, 'getJobTerm').and.returnValue(
+    spyOn(internalModule, 'getJobTerm').and.returnValue(
       `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`
     )
 
     const dependencies = await compileModule.loadDependencies(
+      target,
       path.join(__dirname, './service.sas'),
       [],
       [],

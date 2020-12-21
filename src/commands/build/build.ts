@@ -60,7 +60,7 @@ export async function build(
 async function createFinalSasFiles(target: Target) {
   console.log(chalk.red(JSON.stringify(target)))
   const { streamConfig } = target
-  const { streamWeb } = streamConfig
+  const streamWeb = streamConfig?.streamWeb ?? false
   if (streamWeb) {
     await createWebAppServices(null, target)
       .then(() =>
@@ -83,8 +83,8 @@ async function createFinalSasFiles(target: Target) {
 }
 
 async function createFinalSasFile(target: Target) {
-  const { buildConfig, appLoc, serverType, macroFolders, name } = target
-  const { buildOutputFileName } = buildConfig
+  const { buildConfig, serverType, macroFolders, name } = target
+  const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
   const { buildDestinationFolder } = getConstants()
   console.log(
     chalk.greenBright(

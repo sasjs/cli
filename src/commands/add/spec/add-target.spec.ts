@@ -1,17 +1,17 @@
 import { ServerType, Target } from '@sasjs/utils/types'
 import dotenv from 'dotenv'
 import path from 'path'
-import * as inputModule from './internal/input'
-import { addTarget } from './add-target'
-import { TargetScope } from '../../types/TargetScope'
+import * as inputModule from '../internal/input'
+import { addTarget } from '../add-target'
+import { TargetScope } from '../../../types/TargetScope'
 import {
   getConfiguration,
   getGlobalRcFile,
   saveGlobalRcFile
-} from '../../utils/config-utils'
-import { deleteFolder, createFolder } from '../../utils/file'
-import { generateTimestamp } from '../../utils/utils'
-import { getConstants } from '../../constants'
+} from '../../../utils/config-utils'
+import { deleteFolder, createFolder } from '../../../utils/file'
+import { generateTimestamp } from '../../../utils/utils'
+import { getConstants } from '../../../constants'
 
 describe('addTarget', () => {
   const testingAppFolder = `cli-tests-add-${generateTimestamp()}`

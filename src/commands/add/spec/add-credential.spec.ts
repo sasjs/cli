@@ -3,16 +3,16 @@ import {
   getTokens,
   createEnvFile,
   addCredential
-} from './add-credential'
+} from '../add-credential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import * as authUtils from '../../utils/auth-utils'
-import * as fileUtils from '../../utils/file'
-import * as configUtils from '../../utils/config-utils'
-import * as inputModule from './internal/input'
-import * as configModule from './internal/config'
-import { getDefaultValues } from './internal/input'
+import * as authUtils from '../../../utils/auth-utils'
+import * as fileUtils from '../../../utils/file'
+import * as configUtils from '../../../utils/config-utils'
+import * as inputModule from '../internal/input'
+import * as configModule from '../internal/config'
+import { getDefaultValues } from '../internal/input'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async (done) => {
