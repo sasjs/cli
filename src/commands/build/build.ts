@@ -34,7 +34,7 @@ export async function build(
   if (compileBuildDeployOnly) {
     await compile(targetName)
     await createFinalSasFiles(target)
-    return await deploy(targetName, target)
+    return await deploy(targetName)
   }
 
   if (compileBuildOnly) {
@@ -208,9 +208,9 @@ async function getFolderContent(serverType: ServerType) {
     folderContent += `\n${content}`
 
     if (contentJSON.name === 'services') {
-      folderContentJSON.members.push(...contentJSON.members)
+      folderContentJSON?.members.push(...contentJSON?.members)
     } else {
-      folderContentJSON.members.push(contentJSON)
+      folderContentJSON?.members.push(contentJSON)
     }
   })
 
@@ -248,7 +248,7 @@ async function getContentFor(
 
     content += `\n${transformedContent}\n`
 
-    contentJSON.members.push({
+    contentJSON?.members.push({
       name: file.replace('.sas', ''),
       type: 'service',
       code: removeComments(fileContent)
@@ -266,7 +266,7 @@ async function getContentFor(
       subFolder,
       serverType
     )
-    contentJSON.members.push(childContentJSON)
+    contentJSON?.members.push(childContentJSON)
     content += childContent
   })
 

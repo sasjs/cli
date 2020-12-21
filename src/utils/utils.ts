@@ -1,5 +1,4 @@
 import shelljs from 'shelljs'
-import { Target } from '@sasjs/utils/types'
 import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'

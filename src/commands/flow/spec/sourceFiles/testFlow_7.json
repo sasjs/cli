@@ -4,10 +4,10 @@
     "firstFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         },
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         }
       ],
       "predecessors": []
@@ -15,7 +15,7 @@
     "secondFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         }
       ],
       "predecessors": ["firstFlow"]
@@ -23,10 +23,10 @@
     "thirdFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         },
         {
-          "location": "jobs/testJob/failingJob"
+          "location": "jobs/jobs/failingJob"
         }
       ],
       "predecessors": ["firstFlow", "secondFlow"]
@@ -34,7 +34,7 @@
     "fourthFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         }
       ],
       "predecessors": ["secondFlow"]
@@ -42,10 +42,10 @@
     "fifthFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         },
         {
-          "location": "jobs/testJob/failingJob"
+          "location": "jobs/jobs/failingJob"
         }
       ],
       "predecessors": ["thirdFlow"]
@@ -53,7 +53,7 @@
     "sixthFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/failingJob"
+          "location": "jobs/jobs/failingJob"
         }
       ],
       "predecessors": []

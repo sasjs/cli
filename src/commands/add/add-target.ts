@@ -2,7 +2,8 @@ import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Target, ServerType } from '@sasjs/utils/types'
 import {
   findTargetInConfiguration,
-  saveToGlobalConfig
+  saveToGlobalConfig,
+  saveToLocalConfig
 } from '../../utils/config-utils'
 import { TargetScope } from '../../types/targetScope'
 import {
@@ -10,7 +11,6 @@ import {
   getAndValidateSasViyaFields,
   getAndValidateSas9Fields
 } from './internal/input'
-import { saveToLocalConfig } from './internal/config'
 import { addCredential } from './add-credential'
 
 export async function addTarget(): Promise<boolean> {

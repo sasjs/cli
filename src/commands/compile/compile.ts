@@ -70,18 +70,21 @@ async function copyFilesToBuildFolder(target: Target, logger: Logger) {
 
   const jobPaths = await getAllJobPaths(target)
 
-  await asyncForEach(servicePaths, async (servicePath) => {
-    const sourcePath = path.join(buildSourceFolder, 'services', servicePath)
+  await asyncForEach(servicePaths, async (servicePath: string) => {
+    const sourcePath = path.join(buildSourceFolder, servicePath)
+    const serviceFolder = servicePath.split('/').pop() as string
     const destinationPath = path.join(
       buildDestinationServicesFolder,
-      servicePath
+      serviceFolder
     )
     await copy(sourcePath, destinationPath)
   })
 
   await asyncForEach(jobPaths, async (jobPath) => {
+    console.log('JobPath: ', jobPath)
     const sourcePath = path.join(buildSourceFolder, jobPath)
-    const destinationPath = path.join(buildDestinationJobsFolder, jobPath)
+    const jobFolder = jobPath.split('/').pop() as string
+    const destinationPath = path.join(buildDestinationJobsFolder, jobFolder)
     await copy(sourcePath, destinationPath)
   })
 }
@@ -126,9 +129,7 @@ async function getAllServiceFolders(target: Target) {
   if (target && target.serviceConfig && target.serviceConfig.serviceFolders)
     allServices = [...allServices, ...target.serviceConfig.serviceFolders]
 
-  allServices = allServices
-    .map((s) => s.split('/').pop() || '')
-    .filter((p) => !!p)
+  allServices = allServices.filter((p) => !!p)
   return Promise.resolve([...new Set(allServices)])
 }
 
@@ -149,9 +150,7 @@ async function getAllJobPaths(target: Target) {
   if (target && target.jobConfig && target.jobConfig.jobFolders)
     allJobs = [...allJobs, ...target.jobConfig.jobFolders]
 
-  allJobs = allJobs
-    .map((s) => s.split('/').pop())
-    .filter((s) => !!s) as string[]
+  allJobs = allJobs.filter((s) => !!s) as string[]
   return Promise.resolve([...new Set(allJobs)])
 }
 

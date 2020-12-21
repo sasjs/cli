@@ -1,3 +1,4 @@
+import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../../utils/displayResult'
 
 /**
@@ -6,7 +7,11 @@ import { displayResult } from '../../utils/displayResult'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export async function remove(contextName, sasjs, accessToken) {
+export async function remove(
+  contextName: string,
+  sasjs: SASjs,
+  accessToken: string
+) {
   let result
 
   const deletedContext = await sasjs

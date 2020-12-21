@@ -13,35 +13,30 @@ import {
   folderExists,
   createFile
 } from '../utils/file'
+import { ServerType, Target } from '@sasjs/utils'
+import { getConstants } from '../constants'
 
-let targetToBuild = null
-let executionSession
-
-export async function deploy(targetName = null, preTargetToBuild = null) {
-  if (preTargetToBuild) targetToBuild = preTargetToBuild
-  else {
-    const { target } = await findTargetInConfiguration(targetName)
-    targetToBuild = target
-  }
+export async function deploy(targetName: string) {
+  const { target } = await findTargetInConfiguration(targetName)
 
   if (
-    targetToBuild.serverType === 'SASVIYA' &&
-    targetToBuild.deployServicePack
+    target.serverType === ServerType.SasViya &&
+    target.deployConfig?.deployServicePack
   ) {
     console.log(
       chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
     )
 
-    await deployToSasViyaWithServicePack(targetToBuild)
+    await deployToSasViyaWithServicePack(target)
 
     console.log('Job execution completed!')
   }
 
-  const deployScripts = getDeployScripts()
+  const deployScripts = getDeployScripts(target)
 
-  if (deployScripts.length === 0 && !targetToBuild.deployServicePack) {
+  if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
     throw new Error(
-      `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'tgtDeployScripts'.`
+      `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'deployScripts'.`
     )
   }
 
@@ -71,20 +66,10 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       )
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
-      if (targetToBuild.serverType === 'SASVIYA') {
-        await deployToSasViya(
-          deployScript,
-          targetToBuild,
-          linesToExecute,
-          logFilePath
-        )
+      if (target.serverType === ServerType.SasViya) {
+        await deployToSasViya(deployScript, target, linesToExecute, logFilePath)
       } else {
-        await deployToSas9(
-          deployScript,
-          targetToBuild,
-          linesToExecute,
-          logFilePath
-        )
+        await deployToSas9(deployScript, target, linesToExecute, logFilePath)
       }
     } else if (isShellScript(deployScript)) {
       console.log(
@@ -110,25 +95,22 @@ export async function deploy(targetName = null, preTargetToBuild = null) {
       )
     }
   })
-  executionSession = null
 }
 
-function getDeployScripts() {
-  return targetToBuild && targetToBuild.tgtDeployScripts
-    ? targetToBuild.tgtDeployScripts
-    : []
+function getDeployScripts(target: Target) {
+  return target?.deployConfig?.deployScripts ?? []
 }
 
-async function getSASjsAndAccessToken(buildTarget) {
+async function getSASjsAndAccessToken(target: Target) {
   const sasjs = new SASjs({
-    serverUrl: buildTarget.serverUrl,
-    appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType
   })
 
   let accessToken = null
   try {
-    accessToken = await getAccessToken(buildTarget)
+    accessToken = await getAccessToken(target)
   } catch (e) {
     throw new Error(
       `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
@@ -140,25 +122,25 @@ async function getSASjsAndAccessToken(buildTarget) {
   }
 }
 
-async function deployToSasViyaWithServicePack(buildTarget) {
+async function deployToSasViyaWithServicePack(target: Target) {
   const sasjs = new SASjs({
-    serverUrl: buildTarget.serverUrl,
-    appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType
   })
 
-  const CONSTANTS = require('../constants').get()
-  const buildDestinationFolder = CONSTANTS.buildDestinationFolder
+  const { buildDestinationFolder } = getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
-    `${targetToBuild.name}.json`
+    `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
+  console.log('JSON object: ', jsonObject)
 
   let accessToken = null
   try {
-    accessToken = await getAccessToken(buildTarget)
+    accessToken = await getAccessToken(target)
   } catch (e) {
     throw new Error(
       `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
@@ -167,18 +149,18 @@ async function deployToSasViyaWithServicePack(buildTarget) {
 
   return await sasjs.deployServicePack(
     jsonObject,
-    null,
-    null,
+    undefined,
+    undefined,
     accessToken,
     true
   )
 }
 
 async function deployToSasViya(
-  deployScript,
-  buildTarget,
-  linesToExecute,
-  logFilePath
+  deployScript: string,
+  target: Target,
+  linesToExecute: string[],
+  logFilePath: string | null
 ) {
   console.log(
     chalk.cyanBright(
@@ -186,7 +168,7 @@ async function deployToSasViya(
     )
   )
 
-  const contextName = buildTarget.contextName
+  const contextName = target.contextName
 
   if (!contextName) {
     throw new Error(
@@ -194,16 +176,7 @@ async function deployToSasViya(
     )
   }
 
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(buildTarget)
-
-  if (!executionSession) {
-    executionSession = await sasjs
-      .createSession(contextName, accessToken)
-      .catch((e) => {
-        console.log(chalk.redBright.bold('Error creating execution session'))
-        throw e
-      })
-  }
+  const { sasjs, accessToken } = await getSASjsAndAccessToken(target)
 
   const executionResult = await sasjs.executeScriptSASViya(
     path.basename(deployScript),
@@ -215,7 +188,9 @@ async function deployToSasViya(
   let log
   try {
     log = executionResult.log.items
-      ? executionResult.log.items.map((i) => i.line).join('\n')
+      ? executionResult.log.items
+          .map((i: { line: string }) => i.line)
+          .join('\n')
       : JSON.stringify(executionResult.log)
   } catch (e) {
     console.log(
@@ -253,20 +228,13 @@ async function deployToSasViya(
 }
 
 async function deployToSas9(
-  deployScript,
-  buildTarget,
-  linesToExecute,
-  logFilePath
+  deployScript: string,
+  target: Target,
+  linesToExecute: string[],
+  logFilePath: string | null
 ) {
-  if (!buildTarget.tgtDeployVars) {
-    throw new Error(
-      'Deployment config not found!\n Please ensure that your build target has a `tgtDeployVars` property that specifies `serverName` and `repositoryName`.\n'
-    )
-  }
-  const serverName =
-    buildTarget.tgtDeployVars.serverName || process.env.serverName
-  const repositoryName =
-    buildTarget.tgtDeployVars.repositoryName || process.env.repositoryName
+  const serverName = target.serverName || process.env.serverName
+  const repositoryName = target.repositoryName || process.env.repositoryName
   if (!serverName) {
     throw new Error(
       'SAS Server Name is required for SAS9 deployments.\n Please ensure that `serverName` is present in your build target configuration and try again.\n'
@@ -278,9 +246,9 @@ async function deployToSas9(
     )
   }
   const sasjs = new SASjs({
-    serverUrl: buildTarget.serverUrl,
-    appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType
   })
   const executionResult = await sasjs.executeScriptSAS9(
     linesToExecute,
@@ -290,7 +258,7 @@ async function deployToSas9(
 
   let parsedLog
   try {
-    parsedLog = JSON.parse(executionResult).payload.log
+    parsedLog = JSON.parse(executionResult || '{}').payload.log
   } catch (e) {
     console.error(chalk.redBright(e))
     parsedLog = executionResult

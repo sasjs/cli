@@ -114,6 +114,10 @@ export async function execute(
             )
             .catch(async (err: any) => {
               const logName = await saveLog(
+                target,
+                logFolder,
+                sasjs,
+                accessToken,
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
                 jobLocation
@@ -158,6 +162,10 @@ export async function execute(
             const details = parseJobDetails(submittedJob)
 
             const logName = await saveLog(
+              target,
+              logFolder,
+              sasjs,
+              accessToken,
               submittedJob.links,
               flowName,
               jobLocation,
@@ -283,56 +291,6 @@ export async function execute(
       }
     }
 
-    // REFACTOR: move to utility
-    const saveLog = async (
-      links: any[],
-      flowName: string,
-      jobLocation: string,
-      lineCount: number = 1000000
-    ) => {
-      return new Promise(async (resolve, reject) => {
-        if (!logFolder) return reject('No log folder provided')
-        if (!links) return reject('No links provided')
-
-        const logObj = links.find(
-          (link: any) => link.rel === 'log' && link.method === 'GET'
-        )
-
-        if (logObj) {
-          const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
-          const logData = await sasjs
-            .fetchLogFileContent(logUrl, accessToken)
-            .catch((err) =>
-              displayResult(err, 'Error while fetching log content.')
-            )
-          const logJson = JSON.parse(logData as string)
-
-          const logParsed = parseLogLines(logJson)
-
-          const generateFileName = () =>
-            `${flowName}_${jobLocation.replace(
-              /\W/g,
-              '_'
-            )}_${generateTimestamp()}.log`
-
-          let logName = generateFileName()
-
-          while (await fileExists(path.join(logFolder, logName))) {
-            logName = generateFileName()
-          }
-
-          await createFile(
-            path.join(logFolder, logName),
-            logParsed
-          ).catch((err) => displayResult(err, 'Error while creating log file.'))
-
-          return resolve(logName)
-        }
-
-        return resolve(null)
-      })
-    }
-
     let csvFileAbleToSave = true
 
     // REFACTOR: move to utility
@@ -452,6 +410,10 @@ export async function execute(
                 const details = parseJobDetails(res)
 
                 const logName = await saveLog(
+                  target,
+                  logFolder,
+                  sasjs,
+                  accessToken,
                   res.links,
                   successor,
                   jobLocation,
@@ -545,6 +507,10 @@ export async function execute(
             })
             .catch(async (err: any) => {
               const logName = await saveLog(
+                target,
+                logFolder,
+                sasjs,
+                accessToken,
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
                 jobLocation
@@ -615,4 +581,55 @@ const parseJobDetails = (response: any) => {
   }
 
   return { details, lineCount }
+}
+
+// REFACTOR: move to utility
+const saveLog = async (
+  target: Target,
+  logFolder: string,
+  sasjs: SASjs,
+  accessToken: string | undefined,
+  links: any[],
+  flowName: string,
+  jobLocation: string,
+  lineCount: number = 1000000
+) => {
+  return new Promise(async (resolve, reject) => {
+    if (!logFolder) return reject('No log folder provided')
+    if (!links) return reject('No links provided')
+
+    const logObj = links.find(
+      (link: any) => link.rel === 'log' && link.method === 'GET'
+    )
+
+    if (logObj) {
+      const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
+      const logData = await sasjs
+        .fetchLogFileContent(logUrl, accessToken)
+        .catch((err) => displayResult(err, 'Error while fetching log content.'))
+      const logJson = JSON.parse(logData as string)
+
+      const logParsed = parseLogLines(logJson)
+
+      const generateFileName = () =>
+        `${flowName}_${jobLocation.replace(
+          /\W/g,
+          '_'
+        )}_${generateTimestamp()}.log`
+
+      let logName = generateFileName()
+
+      while (await fileExists(path.join(logFolder, logName))) {
+        logName = generateFileName()
+      }
+
+      await createFile(path.join(logFolder, logName), logParsed).catch((err) =>
+        displayResult(err, 'Error while creating log file.')
+      )
+
+      return resolve(logName)
+    }
+
+    return resolve(null)
+  })
 }

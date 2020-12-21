@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import ora from 'ora'
+import { ServerType, Target } from '@sasjs/utils/types'
 import { displayResult } from '../../utils/displayResult'
+import SASjs from '@sasjs/adapter/node'
 
 /**
  * Lists all accessible and inaccessible compute contexts.
@@ -8,8 +10,8 @@ import { displayResult } from '../../utils/displayResult'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export async function list(target, sasjs, accessToken) {
-  if (target.serverType !== 'SASVIYA') {
+export async function list(target: Target, sasjs: SASjs, accessToken: string) {
+  if (target.serverType !== ServerType.SasViya) {
     throw new Error(
       `'context list' command is only supported for SAS Viya build targets.\nPlease check the target name and try again.`
     )
@@ -53,6 +55,7 @@ export async function list(target, sasjs, accessToken) {
         'An error has occurred when fetching contexts list.',
         null
       )
+      throw err
     })
 
     const inaccessibleContexts = allContexts

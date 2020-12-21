@@ -1,0 +1,19 @@
+{
+  "name": "@sasjs/minimal-seed-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "rsync -avhe ssh ./src/* --delete $SSH_ACCOUNT:$DEPLOY_PATH"
+  },
+  "keywords": [
+    "SAS",
+    "SASViya",
+    "SASjs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@sasjs/core": "^1.4.0"
+  }
+}

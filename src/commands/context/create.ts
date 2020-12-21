@@ -1,3 +1,4 @@
+import SASjs from '@sasjs/adapter/node'
 import { displayResult } from '../../utils/displayResult'
 
 /**
@@ -6,7 +7,7 @@ import { displayResult } from '../../utils/displayResult'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export async function create(config, sasjs, accessToken) {
+export async function create(config: any, sasjs: SASjs, accessToken: string) {
   const { name } = config
   const launchName = config.launchContext && config.launchContext.contextName
   const autoExecLines = config.environment && config.environment.autoExecLines

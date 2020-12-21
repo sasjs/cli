@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { Target } from '@sasjs/utils/types'
+import { ServerType, Target } from '@sasjs/utils/types'
 import { readFile, fileExists, folderExists, createFile } from './file'
 import {
   isAccessTokenExpiring,
@@ -10,6 +10,7 @@ import path from 'path'
 import chalk from 'chalk'
 import dotenv from 'dotenv'
 import { Configuration } from '../types'
+import { getConstants } from '../constants'
 
 export async function getConfiguration(pathToFile: string) {
   const config = await readFile(pathToFile, false, true).catch(() => {
@@ -44,59 +45,61 @@ export async function findTargetInConfiguration(
   ).catch(() => null)
 
   if (localConfig && localConfig.targets) {
-    const target = localConfig.targets.find(
+    const targetJson = localConfig.targets.find(
       (t: Target) => t.name === targetName
     )
-    if (target) {
-      return { target, isLocal: true }
+    if (targetJson) {
+      return { target: new Target(targetJson), isLocal: true }
     }
   }
 
   const globalConfig = await getGlobalRcFile()
 
   if (globalConfig && globalConfig.targets) {
-    const target = globalConfig.targets.find(
+    const targetJson = globalConfig.targets.find(
       (t: Target) => t.name === targetName
     )
-    if (target) {
-      return { target, isLocal: false }
+    if (targetJson) {
+      return { target: new Target(targetJson), isLocal: false }
     }
   }
 
-  let fallBackTarget
+  let fallBackTargetJson
 
   if (localConfig && localConfig.targets) {
-    fallBackTarget = viyaSpecific
+    fallBackTargetJson = viyaSpecific
       ? localConfig.targets.find((t: Target) => t.serverType === 'SASVIYA')
       : localConfig.targets[0]
   }
 
-  if (fallBackTarget) {
+  if (fallBackTargetJson) {
     console.log(
       chalk.yellowBright(
         `No build target specified. Using ${chalk.cyanBright(
-          fallBackTarget.name
+          fallBackTargetJson.name
         )} by default.\nTarget is found in local config.`
       )
     )
 
-    return { target: fallBackTarget, isLocal: true }
+    return { target: new Target(fallBackTargetJson), isLocal: true }
   }
 
-  fallBackTarget = viyaSpecific
-    ? globalConfig.targets.find((t: Target) => t.serverType === 'SASVIYA')
+  fallBackTargetJson = viyaSpecific
+    ? globalConfig.targets.find(
+        (t: Target) => t.serverType === ServerType.SasViya
+      )
     : globalConfig.targets[0]
 
-  if (fallBackTarget) {
+  if (fallBackTargetJson) {
     console.log(
       chalk.yellowBright(
         `No build target specified. Using ${chalk.cyanBright(
-          fallBackTarget.name
+          fallBackTargetJson.name
         )} by default.\nTarget is found in global config.`
       )
     )
 
-    return { target: fallBackTarget, isLocal: false }
+    return { target: new Target(fallBackTargetJson), isLocal: false }
   }
 
   throw new Error(
@@ -181,28 +184,70 @@ export async function saveGlobalRcFile(content: string) {
 
 export async function saveToGlobalConfig(buildTarget: Target) {
   let globalConfig = await getGlobalRcFile()
+  const targetJson = buildTarget.toJson()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
         (t: Target) => t.name === buildTarget.name
       )
       if (existingTargetIndex > -1) {
-        globalConfig.targets[existingTargetIndex] = buildTarget
+        globalConfig.targets[existingTargetIndex] = targetJson
       } else {
-        globalConfig.targets.push(buildTarget)
+        globalConfig.targets.push(targetJson)
       }
     } else {
-      globalConfig.targets = [buildTarget]
+      globalConfig.targets = [targetJson]
     }
   } else {
-    globalConfig = { targets: [buildTarget] }
+    globalConfig = { targets: [targetJson] }
   }
   return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
-export async function saveLocalRcFile(content: string) {
-  const projectRoot = await getProjectRoot()
-  await createFile(path.join(projectRoot, '.sasjsrc'), content)
+export async function removeFromGlobalConfig(targetName: string) {
+  let globalConfig = await getGlobalRcFile()
+  if (globalConfig && globalConfig.targets && globalConfig.targets.length) {
+    const targets = globalConfig.targets.filter(
+      (t: Target) => t.name !== targetName
+    )
+    await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
+  }
+}
+
+export async function getLocalConfig() {
+  const { buildSourceFolder } = getConstants()
+  let config = await getConfiguration(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
+  return config
+}
+
+export async function saveToLocalConfig(target: Target) {
+  const { buildSourceFolder } = getConstants()
+  let config = await getLocalConfig()
+  if (config) {
+    if (config.targets && config.targets.length) {
+      const existingTargetIndex = config.targets.findIndex(
+        (t: Target) => t.name === target.name
+      )
+      if (existingTargetIndex > -1) {
+        config.targets[existingTargetIndex] = target
+      } else {
+        config.targets.push(target)
+      }
+    } else {
+      config.targets = [target]
+    }
+  } else {
+    config = { targets: [target] }
+  }
+
+  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+
+  await createFile(configPath, JSON.stringify(config, null, 2))
+
+  return configPath
 }
 
 export async function getFolders() {
@@ -252,7 +297,7 @@ export async function getBuildTargets(buildSourceFolder: string) {
  * @param {string} targetName - name of the configuration.
  */
 export async function getBuildTarget(targetName: string) {
-  const { buildSourceFolder } = require('../constants').get()
+  const { buildSourceFolder } = getConstants()
   let targets = await getBuildTargets(buildSourceFolder)
 
   if (targets.length === 0) {

@@ -14,6 +14,7 @@ import {
 } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { saveToGlobalConfig } from '../../src/utils/config-utils'
 
 const testOutputFolder = 'test-app-job-output-'
 let parentFolderNameTimeStamped: string
@@ -32,26 +33,26 @@ describe('sasjs job', () => {
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
         : ServerType.Sas9
-    config = {
+    config = new Target({
       name: '',
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestampAppLoc}`,
-      authInfo: {
+      authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
         access_token: process.env.ACCESS_TOKEN as string,
         refresh_token: process.env.REFRESH_TOKEN as string
       }
-    }
+    })
     const context = await getAvailableContext(config)
 
     await deployTestJob(config)
 
-    await addToGlobalConfigs({
+    await saveToGlobalConfig({
       ...config,
       name: targetName,
-      tgtServices: ['testJob'],
+      serviceFolders: ['testJob'],
       contextName: context.name,
       tgtDeployVars: {
         contextName: context

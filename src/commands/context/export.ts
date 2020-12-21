@@ -1,6 +1,7 @@
 import { displayResult } from '../../utils/displayResult'
 import path from 'path'
 import { createFile, sanitizeFileName } from '../../utils/file'
+import SASjs from '@sasjs/adapter/node'
 
 /**
  * Export compute context to json file in current folder.
@@ -8,7 +9,11 @@ import { createFile, sanitizeFileName } from '../../utils/file'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export async function exportContext(contextName, sasjs, accessToken) {
+export async function exportContext(
+  contextName: string,
+  sasjs: SASjs,
+  accessToken: string
+) {
   const context = await sasjs
     .getComputeContextByName(contextName, accessToken)
     .catch((err) => {

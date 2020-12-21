@@ -1,13 +1,13 @@
 {
   "name": "myAmazingFlow",
-  "ERROR": {
+  "flows": {
     "firstFlow": {
       "jobs": [
         {
-          "location": "jobs/testJob/job"
-        },
+          "location": "jobs/jobs/job"
+        }
         {
-          "location": "jobs/testJob/job"
+          "location": "jobs/jobs/job"
         }
       ],
       "predecessors": []

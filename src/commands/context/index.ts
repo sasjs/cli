@@ -5,12 +5,15 @@ import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
 import { fileExists, readFile } from '../../utils/file'
-import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
+import {
+  getAccessToken,
+  findTargetInConfiguration
+} from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'
 
-export async function processContext(commandLine) {
+export async function processContext(commandLine: string | string[]) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
   const subCommands = {
@@ -34,7 +37,7 @@ export async function processContext(commandLine) {
   }
 
   const targetName = command.getFlagValue('target')
-  const target = await getBuildTarget(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
 
   const commandExample =
     'sasjs context <command> --source ../contextConfig.json --target targetName'
@@ -81,6 +84,7 @@ export async function processContext(commandLine) {
 
   const accessToken = await getAccessToken(target).catch((err) => {
     displayResult(err)
+    throw err
   })
 
   let config
@@ -95,17 +99,22 @@ export async function processContext(commandLine) {
 
       parsedConfig = parseConfig(config)
 
-      output = await create(parsedConfig, sasjs, accessToken)
+      output = await create(parsedConfig, sasjs, accessToken as string)
 
       break
     case subCommands.edit: {
       config = await getConfig()
 
-      const contextName = getContextName(true)
+      const contextName = getContextName()
 
       parsedConfig = parseConfig(config)
 
-      output = await edit(contextName, parsedConfig, sasjs, accessToken)
+      output = await edit(
+        contextName,
+        parsedConfig,
+        sasjs,
+        accessToken as string
+      )
 
       break
     }
@@ -113,20 +122,20 @@ export async function processContext(commandLine) {
       const contextName = getContextName()
 
       if (contextName) {
-        output = remove(contextName, sasjs, accessToken)
+        output = remove(contextName, sasjs, accessToken as string)
       }
 
       break
     }
     case subCommands.list:
-      output = list(target, sasjs, accessToken)
+      output = list(target, sasjs, accessToken as string)
 
       break
     case subCommands.export: {
       const contextName = getContextName()
 
       if (contextName) {
-        output = await exportContext(contextName, sasjs, accessToken)
+        output = await exportContext(contextName, sasjs, accessToken as string)
       }
 
       break
@@ -138,7 +147,7 @@ export async function processContext(commandLine) {
   return output
 }
 
-async function validateConfigPath(path) {
+async function validateConfigPath(path: string) {
   if (!path) return false
 
   const isJsonFile = /\.json$/i.test(path)
@@ -148,7 +157,7 @@ async function validateConfigPath(path) {
   return await fileExists(path)
 }
 
-function parseConfig(config) {
+function parseConfig(config: string) {
   try {
     const parsedConfig = JSON.parse(config)
 

@@ -6,11 +6,11 @@ import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth-utils'
 import {
   findTargetInConfiguration,
-  saveToGlobalConfig
+  saveToGlobalConfig,
+  saveToLocalConfig
 } from '../../utils/config-utils'
 import { createFile } from '../../utils/file'
 import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
-import { saveToLocalConfig } from './internal/config'
 
 /**
  * Creates a .env file for the specified target.

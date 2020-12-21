@@ -1,16 +1,20 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processContext } from '../../src/commands'
+import { processContext } from '../..'
 import {
   sanitizeFileName,
   readFile,
   createFile,
   deleteFolder
-} from '../../src/utils/file'
-import { generateTimestamp } from '../../src/utils/utils'
-import { ServerType } from '@sasjs/utils/types'
+} from '../../../utils/file'
+import { generateTimestamp } from '../../../utils/utils'
+import {
+  removeFromGlobalConfig,
+  saveToGlobalConfig
+} from '../../../utils/config-utils'
+import { Target, ServerType } from '@sasjs/utils/types'
 
-let contexts: [any]
+let contexts: any[]
 let testContextConfig: any
 let testContextConfigFile: string
 let testContextConfigPath: string
@@ -25,18 +29,20 @@ describe('sasjs context', () => {
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
         : ServerType.Sas9
-    await addToGlobalConfigs({
-      name: targetName,
-      serverType: serverType,
-      serverUrl: process.env.SERVER_URL as string,
-      appLoc: '/Public/app/cli-tests',
-      authInfo: {
-        client: process.env.CLIENT as string,
-        secret: process.env.SECRET as string,
-        access_token: process.env.ACCESS_TOKEN as string,
-        refresh_token: process.env.REFRESH_TOKEN as string
-      }
-    })
+    await saveToGlobalConfig(
+      new Target({
+        name: targetName,
+        serverType: serverType,
+        serverUrl: process.env.SERVER_URL as string,
+        appLoc: '/Public/app/cli-tests',
+        authConfig: {
+          client: process.env.CLIENT as string,
+          secret: process.env.SECRET as string,
+          access_token: process.env.ACCESS_TOKEN as string,
+          refresh_token: process.env.REFRESH_TOKEN as string
+        }
+      })
+    )
 
     process.projectDir = path.join(process.cwd())
   })
@@ -45,7 +51,13 @@ describe('sasjs context', () => {
     it(
       'should list accessible compute contexts',
       async () => {
-        contexts = await processContext(`context list -t ${targetName}`)
+        contexts = (await processContext(`context list -t ${targetName}`)) as {
+          createdBy: any
+          id: any
+          name: any
+          version: any
+          sysUserId: any
+        }[]
 
         expect(contexts.length).toBeGreaterThan(0)
       },
@@ -126,6 +138,6 @@ describe('sasjs context', () => {
 
   afterAll(async () => {
     deleteFolder(testContextConfigPath)
-    await removeFromGlobalConfigs(targetName)
+    await removeFromGlobalConfig(targetName)
   })
 })

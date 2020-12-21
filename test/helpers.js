@@ -2,11 +2,7 @@ import path from 'path'
 
 import { fileExists, folderExists } from '../src/utils/file'
 import { asyncForEach } from '../src/utils/utils'
-import {
-  getFolders,
-  getGlobalRcFile,
-  saveGlobalRcFile
-} from '../src/utils/config-utils'
+import { getFolders } from '../src/utils/config-utils'
 import fileStructureMinimalObj from 'files-minimal-app.json'
 import fileStructureReactObj from 'files-react-app.json'
 import fileStructureAngularrObj from 'files-angular-app.json'
@@ -201,28 +197,4 @@ global.verifyStep = async ({ parentFolderName, step }) => {
       (await verifyFolderStructure(folder, parentFolderName))
   })
   expect(everythingPresent).toEqual(true)
-}
-
-global.addToGlobalConfigs = async (buildTarget) => {
-  let globalConfig = await getGlobalRcFile()
-  if (globalConfig) {
-    if (globalConfig.targets && globalConfig.targets.length) {
-      if (globalConfig.targets.some((t) => t.name === buildTarget.name)) {
-        throw new Error('Target already exists.')
-      }
-      globalConfig.targets.push(buildTarget)
-    } else {
-      globalConfig.targets = [buildTarget]
-    }
-  } else {
-    globalConfig = { targets: [buildTarget] }
-  }
-  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
-}
-global.removeFromGlobalConfigs = async (targetName = 'cli-tests-cbd') => {
-  let globalConfig = await getGlobalRcFile()
-  if (globalConfig && globalConfig.targets && globalConfig.targets.length) {
-    const targets = globalConfig.targets.filter((t) => t.name !== targetName)
-    await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
-  }
 }

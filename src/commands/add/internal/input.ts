@@ -12,9 +12,9 @@ import SASjs from '@sasjs/adapter/node'
 import { TargetScope } from '../../../types/targetScope'
 import {
   findTargetInConfiguration,
-  getGlobalRcFile
+  getGlobalRcFile,
+  getLocalConfig
 } from '../../../utils/config-utils'
-import { getLocalConfig } from './config'
 
 export async function getCommonFields() {
   const scope = await getAndValidateScope()

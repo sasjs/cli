@@ -121,7 +121,7 @@ export async function deployServices(commandLine) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  await deploy(targetName, null)
+  await deploy(targetName)
     .then(() =>
       displayResult(null, null, `Services have been successfully deployed!`)
     )
