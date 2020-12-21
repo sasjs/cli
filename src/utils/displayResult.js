@@ -20,21 +20,31 @@ export function displayResult(err, failureMessage, successMessage) {
         }`
 
         console.log(chalk.redBright(failureMessage, failureDetails))
+
         return `${failureMessage}\n${failureDetails}`
       }
     } else if (err.hasOwnProperty('message')) {
       failureDetails = err.message
+    } else if (
+      err.hasOwnProperty('body') &&
+      err.body.hasOwnProperty('message')
+    ) {
+      failureMessage = err.body.message
+
+      if (err.body.hasOwnProperty('details')) failureDetails = err.body.details
     } else {
       failureDetails = typeof err === 'object' ? JSON.stringify(err) : err
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
 
     console.log(chalk.redBright(failureMessage, failureDetails))
+
     return `${failureMessage}\n${failureDetails}`
   }
 
   if (successMessage) {
     console.log(chalk.greenBright.bold.italic(successMessage))
+
     return successMessage
   }
 }

@@ -15,7 +15,7 @@ export async function create(config, sasjs, accessToken) {
   let result
 
   const createdContext = await sasjs
-    .createContext(
+    .createLauncherContext(
       name,
       launchName,
       sharedAccountId,

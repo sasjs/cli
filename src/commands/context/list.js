@@ -47,13 +47,15 @@ export async function list(target, sasjs, accessToken) {
     }))
     const accessibleContextIds = contexts.map((context) => context.id)
 
-    const allContexts = await sasjs.getAllContexts(accessToken).catch((err) => {
-      displayResult(
-        err,
-        'An error has occurred when fetching contexts list.',
-        null
-      )
-    })
+    const allContexts = await sasjs
+      .getComputeContexts(accessToken)
+      .catch((err) => {
+        displayResult(
+          err,
+          'An error has occurred when fetching contexts list.',
+          null
+        )
+      })
 
     const inaccessibleContexts = allContexts
       .filter((context) => !accessibleContextIds.includes(context.id))

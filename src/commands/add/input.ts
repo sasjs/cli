@@ -152,22 +152,24 @@ export async function getAndValidateSasViyaFields(
       serverType: ServerType.SasViya,
       debug: logger.logLevel === LogLevel.Debug
     })
-    let contexts = []
+    let contexts: any[] = []
     if (scope === TargetScope.Local) {
       dotenv.config({
         path: path.join(process.projectDir, `.env.${targetName}`)
       })
-      contexts = await sasjs.getAllContexts(process.env.ACCESS_TOKEN as string)
+      contexts = await sasjs.getComputeContexts(
+        process.env.ACCESS_TOKEN as string
+      )
     } else {
       const { target } = await findTargetInConfiguration(targetName)
-      contexts = await sasjs.getAllContexts(target.authInfo.access_token)
+      contexts = await sasjs.getComputeContexts(target.authInfo.access_token)
     }
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
     const contextNumber = await getChoice(
       'Please pick your SAS Viya execution context: ',
       contextNumberErrorMessage,
-      contexts.map((c) => ({ title: c.name }))
+      contexts.map((c: any) => ({ title: c.name }))
     )
 
     contextName = contexts[contextNumber - 1].name
