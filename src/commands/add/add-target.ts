@@ -9,8 +9,8 @@ import {
   getCommonFields,
   getAndValidateSasViyaFields,
   getAndValidateSas9Fields
-} from './input'
-import { saveToLocalConfig } from './config'
+} from './internal/input'
+import { saveToLocalConfig } from './internal/config'
 import { addCredential } from './add-credential'
 
 export async function addTarget(): Promise<boolean> {

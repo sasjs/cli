@@ -3,16 +3,16 @@ import {
   getTokens,
   createEnvFile,
   addCredential
-} from '../../src/commands/add/add-credential'
+} from './add-credential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import * as authUtils from '../../src/utils/auth-utils'
-import * as fileUtils from '../../src/utils/file'
-import * as configUtils from '../../src/utils/config-utils'
-import * as inputModule from '../../src/commands/add/input'
-import * as configModule from '../../src/commands/add/config'
-import { getDefaultValues } from '../../src/commands/add/input'
+import * as authUtils from '../../utils/auth-utils'
+import * as fileUtils from '../../utils/file'
+import * as configUtils from '../../utils/config-utils'
+import * as inputModule from './internal/input'
+import * as configModule from './internal/config'
+import { getDefaultValues } from './internal/input'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async (done) => {
@@ -21,11 +21,14 @@ describe('addCredential', () => {
     await addCredential('test-target')
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
-    expect(configModule.saveToLocalConfig).toHaveBeenCalledWith({
-      name: 'test-target',
-      serverUrl: 'http://server.com',
-      appLoc: '/test'
-    })
+    expect(configModule.saveToLocalConfig).toHaveBeenCalledWith(
+      new Target({
+        name: 'test-target',
+        serverUrl: 'http://server.com',
+        serverType: ServerType.SasViya,
+        appLoc: '/test'
+      })
+    )
 
     await fileUtils.deleteFile(path.join('.', '.env.test-target'))
     jest.clearAllMocks()
@@ -213,9 +216,10 @@ const setupMocks = () => {
     Promise.resolve({
       target: {
         name: 'test-target',
-        serverUrl: null,
+        serverUrl: '',
+        serverType: ServerType.SasViya,
         appLoc: '/test'
-      },
+      } as Target,
       isLocal: true
     })
   )

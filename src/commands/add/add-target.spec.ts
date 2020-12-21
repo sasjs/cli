@@ -1,16 +1,17 @@
 import { ServerType, Target } from '@sasjs/utils/types'
 import dotenv from 'dotenv'
 import path from 'path'
-import * as inputModule from '../../src/commands/add/input'
-import { addTarget } from '../../src/commands/add/add-target'
-import { TargetScope } from '../../src/types/TargetScope'
+import * as inputModule from './internal/input'
+import { addTarget } from './add-target'
+import { TargetScope } from '../../types/TargetScope'
 import {
   getConfiguration,
   getGlobalRcFile,
   saveGlobalRcFile
-} from '../../src/utils/config-utils'
-import { deleteFolder, createFolder } from '../../src/utils/file'
-import { generateTimestamp } from '../../src/utils/utils'
+} from '../../utils/config-utils'
+import { deleteFolder, createFolder } from '../../utils/file'
+import { generateTimestamp } from '../../utils/utils'
+import { getConstants } from '../../constants'
 
 describe('addTarget', () => {
   const testingAppFolder = `cli-tests-add-${generateTimestamp()}`
@@ -60,16 +61,15 @@ describe('addTarget', () => {
 
       await expect(addTarget()).resolves.toEqual(true)
 
-      const buildSourceFolder = require('../../src/constants').get()
-        .buildSourceFolder
+      const { buildSourceFolder } = getConstants()
       const config = await getConfiguration(
         path.join(buildSourceFolder, 'sasjsconfig.json')
       )
       expect(config).toBeTruthy()
-      expect(config.targets).toBeTruthy()
-      const target: Target = config.targets.find(
+      expect(config!.targets).toBeTruthy()
+      const target: Target = (config!.targets || []).find(
         (t: Target) => t.name === targetName
-      )
+      ) as Target
       expect(target.name).toEqual(targetName)
       expect(target.serverType).toEqual(ServerType.SasViya)
       expect(target.appLoc).toEqual('/Public/app')

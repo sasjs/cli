@@ -1,5 +1,5 @@
 declare namespace NodeJS {
-  interface Process {
+  export interface Process {
     projectDir: string
   }
 }

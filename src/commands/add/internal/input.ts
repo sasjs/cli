@@ -9,11 +9,11 @@ import { Logger, LogLevel } from '@sasjs/utils/logger'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
-import { TargetScope } from '../../types/targetScope'
+import { TargetScope } from '../../../types/targetScope'
 import {
   findTargetInConfiguration,
   getGlobalRcFile
-} from '../../utils/config-utils'
+} from '../../../utils/config-utils'
 import { getLocalConfig } from './config'
 
 export async function getCommonFields() {

@@ -9,8 +9,8 @@ import {
   saveToGlobalConfig
 } from '../../utils/config-utils'
 import { createFile } from '../../utils/file'
-import { getAndValidateServerUrl, getCredentialsInput } from './input'
-import { saveToLocalConfig } from './config'
+import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
+import { saveToLocalConfig } from './internal/config'
 
 /**
  * Creates a .env file for the specified target.

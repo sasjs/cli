@@ -19,6 +19,7 @@ import {
 import chalk from 'chalk'
 import { displayResult } from './utils/displayResult'
 import { Command } from './utils/command'
+import { compile } from './commands/compile/compile'
 
 export async function createFileStructure(commandLine) {
   const command = new Command(commandLine)
@@ -94,7 +95,7 @@ export async function compileServices(commandLine) {
   }
 
   let result
-  await build(targetName, true) // compileOnly is true
+  await compile(targetName)
     .then(() => {
       result = true
       displayResult(
