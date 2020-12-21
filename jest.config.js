@@ -79,15 +79,7 @@ module.exports = {
   // ],
 
   // A map from regular expressions to module names that allow to stub out resources with a single module
-  moduleNameMapper: {
-    'files-db.json': '<rootDir>/test/__mocks__/files-db.json',
-    'files-minimal-app.json': '<rootDir>/test/__mocks__/files-minimal-app.json',
-    'files-react-app.json': '<rootDir>/test/__mocks__/files-react-app.json',
-    'files-angular-app.json': '<rootDir>/test/__mocks__/files-angular-app.json',
-    'files-compiled.json':
-      '<rootDir>/test/__mocks__/files-compiled-for-new-app.json',
-    'files-built.json': '<rootDir>/test/__mocks__/files-built-for-new-app.json'
-  },
+  moduleNameMapper: {},
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -131,7 +123,7 @@ module.exports = {
   // runner: "jest-runner",
 
   // The paths to modules that run some code to configure or set up the testing environment before each test
-  setupFiles: ['./test/helpers.js'],
+  setupFiles: [],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
   // setupFilesAfterEnv: [],

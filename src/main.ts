@@ -40,7 +40,7 @@ export async function createFileStructure(commandLine: string | string[]) {
         } successfully.\nGet ready to Unleash your SAS!`
       )
     })
-    .catch((err) => {
+    .catch((err: any) => {
       result = err
 
       displayResult(err, 'An error has occurred whilst creating your project.')

@@ -7,6 +7,7 @@ import {
   compileBuildServices
 } from '../../src/main'
 import { deleteFolder, createFolder } from '../../src/utils/file'
+import { verifyStep } from '../../src/utils/test'
 import { generateTimestamp } from '../../src/utils/utils'
 
 describe('sasjs compile', () => {
