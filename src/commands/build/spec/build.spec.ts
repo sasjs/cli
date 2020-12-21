@@ -1,29 +1,19 @@
-import dotenv from 'dotenv'
-import path from 'path'
-import {
-  createFileStructure,
-  buildServices,
-  compileServices
-} from '../../../main'
-import { createFolder, deleteFolder } from '../../../utils/file'
+import { buildServices, compileServices } from '../../../main'
+import { createTestApp, removeTestApp } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 
 describe('sasjs build', () => {
-  beforeAll(() => {
-    dotenv.config()
+  let appName: string
+
+  afterEach(async () => {
+    await removeTestApp(__dirname, appName)
   })
 
   it(
     `should build with minimal template`,
     async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-build-minimal${timestamp}`
-
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-
-      await createFolder(process.projectDir)
-
-      await createFileStructure(`create --template minimal`)
+      appName = `test-app-build-minimal-${generateTimestamp()}`
+      await createTestApp(__dirname, appName)
 
       await expect(buildServices(`build`)).resolves.toEqual(true)
     },
@@ -33,22 +23,13 @@ describe('sasjs build', () => {
   it(
     `should compile and build(skipping compile)`,
     async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-build-${timestamp}`
+      appName = `test-app-build-${generateTimestamp()}`
 
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-
-      await createFolder(process.projectDir)
-
-      await createFileStructure(`create`)
+      await createTestApp(__dirname, appName)
 
       await compileServices(`compile`)
       await expect(buildServices(`build`)).resolves.toEqual(true)
     },
     2 * 60 * 1000
   )
-
-  afterAll(async () => {
-    await deleteFolder('./test-app-build-*')
-  }, 60 * 1000)
 })
