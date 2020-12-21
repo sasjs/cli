@@ -1,4 +1,5 @@
 import { displayResult } from '../../utils/displayResult'
+import chalk from 'chalk'
 
 /**
  * Moves folder to a new location.
@@ -20,9 +21,14 @@ export const move = async (paths, sasjs, accessToken) => {
   }
 
   const sourceFolder = pathMap[0]
-  let targetFolder = pathMap[1].split('/')
-  const targetFolderName = targetFolder.pop()
-  targetFolder = targetFolder.join('/')
+  let targetFolder = pathMap[1]
+  const targetFolderName = targetFolder.split('/').pop()
+
+  console.log({
+    sourceFolder,
+    targetFolder,
+    targetFolderName
+  })
 
   const movedFolder = await sasjs
     .moveFolder(sourceFolder, targetFolder, targetFolderName, accessToken)
@@ -35,7 +41,7 @@ export const move = async (paths, sasjs, accessToken) => {
       null,
       null,
       `Folder successfully moved from '${sourceFolder}' to '${
-        targetFolder + '/' + targetFolderName
+        targetFolder
       }'.`
     )
   }

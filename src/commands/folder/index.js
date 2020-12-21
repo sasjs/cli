@@ -42,7 +42,6 @@ export async function folder(commandLine) {
 
     return
   }
-
   folderPath = command.prefixAppLoc(target.appLoc, folderPath)
 
   const sasjs = new SASjs({
