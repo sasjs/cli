@@ -18,12 +18,8 @@ export const list = async (path, sasjs, accessToken) => {
 
   if (folderList) {
     // Join array with comma and then replace every comma with 3 spaces
-    let folderFormattedList = folderList.join(',').replace(/,/gmi, '   ')
+    let folderFormattedList = folderList.join(',').replace(/,/gim, '   ')
 
-    displayResult(
-      null,
-      null,
-      folderFormattedList
-    )
+    displayResult(null, null, folderFormattedList)
   }
 }

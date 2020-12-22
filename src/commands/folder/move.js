@@ -40,9 +40,7 @@ export const move = async (paths, sasjs, accessToken) => {
     displayResult(
       null,
       null,
-      `Folder successfully moved from '${sourceFolder}' to '${
-        targetFolder
-      }'.`
+      `Folder successfully moved from '${sourceFolder}' to '${targetFolder}'.`
     )
   }
 }
