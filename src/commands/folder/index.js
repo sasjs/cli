@@ -6,12 +6,14 @@ import { create } from './create'
 import { move } from './move'
 import { remove } from './remove'
 import { Command } from '../../utils/command'
+import { list } from './list'
 
 export async function folder(commandLine) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
 
   const subCommands = {
+    list: 'list',
     create: 'create',
     move: 'move',
     delete: 'delete'
@@ -65,6 +67,8 @@ export async function folder(commandLine) {
       return await remove(folderPath, sasjs, accessToken)
     case subCommands.move:
       return await move(folderPath, sasjs, accessToken)
+    case subCommands.list:
+      return await list(folderPath, sasjs, accessToken)
     default:
       break
   }
