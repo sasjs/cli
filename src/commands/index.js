@@ -18,9 +18,9 @@ export { processContext } from './context'
 
 export { create } from './create/create'
 
-export { buildDB } from './db'
+export { buildDB } from './db/db'
 
-export { deploy } from './deploy'
+export { deploy } from './deploy/deploy'
 
 export { folder } from './folder'
 

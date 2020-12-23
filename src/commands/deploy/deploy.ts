@@ -4,17 +4,17 @@ import chalk from 'chalk'
 import {
   getAccessToken,
   findTargetInConfiguration
-} from '../utils/config-utils'
-import { asyncForEach, executeShellScript } from '../utils/utils'
+} from '../../utils/config-utils'
+import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
   isShellScript,
   readFile,
   folderExists,
   createFile
-} from '../utils/file'
+} from '../../utils/file'
 import { ServerType, Target } from '@sasjs/utils'
-import { getConstants } from '../constants'
+import { getConstants } from '../../constants'
 
 export async function deploy(targetName: string) {
   const { target } = await findTargetInConfiguration(targetName)

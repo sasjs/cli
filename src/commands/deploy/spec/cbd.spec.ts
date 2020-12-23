@@ -5,19 +5,20 @@ import {
   createFile,
   copy,
   readFile
-} from '../../../src/utils/file'
+} from '../../../utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
-import {
-  createFileStructure,
-  compileBuildDeployServices
-} from '../../../src/main'
-import { folder } from '../../../src/commands/folder/index'
-import { generateTimestamp } from '../../../src/utils/utils'
+import { createFileStructure, compileBuildDeployServices } from '../../../main'
+import { folder } from '../../folder/index'
+import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
+import {
+  removeFromGlobalConfig,
+  saveToGlobalConfig
+} from '../../../utils/config-utils'
 
 describe('sasjs cbd (global config)', () => {
-  let config: Target
+  let target: Target
   const targetName = 'cli-tests-cbd'
 
   beforeAll(async () => {
@@ -27,31 +28,35 @@ describe('sasjs cbd (global config)', () => {
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
         : ServerType.Sas9
-    config = {
+    target = new Target({
       name: targetName,
       serverType,
       serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
-      tgtServices: ['../../test/commands/cbd/testJob'],
-      jobs: ['../../test/commands/cbd/testJob'],
-      authInfo: {
+      serviceConfig: {
+        serviceFolders: ['../../src/commands/cbd/spec/testJob'],
+        initProgram: '../../src/commands/cbd/spec/testServices/serviceinit.sas',
+        termProgram: '../../src/commands/cbd/spec/testServices/serviceterm.sas',
+        macroVars: {}
+      },
+      jobConfig: {
+        jobFolders: ['../../src/commands/cbd/spec/testJob'],
+        initProgram: '../../src/commands/cbd/spec/testServices/serviceinit.sas',
+        termProgram: '../../src/commands/cbd/spec/testServices/serviceterm.sas',
+        macroVars: {}
+      },
+      authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
         access_token: process.env.ACCESS_TOKEN as string,
         refresh_token: process.env.REFRESH_TOKEN as string
       },
-      deployServicePack: true,
-      tgtDeployVars: {
-        client: process.env.CLIENT as string,
-        secret: process.env.SECRET as string
-      },
-      tgtDeployScripts: [],
-      jobInit: '../../test/commands/cbd/testServices/serviceinit.sas',
-      jobTerm: '../../test/commands/cbd/testServices/serviceterm.sas',
-      tgtServiceInit: '../../test/commands/cbd/testServices/serviceinit.sas',
-      tgtServiceTerm: '../../test/commands/cbd/testServices/serviceterm.sas'
-    }
-    await addToGlobalConfigs(config)
+      deployConfig: {
+        deployServicePack: true,
+        deployScripts: []
+      }
+    })
+    await saveToGlobalConfig(target)
   })
 
   describe('cbd', () => {
@@ -124,9 +129,9 @@ describe('sasjs cbd (global config)', () => {
 
   afterAll(async () => {
     await deleteFolder('./test-app-cbd-*')
-    await removeFromGlobalConfigs(targetName)
+    await removeFromGlobalConfig(targetName)
 
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+    await folder(`folder delete ${target.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })
 
@@ -145,12 +150,12 @@ describe('sasjs cbd (creating new app having local config)', () => {
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
         : ServerType.Sas9
-    target = {
+    target = new Target({
       name: targetName,
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`
-    }
+    })
     access_token = process.env.ACCESS_TOKEN as string
 
     const envConfig = dotenv.parse(

@@ -1,9 +1,9 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { createFileStructure, buildDBs } from '../../src/main'
-import { createFolder, deleteFolder } from '../../src/utils/file'
-import { verifyStep } from '../../src/utils/test'
-import { generateTimestamp } from '../../src/utils/utils'
+import { createFileStructure, buildDBs } from '../../../main'
+import { createFolder, deleteFolder } from '../../../utils/file'
+import { verifyStep } from '../../../utils/test'
+import { generateTimestamp } from '../../../utils/utils'
 
 describe('sasjs db', () => {
   beforeAll(async () => {

@@ -10,8 +10,8 @@
     "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
     "test": "jest --silent",
     "semantic-release": "semantic-release -d",
-    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
-    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\""
+    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
+    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\""
   },
   "release": {
     "branches": [

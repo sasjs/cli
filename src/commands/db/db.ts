@@ -9,8 +9,8 @@ import {
   createFolder,
   deleteFolder,
   fileExists
-} from '../utils/file'
-import { asyncForEach } from '../utils/utils'
+} from '../../utils/file'
+import { asyncForEach } from '../../utils/utils'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
 let buildDestinationFolder = ''
@@ -26,7 +26,7 @@ export async function buildDB() {
 
   const buildDBFolders = await getSubFoldersInFolder(buildSourceDBFolder)
   const buildDBIniFiles = await getIniFilesInFolder(buildSourceDBFolder)
-  let iniFilesContent = {}
+  let iniFilesContent: { [key: string]: string } = {}
   await asyncForEach(buildDBIniFiles, async (buildDBIniFile) => {
     iniFilesContent[buildDBIniFile] = await readFile(
       path.join(buildSourceDBFolder, buildDBIniFile)
@@ -45,8 +45,8 @@ export async function buildDB() {
         buildDestinationDBFolder,
         destinationFileName
       )
-      const filesNamesInPathWithExt = filesNamesInPath.filter((fileName) =>
-        fileName.endsWith(fileExt)
+      const filesNamesInPathWithExt = filesNamesInPath.filter(
+        (fileName: string) => fileName.endsWith(fileExt)
       )
       let newDbFileContent = ''
       if (fileExt == 'ddl' && iniFilesContent[`${buildDBFolder}.ini`]) {
@@ -72,10 +72,10 @@ async function recreateBuildFolder() {
   await createFolder(buildDestinationDBFolder)
 }
 
-function getFileExts(fileNames) {
-  let extensions = []
+function getFileExts(fileNames: string[]) {
+  let extensions: string[] = []
   fileNames.forEach((fileName) => {
-    const ext = fileName.split('.').pop()
+    const ext = fileName.split('.').pop() || ''
     if (whiteListedDBExtensions.includes(ext) && !extensions.includes(ext))
       extensions.push(ext)
   })
