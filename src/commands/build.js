@@ -679,7 +679,7 @@ async function getDependencies(filePaths) {
 export function getProgramList(fileContent) {
   let programList = getList('<h4> SAS Programs </h4>', fileContent)
   programList = programList.map((l) => {
-    const [fileName, fileRef] = l.split(' ')
+    const [fileName, fileRef] = l.split(' ').filter((f) => !!f)
 
     if (!fileName) {
       throw new Error(
