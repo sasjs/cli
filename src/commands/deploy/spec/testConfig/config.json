@@ -8,11 +8,16 @@
       "serverType": "",
       "serverUrl": "",
       "appLoc": "/Public/app/cli-tests",
-      "deployServicePack": false,
-      "assetPaths": [],
-      "streamWeb": true,
-      "streamWebFolder": "webv",
-      "webSourcePath": "src"
+      "deployConfig": {
+        "deployServicePack": false,
+        "deployScripts": []
+      },
+      "streamConfig": {
+        "assetPaths": [],
+        "streamWeb": true,
+        "streamWebFolder": "webv",
+        "webSourcePath": "src"
+      }
     }
   ]
 }

@@ -11,38 +11,33 @@ import {
   fileExists
 } from '../../utils/file'
 import { asyncForEach } from '../../utils/utils'
+import { getConstants } from '../../constants'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
-let buildDestinationFolder = ''
-let buildSourceDBFolder = ''
-let buildDestinationDBFolder = ''
 
 export async function buildDB() {
-  const CONSTANTS = require('../constants').get()
-  buildDestinationFolder = CONSTANTS.buildDestinationFolder
-  buildSourceDBFolder = CONSTANTS.buildSourceDBFolder
-  buildDestinationDBFolder = CONSTANTS.buildDestinationDBFolder
+  const { buildSourceDbFolder, buildDestinationDbFolder } = getConstants()
   await recreateBuildFolder()
 
-  const buildDBFolders = await getSubFoldersInFolder(buildSourceDBFolder)
-  const buildDBIniFiles = await getIniFilesInFolder(buildSourceDBFolder)
+  const buildDBFolders = await getSubFoldersInFolder(buildSourceDbFolder)
+  const buildDBIniFiles = await getIniFilesInFolder(buildSourceDbFolder)
   let iniFilesContent: { [key: string]: string } = {}
   await asyncForEach(buildDBIniFiles, async (buildDBIniFile) => {
     iniFilesContent[buildDBIniFile] = await readFile(
-      path.join(buildSourceDBFolder, buildDBIniFile)
+      path.join(buildSourceDbFolder, buildDBIniFile)
     )
   })
   await asyncForEach(buildDBFolders, async (buildDBFolder) => {
     console.log(
       chalk.greenBright('Loading DB: ', chalk.cyanBright(buildDBFolder))
     )
-    const folderPath = path.join(buildSourceDBFolder, buildDBFolder)
+    const folderPath = path.join(buildSourceDbFolder, buildDBFolder)
     const filesNamesInPath = await getFilesInFolder(folderPath)
     const fileExtsInPath = await getFileExts(filesNamesInPath)
     await asyncForEach(fileExtsInPath, async (fileExt) => {
       const destinationFileName = buildDBFolder + '.' + fileExt
       const destinationFilePath = path.join(
-        buildDestinationDBFolder,
+        buildDestinationDbFolder,
         destinationFileName
       )
       const filesNamesInPathWithExt = filesNamesInPath.filter(
@@ -65,11 +60,12 @@ export async function buildDB() {
 }
 
 async function recreateBuildFolder() {
+  const { buildDestinationFolder, buildDestinationDbFolder } = getConstants()
   console.log(chalk.greenBright('Recreating to build/DB folder...'))
   const pathExists = await fileExists(buildDestinationFolder)
-  if (pathExists) await deleteFolder(buildDestinationDBFolder)
+  if (pathExists) await deleteFolder(buildDestinationDbFolder)
   else await createFolder(buildDestinationFolder)
-  await createFolder(buildDestinationDBFolder)
+  await createFolder(buildDestinationDbFolder)
 }
 
 function getFileExts(fileNames: string[]) {

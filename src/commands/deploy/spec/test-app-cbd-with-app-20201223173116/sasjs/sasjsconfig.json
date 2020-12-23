@@ -1,0 +1,52 @@
+{
+  "cmnMacros": [
+    "macros"
+  ],
+  "cmnServices": [
+    "services/common"
+  ],
+  "useMacroCore": true,
+  "targets": [
+    {
+      "name": "cli-tests-cbd-with-app",
+      "serverUrl": "https://sas.analytium.co.uk",
+      "serverType": "SASVIYA",
+      "appLoc": "/Public/app/cli-tests/cli-tests-cbd-with-app-20201223173116",
+      "macroFolders": [],
+      "programFolders": [],
+      "authConfig": {
+        "access_token": "eyJhbGciOiJSUzI1NiIsImprdSI6Imh0dHBzOi8vbG9jYWxob3N0L1NBU0xvZ29uL3Rva2VuX2tleXMiLCJraWQiOiJsZWdhY3ktdG9rZW4ta2V5IiwidHlwIjoiSldUIn0.eyJqdGkiOiI2YjM0MGQ0NWFiMTg0OTg3ODEwZDZhYTY3NjY1OGFkYyIsImV4dF9pZCI6ImNuPWRjdGVzdHVzZXIxLG91PUFBRERDIFVzZXJzLGRjPWFuYWx5dGl1bSxkYz1jbyxkYz11ayIsInJlbW90ZV9pcCI6IjcyLjI1NS41OC40OCIsInN1YiI6IjE4MTdhZDcxLTA0MmMtNGI5ZC1iYzc2LTEyNmYwMGNkMzJlZiIsInNjb3BlIjpbIlNBU0FkbWluaXN0cmF0b3JzIiwib3BlbmlkIl0sImNsaWVudF9pZCI6ImNsaWVudDNGREI4MjBCRTJCNzA0MTgiLCJjaWQiOiJjbGllbnQzRkRCODIwQkUyQjcwNDE4IiwiYXpwIjoiY2xpZW50M0ZEQjgyMEJFMkI3MDQxOCIsImdyYW50X3R5cGUiOiJhdXRob3JpemF0aW9uX2NvZGUiLCJ1c2VyX2lkIjoiMTgxN2FkNzEtMDQyYy00YjlkLWJjNzYtMTI2ZjAwY2QzMmVmIiwib3JpZ2luIjoibGRhcCIsInVzZXJfbmFtZSI6ImRjdGVzdHVzZXIxIiwiZW1haWwiOiJkY3Rlc3R1c2VyMUB1c2VyLmZyb20ubGRhcC5jZiIsImF1dGhfdGltZSI6MTYwNDA1NDE0OCwicmV2X3NpZyI6ImU0Y2VkNjZjIiwiaWF0IjoxNjA0MDU0MTQ4LCJleHAiOjE2MzU1OTAxNDgsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3QvU0FTTG9nb24vb2F1dGgvdG9rZW4iLCJ6aWQiOiJ1YWEiLCJhdWQiOlsiY2xpZW50M0ZEQjgyMEJFMkI3MDQxOCIsIm9wZW5pZCJdfQ.N0LcFzCN-sOD5d9-hcz3aO4nIe8Kr7L0exk64TNzmff0y2yvf4XiXiR0b65cF1OjrujRpfMaEch3AZXQVxboDlU0-OIDZc8fzq-kGLJrkgS0nMyVEHQIebIf61k3XP3tFO1EAy1ZuFrZUKnpuk9wKnFTGXQ-9htwMiLvO9f7zLuwdc87QaYQjqet6iqLnENbAN0QIQO0kXfwcxB9FTWLU-5ScWLeinfnuVqcDuplxfzqBQkUr3v4u1eauZfvTaBrwS9uA07yEsAGurUonfgU0IHjyeUYXlxATwtG3_7YyeZuXAfUr53xSG-48l25MkO4SvzA4Mh7LOAfAF2fHI4HWg"
+      },
+      "buildConfig": {
+        "initProgram": "",
+        "termProgram": "",
+        "buildOutputFileName": "cli-tests-cbd-with-app.sas",
+        "macroVars": {}
+      },
+      "jobConfig": {
+        "jobFolders": [],
+        "initProgram": "",
+        "termProgram": "",
+        "macroVars": {}
+      },
+      "serviceConfig": {
+        "serviceFolders": [],
+        "initProgram": "",
+        "termProgram": "",
+        "macroVars": {}
+      },
+      "streamConfig": {
+        "streamWebFolder": "",
+        "streamWeb": false,
+        "webSourcePath": "",
+        "assetPaths": []
+      },
+      "deployConfig": {
+        "deployScripts": [
+          "sasjs/build/copyscript.sh"
+        ],
+        "deployServicePack": true
+      }
+    }
+  ]
+}

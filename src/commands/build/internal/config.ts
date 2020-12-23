@@ -27,7 +27,7 @@ export const getBuildInit = async (target: Target) => {
   }
 
   return buildInitContent
-    ? `\nBuildInit start;\n${buildInitContent}\nBuildInit end;`
+    ? `\n* BuildInit start;\n${buildInitContent}\n* BuildInit end;`
     : ''
 }
 
@@ -54,6 +54,6 @@ export const getBuildTerm = async (target: Target) => {
   }
 
   return buildTermContent
-    ? `\nBuildTerm start;\n${buildTermContent}\nBuildTerm end;`
+    ? `\n* BuildTerm start;\n${buildTermContent}\n* BuildTerm end;`
     : ''
 }

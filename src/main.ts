@@ -188,7 +188,7 @@ export async function compileBuildDeployServices(
   let result
 
   await build(targetName) // enforcing compile & build & deploy
-  await deployServices(commandLine)
+  await deploy(targetName)
     .then(() => {
       result = true
 

@@ -27,7 +27,7 @@ export const getServiceInit = async (target: Target) => {
   }
 
   return serviceInitContent
-    ? `\nServiceInit start;\n${serviceInitContent}\nServiceInit end;`
+    ? `\n* ServiceInit start;\n${serviceInitContent}\n* ServiceInit end;`
     : ''
 }
 
@@ -54,14 +54,14 @@ export const getServiceTerm = async (target: Target) => {
   }
 
   return serviceTermContent
-    ? `\nServiceTerm start;\n${serviceTermContent}\nServiceTerm end;`
+    ? `\n* ServiceTerm start;\n${serviceTermContent}\n* ServiceTerm end;`
     : ''
 }
 
 export const getJobInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let jobInitContent = ''
-  if (target && target.jobConfig && target.jobConfig.initProgram) {
+  if (target?.jobConfig?.initProgram) {
     jobInitContent = await readFile(
       path.join(buildSourceFolder, target.jobConfig.initProgram)
     )
@@ -81,7 +81,7 @@ export const getJobInit = async (target: Target) => {
   }
 
   return jobInitContent
-    ? `\nJobInit start;\n${jobInitContent}\nJobInit end;`
+    ? `\n* JobInit start;\n${jobInitContent}\n* JobInit end;`
     : ''
 }
 
@@ -108,6 +108,6 @@ export const getJobTerm = async (target: Target) => {
   }
 
   return jobTermContent
-    ? `\nJobTerm start;\n${jobTermContent}\nJobTerm end;`
+    ? `\n* JobTerm start;\n${jobTermContent}\n* JobTerm end;`
     : ''
 }
