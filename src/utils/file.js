@@ -201,7 +201,7 @@ export async function createFile(fileName, content, debug = false) {
       if (!(await folderExists(folderPath))) await createFolder(folderPath)
     }
 
-    fs.writeFile(fileName, content, function (error, data) {
+    fs.writeFile(fileName, content, function (error) {
       if (error) {
         console.log(
           chalk.red(`Error creating file %s`),
@@ -209,7 +209,8 @@ export async function createFile(fileName, content, debug = false) {
         )
         return reject(error)
       }
-      resolve(data)
+
+      resolve(content)
     })
   })
 }
