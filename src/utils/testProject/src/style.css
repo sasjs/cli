@@ -1,5 +1,5 @@
 * {
-  font-family: "Roboto", sans-serif;
+  font-family: 'Roboto', sans-serif;
 }
 
 body {
@@ -64,7 +64,7 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   color: #4a4a4d;
-  font: 14px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font: 14px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 th,
 td {
