@@ -19,6 +19,7 @@ import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 export async function execute(
   source: string,
@@ -29,6 +30,8 @@ export async function execute(
 ) {
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+
+    const logger = new Logger(LogLevel.Info)
 
     if (!source || !isJsonFile(source)) {
       return reject(
@@ -110,6 +113,8 @@ export async function execute(
         return reject(examples.source)
 
       if (!flow.predecessors || flow.predecessors.length === 0) {
+        displayResult(null, null, `'${flowName}' flow started.`)
+
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
@@ -132,10 +137,18 @@ export async function execute(
               true
             )
             .catch(async (err: any) => {
+              displayResult(
+                {},
+                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`,
+                null
+              )
+
               const logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayResult(err, 'Error while saving log file.')
               )
@@ -152,12 +165,6 @@ export async function execute(
               )
 
               job.status = 'failure'
-
-              displayResult(
-                {},
-                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`,
-                null
-              )
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -307,7 +314,8 @@ export async function execute(
       links: any[],
       flowName: string,
       jobLocation: string,
-      lineCount: number = 1000000
+      lineCount: number = 1000000,
+      printLogPath = false
     ) => {
       return new Promise(async (resolve, reject) => {
         if (!logFolder) return reject('No log folder provided')
@@ -345,10 +353,15 @@ export async function execute(
             logName = generateFileName()
           }
 
-          await createFile(
-            path.join(logFolder, logName),
-            logParsed
-          ).catch((err) => displayResult(err, 'Error while creating log file.'))
+          const logPath = path.join(logFolder, logName)
+
+          const createdLog = await createFile(logPath, logParsed).catch((err) =>
+            displayResult(err, 'Error while creating log file.')
+          )
+
+          if (createdLog && printLogPath) {
+            logger.info(`Log location: ${logPath}`)
+          }
 
           return resolve(logName)
         }
@@ -464,6 +477,8 @@ export async function execute(
 
           if (successFullPredecessors.includes(false)) return
         }
+
+        displayResult(null, null, `'${successor}' flow started.`)
 
         flows[successor].jobs.forEach((job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
@@ -585,10 +600,18 @@ export async function execute(
               }
             })
             .catch(async (err: any) => {
+              displayResult(
+                {},
+                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`,
+                null
+              )
+
               const logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayResult(err, 'Error while saving log file.')
               )
@@ -605,12 +628,6 @@ export async function execute(
               )
 
               job.status = 'failure'
-
-              displayResult(
-                {},
-                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`,
-                null
-              )
 
               if (
                 flows[successor].jobs.filter((j: any) =>
