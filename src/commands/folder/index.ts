@@ -1,13 +1,16 @@
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
+import {
+  getAccessToken,
+  findTargetInConfiguration
+} from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
 import { create } from './create'
 import { move } from './move'
 import { remove } from './remove'
 import { Command } from '../../utils/command'
 
-export async function folder(commandLine) {
+export async function folder(commandLine: string | string[]) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
 
@@ -31,7 +34,7 @@ export async function folder(commandLine) {
   const targetName = command.getFlagValue('target')
   let folderPath = command.values.join(' ')
 
-  const target = await getBuildTarget(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
 
   if (!folderPath) {
     console.log(
@@ -43,7 +46,7 @@ export async function folder(commandLine) {
     return
   }
 
-  folderPath = command.prefixAppLoc(target.appLoc, folderPath)
+  folderPath = command.prefixAppLoc(target.appLoc, folderPath) as string
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,

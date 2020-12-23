@@ -1,11 +1,14 @@
 import chalk from 'chalk'
-import { getBuildTarget, getAccessToken } from '../../utils/config-utils'
+import {
+  findTargetInConfiguration,
+  getAccessToken
+} from '../../utils/config-utils'
 import { displayResult } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
 import { Command } from '../../utils/command'
 
-export async function processJob(commandLine) {
+export async function processJob(commandLine: string | string[]) {
   const command = new Command(commandLine)
 
   const subCommand = command.getSubCommand()
@@ -33,9 +36,9 @@ export async function processJob(commandLine) {
   const returnStatusOnly = command.getFlagValue('returnStatusOnly')
   const ignoreWarnings = command.getFlagValue('ignoreWarnings')
 
-  const target = await getBuildTarget(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
 
-  const jobPath = command.prefixAppLoc(target.appLoc, command.values)
+  const jobPath = command.prefixAppLoc(target.appLoc, command.values as any)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
@@ -54,8 +57,8 @@ export async function processJob(commandLine) {
     case subCommands.execute:
       result = await execute(
         sasjs,
-        accessToken,
-        jobPath,
+        accessToken as string,
+        jobPath as string,
         target,
         waitForJob,
         output,

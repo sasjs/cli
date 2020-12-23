@@ -230,7 +230,14 @@ export async function buildDBs() {
 }
 
 export async function buildWebApp(commandLine: string | string[]) {
-  await createWebAppServices(commandLine)
+  const command = new Command(commandLine)
+  let targetName: string = command.getFlagValue('target')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag()
+  }
+
+  await createWebAppServices(targetName)
     .then(() =>
       displayResult(
         null,

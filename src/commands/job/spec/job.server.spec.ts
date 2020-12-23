@@ -1,26 +1,29 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processJob } from '../../src/commands'
-import { processContext } from '../../src/commands'
-import { getContextName } from '../../src/commands/job/execute'
-import { compileBuildDeployServices } from '../../src/main'
-import { folder } from '../../src/commands/folder/index'
+import { processJob } from '../..'
+import { processContext } from '../..'
+import { getContextName } from '../execute'
+import { compileBuildDeployServices } from '../../../main'
+import { folder } from '../../folder/index'
 import {
   folderExists,
   fileExists,
   readFile,
   createFolder,
   deleteFolder
-} from '../../src/utils/file'
-import { generateTimestamp } from '../../src/utils/utils'
+} from '../../../utils/file'
+import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { saveToGlobalConfig } from '../../src/utils/config-utils'
+import {
+  removeFromGlobalConfig,
+  saveToGlobalConfig
+} from '../../../utils/config-utils'
 
 const testOutputFolder = 'test-app-job-output-'
 let parentFolderNameTimeStamped: string
 
 describe('sasjs job', () => {
-  let config: Target
+  let target: Target
   const targetName = 'cli-tests-job'
   const timestampAppLoc = generateTimestamp()
 
@@ -33,7 +36,7 @@ describe('sasjs job', () => {
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
         : ServerType.Sas9
-    config = new Target({
+    target = new Target({
       name: '',
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
@@ -45,19 +48,23 @@ describe('sasjs job', () => {
         refresh_token: process.env.REFRESH_TOKEN as string
       }
     })
-    const context = await getAvailableContext(config)
+    const context = await getAvailableContext(target)
 
-    await deployTestJob(config)
+    await deployTestJob(target)
 
-    await saveToGlobalConfig({
-      ...config,
-      name: targetName,
-      serviceFolders: ['testJob'],
-      contextName: context.name,
-      tgtDeployVars: {
-        contextName: context
-      }
-    })
+    await saveToGlobalConfig(
+      new Target({
+        ...target.toJson(),
+        name: targetName,
+        serviceConfig: {
+          serviceFolders: ['testJob'],
+          macroVars: {},
+          initProgram: '',
+          termProgram: ''
+        },
+        contextName: context.name
+      })
+    )
   }, 4 * 60 * 1000)
 
   beforeEach(async () => {
@@ -374,9 +381,9 @@ describe('sasjs job', () => {
 
   afterAll(async () => {
     await deleteFolder(`./${testOutputFolder}*`)
-    await removeFromGlobalConfigs(targetName)
+    await removeFromGlobalConfig(targetName)
 
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+    await folder(`folder delete ${target.appLoc} -t ${targetName}`)
   }, 60 * 1000)
 })
 
@@ -392,23 +399,27 @@ describe('getContextName', () => {
   it('should return the context name if specified in the target', () => {
     const target = { contextName: 'Test Context' }
 
-    expect(getContextName(target)).toEqual('Test Context')
+    expect(getContextName(target as Target)).toEqual('Test Context')
   })
 
   it('should return the default context if context name is not specified', () => {
     const target = { contextName: undefined }
 
-    expect(getContextName(target)).toEqual('SAS Job Execution compute context')
+    expect(getContextName((target as unknown) as Target)).toEqual(
+      'SAS Job Execution compute context'
+    )
   })
 })
 
-async function getAvailableContext(config: Target) {
+async function getAvailableContext(target: Target) {
   const targetNameContext = 'cli-tests-context'
 
-  await addToGlobalConfigs({
-    ...config,
-    name: targetNameContext
-  })
+  await saveToGlobalConfig(
+    new Target({
+      ...target.toJson(),
+      name: targetNameContext
+    })
+  )
 
   const contexts = await processContext([
     'context',
@@ -417,30 +428,34 @@ async function getAvailableContext(config: Target) {
     targetNameContext
   ])
 
-  await removeFromGlobalConfigs(targetNameContext)
+  await removeFromGlobalConfig(targetNameContext)
 
-  return contexts[0]
+  return (contexts as any[])[0]
 }
 
-async function deployTestJob(config: Target) {
+async function deployTestJob(target: Target) {
   const targetName = 'cli-tests-cbd-for-job'
-  config = {
-    ...config,
+  target = new Target({
+    ...target.toJson(),
     name: targetName,
-    tgtServices: ['../test/commands/cbd/testJob'],
-    jobs: ['../test/commands/cbd/testJob'],
-    deployServicePack: true,
-    tgtDeployVars: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string
+    serviceConfig: {
+      serviceFolders: ['../test/commands/cbd/testJob'],
+      initProgram: '../test/commands/cbd/testServices/serviceinit.sas',
+      termProgram: '../test/commands/cbd/testServices/serviceterm.sas',
+      macroVars: {}
     },
-    tgtDeployScripts: [],
-    jobInit: '../test/commands/cbd/testServices/serviceinit.sas',
-    jobTerm: '../test/commands/cbd/testServices/serviceterm.sas',
-    tgtServiceInit: '../test/commands/cbd/testServices/serviceinit.sas',
-    tgtServiceTerm: '../test/commands/cbd/testServices/serviceterm.sas'
-  }
-  await addToGlobalConfigs(config)
+    jobConfig: {
+      jobFolders: ['../test/commands/cbd/testJob'],
+      initProgram: '../test/commands/cbd/testServices/serviceinit.sas',
+      termProgram: '../test/commands/cbd/testServices/serviceterm.sas',
+      macroVars: {}
+    },
+    deployConfig: {
+      deployServicePack: true,
+      deployScripts: []
+    }
+  })
+  await saveToGlobalConfig(target)
 
   const command = `cbd ${targetName} -f`.split(' ')
   await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
@@ -448,5 +463,5 @@ async function deployTestJob(config: Target) {
   const sasjsBuildDirPath = path.join(process.cwd(), 'sasjsbuild')
   await deleteFolder(sasjsBuildDirPath)
 
-  await removeFromGlobalConfigs(targetName)
+  await removeFromGlobalConfig(targetName)
 }

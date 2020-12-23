@@ -1,3 +1,4 @@
+import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import { displayResult } from '../../utils/displayResult'
 
@@ -8,13 +9,25 @@ import { displayResult } from '../../utils/displayResult'
  * @param {string} accessToken - an access token for an authorized user.
  * @param {boolean} isForced - forced flag indicates if target folder already exists, its content and all subfolders will be deleted.
  */
-export const create = async (path, sasjs, accessToken, isForced) => {
+export const create = async (
+  path: string,
+  sasjs: SASjs,
+  accessToken: string,
+  isForced: boolean
+) => {
   const pathMap = path.split('/')
-  const folder = sanitize(pathMap.pop())
+  const folder = sanitize(pathMap.pop() || '')
   let parentFolderPath = pathMap.join('/')
 
   const createdFolder = await sasjs
-    .createFolder(folder, parentFolderPath, null, accessToken, null, isForced)
+    .createFolder(
+      folder,
+      parentFolderPath,
+      undefined,
+      accessToken,
+      undefined,
+      isForced
+    )
     .catch((err) => {
       displayResult(err)
 
@@ -38,4 +51,4 @@ export const create = async (path, sasjs, accessToken, isForced) => {
   }
 }
 
-const sanitize = (path) => path.replace(/[^0-9a-zA-Z_\-. ]/g, '_')
+const sanitize = (path: string) => path.replace(/[^0-9a-zA-Z_\-. ]/g, '_')

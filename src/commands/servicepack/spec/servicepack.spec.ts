@@ -1,12 +1,17 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processServicepack } from '../../../src/commands/servicepack'
-import { folder } from '../../../src/commands/folder/index'
-import { generateTimestamp } from '../../../src/utils/utils'
+import { processServicepack } from '..'
+import { folder } from '../../folder/index'
+import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { TargetJson } from '../../../types/configuration'
+import {
+  removeFromGlobalConfig,
+  saveToGlobalConfig
+} from '../../../utils/config-utils'
 
 describe('sasjs servicepack', () => {
-  let config: Target
+  let config: TargetJson
   const targetName = 'cli-tests-servicepack'
 
   beforeAll(async () => {
@@ -21,18 +26,16 @@ describe('sasjs servicepack', () => {
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
-      authInfo: {
+      authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
         access_token: process.env.ACCESS_TOKEN as string,
         refresh_token: process.env.REFRESH_TOKEN as string
       },
-      tgtDeployVars: {
-        client: process.env.CLIENT as string,
-        secret: process.env.SECRET as string
-      }
+      macroFolders: [],
+      programFolders: []
     }
-    await addToGlobalConfigs(config)
+    await saveToGlobalConfig(new Target(config))
 
     process.projectDir = path.join(process.cwd())
   })
@@ -45,7 +48,7 @@ describe('sasjs servicepack', () => {
           'servicepack',
           'deploy',
           '-s',
-          'test/commands/servicepack/testServicepack.json',
+          'src/commands/servicepack/spec/testServicepack.json',
           '-f',
           '-t',
           targetName
@@ -75,7 +78,7 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfigs(targetName)
+    await removeFromGlobalConfig(targetName)
 
     await folder(`folder delete ${config.appLoc} -t ${targetName}`)
   }, 60 * 1000)

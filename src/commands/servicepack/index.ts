@@ -3,7 +3,7 @@ import { Command } from '../../utils/command'
 
 import chalk from 'chalk'
 
-export async function processServicepack(commandLine) {
+export async function processServicepack(commandLine: string | string[]) {
   const command = new Command(commandLine)
   const subCommand = command.getSubCommand()
   const subCommands = {

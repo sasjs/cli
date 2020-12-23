@@ -11,12 +11,13 @@ import {
   getFilesInFolder
 } from '../../utils/file'
 import path from 'path'
-import chalk from 'chalk'
-import jsdom from 'jsdom'
+import jsdom, { JSDOM } from 'jsdom'
 import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
-import { Command } from '../../utils/command'
+import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
+import { getConstants } from '../../constants'
+import { StreamConfig } from '@sasjs/utils/types/config'
 
 let buildDestinationFolder = ''
 const permittedServerTypes = {
@@ -24,118 +25,119 @@ const permittedServerTypes = {
   SASVIYA: 'SASVIYA'
 }
 
-export async function createWebAppServices(
-  commandLine = null,
-  preTargetToBuild = null
-) {
-  let targetToBuild = null
-
-  if (commandLine === null && typeof preTargetToBuild === 'object') {
-    targetToBuild = preTargetToBuild
-  } else {
-    const command = new Command(commandLine)
-
-    let targetName = command.getFlagValue('target')
-    targetName = targetName ? targetName : null
-
-    const { target } = await findTargetInConfiguration(targetName)
-    targetToBuild = target
-  }
-
-  const CONSTANTS = require('../../constants').get()
-  buildDestinationFolder = CONSTANTS.buildDestinationFolder
-
-  console.log(chalk.greenBright('Building web app services...'))
-
-  await createBuildDestinationFolder()
-
-  if (targetToBuild) {
-    console.log(
-      chalk.greenBright(
-        `Building for target ${chalk.cyanBright(targetToBuild.name)}`
-      )
-    )
-
-    const webAppSourcePath = targetToBuild.webSourcePath
-    const destinationPath = path.join(
-      buildDestinationFolder,
-      'services',
-      targetToBuild.streamWebFolder
-    )
-    await createTargetDestinationFolder(destinationPath)
-
-    if (webAppSourcePath) {
-      const assetPathMap = await createAssetServices(
-        targetToBuild,
-        destinationPath
-      )
-      const hasIndexHtml = await fileExists(
-        path.join(process.projectDir, webAppSourcePath, 'index.html')
-      )
-      if (hasIndexHtml) {
-        const indexHtml = await readFile(
-          path.join(process.projectDir, webAppSourcePath, 'index.html')
-        ).then((content) => new jsdom.JSDOM(content))
-
-        const scriptTags = getScriptTags(indexHtml)
-        await asyncForEach(scriptTags, async (tag) => {
-          await updateTagSource(
-            tag,
-            webAppSourcePath,
-            destinationPath,
-            targetToBuild,
-            assetPathMap
-          )
-        })
-        const linkTags = getLinkTags(indexHtml)
-        await asyncForEach(linkTags, async (linkTag) => {
-          await updateLinkHref(
-            linkTag,
-            webAppSourcePath,
-            destinationPath,
-            targetToBuild
-          )
-        })
-
-        const faviconTags = getFaviconTags(indexHtml)
-
-        await asyncForEach(faviconTags, async (faviconTag) => {
-          await updateFaviconHref(
-            faviconTag,
-            webAppSourcePath,
-            destinationPath,
-            targetToBuild
-          )
-        })
-
-        await createClickMeService(indexHtml.serialize())
-      }
-    } else {
-      throw new Error(
-        'webSourcePath has not been specified. Please check your config and try again.'
-      )
-    }
-  } else
-    throw new Error(
-      'no target is found. Please check your config and try again.'
-    )
+const exampleStreamConfig: StreamConfig = {
+  streamWeb: true,
+  streamWebFolder: '/example/folder/path',
+  assetPaths: [],
+  webSourcePath: '/example/path'
 }
 
-async function createAssetServices(target, destinationPath) {
-  const assetPaths = target.assetPaths || []
-  const assetPathMap = []
+export async function createWebAppServices(targetName: string) {
+  const { target } = await findTargetInConfiguration(targetName)
+  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
+  const logger = new Logger(logLevel)
+
+  const { buildDestinationFolder } = getConstants()
+
+  if (!target) {
+    throw new Error(
+      `Invalid target: Target ${targetName} was not found in your configuration.`
+    )
+  }
+
+  const { streamConfig } = target
+
+  if (!streamConfig) {
+    throw new Error(
+      `Invalid stream config: Please specify the \`streamConfig\` in your target in the following format: \n ${JSON.stringify(
+        exampleStreamConfig,
+        null,
+        2
+      )}`
+    )
+  }
+
+  const { webSourcePath, streamWebFolder } = streamConfig
+  if (!webSourcePath) {
+    throw new Error(
+      `Invalid web sourcePath: Please specify the \`streamConfig\` in your target in the following format: \n ${JSON.stringify(
+        exampleStreamConfig,
+        null,
+        2
+      )}`
+    )
+  }
+
+  if (!streamWebFolder) {
+    throw new Error(
+      `Invalid stream web folder: Please specify the \`streamConfig\` in your target in the following format: \n ${JSON.stringify(
+        exampleStreamConfig,
+        null,
+        2
+      )}`
+    )
+  }
+
+  logger.info(`Building web app services for target ${targetName}...`)
+  await createBuildDestinationFolder()
+
+  const destinationPath = path.join(
+    buildDestinationFolder,
+    'services',
+    streamWebFolder
+  )
+  await createTargetDestinationFolder(destinationPath)
+
+  const assetPathMap = await createAssetServices(target, destinationPath)
+  const hasIndexHtml = await fileExists(
+    path.join(process.projectDir, webSourcePath, 'index.html')
+  )
+  if (hasIndexHtml) {
+    const indexHtml = await readFile(
+      path.join(process.projectDir, webSourcePath, 'index.html')
+    ).then((content) => new jsdom.JSDOM(content))
+
+    const scriptTags = getScriptTags(indexHtml)
+    await asyncForEach(scriptTags, async (tag) => {
+      await updateTagSource(
+        tag,
+        webSourcePath,
+        destinationPath,
+        target,
+        assetPathMap
+      )
+    })
+    const linkTags = getLinkTags(indexHtml)
+    await asyncForEach(linkTags, async (linkTag) => {
+      await updateLinkHref(linkTag, webSourcePath, destinationPath, target)
+    })
+
+    const faviconTags = getFaviconTags(indexHtml)
+
+    await asyncForEach(faviconTags, async (faviconTag) => {
+      await updateFaviconHref(faviconTag, webSourcePath)
+    })
+
+    await createClickMeService(indexHtml.serialize())
+  }
+}
+
+async function createAssetServices(target: Target, destinationPath: string) {
+  const { streamConfig } = target
+  const { webSourcePath, streamWebFolder, assetPaths } = streamConfig!
+  const assetPathMap: { source: string; target: string }[] = []
   await asyncForEach(assetPaths, async (assetPath) => {
     const pathExistsInCurrentFolder = await folderExists(
-      path.join(process.cwd(), target.webSourcePath, assetPath)
+      path.join(process.cwd(), webSourcePath, assetPath)
     )
     const pathExistsInParentFolder = await folderExists(
-      path.join(process.cwd(), '..', target.webSourcePath, assetPath)
+      path.join(process.cwd(), '..', webSourcePath, assetPath)
     )
     const fullAssetPath = pathExistsInCurrentFolder
-      ? path.join(process.cwd(), target.webSourcePath, assetPath)
+      ? path.join(process.cwd(), webSourcePath, assetPath)
       : pathExistsInParentFolder
-      ? path.join(process.cwd(), '..', target.webSourcePath, assetPath)
-      : null
+      ? path.join(process.cwd(), '..', webSourcePath, assetPath)
+      : ''
     const filePaths = await getFilesInFolder(fullAssetPath)
     await asyncForEach(filePaths, async (filePath) => {
       const fullFileName = path.basename(filePath)
@@ -150,12 +152,13 @@ async function createAssetServices(target, destinationPath) {
         const fileName = await generateAssetService(
           base64string,
           filePath,
-          destinationPath
+          destinationPath,
+          target.serverType
         )
         const assetServiceUrl = getScriptPath(
           target.appLoc,
           target.serverType,
-          target.streamWebFolder,
+          streamWebFolder,
           fileName.replace('.sas', '')
         )
         assetPathMap.push({
@@ -168,10 +171,19 @@ async function createAssetServices(target, destinationPath) {
   return assetPathMap
 }
 
-async function generateAssetService(content, filePath, destinationPath) {
+async function generateAssetService(
+  content: string,
+  filePath: string,
+  destinationPath: string,
+  serverType: ServerType
+) {
   const fileType = path.extname(filePath).replace('.', '').toUpperCase()
   const fileName = path.basename(filePath).replace('.', '-')
-  const serviceContent = await getWebServiceContent(content, fileType)
+  const serviceContent = await getWebServiceContent(
+    content,
+    fileType,
+    serverType
+  )
 
   await createFile(
     path.join(destinationPath, `${fileName}.sas`),
@@ -182,11 +194,11 @@ async function generateAssetService(content, filePath, destinationPath) {
 }
 
 async function updateTagSource(
-  tag,
-  webAppSourcePath,
-  destinationPath,
-  target,
-  assetPathMap
+  tag: HTMLLinkElement,
+  webAppSourcePath: string,
+  destinationPath: string,
+  target: Target,
+  assetPathMap: { source: string; target: string }[]
 ) {
   const scriptPath = tag.getAttribute('src')
   const isUrl =
@@ -195,7 +207,7 @@ async function updateTagSource(
   if (scriptPath) {
     const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
-      const content = await readFile(
+      let content = await readFile(
         path.join(process.projectDir, webAppSourcePath, scriptPath)
       )
 
@@ -222,7 +234,7 @@ async function updateTagSource(
         getScriptPath(
           target.appLoc,
           target.serverType,
-          target.streamWebFolder,
+          target.streamConfig?.streamWebFolder!,
           fileName
         )
       )
@@ -231,12 +243,12 @@ async function updateTagSource(
 }
 
 async function updateLinkHref(
-  linkTag,
-  webAppSourcePath,
-  destinationPath,
-  target
+  linkTag: HTMLLinkElement,
+  webAppSourcePath: string,
+  destinationPath: string,
+  target: Target
 ) {
-  const linkSourcePath = linkTag.getAttribute('href')
+  const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
@@ -258,15 +270,18 @@ async function updateLinkHref(
     const linkHref = getLinkHref(
       target.appLoc,
       target.serverType,
-      target.streamWebFolder,
+      target.streamConfig?.streamWebFolder!,
       fileName
     )
     linkTag.setAttribute('href', linkHref)
   }
 }
 
-async function updateFaviconHref(linkTag, webAppSourcePath) {
-  const linkSourcePath = linkTag.getAttribute('href')
+async function updateFaviconHref(
+  linkTag: HTMLLinkElement,
+  webAppSourcePath: string
+) {
+  const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
@@ -277,37 +292,47 @@ async function updateFaviconHref(linkTag, webAppSourcePath) {
   }
 }
 
-function getScriptPath(appLoc, serverType, streamWebFolder, fileName) {
+function getScriptPath(
+  appLoc: string,
+  serverType: ServerType,
+  streamWebFolder: string,
+  fileName: string
+) {
+  if (!(serverType === ServerType.SasViya || serverType === ServerType.Sas9)) {
+    throw new Error(
+      'Unsupported server type. Supported types are SAS9 and SASVIYA'
+    )
+  }
+  const storedProcessPath =
+    serverType === ServerType.SasViya
+      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+  return `${storedProcessPath}/${fileName}`
+}
+
+function getLinkHref(
+  appLoc: string,
+  serverType: ServerType,
+  streamWebFolder: string,
+  fileName: string
+) {
   if (!permittedServerTypes.hasOwnProperty(serverType.toUpperCase())) {
     throw new Error(
       'Unsupported server type. Supported types are SAS9 and SASVIYA'
     )
   }
   const storedProcessPath =
-    serverType === 'SASVIYA'
+    serverType === ServerType.SasViya
       ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
       : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
-function getLinkHref(appLoc, serverType, streamWebFolder, fileName) {
-  if (!permittedServerTypes.hasOwnProperty(serverType.toUpperCase())) {
-    throw new Error(
-      'Unsupported server type. Supported types are SAS9 and SASVIYA'
-    )
-  }
-  const storedProcessPath =
-    serverType === 'SASVIYA'
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
-  return `${storedProcessPath}/${fileName}`
+function getScriptTags(parsedHtml: JSDOM) {
+  return Array.from(parsedHtml.window.document.querySelectorAll('script'))
 }
 
-function getScriptTags(parsedHtml) {
-  return parsedHtml.window.document.querySelectorAll('script')
-}
-
-function getLinkTags(parsedHtml) {
+function getLinkTags(parsedHtml: JSDOM) {
   const linkTags = Array.from(
     parsedHtml.window.document.querySelectorAll('link')
   ).filter((s) => s.getAttribute('rel') === 'stylesheet')
@@ -315,11 +340,14 @@ function getLinkTags(parsedHtml) {
   return linkTags
 }
 
-function getFaviconTags(parsedHtml) {
+function getFaviconTags(parsedHtml: JSDOM) {
   const linkTags = Array.from(
     parsedHtml.window.document.querySelectorAll('link')
   ).filter(
-    (s) => s.getAttribute('rel') && s.getAttribute('rel').includes('icon')
+    (s) =>
+      s.getAttribute('rel') &&
+      s.getAttribute('rel') &&
+      s.getAttribute('rel')!.includes('icon')
   )
 
   return linkTags
@@ -332,7 +360,7 @@ async function createBuildDestinationFolder() {
   }
 }
 
-async function createTargetDestinationFolder(destinationPath) {
+async function createTargetDestinationFolder(destinationPath: string) {
   const pathExists = await fileExists(destinationPath)
   if (pathExists) {
     await deleteFolder(destinationPath)
@@ -340,19 +368,20 @@ async function createTargetDestinationFolder(destinationPath) {
   await createFolder(destinationPath)
 }
 
-async function getWebServiceContent(content, type = 'JS', serverType) {
+async function getWebServiceContent(
+  content: string,
+  type = 'JS',
+  serverType: ServerType
+) {
   let lines
 
   // Encode to base64 *.js and *.css files if target server type is SAS 9.
-  const typesToEncode = {
+  const typesToEncode: { [key: string]: string } = {
     JS: 'JS64',
     CSS: 'CSS64'
   }
 
-  if (
-    serverType === permittedServerTypes.SAS9 &&
-    typesToEncode.hasOwnProperty(type)
-  ) {
+  if (serverType === ServerType.Sas9 && typesToEncode.hasOwnProperty(type)) {
     lines = [btoa(content)]
   } else {
     lines = content
@@ -397,7 +426,7 @@ file sasjs;
   return serviceContent
 }
 
-async function createClickMeService(indexHtmlContent) {
+async function createClickMeService(indexHtmlContent: string) {
   const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
   let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 

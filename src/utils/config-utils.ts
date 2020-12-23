@@ -283,53 +283,6 @@ export async function getSourcePaths(buildSourceFolder: string) {
   return sourcePaths
 }
 
-export async function getBuildTargets(buildSourceFolder: string) {
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-
-  return configuration && configuration.targets ? configuration.targets : []
-}
-
-/**
- * Returns SAS server configuration.
- * @param {string} targetName - name of the configuration.
- */
-export async function getBuildTarget(targetName: string) {
-  const { buildSourceFolder } = getConstants()
-  let targets = await getBuildTargets(buildSourceFolder)
-
-  if (targets.length === 0) {
-    const globalRc = await getGlobalRcFile()
-
-    targets = globalRc.targets || []
-
-    if (targets.length === 0) throw new Error(`No build targets found.`)
-  }
-
-  let target = null
-
-  if (targetName) target = targets.find((t) => t.name === targetName)
-
-  if (!target) {
-    target = targets[0]
-
-    console.log(
-      chalk.yellowBright(
-        `${
-          targetName
-            ? `Target with the name '${targetName}' was not found in sasjsconfig.json.`
-            : `Target name wasn't provided.`
-        } Using ${chalk.cyanBright(target.name)} by default.`
-      )
-    )
-  }
-
-  // if (target.appLoc) target.appLoc = sanitizeAppLoc(target.appLoc)
-
-  return target
-}
-
 /**
  * Returns SAS program folders from configuration.
  * This list includes both common and target-specific folders.

@@ -1,7 +1,6 @@
 import path from 'path'
 import chalk from 'chalk'
 import { Target, ServerType } from '@sasjs/utils/types'
-import { deploy } from '../deploy'
 import { createWebAppServices } from '../web'
 import {
   readFile,
@@ -39,11 +38,10 @@ export async function build(targetName: string) {
 }
 
 async function createFinalSasFiles(target: Target) {
-  console.log(chalk.red(JSON.stringify(target)))
   const { streamConfig } = target
   const streamWeb = streamConfig?.streamWeb ?? false
   if (streamWeb) {
-    await createWebAppServices(null, target)
+    await createWebAppServices(target.name)
       .then(() =>
         console.log(
           chalk.greenBright.bold.italic(

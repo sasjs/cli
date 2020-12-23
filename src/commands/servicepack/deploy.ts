@@ -7,25 +7,20 @@ import {
   getAccessToken,
   findTargetInConfiguration
 } from '../../utils/config-utils'
+import { ServerType, Target } from '@sasjs/utils/types'
 
 export async function servicePackDeploy(
-  jsonFilePath = null,
-  targetName = null,
+  jsonFilePath: string,
+  targetName: string,
   isForced = false
 ) {
-  console.log({
-    jsonFilePath,
-    targetName,
-    isForced
-  })
-
   if (path.extname(jsonFilePath) !== '.json') {
     throw new Error('Provided data file must be valid json.')
   }
 
   const { target } = await findTargetInConfiguration(targetName, true)
 
-  if (!target.serverType === 'SASVIYA') {
+  if (target.serverType !== ServerType.SasViya) {
     console.log(
       chalk.redBright.bold(
         `Deployment failed. This commmand is only available on VIYA servers.`
@@ -57,9 +52,9 @@ export async function servicePackDeploy(
 }
 
 async function deployToSasViyaWithServicePack(
-  jsonFilePath,
-  buildTarget,
-  isForced
+  jsonFilePath: string,
+  buildTarget: Target,
+  isForced: boolean
 ) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
@@ -103,8 +98,8 @@ async function deployToSasViyaWithServicePack(
 
   return await sasjs.deployServicePack(
     jsonObject,
-    null,
-    null,
+    undefined,
+    undefined,
     access_token,
     isForced
   )

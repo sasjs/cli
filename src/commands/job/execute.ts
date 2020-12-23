@@ -4,6 +4,8 @@ import { displayResult } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import path from 'path'
+import SASjs, { Link } from '@sasjs/adapter/node'
+import { Target } from '@sasjs/utils/types'
 
 /**
  * Triggers existing job for execution.
@@ -20,20 +22,20 @@ import path from 'path'
  * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  */
 export async function execute(
-  sasjs,
-  accessToken,
-  jobPath,
-  target,
-  waitForJob,
-  output,
-  logFile,
-  statusFile,
-  returnStatusOnly,
-  ignoreWarnings
+  sasjs: SASjs,
+  accessToken: string,
+  jobPath: string,
+  target: Target,
+  waitForJob: boolean,
+  output: string,
+  logFile: string,
+  statusFile: string,
+  returnStatusOnly: boolean,
+  ignoreWarnings: boolean
 ) {
   const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
-  const saveLog = async (logData) => {
+  const saveLog = async (logData: any) => {
     let logPath
 
     if (typeof logFile === 'string') {
@@ -48,10 +50,10 @@ export async function execute(
 
     let folderPath = logPath.split(path.sep)
     folderPath.pop()
-    folderPath = folderPath.join(path.sep)
+    const parentfolderPath = folderPath.join(path.sep)
 
-    if (!(await folderExists(folderPath))) {
-      await createFolder(folderPath)
+    if (!(await folderExists(parentfolderPath))) {
+      await createFolder(parentfolderPath)
     }
 
     let logLines =
@@ -129,7 +131,7 @@ export async function execute(
     if (!result) result = true
 
     const sessionLink = submittedJob.links.find(
-      (l) => l.method === 'GET' && l.rel === 'self'
+      (l: Link) => l.method === 'GET' && l.rel === 'self'
     ).href
 
     if (!returnStatusOnly) {
@@ -160,9 +162,10 @@ export async function execute(
 
           let folderPath = outputPath.split(path.sep)
           folderPath.pop()
-          folderPath = folderPath.join(path.sep)
+          const parentFolderPath = folderPath.join(path.sep)
 
-          if (!(await folderExists(folderPath))) await createFolder(folderPath)
+          if (!(await folderExists(parentFolderPath)))
+            await createFolder(parentFolderPath)
 
           await createFile(outputPath, outputJson)
 
@@ -174,17 +177,17 @@ export async function execute(
 
         if (logFile !== undefined) {
           const logObj = submittedJob.links.find(
-            (link) => link.rel === 'log' && link.method === 'GET'
+            (link: Link) => link.rel === 'log' && link.method === 'GET'
           )
 
           if (logObj) {
             const logUrl = target.serverUrl + logObj.href
             const logCount = submittedJob.logStatistics.lineCount
-            const logData = await sasjs.fetchLogFileContent(
+            const logFileContent = await sasjs.fetchLogFileContent(
               `${logUrl}?limit=${logCount}`,
               accessToken
             )
-            const logData = JSON.parse(logData)
+            const logData = JSON.parse(logFileContent as string)
 
             await saveLog(logData)
           }
@@ -232,7 +235,10 @@ export async function execute(
 }
 
 // REFACTOR: should be a utility
-export function getContextName(target, returnStatusOnly) {
+export function getContextName(
+  target: Target,
+  returnStatusOnly: boolean = false
+) {
   const defaultContextName = 'SAS Job Execution compute context'
   if (target && target.contextName) {
     return target.contextName
@@ -255,8 +261,8 @@ export function getContextName(target, returnStatusOnly) {
 }
 
 async function displayStatus(
-  submittedJob,
-  statusFile,
+  submittedJob: any,
+  statusFile: string,
   error = '',
   displayStatusFilePath = false
 ) {
@@ -278,9 +284,10 @@ async function displayStatus(
 
     let folderPath = statusPath.split(path.sep)
     folderPath.pop()
-    folderPath = folderPath.join(path.sep)
+    const parentFolderPath = folderPath.join(path.sep)
 
-    if (!(await folderExists(folderPath))) await createFolder(folderPath)
+    if (!(await folderExists(parentFolderPath)))
+      await createFolder(parentFolderPath)
 
     await createFile(statusPath, status)
     if (displayStatusFilePath)
