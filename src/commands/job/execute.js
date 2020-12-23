@@ -82,7 +82,8 @@ export async function execute(
   const spinner = ora(
     `Job located at ${chalk.greenBright(
       jobPath
-    )} has been submitted for execution...\n`
+    )} has been submitted for execution...
+    `
   )
 
   if (!returnStatusOnly) spinner.start()
@@ -96,7 +97,8 @@ export async function execute(
       { contextName },
       accessToken,
       waitForJob || logFile !== undefined ? true : false,
-      pollOptions
+      pollOptions,
+      true
     )
     .catch(async (err) => {
       if (err && err.log && logFile !== undefined) {

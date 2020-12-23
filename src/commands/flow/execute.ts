@@ -128,7 +128,8 @@ export async function execute(
               },
               accessToken,
               true,
-              pollOptions
+              pollOptions,
+              true
             )
             .catch(async (err: any) => {
               const logName = await saveLog(
@@ -482,7 +483,8 @@ export async function execute(
               },
               accessToken,
               true,
-              pollOptions
+              pollOptions,
+              true
             )
             .then(async (res: any) => {
               if (res && res.job) {
