@@ -15,8 +15,7 @@ import { Command } from '../utils/command'
  * @param {string} filePath - the path to the file containing SAS code.
  * @param {string} targetName - the name of the target to run the SAS code on.
  */
-export async function runSasCode(commandLine) {
-  const command = new Command(commandLine)
+export async function runSasCode(command) {
   const filePath = command.values.shift()
   const targetName = command.getFlagValue('target')
 

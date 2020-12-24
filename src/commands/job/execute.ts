@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import ora from 'ora'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import path from 'path'
@@ -61,7 +61,7 @@ export async function execute(
 
     await createFile(logPath, logLines)
 
-    if (!returnStatusOnly) displayResult(null, null, `Log saved to: ${logPath}`)
+    if (!returnStatusOnly) displaySuccess(`Log saved to: ${logPath}`)
   }
 
   if (returnStatusOnly && !waitForJob) waitForJob = true
@@ -122,7 +122,7 @@ export async function execute(
   const endTime = new Date().getTime()
 
   if (result && !returnStatusOnly)
-    displayResult(result, 'An error has occurred when executing a job.', null)
+    displayError(result, 'An error has occurred when executing a job.')
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
@@ -135,9 +135,7 @@ export async function execute(
     ).href
 
     if (!returnStatusOnly) {
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         (waitForJob
           ? `Job located at '${jobPath}' has been executed.\nJob details`
           : `Job session`) +
@@ -170,7 +168,7 @@ export async function execute(
           await createFile(outputPath, outputJson)
 
           if (!returnStatusOnly)
-            displayResult(null, null, `Output saved to: ${outputPath}`)
+            displaySuccess(`Output saved to: ${outputPath}`)
         } else if (output) {
           if (!returnStatusOnly) console.log(outputJson)
         }
@@ -198,10 +196,9 @@ export async function execute(
         result = false
 
         if (!returnStatusOnly) {
-          displayResult(
+          displayError(
             null,
-            'An error has occurred when parsing an output of the job.',
-            null
+            'An error has occurred when parsing an output of the job.'
           )
         }
       }
@@ -275,8 +272,8 @@ async function displayStatus(
       : `Job Status: ${adapterStatus}`
 
   if (adapterStatus === 'Initiating' || adapterStatus === 'completed')
-    displayResult(null, null, status)
-  else displayResult({}, status, null)
+    displaySuccess(status)
+  else displayError({}, status)
 
   if (typeof statusFile === 'string') {
     const currentDirPath = path.isAbsolute(statusFile) ? '' : process.projectDir
@@ -290,7 +287,6 @@ async function displayStatus(
       await createFolder(parentFolderPath)
 
     await createFile(statusPath, status)
-    if (displayStatusFilePath)
-      displayResult(null, null, `Status saved to: ${statusPath}`)
+    if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusPath}`)
   }
 }

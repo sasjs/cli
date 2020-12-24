@@ -1,6 +1,14 @@
-import chalk from 'chalk'
+import { LogLevel, Logger } from '@sasjs/utils/logger'
 
-export function displayResult(err, failureMessage, successMessage) {
+export function displaySuccess(message: string) {
+  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
+  const logger = new Logger(logLevel)
+  logger.success(message)
+}
+
+export function displayError(err: any, message: string) {
+  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
+  const logger = new Logger(logLevel)
   if (err) {
     let failureDetails = ''
 
@@ -19,8 +27,8 @@ export function displayResult(err, failureMessage, successMessage) {
           raw ? '\n' + raw : ''
         }`
 
-        console.log(chalk.redBright(failureMessage, failureDetails))
-        return `${failureMessage}\n${failureDetails}`
+        logger.error(message, failureDetails)
+        return `${message}\n${failureDetails}`
       }
     } else if (err.hasOwnProperty('message')) {
       failureDetails = err.message
@@ -29,12 +37,7 @@ export function displayResult(err, failureMessage, successMessage) {
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
 
-    console.log(chalk.redBright(failureMessage, failureDetails))
-    return `${failureMessage}\n${failureDetails}`
-  }
-
-  if (successMessage) {
-    console.log(chalk.greenBright.bold.italic(successMessage))
-    return successMessage
+    logger.error(message, failureDetails)
+    return `${message}\n${failureDetails}`
   }
 }

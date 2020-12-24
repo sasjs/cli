@@ -418,14 +418,14 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   let accessToken =
     target && target.authConfig && target.authConfig.access_token
       ? target.authConfig.access_token
-      : process.env.ACCESS_TOKEN
+      : ''
 
   if (!accessToken || accessToken.trim() === 'null') {
     // Check .env file for target if available
     dotenv.config({
       path: path.join(process.projectDir, `.env.${target.name}`)
     })
-    accessToken = process.env.ACCESS_TOKEN
+    accessToken = process.env.ACCESS_TOKEN as string
   }
 
   if (!accessToken || accessToken.trim() === 'null') {

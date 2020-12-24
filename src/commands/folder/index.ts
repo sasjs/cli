@@ -4,14 +4,13 @@ import {
   getAccessToken,
   findTargetInConfiguration
 } from '../../utils/config-utils'
-import { displayResult } from '../../utils/displayResult'
+import { displayError } from '../../utils/displayResult'
 import { create } from './create'
 import { move } from './move'
 import { remove } from './remove'
 import { Command } from '../../utils/command'
 
-export async function folder(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function folder(command: Command) {
   const subCommand = command.getSubCommand()
 
   const subCommands = {
@@ -53,9 +52,10 @@ export async function folder(commandLine: string | string[]) {
     serverType: target.serverType
   })
 
-  const accessToken = await getAccessToken(target).catch((err) =>
-    displayResult(err)
-  )
+  const accessToken = await getAccessToken(target).catch((err) => {
+    displayError(err, 'An error has occurred when obtaining an access token.')
+    throw err
+  })
 
   switch (subCommand) {
     case subCommands.create:

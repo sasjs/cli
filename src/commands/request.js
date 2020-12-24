@@ -3,11 +3,9 @@ import SASjs from '@sasjs/adapter/node'
 import { findTargetInConfiguration } from '../utils/config-utils'
 import { readFile, folderExists, createFile, createFolder } from '../utils/file'
 import { getAccessToken } from '../utils/config-utils'
-import { displayResult } from '../utils/displayResult'
-import { Command } from '../utils/command'
+import { displayError, displaySuccess } from '../utils/displayResult'
 
-export async function runSasJob(commandLine) {
-  const command = new Command(commandLine)
+export async function runSasJob(command) {
   const sasJobLocation = command.values.shift()
   const dataFilePath = command.getFlagValue('datafile')
   const configFilePath = command.getFlagValue('configfile')
@@ -68,7 +66,7 @@ export async function runSasJob(commandLine) {
       dataJson,
       configJson,
       () => {
-        displayResult(null, 'Login callback called. Request failed.', null)
+        displayError(null, 'Login callback called. Request failed.')
       },
       accessToken
     )
@@ -79,7 +77,7 @@ export async function runSasJob(commandLine) {
         try {
           output = JSON.stringify(res, null, 2)
         } catch (error) {
-          displayResult(null, null, 'Request finished.')
+          displayError(error, 'Result parsing failed.')
 
           return error
         }
@@ -97,20 +95,12 @@ export async function runSasJob(commandLine) {
 
         await createFile(outputPath, output)
         result = true
-        displayResult(
-          null,
-          null,
-          `Request finished. Output is stored at '${outputPath}'`
-        )
+        displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
       },
       (err) => {
         result = err
 
-        displayResult(
-          err,
-          'An error occurred while executing the request.',
-          null
-        )
+        displayError(err, 'An error occurred while executing the request.')
       }
     )
   return result

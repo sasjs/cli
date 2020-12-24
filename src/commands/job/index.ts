@@ -3,14 +3,12 @@ import {
   findTargetInConfiguration,
   getAccessToken
 } from '../../utils/config-utils'
-import { displayResult } from '../../utils/displayResult'
+import { displayError } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
 import { Command } from '../../utils/command'
 
-export async function processJob(commandLine: string | string[]) {
-  const command = new Command(commandLine)
-
+export async function processJob(command: Command) {
   const subCommand = command.getSubCommand()
   const subCommands = {
     execute: 'execute'
@@ -48,7 +46,7 @@ export async function processJob(commandLine: string | string[]) {
   })
 
   const accessToken = await getAccessToken(target).catch((err) => {
-    displayResult(err)
+    displayError(err, 'Error obtaining access token.')
   })
 
   let result

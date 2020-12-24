@@ -2,12 +2,13 @@ import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import { readFile } from '../../utils/file'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 import {
   getAccessToken,
   findTargetInConfiguration
 } from '../../utils/config-utils'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { getConstants } from '../../constants'
 
 export async function servicePackDeploy(
   jsonFilePath: string,
@@ -38,12 +39,12 @@ export async function servicePackDeploy(
 
   await deployToSasViyaWithServicePack(jsonFilePath, target, isForced)
     .then((_) => {
-      displayResult(null, null, 'Servicepack successfully deployed!')
+      displaySuccess('Servicepack successfully deployed!')
 
       success = true
     })
     .catch((err) => {
-      displayResult(err, 'Servicepack deploy failed.')
+      displayError(err, 'Servicepack deploy failed.')
 
       success = false
     })
@@ -61,9 +62,7 @@ async function deployToSasViyaWithServicePack(
     appLoc: buildTarget.appLoc,
     serverType: buildTarget.serverType
   })
-
-  const CONSTANTS = require('../../constants').get()
-  const buildDestinationFolder = CONSTANTS.buildDestinationFolder
+  const { buildDestinationFolder } = getConstants()
 
   const finalFilePathJSON = path.join(
     buildDestinationFolder,

@@ -38,7 +38,7 @@ export async function compile(targetName: string) {
 
   await copyFilesToBuildFolder(target, logger)
 
-  const serviceFolders = await getAllServiceFolders(target)
+  const serviceFolders = await getAllServicePaths(target)
   const jobFolders = await getAllJobPaths(target)
   const macroFolders = target ? target.macroFolders : []
   const programFolders = await getProgramFolders(targetName)
@@ -65,7 +65,7 @@ async function copyFilesToBuildFolder(target: Target, logger: Logger) {
   } = getConstants()
   await recreateBuildFolder(logger)
   logger.info('Copying files to build folder...')
-  const servicePaths = await getAllServiceFolders(target)
+  const servicePaths = await getAllServicePaths(target)
 
   const jobPaths = await getAllJobPaths(target)
 
@@ -99,7 +99,7 @@ async function recreateBuildFolder(logger: Logger) {
     const subFolders = await getSubFoldersInFolder(buildDestinationFolder)
     const subFiles = await getFilesInFolder(buildDestinationFolder)
     await asyncForEach([...subFolders, ...subFiles], async (subFolder) => {
-      if (subFolder == 'db') return
+      if (subFolder === 'db') return
       const subFolderPath = path.join(buildDestinationFolder, subFolder)
       await deleteFolder(subFolderPath)
     })
@@ -107,7 +107,7 @@ async function recreateBuildFolder(logger: Logger) {
   await createFolder(path.join(buildDestinationServicesFolder))
 }
 
-async function getAllServiceFolders(target: Target) {
+async function getAllServicePaths(target: Target) {
   const { buildSourceFolder } = getConstants()
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjsconfig.json')

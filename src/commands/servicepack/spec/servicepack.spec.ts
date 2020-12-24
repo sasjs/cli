@@ -66,7 +66,7 @@ describe('sasjs servicepack', () => {
           'servicepack',
           'deploy',
           '-s',
-          'test/commands/servicepack/testServicepack.json',
+          'src/commands/servicepack/spec/testServicepack.json',
           '-t',
           targetName
         ]

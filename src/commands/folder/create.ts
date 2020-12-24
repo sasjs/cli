@@ -1,6 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Creates folder.
@@ -29,7 +29,10 @@ export const create = async (
       isForced
     )
     .catch((err) => {
-      displayResult(err)
+      displayError(
+        err,
+        `An error has occurred when creating the folder ${folder}`
+      )
 
       if (err.status && err.status === 409) {
         console.log(
@@ -41,9 +44,7 @@ export const create = async (
     })
 
   if (createdFolder) {
-    displayResult(
-      null,
-      null,
+    displaySuccess(
       `Folder '${
         parentFolderPath + '/' + folder
       }' has been successfully created.`

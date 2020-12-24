@@ -1,7 +1,8 @@
 {
-  "cmnMacros": ["macros"],
-  "cmnServices": ["services/common"],
-  "useMacroCore": true,
+  "macroFolders": ["macros"],
+  "serviceConfig": {
+    "serviceFolders": ["services"]
+  },
   "targets": [
     {
       "name": "",
@@ -9,8 +10,8 @@
       "serverUrl": "",
       "appLoc": "/Public/app/cli-tests",
       "deployConfig": {
-        "deployServicePack": false,
-        "deployScripts": []
+        "deployScripts": ["sasjs/build/copyscript.sh"],
+        "deployServicePack": true
       },
       "streamConfig": {
         "assetPaths": [],

@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Removes compute context.
@@ -19,17 +19,16 @@ export async function remove(
     .catch((err) => {
       result = err
 
-      displayResult(
+      displayError(
         err,
-        `An error has occurred when deleting context '${contextName}'.`,
-        null
+        `An error has occurred when deleting context '${contextName}'.`
       )
     })
 
   if (deletedContext) {
     result = true
 
-    displayResult(null, null, `Context '${contextName}' has been deleted!`)
+    displaySuccess(`Context '${contextName}' has been deleted!`)
   }
 
   return result

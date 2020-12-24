@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Creates compute context using provided config.
@@ -24,7 +24,7 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
       accessToken
     )
     .catch((err) => {
-      displayResult(err, 'An error has occurred when processing context.', null)
+      displayError(err, 'An error has occurred when processing context.')
 
       result = err
     })
@@ -32,9 +32,7 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
   if (createdContext) {
     result = true
 
-    displayResult(
-      null,
-      null,
+    displaySuccess(
       `Context '${name}' with id '${createdContext.id}' successfully created!`
     )
   }

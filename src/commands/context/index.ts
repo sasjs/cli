@@ -9,12 +9,11 @@ import {
   getAccessToken,
   findTargetInConfiguration
 } from '../../utils/config-utils'
-import { displayResult } from '../../utils/displayResult'
+import { displayError } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'
 
-export async function processContext(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function processContext(command: Command) {
   const subCommand = command.getSubCommand()
   const subCommands = {
     create: 'create',
@@ -83,8 +82,7 @@ export async function processContext(commandLine: string | string[]) {
   })
 
   const accessToken = await getAccessToken(target).catch((err) => {
-    displayResult(err)
-    throw err
+    displayError(err, 'Error obtaining access token.')
   })
 
   let config

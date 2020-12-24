@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import ora from 'ora'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 
 /**
@@ -30,11 +30,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
   const contexts = await sasjs
     .getExecutableContexts(accessToken)
     .catch((err) => {
-      displayResult(
-        err,
-        'An error has occurred when fetching contexts list.',
-        null
-      )
+      displayError(err, 'An error has occurred when fetching contexts list.')
     })
 
   let result
@@ -50,11 +46,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
     const accessibleContextIds = contexts.map((context) => context.id)
 
     const allContexts = await sasjs.getAllContexts(accessToken).catch((err) => {
-      displayResult(
-        err,
-        'An error has occurred when fetching contexts list.',
-        null
-      )
+      displayError(err, 'An error has occurred when fetching contexts list.')
       throw err
     })
 
@@ -71,18 +63,14 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
     if (accessibleContexts.length) {
       result = accessibleContexts
 
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         'Accessible contexts:\n' +
           accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )
     }
 
     if (inaccessibleContexts.length) {
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         'Inaccessible contexts:\n' +
           inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )

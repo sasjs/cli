@@ -1,4 +1,4 @@
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 import path from 'path'
 import { createFile, sanitizeFileName } from '../../utils/file'
 import SASjs from '@sasjs/adapter/node'
@@ -17,7 +17,10 @@ export async function exportContext(
   const context = await sasjs
     .getComputeContextByName(contextName, accessToken)
     .catch((err) => {
-      displayResult(err, '', null)
+      displayError(
+        err,
+        `An error has occurred while fetching context ${contextName}`
+      )
     })
 
   let result
@@ -25,10 +28,15 @@ export async function exportContext(
   if (context && context.id) {
     const contextAllAttributes = await sasjs
       .getComputeContextById(context.id, accessToken)
-      .catch((err) => displayResult(err, '', null))
+      .catch((err) => {
+        displayError(
+          err,
+          `An error has occurred while fetching context ${contextName}`
+        )
+      })
 
     if (contextAllAttributes) {
-      delete contextAllAttributes.links
+      delete (contextAllAttributes as any).links
 
       result = true
 
@@ -37,7 +45,7 @@ export async function exportContext(
       try {
         output = JSON.stringify(contextAllAttributes, null, 2)
       } catch (error) {
-        displayResult(null, null, 'Context has bad format.')
+        displayError(null, 'Error parsing context JSON.')
 
         return false
       }
@@ -49,11 +57,7 @@ export async function exportContext(
         result = err
       })
 
-      displayResult(
-        null,
-        null,
-        `Context successfully exported to '${outputPath}'.`
-      )
+      displaySuccess(`Context successfully exported to '${outputPath}'.`)
     }
   }
 

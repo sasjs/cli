@@ -17,12 +17,11 @@ import {
   processFlow
 } from './commands'
 import chalk from 'chalk'
-import { displayResult } from './utils/displayResult'
+import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
 import { compile } from './commands/compile/compile'
 
-export async function createFileStructure(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function createFileStructure(command: Command) {
   const template = command.getFlagValue('template')
   const parentFolderName = command.values.shift()
 
@@ -32,9 +31,7 @@ export async function createFileStructure(commandLine: string | string[]) {
     .then(() => {
       result = true
 
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Project ${
           parentFolderName ? `${parentFolderName} created` : `updated`
         } successfully.\nGet ready to Unleash your SAS!`
@@ -43,7 +40,7 @@ export async function createFileStructure(commandLine: string | string[]) {
     .catch((err: any) => {
       result = err
 
-      displayResult(err, 'An error has occurred whilst creating your project.')
+      displayError(err, 'An error has occurred whilst creating your project.')
     })
 
   return result
@@ -57,8 +54,7 @@ export async function showVersion() {
   await printVersion()
 }
 
-export async function buildServices(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function buildServices(command: Command) {
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -70,9 +66,7 @@ export async function buildServices(commandLine: string | string[]) {
     .then(() => {
       result = true
 
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
         )} directory.`
@@ -81,13 +75,12 @@ export async function buildServices(commandLine: string | string[]) {
     .catch((err) => {
       result = err
 
-      displayResult(err, 'An error has occurred when building services.')
+      displayError(err, 'An error has occurred when building services.')
     })
   return result
 }
 
-export async function compileServices(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function compileServices(command: Command) {
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -98,9 +91,7 @@ export async function compileServices(commandLine: string | string[]) {
   await compile(targetName)
     .then(() => {
       result = true
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
         )} directory.`
@@ -108,13 +99,12 @@ export async function compileServices(commandLine: string | string[]) {
     })
     .catch((err) => {
       result = err
-      displayResult(err, 'An error has occurred when building services.')
+      displayError(err, 'An error has occurred when building services.')
     })
   return result
 }
 
-export async function deployServices(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function deployServices(command: Command) {
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -122,20 +112,13 @@ export async function deployServices(commandLine: string | string[]) {
   }
 
   await deploy(targetName)
-    .then(() =>
-      displayResult(null, null, `Services have been successfully deployed!`)
-    )
+    .then(() => displaySuccess(`Services have been successfully deployed!`))
     .catch((err) => {
-      if (err.hasOwnProperty('body')) {
-        displayResult(err, 'An error has occurred when building services.')
-      } else {
-        displayResult(err, 'An error has occurred when deploying services.')
-      }
+      displayError(err, 'An error has occurred when deploying services.')
     })
 }
 
-export async function compileBuildServices(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function compileBuildServices(command: Command) {
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -143,13 +126,11 @@ export async function compileBuildServices(commandLine: string | string[]) {
   }
 
   let result
-  await compileServices(commandLine)
+  await compileServices(command)
   await build(targetName)
     .then(() => {
       result = true
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
         )} directory.`
@@ -163,22 +144,17 @@ export async function compileBuildServices(commandLine: string | string[]) {
         )
 
         if (nodeModulesErrors)
-          displayResult(
-            null,
-            null,
+          displaySuccess(
             `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
           )
       } else {
-        displayResult(error, 'An error has occurred when building services.')
+        displayError(error, 'An error has occurred when building services.')
       }
     })
   return result
 }
 
-export async function compileBuildDeployServices(
-  commandLine: string | string[]
-) {
-  const command = new Command(commandLine)
+export async function compileBuildDeployServices(command: Command) {
   let targetName = command.getFlagValue('target')
 
   if (!targetName) {
@@ -192,9 +168,7 @@ export async function compileBuildDeployServices(
     .then(() => {
       result = true
 
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
         )} directory.`
@@ -203,7 +177,7 @@ export async function compileBuildDeployServices(
     .catch((err) => {
       result = err
 
-      displayResult(err, 'An error has occurred when building services')
+      displayError(err, 'An error has occurred when building services.')
     })
 
   return result
@@ -214,9 +188,7 @@ export async function buildDBs() {
   await buildDB()
     .then(() => {
       result = true
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild/db'
         )} directory.`
@@ -224,13 +196,12 @@ export async function buildDBs() {
     })
     .catch((err) => {
       result = err
-      displayResult(err, 'An error has occurred when building DBs.')
+      displayError(err, 'An error has occurred when building DBs.')
     })
   return result
 }
 
-export async function buildWebApp(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function buildWebApp(command: Command) {
   let targetName: string = command.getFlagValue('target')
 
   if (!targetName) {
@@ -239,24 +210,18 @@ export async function buildWebApp(commandLine: string | string[]) {
 
   await createWebAppServices(targetName)
     .then(() =>
-      displayResult(
-        null,
-        null,
+      displaySuccess(
         `Web app services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
         )} directory.`
       )
     )
     .catch((err) => {
-      displayResult(
-        err,
-        'An error has occurred when building web app services.'
-      )
+      displayError(err, 'An error has occurred when building web app services.')
     })
 }
 
-export async function add(commandLine: string | string[]) {
-  const command = new Command(commandLine)
+export async function add(command: Command) {
   const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target')
 
@@ -275,10 +240,7 @@ export async function add(commandLine: string | string[]) {
         })
         .catch((err) => {
           console.log(err)
-          displayResult(
-            err,
-            'An error has occurred when adding the credential.'
-          )
+          displayError(err, 'An error has occurred when adding the credential.')
           result = err
         })
     } else if (subCommand === 'target' || !subCommand) {
@@ -288,7 +250,7 @@ export async function add(commandLine: string | string[]) {
           result = true
         })
         .catch((err) => {
-          displayResult(err, 'An error has occurred when adding the target.')
+          displayError(err, 'An error has occurred when adding the target.')
           result = err
         })
     }
@@ -297,72 +259,69 @@ export async function add(commandLine: string | string[]) {
   return result
 }
 
-export async function run(commandLine: string | string[]) {
-  await runSasCode(commandLine).catch((err) => {
-    displayResult(err, 'An error has occurred when running your SAS code.')
+export async function run(command: Command) {
+  await runSasCode(command).catch((err) => {
+    displayError(err, 'An error has occurred when running your SAS code.')
   })
 }
 
-export async function runRequest(commandLine: string | string[]) {
+export async function runRequest(command: Command) {
   let result: any = false
 
-  await runSasJob(commandLine)
+  await runSasJob(command)
     .then((res) => (result = res))
     .catch((err) => {
       result = err
 
-      displayResult(err, 'An error has occurred when running your SAS job')
+      displayError(err, 'An error has occurred when running your SAS job')
     })
 
   return result
 }
 
-export async function context(commandLine: string | string[]) {
-  if (!commandLine)
-    displayResult(null, `Please provide action for the 'context' command.`)
+export async function context(command: Command) {
+  if (!command)
+    displayError(null, `Please provide action for the 'context' command.`)
 
-  await processContext(commandLine).catch((err) =>
-    displayResult(err, 'An error has occurred when processing context.')
+  await processContext(command).catch((err) =>
+    displayError(err, 'An error has occurred when processing context.')
   )
 }
 
-export async function servicepack(commandLine: string | string[]) {
-  if (!commandLine)
-    displayResult(null, `Please provide action for the 'servicepack' command.`)
+export async function servicepack(command: Command) {
+  if (!command)
+    displayError(null, `Please provide action for the 'servicepack' command.`)
 
-  await processServicepack(commandLine).catch((err) =>
-    displayResult(err, 'An error has occurred when processing servicepack.')
+  await processServicepack(command).catch((err) =>
+    displayError(err, 'An error has occurred when processing servicepack.')
   )
 }
 
-export async function folderManagement(commandLine: string | string[]) {
-  if (!commandLine)
-    displayResult(null, `Please provide action for the 'folder' command.`)
+export async function folderManagement(command: Command) {
+  if (!command)
+    displayError(null, `Please provide action for the 'folder' command.`)
 
-  await folder(commandLine).catch((err) => {
-    displayResult(
-      err,
-      'An error has occurred when processing folder operation.'
-    )
+  await folder(command).catch((err) => {
+    displayError(err, 'An error has occurred when processing folder operation.')
   })
 }
 
-export async function jobManagement(commandLine: string | string[]) {
-  if (!commandLine)
-    displayResult(null, `Please provide action for the 'job' command.`)
+export async function jobManagement(command: Command) {
+  if (!command)
+    displayError(null, `Please provide action for the 'job' command.`)
 
-  await processJob(commandLine).catch((err) => {
-    displayResult(err, 'An error has occurred when processing job operation.')
+  await processJob(command).catch((err) => {
+    displayError(err, 'An error has occurred when processing job operation.')
   })
 }
 
-export async function flowManagement(commandLine: string | string[]) {
-  if (!commandLine)
+export async function flowManagement(command: Command) {
+  if (!command)
     console.log(
       chalk.redBright(`Please provide action for the 'flow' command.`)
     )
 
-  await processFlow(commandLine).catch((err) => {
+  await processFlow(command).catch((err) => {
     console.log(
       chalk.redBright(
         'An error has occurred when processing flow operation.',

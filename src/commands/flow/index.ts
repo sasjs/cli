@@ -1,10 +1,9 @@
 import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config-utils'
 import { execute } from './execute'
-import { displayResult } from '../../utils/displayResult'
+import { displayError } from '../../utils/displayResult'
 
-export async function processFlow(commandLine: string[] | string) {
-  const command = new Command(commandLine)
+export async function processFlow(command: Command) {
   const subCommand = command.getSubCommand()
   const source = command.getFlagValue('source')
   const logFolder = command.getFlagValue('logFolder')
@@ -23,7 +22,7 @@ export async function processFlow(commandLine: string[] | string) {
         target,
         command.prefixAppLoc
       ).catch((err) => {
-        displayResult(err)
+        displayError(err, 'An error has occurred when executing this flow.')
 
         result = err
       })

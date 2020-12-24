@@ -1,5 +1,5 @@
 import path from 'path'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 import {
   fileExists,
   readFile,
@@ -20,6 +20,7 @@ import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import { setInterval } from 'timers'
 import examples from './examples'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 export async function execute(
   source: string,
@@ -28,6 +29,9 @@ export async function execute(
   target: Target,
   prefixAppLoc: Function
 ) {
+  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
+  const logger = new Logger(logLevel)
+
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
@@ -42,7 +46,7 @@ export async function execute(
     }
 
     let sourceConfig = await readFile(source).catch((err) =>
-      displayResult(err, 'Error while reading source file.')
+      displayError(err, 'Error while reading source file.')
     )
 
     try {
@@ -61,7 +65,7 @@ export async function execute(
       serverType: target.serverType
     })
     const accessToken = await getAccessToken(target).catch((err) => {
-      displayResult(err, 'Error while getting access token.')
+      displayError(err, 'Error while getting access token.')
       throw err
     })
 
@@ -73,21 +77,19 @@ export async function execute(
       }
 
       await createFile(csvFile, '').catch((err) =>
-        displayResult(err, 'Error while creating CSV file.')
+        displayError(err, 'Error while creating CSV file.')
       )
     }
 
     if (logFolder && !(await folderExists(logFolder))) {
       await createFolder(logFolder).catch((err) =>
-        displayResult(err, 'Error while creating log folder file.')
+        displayError(err, 'Error while creating log folder file.')
       )
     }
 
     const contextName = target.contextName
 
-    displayResult(
-      null,
-      null,
+    logger.info(
       `Executing flow for '${target.name}' target with app location '${target.appLoc}':`
     )
 
@@ -122,7 +124,7 @@ export async function execute(
                 flowName,
                 jobLocation
               ).catch((err) =>
-                displayResult(err, 'Error while saving log file.')
+                displayError(err, 'Error while saving log file.')
               )
 
               await saveToCsv(
@@ -133,22 +135,21 @@ export async function execute(
                 err.message || '',
                 logName ? path.join(logFolder, logName as string) : ''
               ).catch((err) =>
-                displayResult(err, 'Error while saving CSV file.')
+                displayError(err, 'Error while saving CSV file.')
               )
 
               job.status = 'failure'
 
-              displayResult(
+              displayError(
                 {},
-                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`,
-                null
+                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
                   .length === flow.jobs.length
               ) {
-                displayResult({}, `'${flowName}' flow failed!`)
+                displayError({}, `'${flowName}' flow failed!`)
 
                 failAllSuccessors(flowName)
 
@@ -171,7 +172,7 @@ export async function execute(
               jobLocation,
               details!.lineCount
             ).catch((err: any) =>
-              displayResult(err, 'Error while saving log file.')
+              displayError(err, 'Error while saving log file.')
             )
 
             await saveToCsv(
@@ -181,7 +182,7 @@ export async function execute(
               submittedJob.state || 'failure',
               details?.details,
               logName ? path.join(logFolder, logName as string) : ''
-            ).catch((err) => displayResult(err, 'Error while saving CSV file.'))
+            ).catch((err) => displayError(err, 'Error while saving CSV file.'))
 
             job.status =
               submittedJob.state === 'completed'
@@ -189,13 +190,11 @@ export async function execute(
                 : submittedJob.state || 'failure'
 
             if (job.status === 'success') {
-              displayResult(
-                null,
-                null,
+              displaySuccess(
                 `'${flowName}' flow's job located at: '${job.location}' completed.`
               )
             } else {
-              displayResult(
+              displayError(
                 {},
                 `'${flowName}' flow's job located at: '${
                   job.location
@@ -213,11 +212,7 @@ export async function execute(
               flow.jobs.filter((j: any) => j.status === 'success').length ===
               flow.jobs.length
             ) {
-              displayResult(
-                null,
-                null,
-                `'${flowName}' flow completed successfully!`
-              )
+              displaySuccess(`'${flowName}' flow completed successfully!`)
 
               isFlowsCompleted()
 
@@ -226,7 +221,7 @@ export async function execute(
               flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
                 .length === flow.jobs.length
             ) {
-              displayResult({}, `'${flowName}' flow failed!`)
+              displayError({}, `'${flowName}' flow failed!`)
 
               failAllSuccessors(flowName)
 
@@ -237,12 +232,12 @@ export async function execute(
       } else {
         flow.predecessors.forEach((predecessor: any) => {
           if (!Object.keys(flows).includes(predecessor)) {
-            displayResult(
+            displayError(
               {},
               `Predecessor '${predecessor}' mentioned in '${flowName}' flow does not exist.`
             )
           } else if (predecessor === flowName) {
-            displayResult(
+            displayError(
               {},
               `Predecessor '${predecessor}' mentioned in '${flowName}' cannot point to itself.`
             )
@@ -310,7 +305,7 @@ export async function execute(
             csvFileAbleToSave = false
 
             let csvData = await readFile(csvFile).catch((err) =>
-              displayResult(err, 'Error while reading CSV file.')
+              displayError(err, 'Error while reading CSV file.')
             )
 
             if (typeof csvData === 'string') {
@@ -351,7 +346,7 @@ export async function execute(
                 if (err) reject(err)
 
                 await createFile(csvFile, output).catch((err) =>
-                  displayResult(err, 'Error while creating CSV file.')
+                  displayError(err, 'Error while creating CSV file.')
                 )
 
                 csvFileAbleToSave = true
@@ -419,7 +414,7 @@ export async function execute(
                   jobLocation,
                   details?.lineCount
                 ).catch((err: any) => {
-                  displayResult(err, 'Error while saving log file.')
+                  displayError(err, 'Error while saving log file.')
                 })
 
                 await saveToCsv(
@@ -430,20 +425,18 @@ export async function execute(
                   details?.details,
                   logName ? path.join(logFolder, logName as string) : ''
                 ).catch((err) =>
-                  displayResult(err, 'Error while saving CSV file.')
+                  displayError(err, 'Error while saving CSV file.')
                 )
 
                 job.status =
                   res.state === 'completed' ? 'success' : res.state || 'failure'
 
                 if (job.status === 'success') {
-                  displayResult(
-                    null,
-                    null,
+                  displaySuccess(
                     `'${successor}' flow's job located at: '${job.location}' completed.`
                   )
                 } else {
-                  displayResult(
+                  displayError(
                     {},
                     `'${successor}' flow's job located at: '${
                       job.location
@@ -463,11 +456,7 @@ export async function execute(
                     (j: any) => j.status === 'success'
                   ).length === flows[successor].jobs.length
                 ) {
-                  displayResult(
-                    null,
-                    null,
-                    `'${successor}' flow completed successfully!`
-                  )
+                  displaySuccess(`'${successor}' flow completed successfully!`)
 
                   isFlowsCompleted()
                 } else if (
@@ -475,7 +464,7 @@ export async function execute(
                     j.hasOwnProperty('status')
                   ).length === flows[successor].jobs.length
                 ) {
-                  displayResult({}, `'${successor}' flow failed!`)
+                  displayError({}, `'${successor}' flow failed!`)
 
                   failAllSuccessors(successor)
 
@@ -515,7 +504,7 @@ export async function execute(
                 successor,
                 jobLocation
               ).catch((err) =>
-                displayResult(err, 'Error while saving log file.')
+                displayError(err, 'Error while saving log file.')
               )
 
               await saveToCsv(
@@ -526,15 +515,14 @@ export async function execute(
                 err.message || '',
                 logName ? path.join(logFolder, logName as string) : ''
               ).catch((err) =>
-                displayResult(err, 'Error while saving CSV file.')
+                displayError(err, 'Error while saving CSV file.')
               )
 
               job.status = 'failure'
 
-              displayResult(
+              displayError(
                 {},
-                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`,
-                null
+                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
 
               if (
@@ -542,7 +530,7 @@ export async function execute(
                   j.hasOwnProperty('status')
                 ).length === flows[successor].jobs.length
               ) {
-                displayResult({}, `'${successor}' flow failed!`)
+                displayError({}, `'${successor}' flow failed!`)
 
                 failAllSuccessors(successor)
 
@@ -606,7 +594,7 @@ const saveLog = async (
       const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
       const logData = await sasjs
         .fetchLogFileContent(logUrl, accessToken)
-        .catch((err) => displayResult(err, 'Error while fetching log content.'))
+        .catch((err) => displayError(err, 'Error while fetching log content.'))
       const logJson = JSON.parse(logData as string)
 
       const logParsed = parseLogLines(logJson)
@@ -624,7 +612,7 @@ const saveLog = async (
       }
 
       await createFile(path.join(logFolder, logName), logParsed).catch((err) =>
-        displayResult(err, 'Error while creating log file.')
+        displayError(err, 'Error while creating log file.')
       )
 
       return resolve(logName)

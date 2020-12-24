@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Edits existing compute context.
@@ -25,18 +25,14 @@ export async function edit(
     .catch((err) => {
       result = err
 
-      displayResult(err, 'An error has occurred when processing context.', null)
+      displayError(err, 'An error has occurred when processing context.')
     })
 
   if (editedContext) {
     result = true
     const editedContextName = editedContext.result.name || ''
 
-    displayResult(
-      null,
-      null,
-      `Context '${editedContextName}' successfully updated!`
-    )
+    displaySuccess(`Context '${editedContextName}' successfully updated!`)
   }
 
   return result

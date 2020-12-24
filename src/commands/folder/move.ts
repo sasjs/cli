@@ -1,6 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
-import { displayResult } from '../../utils/displayResult'
+import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Moves folder to a new location.
@@ -33,13 +33,11 @@ export const move = async (
   const movedFolder = await sasjs
     .moveFolder(sourceFolder, parentFolder, targetFolderName, accessToken)
     .catch((err) => {
-      displayResult(err)
+      displayError(err, `An error occurred when moving folder ${sourceFolder}.`)
     })
 
   if (movedFolder) {
-    displayResult(
-      null,
-      null,
+    displaySuccess(
       `Folder successfully moved from '${sourceFolder}' to '${
         targetFolder + '/' + targetFolderName
       }'.`

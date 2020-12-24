@@ -1,16 +1,16 @@
-import { displayResult } from './displayResult'
+import { displayError } from './displayResult'
 import { arrToObj } from './utils'
 import chalk from 'chalk'
 
 const showInvalidCommandMessage = () => {
-  displayResult(
+  displayError(
     {},
     `Invalid command. Run 'sasjs help' to get the list of valid commands.`
   )
 }
 
 const showInvalidFlagMessage = (flagMessage, supportedFlags) => {
-  displayResult(
+  displayError(
     {},
     `${flagMessage}${
       supportedFlags
@@ -286,4 +286,108 @@ class Flag {
   setValue(value) {
     this.value = value
   }
+}
+
+export function parseCommand(rawArgs) {
+  checkNodeVersion()
+
+  const isWin = process.platform === 'win32'
+  const isMSys = !!process.env.MSYSTEM
+  const prefix = process.env.EXEPATH
+    ? process.env.EXEPATH.replace(/\\/g, '/')
+    : ''
+  const homedir = require('os').homedir()
+
+  const argsTemp =
+    isWin && isMSys
+      ? rawArgs.slice(2).map((arg) => arg.replace(prefix, ''))
+      : rawArgs.slice(2)
+
+  const args = argsTemp.map((arg) =>
+    arg.replace('~', homedir.replace(/\\/g, '/'))
+  )
+
+  if (args.length) {
+    const name = getUnaliasedCommand(args[0])
+
+    return { name, parameters: args }
+  }
+  return null
+}
+
+function getUnaliasedCommand(command) {
+  if (
+    command === 'version' ||
+    command === '--version' ||
+    command === '-version' ||
+    command === '-v' ||
+    command === '--v' ||
+    command === 'v'
+  ) {
+    return 'version'
+  }
+
+  if (
+    command === 'help' ||
+    command === '--help' ||
+    command === '-help' ||
+    command === '-h' ||
+    command === '--h' ||
+    command === 'h'
+  ) {
+    return 'help'
+  }
+
+  if (command === 'create') {
+    return 'create'
+  }
+
+  if (command === 'compile' || command === 'c') {
+    return 'compile'
+  }
+
+  if (command === 'build' || command === 'b') {
+    return 'build'
+  }
+
+  if (command === 'deploy' || command === 'd') {
+    return 'deploy'
+  }
+
+  if (command === 'servicepack') {
+    return 'servicepack'
+  }
+
+  if (command === 'build-DB' || command === 'DB' || command === 'db') {
+    return 'db'
+  }
+
+  if (command === 'compilebuild' || command === 'cb') {
+    return 'compilebuild'
+  }
+
+  if (command === 'cbd') {
+    return 'compilebuilddeploy'
+  }
+  if (command === 'web' || command === 'w') {
+    return 'web'
+  }
+
+  if (command === 'add' || command === 'a') {
+    return 'add'
+  }
+
+  if (command === 'run' || command === 'r') {
+    return 'run'
+  }
+
+  if (command === 'request' || command === 'rq') {
+    return 'request'
+  }
+
+  if (command === 'context') return 'context'
+
+  if (command === 'folder') return 'folder'
+
+  return command
 }
