@@ -5,10 +5,10 @@ import {
   buildServices,
   compileServices,
   compileBuildServices
-} from '../../src/main'
-import { deleteFolder, createFolder } from '../../src/utils/file'
-import { verifyStep } from '../../src/utils/test'
-import { generateTimestamp } from '../../src/utils/utils'
+} from '../../../main'
+import { deleteFolder, createFolder } from '../../../utils/file'
+import { verifyStep } from '../../../utils/test'
+import { generateTimestamp } from '../../../utils/utils'
 
 describe('sasjs compile', () => {
   beforeAll(() => {

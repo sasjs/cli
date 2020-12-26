@@ -328,7 +328,7 @@ export async function printHelpText() {
   return { outputCommands, outputAliases }
 }
 
-const limitLineLength = (str, maxLength = 80) => {
+const limitLineLength = (str: string, maxLength = 80) => {
   const words = str.split(' ')
   const lines = []
   let line = ''
@@ -336,14 +336,17 @@ const limitLineLength = (str, maxLength = 80) => {
   while (words.length) {
     while (line.length <= maxLength && words.length) {
       let word = words.shift()
+      if (!word) {
+        return
+      }
       let spaces
 
-      if (word.match(/\[\dspaces\]/)) {
-        spaces = word.match(/\[\dspaces\]/)[0].match(/\d/)[0]
+      if (word.match(/\[\dspaces\]/)?.length) {
+        spaces = word.match(/\[\dspaces\]/)![0].match(/\d/)![0]
       }
 
       word = spaces
-        ? ' '.repeat(spaces) + word.split(`[${spaces}spaces]`).join('')
+        ? ' '.repeat(spaces.length) + word.split(`[${spaces}spaces]`).join('')
         : word
 
       line += line.length ? ' ' + word : word

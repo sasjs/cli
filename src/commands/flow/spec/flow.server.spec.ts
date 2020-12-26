@@ -32,7 +32,7 @@ describe('sasjs flow', () => {
       targetName,
       `/Public/app/cli-tests/${targetName}`
     )
-    await compileBuildDeployServices(`cbd ${targetName} -f`)
+    await compileBuildDeployServices(new Command(`cbd ${targetName} -f`))
   }, 60 * 1000)
 
   it(
@@ -43,7 +43,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_1.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -72,7 +74,9 @@ describe('sasjs flow', () => {
       'src/commands/flow/spec/sourceFiles/not_valid.txt'
     )
 
-    const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    )
 
     await expect(processFlow(command)).resolves.toEqual(
       `Please provide flow source (--source) file.\n${examples.command}`
@@ -85,7 +89,9 @@ describe('sasjs flow', () => {
       'src/commands/flow/spec/sourceFiles/does_not_exist.json'
     )
 
-    const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    )
 
     await expect(processFlow(command)).resolves.toEqual(
       `Source file does not exist.\n${examples.command}`
@@ -98,7 +104,9 @@ describe('sasjs flow', () => {
       'src/commands/flow/spec/sourceFiles/not_valid_1.json'
     )
 
-    const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
   })
@@ -109,7 +117,9 @@ describe('sasjs flow', () => {
       'src/commands/flow/spec/sourceFiles/not_valid_2.json'
     )
 
-    const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
   })
@@ -120,7 +130,9 @@ describe('sasjs flow', () => {
       'src/commands/flow/spec/sourceFiles/not_valid_3.json'
     )
 
-    const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+    )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
   })
@@ -133,7 +145,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_2.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -166,7 +180,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_3.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -199,7 +215,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_4.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -232,7 +250,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_5.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -270,7 +290,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_6.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 
@@ -303,7 +325,9 @@ describe('sasjs flow', () => {
         'src/commands/flow/spec/sourceFiles/testFlow_7.json'
       )
 
-      const command = `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${targetName} --csvFile ${csvPath} --logFolder ${logPath}`
+      )
 
       await processFlow(command)
 

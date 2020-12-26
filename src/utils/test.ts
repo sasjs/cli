@@ -9,6 +9,7 @@ import fileStructureCompileObj from './fileStructures/files-compiled.json'
 import fileStructureBuildObj from './fileStructures/files-built.json'
 import { asyncForEach } from './utils'
 import { Folder } from '../types'
+import { ServiceConfig } from '@sasjs/utils/types/config'
 
 interface VerifyStepInput {
   parentFolderName: string
@@ -33,7 +34,13 @@ export const removeTestApp = async (parentFolder: string, appName: string) => {
 
 export const createTestGlobalTarget = async (
   targetName: string,
-  appLoc: string
+  appLoc: string,
+  serviceConfig: ServiceConfig = {
+    serviceFolders: [],
+    initProgram: '',
+    termProgram: '',
+    macroVars: {}
+  }
 ) => {
   dotenv.config()
   const serverType: ServerType =
@@ -45,6 +52,7 @@ export const createTestGlobalTarget = async (
     name: targetName,
     serverType,
     serverUrl: process.env.SERVER_URL,
+    contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
     appLoc,
     authConfig: {
       client: process.env.CLIENT,
@@ -55,9 +63,7 @@ export const createTestGlobalTarget = async (
     jobConfig: {
       jobFolders: []
     },
-    serviceConfig: {
-      serviceFolders: []
-    },
+    serviceConfig,
     deployConfig: {
       deployServicePack: true
     }

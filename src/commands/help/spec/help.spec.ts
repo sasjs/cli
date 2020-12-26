@@ -1,5 +1,5 @@
-import { printHelpText } from '../../src/commands'
-import { Command } from '../../src/utils/command'
+import { printHelpText } from '../help'
+import { Command } from '../../../utils/command'
 
 describe('sasjs help', () => {
   describe('printHelpText', () => {

@@ -6,7 +6,7 @@ export async function printVersion() {
     silent: true
   })
 
-  const line = result.split('\n').find((l) => l.includes('@sasjs/cli'))
+  const line = result.split('\n').find((l) => l.includes('@sasjs/cli')) || ''
   const version = line.split('@')[2].trim()
   if (version.includes('->')) {
     console.log(

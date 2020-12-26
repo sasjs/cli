@@ -1,11 +1,17 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration } from '../utils/config-utils'
-import { readFile, folderExists, createFile, createFolder } from '../utils/file'
-import { getAccessToken } from '../utils/config-utils'
-import { displayError, displaySuccess } from '../utils/displayResult'
+import { findTargetInConfiguration } from '../../utils/config-utils'
+import {
+  readFile,
+  folderExists,
+  createFile,
+  createFolder
+} from '../../utils/file'
+import { getAccessToken } from '../../utils/config-utils'
+import { displayError, displaySuccess } from '../../utils/displayResult'
+import { Command } from '../../utils/command'
 
-export async function runSasJob(command) {
+export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift()
   const dataFilePath = command.getFlagValue('datafile')
   const configFilePath = command.getFlagValue('configfile')
