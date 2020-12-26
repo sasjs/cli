@@ -41,29 +41,31 @@ export const createTestGlobalTarget = async (
       ? ServerType.SasViya
       : ServerType.Sas9
 
-  await saveToGlobalConfig(
-    new Target({
-      name: targetName,
-      serverType,
-      serverUrl: process.env.SERVER_URL,
-      appLoc,
-      authConfig: {
-        client: process.env.CLIENT,
-        secret: process.env.SECRET,
-        access_token: process.env.ACCESS_TOKEN,
-        refresh_token: process.env.REFRESH_TOKEN
-      },
-      jobConfig: {
-        jobFolders: []
-      },
-      serviceConfig: {
-        serviceFolders: []
-      },
-      deployConfig: {
-        deployServicePack: true
-      }
-    })
-  )
+  const target = new Target({
+    name: targetName,
+    serverType,
+    serverUrl: process.env.SERVER_URL,
+    appLoc,
+    authConfig: {
+      client: process.env.CLIENT,
+      secret: process.env.SECRET,
+      access_token: process.env.ACCESS_TOKEN,
+      refresh_token: process.env.REFRESH_TOKEN
+    },
+    jobConfig: {
+      jobFolders: []
+    },
+    serviceConfig: {
+      serviceFolders: []
+    },
+    deployConfig: {
+      deployServicePack: true
+    }
+  })
+
+  await saveToGlobalConfig(target)
+
+  return target
 }
 
 export const verifyStep = async (input: VerifyStepInput) => {

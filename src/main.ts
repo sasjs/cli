@@ -25,12 +25,8 @@ export async function createFileStructure(command: Command) {
   const template = command.getFlagValue('template')
   const parentFolderName = command.values.shift()
 
-  let result
-
-  await create(parentFolderName || '.', template)
+  return await create(parentFolderName || '.', template)
     .then(() => {
-      result = true
-
       displaySuccess(
         `Project ${
           parentFolderName ? `${parentFolderName} created` : `updated`
@@ -38,12 +34,8 @@ export async function createFileStructure(command: Command) {
       )
     })
     .catch((err: any) => {
-      result = err
-
       displayError(err, 'An error has occurred whilst creating your project.')
     })
-
-  return result
 }
 
 export async function showHelp() {
@@ -61,11 +53,8 @@ export async function buildServices(command: Command) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  let result
   await build(targetName)
     .then(() => {
-      result = true
-
       displaySuccess(
         `Services have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
@@ -73,11 +62,8 @@ export async function buildServices(command: Command) {
       )
     })
     .catch((err) => {
-      result = err
-
       displayError(err, 'An error has occurred when building services.')
     })
-  return result
 }
 
 export async function compileServices(command: Command) {
@@ -87,10 +73,8 @@ export async function compileServices(command: Command) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  let result
   await compile(targetName)
     .then(() => {
-      result = true
       displaySuccess(
         `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
@@ -98,11 +82,8 @@ export async function compileServices(command: Command) {
       )
     })
     .catch((err) => {
-      result = err
       displayError(err, 'An error has occurred when building services.')
-      throw err
     })
-  return result
 }
 
 export async function deployServices(command: Command) {
@@ -116,7 +97,6 @@ export async function deployServices(command: Command) {
     .then(() => displaySuccess(`Services have been successfully deployed!`))
     .catch((err) => {
       displayError(err, 'An error has occurred when deploying services.')
-      throw err
     })
 }
 
@@ -127,11 +107,9 @@ export async function compileBuildServices(command: Command) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  let result
   await compileServices(command)
   await build(targetName)
     .then(() => {
-      result = true
       displaySuccess(
         `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild'
@@ -139,7 +117,6 @@ export async function compileBuildServices(command: Command) {
       )
     })
     .catch((error) => {
-      result = error
       if (Array.isArray(error)) {
         const nodeModulesErrors = error.find((err) =>
           err.includes('node_modules/@sasjs/core')
@@ -155,7 +132,6 @@ export async function compileBuildServices(command: Command) {
 
       throw error
     })
-  return result
 }
 
 export async function compileBuildDeployServices(command: Command) {
@@ -168,15 +144,11 @@ export async function compileBuildDeployServices(command: Command) {
   await compileServices(command)
   await buildServices(command) // enforcing compile & build & deploy
   await deployServices(command)
-
-  return true
 }
 
 export async function buildDBs() {
-  let result = false
   await buildDB()
     .then(() => {
-      result = true
       displaySuccess(
         `DB have been successfully built!\nThe build output is located in the ${chalk.cyanBright(
           'sasjsbuild/db'
@@ -184,10 +156,8 @@ export async function buildDBs() {
       )
     })
     .catch((err) => {
-      result = err
       displayError(err, 'An error has occurred when building DBs.')
     })
-  return result
 }
 
 export async function buildWebApp(command: Command) {
@@ -218,34 +188,26 @@ export async function add(command: Command) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  let result = false
-
   if (command && command.name === 'add') {
     if (subCommand === 'cred') {
       await addCredential(targetName)
         .then(() => {
           console.log(chalk.greenBright('Credential successfully added!'))
-          result = true
         })
         .catch((err) => {
           console.log(err)
           displayError(err, 'An error has occurred when adding the credential.')
-          result = err
         })
     } else if (subCommand === 'target' || !subCommand) {
       await addTarget()
         .then(() => {
           console.log(chalk.greenBright('Target successfully added!'))
-          result = true
         })
         .catch((err) => {
           displayError(err, 'An error has occurred when adding the target.')
-          result = err
         })
     }
   }
-
-  return result
 }
 
 export async function run(command: Command) {
@@ -255,17 +217,9 @@ export async function run(command: Command) {
 }
 
 export async function runRequest(command: Command) {
-  let result: any = false
-
-  await runSasJob(command)
-    .then((res) => (result = res))
-    .catch((err) => {
-      result = err
-
-      displayError(err, 'An error has occurred when running your SAS job')
-    })
-
-  return result
+  await runSasJob(command).catch((err) => {
+    displayError(err, 'An error has occurred when running your SAS job')
+  })
 }
 
 export async function context(command: Command) {

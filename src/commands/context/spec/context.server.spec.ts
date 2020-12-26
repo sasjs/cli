@@ -13,6 +13,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config-utils'
 import { Target, ServerType } from '@sasjs/utils/types'
+import { Command } from '../../../utils/command'
 
 let contexts: any[]
 let testContextConfig: any
@@ -51,7 +52,9 @@ describe('sasjs context', () => {
     it(
       'should list accessible compute contexts',
       async () => {
-        contexts = (await processContext(`context list -t ${targetName}`)) as {
+        contexts = (await processContext(
+          new Command(`context list -t ${targetName}`)
+        )) as {
           createdBy: any
           id: any
           name: any
@@ -70,7 +73,9 @@ describe('sasjs context', () => {
       'should exports compute context',
       async () => {
         const contextName = contexts[0].name
-        const command = `context export ${contextName} -t ${targetName}`
+        const command = new Command(
+          `context export ${contextName} -t ${targetName}`
+        )
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
@@ -98,7 +103,9 @@ describe('sasjs context', () => {
 
         await createFile(testContextConfigPath, contextConfig)
 
-        const command = `context create -s ${testContextConfigFile} -t targetName`
+        const command = new Command(
+          `context create -s ${testContextConfigFile} -t targetName`
+        )
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
@@ -116,7 +123,9 @@ describe('sasjs context', () => {
 
         await createFile(testContextConfigPath, contextConfig)
 
-        const command = `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
+        const command = new Command(
+          `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
+        )
 
         await expect(processContext(command)).resolves.toEqual(true)
       },
@@ -128,7 +137,9 @@ describe('sasjs context', () => {
     it(
       'should delete compute context',
       async () => {
-        const command = `context delete ${testContextConfig.name} -t targetName`
+        const command = new Command(
+          `context delete ${testContextConfig.name} -t targetName`
+        )
 
         await expect(processContext(command)).resolves.toEqual(true)
       },

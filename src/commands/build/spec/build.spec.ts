@@ -1,4 +1,5 @@
 import { buildServices, compileServices } from '../../../main'
+import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 
@@ -15,7 +16,7 @@ describe('sasjs build', () => {
       appName = `test-app-build-minimal-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
 
-      await expect(buildServices(`build`)).resolves.toEqual(true)
+      await expect(buildServices(new Command(`build`))).resolves.toEqual(true)
     },
     2 * 60 * 1000
   )
@@ -27,8 +28,8 @@ describe('sasjs build', () => {
 
       await createTestApp(__dirname, appName)
 
-      await compileServices(`compile`)
-      await expect(buildServices(`build`)).resolves.toEqual(true)
+      await compileServices(new Command(`compile`))
+      await expect(buildServices(new Command(`build`))).resolves.toEqual(true)
     },
     2 * 60 * 1000
   )

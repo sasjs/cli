@@ -9,6 +9,7 @@ import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config-utils'
+import { Command } from '../../../utils/command'
 
 describe('sasjs servicepack', () => {
   let config: TargetJson
@@ -44,7 +45,7 @@ describe('sasjs servicepack', () => {
     it(
       'should deploy servicepack',
       async () => {
-        const command = [
+        const command = new Command([
           'servicepack',
           'deploy',
           '-s',
@@ -52,7 +53,7 @@ describe('sasjs servicepack', () => {
           '-f',
           '-t',
           targetName
-        ]
+        ])
 
         await expect(processServicepack(command)).resolves.toEqual(true)
       },
@@ -62,14 +63,14 @@ describe('sasjs servicepack', () => {
     it(
       'should fail because servicepack already been deployed',
       async () => {
-        const command = [
+        const command = new Command([
           'servicepack',
           'deploy',
           '-s',
           'src/commands/servicepack/spec/testServicepack.json',
           '-t',
           targetName
-        ]
+        ])
 
         await expect(processServicepack(command)).resolves.toEqual(false)
       },
@@ -80,6 +81,6 @@ describe('sasjs servicepack', () => {
   afterAll(async () => {
     await removeFromGlobalConfig(targetName)
 
-    await folder(`folder delete ${config.appLoc} -t ${targetName}`)
+    await folder(new Command(`folder delete ${config.appLoc} -t ${targetName}`))
   }, 60 * 1000)
 })

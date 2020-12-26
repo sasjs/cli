@@ -1,5 +1,5 @@
 import { displayError } from './displayResult'
-import { arrToObj } from './utils'
+import { arrToObj, checkNodeVersion } from './utils'
 import chalk from 'chalk'
 
 const showInvalidCommandMessage = () => {

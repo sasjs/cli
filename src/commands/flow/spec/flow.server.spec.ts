@@ -17,6 +17,7 @@ import {
 } from '../../../utils/test'
 import { removeFromGlobalConfig } from '../../../utils/config-utils'
 import examples from '../examples'
+import { Command } from '../../../utils/command'
 
 describe('sasjs flow', () => {
   const cwd = process.cwd()
@@ -350,7 +351,9 @@ describe('sasjs flow', () => {
 
   afterAll(async (done) => {
     await folder(
-      `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
+      new Command(
+        `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
+      )
     )
     await deleteFile(csvPath)
     await deleteFolder(logPath)

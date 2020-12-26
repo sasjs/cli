@@ -21,21 +21,21 @@ import {
 import { fileExists } from './utils/file'
 import path from 'path'
 import dotenv from 'dotenv'
-import chalk from 'chalk'
 import { Command, parseCommand } from './utils/command'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export async function cli(args: string[]) {
   await loadEnvironmentVariables()
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
+  await instantiateLogger()
 
   const parsedCommand = parseCommand(args)
   if (!parsedCommand) {
-    showInvalidCommandText()
+    handleInvalidCommand()
     return
   }
-  process.projectDir = path.join(process.cwd())
+
+  const command = new Command(parsedCommand.parameters)
+
   switch (parsedCommand.name) {
     case 'compile':
     case 'build':
@@ -45,15 +45,13 @@ export async function cli(args: string[]) {
     case 'compilebuilddeploy':
     case 'web':
       try {
-        await checkProjectDirectory(logger)
+        await checkAndSetProjectDirectory()
       } catch (err) {
-        logger.error('An error occurred', err)
+        process.logger.error('An error occurred', err)
         return
       }
       break
   }
-
-  const command = new Command(parsedCommand.parameters)
 
   switch (parsedCommand.name) {
     case 'create': {
@@ -110,7 +108,6 @@ export async function cli(args: string[]) {
     }
     case 'request': {
       await runRequest(command)
-
       break
     }
     case 'context': {
@@ -120,35 +117,34 @@ export async function cli(args: string[]) {
     }
     case 'folder': {
       await folderManagement(command)
-
       break
     }
     case 'job': {
       await jobManagement(command)
-
       break
     }
     case 'flow': {
       await flowManagement(command)
-
       break
     }
     default:
-      showInvalidCommandText()
-
+      handleInvalidCommand()
       break
   }
 }
 
-function showInvalidCommandText() {
-  console.log(
-    chalk.redBright.bold(
-      'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
-    )
+function handleInvalidCommand() {
+  process.logger.error(
+    'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
   )
+  process.exit(1)
 }
 
-async function checkProjectDirectory(logger: Logger) {
+export async function checkAndSetProjectDirectory() {
+  const projectDir = process.projectDir
+  if (!projectDir || projectDir.trim() === 'null') {
+    process.projectDir = process.cwd()
+  }
   const buildSourceFolder = path.join(process.projectDir, 'sasjs')
   let newBSF = buildSourceFolder,
     found = false
@@ -167,12 +163,18 @@ async function checkProjectDirectory(logger: Logger) {
     strBreak.splice(-1, 1)
     let newProDir = strBreak.join(path.sep)
     process.projectDir = newProDir
-    logger.info(`Current project directory is: ${process.projectDir}`)
+    process.logger?.info(`Current project directory is: ${process.projectDir}`)
   } else {
     throw new Error(
-      'Not a sasjs project directory OR sub-directory, please setup sasjs app first.'
+      `${process.projectDir} is not a SASjs project directory or sub-directory. Please set up your SASjs app first using \`sasjs create\`.\nYou can find more info on this and all other SASjs commands at https://cli.sasjs.io/.`
     )
   }
+}
+
+export async function instantiateLogger() {
+  const logLevel = (process.env.LOG_LEVEL || LogLevel.Info) as LogLevel
+  const logger = new Logger(logLevel)
+  process.logger = logger
 }
 
 async function loadEnvironmentVariables() {
