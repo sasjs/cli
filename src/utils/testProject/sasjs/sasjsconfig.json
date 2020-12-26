@@ -1,8 +1,0 @@
-{
-  "macroFolders": ["macros"],
-  "serviceFolders": ["services"],
-  "jobConfig": {
-    "jobFolders": ["jobs"]
-  },
-  "targets": []
-}

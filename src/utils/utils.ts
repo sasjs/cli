@@ -37,22 +37,22 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 }
 
 export async function createTemplateApp(folderPath: string, template: string) {
-  const { stdout, stderr, code } = shelljs.exec(
-    `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
-    {
-      silent: true
+  return new Promise<void>(async (resolve, reject) => {
+    const { stdout, stderr, code } = shelljs.exec(
+      `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
+      {
+        silent: true
+      }
+    )
+
+    if (stderr.includes('Repository not found') || code) {
+      return reject(new Error(`Template "${template}" is not a SASjs template`))
     }
-  )
 
-  if (stderr.includes('Repository not found') || code) {
-    throw `Template "${template}" is not sasjs template`
-  }
+    if (!stdout) {
+      return reject(new Error(`Unable to fetch template "${template}"`))
+    }
 
-  if (!stdout) {
-    throw `Unable to fetch template "${template}"`
-  }
-
-  return new Promise<void>(async (resolve, _) => {
     createApp(folderPath, `https://github.com/sasjs/template_${template}.git`)
     return resolve()
   })

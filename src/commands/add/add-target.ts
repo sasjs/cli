@@ -1,4 +1,3 @@
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Target, ServerType } from '@sasjs/utils/types'
 import {
   findTargetInConfiguration,
@@ -14,8 +13,6 @@ import {
 import { addCredential } from './add-credential'
 
 export async function addTarget(): Promise<boolean> {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
   const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()
 
   let targetJson: any = {
@@ -26,7 +23,7 @@ export async function addTarget(): Promise<boolean> {
   }
 
   let filePath = await saveConfig(scope, new Target(targetJson))
-  logger.info(`Target configuration has been saved to ${filePath}.`)
+  process.logger?.info(`Target configuration has been saved to ${filePath}.`)
 
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName } = await getAndValidateSas9Fields()
@@ -40,8 +37,7 @@ export async function addTarget(): Promise<boolean> {
       name,
       scope,
       serverUrl,
-      addCredential,
-      logger
+      addCredential
     )
 
     targetJson = {
@@ -58,7 +54,7 @@ export async function addTarget(): Promise<boolean> {
   }
 
   filePath = await saveConfig(scope, new Target(targetJson))
-  logger.info(`Target configuration has been saved to ${filePath}.`)
+  process.logger?.info(`Target configuration has been saved to ${filePath}.`)
   return true
 }
 

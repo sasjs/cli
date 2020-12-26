@@ -30,7 +30,7 @@ export { processJob } from './job'
 
 export { runSasJob } from './request/request'
 
-export { runSasCode } from './run'
+export { runSasCode } from './run/run'
 
 export { processServicepack } from './servicepack'
 

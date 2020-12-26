@@ -12,6 +12,7 @@ import {
 import { deleteFolder, createFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
+import { TargetJson } from '../../../types/configuration'
 
 describe('addTarget', () => {
   const testingAppFolder = `cli-tests-add-${generateTimestamp()}`
@@ -67,9 +68,9 @@ describe('addTarget', () => {
       )
       expect(config).toBeTruthy()
       expect(config!.targets).toBeTruthy()
-      const target: Target = (config!.targets || []).find(
-        (t: Target) => t.name === targetName
-      ) as Target
+      const target: TargetJson = (config!.targets || []).find(
+        (t: TargetJson) => t.name === targetName
+      ) as TargetJson
       expect(target.name).toEqual(targetName)
       expect(target.serverType).toEqual(ServerType.SasViya)
       expect(target.appLoc).toEqual('/Public/app')

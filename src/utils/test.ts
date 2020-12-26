@@ -1,7 +1,6 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import shelljs from 'shelljs'
-import { copy, deleteFolder, fileExists, folderExists } from './file'
+import { deleteFolder, fileExists, folderExists } from './file'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { saveToGlobalConfig } from './config-utils'
 import fileStructureDBObj from './fileStructures/files-db.json'
@@ -10,6 +9,7 @@ import fileStructureBuildObj from './fileStructures/files-built.json'
 import { asyncForEach } from './utils'
 import { Folder } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
+import { create } from '../commands/create/create'
 
 interface VerifyStepInput {
   parentFolderName: string
@@ -17,13 +17,8 @@ interface VerifyStepInput {
 }
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
-  await copy(
-    path.join(__dirname, 'testProject'),
-    path.join(parentFolder, appName)
-  )
-  shelljs.exec(`cd ${path.join(parentFolder, appName)} && npm install`, {
-    silent: true
-  })
+  process.projectDir = parentFolder
+  await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
 }
 
@@ -88,7 +83,7 @@ export const verifyStep = async (input: VerifyStepInput) => {
 
   const fileStructureClone = JSON.parse(JSON.stringify(fileStructure))
 
-  await asyncForEach(fileStructureClone.subFolders, async (folder, index) => {
+  await asyncForEach(fileStructureClone.subFolders, async (folder) => {
     everythingPresent =
       everythingPresent &&
       (await verifyFolderStructure(folder, parentFolderName))

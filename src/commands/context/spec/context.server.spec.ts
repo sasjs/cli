@@ -1,4 +1,3 @@
-import dotenv from 'dotenv'
 import path from 'path'
 import { processContext } from '../..'
 import {
@@ -8,12 +7,9 @@ import {
   deleteFolder
 } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
-import {
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config-utils'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { removeFromGlobalConfig } from '../../../utils/config-utils'
 import { Command } from '../../../utils/command'
+import { createTestGlobalTarget } from '../../../utils/test'
 
 let contexts: any[]
 let testContextConfig: any
@@ -25,27 +21,13 @@ describe('sasjs context', () => {
   const targetName = `cli-tests-context-${timestamp}`
 
   beforeAll(async () => {
-    dotenv.config()
-    const serverType: ServerType =
-      process.env.SERVER_TYPE === ServerType.SasViya
-        ? ServerType.SasViya
-        : ServerType.Sas9
-    await saveToGlobalConfig(
-      new Target({
-        name: targetName,
-        serverType: serverType,
-        serverUrl: process.env.SERVER_URL as string,
-        appLoc: '/Public/app/cli-tests',
-        authConfig: {
-          client: process.env.CLIENT as string,
-          secret: process.env.SECRET as string,
-          access_token: process.env.ACCESS_TOKEN as string,
-          refresh_token: process.env.REFRESH_TOKEN as string
-        }
-      })
-    )
+    await createTestGlobalTarget(targetName, '/Public/app/cli-tests')
+    process.projectDir = process.cwd()
+  })
 
-    process.projectDir = path.join(process.cwd())
+  afterAll(async () => {
+    deleteFolder(testContextConfigPath)
+    await removeFromGlobalConfig(targetName)
   })
 
   describe('list', () => {
@@ -70,7 +52,7 @@ describe('sasjs context', () => {
 
   describe('exportContext', () => {
     it(
-      'should exports compute context',
+      'should export a compute context',
       async () => {
         const contextName = contexts[0].name
         const command = new Command(
@@ -85,7 +67,7 @@ describe('sasjs context', () => {
 
   describe('create', () => {
     it(
-      'should create compute context',
+      'should create a compute context',
       async () => {
         testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
         testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
@@ -115,7 +97,7 @@ describe('sasjs context', () => {
 
   describe('edit', () => {
     it(
-      'should edit compute context',
+      'should edit a compute context',
       async () => {
         testContextConfig.description += '_updated'
 
@@ -135,7 +117,7 @@ describe('sasjs context', () => {
 
   describe('delete', () => {
     it(
-      'should delete compute context',
+      'should delete a compute context',
       async () => {
         const command = new Command(
           `context delete ${testContextConfig.name} -t targetName`
@@ -145,10 +127,5 @@ describe('sasjs context', () => {
       },
       60 * 1000
     )
-  })
-
-  afterAll(async () => {
-    deleteFolder(testContextConfigPath)
-    await removeFromGlobalConfig(targetName)
   })
 })

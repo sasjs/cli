@@ -1,108 +1,73 @@
-import dotenv from 'dotenv'
-import path from 'path'
+import { Target } from '@sasjs/utils'
 import {
-  createFileStructure,
   buildServices,
   compileServices,
   compileBuildServices
 } from '../../../main'
-import { deleteFolder, createFolder } from '../../../utils/file'
-import { verifyStep } from '../../../utils/test'
+import { Command } from '../../../utils/command'
+import { removeFromGlobalConfig } from '../../../utils/config-utils'
+import {
+  createTestApp,
+  createTestGlobalTarget,
+  removeTestApp,
+  verifyStep
+} from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 
 describe('sasjs compile', () => {
-  beforeAll(() => {
-    dotenv.config()
+  let target: Target
+
+  beforeEach(async (done) => {
+    const appName = 'cli-tests-cb-' + generateTimestamp()
+    await createTestApp(__dirname, appName)
+    target = await createTestGlobalTarget(
+      appName,
+      `/Public/app/cli-tests/${appName}`
+    )
+
+    done()
   })
 
-  it(
-    `should compile newly created app`,
-    async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-cb-${timestamp}`
+  afterEach(async (done) => {
+    await removeFromGlobalConfig(target.name)
+    await removeTestApp(__dirname, target.name)
+    done()
+  })
 
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+  it(`should compile newly created app`, async (done) => {
+    await expect(compileServices(new Command(`compile`))).toResolve()
 
-      await createFolder(process.projectDir)
+    await verifyStep({ parentFolderName: '.', step: 'compile' })
+    done()
+  })
 
-      await createFileStructure(`create`)
+  it(`should compile and build`, async (done) => {
+    await expect(buildServices(new Command(`build`))).toResolve()
 
-      await expect(compileServices(`compile`)).resolves.toEqual(true)
+    await verifyStep({ parentFolderName: '.', step: 'compile' })
+    await verifyStep({ parentFolderName: '.', step: 'build' })
+    done()
+  })
 
-      await verifyStep({ parentFolderName: '.', step: 'compile' })
-    },
-    2 * 60 * 1000
-  )
+  it(`should compile and build(skipping compile)`, async (done) => {
+    await expect(compileServices(new Command('compile'))).toResolve()
 
-  it(
-    `should compile and build`,
-    async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-cb-${timestamp}`
+    await verifyStep({ parentFolderName: '.', step: 'compile' })
 
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
+    await expect(buildServices(new Command('build'))).toResolve()
 
-      await createFolder(process.projectDir)
+    await verifyStep({ parentFolderName: '.', step: 'build' })
+    done()
+  })
 
-      await createFileStructure(`create`)
+  it(`should compile and build(with recompile)`, async (done) => {
+    await expect(compileServices(new Command('compile'))).toResolve()
 
-      await expect(buildServices(`build`)).resolves.toEqual(true)
+    await verifyStep({ parentFolderName: '.', step: 'compile' })
 
-      await verifyStep({ parentFolderName: '.', step: 'compile' })
-      await verifyStep({ parentFolderName: '.', step: 'build' })
-    },
-    2 * 60 * 1000
-  )
+    await expect(compileBuildServices(new Command('compilebuild'))).toResolve()
 
-  it(
-    `should compile and build(skipping compile)`,
-    async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-cb-${timestamp}`
-
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-      const projectDir = process.projectDir
-
-      await createFolder(process.projectDir)
-
-      await createFileStructure(`create`)
-
-      await expect(compileServices(`compile`)).resolves.toEqual(true)
-
-      await verifyStep({ parentFolderName: '.', step: 'compile' })
-
-      await expect(buildServices(`build`)).resolves.toEqual(true)
-
-      await verifyStep({ parentFolderName: '.', step: 'build' })
-    },
-    2 * 60 * 1000
-  )
-
-  it(
-    `should compile and build(with recompile)`,
-    async () => {
-      const timestamp = generateTimestamp()
-      const parentFolderNameTimeStamped = `test-app-cb-${timestamp}`
-
-      process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-      const projectDir = process.projectDir
-
-      await createFolder(process.projectDir)
-
-      await createFileStructure(`create`)
-
-      await expect(compileServices(`compile`)).resolves.toEqual(true)
-
-      await verifyStep({ parentFolderName: '.', step: 'compile' })
-
-      await expect(compileBuildServices(`compilebuild`)).resolves.toEqual(true)
-
-      await verifyStep({ parentFolderName: '.', step: 'build' })
-    },
-    2 * 60 * 1000
-  )
-
-  afterAll(async () => {
-    await deleteFolder('./test-app-cb-*')
-  }, 60 * 1000)
+    await verifyStep({ parentFolderName: '.', step: 'build' })
+    done()
+  })
 })

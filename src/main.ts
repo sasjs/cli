@@ -82,7 +82,7 @@ export async function compileServices(command: Command) {
       )
     })
     .catch((err) => {
-      displayError(err, 'An error has occurred when building services.')
+      displayError(err, 'An error has occurred when compiling services.')
     })
 }
 

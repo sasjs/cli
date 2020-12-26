@@ -1,5 +1,5 @@
 import path from 'path'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { LogLevel } from '@sasjs/utils/logger'
 import { SasAuthResponse, Target } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
@@ -21,9 +21,6 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
 export const addCredential = async (targetName: string): Promise<void> => {
   targetName = validateTargetName(targetName)
 
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-
   let { target, isLocal } = await findTargetInConfiguration(targetName)
 
   if (!target.serverUrl) {
@@ -35,7 +32,6 @@ export const addCredential = async (targetName: string): Promise<void> => {
 
   const { access_token, refresh_token } = await getTokens(
     target,
-    logger,
     client,
     secret
   )
@@ -46,8 +42,7 @@ export const addCredential = async (targetName: string): Promise<void> => {
       client,
       secret,
       access_token,
-      refresh_token,
-      logger
+      refresh_token
     )
     await saveToLocalConfig(target)
   } else {
@@ -81,14 +76,13 @@ export const validateTargetName = (targetName: string): string => {
 
 export const getTokens = async (
   target: Target,
-  logger: Logger,
   client: string,
   secret: string
 ): Promise<SasAuthResponse> => {
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
-    debug: logger.logLevel === LogLevel.Debug
+    debug: process.logger?.logLevel === LogLevel.Debug
   })
   const authResponse: SasAuthResponse = await getNewAccessToken(
     adapter,
@@ -96,7 +90,7 @@ export const getTokens = async (
     secret,
     target
   ).catch((e) => {
-    logger.error(
+    process.logger?.error(
       `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID and Client Secret and try again.\n`
     )
     throw e
@@ -110,11 +104,10 @@ export const createEnvFile = async (
   client: string,
   secret: string,
   accessToken: string,
-  refreshToken: string,
-  logger: Logger
+  refreshToken: string
 ): Promise<void> => {
   const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
   await createFile(envFilePath, envFileContent)
-  logger.success(`Environment file saved at ${envFilePath}`)
+  process.logger?.success(`Environment file saved at ${envFilePath}`)
 }

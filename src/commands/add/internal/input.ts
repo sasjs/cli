@@ -133,8 +133,7 @@ export async function getAndValidateSasViyaFields(
   targetName: string,
   scope: TargetScope,
   serverUrl: string,
-  authenticateCallback: (targetName: string) => Promise<void>,
-  logger: Logger
+  authenticateCallback: (targetName: string) => Promise<void>
 ): Promise<{
   contextName: string
 }> {
@@ -150,7 +149,7 @@ export async function getAndValidateSasViyaFields(
     const sasjs = new SASjs({
       serverUrl,
       serverType: ServerType.SasViya,
-      debug: logger.logLevel === LogLevel.Debug
+      debug: process.logger?.logLevel === LogLevel.Debug
     })
     let contexts = []
     if (scope === TargetScope.Local) {

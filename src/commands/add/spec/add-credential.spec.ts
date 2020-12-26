@@ -97,8 +97,6 @@ describe('getTokens', () => {
     } as Target
   })
 
-  const testLogger = new Logger(LogLevel.Off)
-
   it('should throw an error when the supplied credentials are invalid', async (done) => {
     const client = 'invalidClient'
     const secret = 'invalidSecret'
@@ -107,7 +105,7 @@ describe('getTokens', () => {
     })
 
     await expect(
-      getTokens(testTarget as Target, testLogger, client, secret)
+      getTokens(testTarget as Target, client, secret)
     ).rejects.toThrow()
     done()
   })
@@ -122,12 +120,7 @@ describe('getTokens', () => {
       })
     )
 
-    const authResponse = await getTokens(
-      testTarget as Target,
-      testLogger,
-      clientId,
-      secret
-    )
+    const authResponse = await getTokens(testTarget as Target, clientId, secret)
 
     expect(authResponse.access_token).toBeTruthy()
     expect(authResponse.refresh_token).toBeTruthy()
@@ -151,14 +144,7 @@ describe('createEnvFile', () => {
       .spyOn(fileUtils, 'createFile')
       .mockImplementation(() => Promise.resolve())
 
-    await createEnvFile(
-      targetName,
-      clientId,
-      secret,
-      accessToken,
-      refreshToken,
-      testLogger
-    )
+    await createEnvFile(targetName, clientId, secret, accessToken, refreshToken)
 
     expect(createSpy).toHaveBeenCalledWith(
       expectedEnvFilePath,

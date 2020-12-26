@@ -26,14 +26,28 @@ describe('sasjs flow', () => {
   const targetName = 'cli-tests-flow-' + generateTimestamp()
   const appName = targetName
 
-  beforeAll(async () => {
+  beforeAll(async (done) => {
     await createTestApp(__dirname, appName)
     await createTestGlobalTarget(
       targetName,
       `/Public/app/cli-tests/${targetName}`
     )
     await compileBuildDeployServices(new Command(`cbd ${targetName} -f`))
-  }, 60 * 1000)
+    done()
+  })
+
+  afterAll(async (done) => {
+    await folder(
+      new Command(
+        `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
+      )
+    )
+    await deleteFile(csvPath)
+    await deleteFolder(logPath)
+    await removeTestApp(__dirname, appName)
+    await removeFromGlobalConfig(targetName)
+    done()
+  })
 
   it(
     'should execute flow with 2 successful jobs',
@@ -372,17 +386,4 @@ describe('sasjs flow', () => {
     },
     60 * 1000
   )
-
-  afterAll(async (done) => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${targetName} -t ${targetName}`
-      )
-    )
-    await deleteFile(csvPath)
-    await deleteFolder(logPath)
-    await removeTestApp(__dirname, appName)
-    await removeFromGlobalConfig(targetName)
-    done()
-  })
 })

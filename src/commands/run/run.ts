@@ -5,10 +5,10 @@ import { ErrorResponse } from '@sasjs/adapter/node'
 import {
   findTargetInConfiguration,
   getAccessToken
-} from '../utils/config-utils'
-import { readFile, createFile } from '../utils/file'
-import { generateTimestamp } from '../utils/utils'
-import { Command } from '../utils/command'
+} from '../../utils/config-utils'
+import { readFile, createFile } from '../../utils/file'
+import { generateTimestamp } from '../../utils/utils'
+import { Command } from '../../utils/command'
 import { Target } from '@sasjs/utils'
 
 /**

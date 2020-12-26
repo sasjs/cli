@@ -311,8 +311,9 @@ const compileServiceFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildDestinationServicesFolder } = getConstants()
-  const folderPath = path.join(buildDestinationServicesFolder, serviceFolder)
+  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const folderPath = path.join(buildSourceFolder, serviceFolder)
+  const destinationPath = path.join(buildDestinationFolder, serviceFolder)
   const subFolders = await getSubFoldersInFolder(folderPath)
   const filesNamesInPath = await getFilesInFolder(folderPath)
   const errors: Error[] = []
@@ -338,7 +339,7 @@ const compileServiceFolder = async (
     const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
 
     await asyncForEach(fileNames, async (fileName) => {
-      const filePath = path.join(folderPath, subFolder, fileName)
+      const filePath = path.join(destinationPath, subFolder, fileName)
 
       const dependencies = await loadDependencies(
         target,
@@ -362,8 +363,8 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildDestinationJobsFolder } = getConstants()
-  const folderPath = path.join(buildDestinationJobsFolder, jobFolder)
+  const { buildDestinationFolder } = getConstants()
+  const folderPath = path.join(buildDestinationFolder, jobFolder)
   const subFolders = await getSubFoldersInFolder(folderPath)
   const filesNamesInPath = await getFilesInFolder(folderPath)
   await asyncForEach(filesNamesInPath, async (fileName) => {

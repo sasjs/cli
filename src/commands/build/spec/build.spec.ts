@@ -16,7 +16,7 @@ describe('sasjs build', () => {
       appName = `test-app-build-minimal-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
 
-      await expect(buildServices(new Command(`build`))).resolves.toEqual(true)
+      await expect(buildServices(new Command(`build`))).toResolve()
     },
     2 * 60 * 1000
   )
@@ -29,7 +29,7 @@ describe('sasjs build', () => {
       await createTestApp(__dirname, appName)
 
       await compileServices(new Command(`compile`))
-      await expect(buildServices(new Command(`build`))).resolves.toEqual(true)
+      await expect(buildServices(new Command(`build`))).toResolve()
     },
     2 * 60 * 1000
   )

@@ -20,7 +20,7 @@ import chalk from 'chalk'
 import { Folder } from '../../types'
 
 export async function create(parentFolderName: string, appType: string) {
-  const configPath = '../config.json'
+  const configPath = '../../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
   const fileStructure = await getFolders()
   console.log(chalk.greenBright('Creating folders and files...'))
