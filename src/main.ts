@@ -100,6 +100,7 @@ export async function compileServices(command: Command) {
     .catch((err) => {
       result = err
       displayError(err, 'An error has occurred when building services.')
+      throw err
     })
   return result
 }
@@ -115,6 +116,7 @@ export async function deployServices(command: Command) {
     .then(() => displaySuccess(`Services have been successfully deployed!`))
     .catch((err) => {
       displayError(err, 'An error has occurred when deploying services.')
+      throw err
     })
 }
 
@@ -150,6 +152,8 @@ export async function compileBuildServices(command: Command) {
       } else {
         displayError(error, 'An error has occurred when building services.')
       }
+
+      throw error
     })
   return result
 }
@@ -161,26 +165,11 @@ export async function compileBuildDeployServices(command: Command) {
     targetName = command.getTargetWithoutFlag()
   }
 
-  let result
+  await compileServices(command)
+  await buildServices(command) // enforcing compile & build & deploy
+  await deployServices(command)
 
-  await build(targetName) // enforcing compile & build & deploy
-  await deploy(targetName)
-    .then(() => {
-      result = true
-
-      displaySuccess(
-        `Services have been successfully compiled & built!\nThe build output is located in the ${chalk.cyanBright(
-          'sasjsbuild'
-        )} directory.`
-      )
-    })
-    .catch((err) => {
-      result = err
-
-      displayError(err, 'An error has occurred when building services.')
-    })
-
-  return result
+  return true
 }
 
 export async function buildDBs() {

@@ -123,12 +123,6 @@ async function getSASjsAndAccessToken(target: Target) {
 }
 
 async function deployToSasViyaWithServicePack(target: Target) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
-
   const { buildDestinationFolder } = getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -137,15 +131,7 @@ async function deployToSasViyaWithServicePack(target: Target) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  let accessToken = null
-  try {
-    accessToken = await getAccessToken(target)
-    console.log('Hello token: ', accessToken)
-  } catch (e) {
-    throw new Error(
-      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-    )
-  }
+  const { sasjs, accessToken } = await getSASjsAndAccessToken(target)
 
   return await sasjs.deployServicePack(
     jsonObject,
