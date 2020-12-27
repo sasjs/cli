@@ -10,9 +10,7 @@ describe('utils', () => {
     beforeAll(() => {
       const currentDate = new Date('2020-10-02T10:10:10.10Z')
       realDate = Date
-      global.Date = class extends (
-        Date
-      ) {
+      global.Date = class extends Date {
         constructor(date) {
           if (date) {
             return super(date)
