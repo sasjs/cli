@@ -57,7 +57,7 @@ describe('sasjs request without compute API', () => {
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
-        serviceFolders: ['runRequest'],
+        serviceFolders: ['runRequest', 'services'],
         initProgram: '',
         termProgram: '',
         macroVars: {}
@@ -175,7 +175,7 @@ describe(`sasjs request with compute API`, () => {
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
-        serviceFolders: ['runRequest'],
+        serviceFolders: ['runRequest', 'services'],
         initProgram: '',
         termProgram: '',
         macroVars: {}
