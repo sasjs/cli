@@ -17,7 +17,7 @@ describe('parseCommandLine', () => {
     const expectedName = 'folder'
     let expectedValues = ['create', '/Public/folder']
     const expectedFlagNames = ['target', 'force']
-    const expectedFlagValues = ['targetName', '']
+    const expectedFlagValues = ['targetName', undefined]
 
     test('without flags', () => {
       const commandLine = 'folder create /Public/folder'
@@ -508,7 +508,7 @@ describe('parseCommandLine', () => {
       ]
       const expectedFlagValues = [
         'targetName',
-        '',
+        undefined,
         './output.json',
         './log.txt',
         './status.txt'
