@@ -4,7 +4,7 @@ import { Command } from '../../../utils/command'
 describe('sasjs help', () => {
   describe('printHelpText', () => {
     it('should output information about all supported commands', async () => {
-      const supportedCommands = new Command().getAllSupportedCommands()
+      const supportedCommands = new Command('').getAllSupportedCommands()
 
       let { outputCommands } = await printHelpText()
 
@@ -16,7 +16,7 @@ describe('sasjs help', () => {
     })
 
     it('should output information about all supported aliases', async () => {
-      const supportedAliases = new Command().getAllSupportedAliases()
+      const supportedAliases = new Command('').getAllSupportedAliases()
 
       let { outputAliases } = await printHelpText()
 
