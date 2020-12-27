@@ -142,7 +142,7 @@ const verifyCreateWeb = async (parentFolderName: string, appType: string) => {
     await asyncForEach(fileStructureClone.subFolders, async (folder) => {
       everythingPresent =
         everythingPresent &&
-        (await verifyFolderStructure(folder, parentFolderName))
+        (await verifyFolderStructure(folder, parentFolderName, ''))
     })
   }
   expect(everythingPresent).toEqual(true)
@@ -163,7 +163,11 @@ const verifyCreate = async (parentFolderName: string, appType: string) => {
   }
   let everythingPresent = false
   await asyncForEach(fileStructure, async (folder, index) => {
-    everythingPresent = await verifyFolderStructure(folder, parentFolderName)
+    everythingPresent = await verifyFolderStructure(
+      folder,
+      parentFolderName,
+      ''
+    )
     if (everythingPresent && index === 0) {
       const configDestinationPath = path.join(
         process.projectDir,
