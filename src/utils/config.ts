@@ -39,9 +39,8 @@ export async function findTargetInConfiguration(
   targetName: string,
   viyaSpecific = false
 ): Promise<{ target: Target; isLocal: boolean }> {
-  const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
-    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
 
   if (localConfig && localConfig.targets) {

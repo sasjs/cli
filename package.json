@@ -8,7 +8,9 @@
   "scripts": {
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm link --force\"",
     "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
-    "test": "jest",
+    "test": "npm run test:mocked && npm run test:server",
+    "test:server": "jest --silent --config=jest.server.config.js",
+    "test:mocked": "jest --config=jest.config.js",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\""

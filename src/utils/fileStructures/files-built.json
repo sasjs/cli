@@ -3,8 +3,8 @@
     {
       "folderName": "sasjsbuild",
       "files": [
-        { "fileName": "myviyadeploy.sas" },
-        { "fileName": "viya.json" }
+        { "fileName": "{targetName}.sas" },
+        { "fileName": "{targetName}.json" }
       ],
       "subFolders": [
         {

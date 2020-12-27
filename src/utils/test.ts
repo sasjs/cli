@@ -13,6 +13,7 @@ import { create } from '../commands/create/create'
 
 interface VerifyStepInput {
   parentFolderName: string
+  targetName: string
   step: string
 }
 
@@ -40,7 +41,7 @@ export const createTestGlobalTarget = async (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
-    serviceFolders: [],
+    serviceFolders: ['services'],
     initProgram: '',
     termProgram: '',
     macroVars: {}
@@ -79,7 +80,7 @@ export const createTestGlobalTarget = async (
 }
 
 export const verifyStep = async (input: VerifyStepInput) => {
-  const { parentFolderName, step } = input
+  const { parentFolderName, targetName, step } = input
   let everythingPresent = true
   const fileStructure =
     step === 'db'
@@ -95,14 +96,15 @@ export const verifyStep = async (input: VerifyStepInput) => {
   await asyncForEach(fileStructureClone.subFolders, async (folder) => {
     everythingPresent =
       everythingPresent &&
-      (await verifyFolderStructure(folder, parentFolderName))
+      (await verifyFolderStructure(folder, parentFolderName, targetName))
   })
   expect(everythingPresent).toEqual(true)
 }
 
 export const verifyFolderStructure = async (
   folder: Folder,
-  parentFolderName = '.'
+  parentFolderName: string,
+  targetName: string
 ) => {
   let everythingPresent = false
   let folderPath = path.join(process.projectDir, folder.folderName)
@@ -121,7 +123,10 @@ export const verifyFolderStructure = async (
         const filePath = path.join(
           process.projectDir,
           parentFolderName,
-          `${folder.folderName}/${file.fileName}`
+          `${folder.folderName}/${file.fileName.replace(
+            '{targetName}',
+            targetName
+          )}`
         )
         filesPresent = filesPresent && (await fileExists(filePath))
       })
@@ -135,7 +140,8 @@ export const verifyFolderStructure = async (
         }${folder.folderName}/${subFolder.folderName}`
 
         subfoldersPresent =
-          subfoldersPresent && (await verifyFolderStructure(subFolder))
+          subfoldersPresent &&
+          (await verifyFolderStructure(subFolder, '.', targetName))
       })
       everythingPresent = subfoldersPresent
     }
