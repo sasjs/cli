@@ -4,10 +4,10 @@
     "firstFlow": {
       "jobs": [
         {
-          "location": "jobs/jobs/job"
+          "location": "testJob/job"
         },
         {
-          "location": "jobs/jobs/failingJob"
+          "location": "testJob/failingJob"
         }
       ],
       "predecessors": []
@@ -15,7 +15,7 @@
     "secondFlow": {
       "jobs": [
         {
-          "location": "jobs/jobs/job"
+          "location": "testJob/job"
         }
       ],
       "predecessors": ["firstFlow"]
