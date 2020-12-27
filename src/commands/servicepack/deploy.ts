@@ -1,6 +1,5 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import chalk from 'chalk'
 import { readFile } from '../../utils/file'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
@@ -19,17 +18,13 @@ export async function servicePackDeploy(
   const { target } = await findTargetInConfiguration(targetName, true)
 
   if (target.serverType !== ServerType.SasViya) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. This commmand is only available on VIYA servers.`
-      )
+    throw new Error(
+      `Unable to deploy service pack to target ${targetName}. This command is only supported for server type ${ServerType.SasViya}.`
     )
-
-    return
   }
 
-  console.log(
-    chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
+  process.logger?.info(
+    `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
   )
 
   let success
@@ -85,10 +80,8 @@ async function deployToSasViyaWithServicePack(
   const access_token = await getAccessToken(buildTarget)
 
   if (!access_token) {
-    console.log(
-      chalk.redBright.bold(
-        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      )
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
     )
   }
 

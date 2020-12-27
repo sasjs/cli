@@ -1,5 +1,4 @@
 import shelljs from 'shelljs'
-import chalk from 'chalk'
 
 export async function printVersion() {
   const result = shelljs.exec(`npm list -g @sasjs/cli`, {
@@ -9,16 +8,12 @@ export async function printVersion() {
   const line = result.split('\n').find((l) => l.includes('@sasjs/cli')) || ''
   const version = line.split('@')[2].trim()
   if (version.includes('->')) {
-    console.log(
-      chalk.red(
-        `You are using a linked version of SASjs CLI running from sources at ${chalk.cyanBright(
-          version.replace('->', '').trim()
-        )}`
-      )
+    process.logger?.info(
+      `You are using a linked version of SASjs CLI running from sources at ${version
+        .replace('->', '')
+        .trim()}`
     )
   } else {
-    console.log(
-      chalk.greenBright(`You are using SASjs CLI v${chalk.cyanBright(version)}`)
-    )
+    process.logger.info(`You are using SASjs CLI v${version}`)
   }
 }

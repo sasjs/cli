@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import { LogLevel, Logger } from '@sasjs/utils/logger'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
@@ -13,16 +12,12 @@ export const move = async (
   sasjs: SASjs,
   accessToken: string
 ) => {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
   const pathMap = paths.split(' ')
 
   if (pathMap.length !== 2) {
-    logger.error(
+    throw new Error(
       `Bad command.\nCommand example: sasjs folder move /Public/sourceFolder /Public/targetFolder`
     )
-
-    return
   }
 
   const sourceFolder = pathMap[0]

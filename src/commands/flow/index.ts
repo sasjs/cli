@@ -5,10 +5,10 @@ import { displayError } from '../../utils/displayResult'
 
 export async function processFlow(command: Command) {
   const subCommand = command.getSubCommand()
-  const source = command.getFlagValue('source')
-  const logFolder = command.getFlagValue('logFolder')
-  const csvFile = command.getFlagValue('csvFile')
-  const targetName = command.getFlagValue('target')
+  const source = command.getFlagValue('source') as string
+  const logFolder = command.getFlagValue('logFolder') as string
+  const csvFile = command.getFlagValue('csvFile') as string
+  const targetName = command.getFlagValue('target') as string
   const { target } = await findTargetInConfiguration(targetName)
 
   let result

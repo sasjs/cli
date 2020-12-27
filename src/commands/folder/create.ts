@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import chalk from 'chalk'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
@@ -35,10 +34,8 @@ export const create = async (
       )
 
       if (err.status && err.status === 409) {
-        console.log(
-          chalk.redBright(
-            `Consider using '-f' or '--force' flag, eg 'sasjs folder create /Public/folderToCreate -f'.\nWARNING: When using force, any existing content and subfolders of the target folder will be deleted.`
-          )
+        process.logger?.error(
+          `Consider using '-f' or '--force' flag, eg 'sasjs folder create /Public/folderToCreate -f'.\nWARNING: When using force, any existing content and subfolders of the target folder will be deleted.`
         )
       }
     })

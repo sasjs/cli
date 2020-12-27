@@ -34,8 +34,6 @@ const exampleStreamConfig: StreamConfig = {
 
 export async function createWebAppServices(targetName: string) {
   const { target } = await findTargetInConfiguration(targetName)
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
 
   const { buildDestinationFolder } = getConstants()
 
@@ -78,7 +76,7 @@ export async function createWebAppServices(targetName: string) {
     )
   }
 
-  logger.info(`Building web app services for target ${targetName}...`)
+  process.logger?.info(`Building web app services for target ${targetName}...`)
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(

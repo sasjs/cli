@@ -1,18 +1,7 @@
 export { addTarget } from './add/addTarget'
 export { addCredential } from './add/addCredential'
 
-export {
-  build,
-  loadDependencies,
-  getServiceVars,
-  getBuildVars,
-  getProgramList,
-  validateProgramsList,
-  validateFileRef,
-  getProgramDependencies,
-  getDependencyPaths,
-  prioritiseDependencyOverrides
-} from './build/build'
+export { build, getBuildVars } from './build/build'
 
 export { processContext } from './context'
 

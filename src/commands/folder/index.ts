@@ -1,4 +1,3 @@
-import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
@@ -22,13 +21,11 @@ export async function folder(command: Command) {
       subCommands
     ).join('\n')}`
 
-    console.log(chalk.redBright(message))
-
-    return
+    throw new Error(message)
   }
 
   const forceFlag = command.getFlag('force')
-  const targetName = command.getFlagValue('target')
+  const targetName = command.getFlagValue('target') as string
   let folderPath = command.values.join(' ')
 
   const { target } = await findTargetInConfiguration(targetName)

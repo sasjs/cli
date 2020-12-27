@@ -154,7 +154,7 @@ describe('sasjs cbd with local config', () => {
 
     expect(displayResultModule.displayError).toHaveBeenCalledWith(
       new Error(
-        `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'deployScripts'.`
+        `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
       ),
       'An error has occurred when deploying services.'
     )

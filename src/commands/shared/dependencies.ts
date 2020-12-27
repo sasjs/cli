@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import path from 'path'
 import find from 'find'
 import uniqBy from 'lodash.uniqby'
@@ -46,17 +45,15 @@ export async function getDependencyPaths(
         dependencyPaths.push(...filePaths)
       })
     } else {
-      const errorMessage = `Source path ${sourcePath} does not exist.`
+      const errorMessage = `Error listing dependency paths: Source path ${sourcePath} does not exist.`
 
-      console.log(chalk.redBright(errorMessage))
+      process.logger?.error(errorMessage)
 
       const unFoundDependencies = diff(dependencies, foundDependencies)
 
       if (unFoundDependencies.length) {
-        console.log(
-          `${chalk.redBright(
-            'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
-          )}`
+        process.logger?.error(
+          'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
         )
       }
 
@@ -131,11 +128,13 @@ export async function getProgramDependencies(
         const filePaths = find.fileSync(program.fileName, filePath)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
+
           if (!fileContent) {
-            console.log(
-              chalk.yellowBright(`File ${program.fileName} is empty.`)
+            process.logger?.warn(
+              `Program file ${path.join(filePath, program.fileName)} is empty.`
             )
           }
+
           const programDependencyContent = getProgramDependencyText(
             fileContent,
             program.fileRef
@@ -150,14 +149,12 @@ export async function getProgramDependencies(
       (program) => !foundProgramNames.includes(program.fileName)
     )
     if (unfoundProgramNames.length) {
-      console.log(
-        chalk.yellowBright(
-          `The following files were listed under SAS Programs but could not be found:
+      process.logger
+        ?.warn(`The following files were listed under SAS Programs but could not be found:
 ${unfoundProgramNames.join(', ')}
-Please check they exist in the folder(s) listed in the programFolders array of the sasjsconfig.json file.\n`
-        )
-      )
+Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n`)
     }
+
     return foundPrograms.join('\n')
   }
 

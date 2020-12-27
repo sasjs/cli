@@ -12,10 +12,10 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 
 export async function runSasJob(command: Command) {
-  const sasJobLocation = command.values.shift()
-  const dataFilePath = command.getFlagValue('datafile')
-  const configFilePath = command.getFlagValue('configfile')
-  const targetName = command.getFlagValue('target')
+  const sasJobLocation = command.values.shift() as string
+  const dataFilePath = command.getFlagValue('datafile') as string
+  const configFilePath = command.getFlagValue('configfile') as string
+  const targetName = command.getFlagValue('target') as string
 
   const { target, isLocal } = await findTargetInConfiguration(targetName, true)
   if (!target) {

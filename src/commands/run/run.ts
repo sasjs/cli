@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
@@ -7,6 +6,7 @@ import { readFile, createFile } from '../../utils/file'
 import { generateTimestamp } from '../../utils/utils'
 import { Command } from '../../utils/command'
 import { Target } from '@sasjs/utils'
+import { displayError } from '../../utils/displayResult'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -14,8 +14,8 @@ import { Target } from '@sasjs/utils'
  * @param {string} targetName - the name of the target to run the SAS code on.
  */
 export async function runSasCode(command: Command) {
-  const filePath = command.values.shift()
-  const targetName = command.getFlagValue('target')
+  const filePath = command.values.shift() || ''
+  const targetName = command.getFlagValue('target') as string
 
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
@@ -39,10 +39,8 @@ async function executeOnSasViya(
   target: Target,
   linesToExecute: string[]
 ) {
-  console.log(
-    chalk.cyanBright(
-      `Sending ${path.basename(filePath)} to SAS server for execution.`
-    )
+  process.logger?.info(
+    `Sending ${path.basename(filePath)} to SAS server for execution.`
   )
 
   const sasjs = new SASjs({
@@ -86,24 +84,25 @@ async function executeOnSasViya(
       ? executionResult.log.items.map((i: { line: string }) => i.line)
       : executionResult.log
   } catch (e) {
-    console.log(
-      chalk.redBright(
-        `An error occurred when parsing the execution log: ${chalk.redBright.bold(
-          e.message
-        )}`
-      )
-    )
-
-    console.log(chalk.redBright(`So we put execution output in the log file.`))
+    displayError(e, 'An error occurred when parsing the execution log')
+    process.logger?.info('The execution output will be saved to the log file.')
 
     log = JSON.stringify(executionResult)
 
     isOutput = true
   }
 
-  console.log(chalk.greenBright('Job execution completed!'))
+  process.logger?.success('Job execution completed!')
 
-  await createOutputFile(log, isOutput)
+  process.logger?.info(
+    `Creating ${isOutput ? 'output' : 'log'} file in ${process.cwd()}.`
+  )
+  const createdFilePath = await createOutputFile(log)
+  process.logger?.success(
+    `${
+      isOutput ? 'Output' : 'Log'
+    } file has been created at ${createdFilePath}.`
+  )
 
   return { log }
 }
@@ -135,7 +134,11 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
 
-        await createOutputFile(log)
+        process.logger?.info(`Creating log file in ${process.cwd()}.`)
+        const createdFilePath = await createOutputFile(log)
+        process.logger?.success(
+          `Log file has been created at ${createdFilePath}.`
+        )
 
         throw new ErrorResponse('Find more error details in the log file.')
       } else {
@@ -147,28 +150,26 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
   try {
     parsedLog = JSON.parse(executionResult as string).payload.log
   } catch (e) {
-    console.error(chalk.redBright(e))
+    displayError('Error parsing execution result', e)
     parsedLog = executionResult
   }
 
-  console.log(chalk.greenBright('Job execution completed!'))
+  process.logger?.success('Job execution completed!')
 
-  await createOutputFile(JSON.stringify(parsedLog, null, 2))
+  process.logger?.info(`Creating log file in ${process.cwd()}.`)
+  const createdFilePath = await createOutputFile(
+    JSON.stringify(parsedLog, null, 2)
+  )
+  process.logger?.success(`Log file has been created at ${createdFilePath}.`)
 
   return { parsedLog }
 }
 
-async function createOutputFile(log: string, isOutput = false) {
+async function createOutputFile(log: string) {
   const timestamp = generateTimestamp()
   const outputFilePath = path.join(process.cwd(), `sasjs-run-${timestamp}.log`)
 
   await createFile(outputFilePath, log)
 
-  console.log(
-    chalk.whiteBright(
-      `${isOutput ? 'Output' : 'Log'} is available in ${chalk.cyanBright(
-        outputFilePath
-      )}`
-    )
-  )
+  return outputFilePath
 }

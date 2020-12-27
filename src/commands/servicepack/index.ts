@@ -1,8 +1,6 @@
 import { servicePackDeploy } from './deploy'
 import { Command } from '../../utils/command'
 
-import chalk from 'chalk'
-
 export async function processServicepack(command: Command) {
   const subCommand = command.getSubCommand()
   const subCommands = {
@@ -10,20 +8,16 @@ export async function processServicepack(command: Command) {
   }
 
   if (!subCommands.hasOwnProperty(subCommand)) {
-    console.log(
-      chalk.redBright(
-        `Not supported servicepack command. Supported commands are:\n${Object.keys(
-          subCommands
-        ).join('\n')}`
-      )
+    throw new Error(
+      `Unsupported servicepack command. Supported commands are:\n${Object.keys(
+        subCommands
+      ).join('\n')}`
     )
-
-    return
   }
 
-  const targetName = command.getFlagValue('target')
-  const jsonFilePath = command.getFlagValue('source')
-  const isForced = command.getFlagValue('force')
+  const targetName = command.getFlagValue('target') as string
+  const jsonFilePath = command.getFlagValue('source') as string
+  const isForced = command.getFlagValue('force') as boolean
 
   let output
 

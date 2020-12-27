@@ -1,6 +1,5 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import chalk from 'chalk'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
@@ -20,20 +19,20 @@ export async function deploy(targetName: string) {
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
   ) {
-    console.log(
-      chalk.cyanBright(`Executing deployServicePack to update SAS server.`)
+    process.logger?.info(
+      `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
     )
 
     await deployToSasViyaWithServicePack(target)
 
-    console.log('Job execution completed!')
+    process.logger?.success('Service pack has been successfully deployed.')
   }
 
   const deployScripts = getDeployScripts(target)
 
   if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
     throw new Error(
-      `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'deployScripts'.`
+      `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
     )
   }
 
@@ -50,12 +49,8 @@ export async function deploy(targetName: string) {
     : null
   await asyncForEach(deployScripts, async (deployScript) => {
     if (isSasFile(deployScript)) {
-      console.log(
-        chalk.cyanBright(
-          `Processing SAS file ${chalk.greenBright.italic(
-            path.basename(deployScript)
-          )}...`
-        )
+      process.logger?.info(
+        `Processing SAS file ${path.basename(deployScript)}...`
       )
       // get content of file
       const deployScriptFile = await readFile(
@@ -69,13 +64,10 @@ export async function deploy(targetName: string) {
         await deployToSas9(deployScript, target, linesToExecute, logFilePath)
       }
     } else if (isShellScript(deployScript)) {
-      console.log(
-        chalk.cyanBright(
-          `Executing shell script ${chalk.greenBright.italic(
-            path.basename(deployScript)
-          )}...`
-        )
+      process.logger?.info(
+        `Executing shell script ${path.basename(deployScript)}...`
       )
+
       await executeShellScript(
         deployScript,
         path.join(
@@ -84,7 +76,7 @@ export async function deploy(targetName: string) {
           `${path.basename(deployScript).replace('.sh', '')}.log`
         )
       )
-      console.log(
+      process.logger?.success(
         `Shell script execution completed! Log is available at ${path.join(
           'sasjsbuild',
           `${path.basename(deployScript).replace('.sh', '')}.log`
@@ -145,10 +137,8 @@ async function deployToSasViya(
   linesToExecute: string[],
   logFilePath: string | null
 ) {
-  console.log(
-    chalk.cyanBright(
-      `Sending ${path.basename(deployScript)} to SAS server for execution.`
-    )
+  process.logger?.info(
+    `Sending ${path.basename(deployScript)} to SAS server for execution.`
   )
 
   const contextName = target.contextName
@@ -176,18 +166,10 @@ async function deployToSasViya(
           .join('\n')
       : JSON.stringify(executionResult.log)
   } catch (e) {
-    console.log(
-      chalk.redBright(
-        `An error occurred when parsing the execution response: ${chalk.redBright.bold(
-          e.message
-        )}`
-      )
+    process.logger?.error(
+      `An error occurred when parsing the execution response: ${e.message}`
     )
-    console.log(
-      chalk.redBright(
-        `Please check your ${chalk.cyanBright('tgtDeployVars')} and try again.`
-      )
-    )
+
     log = executionResult
   }
 
@@ -206,7 +188,7 @@ async function deployToSasViya(
       )}`
     )
   } else {
-    console.error(chalk.redBright('Unable to create log file.'))
+    process.logger?.error('Unable to create log file.')
   }
 }
 
@@ -243,7 +225,7 @@ async function deployToSas9(
   try {
     parsedLog = JSON.parse(executionResult || '{}').payload.log
   } catch (e) {
-    console.error(chalk.redBright(e))
+    process.logger?.error('Error parsing execution log', e)
     parsedLog = executionResult
   }
   if (logFilePath) {
@@ -254,13 +236,13 @@ async function deployToSas9(
       ),
       parsedLog
     )
-    console.log(
+    process.logger?.success(
       `Job execution completed! Log is available at ${path.join(
         logFilePath,
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
     )
   } else {
-    console.error(chalk.redBright('Unable to create log file.'))
+    process.logger?.error('Unable to create log file.')
   }
 }

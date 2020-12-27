@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import { getString, Target } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
 import SASjs from '@sasjs/adapter/node'
@@ -8,26 +7,13 @@ export function getAuthUrl(serverUrl: string, clientId: string) {
 }
 
 export async function getAuthCode(authUrl: string) {
-  console.log(
-    chalk.cyanBright(
-      'Please perform the following steps to get your authorization code:\n'
-    )
+  const logger = process.logger || console
+  logger.log(
+    'Please perform the following steps to get your authorization code:\n'
   )
-  console.log(
-    chalk.cyanBright(
-      `${chalk.greenBright(1)}. visit ${chalk.greenBright(authUrl)}`
-    )
-  )
-  console.log(
-    chalk.cyanBright(
-      `${chalk.greenBright(2)}. Sign in with your SAS credentials if necessary.`
-    )
-  )
-  console.log(
-    chalk.cyanBright(
-      `${chalk.greenBright(3)}. Enter/paste the authorization code here`
-    )
-  )
+  logger.log(`1. Visit ${authUrl}\n`)
+  logger.log(`2. Sign in with your SAS credentials if necessary.`)
+  logger.log(`3. Enter/paste the authorization code here.`)
 
   const authCode = await getString(
     'Please enter your authorization code: ',

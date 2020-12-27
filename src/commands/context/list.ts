@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import ora from 'ora'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { displayError, displaySuccess } from '../../utils/displayResult'
@@ -20,9 +19,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
   const startTime = new Date().getTime()
 
   const spinner = ora(
-    `Checking the compute contexts on ${chalk.greenBright(
-      target.serverUrl
-    )}...\n`
+    `Checking the compute contexts on ${target.serverUrl}...\n`
   )
 
   spinner.start()
@@ -81,10 +78,8 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
 
   const endTime = new Date().getTime()
 
-  console.log(
-    chalk.whiteBright(
-      `This operation took ${(endTime - startTime) / 1000} seconds`
-    )
+  process.logger?.info(
+    `This operation took ${(endTime - startTime) / 1000} seconds`
   )
 
   return result ? result : false

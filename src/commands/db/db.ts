@@ -1,5 +1,4 @@
 import path from 'path'
-import chalk from 'chalk'
 import {
   readFile,
   getSubFoldersInFolder,
@@ -28,9 +27,8 @@ export async function buildDB() {
     )
   })
   await asyncForEach(buildDBFolders, async (buildDBFolder) => {
-    console.log(
-      chalk.greenBright('Loading DB: ', chalk.cyanBright(buildDBFolder))
-    )
+    process.logger?.info(`Loading DB: ${buildDBFolder}`)
+
     const folderPath = path.join(buildSourceDbFolder, buildDBFolder)
     const filesNamesInPath = await getFilesInFolder(folderPath)
     const fileExtsInPath = await getFileExts(filesNamesInPath)
@@ -51,21 +49,24 @@ export async function buildDB() {
         const fileContent = await readFile(path.join(folderPath, fileName))
         newDbFileContent += `\n\n${fileContent}`
       })
+
+      process.logger?.info(`Creating file ${destinationFilePath}.`)
       await createFile(destinationFilePath, newDbFileContent)
-      console.log(
-        chalk.white('Created file: ', chalk.cyanBright(destinationFilePath))
-      )
+      process.logger?.success(`File ${destinationFilePath} has been created.`)
     })
   })
 }
 
 async function recreateBuildFolder() {
   const { buildDestinationFolder, buildDestinationDbFolder } = getConstants()
-  console.log(chalk.greenBright('Recreating to build/DB folder...'))
+  process.logger?.info(`Recreating folder ${buildDestinationDbFolder}...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)
   else await createFolder(buildDestinationFolder)
   await createFolder(buildDestinationDbFolder)
+  process.logger?.success(
+    `Folder ${buildDestinationDbFolder} has been created.`
+  )
 }
 
 function getFileExts(fileNames: string[]) {

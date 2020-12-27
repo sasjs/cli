@@ -9,7 +9,10 @@ const showInvalidCommandMessage = () => {
   )
 }
 
-const showInvalidFlagMessage = (flagMessage, supportedFlags) => {
+const showInvalidFlagMessage = (
+  flagMessage: string,
+  supportedFlags: string[]
+) => {
   displayError(
     {},
     `${flagMessage}${
@@ -143,10 +146,13 @@ const flagsWithValue = [
 ]
 
 export class Command {
-  values = []
-  flags = []
+  values: string[] = []
+  flags: Flag[] = []
+  aliases: string[] = []
+  supportedFlags: string[] = []
+  name: string = ''
 
-  constructor(commandLine) {
+  constructor(commandLine: string | string[]) {
     if (typeof commandLine === 'string')
       commandLine = commandLine.replace(/\s\s+/g, ' ').split(' ')
 
@@ -156,7 +162,7 @@ export class Command {
       return
     }
 
-    const command = commandLine.shift()
+    const command = commandLine.shift() as string
 
     if (Object.keys(initialCommands).includes(command)) {
       this.name = command
@@ -174,8 +180,8 @@ export class Command {
       return
     }
 
-    this.aliases = initialAliases.find((alias) => alias.name === this.name)
-    this.aliases = this.aliases ? this.aliases.aliases : null
+    const aliases = initialAliases.find((alias) => alias.name === this.name)
+    this.aliases = aliases ? aliases.aliases : []
 
     const supportedFlags = commandFlags.filter(
       (flag) => flag.command === this.name
@@ -185,15 +191,15 @@ export class Command {
 
     for (let i = 0; i < commandLine.length; i++) {
       if (/^-/.test(commandLine[i]) && this.supportedFlags) {
-        let flag = commandLine[i].split('-').join('')
-        const regExp = new RegExp(`^${flag}`)
+        let flagString = commandLine[i].split('-').join('')
+        const regExp = new RegExp(`^${flagString}`)
 
-        flag = Object.keys(initialFlags)
+        flagString = Object.keys(initialFlags)
           .filter((f) => regExp.test(f))
           .filter((f) => this.supportedFlags.includes(f))[0]
 
         try {
-          flag = new Flag(flag)
+          const flag = new Flag(flagString)
 
           this.flags.push(flag)
 
@@ -204,8 +210,8 @@ export class Command {
 
             const value = commandLine[i]
 
-            if (value) {
-              this.flags.find((f) => f.name === flag.name).setValue(value)
+            if (value && this.flags.find((f) => f.name === flag.name)) {
+              this.flags.find((f) => f.name === flag.name)!.setValue(value)
             }
           }
         } catch (error) {
@@ -218,14 +224,14 @@ export class Command {
   }
 
   getSubCommand() {
-    return this.values.shift()
+    return this.values.shift() || ''
   }
 
-  getFlag(flagName) {
+  getFlag(flagName: string) {
     return this.flags.find((flag) => flag.name === flagName)
   }
 
-  getFlagValue(flagName) {
+  getFlagValue(flagName: string): string | boolean | undefined {
     const flag = this.getFlag(flagName)
 
     if (!flag) return undefined
@@ -274,9 +280,12 @@ export class Command {
 }
 
 class Flag {
-  value = null
-
-  constructor(name) {
+  value: string | undefined
+  name: string
+  longSyntax: string
+  shortSyntax: string
+  withValue = false
+  constructor(name: string) {
     if (!name || typeof name !== 'string') throw `Not valid flag name!`
 
     this.name = name
@@ -285,12 +294,12 @@ class Flag {
     this.withValue = flagsWithValue.includes(name)
   }
 
-  setValue(value) {
+  setValue(value: string) {
     this.value = value
   }
 }
 
-export function parseCommand(rawArgs) {
+export function parseCommand(rawArgs: string[]) {
   checkNodeVersion()
 
   const isWin = process.platform === 'win32'
@@ -317,7 +326,7 @@ export function parseCommand(rawArgs) {
   return null
 }
 
-function getUnaliasedCommand(command) {
+function getUnaliasedCommand(command: string) {
   if (
     command === 'version' ||
     command === '--version' ||

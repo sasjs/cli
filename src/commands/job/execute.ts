@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import ora from 'ora'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file'
@@ -6,6 +5,7 @@ import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 import SASjs, { Link } from '@sasjs/adapter/node'
 import { Target } from '@sasjs/utils/types'
+import chalk from 'chalk'
 
 /**
  * Triggers existing job for execution.
@@ -59,18 +59,17 @@ export async function execute(
     let logLines =
       typeof logData === 'object' ? parseLogLines(logData) : logData
 
+    process.logger?.info(`Creating log file at ${logPath}.`)
     await createFile(logPath, logLines)
 
-    if (!returnStatusOnly) displaySuccess(`Log saved to: ${logPath}`)
+    if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
   }
 
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
   if (ignoreWarnings && !returnStatusOnly) {
-    console.log(
-      chalk.yellowBright(
-        `WARNING: using 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the command.`
-      )
+    process.logger?.warn(
+      `Using the 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the sasjs job execute command.`
     )
   }
 
@@ -82,9 +81,7 @@ export async function execute(
     await displayStatus({ state: 'Initiating' }, statusFile)
 
   const spinner = ora(
-    `Job located at ${chalk.greenBright(
-      jobPath
-    )} has been submitted for execution...\n`
+    `Job located at ${jobPath} has been submitted for execution...\n`
   )
 
   if (!returnStatusOnly) spinner.start()
@@ -101,7 +98,7 @@ export async function execute(
       pollOptions
     )
     .catch(async (err) => {
-      if (err && err.log && logFile !== undefined) {
+      if (err && err.log) {
         await saveLog(err.log)
       }
 
@@ -170,7 +167,7 @@ export async function execute(
           if (!returnStatusOnly)
             displaySuccess(`Output saved to: ${outputPath}`)
         } else if (output) {
-          if (!returnStatusOnly) console.log(outputJson)
+          if (!returnStatusOnly) (process.logger || console).log(outputJson)
         }
 
         if (logFile !== undefined) {
@@ -221,10 +218,8 @@ export async function execute(
   }
 
   if (!returnStatusOnly) {
-    console.log(
-      chalk.whiteBright(
-        `This operation took ${(endTime - startTime) / 1000} seconds`
-      )
+    process.logger?.info(
+      `This job was executed in ${(endTime - startTime) / 1000} seconds`
     )
   }
 
@@ -242,15 +237,8 @@ export function getContextName(
   }
 
   if (!returnStatusOnly) {
-    console.log(
-      chalk.yellowBright(
-        `contextName was not provided. Using ${defaultContextName} by default.`
-      )
-    )
-    console.log(
-      chalk.whiteBright(
-        `You can specify the context name in your target configuration.`
-      )
+    process.logger?.warn(
+      `\`contextName\` was not provided in your target configuration. Falling back to context ${defaultContextName}`
     )
   }
 

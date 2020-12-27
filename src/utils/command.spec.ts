@@ -17,7 +17,7 @@ describe('parseCommandLine', () => {
     const expectedName = 'folder'
     let expectedValues = ['create', '/Public/folder']
     const expectedFlagNames = ['target', 'force']
-    const expectedFlagValues = ['targetName', null]
+    const expectedFlagValues = ['targetName', '']
 
     test('without flags', () => {
       const commandLine = 'folder create /Public/folder'
@@ -508,7 +508,7 @@ describe('parseCommandLine', () => {
       ]
       const expectedFlagValues = [
         'targetName',
-        null,
+        '',
         './output.json',
         './log.txt',
         './status.txt'
@@ -526,7 +526,7 @@ describe('parseCommandLine', () => {
 
     const command = new Command(commandLine)
 
-    expect(command.name).toEqual(undefined)
+    expect(command.name).toEqual('')
     expect(command.values).toEqual([])
     expect(command.flags.map((flag) => flag.name)).toEqual([])
   })

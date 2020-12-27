@@ -16,14 +16,13 @@ import {
   createFile,
   fileExists
 } from '../../utils/file'
-import chalk from 'chalk'
 import { Folder } from '../../types'
 
 export async function create(parentFolderName: string, appType: string) {
   const configPath = '../../config.json'
   const config = await getConfiguration(path.join(__dirname, configPath))
   const fileStructure = await getFolders()
-  console.log(chalk.greenBright('Creating folders and files...'))
+  process.logger?.info('Creating folders and files...')
   if (parentFolderName !== '.') {
     await createFolder(path.join(process.projectDir, parentFolderName))
   }
@@ -46,11 +45,7 @@ export async function create(parentFolderName: string, appType: string) {
       )
       if (pathExists) {
         throw new Error(
-          `${chalk.redBright(
-            `The folder ${chalk.cyanBright(
-              folder.folderName
-            )} already exists! Please remove any unnecessary files and try again.`
-          )}`
+          `The folder ${folder.folderName} already exists! Please remove any unnecessary files and try again.`
         )
       }
       await createFolderStructure(folder, parentFolderName)

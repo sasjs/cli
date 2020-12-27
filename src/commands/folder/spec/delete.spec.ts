@@ -1,26 +1,27 @@
 import { folder } from '../index'
 import * as deleteFolderModule from '../delete'
 import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target } from '@sasjs/utils/types'
-import {
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
+import { Target } from '@sasjs/utils/types'
+import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
-import { createTestGlobalTarget } from '../../../utils/test'
+import {
+  createTestGlobalTarget,
+  createTestMinimalApp,
+  removeTestApp
+} from '../../../utils/test'
 
 jest.mock('../delete')
 
 describe('sasjs folder delete', () => {
   const targetName = `cli-tests-folder-delete-${generateTimestamp()}`
   let target: Target
-  process.projectDir = process.cwd()
 
   beforeAll(async (done) => {
     target = await createTestGlobalTarget(
       targetName,
       `/Public/app/cli-tests/${targetName}`
     )
+    await createTestMinimalApp(__dirname, targetName)
     jest
       .spyOn(deleteFolderModule, 'deleteFolder')
       .mockImplementation((folderPath, adapter, _) =>
@@ -31,6 +32,7 @@ describe('sasjs folder delete', () => {
 
   afterAll(async (done) => {
     await removeFromGlobalConfig(targetName)
+    await removeTestApp(__dirname, targetName)
     done()
   })
 
@@ -61,7 +63,9 @@ describe('sasjs folder delete', () => {
     const absoluteFolderPath = `${target.appLoc}/test-${timestamp}`
 
     await expect(
-      folder(new Command(['folder', 'delete', absoluteFolderPath]))
+      folder(
+        new Command(['folder', 'delete', absoluteFolderPath, '-t', targetName])
+      )
     ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
     done()
   })

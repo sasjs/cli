@@ -1,5 +1,4 @@
 import path from 'path'
-import chalk from 'chalk'
 import { Target, ServerType } from '@sasjs/utils/types'
 import { createWebAppServices } from '../web'
 import {
@@ -28,38 +27,33 @@ export async function build(targetName: string) {
 }
 
 async function createFinalSasFiles(target: Target) {
+  process.logger?.info('Creating output SAS and JSON files.')
+
   const { streamConfig } = target
   const streamWeb = streamConfig?.streamWeb ?? false
   if (streamWeb) {
+    process.logger?.info(
+      'Building web app services since `streamWeb` is enabled.'
+    )
     await createWebAppServices(target.name)
-      .then(() =>
-        console.log(
-          chalk.greenBright.bold.italic(
-            `Web app services have been successfully built!`
-          )
-        )
-      )
+      .then(() => process.logger?.success(`Web app services have been built.`))
       .catch((err) => {
-        console.log(
-          chalk.redBright(
-            'An error has occurred when building web app services.',
-            err
-          )
+        process.logger?.error(
+          'An error has occurred when building web app services.'
         )
+        throw err
       })
   }
+
   await createFinalSasFile(target)
 }
 
 async function createFinalSasFile(target: Target) {
   const { buildConfig, serverType, macroFolders, name } = target
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
+
   const { buildDestinationFolder } = getConstants()
-  console.log(
-    chalk.greenBright(
-      `Creating final ${chalk.cyanBright(buildOutputFileName)} file`
-    )
-  )
+
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
@@ -80,7 +74,6 @@ async function createFinalSasFile(target: Target) {
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
 
-  console.log(chalk.greenBright('  - Compiling Services'))
   const { folderContent, folderContentJSON } = await getFolderContent(
     serverType
   )
@@ -88,11 +81,17 @@ async function createFinalSasFile(target: Target) {
 
   finalSasFileContent += `\n${buildTerm}`
   finalSasFileContent = removeComments(finalSasFileContent)
+
+  process.logger?.info(`Creating file ${finalFilePath}.`)
   await createFile(finalFilePath, finalSasFileContent)
+  process.logger?.success(`File ${finalFilePath} has been created.`)
+
+  process.logger?.info(`Creating file ${finalFilePathJSON}.`)
   await createFile(
     finalFilePathJSON,
     JSON.stringify(folderContentJSON, null, 1)
   )
+  process.logger?.success(`File ${finalFilePathJSON} has been created.`)
 }
 
 async function getBuildInfo(target: Target) {
@@ -123,9 +122,7 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 
     default:
       throw new Error(
-        `Invalid server type: valid options are ${chalk.cyanBright(
-          'SASVIYA'
-        )} and ${chalk.cyanBright('SAS9')}`
+        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
       )
   }
 }
@@ -138,9 +135,7 @@ function getWebServiceScriptInvocation(serverType: ServerType) {
       return '%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)'
     default:
       throw new Error(
-        `Invalid server type: valid options are ${chalk.cyanBright(
-          'SASVIYA'
-        )} and ${chalk.cyanBright('SAS9')}`
+        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
       )
   }
 }

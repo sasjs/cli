@@ -21,25 +21,21 @@ export async function processContext(command: Command) {
   }
 
   if (!subCommands.hasOwnProperty(subCommand)) {
-    console.log(
-      chalk.redBright(
-        `Not supported context command. Supported commands are:\n${Object.keys(
-          subCommands
-        ).join('\n')}`
-      )
+    throw new Error(
+      `Not supported context command. Supported commands are:\n${Object.keys(
+        subCommands
+      ).join('\n')}`
     )
-
-    return
   }
 
-  const targetName = command.getFlagValue('target')
+  const targetName = command.getFlagValue('target') as string
   const { target } = await findTargetInConfiguration(targetName)
 
   const commandExample =
     'sasjs context <command> --source ../contextConfig.json --target targetName'
 
   const getConfig = async () => {
-    const configPath = command.getFlagValue('source')
+    const configPath = command.getFlagValue('source') as string
 
     if (!configPath) {
       const message = `'--source' flag is missing (eg '${commandExample}')`

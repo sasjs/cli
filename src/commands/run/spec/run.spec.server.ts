@@ -15,7 +15,7 @@ describe('sasjs run', () => {
   let target: Target
 
   beforeEach(async (done) => {
-    const appName = 'cli-tests-request-' + generateTimestamp()
+    const appName = 'cli-tests-run-' + generateTimestamp()
     await createTestApp(__dirname, appName)
     target = await createTestGlobalTarget(
       appName,
