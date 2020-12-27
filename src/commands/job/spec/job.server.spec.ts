@@ -9,8 +9,8 @@ import {
   folderExists,
   fileExists,
   readFile,
-  createFolder,
-  deleteFolder
+  deleteFolder,
+  copy
 } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
@@ -18,63 +18,41 @@ import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config-utils'
+import { Command } from '../../../utils/command'
+import { createTestApp, removeTestApp } from '../../../utils/test'
 
 const testOutputFolder = 'test-app-job-output-'
-let parentFolderNameTimeStamped: string
 
 describe('sasjs job', () => {
   let target: Target
-  const targetName = 'cli-tests-job'
-  const timestampAppLoc = generateTimestamp()
 
-  beforeAll(async () => {
-    process.projectDir = path.join(process.cwd())
+  beforeAll(async (done) => {
+    target = await createGlobalTarget()
+    await createTestApp(__dirname, target.name)
+    await copyJobsAndServices(target.name)
+    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
-    dotenv.config()
-
-    const serverType: ServerType =
-      process.env.SERVER_TYPE === ServerType.SasViya
-        ? ServerType.SasViya
-        : ServerType.Sas9
-    target = new Target({
-      name: '',
-      serverType: serverType,
-      serverUrl: process.env.SERVER_URL as string,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestampAppLoc}`,
-      authConfig: {
-        client: process.env.CLIENT as string,
-        secret: process.env.SECRET as string,
-        access_token: process.env.ACCESS_TOKEN as string,
-        refresh_token: process.env.REFRESH_TOKEN as string
-      }
-    })
     const context = await getAvailableContext(target)
-
-    await deployTestJob(target)
-
     await saveToGlobalConfig(
       new Target({
         ...target.toJson(),
-        name: targetName,
-        serviceConfig: {
-          serviceFolders: ['testJob'],
-          macroVars: {},
-          initProgram: '',
-          termProgram: ''
-        },
         contextName: context.name
       })
     )
-  }, 4 * 60 * 1000)
 
-  beforeEach(async () => {
-    const timestamp = generateTimestamp()
-    parentFolderNameTimeStamped = `${testOutputFolder}${timestamp}`
+    done()
+  })
 
-    process.projectDir = path.join(process.cwd(), parentFolderNameTimeStamped)
-
-    await createFolder(process.projectDir)
-  }, 60 * 1000)
+  afterAll(async (done) => {
+    await folder(
+      new Command(
+        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
+      )
+    )
+    await removeTestApp(__dirname, target.name)
+    await removeFromGlobalConfig(target.name)
+    done()
+  })
 
   describe('execute', () => {
     const mockProcessExit = () =>
@@ -85,7 +63,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job for execution',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName}`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name}`
+        )
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -95,7 +75,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for completion',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -w`
+        )
 
         await expect(processJob(command)).resolves.toEqual(true)
       },
@@ -105,7 +87,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and wait for its output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -w -o`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -w -o`
+        )
 
         const jobOutput = await processJob(command)
 
@@ -117,7 +101,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput`
+        )
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -133,7 +119,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output and wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -w`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput -w`
+        )
 
         const folderPath = path.join(process.projectDir, 'testOutput')
         const filePath = path.join(process.projectDir, 'testOutput/output.json')
@@ -149,7 +137,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job output, log and auto-wait',
       async () => {
-        const command = `job execute /Public/app/cli-tests/${targetName}-${timestampAppLoc}/testJob/job -t ${targetName} -o testOutput -l testLog.txt`
+        const command = new Command(
+          `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput -l testLog.txt`
+        )
 
         const folderPathOutput = path.join(process.projectDir, 'testOutput')
         const filePathOutput = path.join(
@@ -172,7 +162,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with job log',
       async () => {
-        const command = `job execute testJob/job -t ${targetName} -l`
+        const command = new Command(
+          `job execute testJob/job -t ${target.name} -l`
+        )
 
         const filePath = path.join(process.projectDir, 'job.log')
         await processJob(command)
@@ -185,7 +177,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename',
       async () => {
-        const command = `job execute testJob/job -t ${targetName} -l mycustom.log`
+        const command = new Command(
+          `job execute testJob/job -t ${target.name} -l mycustom.log`
+        )
 
         const filePath = path.join(process.projectDir, 'mycustom.log')
 
@@ -199,7 +193,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and path',
       async () => {
-        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log`
+        const command = new Command(
+          `job execute testJob/job -t ${target.name} -l ./my/folder/mycustom.log`
+        )
 
         const folderPath = path.join(process.projectDir, 'my/folder')
         const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
@@ -215,7 +211,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job and create a file with provided job log filename and status file',
       async () => {
-        const command = `job execute testJob/job -t ${targetName} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
+        const command = new Command(
+          `job execute testJob/job -t ${target.name} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
+        )
 
         const folderPath = path.join(process.projectDir, 'my/folder')
         const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
@@ -240,7 +238,9 @@ describe('sasjs job', () => {
     it(
       "should submit a job that doesn't exist and create a status file",
       async () => {
-        const command = `job execute job-not-present -t ${targetName} --wait --status ./my/folder/status.txt`
+        const command = new Command(
+          `job execute job-not-present -t ${target.name} --wait --status ./my/folder/status.txt`
+        )
 
         const folderPath = path.join(process.projectDir, 'my/folder')
         const filePathStatus = path.join(
@@ -268,7 +268,9 @@ describe('sasjs job', () => {
     it(
       'should submit a job that fails and create a status file',
       async () => {
-        const command = `job execute testJob/failingJob -t ${targetName} --wait --status ./my/folder/job.status`
+        const command = new Command(
+          `job execute testJob/failingJob -t ${target.name} --wait --status ./my/folder/job.status`
+        )
 
         const folderPath = path.join(process.projectDir, 'my/folder')
         const filePathStatus = path.join(
@@ -291,7 +293,9 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes and return it's status`,
       async () => {
-        const command = `job execute testJob/job -t ${targetName} --wait --returnStatusOnly`
+        const command = new Command(
+          `job execute testJob/job -t ${target.name} --wait --returnStatusOnly`
+        )
 
         const mockExit = mockProcessExit()
 
@@ -305,7 +309,9 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with a warning and return it's status`,
       async () => {
-        const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly`
+        const command = new Command(
+          `job execute testJob/jobWithWarning -t ${target.name} --returnStatusOnly`
+        )
 
         const mockExit = mockProcessExit()
 
@@ -319,7 +325,9 @@ describe('sasjs job', () => {
     it(
       `should submit a job that completes with ignored warning and return it's status`,
       async () => {
-        const command = `job execute testJob/jobWithWarning -t ${targetName} --returnStatusOnly --ignoreWarnings`
+        const command = new Command(
+          `job execute testJob/jobWithWarning -t ${target.name} --returnStatusOnly --ignoreWarnings`
+        )
 
         const mockExit = mockProcessExit()
 
@@ -333,18 +341,18 @@ describe('sasjs job', () => {
     it(
       `should submit a job that fails and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob -t ${targetName} --returnStatusOnly -l`
+        const command = new Command(
+          `job execute testJob/failingJob -t ${target.name} --returnStatusOnly -l`
+        )
 
         const mockExit = mockProcessExit()
 
         await processJob(command)
 
         expect(mockExit).toHaveBeenCalledWith(2)
-        await expect(
-          folderExists(`./${parentFolderNameTimeStamped}`)
-        ).resolves.toEqual(true)
+        await expect(folderExists(process.projectDir)).resolves.toEqual(true)
 
-        const logPath = `./${parentFolderNameTimeStamped}/failingJob.log`
+        const logPath = path.join(process.projectDir, `failingJob.log`)
 
         await expect(fileExists(logPath)).resolves.toEqual(true)
 
@@ -363,7 +371,9 @@ describe('sasjs job', () => {
     it(
       `should submit a job that does not exist and return it's status`,
       async () => {
-        const command = `job execute testJob/failingJob_DOES_NOT_EXIST -t ${targetName} --wait --returnStatusOnly`
+        const command = new Command(
+          `job execute testJob/failingJob_DOES_NOT_EXIST -t ${target.name} --wait --returnStatusOnly`
+        )
 
         const mockExit = mockProcessExit()
 
@@ -381,9 +391,11 @@ describe('sasjs job', () => {
 
   afterAll(async () => {
     await deleteFolder(`./${testOutputFolder}*`)
-    await removeFromGlobalConfig(targetName)
+    await removeFromGlobalConfig(target.name)
 
-    await folder(`folder delete ${target.appLoc} -t ${targetName}`)
+    await folder(
+      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
+    )
   }, 60 * 1000)
 })
 
@@ -421,34 +433,46 @@ async function getAvailableContext(target: Target) {
     })
   )
 
-  const contexts = await processContext([
-    'context',
-    'list',
-    '-t',
-    targetNameContext
-  ])
+  const contexts = await processContext(
+    new Command(['context', 'list', '-t', targetNameContext])
+  )
 
   await removeFromGlobalConfig(targetNameContext)
 
   return (contexts as any[])[0]
 }
 
-async function deployTestJob(target: Target) {
-  const targetName = 'cli-tests-cbd-for-job'
-  target = new Target({
-    ...target.toJson(),
+const createGlobalTarget = async () => {
+  dotenv.config()
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-job-${timestamp}`
+
+  const serverType: ServerType =
+    process.env.SERVER_TYPE === ServerType.SasViya
+      ? ServerType.SasViya
+      : ServerType.Sas9
+  const target = new Target({
     name: targetName,
+    serverType,
+    serverUrl: process.env.SERVER_URL as string,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['../test/commands/cbd/testJob'],
-      initProgram: '../test/commands/cbd/testServices/serviceinit.sas',
-      termProgram: '../test/commands/cbd/testServices/serviceterm.sas',
+      serviceFolders: ['testServices', 'testJob', 'services'],
+      initProgram: 'testServices/serviceinit.sas',
+      termProgram: 'testServices/serviceterm.sas',
       macroVars: {}
     },
     jobConfig: {
-      jobFolders: ['../test/commands/cbd/testJob'],
-      initProgram: '../test/commands/cbd/testServices/serviceinit.sas',
-      termProgram: '../test/commands/cbd/testServices/serviceterm.sas',
+      jobFolders: ['testJob'],
+      initProgram: 'testServices/serviceinit.sas',
+      termProgram: 'testServices/serviceterm.sas',
       macroVars: {}
+    },
+    authConfig: {
+      client: process.env.CLIENT as string,
+      secret: process.env.SECRET as string,
+      access_token: process.env.ACCESS_TOKEN as string,
+      refresh_token: process.env.REFRESH_TOKEN as string
     },
     deployConfig: {
       deployServicePack: true,
@@ -456,12 +480,16 @@ async function deployTestJob(target: Target) {
     }
   })
   await saveToGlobalConfig(target)
+  return target
+}
 
-  const command = `cbd ${targetName} -f`.split(' ')
-  await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
-
-  const sasjsBuildDirPath = path.join(process.cwd(), 'sasjsbuild')
-  await deleteFolder(sasjsBuildDirPath)
-
-  await removeFromGlobalConfig(targetName)
+const copyJobsAndServices = async (appName: string) => {
+  await copy(
+    path.join(__dirname, 'testJob'),
+    path.join(__dirname, appName, 'sasjs', 'testJob')
+  )
+  await copy(
+    path.join(__dirname, 'testServices'),
+    path.join(__dirname, appName, 'sasjs', 'testServices')
+  )
 }
