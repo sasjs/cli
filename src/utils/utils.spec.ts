@@ -10,10 +10,10 @@ describe('utils', () => {
     beforeAll(() => {
       const currentDate = new Date('2020-10-02T10:10:10.10Z')
       realDate = Date
-      global.Date = class extends DateConstructor {
+      global.Date = class extends Date {
         constructor(date: string) {
           if (date) {
-            return super(date)
+            return super(date) as any
           }
 
           return currentDate
@@ -61,7 +61,7 @@ describe('utils', () => {
     it('should throw an error if not supported type was provided', () => {
       const error = new Error('Not supported attribute type.')
 
-      expect(() => millisecondsToDdHhMmSs(undefined)).toThrow(error)
+      expect(() => millisecondsToDdHhMmSs(undefined as any)).toThrow(error)
     })
 
     it('should process negative number', () => {
