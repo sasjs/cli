@@ -29,6 +29,7 @@ import {
   getDependencyPaths,
   getProgramDependencies
 } from '../shared/dependencies'
+import chalk from 'chalk'
 
 export async function compile(targetName: string) {
   const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
@@ -58,11 +59,7 @@ export async function compile(targetName: string) {
 }
 
 async function copyFilesToBuildFolder(target: Target, logger: Logger) {
-  const {
-    buildSourceFolder,
-    buildDestinationServicesFolder,
-    buildDestinationJobsFolder
-  } = getConstants()
+  const { buildSourceFolder, buildDestinationFolder } = getConstants()
   await recreateBuildFolder(logger)
   logger.info('Copying files to build folder...')
   const servicePaths = await getAllServicePaths(target)
@@ -72,17 +69,14 @@ async function copyFilesToBuildFolder(target: Target, logger: Logger) {
   await asyncForEach(servicePaths, async (servicePath: string) => {
     const sourcePath = path.join(buildSourceFolder, servicePath)
     const serviceFolder = servicePath.split('/').pop() as string
-    const destinationPath = path.join(
-      buildDestinationServicesFolder,
-      serviceFolder
-    )
+    const destinationPath = path.join(buildDestinationFolder, serviceFolder)
     await copy(sourcePath, destinationPath)
   })
 
   await asyncForEach(jobPaths, async (jobPath) => {
     const sourcePath = path.join(buildSourceFolder, jobPath)
     const jobFolder = jobPath.split('/').pop() as string
-    const destinationPath = path.join(buildDestinationJobsFolder, jobFolder)
+    const destinationPath = path.join(buildDestinationFolder, jobFolder)
     await copy(sourcePath, destinationPath)
   })
 }
@@ -119,10 +113,7 @@ async function getAllServicePaths(target: Target) {
     configuration.serviceConfig &&
     configuration.serviceConfig.serviceFolders
   )
-    allServices = [
-      ...allServices,
-      ...configuration.serviceConfig.serviceFolders
-    ]
+    allServices = [...configuration.serviceConfig.serviceFolders]
 
   if (target && target.serviceConfig && target.serviceConfig.serviceFolders)
     allServices = [...allServices, ...target.serviceConfig.serviceFolders]
@@ -143,7 +134,7 @@ async function getAllJobPaths(target: Target) {
     configuration.jobConfig &&
     configuration.jobConfig.jobFolders
   )
-    allJobs = [...allJobs, ...configuration.jobConfig.jobFolders]
+    allJobs = [...configuration.jobConfig.jobFolders]
 
   if (target && target.jobConfig && target.jobConfig.jobFolders)
     allJobs = [...allJobs, ...target.jobConfig.jobFolders]
@@ -319,7 +310,7 @@ const compileServiceFolder = async (
   const errors: Error[] = []
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
-    const filePath = path.join(folderPath, fileName)
+    const filePath = path.join(destinationPath, fileName)
 
     let dependencies = await loadDependencies(
       target,
@@ -363,12 +354,13 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildDestinationFolder } = getConstants()
-  const folderPath = path.join(buildDestinationFolder, jobFolder)
+  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const folderPath = path.join(buildSourceFolder, jobFolder)
+  const destinationPath = path.join(buildDestinationFolder, jobFolder)
   const subFolders = await getSubFoldersInFolder(folderPath)
   const filesNamesInPath = await getFilesInFolder(folderPath)
   await asyncForEach(filesNamesInPath, async (fileName) => {
-    const filePath = path.join(folderPath, fileName)
+    const filePath = path.join(destinationPath, fileName)
     const dependencies = await loadDependencies(
       target,
       filePath,
@@ -381,7 +373,7 @@ const compileJobFolder = async (
   await asyncForEach(subFolders, async (subFolder) => {
     const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
     await asyncForEach(fileNames, async (fileName) => {
-      const filePath = path.join(folderPath, subFolder, fileName)
+      const filePath = path.join(destinationPath, subFolder, fileName)
       const dependencies = await loadDependencies(
         target,
         filePath,

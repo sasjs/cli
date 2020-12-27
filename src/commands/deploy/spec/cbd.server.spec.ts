@@ -16,96 +16,95 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config-utils'
 import * as configUtils from '../../../utils/config-utils'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import * as displayResultModule from '../../../utils/displayResult'
+import {
+  createTestApp,
+  createTestMinimalApp,
+  removeTestApp
+} from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { TargetJson } from '../../../types/configuration'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
-  const timestamp = generateTimestamp()
-  const appName = `test-app-cbd-${timestamp}`
 
   beforeEach(async () => {
     target = await createGlobalTarget()
-    await createTestApp(__dirname, appName)
-    await copyJobsAndServices(appName)
+    await createTestMinimalApp(__dirname, target.name)
+    await copyJobsAndServices(target.name)
   })
 
   afterEach(async (done) => {
-    await deleteFolder(path.join(__dirname, 'test-app-cbd-*'))
     await removeFromGlobalConfig(target.name)
 
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
+
+    await deleteFolder(path.join(__dirname, target.name))
     done()
   })
 
-  it(
-    'should compile, build and deploy',
-    async () => {
-      const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-      const servicePath = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild/services/testJob/job.sas'
-      )
-      const jobPath = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild/jobs/testJob/job.sas'
-      )
-      const buildJsonPath = path.join(
-        __dirname,
-        appName,
-        `sasjsbuild/${target.name}.json`
-      )
-      await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
-      await expect(fileExists(servicePath)).resolves.toEqual(true)
-      await expect(fileExists(jobPath)).resolves.toEqual(true)
-      /**
-       * test to ensure that jobs do not have web service pre code
-       */
-      const jobContent = await readFile(jobPath)
-      expect(jobContent).not.toEqual('')
-      expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true)
-      expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
-      expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
-      /**
-       * test to ensure that services are deployed as direct subfolders, not in a subfolder of a folder called services
-       *  */
-      const jsonContent = JSON.parse(await readFile(buildJsonPath))
-      expect(
-        !!jsonContent.members.find((x: any) => x.name === 'services')
-      ).toEqual(false)
-      /**
-       * test to ensure that web services do have pre code
-       */
-      const serviceContent = await readFile(servicePath)
-      expect(serviceContent).not.toEqual('')
-      expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(
-        false
-      )
-      expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
-      expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
-    },
-    60 * 1000
-  )
+  it('should compile, build and deploy', async (done) => {
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    const servicePath = path.join(
+      __dirname,
+      target.name,
+      'sasjsbuild/testJob/job.sas'
+    )
+    const jobPath = path.join(
+      __dirname,
+      target.name,
+      'sasjsbuild/testJob/job.sas'
+    )
+    const buildJsonPath = path.join(
+      __dirname,
+      target.name,
+      `sasjsbuild/${target.name}.json`
+    )
+    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(fileExists(servicePath)).toResolve()
+    await expect(fileExists(jobPath)).toResolve()
+    /**
+     * test to ensure that jobs do not have web service pre code
+     */
+    const jobContent = await readFile(jobPath)
+    expect(jobContent).not.toEqual('')
+    expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true)
+    expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
+    expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
+    /**
+     * test to ensure that services are deployed as direct subfolders, not in a subfolder of a folder called services
+     *  */
+    const jsonContent = JSON.parse(await readFile(buildJsonPath))
+    expect(
+      !!jsonContent.members.find((x: any) => x.name === 'services')
+    ).toEqual(false)
+    /**
+     * test to ensure that web services do have pre code
+     */
+    const serviceContent = await readFile(servicePath)
+    expect(serviceContent).not.toEqual('')
+    expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(false)
+    expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
+    expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
+    done()
+  })
 })
 
 describe('sasjs cbd with local config', () => {
   let target: Target
-  const timestamp = generateTimestamp()
-  const appName = `test-app-cbd-${timestamp}`
+  let appName: string
 
   beforeEach(async (done) => {
+    appName = `cli-tests-cbd-local-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
+    target = await createLocalTarget()
     await copyJobsAndServices(appName)
     await copy(
       path.join(__dirname, 'testScript', 'copyScript.sh'),
       path.join(process.projectDir, 'sasjs', 'build', 'copyScript.sh')
     )
-    target = await createLocalTarget()
     done()
   })
 
@@ -119,62 +118,68 @@ describe('sasjs cbd with local config', () => {
     jest.resetAllMocks()
 
     done()
-  }, 60 * 1000)
+  })
 
-  it(
-    'should deploy service pack when deployServicePack is true',
-    async () => {
-      const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-      await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
-    },
-    60 * 1000
-  )
+  it('should deploy service pack when deployServicePack is true', async (done) => {
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    await expect(compileBuildDeployServices(command)).toResolve()
 
-  it(
-    'should deploy using deployScripts when deployServicePack is false',
-    async () => {
-      await updateLocalTarget(target.name, {
-        deployConfig: {
-          deployServicePack: false,
-          deployScripts: ['sasjs/build/copyscript.sh']
-        }
-      })
-      const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-      await expect(compileBuildDeployServices(command)).resolves.toEqual(true)
-    },
-    60 * 1000
-  )
+    done()
+  })
 
-  it(
-    'should error when deployServicePack is false and no deployScripts have been specified',
-    async () => {
-      await updateLocalTarget(target.name, {
-        deployConfig: {
-          deployServicePack: false,
-          deployScripts: []
-        }
-      })
-      const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-      await expect(compileBuildDeployServices(command)).rejects.toThrow(
+  it('should deploy using deployScripts when deployServicePack is false', async (done) => {
+    await updateLocalTarget(target.name, {
+      deployConfig: {
+        deployServicePack: false,
+        deployScripts: ['sasjs/build/copyscript.sh']
+      }
+    })
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    await expect(compileBuildDeployServices(command)).toResolve()
+
+    done()
+  })
+
+  it('should error when deployServicePack is false and no deployScripts have been specified', async (done) => {
+    await updateLocalTarget(target.name, {
+      deployConfig: {
+        deployServicePack: false,
+        deployScripts: []
+      }
+    })
+    jest.spyOn(displayResultModule, 'displayError')
+
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    await compileBuildDeployServices(command)
+
+    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+      new Error(
         `Deployment failed. Enable 'deployServicePack' option or add deployment script to 'deployScripts'.`
-      )
-    },
-    60 * 1000
-  )
+      ),
+      'An error has occurred when deploying services.'
+    )
 
-  it(
-    `should fail when an access token is not provided`,
-    async () => {
-      jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
-        return Promise.reject('Token error')
-      })
-      const command = new Command(`cbd ${target.name} -f`.split(' '))
-      await expect(compileBuildDeployServices(command)).rejects.toThrow(
+    done()
+  })
+
+  it(`should error when an access token is not provided`, async (done) => {
+    jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
+      return Promise.reject('Token error')
+    })
+    jest.spyOn(displayResultModule, 'displayError')
+
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    await compileBuildDeployServices(command)
+
+    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+      new Error(
         `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      )
-    },
-    2 * 60 * 1000
-  )
+      ),
+      'An error has occurred when deploying services.'
+    )
+
+    done()
+  })
 })
 
 const createGlobalTarget = async () => {
@@ -190,9 +195,9 @@ const createGlobalTarget = async () => {
     name: targetName,
     serverType,
     serverUrl: process.env.SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['testJob'],
+      serviceFolders: ['testServices', 'testJob'],
       initProgram: 'testServices/serviceinit.sas',
       termProgram: 'testServices/serviceterm.sas',
       macroVars: {}
@@ -233,7 +238,7 @@ const createLocalTarget = async () => {
     serverUrl: process.env.SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['testJob'],
+      serviceFolders: ['testServices', 'testJob', 'services'],
       initProgram: 'testServices/serviceinit.sas',
       termProgram: 'testServices/serviceterm.sas',
       macroVars: {}

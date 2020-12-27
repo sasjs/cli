@@ -7,8 +7,9 @@ import {
 import { displayError } from '../../utils/displayResult'
 import { create } from './create'
 import { move } from './move'
-import { remove } from './remove'
+import { deleteFolder } from './delete'
 import { Command } from '../../utils/command'
+import { getAdapterInstance } from '../../utils/utils'
 
 export async function folder(command: Command) {
   const subCommand = command.getSubCommand()
@@ -47,10 +48,7 @@ export async function folder(command: Command) {
 
   folderPath = command.prefixAppLoc(target.appLoc, folderPath) as string
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType
-  })
+  const sasjs = getAdapterInstance(target)
 
   const accessToken = await getAccessToken(target).catch((err) => {
     displayError(err, 'An error has occurred when obtaining an access token.')
@@ -66,7 +64,7 @@ export async function folder(command: Command) {
         forceFlag !== undefined
       )
     case subCommands.delete:
-      return await remove(folderPath, sasjs, accessToken)
+      return await deleteFolder(folderPath, sasjs, accessToken)
     case subCommands.move:
       return await move(folderPath, sasjs, accessToken)
     default:

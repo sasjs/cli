@@ -1,12 +1,13 @@
 import dotenv from 'dotenv'
 import { folder } from '../index'
-import * as removeModule from '../remove'
+import * as deleteFolderModule from '../delete'
 import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config-utils'
+import { Command } from '../../../utils/command'
 
 const createTarget = (targetName: string, timestamp: string): Target => {
   const serverType: ServerType =
@@ -38,7 +39,7 @@ const createTarget = (targetName: string, timestamp: string): Target => {
   })
 }
 
-jest.mock('../remove')
+jest.mock('../delete')
 
 describe('sasjs folder delete', () => {
   const timestamp = generateTimestamp()
@@ -51,7 +52,7 @@ describe('sasjs folder delete', () => {
     target = createTarget(targetName, timestamp)
     await saveToGlobalConfig(target)
     jest
-      .spyOn(removeModule, 'remove')
+      .spyOn(deleteFolderModule, 'deleteFolder')
       .mockImplementation((folderPath, adapter, _) =>
         Promise.resolve(folderPath as any)
       )
@@ -69,7 +70,15 @@ describe('sasjs folder delete', () => {
       const relativeFolderPath = `test-${timestamp}`
 
       await expect(
-        folder(['folder', 'delete', relativeFolderPath, '-t', targetName])
+        folder(
+          new Command([
+            'folder',
+            'delete',
+            relativeFolderPath,
+            '-t',
+            targetName
+          ])
+        )
       ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
       done()
     },
@@ -80,7 +89,7 @@ describe('sasjs folder delete', () => {
     const absoluteFolderPath = `${target.appLoc}/test-${timestamp}`
 
     await expect(
-      folder(['folder', 'delete', absoluteFolderPath])
+      folder(new Command(['folder', 'delete', absoluteFolderPath]))
     ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
     done()
   })

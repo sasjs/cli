@@ -3,6 +3,8 @@ import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'
 import { fileExists, createFile, readFile } from './file'
+import { LogLevel, Target } from '@sasjs/utils'
+import SASjs from '@sasjs/adapter/node'
 
 async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -269,4 +271,32 @@ export function checkNodeVersion() {
     )
     process.exit(1)
   }
+}
+
+export function getAdapterInstance(target: Target): SASjs {
+  if (!target) {
+    throw new Error('Unable to create SASjs adapter instance: Invalid target.')
+  }
+
+  if (!target.serverUrl) {
+    throw new Error(
+      `Unable to create SASjs adapter instance: Target ${target.name} is missing a \`serverUrl\`.`
+    )
+  }
+
+  if (!target.serverType) {
+    throw new Error(
+      `Unable to create SASjs adapter instance: Target ${target.name} is missing a \`serverType\`.`
+    )
+  }
+
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    serverType: target.serverType,
+    contextName: target.contextName,
+    useComputeApi: true,
+    debug: process.env.LOG_LEVEL === LogLevel.Debug
+  })
+
+  return sasjs
 }

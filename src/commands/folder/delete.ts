@@ -7,7 +7,7 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export const remove = async (
+export const deleteFolder = async (
   path: string,
   sasjs: SASjs,
   accessToken: string

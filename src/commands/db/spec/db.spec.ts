@@ -1,54 +1,46 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { createFileStructure, buildDBs } from '../../../main'
 import { createFolder, deleteFolder } from '../../../utils/file'
 import { verifyStep } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
+import { create } from '../../create/create'
+import { buildDB } from '../db'
 
 describe('sasjs db', () => {
   beforeAll(async () => {
     dotenv.config()
   }, 60 * 1000)
 
-  describe(`Create new app in test-app-DB-timestamps`, () => {
-    it(
-      `should create db folder`,
-      async () => {
-        const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
+  describe(`sasjs db`, () => {
+    it(`should create db folder`, async (done) => {
+      const timestamp = generateTimestamp()
+      const appName = `test-app-DB-${timestamp}`
 
-        process.projectDir = path.join(
-          process.cwd(),
-          parentFolderNameTimeStamped
-        )
+      process.projectDir = path.join(__dirname, appName)
 
-        await createFolder(process.projectDir)
+      await createFolder(process.projectDir)
 
-        await expect(createFileStructure('.')).resolves.toEqual(true)
-        await expect(buildDBs()).resolves.toEqual(true)
+      await expect(create('.', '')).toResolve()
+      await expect(buildDB()).toResolve()
 
-        await verifyStep({ parentFolderName: '.', step: 'db' })
-      },
-      60 * 1000
-    )
+      await verifyStep({ parentFolderName: '.', step: 'db' })
 
-    it(
-      `should not populate db folder was not already setup`,
-      async () => {
-        const timestamp = generateTimestamp()
-        const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
+      done()
+    })
 
-        process.projectDir = path.join(
-          process.cwd(),
-          parentFolderNameTimeStamped
-        )
-        await expect(buildDBs()).resolves.not.toEqual(true)
-      },
-      60 * 1000
-    )
+    it(`should throw an error when the db folder does not exist`, async (done) => {
+      const timestamp = generateTimestamp()
+      const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
+
+      process.projectDir = path.join(__dirname, parentFolderNameTimeStamped)
+
+      await expect(buildDB()).rejects.toThrow('no such file or directory')
+
+      done()
+    })
   })
 
   afterAll(async () => {
-    await deleteFolder('./test-app-DB-*')
+    await deleteFolder(path.join(__dirname, './test-app-DB-*'))
   }, 60 * 1000)
 })
