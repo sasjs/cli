@@ -1,9 +1,5 @@
 import { Target } from '@sasjs/utils'
-import {
-  buildServices,
-  compileServices,
-  compileBuildServices
-} from '../../../main'
+import { compileBuildServices } from '../../../main'
 import { Command } from '../../../utils/command'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
