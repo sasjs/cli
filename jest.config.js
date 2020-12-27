@@ -142,7 +142,7 @@ module.exports = {
   // testLocationInResults: false,
 
   // The glob patterns Jest uses to detect test files
-  testMatch: ['./src/**/*spec.[j|t]s?(x)'],
+  testMatch: ['**/*spec.[j|t]s?(x)'],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
   testPathIgnorePatterns: ['/node_modules/', '/build'],

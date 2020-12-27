@@ -37,7 +37,8 @@ const initialCommands = arrToObj([
     'request',
     'folder',
     'job',
-    'flow'
+    'flow',
+    'version'
   ])
 ])
 
@@ -71,7 +72,8 @@ const initialAliases = [
   { name: initialCommands.web, aliases: ['w'] },
   { name: initialCommands.add, aliases: ['a'] },
   { name: initialCommands.run, aliases: ['r'] },
-  { name: initialCommands.request, aliases: ['rq'] }
+  { name: initialCommands.request, aliases: ['rq'] },
+  { name: initialCommands.version, aliases: ['v', '-v', '--version'] }
 ]
 
 const commandFlags = [
