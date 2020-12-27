@@ -36,27 +36,17 @@ describe('sasjs folder delete', () => {
     done()
   })
 
-  it(
-    'should append appLoc to relative folder paths',
-    async (done) => {
-      const timestamp = generateTimestamp()
-      const relativeFolderPath = `test-${timestamp}`
+  it('should append appLoc to relative folder paths', async (done) => {
+    const timestamp = generateTimestamp()
+    const relativeFolderPath = `test-${timestamp}`
 
-      await expect(
-        folder(
-          new Command([
-            'folder',
-            'delete',
-            relativeFolderPath,
-            '-t',
-            targetName
-          ])
-        )
-      ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
-      done()
-    },
-    120 * 1000
-  )
+    await expect(
+      folder(
+        new Command(['folder', 'delete', relativeFolderPath, '-t', targetName])
+      )
+    ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
+    done()
+  })
 
   it('should leave absolute file paths unaltered', async (done) => {
     const timestamp = generateTimestamp()
