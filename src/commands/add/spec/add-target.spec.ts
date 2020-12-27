@@ -2,39 +2,32 @@ import { ServerType, Target } from '@sasjs/utils/types'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
-import { addTarget } from '../add-target'
+import { addTarget } from '../addTarget'
 import {
   getConfiguration,
   getGlobalRcFile,
+  removeFromGlobalConfig,
   saveGlobalRcFile
 } from '../../../utils/config'
-import { deleteFolder, createFolder } from '../../../utils/file'
+import { deleteFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
 import { TargetJson } from '../../../types/configuration'
 import { TargetScope } from '../../../types/targetScope'
+import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
 
 describe('addTarget', () => {
-  const testingAppFolder = `cli-tests-add-${generateTimestamp()}`
+  const appName = `cli-tests-add-${generateTimestamp()}`
   const targetName = `test-viya-${generateTimestamp()}`
 
   beforeAll(async () => {
     dotenv.config()
-    process.projectDir = path.join(process.cwd(), testingAppFolder)
-    await createFolder(process.projectDir)
+    await createTestMinimalApp(__dirname, appName)
   })
 
   afterAll(async () => {
-    const projectDirPath = path.join(process.projectDir)
-    await deleteFolder(projectDirPath)
-
-    const globalConfig = await getGlobalRcFile()
-    if (globalConfig && globalConfig.targets) {
-      globalConfig.targets = globalConfig.targets.filter(
-        (t: Target) => t.name !== targetName
-      )
-      await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
-    }
+    await removeTestApp(__dirname, appName)
+    await removeFromGlobalConfig(targetName)
   }, 60 * 1000)
 
   afterEach(async () => {

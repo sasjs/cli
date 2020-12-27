@@ -1,12 +1,33 @@
+import { Target } from '@sasjs/utils/types'
 import path from 'path'
-import { readFile } from '../../../utils/file'
+import { removeFromGlobalConfig } from '../../../utils/config'
+import { deleteFolder, readFile } from '../../../utils/file'
+import {
+  createTestGlobalTarget,
+  createTestMinimalApp,
+  removeTestApp
+} from '../../../utils/test'
+import { generateTimestamp } from '../../../utils/utils'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides
 } from '../../shared/dependencies'
 
-process.projectDir = path.join(process.cwd())
 describe('getDependencyPaths', () => {
+  let target: Target
+
+  beforeAll(async () => {
+    const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
+    target = await createTestGlobalTarget(appName, '/Public/app')
+    await createTestMinimalApp(__dirname, target.name)
+  })
+
+  afterAll(async (done) => {
+    await removeFromGlobalConfig(target.name)
+    await removeTestApp(__dirname, target.name)
+    done()
+  })
+
   test('it should recursively get all dependency paths', async (done) => {
     const fileContent = await readFile(path.join(__dirname, './example.sas'))
     const dependenciesList = [

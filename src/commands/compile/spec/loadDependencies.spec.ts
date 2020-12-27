@@ -2,6 +2,13 @@ import path from 'path'
 import { Target, ServerType } from '@sasjs/utils/types'
 import * as internalModule from '../internal/config'
 import * as compileModule from '../compile'
+import { removeFromGlobalConfig } from '../../../utils/config'
+import {
+  createTestGlobalTarget,
+  createTestMinimalApp,
+  removeTestApp
+} from '../../../utils/test'
+import { generateTimestamp } from '../../../utils/utils'
 
 const fakeServiceInit = `/**
   @file serviceinit.sas
@@ -61,15 +68,21 @@ const fakeServiceTerm2 = `/**
 
 %put service is finishing.  Thanks, SASjs!;`
 
-const target = new Target({
-  name: 'load-dependencies-test',
-  serverType: ServerType.SasViya,
-  serverUrl: '',
-  appLoc: '/test'
-})
-
-process.projectDir = path.join(process.cwd())
 describe('loadDependencies', () => {
+  let target: Target
+
+  beforeAll(async () => {
+    const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
+    target = await createTestGlobalTarget(appName, '/Public/app')
+    await createTestMinimalApp(__dirname, target.name)
+  })
+
+  afterAll(async (done) => {
+    await removeFromGlobalConfig(target.name)
+    await removeTestApp(__dirname, target.name)
+    done()
+  })
+
   test('it should load dependencies for a service with <h4> Dependencies </h4>', async (done) => {
     spyOn(internalModule, 'getServiceInit').and.returnValue(
       `\n* ServiceInit start;\n${fakeServiceInit}\n* ServiceInit end;`

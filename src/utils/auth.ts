@@ -1,12 +1,13 @@
 import chalk from 'chalk'
-import { getString } from '@sasjs/utils'
+import { getString, Target } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
+import SASjs from '@sasjs/adapter/node'
 
-export function getAuthUrl(serverUrl, clientId) {
+export function getAuthUrl(serverUrl: string, clientId: string) {
   return `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
 }
 
-export async function getAuthCode(authUrl) {
+export async function getAuthCode(authUrl: string) {
   console.log(
     chalk.cyanBright(
       'Please perform the following steps to get your authorization code:\n'
@@ -35,21 +36,21 @@ export async function getAuthCode(authUrl) {
   return authCode
 }
 
-export function isAccessTokenExpiring(token) {
+export function isAccessTokenExpiring(token: string) {
   if (!token) {
     return true
   }
-  const payload = jwtDecode(token)
+  const payload = jwtDecode<{ exp: number }>(token)
   const timeToLive = payload.exp - new Date().valueOf() / 1000
 
   return timeToLive <= 60 * 60 // 1 hour
 }
 
 export async function refreshTokens(
-  sasjsInstance,
-  clientId,
-  clientSecret,
-  refreshToken
+  sasjsInstance: SASjs,
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
 ) {
   const authResponse = await sasjsInstance.refreshTokens(
     clientId,
@@ -61,12 +62,12 @@ export async function refreshTokens(
 }
 
 export async function getNewAccessToken(
-  sasjsInstance,
-  clientId,
-  clientSecret,
-  buildTarget
+  sasjsInstance: SASjs,
+  clientId: string,
+  clientSecret: string,
+  target: Target
 ) {
-  const authUrl = getAuthUrl(buildTarget.serverUrl, clientId)
+  const authUrl = getAuthUrl(target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
   const authResponse = await sasjsInstance.getAccessToken(
     clientId,

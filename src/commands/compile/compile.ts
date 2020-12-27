@@ -29,15 +29,19 @@ import {
   getDependencyPaths,
   getProgramDependencies
 } from '../shared/dependencies'
-import chalk from 'chalk'
+import { checkCompileStatus } from './internal/checkCompileStatus'
 
 export async function compile(targetName: string) {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-
   let { target } = await findTargetInConfiguration(targetName)
+  const result = await checkCompileStatus(target)
 
-  await copyFilesToBuildFolder(target, logger)
+  if (result.compiled) {
+    // no need to compile again
+    process.logger.info(result.message)
+    process.logger.info('Skipping compiling of build folders.')
+    return
+  }
+  await copyFilesToBuildFolder(target)
 
   const serviceFolders = await getAllServicePaths(target)
   const jobFolders = await getAllJobPaths(target)
@@ -58,10 +62,10 @@ export async function compile(targetName: string) {
   })
 }
 
-async function copyFilesToBuildFolder(target: Target, logger: Logger) {
+async function copyFilesToBuildFolder(target: Target) {
   const { buildSourceFolder, buildDestinationFolder } = getConstants()
-  await recreateBuildFolder(logger)
-  logger.info('Copying files to build folder...')
+  await recreateBuildFolder()
+  process.logger?.info('Copying files to build folder...')
   const servicePaths = await getAllServicePaths(target)
 
   const jobPaths = await getAllJobPaths(target)
@@ -81,12 +85,12 @@ async function copyFilesToBuildFolder(target: Target, logger: Logger) {
   })
 }
 
-async function recreateBuildFolder(logger: Logger) {
+async function recreateBuildFolder() {
   const {
     buildDestinationFolder,
     buildDestinationServicesFolder
   } = getConstants()
-  logger.info('Recreating build folder...')
+  process.logger?.info('Recreating build folder...')
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) {
     // delete everything other than, db folder

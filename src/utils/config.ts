@@ -1,30 +1,29 @@
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { readFile, fileExists, folderExists, createFile } from './file'
-import {
-  isAccessTokenExpiring,
-  getNewAccessToken,
-  refreshTokens
-} from './auth-utils'
+import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import chalk from 'chalk'
 import dotenv from 'dotenv'
 import { Configuration } from '../types'
 import { getConstants } from '../constants'
 
-export async function getConfiguration(pathToFile: string) {
-  const config = await readFile(pathToFile, false, true).catch(() => {
-    Promise.resolve(null)
-  })
+/**
+ * Returns an object that represents the SASjs CLI configuration in a given file.
+ * @param {string} pathToFile - the path to the file in question.
+ * @returns {Configuration} configuration object if available.
+ */
+export async function getConfiguration(
+  pathToFile: string
+): Promise<Configuration> {
+  const config = await readFile(pathToFile, false, true).catch(() => null)
 
   if (config) {
     const configJson = JSON.parse(config)
-    return Promise.resolve<Configuration>(
-      configJson.config ? configJson.config : configJson
-    )
+    return (configJson.config ? configJson.config : configJson) as Configuration
   }
 
-  return Promise.resolve(null)
+  throw new Error(`No configuration was found at path ${pathToFile}.`)
 }
 
 /**
@@ -34,6 +33,7 @@ export async function getConfiguration(pathToFile: string) {
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
  * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
+ * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
@@ -46,6 +46,10 @@ export async function findTargetInConfiguration(
   if (localConfig && localConfig.targets) {
     const targetJson = localConfig.targets.find((t) => t.name === targetName)
     if (targetJson) {
+      process.logger?.info(
+        `Target ${targetName} was found in your local sasjsconfig.json file.`
+      )
+
       return { target: new Target(targetJson), isLocal: true }
     }
   }
@@ -57,6 +61,9 @@ export async function findTargetInConfiguration(
       (t: Target) => t.name === targetName
     )
     if (targetJson) {
+      process.logger?.info(
+        `Target ${targetName} was found in your global .sasjsrc file.`
+      )
       return { target: new Target(targetJson), isLocal: false }
     }
   }
@@ -70,12 +77,8 @@ export async function findTargetInConfiguration(
   }
 
   if (fallBackTargetJson) {
-    console.log(
-      chalk.yellowBright(
-        `No build target specified. Using ${chalk.cyanBright(
-          fallBackTargetJson.name
-        )} by default.\nTarget is found in local config.`
-      )
+    process.logger?.warn(
+      `Target ${targetName} was not found. Falling back to target ${fallBackTargetJson.name} from your local sasjsconfig.json file.`
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: true }
@@ -88,19 +91,15 @@ export async function findTargetInConfiguration(
     : globalConfig.targets[0]
 
   if (fallBackTargetJson) {
-    console.log(
-      chalk.yellowBright(
-        `No build target specified. Using ${chalk.cyanBright(
-          fallBackTargetJson.name
-        )} by default.\nTarget is found in global config.`
-      )
+    process.logger?.warn(
+      `Target ${targetName} was not found. Falling back to target ${fallBackTargetJson.name} from your global .sasjsrc file.`
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: false }
   }
 
   throw new Error(
-    'Target not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
+    `Target ${targetName} was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
 }
 

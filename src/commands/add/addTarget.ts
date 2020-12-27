@@ -10,7 +10,7 @@ import {
   getAndValidateSasViyaFields,
   getAndValidateSas9Fields
 } from './internal/input'
-import { addCredential } from './add-credential'
+import { addCredential } from './addCredential'
 
 export async function addTarget(): Promise<boolean> {
   const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()

@@ -1,4 +1,3 @@
-import dotenv from 'dotenv'
 import { folder } from '../index'
 import * as deleteFolderModule from '../delete'
 import { generateTimestamp } from '../../../utils/utils'
@@ -8,49 +7,20 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
-
-const createTarget = (targetName: string, timestamp: string): Target => {
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
-  return new Target({
-    name: targetName,
-    serverType: serverType,
-    serverUrl: process.env.SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
-    contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
-    serviceConfig: {
-      serviceFolders: ['../test/commands/request/runRequest'],
-      macroVars: {},
-      initProgram: '',
-      termProgram: ''
-    },
-    authConfig: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string,
-      access_token: process.env.ACCESS_TOKEN as string,
-      refresh_token: process.env.REFRESH_TOKEN as string
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-}
+import { createTestGlobalTarget } from '../../../utils/test'
 
 jest.mock('../delete')
 
 describe('sasjs folder delete', () => {
-  const timestamp = generateTimestamp()
-  const targetName = 'cli-tests-folder-delete'
+  const targetName = `cli-tests-folder-delete-${generateTimestamp()}`
   let target: Target
   process.projectDir = process.cwd()
 
   beforeAll(async (done) => {
-    dotenv.config()
-    target = createTarget(targetName, timestamp)
-    await saveToGlobalConfig(target)
+    target = await createTestGlobalTarget(
+      targetName,
+      `/Public/app/cli-tests/${targetName}`
+    )
     jest
       .spyOn(deleteFolderModule, 'deleteFolder')
       .mockImplementation((folderPath, adapter, _) =>
@@ -67,6 +37,7 @@ describe('sasjs folder delete', () => {
   it(
     'should append appLoc to relative folder paths',
     async (done) => {
+      const timestamp = generateTimestamp()
       const relativeFolderPath = `test-${timestamp}`
 
       await expect(
@@ -86,6 +57,7 @@ describe('sasjs folder delete', () => {
   )
 
   it('should leave absolute file paths unaltered', async (done) => {
+    const timestamp = generateTimestamp()
     const absoluteFolderPath = `${target.appLoc}/test-${timestamp}`
 
     await expect(

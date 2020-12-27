@@ -3,7 +3,7 @@ import { LogLevel } from '@sasjs/utils/logger'
 import { SasAuthResponse, Target } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
-import { getNewAccessToken } from '../../utils/auth-utils'
+import { getNewAccessToken } from '../../utils/auth'
 import {
   findTargetInConfiguration,
   saveToGlobalConfig,

@@ -3,11 +3,11 @@ import {
   getTokens,
   createEnvFile,
   addCredential
-} from '../add-credential'
+} from '../addCredential'
 import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import * as authUtils from '../../../utils/auth-utils'
+import * as authUtils from '../../../utils/auth'
 import * as fileUtils from '../../../utils/file'
 import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'

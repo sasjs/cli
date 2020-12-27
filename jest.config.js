@@ -2,12 +2,12 @@
 // https://jestjs.io/docs/en/configuration.html
 
 module.exports = {
-  testTimeout: 30000,
+  testTimeout: 90000,
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
   // Stop running tests after `n` failures
-  bail: 1,
+  // bail: 1,
 
   // Respect "browser" field in package.json when resolving modules
   // browser: false,
