@@ -16,7 +16,8 @@ import {
   folderManagement,
   servicepack,
   jobManagement,
-  flowManagement
+  flowManagement,
+  ReturnCode
 } from './main'
 import { fileExists } from './utils/file'
 import path from 'path'
@@ -55,88 +56,92 @@ export async function cli(args: string[]) {
       process.projectDir = process.cwd()
   }
 
+  let result: ReturnCode
+
   switch (parsedCommand.name) {
     case 'create': {
-      await createFileStructure(command)
+      result = await createFileStructure(command)
       break
     }
     case 'compile': {
-      await compileServices(command)
+      result = await compileServices(command)
       break
     }
     case 'build': {
-      await buildServices(command)
+      result = await buildServices(command)
       break
     }
     case 'deploy': {
-      await deployServices(command)
+      result = await deployServices(command)
       break
     }
     case 'servicepack': {
-      await servicepack(command)
+      result = await servicepack(command)
       break
     }
     case 'db': {
-      await buildDBs()
+      result = await buildDBs()
       break
     }
     case 'compilebuild': {
-      await compileBuildServices(command)
+      result = await compileBuildServices(command)
       break
     }
     case 'compilebuilddeploy': {
-      await compileBuildDeployServices(command)
+      result = await compileBuildDeployServices(command)
       break
     }
     case 'help': {
-      await showHelp()
+      result = await showHelp()
       break
     }
     case 'version': {
-      await showVersion()
+      result = await showVersion()
       break
     }
     case 'web': {
-      await buildWebApp(command)
+      result = await buildWebApp(command)
       break
     }
     case 'add': {
-      await add(command)
+      result = await add(command)
       break
     }
     case 'run': {
-      await run(command)
+      result = await run(command)
       break
     }
     case 'request': {
-      await runRequest(command)
+      result = await runRequest(command)
       break
     }
     case 'context': {
-      await context(command)
-
+      result = await context(command)
       break
     }
     case 'folder': {
-      await folderManagement(command)
+      result = await folderManagement(command)
       break
     }
     case 'job': {
-      await jobManagement(command)
+      result = await jobManagement(command)
       break
     }
     case 'flow': {
-      await flowManagement(command)
+      result = await flowManagement(command)
       break
     }
     default:
       handleInvalidCommand()
+      result = ReturnCode.InvalidCommand
       break
   }
+
+  process.exit(result)
 }
 
 function handleInvalidCommand() {
-  process.logger.error(
+  process.logger?.error(
     'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
   )
   process.exit(1)
