@@ -78,9 +78,8 @@ describe('sasjs job execute', () => {
       `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -w -o`
     )
 
-    const jobOutput = await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    expect(typeof jobOutput).toEqual('object')
     done()
   })
 
