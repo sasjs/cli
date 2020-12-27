@@ -1,8 +1,17 @@
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Command } from './command'
 
 describe('parseCommandLine', () => {
   const defaultFlagNames = ['target']
   const defaultFlagValues = ['targetName']
+
+  beforeEach(() => {
+    process.logger = new Logger(LogLevel.Off)
+  })
+
+  afterEach(() => {
+    jest.resetAllMocks()
+  })
 
   describe('folder command', () => {
     const expectedName = 'folder'

@@ -1,4 +1,0 @@
-id,Flow,Predecessors,Location,Status,Log location,Details
-1,sixthFlow,none,/Public/app/testJob/failingJob,failure,,
-2,firstFlow,none,/Public/app/testJob/job,failure,,
-3,firstFlow,none,/Public/app/testJob/job,failure,,

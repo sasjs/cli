@@ -6,6 +6,11 @@ describe('display error', () => {
   beforeEach(() => {
     process.logger = new Logger(LogLevel.Off)
   })
+
+  afterEach(() => {
+    jest.resetAllMocks()
+  })
+
   test('error is object, details is object', () => {
     jest.spyOn(process.logger, 'error')
     let error = new ErrorResponse('Test error', { status: 500, error: 'Test' })
