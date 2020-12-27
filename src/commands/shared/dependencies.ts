@@ -4,7 +4,7 @@ import find from 'find'
 import uniqBy from 'lodash.uniqby'
 import groupBy from 'lodash.groupby'
 import { getConstants } from '../../constants'
-import { getSourcePaths } from '../../utils/config-utils'
+import { getSourcePaths } from '../../utils/config'
 import { getList, folderExists, readFile } from '../../utils/file'
 import { asyncForEach, diff, chunk } from '../../utils/utils'
 

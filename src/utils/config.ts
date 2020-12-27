@@ -405,7 +405,7 @@ export async function getProjectRoot() {
  * If the target is from the global `.sasjsrc` file,
  * the auth info should be contained in it.
  * It should be in the form:
- * @example: { targets: [{ "name": "targetName", "authInfo": { "client": "client ID", "secret": "Client Secret", "access_token": "Token", "refresh_token": "Token" }}]}
+ * @example: { targets: [{ "name": "targetName", "authConfig": { "client": "client ID", "secret": "Client Secret", "access_token": "Token", "refresh_token": "Token" }}]}
  * If the access token is going to expire in the next hour,
  * it is refreshed using a refresh token if available.
  * If a refresh token is unavailable, we will use the client ID and secret
@@ -420,15 +420,23 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       ? target.authConfig.access_token
       : ''
 
-  if (!accessToken || accessToken.trim() === 'null') {
+  if (
+    !accessToken ||
+    accessToken.trim() === 'null' ||
+    accessToken.trim() === 'undefined'
+  ) {
     // Check .env file for target if available
     dotenv.config({
-      path: path.join(process.projectDir, `.env.${target.name}`)
+      path: path.join(process.projectDir, `.env.${target?.name}`)
     })
     accessToken = process.env.ACCESS_TOKEN as string
   }
 
-  if (!accessToken || accessToken.trim() === 'null') {
+  if (
+    !accessToken ||
+    accessToken.trim() === 'null' ||
+    accessToken.trim() === 'undefined'
+  ) {
     throw new Error(
       `A valid access token was not found.\nPlease provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`
     )
@@ -444,7 +452,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.client
         ? target.authConfig.client
         : process.env.CLIENT
-    client = client && client.trim() === 'null' ? undefined : client
+    client =
+      client && (client.trim() === 'null' || client.trim() === 'undefined')
+        ? undefined
+        : client
 
     if (!client) {
       throw new Error(
@@ -457,7 +468,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.secret
         ? target.authConfig.secret
         : process.env.SECRET
-    secret = secret && secret.trim() === 'null' ? undefined : secret
+    secret =
+      secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
+        ? undefined
+        : secret
 
     if (!secret) {
       throw new Error(
@@ -471,7 +485,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
         ? target.authConfig.refresh_token
         : process.env.REFRESH_TOKEN
     refreshToken =
-      refreshToken && refreshToken.trim() === 'null' ? undefined : refreshToken
+      refreshToken &&
+      (refreshToken.trim() === 'null' || refreshToken.trim() === 'undefined')
+        ? undefined
+        : refreshToken
 
     let authConfig
 
@@ -481,7 +498,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       authConfig = await getNewAccessToken(sasjs, client, secret, target)
     }
 
-    accessToken = authConfig.access_token
+    accessToken = authConfig?.access_token
   }
 
   return accessToken

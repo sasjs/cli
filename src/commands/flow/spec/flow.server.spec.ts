@@ -16,7 +16,7 @@ import { createTestApp, removeTestApp } from '../../../utils/test'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
-} from '../../../utils/config-utils'
+} from '../../../utils/config'
 import examples from '../examples'
 import { Command } from '../../../utils/command'
 import { ServerType, Target } from '@sasjs/utils/types'

@@ -2,7 +2,7 @@ import { Target } from '@sasjs/utils/types'
 import { readFile } from '../../../utils/file'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config-utils'
+import { getConfiguration } from '../../../utils/config'
 
 export const getServiceInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()

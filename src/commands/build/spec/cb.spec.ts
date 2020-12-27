@@ -5,7 +5,7 @@ import {
   compileBuildServices
 } from '../../../main'
 import { Command } from '../../../utils/command'
-import { removeFromGlobalConfig } from '../../../utils/config-utils'
+import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
   createTestGlobalTarget,

@@ -1,5 +1,5 @@
 import { Command } from '../../utils/command'
-import { findTargetInConfiguration } from '../../utils/config-utils'
+import { findTargetInConfiguration } from '../../utils/config'
 import { execute } from './execute'
 import { displayError } from '../../utils/displayResult'
 

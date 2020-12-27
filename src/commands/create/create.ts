@@ -9,7 +9,7 @@ import {
   createMinimalApp,
   createTemplateApp
 } from '../../utils/utils'
-import { getFolders, getConfiguration } from '../../utils/config-utils'
+import { getFolders, getConfiguration } from '../../utils/config'
 import {
   createFolderStructure,
   createFolder,

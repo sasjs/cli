@@ -3,10 +3,7 @@ import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
 import { readFile } from '../../utils/file'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import {
-  getAccessToken,
-  findTargetInConfiguration
-} from '../../utils/config-utils'
+import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 

@@ -4,7 +4,7 @@ import {
   findTargetInConfiguration,
   getConfiguration,
   getMacroCorePath
-} from '../../utils/config-utils'
+} from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,

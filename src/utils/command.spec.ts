@@ -1,4 +1,4 @@
-import { Command } from '../../src/utils/command'
+import { Command } from './command'
 
 describe('parseCommandLine', () => {
   const defaultFlagNames = ['target']

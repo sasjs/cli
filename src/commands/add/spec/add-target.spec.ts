@@ -8,7 +8,7 @@ import {
   getConfiguration,
   getGlobalRcFile,
   saveGlobalRcFile
-} from '../../../utils/config-utils'
+} from '../../../utils/config'
 import { deleteFolder, createFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'

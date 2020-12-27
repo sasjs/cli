@@ -3,7 +3,7 @@ import {
   findTargetInConfiguration,
   saveToGlobalConfig,
   saveToLocalConfig
-} from '../../utils/config-utils'
+} from '../../utils/config'
 import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,

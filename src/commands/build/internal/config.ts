@@ -1,7 +1,7 @@
 import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config-utils'
+import { getConfiguration } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
 
 export const getBuildInit = async (target: Target) => {

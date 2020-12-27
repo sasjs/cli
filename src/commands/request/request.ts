@@ -1,13 +1,13 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration } from '../../utils/config-utils'
+import { findTargetInConfiguration } from '../../utils/config'
 import {
   readFile,
   folderExists,
   createFile,
   createFolder
 } from '../../utils/file'
-import { getAccessToken } from '../../utils/config-utils'
+import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 

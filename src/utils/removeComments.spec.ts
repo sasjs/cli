@@ -1,5 +1,4 @@
-import { removeComments } from '../src/utils/utils'
-import { sampleSasProgram } from './sample-sas'
+import { removeComments } from './utils'
 
 describe('removeComments', () => {
   test('should remove block comment', () => {
@@ -48,8 +47,8 @@ describe('removeComments', () => {
   })
 
   test('should return an empty string when the input is falsy', () => {
-    expect(removeComments(null)).toEqual('')
-    expect(removeComments(undefined)).toEqual('')
+    expect(removeComments((null as any) as string)).toEqual('')
+    expect(removeComments((undefined as any) as string)).toEqual('')
     expect(removeComments('')).toEqual('')
   })
 
@@ -61,3 +60,40 @@ describe('removeComments', () => {
     expect(removeComments(text)).toEqual(text)
   })
 })
+
+export const sampleSasProgram = `/**
+  @file mv_createfolder.sas
+  @brief Creates a viya folder if that foloder does not already exist
+  @details Expects oauth token in a global macro variable (default
+    ACCESS_TOKEN).
+
+    options mprint;
+    %mv_createfolder(path=/Public)
+
+
+  @param path= The full path of the folder to be created
+  @param access_token_var= The global macro variable to contain the access token
+  @param grant_type= valid values are "password" or "authorization_code" (unquoted).
+    The default is authorization_code.
+
+
+  @version VIYA V.03.04
+  @author Allan Bowe
+  @source https://github.com/sasjs/core
+
+  <h4> Dependencies </h4>
+  @li mf_abort.sas
+  @li mf_getuniquefileref.sas
+  @li mf_getuniquelibref.sas
+  @li mf_isblank.sas
+
+**/
+
+/* This is a comment
+that spans
+multiple lines */
+
+%macro mv_createfolder(path=
+  ,access_token_var=ACCESS_TOKEN
+  ,grant_type=authorization_code
+);`

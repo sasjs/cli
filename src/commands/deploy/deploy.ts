@@ -1,10 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import {
-  getAccessToken,
-  findTargetInConfiguration
-} from '../../utils/config-utils'
+import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
   isSasFile,

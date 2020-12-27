@@ -1,4 +1,4 @@
-import { removeFromGlobalConfig } from './utils/config-utils'
+import { removeFromGlobalConfig } from './utils/config'
 import { checkAndSetProjectDirectory, cli } from './cli'
 import {
   createTestApp,

@@ -6,7 +6,7 @@ import { ServerType, Target } from '@sasjs/utils/types'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
-} from '../../../utils/config-utils'
+} from '../../../utils/config'
 import { Command } from '../../../utils/command'
 
 const createTarget = (targetName: string, timestamp: string): Target => {

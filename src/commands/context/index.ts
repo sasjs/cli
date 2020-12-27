@@ -5,10 +5,7 @@ import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
 import { fileExists, readFile } from '../../utils/file'
-import {
-  getAccessToken,
-  findTargetInConfiguration
-} from '../../utils/config-utils'
+import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'

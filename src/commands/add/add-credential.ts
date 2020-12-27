@@ -8,7 +8,7 @@ import {
   findTargetInConfiguration,
   saveToGlobalConfig,
   saveToLocalConfig
-} from '../../utils/config-utils'
+} from '../../utils/config'
 import { createFile } from '../../utils/file'
 import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
 

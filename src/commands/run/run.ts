@@ -2,10 +2,7 @@ import chalk from 'chalk'
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
-import {
-  findTargetInConfiguration,
-  getAccessToken
-} from '../../utils/config-utils'
+import { findTargetInConfiguration, getAccessToken } from '../../utils/config'
 import { readFile, createFile } from '../../utils/file'
 import { generateTimestamp } from '../../utils/utils'
 import { Command } from '../../utils/command'

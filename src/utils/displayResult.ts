@@ -1,14 +1,10 @@
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export function displaySuccess(message: string) {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-  logger.success(message)
+  process.logger.success(message)
 }
 
-export function displayError(err: any, message: string) {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
+export function displayError(err: any, errorMessage: string = '') {
   if (err) {
     let failureDetails = ''
 
@@ -27,8 +23,8 @@ export function displayError(err: any, message: string) {
           raw ? '\n' + raw : ''
         }`
 
-        logger.error(message, failureDetails)
-        return `${message}\n${failureDetails}`
+        process.logger.error(errorMessage, failureDetails)
+        return `${errorMessage}\n${failureDetails}`
       }
     } else if (err.hasOwnProperty('message')) {
       failureDetails = err.message
@@ -37,7 +33,7 @@ export function displayError(err: any, message: string) {
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
 
-    logger.error(message, failureDetails)
-    return `${message}\n${failureDetails}`
+    process.logger.error(errorMessage, failureDetails)
+    return `${errorMessage}\n${failureDetails}`
   }
 }

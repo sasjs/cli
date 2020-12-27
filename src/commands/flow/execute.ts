@@ -14,7 +14,7 @@ import {
   parseLogLines,
   millisecondsToDdHhMmSs
 } from '../../utils/utils'
-import { getAccessToken } from '../../utils/config-utils'
+import { getAccessToken } from '../../utils/config'
 import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'

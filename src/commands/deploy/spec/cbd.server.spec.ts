@@ -14,8 +14,8 @@ import { ServerType, Target } from '@sasjs/utils/types'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
-} from '../../../utils/config-utils'
-import * as configUtils from '../../../utils/config-utils'
+} from '../../../utils/config'
+import * as configUtils from '../../../utils/config'
 import * as displayResultModule from '../../../utils/displayResult'
 import {
   createTestApp,

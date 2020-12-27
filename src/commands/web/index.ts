@@ -1,4 +1,4 @@
-import { findTargetInConfiguration } from '../../utils/config-utils'
+import { findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, chunk } from '../../utils/utils'
 import {
   readFile,

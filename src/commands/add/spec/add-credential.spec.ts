@@ -9,7 +9,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import * as authUtils from '../../../utils/auth-utils'
 import * as fileUtils from '../../../utils/file'
-import * as configUtils from '../../../utils/config-utils'
+import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
 

@@ -7,7 +7,7 @@ import {
   deleteFolder
 } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
-import { removeFromGlobalConfig } from '../../../utils/config-utils'
+import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import { createTestGlobalTarget } from '../../../utils/test'
 

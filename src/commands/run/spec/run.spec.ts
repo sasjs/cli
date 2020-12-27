@@ -4,7 +4,7 @@ import { copy, deleteFile } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { Target } from '@sasjs/utils/types'
 import { Command } from '../../../utils/command'
-import { removeFromGlobalConfig } from '../../../utils/config-utils'
+import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
   createTestGlobalTarget,

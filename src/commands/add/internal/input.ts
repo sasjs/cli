@@ -14,7 +14,7 @@ import {
   findTargetInConfiguration,
   getGlobalRcFile,
   getLocalConfig
-} from '../../../utils/config-utils'
+} from '../../../utils/config'
 
 export async function getCommonFields() {
   const scope = await getAndValidateScope()

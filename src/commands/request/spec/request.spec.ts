@@ -11,7 +11,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
-import { removeFromGlobalConfig } from '../../../utils/config-utils'
+import { removeFromGlobalConfig } from '../../../utils/config'
 
 const sampleDataJson = {
   table1: [

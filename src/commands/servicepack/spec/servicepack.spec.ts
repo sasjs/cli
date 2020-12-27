@@ -8,7 +8,7 @@ import { TargetJson } from '../../../types/configuration'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
-} from '../../../utils/config-utils'
+} from '../../../utils/config'
 import { Command } from '../../../utils/command'
 
 describe('sasjs servicepack', () => {
@@ -79,8 +79,7 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(targetName)
-
     await folder(new Command(`folder delete ${config.appLoc} -t ${targetName}`))
+    await removeFromGlobalConfig(targetName)
   }, 60 * 1000)
 })

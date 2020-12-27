@@ -14,7 +14,7 @@ import {
   getConfiguration,
   findTargetInConfiguration,
   getMacroCorePath
-} from '../../utils/config-utils'
+} from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'

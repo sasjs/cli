@@ -1,9 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
 import chalk from 'chalk'
-import {
-  getAccessToken,
-  findTargetInConfiguration
-} from '../../utils/config-utils'
+import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import { create } from './create'
 import { move } from './move'
