@@ -2,7 +2,7 @@
 // https://jestjs.io/docs/en/configuration.html
 
 module.exports = {
-  testTimeout: 120000,
+  testTimeout: 240000,
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
@@ -145,9 +145,7 @@ module.exports = {
   testMatch: ['**/*spec.server.[j|t]s?(x)'],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  // testPathIgnorePatterns: [
-  //   "/node_modules/"
-  // ],
+  testPathIgnorePatterns: ['/node_modules/', '/build'],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],

@@ -6,19 +6,19 @@ import {
 
 describe('utils', () => {
   describe('generateTimestamp', () => {
-    let realDate
+    let realDate: DateConstructor
     beforeAll(() => {
       const currentDate = new Date('2020-10-02T10:10:10.10Z')
       realDate = Date
-      global.Date = class extends Date {
-        constructor(date) {
+      global.Date = class extends DateConstructor {
+        constructor(date: string) {
           if (date) {
             return super(date)
           }
 
           return currentDate
         }
-      }
+      } as DateConstructor
     })
 
     test('should generate a timestamp in the correct format', () => {

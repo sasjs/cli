@@ -51,6 +51,8 @@ export async function cli(args: string[]) {
         return
       }
       break
+    default:
+      process.projectDir = process.cwd()
   }
 
   switch (parsedCommand.name) {
@@ -142,7 +144,11 @@ function handleInvalidCommand() {
 
 export async function checkAndSetProjectDirectory() {
   const projectDir = process.projectDir
-  if (!projectDir || projectDir.trim() === 'null') {
+  if (
+    !projectDir ||
+    projectDir.trim() === 'null' ||
+    projectDir.trim() === 'undefined'
+  ) {
     process.projectDir = process.cwd()
   }
   const buildSourceFolder = path.join(process.projectDir, 'sasjs')
