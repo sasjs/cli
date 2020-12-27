@@ -308,8 +308,6 @@ export async function printHelpText() {
     ).join(`
   `)}`
 
-  // const output =
-
   console.log(`
   ${chalk.yellow.bold('Welcome to the Command Line Interface for SASjs!')}
 

@@ -4,3 +4,4 @@ sas
 sasbuild
 .env
 .DS_Store
+/coverage

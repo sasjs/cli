@@ -102,8 +102,8 @@ describe('sasjs cbd with local config', () => {
     target = await createLocalTarget()
     await copyJobsAndServices(appName)
     await copy(
-      path.join(__dirname, 'testScript', 'copyScript.sh'),
-      path.join(process.projectDir, 'sasjs', 'build', 'copyScript.sh')
+      path.join(__dirname, 'testScript', 'copyscript.sh'),
+      path.join(process.projectDir, 'sasjs', 'build', 'copyscript.sh')
     )
     done()
   })
