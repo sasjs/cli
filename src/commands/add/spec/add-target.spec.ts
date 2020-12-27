@@ -3,7 +3,6 @@ import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
 import { addTarget } from '../add-target'
-import { TargetScope } from '../../../types/TargetScope'
 import {
   getConfiguration,
   getGlobalRcFile,
@@ -13,6 +12,7 @@ import { deleteFolder, createFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
 import { TargetJson } from '../../../types/configuration'
+import { TargetScope } from '../../../types/targetScope'
 
 describe('addTarget', () => {
   const testingAppFolder = `cli-tests-add-${generateTimestamp()}`
