@@ -7,6 +7,7 @@ import {
 } from './utils/test'
 import { generateTimestamp } from './utils/utils'
 import * as mainModule from './main'
+import { ReturnCode } from './main'
 import { Command } from './utils/command'
 import { Target } from '@sasjs/utils'
 
@@ -67,7 +68,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the create command', async (done) => {
     jest
       .spyOn(mainModule, 'createFileStructure')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -86,7 +87,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the create command with additional arguments', async (done) => {
     jest
       .spyOn(mainModule, 'createFileStructure')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -107,7 +108,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the compile command', async (done) => {
     jest
       .spyOn(mainModule, 'compileServices')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'compile']
 
     await cli(args)
@@ -121,7 +122,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the build command', async (done) => {
     jest
       .spyOn(mainModule, 'buildServices')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -141,7 +142,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the deploy command', async (done) => {
     jest
       .spyOn(mainModule, 'deployServices')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -161,7 +162,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the db command', async (done) => {
     jest
       .spyOn(mainModule, 'buildDBs')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'db']
 
     await cli(args)
@@ -173,7 +174,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the compilebuild command', async (done) => {
     jest
       .spyOn(mainModule, 'compileBuildServices')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'cb']
 
     await cli(args)
@@ -187,7 +188,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the compilebuilddeploy command', async (done) => {
     jest
       .spyOn(mainModule, 'compileBuildDeployServices')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'cbd']
 
     await cli(args)
@@ -201,7 +202,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the servicepack command', async (done) => {
     jest
       .spyOn(mainModule, 'servicepack')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -220,7 +221,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the help command', async (done) => {
     jest
       .spyOn(mainModule, 'showHelp')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'help']
 
     await cli(args)
@@ -232,7 +233,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the version command', async (done) => {
     jest
       .spyOn(mainModule, 'showVersion')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'v']
 
     await cli(args)
@@ -244,7 +245,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the web command', async (done) => {
     jest
       .spyOn(mainModule, 'buildWebApp')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'web']
 
     await cli(args)
@@ -254,7 +255,9 @@ describe('CLI command parsing', () => {
   })
 
   it('should call the correct function for the add command', async (done) => {
-    jest.spyOn(mainModule, 'add').mockImplementation(() => Promise.resolve())
+    jest
+      .spyOn(mainModule, 'add')
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'add']
 
     await cli(args)
@@ -264,7 +267,9 @@ describe('CLI command parsing', () => {
   })
 
   it('should call the correct function for the run command', async (done) => {
-    jest.spyOn(mainModule, 'run').mockImplementation(() => Promise.resolve())
+    jest
+      .spyOn(mainModule, 'run')
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'run']
 
     await cli(args)
@@ -276,7 +281,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the request command', async (done) => {
     jest
       .spyOn(mainModule, 'runRequest')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'request']
 
     await cli(args)
@@ -288,7 +293,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the context command', async (done) => {
     jest
       .spyOn(mainModule, 'context')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -307,7 +312,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the folder command', async (done) => {
     jest
       .spyOn(mainModule, 'folderManagement')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -326,7 +331,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the job command', async (done) => {
     jest
       .spyOn(mainModule, 'jobManagement')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
@@ -345,7 +350,7 @@ describe('CLI command parsing', () => {
   it('should call the correct function for the flow command', async (done) => {
     jest
       .spyOn(mainModule, 'flowManagement')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
     const args = [
       '/usr/local/bin/node',
       '/usr/local/bin/sasjs',
