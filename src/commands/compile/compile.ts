@@ -63,7 +63,11 @@ export async function compile(targetName: string) {
 }
 
 async function copyFilesToBuildFolder(target: Target) {
-  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const {
+    buildSourceFolder,
+    buildDestinationServicesFolder,
+    buildDestinationJobsFolder
+  } = getConstants()
   await recreateBuildFolder()
   process.logger?.info('Copying files to build folder...')
   const servicePaths = await getAllServicePaths(target)
@@ -73,14 +77,17 @@ async function copyFilesToBuildFolder(target: Target) {
   await asyncForEach(servicePaths, async (servicePath: string) => {
     const sourcePath = path.join(buildSourceFolder, servicePath)
     const serviceFolder = servicePath.split('/').pop() as string
-    const destinationPath = path.join(buildDestinationFolder, serviceFolder)
+    const destinationPath = path.join(
+      buildDestinationServicesFolder,
+      serviceFolder
+    )
     await copy(sourcePath, destinationPath)
   })
 
   await asyncForEach(jobPaths, async (jobPath) => {
     const sourcePath = path.join(buildSourceFolder, jobPath)
     const jobFolder = jobPath.split('/').pop() as string
-    const destinationPath = path.join(buildDestinationFolder, jobFolder)
+    const destinationPath = path.join(buildDestinationJobsFolder, jobFolder)
     await copy(sourcePath, destinationPath)
   })
 }
