@@ -80,8 +80,6 @@ export const getJobInit = async (target: Target) => {
     }
   }
 
-  console.log('JOBINIT: ', jobInitContent)
-
   return jobInitContent
     ? `\n* JobInit start;\n${jobInitContent}\n* JobInit end;`
     : ''

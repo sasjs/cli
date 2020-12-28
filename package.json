@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^1.19.4",
-    "@sasjs/core": "^1.12.3",
+    "@sasjs/core": "^2.0.0",
     "@sasjs/utils": "^1.4.2",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
