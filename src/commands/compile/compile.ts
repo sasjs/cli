@@ -33,7 +33,10 @@ export async function compile(targetName: string) {
     process.logger?.info('Skipping compiling of build folders.')
     return
   }
-  await compileModule.copyFilesToBuildFolder(target)
+  await compileModule.copyFilesToBuildFolder(target).catch((error) => {
+    process.logger?.error('Project compilation has failed.')
+    throw error
+  })
 
   await compileModule.compileJobsAndServices(target)
 }
@@ -67,23 +70,30 @@ export async function copyFilesToBuildFolder(target: Target) {
 }
 
 export async function compileJobsAndServices(target: Target) {
-  const serviceFolders = await getAllServiceFolders(target)
-  const jobFolders = await getAllJobFolders(target)
-  const macroFolders = target ? target.macroFolders : []
-  const programFolders = await getProgramFolders(target.name)
+  try {
+    const serviceFolders = await getAllServiceFolders(target)
+    const jobFolders = await getAllJobFolders(target)
+    const macroFolders = target ? target.macroFolders : []
+    const programFolders = await getProgramFolders(target.name)
 
-  await asyncForEach(serviceFolders, async (serviceFolder) => {
-    await compileServiceFolder(
-      target,
-      serviceFolder,
-      macroFolders,
-      programFolders
+    await asyncForEach(serviceFolders, async (serviceFolder) => {
+      await compileServiceFolder(
+        target,
+        serviceFolder,
+        macroFolders,
+        programFolders
+      )
+    })
+
+    await asyncForEach(jobFolders, async (jobFolder) => {
+      await compileJobFolder(target, jobFolder, macroFolders, programFolders)
+    })
+  } catch (error) {
+    process.logger?.error(
+      'An error has occurred when compiling your jobs and services.'
     )
-  })
-
-  await asyncForEach(jobFolders, async (jobFolder) => {
-    await compileJobFolder(target, jobFolder, macroFolders, programFolders)
-  })
+    throw error
+  }
 }
 
 async function recreateBuildFolder() {
