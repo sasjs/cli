@@ -3,6 +3,7 @@ import { checkAndSetProjectDirectory, cli } from './cli'
 import {
   createTestApp,
   createTestGlobalTarget,
+  mockProcessExit,
   removeTestApp
 } from './utils/test'
 import { generateTimestamp } from './utils/utils'
@@ -13,6 +14,7 @@ import { Target } from '@sasjs/utils'
 
 describe('checkAndSetProjectDirectory', () => {
   let target: Target
+  let mockExit
 
   beforeEach(async (done) => {
     const appName = `cli-tests-${generateTimestamp()}`
@@ -21,6 +23,7 @@ describe('checkAndSetProjectDirectory', () => {
       appName,
       `/Public/app/cli-tests/${appName}`
     )
+    mockExit = mockProcessExit()
     done()
   })
 

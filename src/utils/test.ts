@@ -148,3 +148,8 @@ export const verifyFolderStructure = async (
   }
   return everythingPresent
 }
+
+export const mockProcessExit = () =>
+  jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
+    return code as never
+  })

@@ -12,12 +12,11 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
-import { createTestApp, removeTestApp } from '../../../utils/test'
-
-const mockProcessExit = () =>
-  jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
-    return undefined as never
-  })
+import {
+  createTestApp,
+  mockProcessExit,
+  removeTestApp
+} from '../../../utils/test'
 
 describe('sasjs job execute', () => {
   let target: Target
