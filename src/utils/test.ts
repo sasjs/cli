@@ -1,21 +1,21 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { deleteFolder, fileExists, folderExists } from './file'
+import {
+  createFile,
+  deleteFolder,
+  fileExists,
+  folderExists,
+  readFile
+} from './file'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { saveToGlobalConfig } from './config'
-import fileStructureDBObj from './fileStructures/files-db.json'
-import fileStructureCompileObj from './fileStructures/files-compiled.json'
-import fileStructureBuildObj from './fileStructures/files-built.json'
+import { dbFiles } from './fileStructures/dbFiles'
+import { compiledFiles } from './fileStructures/compiledFiles'
+import { builtFiles } from './fileStructures/builtFiles'
 import { asyncForEach } from './utils'
-import { Folder } from '../types'
+import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
-
-interface VerifyStepInput {
-  parentFolderName: string
-  targetName: string
-  step: string
-}
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
@@ -79,77 +79,111 @@ export const createTestGlobalTarget = async (
   return target
 }
 
-export const verifyStep = async (input: VerifyStepInput) => {
-  const { parentFolderName, targetName, step } = input
-  let everythingPresent = true
-  const fileStructure =
-    step === 'db'
-      ? fileStructureDBObj
-      : step === 'compile'
-      ? fileStructureCompileObj
-      : step === 'build'
-      ? fileStructureBuildObj
-      : null
+const createLocalTarget = async (
+  targetName: string,
+  serviceConfig = {
+    serviceFolders: ['services'],
+    initProgram: '',
+    termProgram: '',
+    macroVars: {}
+  }
+) => {
+  dotenv.config()
 
-  const fileStructureClone = JSON.parse(JSON.stringify(fileStructure))
-
-  await asyncForEach(fileStructureClone.subFolders, async (folder) => {
-    everythingPresent =
-      everythingPresent &&
-      (await verifyFolderStructure(folder, parentFolderName, targetName))
+  const serverType: ServerType =
+    process.env.SERVER_TYPE === ServerType.SasViya
+      ? ServerType.SasViya
+      : ServerType.Sas9
+  const target = new Target({
+    name: targetName,
+    serverType,
+    serverUrl: process.env.SERVER_URL as string,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
+    serviceConfig,
+    jobConfig: {
+      jobFolders: [],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    deployConfig: {
+      deployServicePack: true,
+      deployScripts: []
+    }
   })
-  expect(everythingPresent).toEqual(true)
+
+  const configContent = await readFile(
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
+  )
+
+  const configJSON = JSON.parse(configContent)
+  configJSON.targets = [
+    {
+      ...target.toJson(),
+      deployConfig: {
+        deployScripts: ['sasjs/build/copyscript.sh'],
+        deployServicePack: true
+      }
+    }
+  ]
+
+  await createFile(
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
+    JSON.stringify(configJSON, null, 2)
+  )
+
+  return target
 }
 
-export const verifyFolderStructure = async (
-  folder: Folder,
-  parentFolderName: string,
-  targetName: string
+export const verifyStep = async (
+  step: 'db' | 'compile' | 'build' = 'compile'
 ) => {
   let everythingPresent = false
-  let folderPath = path.join(process.projectDir, folder.folderName)
-  if (parentFolderName) {
-    folderPath = path.join(
-      process.projectDir,
-      parentFolderName,
-      folder.folderName
-    )
-  }
-  if (await folderExists(folderPath)) {
-    everythingPresent = true
-    if (folder.files && folder.files.length) {
-      let filesPresent = true
-      await asyncForEach(folder.files, async (file) => {
-        const filePath = path.join(
-          process.projectDir,
-          parentFolderName,
-          `${folder.folderName}/${file.fileName.replace(
-            '{targetName}',
-            targetName
-          )}`
-        )
-        filesPresent = filesPresent && (await fileExists(filePath))
-      })
-      everythingPresent = filesPresent
-    }
-    if (everythingPresent && folder.subFolders && folder.subFolders.length) {
-      let subfoldersPresent = true
-      await asyncForEach(folder.subFolders, async (subFolder) => {
-        subFolder.folderName = `${
-          parentFolderName ? parentFolderName + '/' : ''
-        }${folder.folderName}/${subFolder.folderName}`
+  const fileStructure: Folder =
+    step === 'db'
+      ? dbFiles
+      : step === 'compile'
+      ? compiledFiles
+      : step === 'build'
+      ? builtFiles
+      : compiledFiles
 
-        subfoldersPresent =
-          subfoldersPresent &&
-          (await verifyFolderStructure(subFolder, '.', targetName))
-      })
-      everythingPresent = subfoldersPresent
-    }
-  }
-  return everythingPresent
+  everythingPresent = await verifyFolder(fileStructure)
+
+  expect(everythingPresent).toEqual(true)
 }
 
 export const mockProcessExit = () =>
   jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
     return code as never
   })
+
+export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
+  await expect(
+    folderExists(
+      path.join(process.projectDir, parentFolderName, folder.folderName)
+    )
+  ).resolves.toEqual(true)
+
+  await asyncForEach(folder.files, async (file: File) => {
+    await expect(
+      fileExists(
+        path.join(
+          process.projectDir,
+          parentFolderName,
+          folder.folderName,
+          file.fileName
+        )
+      )
+    ).resolves.toEqual(true)
+  })
+
+  await asyncForEach(folder.subFolders, async (subFolder: Folder) => {
+    await verifyFolder(
+      subFolder,
+      path.join(parentFolderName, folder.folderName)
+    )
+  })
+
+  return true
+}

@@ -2,7 +2,6 @@ import path from 'path'
 import {
   getProgramFolders,
   findTargetInConfiguration,
-  getConfiguration,
   getMacroCorePath
 } from '../../utils/config'
 import {
@@ -15,21 +14,14 @@ import {
   createFolder,
   readFile
 } from '../../utils/file'
-import { asyncForEach, chunk } from '../../utils/utils'
+import { asyncForEach } from '../../utils/utils'
 import { Target, ServerType } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { getConstants } from '../../constants'
-import {
-  getServiceInit,
-  getServiceTerm,
-  getJobInit,
-  getJobTerm
-} from './internal/config'
-import {
-  getDependencyPaths,
-  getProgramDependencies
-} from '../shared/dependencies'
 import { checkCompileStatus } from './internal/checkCompileStatus'
+import { loadDependencies } from './internal/loadDependencies'
+import * as compileModule from './compile'
+import { getAllJobFolders } from './internal/getAllJobFolders'
+import { getAllServiceFolders } from './internal/getAllServiceFolders'
 
 export async function compile(targetName: string) {
   let { target } = await findTargetInConfiguration(targetName)
@@ -37,16 +29,48 @@ export async function compile(targetName: string) {
 
   if (result.compiled) {
     // no need to compile again
-    process.logger.info(result.message)
-    process.logger.info('Skipping compiling of build folders.')
+    process.logger?.info(result.message)
+    process.logger?.info('Skipping compiling of build folders.')
     return
   }
-  await copyFilesToBuildFolder(target)
+  await compileModule.copyFilesToBuildFolder(target)
 
-  const serviceFolders = await getAllServicePaths(target)
-  const jobFolders = await getAllJobPaths(target)
+  await compileModule.compileJobsAndServices(target)
+}
+
+export async function copyFilesToBuildFolder(target: Target) {
+  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  await recreateBuildFolder()
+  process.logger?.info(`Copying files to ${buildDestinationFolder}.`)
+  try {
+    const serviceFolders = await getAllServiceFolders(target)
+
+    const jobFolders = await getAllJobFolders(target)
+
+    await asyncForEach(serviceFolders, async (serviceFolder: string) => {
+      const sourcePath = path.join(buildSourceFolder, serviceFolder)
+      const destinationPath = path.join(buildDestinationFolder, serviceFolder)
+      await copy(sourcePath, destinationPath)
+    })
+
+    await asyncForEach(jobFolders, async (jobFolder) => {
+      const sourcePath = path.join(buildSourceFolder, jobFolder)
+      const destinationPath = path.join(buildDestinationFolder, jobFolder)
+      await copy(sourcePath, destinationPath)
+    })
+  } catch (error) {
+    process.logger?.error(
+      `An error has occurred when copying files to ${buildDestinationFolder}.`
+    )
+    throw error
+  }
+}
+
+export async function compileJobsAndServices(target: Target) {
+  const serviceFolders = await getAllServiceFolders(target)
+  const jobFolders = await getAllJobFolders(target)
   const macroFolders = target ? target.macroFolders : []
-  const programFolders = await getProgramFolders(targetName)
+  const programFolders = await getProgramFolders(target.name)
 
   await asyncForEach(serviceFolders, async (serviceFolder) => {
     await compileServiceFolder(
@@ -62,36 +86,6 @@ export async function compile(targetName: string) {
   })
 }
 
-async function copyFilesToBuildFolder(target: Target) {
-  const {
-    buildSourceFolder,
-    buildDestinationServicesFolder,
-    buildDestinationJobsFolder
-  } = getConstants()
-  await recreateBuildFolder()
-  process.logger?.info('Copying files to build folder...')
-  const servicePaths = await getAllServicePaths(target)
-
-  const jobPaths = await getAllJobPaths(target)
-
-  await asyncForEach(servicePaths, async (servicePath: string) => {
-    const sourcePath = path.join(buildSourceFolder, servicePath)
-    const serviceFolder = servicePath.split('/').pop() as string
-    const destinationPath = path.join(
-      buildDestinationServicesFolder,
-      serviceFolder
-    )
-    await copy(sourcePath, destinationPath)
-  })
-
-  await asyncForEach(jobPaths, async (jobPath) => {
-    const sourcePath = path.join(buildSourceFolder, jobPath)
-    const jobFolder = jobPath.split('/').pop() as string
-    const destinationPath = path.join(buildDestinationJobsFolder, jobFolder)
-    await copy(sourcePath, destinationPath)
-  })
-}
-
 async function recreateBuildFolder() {
   const {
     buildDestinationFolder,
@@ -100,58 +94,10 @@ async function recreateBuildFolder() {
   process.logger?.info('Recreating build folder...')
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) {
-    // delete everything other than, db folder
-    const subFolders = await getSubFoldersInFolder(buildDestinationFolder)
-    const subFiles = await getFilesInFolder(buildDestinationFolder)
-    await asyncForEach([...subFolders, ...subFiles], async (subFolder) => {
-      if (subFolder === 'db') return
-      const subFolderPath = path.join(buildDestinationFolder, subFolder)
-      await deleteFolder(subFolderPath)
-    })
-  } else await createFolder(buildDestinationFolder)
-  await createFolder(path.join(buildDestinationServicesFolder))
-}
-
-async function getAllServicePaths(target: Target) {
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-  let allServices: string[] = []
-
-  if (
-    configuration &&
-    configuration.serviceConfig &&
-    configuration.serviceConfig.serviceFolders
-  )
-    allServices = [...configuration.serviceConfig.serviceFolders]
-
-  if (target && target.serviceConfig && target.serviceConfig.serviceFolders)
-    allServices = [...allServices, ...target.serviceConfig.serviceFolders]
-
-  allServices = allServices.filter((p) => !!p)
-  return Promise.resolve([...new Set(allServices)])
-}
-
-async function getAllJobPaths(target: Target) {
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-  let allJobs: string[] = []
-
-  if (
-    configuration &&
-    configuration.jobConfig &&
-    configuration.jobConfig.jobFolders
-  )
-    allJobs = [...configuration.jobConfig.jobFolders]
-
-  if (target && target.jobConfig && target.jobConfig.jobFolders)
-    allJobs = [...allJobs, ...target.jobConfig.jobFolders]
-
-  allJobs = allJobs.filter((s) => !!s) as string[]
-  return Promise.resolve([...new Set(allJobs)])
+    deleteFolder(buildDestinationFolder)
+  }
+  await createFolder(buildDestinationFolder)
+  await createFolder(buildDestinationServicesFolder)
 }
 
 async function getPreCodeForServicePack(serverType: ServerType) {
@@ -193,118 +139,6 @@ async function getPreCodeForServicePack(serverType: ServerType) {
     '%put pgm=&_program;\n' +
     '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
   return content
-}
-
-export async function loadDependencies(
-  target: Target,
-  filePath: string,
-  macroFolders: string[],
-  programFolders: string[],
-  type = 'service'
-) {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-  logger.info(`Loading dependencies for ${filePath}`)
-
-  const { buildSourceFolder } = getConstants()
-  let fileContent = await readFile(filePath)
-
-  if (fileContent.includes('<h4> Dependencies </h4>')) {
-    const deprecationDate = new Date(2021, 10, 2)
-    const today = new Date()
-
-    if (today < deprecationDate) {
-      logger.warn(
-        `Please use <h4> SAS Macros </h4> syntax to specify dependencies. Specifying dependencies with a <h4> Dependencies </h4> syntax will not be supported starting from November 1, 2021.`
-      )
-    } else {
-      throw 'Using <h4> Dependencies </h4> syntax is deprecated. Please use <h4> SAS Macros </h4> instead.'
-    }
-  }
-
-  let init
-  let term
-  let serviceVars = ''
-
-  if (type === 'service') {
-    serviceVars = await getServiceVars(target)
-
-    init = await getServiceInit(target)
-
-    term = await getServiceTerm(target)
-
-    fileContent = fileContent
-      ? `\n* Service start;\n${fileContent}\n* Service end;`
-      : ''
-  } else {
-    init = await getJobInit(target)
-
-    term = await getJobTerm(target)
-
-    fileContent = fileContent
-      ? `\n* Job start;\n${fileContent}\n* Job end;`
-      : ''
-  }
-
-  const fileDependencyPaths = await getDependencyPaths(
-    `${fileContent}\n${init}\n${term}`,
-    macroFolders
-  )
-  const initDependencyPaths = await getDependencyPaths(init, macroFolders)
-  const termDependencyPaths = await getDependencyPaths(term, macroFolders)
-  const allDependencyPaths = [
-    ...initDependencyPaths,
-    ...fileDependencyPaths,
-    ...termDependencyPaths
-  ]
-  const programDependencies = await getProgramDependencies(
-    fileContent,
-    programFolders,
-    buildSourceFolder
-  )
-
-  const dependenciesContent = await getDependencies(allDependencyPaths)
-
-  fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
-
-  if (type === 'service') {
-    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
-  }
-
-  return fileContent
-}
-
-async function getDependencies(filePaths: string[]): Promise<string> {
-  let dependenciesContent: string[] = []
-  await asyncForEach([...new Set(filePaths)], async (filePath) => {
-    const depFileContent = await readFile(filePath)
-    dependenciesContent.push(depFileContent)
-  })
-
-  return dependenciesContent.join('\n')
-}
-
-export async function getServiceVars(target: Target) {
-  const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-  const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
-
-  return convertVarsToSasFormat({ ...commonServiceVars, ...targetServiceVars })
-}
-
-const convertVarsToSasFormat = (vars: { [key: string]: string }): string => {
-  const entries = Object.entries(vars)
-  let varsContent = '\n'
-  for (const [name, value] of entries) {
-    const chunks = chunk(value)
-    const chunkedString = chunks.join('%trim(\n)')
-    varsContent += `%let ${name}=${chunkedString};\n`
-  }
-
-  return varsContent
 }
 
 const compileServiceFolder = async (

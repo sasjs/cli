@@ -34,6 +34,9 @@ export function displayError(err: any, errorMessage: string = '') {
     }
 
     process.logger?.error(errorMessage, failureDetails)
+    if (err instanceof Error) {
+      process.logger?.error(err.stack || '')
+    }
     return `${errorMessage}\n${failureDetails}`
   }
 }

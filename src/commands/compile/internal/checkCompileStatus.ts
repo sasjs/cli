@@ -1,30 +1,24 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
 import {
   fileExists,
   getSubFoldersInFolder,
   getFilesInFolder
 } from '../../../utils/file'
 import { asyncForEach } from '../../../utils/utils'
+import { getAllJobFolders } from './getAllJobFolders'
+import { getAllServiceFolders } from './getAllServiceFolders'
 
 export async function checkCompileStatus(target: Target) {
   const {
-    buildSourceFolder,
     buildDestinationFolder,
     buildDestinationServicesFolder,
     buildDestinationJobsFolder
   } = getConstants()
-  const servicePathsToCompile = await getAllServicePaths(
-    path.join(buildSourceFolder, 'sasjsconfig.json'),
-    target
-  )
+  const servicePathsToCompile = await getAllServiceFolders(target)
 
-  const jobPathsToCompile = await getAllJobPaths(
-    path.join(buildSourceFolder, 'sasjsconfig.json'),
-    target
-  )
+  const jobPathsToCompile = await getAllJobFolders(target)
 
   const serviceFoldersToCompile = servicePathsToCompile.map((s) =>
     s.split('/').pop()
@@ -104,41 +98,4 @@ export async function checkCompileStatus(target: Target) {
   }
 
   return returnObj
-}
-
-async function getAllServicePaths(pathToFile: string, target: Target) {
-  const configuration = await getConfiguration(pathToFile)
-  let allServices: string[] = []
-
-  if (
-    configuration &&
-    configuration.serviceConfig &&
-    configuration.serviceConfig.serviceFolders
-  )
-    allServices = [
-      ...allServices,
-      ...configuration.serviceConfig.serviceFolders
-    ]
-
-  if (target && target.serviceConfig && target.serviceConfig.serviceFolders)
-    allServices = [...allServices, ...target.serviceConfig.serviceFolders]
-
-  return Promise.resolve(allServices)
-}
-
-async function getAllJobPaths(pathToFile: string, target: Target) {
-  const configuration = await getConfiguration(pathToFile)
-  let allJobs: string[] = []
-
-  if (
-    configuration &&
-    configuration.jobConfig &&
-    configuration.jobConfig.jobFolders
-  )
-    allJobs = [...allJobs, ...configuration.jobConfig.jobFolders]
-
-  if (target && target.jobConfig && target.jobConfig.jobFolders)
-    allJobs = [...allJobs, ...target.jobConfig.jobFolders]
-
-  return Promise.resolve(allJobs)
 }

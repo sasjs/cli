@@ -78,7 +78,9 @@ export async function findTargetInConfiguration(
 
   if (fallBackTargetJson) {
     process.logger?.warn(
-      `Target ${targetName} was not found. Falling back to target ${fallBackTargetJson.name} from your local sasjsconfig.json file.`
+      `Target ${targetName || ''} was not found. Falling back to target ${
+        fallBackTargetJson.name
+      } from your local sasjsconfig.json file.`
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: true }
@@ -92,60 +94,19 @@ export async function findTargetInConfiguration(
 
   if (fallBackTargetJson) {
     process.logger?.warn(
-      `Target ${targetName} was not found. Falling back to target ${fallBackTargetJson.name} from your global .sasjsrc file.`
+      `Target ${targetName || ''} was not found. Falling back to target ${
+        fallBackTargetJson.name
+      } from your global .sasjsrc file.`
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: false }
   }
 
   throw new Error(
-    `Target ${targetName} was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    `Target ${
+      targetName || ''
+    } was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
-}
-
-export async function findConfiguration() {
-  const isInCurrentFolder = await fileExists(
-    path.join(process.cwd(), 'sasjs', 'sasjsconfig.json')
-  )
-  if (isInCurrentFolder) {
-    console.log(
-      chalk.cyanBright(
-        `Using local project configuration from ${chalk.yellowBright(
-          'sasjsconfig.json'
-        )} file.`
-      )
-    )
-    const config = await getConfiguration(
-      path.join(process.cwd(), 'sasjs', 'sasjsconfig.json')
-    )
-    return { config, isLocal: true }
-  }
-  const isInParentFolder = await fileExists(
-    path.join(process.cwd(), '..', 'sasjs', 'sasjsconfig.json')
-  )
-  if (isInParentFolder) {
-    console.log(
-      chalk.cyanBright(
-        `Using local project configuration from ${chalk.yellowBright(
-          'sasjsconfig.json'
-        )} file.`
-      )
-    )
-    const config = await getConfiguration(
-      path.join(process.cwd(), '..', 'sasjs', 'sasjsconfig.json')
-    )
-    return { config, isLocal: true }
-  }
-  const homeDir = require('os').homedir()
-  console.log(
-    chalk.cyanBright(
-      `Using global configuration from ${chalk.yellowBright(
-        '~/.sasjsrc'
-      )} file.`
-    )
-  )
-  const config = await readFile(path.join(homeDir, '.sasjsrc'))
-  return { config, isLocal: false }
 }
 
 export async function getGlobalRcFile() {

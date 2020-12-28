@@ -1,4 +1,4 @@
 export interface File {
   fileName: string
-  content: string
+  content?: string
 }

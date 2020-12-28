@@ -1,5 +1,5 @@
 import path from 'path'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { Target } from '@sasjs/utils/types'
 import * as internalModule from '../internal/config'
 import * as compileModule from '../compile'
 import { removeFromGlobalConfig } from '../../../utils/config'
@@ -9,6 +9,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
+import { loadDependencies } from '../internal/loadDependencies'
 
 const fakeServiceInit = `/**
   @file serviceinit.sas
@@ -91,7 +92,7 @@ describe('loadDependencies', () => {
       `\n* ServiceTerm start;\n${fakeServiceTerm}\n* ServiceTerm end;`
     )
 
-    const dependencies = await compileModule.loadDependencies(
+    const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
@@ -117,7 +118,7 @@ describe('loadDependencies', () => {
       `\n* JobTerm start;\n${fakeServiceTerm}\n* JobTerm end;`
     )
 
-    const dependencies = await compileModule.loadDependencies(
+    const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
@@ -143,14 +144,13 @@ describe('loadDependencies', () => {
       `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`
     )
 
-    const dependencies = await compileModule.loadDependencies(
+    const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
       [],
       'service'
     )
-    console.log(dependencies)
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -169,7 +169,7 @@ describe('loadDependencies', () => {
       `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`
     )
 
-    const dependencies = await compileModule.loadDependencies(
+    const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],

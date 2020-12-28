@@ -11,6 +11,7 @@ import {
 } from '../../utils/file'
 import { asyncForEach } from '../../utils/utils'
 import { getConstants } from '../../constants'
+import chalk from 'chalk'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
 
@@ -20,6 +21,7 @@ export async function buildDB() {
 
   const buildDBFolders = await getSubFoldersInFolder(buildSourceDbFolder)
   const buildDBIniFiles = await getIniFilesInFolder(buildSourceDbFolder)
+
   let iniFilesContent: { [key: string]: string } = {}
   await asyncForEach(buildDBIniFiles, async (buildDBIniFile) => {
     iniFilesContent[buildDBIniFile] = await readFile(
@@ -32,6 +34,7 @@ export async function buildDB() {
     const folderPath = path.join(buildSourceDbFolder, buildDBFolder)
     const filesNamesInPath = await getFilesInFolder(folderPath)
     const fileExtsInPath = await getFileExts(filesNamesInPath)
+
     await asyncForEach(fileExtsInPath, async (fileExt) => {
       const destinationFileName = buildDBFolder + '.' + fileExt
       const destinationFilePath = path.join(
@@ -45,6 +48,7 @@ export async function buildDB() {
       if (fileExt == 'ddl' && iniFilesContent[`${buildDBFolder}.ini`]) {
         newDbFileContent = iniFilesContent[`${buildDBFolder}.ini`]
       }
+      console.log(chalk.yellowBright(filesNamesInPathWithExt))
       await asyncForEach(filesNamesInPathWithExt, async (fileName) => {
         const fileContent = await readFile(path.join(folderPath, fileName))
         newDbFileContent += `\n\n${fileContent}`

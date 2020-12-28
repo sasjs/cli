@@ -35,67 +35,39 @@ describe('sasjs compile', () => {
   it(`should compile newly created app`, async (done) => {
     await expect(compile(target.name)).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'compile',
-      targetName: target.name
-    })
+    await verifyStep('compile')
     done()
   })
 
   it(`should compile and build`, async (done) => {
     await expect(build(target.name)).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'compile',
-      targetName: target.name
-    })
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'build',
-      targetName: target.name
-    })
+    await verifyStep('compile')
+    await verifyStep('build')
     done()
   })
 
   it(`should compile and build(skipping compile)`, async (done) => {
     await expect(compile(target.name)).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'compile',
-      targetName: target.name
-    })
+    await verifyStep('compile')
 
     await expect(build(target.name)).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'build',
-      targetName: target.name
-    })
+    await verifyStep('build')
     done()
   })
 
   it(`should compile and build(with recompile)`, async (done) => {
     await expect(compile(target.name)).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'compile',
-      targetName: target.name
-    })
+    await verifyStep('compile')
 
     await expect(
       compileBuildServices(new Command(`compilebuild -t ${target.name}`))
     ).toResolve()
 
-    await verifyStep({
-      parentFolderName: '.',
-      step: 'build',
-      targetName: target.name
-    })
+    await verifyStep('build')
     done()
   })
 })

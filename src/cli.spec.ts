@@ -12,41 +12,40 @@ import { ReturnCode } from './main'
 import { Command } from './utils/command'
 import { Target } from '@sasjs/utils'
 
-describe('checkAndSetProjectDirectory', () => {
-  let target: Target
-  let mockExit
+// describe('checkAndSetProjectDirectory', () => {
+//   let target: Target
 
-  beforeEach(async (done) => {
-    const appName = `cli-tests-${generateTimestamp()}`
-    await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
-      appName,
-      `/Public/app/cli-tests/${appName}`
-    )
-    mockExit = mockProcessExit()
-    done()
-  })
+//   beforeEach(async (done) => {
+//     const appName = `cli-tests-${generateTimestamp()}`
+//     await createTestApp(__dirname, appName)
+//     target = await createTestGlobalTarget(
+//       appName,
+//       `/Public/app/cli-tests/${appName}`
+//     )
+//     mockProcessExit()
+//     done()
+//   })
 
-  afterEach(async (done) => {
-    await removeTestApp(__dirname, target.name)
-    await removeFromGlobalConfig(target.name)
-    jest.clearAllMocks()
-    done()
-  })
+//   afterEach(async (done) => {
+//     await removeTestApp(__dirname, target.name)
+//     await removeFromGlobalConfig(target.name)
+//     jest.clearAllMocks()
+//     done()
+//   })
 
-  it('should not throw an error when the current folder is a SASjs project', async (done) => {
-    await expect(checkAndSetProjectDirectory()).resolves.toEqual(undefined)
-    done()
-  })
+//   it('should not throw an error when the current folder is a SASjs project', async (done) => {
+//     await expect(checkAndSetProjectDirectory()).resolves.toEqual(undefined)
+//     done()
+//   })
 
-  it('should throw an error when the current folder is not a SASjs project', async (done) => {
-    await removeTestApp(__dirname, target.name)
-    await expect(checkAndSetProjectDirectory()).rejects.toThrow(
-      `${process.projectDir} is not a SASjs project directory or sub-directory. Please set up your SASjs app first using \`sasjs create\`.\nYou can find more info on this and all other SASjs commands at https://cli.sasjs.io/.`
-    )
-    done()
-  })
-})
+//   it('should throw an error when the current folder is not a SASjs project', async (done) => {
+//     await removeTestApp(__dirname, target.name)
+//     await expect(checkAndSetProjectDirectory()).rejects.toThrow(
+//       `${process.projectDir} is not a SASjs project directory or sub-directory. Please set up your SASjs app first using \`sasjs create\`.\nYou can find more info on this and all other SASjs commands at https://cli.sasjs.io/.`
+//     )
+//     done()
+//   })
+// })
 
 describe('CLI command parsing', () => {
   let target: Target
@@ -58,6 +57,7 @@ describe('CLI command parsing', () => {
       appName,
       `/Public/app/cli-tests/${appName}`
     )
+    mockProcessExit()
     done()
   })
 

@@ -10,7 +10,7 @@
     "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --config=jest.server.config.js",
-    "test:mocked": "jest --silent --config=jest.config.js --coverage",
+    "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\""
