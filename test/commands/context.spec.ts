@@ -15,6 +15,26 @@ let contexts: [any]
 let testContextConfig: any
 let testContextConfigFile: string
 let testContextConfigPath: string
+let originalTestContextConfigName: string
+const sasjs = new SASjs()
+const defaultComputeContexts = sasjs.getDefaultComputeContexts()
+const setDefaultContextName = () => {
+  originalTestContextConfigName = testContextConfig.name
+
+  testContextConfig.name =
+    defaultComputeContexts[
+      Math.floor(Math.random() * defaultComputeContexts.length)
+    ]
+}
+const restoreTestContextName = () => {
+  testContextConfig.name = originalTestContextConfigName
+}
+const defaultContextError = (action: string) =>
+  new Error(
+    `${action} default SAS compute contexts is not allowed.\nDefault contexts:${defaultComputeContexts.map(
+      (context, i) => `\n${i + 1}. ${context}`
+    )}`
+  )
 
 describe('sasjs context', () => {
   const timestamp = generateTimestamp()
@@ -138,19 +158,11 @@ describe('sasjs context', () => {
 
   describe('edit', () => {
     it(
-      'should return an error if trying to edit existing compute context',
+      'should return an error if trying to edit default compute context',
       async () => {
         testContextConfig.description += '_updated'
 
-        const originalTestContextConfigName = testContextConfig.name
-
-        const sasjs = new SASjs()
-        const defaultComputeContexts = sasjs.getDefaultComputeContexts()
-
-        testContextConfig.name =
-          defaultComputeContexts[
-            Math.floor(Math.random() * defaultComputeContexts.length)
-          ]
+        setDefaultContextName()
 
         const contextConfig = JSON.stringify(testContextConfig, null, 2)
 
@@ -159,14 +171,10 @@ describe('sasjs context', () => {
         const command = `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
 
         await expect(processContext(command)).resolves.toEqual(
-          new Error(
-            `Editing default SAS compute contexts is not allowed.\nDefault contexts:${defaultComputeContexts.map(
-              (context, i) => `\n${i + 1}. ${context}`
-            )}`
-          )
+          defaultContextError('Editing')
         )
 
-        testContextConfig.name = originalTestContextConfigName
+        restoreTestContextName()
       },
       60 * 1000
     )
@@ -189,6 +197,22 @@ describe('sasjs context', () => {
   })
 
   describe('delete', () => {
+    it(
+      'should return an error if trying to delete default compute context',
+      async () => {
+        setDefaultContextName()
+
+        const command = `context delete ${testContextConfig.name} -t targetName`
+
+        await expect(processContext(command)).resolves.toEqual(
+          defaultContextError('Deleting')
+        )
+
+        restoreTestContextName()
+      },
+      60 * 1000
+    )
+
     it(
       'should delete compute context',
       async () => {
