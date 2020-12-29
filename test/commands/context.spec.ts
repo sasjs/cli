@@ -9,6 +9,7 @@ import {
 } from '../../src/utils/file'
 import { generateTimestamp } from '../../src/utils/utils'
 import { ServerType } from '@sasjs/utils/types'
+import SASjs from '@sasjs/adapter/node'
 
 let contexts: [any]
 let testContextConfig: any
@@ -100,7 +101,7 @@ describe('sasjs context', () => {
     )
 
     it(
-      'should throw an error if trying to create compute context that already exists',
+      'should return an error if trying to create compute context that already exists',
       async () => {
         testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
         testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
@@ -136,6 +137,40 @@ describe('sasjs context', () => {
   })
 
   describe('edit', () => {
+    it(
+      'should return an error if trying to edit existing compute context',
+      async () => {
+        testContextConfig.description += '_updated'
+
+        const originalTestContextConfigName = testContextConfig.name
+
+        const sasjs = new SASjs()
+        const defaultComputeContexts = sasjs.getDefaultComputeContexts()
+
+        testContextConfig.name =
+          defaultComputeContexts[
+            Math.floor(Math.random() * defaultComputeContexts.length)
+          ]
+
+        const contextConfig = JSON.stringify(testContextConfig, null, 2)
+
+        await createFile(testContextConfigPath, contextConfig)
+
+        const command = `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
+
+        await expect(processContext(command)).resolves.toEqual(
+          new Error(
+            `Editing default SAS compute contexts is not allowed.\nDefault contexts:${defaultComputeContexts.map(
+              (context, i) => `\n${i + 1}. ${context}`
+            )}`
+          )
+        )
+
+        testContextConfig.name = originalTestContextConfigName
+      },
+      60 * 1000
+    )
+
     it(
       'should edit compute context',
       async () => {
