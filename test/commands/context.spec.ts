@@ -76,6 +76,12 @@ describe('sasjs context', () => {
         let contextConfig = await readFile(testContextConfigPath)
 
         testContextConfig = JSON.parse(contextConfig)
+        testContextConfig = {
+          ...testContextConfig,
+          launchContext: {
+            contextName: 'CLI Unit Tests launcher context'
+          }
+        }
         testContextConfig.name += '_' + Date.now()
 
         if (!testContextConfig.attributes) {
@@ -89,6 +95,41 @@ describe('sasjs context', () => {
         const command = `context create -s ${testContextConfigFile} -t targetName`
 
         await expect(processContext(command)).resolves.toEqual(true)
+      },
+      60 * 1000
+    )
+
+    it(
+      'should throw an error if trying to create compute context that already exists',
+      async () => {
+        testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
+        testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
+
+        let contextConfig = await readFile(testContextConfigPath)
+
+        testContextConfig = JSON.parse(contextConfig)
+        testContextConfig = {
+          ...testContextConfig,
+          launchContext: {
+            contextName: 'CLI Unit Tests launcher context'
+          }
+        }
+
+        if (!testContextConfig.attributes) {
+          testContextConfig.attributes = { runServerAs: 'cas' }
+        }
+
+        contextConfig = JSON.stringify(testContextConfig, null, 2)
+
+        await createFile(testContextConfigPath, contextConfig)
+
+        const command = `context create -s ${testContextConfigFile} -t targetName`
+
+        await expect(processContext(command)).resolves.toEqual(
+          new Error(
+            `Compute context '${testContextConfig.name}' already exists.`
+          )
+        )
       },
       60 * 1000
     )

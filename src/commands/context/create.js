@@ -14,8 +14,6 @@ export async function create(config, sasjs, accessToken) {
 
   let result
 
-  console.log(`[accessToken]`, accessToken)
-
   const createdContext = await sasjs
     .createComputeContext(
       name,
