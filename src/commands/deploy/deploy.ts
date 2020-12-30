@@ -16,7 +16,7 @@ import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 
 export async function deploy(targetName: string) {
-  const { target } = await findTargetInConfiguration(targetName)
+  const { target, isLocal } = await findTargetInConfiguration(targetName)
 
   if (
     target.serverType === ServerType.SasViya &&
@@ -25,7 +25,7 @@ export async function deploy(targetName: string) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
     )
-    await deployToSasViyaWithServicePack(target)
+    await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Service pack has been successfully deployed.')
   }
 
@@ -52,7 +52,13 @@ export async function deploy(targetName: string) {
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
       if (target.serverType === ServerType.SasViya) {
-        await deployToSasViya(deployScript, target, linesToExecute, logFilePath)
+        await deployToSasViya(
+          deployScript,
+          target,
+          isLocal,
+          linesToExecute,
+          logFilePath
+        )
       } else {
         await deployToSas9(deployScript, target, linesToExecute, logFilePath)
       }
@@ -98,7 +104,7 @@ async function getDeployScripts(target: Target) {
   return [...new Set(allDeployScripts)]
 }
 
-async function getSASjsAndAccessToken(target: Target) {
+async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
@@ -110,7 +116,9 @@ async function getSASjsAndAccessToken(target: Target) {
     accessToken = await getAccessToken(target)
   } catch (e) {
     throw new Error(
-      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env${
+        isLocal ? `.${target.name}` : ''
+      } file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
     )
   }
   return {
@@ -119,7 +127,10 @@ async function getSASjsAndAccessToken(target: Target) {
   }
 }
 
-async function deployToSasViyaWithServicePack(target: Target) {
+async function deployToSasViyaWithServicePack(
+  target: Target,
+  isLocal: boolean
+) {
   const { buildDestinationFolder } = getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -128,7 +139,7 @@ async function deployToSasViyaWithServicePack(target: Target) {
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(target)
+  const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
 
   return await sasjs.deployServicePack(
     jsonObject,
@@ -142,6 +153,7 @@ async function deployToSasViyaWithServicePack(target: Target) {
 async function deployToSasViya(
   deployScript: string,
   target: Target,
+  isLocal: boolean,
   linesToExecute: string[],
   logFilePath: string | null
 ) {
@@ -157,7 +169,7 @@ async function deployToSasViya(
     )
   }
 
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(target)
+  const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
 
   const executionResult = await sasjs.executeScriptSASViya(
     path.basename(deployScript),
