@@ -10,7 +10,7 @@ export async function remove(contextName, sasjs, accessToken) {
   let result
 
   const deletedContext = await sasjs
-    .deleteContext(contextName, accessToken)
+    .deleteComputeContext(contextName, accessToken)
     .catch((err) => {
       result = err
 
