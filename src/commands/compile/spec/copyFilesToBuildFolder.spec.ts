@@ -67,29 +67,6 @@ const verifyBuildFolder = async () => {
               subFolders: []
             }
           ]
-        },
-        {
-          folderName: 'targets',
-          files: [],
-          subFolders: [
-            {
-              folderName: 'viya',
-              files: [],
-              subFolders: [
-                {
-                  folderName: 'services',
-                  files: [],
-                  subFolders: [
-                    {
-                      folderName: 'admin',
-                      files: [{ fileName: 'dostuff.sas' }],
-                      subFolders: []
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
         }
       ]
     }
