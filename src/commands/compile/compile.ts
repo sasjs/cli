@@ -27,11 +27,11 @@ import {
   getDestinationJobPath
 } from './internal/getDestinationPath'
 
-export async function compile(targetName: string) {
+export async function compile(targetName: string, forceCompile = false) {
   let { target } = await findTargetInConfiguration(targetName)
   const result = await checkCompileStatus(target)
 
-  if (result.compiled) {
+  if (result.compiled && !forceCompile) {
     // no need to compile again
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)

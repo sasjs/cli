@@ -57,14 +57,14 @@ export async function showVersion() {
   return ReturnCode.Success
 }
 
-export async function compileServices(command: Command) {
+export async function compileServices(command: Command, forceCompile = true) {
   let targetName = command.getFlagValue('target') as string
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compile(targetName)
+  return await compile(targetName, forceCompile)
     .then(() => {
       displaySuccess(
         `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
@@ -136,7 +136,7 @@ export async function compileBuildServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compileServices(command).then(async (returnCode) => {
+  return await compileServices(command, false).then(async (returnCode) => {
     if (returnCode === ReturnCode.Success) {
       return await buildServices(command)
     } else {
@@ -152,7 +152,7 @@ export async function compileBuildDeployServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compileServices(command)
+  return await compileServices(command, false)
     .then(async (returnCode) => {
       if (returnCode === ReturnCode.Success) {
         return await buildServices(command)
