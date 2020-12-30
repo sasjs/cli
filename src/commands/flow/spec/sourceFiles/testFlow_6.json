@@ -1,0 +1,35 @@
+{
+  "name": "myAmazingFlow",
+  "flows": {
+    "firstFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        },
+        {
+          "location": "testJob/job"
+        }
+      ],
+      "predecessors": []
+    },
+    "secondFlow": {
+      "jobs": [
+        {
+          "location": "testJob/failingJob"
+        }
+      ],
+      "predecessors": ["firstFlow"]
+    },
+    "thirdFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        },
+        {
+          "location": "testJob/failingJob"
+        }
+      ],
+      "predecessors": ["firstFlow", "secondFlow"]
+    }
+  }
+}

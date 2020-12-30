@@ -1,0 +1,62 @@
+{
+  "name": "myAmazingFlow",
+  "flows": {
+    "firstFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        },
+        {
+          "location": "testJob/job"
+        }
+      ],
+      "predecessors": []
+    },
+    "secondFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        }
+      ],
+      "predecessors": ["firstFlow"]
+    },
+    "thirdFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        },
+        {
+          "location": "testJob/failingJob"
+        }
+      ],
+      "predecessors": ["firstFlow", "secondFlow"]
+    },
+    "fourthFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        }
+      ],
+      "predecessors": ["secondFlow"]
+    },
+    "fifthFlow": {
+      "jobs": [
+        {
+          "location": "testJob/job"
+        },
+        {
+          "location": "testJob/failingJob"
+        }
+      ],
+      "predecessors": ["thirdFlow"]
+    },
+    "sixthFlow": {
+      "jobs": [
+        {
+          "location": "testJob/failingJob"
+        }
+      ],
+      "predecessors": []
+    }
+  }
+}

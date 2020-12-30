@@ -28,7 +28,7 @@
           "files": [
             {
               "fileName": "serviceinit.sas",
-              "content": "/**\n  @file serviceinit.sas\n  @brief this file is called with every service\n  @details  This file is included in *every* service, *after* the macros and *before* the service code.\n\n  <h4> Dependencies </h4>\n  @li mf_abort.sas\n\n**/\n\noptions \n  DATASTMTCHK=ALLKEYWORDS /* some sites have this enabled */\n  PS=MAX /* reduce log size slightly */\n;\n%put service is starting!!;"
+              "content": "/**\n  @file serviceinit.sas\n  @brief this file is called with every service\n  @details  This file is included in *every* service, *after* the macros and *before* the service code.\n\n  <h4> SAS Macros </h4>\n  @li mf_abort.sas\n\n**/\n\noptions \n  DATASTMTCHK=ALLKEYWORDS /* some sites have this enabled */\n  PS=MAX /* reduce log size slightly */\n;\n%put service is starting!!;"
             },
             {
               "fileName": "buildinit.sas",
@@ -36,7 +36,7 @@
             },
             {
               "fileName": "buildinitviya.sas",
-              "content": "/**\n  @file buildinitviya.sas\n  @brief this executed as part of the generation of the Viya build script\n  @details  This file is inserted *after* the build macros and *before* the service code.\n\n   For an explanation of this part, see: https://sasjs.io/sasjs/sasjs-cli/#viya-deployment-script\n\n  <h4> Dependencies </h4>\n\n**/\n\n/*\n%put buildinit script;\n\n"
+              "content": "/**\n  @file buildinitviya.sas\n  @brief this executed as part of the generation of the Viya build script\n  @details  This file is inserted *after* the build macros and *before* the service code.\n\n   For an explanation of this part, see: https://sasjs.io/sasjs/sasjs-cli/#viya-deployment-script\n\n  <h4> SAS Macros </h4>\n\n**/\n\n/*\n%put buildinit script;\n\n"
             },
             {
               "fileName": "buildterm.sas",
@@ -44,7 +44,7 @@
             },
             {
               "fileName": "serviceterm.sas",
-              "content": "/**\n  @file serviceterm.sas\n  @brief this file is called at the end of every service\n  @details  This file is included at the *end* of every service.\n\n  <h4> Dependencies </h4>\n  @li mf_abort.sas\n  @li mf_existds.sas\n\n**/\n\n%put service is finishing.  Thanks, SASjs!;"
+              "content": "/**\n  @file serviceterm.sas\n  @brief this file is called at the end of every service\n  @details  This file is included at the *end* of every service.\n\n  <h4> SAS Macros </h4>\n  @li mf_abort.sas\n  @li mf_existds.sas\n\n**/\n\n%put service is finishing.  Thanks, SASjs!;"
             },
             {
               "fileName": "servicetermother.sas",
@@ -65,11 +65,11 @@
           "files": [
             {
               "fileName": "examplemacro.sas",
-              "content": "/**\n  @file examplemacro.sas\n  @brief an example of a macro to be used in a service\n  @details  This macro is great. Yadda yadda yadda.  Usage:\n\n    * code formatting applies when indented by 4 spaces;\n    %examplemacro()\n\n  <h4> Dependencies </h4>\n  @li doesnothing.sas\n\n  @author Allan Bowe\n**/\n\n%macro examplemacro();\n\nproc sql;\ncreate table areas\n  as select area\nfrom sashelp.springs;\n\n%doesnothing()\n\n%mend;\n"
+              "content": "/**\n  @file examplemacro.sas\n  @brief an example of a macro to be used in a service\n  @details  This macro is great. Yadda yadda yadda.  Usage:\n\n    * code formatting applies when indented by 4 spaces;\n    %examplemacro()\n\n  <h4> SAS Macros </h4>\n  @li doesnothing.sas\n\n  @author Allan Bowe\n**/\n\n%macro examplemacro();\n\nproc sql;\ncreate table areas\n  as select area\nfrom sashelp.springs;\n\n%doesnothing()\n\n%mend;\n"
             },
             {
               "fileName": "yetanothermacro.sas",
-              "content": "/**\n  @file yetanothermacro.sas\n  @brief Yet another example of a macro to be used in a service\n  @details  This macro is also great. Yadda yadda yadda. \n\n  <h4> Dependencies </h4>\n  @li doesnothing.sas\n\n**/\n\n%macro yetanothermacro();\n\nproc sort data= areas nodupkey;\n by area;\nrun;\n%doesnothing()\n\n%mend;\n"
+              "content": "/**\n  @file yetanothermacro.sas\n  @brief Yet another example of a macro to be used in a service\n  @details  This macro is also great. Yadda yadda yadda. \n\n  <h4> SAS Macros </h4>\n  @li doesnothing.sas\n\n**/\n\n%macro yetanothermacro();\n\nproc sort data= areas nodupkey;\n by area;\nrun;\n%doesnothing()\n\n%mend;\n"
             },
             {
               "fileName": "doesnothing.sas",
@@ -86,7 +86,7 @@
               "files": [
                 {
                   "fileName": "dostuff.sas",
-                  "content": "/**\n  @file dostuff.sas\n  @brief example file\n  @details  This service does stuff. Like - ya know - stuff.\n\n  <h4> Dependencies </h4>\n  @li mv_createfolder.sas\n  @li mm_getauthinfo.sas\n\n**/\n\ndata stuff;set sashelp.class;run;\n%webout(OPEN)\n%webout(OBJ,stuff)\n%webout(CLOSE)\n"
+                  "content": "/**\n  @file dostuff.sas\n  @brief example file\n  @details  This service does stuff. Like - ya know - stuff.\n\n  <h4> SAS Macros </h4>\n  @li mv_createfolder.sas\n  @li mm_getauthinfo.sas\n\n**/\n\ndata stuff;set sashelp.class;run;\n%webout(OPEN)\n%webout(OBJ,stuff)\n%webout(CLOSE)\n"
                 }
               ]
             },
@@ -95,15 +95,15 @@
               "files": [
                 {
                   "fileName": "appinit.sas",
-                  "content": "/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> Dependencies </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n"
+                  "content": "/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n"
                 },
                 {
                   "fileName": "getdata.sas",
-                  "content": "/**\n  @file getdata.sas\n  @brief Get Data service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> Dependencies </h4>\n\n**/\n\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from areas);\n\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n"
+                  "content": "/**\n  @file getdata.sas\n  @brief Get Data service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from areas);\n\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n"
                 },
                 {
                   "fileName": "example.sas",
-                  "content": "/**\n  @file example.sas\n  @brief example service - for example \n  @details  This is a longer description.\n\n  <h4> Dependencies </h4>\n  @li mf_nobs.sas\n  @li examplemacro.sas\n  @li yetanothermacro.sas\n\n**/\n\n%put %mf_nobs(sashelp.class);\n\n%examplemacro()\n%yetanothermacro()\n\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n"
+                  "content": "/**\n  @file example.sas\n  @brief example service - for example \n  @details  This is a longer description.\n\n  <h4> SAS Macros </h4>\n  @li mf_nobs.sas\n  @li examplemacro.sas\n  @li yetanothermacro.sas\n\n**/\n\n%put %mf_nobs(sashelp.class);\n\n%examplemacro()\n%yetanothermacro()\n\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n"
                 }
               ]
             }
@@ -194,22 +194,27 @@
     }
   ],
   "config": {
-    "cmnBuildInit": "build/buildinit.sas",
-    "cmnBuildTerm": "build/buildterm.sas",
-    "cmnBuildVars": {
-      "name": "value",
-      "numvar": "42"
+    "buildConfig": {
+      "initProgram": "build/buildinit.sas",
+      "termProgram": "build/buildterm.sas",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
     },
-    "cmnDeployScript": "build/deployscript.sh",
-    "cmnMacros": ["macros"],
-    "cmnServices": ["services/common", "services/admin"],
-    "cmnServiceInit": "build/serviceinit.sas",
-    "cmnServiceTerm": "build/serviceterm.sas",
-    "cmnServiceVars": {
-      "name": "value",
-      "numvar": "42"
+    "deployConfig": {
+      "deployScripts": ["build/deployscript.sh"]
     },
-    "useMacroCore": true,
+    "serviceConfig": {
+      "serviceFolders": ["services/common", "services/admin"],
+      "initProgram": "build/serviceinit.sas",
+      "termProgram": "build/serviceterm.sas",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
+    },
+    "macroFolders": ["macros"],
     "programFolders": ["programs"],
     "targets": [
       {
@@ -217,30 +222,42 @@
         "serverType": "SASVIYA",
         "serverUrl": "http://sas.analytium.co.uk",
         "appLoc": "/Public/app",
-        "buildOutputFileName": "myviyadeploy.sas",
-        "deployServicePack": true,
-        "tgtBuildInit": "build/buildinitviya.sas",
-        "tgtBuildTerm": "targets/viya/viyabuildterm.sas",
-        "tgtBuildVars": {
-          "name": "viyavalue",
-          "extravar": "this too"
+        "contextName": "SAS Job Execution compute context",
+        "buildConfig": {
+          "buildOutputFileName": "myviyadeploy.sas",
+          "initProgram": "build/buildinitviya.sas",
+          "termProgram": "targets/viya/viyabuildterm.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
         },
-        "tgtDeployScripts": ["sasjsbuild/myviyadeploy.sas"],
-        "tgtDeployVars": {
-          "access_token": "AT0K3N",
-          "contextName": "Import 9 service compute context"
+        "deployConfig": {
+          "deployServicePack": true,
+          "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
         },
-        "tgtMacros": ["targets/viya/macros"],
-        "tgtServices": ["targets/viya/services/admin"],
-        "tgtServiceInit": "build/serviceinit.sas",
-        "tgtServiceVars": {
-          "name": "viyavalue",
-          "extravar": "this too"
+        "serviceConfig": {
+          "serviceFolders": ["targets/viya/services/admin"],
+          "initProgram": "build/serviceinit.sas",
+          "termProgram": "build/serviceinit.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
         },
-        "assetPaths": [],
-        "streamWeb": false,
-        "streamWebFolder": "webv",
-        "webSourcePath": "dist",
+        "jobConfig": {
+          "jobFolders": [],
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "webv",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["targets/viya/macros"],
         "programFolders": []
       },
       {
@@ -248,21 +265,31 @@
         "serverType": "SAS9",
         "serverUrl": "http://sas.analytium.co.uk:7980",
         "appLoc": "/User Folders/&sysuserid/My Folder",
-        "buildOutputFileName": "mysas9deploy.sas",
-        "tgtBuildInit": false,
-        "tgtDeployScripts": ["build/deploysas9.sh"],
-        "tgtDeployVars": {
-          "serverName": "SASApp",
-          "repositoryName": "Foundation"
+        "serverName": "Foundation",
+        "repositoryName": "SASApp",
+        "buildConfig": {
+          "buildOutputFileName": "mysas9deploy.sas",
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
         },
-        "tgtMacros": ["targets/sas9/macros"],
-        "tgtServices": ["targets/sas9/services/admin"],
-        "tgtServiceInit": "",
-        "tgtServiceTerm": "build/servicetermother.sas",
-        "assetPaths": [],
-        "streamWeb": false,
-        "streamWebFolder": "web9",
-        "webSourcePath": "dist",
+        "deployConfig": {
+          "deployScripts": ["build/deploysas9.sh"],
+          "deployServicePack": false
+        },
+        "serviceConfig": {
+          "serviceFolders": ["targets/sas9/services/admin"],
+          "initProgram": "",
+          "termProgram": "build/servicetermother.sas",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "web9",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["targets/sas9/macros"],
         "programFolders": []
       }
     ]
