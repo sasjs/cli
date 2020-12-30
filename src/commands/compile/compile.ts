@@ -22,6 +22,10 @@ import { loadDependencies } from './internal/loadDependencies'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
+import {
+  getDestinationServicePath,
+  getDestinationJobPath
+} from './internal/getDestinationPath'
 
 export async function compile(targetName: string) {
   let { target } = await findTargetInConfiguration(targetName)
@@ -29,8 +33,8 @@ export async function compile(targetName: string) {
 
   if (result.compiled) {
     // no need to compile again
+    process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
-    process.logger?.info('Skipping compiling of build folders.')
     return
   }
   await compileModule.copyFilesToBuildFolder(target).catch((error) => {
@@ -47,18 +51,17 @@ export async function copyFilesToBuildFolder(target: Target) {
   process.logger?.info(`Copying files to ${buildDestinationFolder}.`)
   try {
     const serviceFolders = await getAllServiceFolders(target)
-
     const jobFolders = await getAllJobFolders(target)
 
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
       const sourcePath = path.join(buildSourceFolder, serviceFolder)
-      const destinationPath = path.join(buildDestinationFolder, serviceFolder)
+      const destinationPath = getDestinationServicePath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
       const sourcePath = path.join(buildSourceFolder, jobFolder)
-      const destinationPath = path.join(buildDestinationFolder, jobFolder)
+      const destinationPath = getDestinationJobPath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
   } catch (error) {
@@ -97,17 +100,13 @@ export async function compileJobsAndServices(target: Target) {
 }
 
 async function recreateBuildFolder() {
-  const {
-    buildDestinationFolder,
-    buildDestinationServicesFolder
-  } = getConstants()
+  const { buildDestinationFolder } = getConstants()
   process.logger?.info('Recreating build folder...')
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) {
-    deleteFolder(buildDestinationFolder)
+    await deleteFolder(buildDestinationFolder)
   }
   await createFolder(buildDestinationFolder)
-  await createFolder(buildDestinationServicesFolder)
 }
 
 async function getPreCodeForServicePack(serverType: ServerType) {
@@ -157,11 +156,11 @@ const compileServiceFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const { buildSourceFolder } = getConstants()
   const folderPath = path.join(buildSourceFolder, serviceFolder)
-  const destinationPath = path.join(buildDestinationFolder, serviceFolder)
-  const subFolders = await getSubFoldersInFolder(folderPath)
-  const filesNamesInPath = await getFilesInFolder(folderPath)
+  const destinationPath = getDestinationServicePath(folderPath)
+  const subFolders = await getSubFoldersInFolder(destinationPath)
+  const filesNamesInPath = await getFilesInFolder(destinationPath)
   const errors: Error[] = []
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
@@ -209,11 +208,11 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const { buildSourceFolder } = getConstants()
   const folderPath = path.join(buildSourceFolder, jobFolder)
-  const destinationPath = path.join(buildDestinationFolder, jobFolder)
-  const subFolders = await getSubFoldersInFolder(folderPath)
-  const filesNamesInPath = await getFilesInFolder(folderPath)
+  const destinationPath = getDestinationJobPath(folderPath)
+  const subFolders = await getSubFoldersInFolder(destinationPath)
+  const filesNamesInPath = await getFilesInFolder(destinationPath)
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
     const dependencies = await loadDependencies(

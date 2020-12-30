@@ -4,98 +4,156 @@ import { getConstants } from '../../../constants'
 import {
   fileExists,
   getSubFoldersInFolder,
-  getFilesInFolder
+  getFilesInFolder,
+  folderExists
 } from '../../../utils/file'
 import { asyncForEach } from '../../../utils/utils'
 import { getAllJobFolders } from './getAllJobFolders'
 import { getAllServiceFolders } from './getAllServiceFolders'
+import {
+  getDestinationJobPath,
+  getDestinationServicePath
+} from './getDestinationPath'
 
 export async function checkCompileStatus(target: Target) {
-  const {
-    buildDestinationFolder,
-    buildDestinationServicesFolder,
-    buildDestinationJobsFolder
-  } = getConstants()
-  const servicePathsToCompile = await getAllServiceFolders(target)
+  const { buildDestinationFolder } = getConstants()
 
-  const jobPathsToCompile = await getAllJobFolders(target)
-
-  const serviceFoldersToCompile = servicePathsToCompile.map((s) =>
-    s.split('/').pop()
-  )
-  const servicesBuildFolders = [...new Set(serviceFoldersToCompile)]
-
-  const jobFoldersToCompile = jobPathsToCompile.map((s) => s.split('/').pop())
-  const jobsBuildFolders = [...new Set(jobFoldersToCompile)]
   const pathExists = await fileExists(buildDestinationFolder)
-  if (!pathExists)
+  if (!pathExists) {
     return {
       compiled: false,
-      message: `Build Folder doesn't exists: ${buildDestinationFolder}`
-    }
-
-  if (servicesBuildFolders.length) {
-    const serviceSubFolders = await getSubFoldersInFolder(
-      buildDestinationServicesFolder
-    )
-    const servicesPresent = servicesBuildFolders.every((folder) =>
-      serviceSubFolders.includes(folder)
-    )
-    if (!servicesPresent)
-      return { compiled: false, message: 'All services are not present.' }
-  }
-
-  if (jobsBuildFolders.length) {
-    const jobSubFolders = await getSubFoldersInFolder(
-      buildDestinationJobsFolder
-    )
-
-    const jobsPresent = jobsBuildFolders.every((folder) =>
-      jobSubFolders.includes(folder)
-    )
-    if (!jobsPresent)
-      return { compiled: false, message: 'All jobs are not present.' }
-  }
-
-  if (servicesBuildFolders.length == 0 && jobsBuildFolders.length == 0) {
-    return {
-      compiled: false,
-      message: 'Either Services or Jobs should be present'
+      message: `Build folder ${buildDestinationFolder} doesn't exist.`
     }
   }
 
-  let returnObj = {
-    compiled: true,
-    message: `All services and jobs are already present.`
-  }
+  const {
+    areServiceFoldersMatching,
+    reasons: serviceReasons
+  } = await checkServiceFolders(target)
+  const { areJobFoldersMatching, reasons: jobReasons } = await checkJobFolders(
+    target
+  )
 
-  await asyncForEach(servicesBuildFolders, async (buildFolder) => {
-    if (returnObj.compiled) {
-      const folderPath = path.join(buildDestinationServicesFolder, buildFolder)
-      const subFolders = await getSubFoldersInFolder(folderPath)
-      const filesNamesInPath = await getFilesInFolder(folderPath)
-      if (subFolders.length == 0 && filesNamesInPath.length == 0) {
-        returnObj = {
-          compiled: false,
-          message: `Service folder ${buildFolder} is empty.`
-        }
-      }
+  const compiled = areServiceFoldersMatching && areJobFoldersMatching
+  return {
+    compiled,
+    message: compiled
+      ? 'All services and jobs are already present.'
+      : `Missing Services: ${serviceReasons.join(
+          ', '
+        )}\nMissing jobs: ${jobReasons.join(', ')}`
+  }
+}
+
+/**
+ * Checks if each file in each subfolder of the specified service folders
+ * is present in the `sasjsbuild/services` folder.
+ * @param {Target} target- the target to check job folders for.
+ * @returns an object containing a boolean `areServiceFoldersMatching` and a list of reasons if not matching.
+ */
+const checkServiceFolders = async (target: Target) => {
+  const serviceFolders = await getAllServiceFolders(target)
+  const { buildSourceFolder } = getConstants()
+
+  let areServiceFoldersMatching = true
+  const reasons: string[] = []
+  await asyncForEach(serviceFolders, async (serviceFolder) => {
+    const sourcePath = path.join(buildSourceFolder, serviceFolder)
+    const destinationPath = getDestinationServicePath(sourcePath)
+
+    const { equal, reason } = await compareFolders(sourcePath, destinationPath)
+    areServiceFoldersMatching = areServiceFoldersMatching && equal
+    if (!equal) {
+      reasons.push(reason)
     }
   })
+  return { areServiceFoldersMatching, reasons }
+}
 
-  if (returnObj.compiled) {
-    await asyncForEach(jobsBuildFolders, async (buildFolder) => {
-      const folderPath = path.join(buildDestinationJobsFolder, buildFolder)
-      const subFolders = await getSubFoldersInFolder(folderPath)
-      const filesNamesInPath = await getFilesInFolder(folderPath)
-      if (subFolders.length == 0 && filesNamesInPath.length == 0) {
-        returnObj = {
-          compiled: false,
-          message: `Jobs folder ${buildFolder} is empty.`
-        }
-      }
-    })
+/**
+ * Checks if each file in each subfolder of the specified job folders
+ * is present in the `sasjsbuild/jobs` folder.
+ * @param {Target} target- the target to check job folders for.
+ * @returns an object containing a boolean `areJobFoldersMatching` and a list of reasons if not matching.
+ */
+const checkJobFolders = async (target: Target) => {
+  const jobFolders = await getAllJobFolders(target)
+  const { buildSourceFolder } = getConstants()
+
+  let areJobFoldersMatching = true
+  const reasons: string[] = []
+  await asyncForEach(jobFolders, async (jobFolder) => {
+    const sourcePath = path.join(buildSourceFolder, jobFolder)
+    const destinationPath = getDestinationJobPath(sourcePath)
+
+    const { equal, reason } = await compareFolders(sourcePath, destinationPath)
+    areJobFoldersMatching = areJobFoldersMatching && equal
+    if (!equal) {
+      reasons.push(reason)
+    }
+  })
+  return { areJobFoldersMatching, reasons }
+}
+
+const compareFolders = async (sourcePath: string, destinationPath: string) => {
+  const sourcePathExists = await folderExists(sourcePath)
+  const destinationPathExists = await folderExists(destinationPath)
+
+  if (!sourcePathExists) {
+    throw new Error(
+      `Source path ${sourcePath} does not exist. Please check the \`serviceFolders\` and \`jobFolders\` in your target configuration and try again.`
+    )
   }
 
-  return returnObj
+  if (!destinationPathExists) {
+    return {
+      equal: false,
+      reason: `Destination path ${destinationPath} does not exist.`
+    }
+  }
+
+  const sourceSubFolders = (await getSubFoldersInFolder(sourcePath)) as string[]
+  const destinationSubFolders = (await getSubFoldersInFolder(
+    destinationPath
+  )) as string[]
+
+  const sourceFiles = (await getFilesInFolder(sourcePath)) as string[]
+  const destinationFiles = (await getFilesInFolder(destinationPath)) as string[]
+
+  const areFilesMatching = sourceFiles.every((file) =>
+    destinationFiles.includes(file)
+  )
+
+  if (!areFilesMatching) {
+    const missingFiles = sourceFiles.filter(
+      (file) => !destinationFiles.includes(file)
+    )
+    return {
+      equal: false,
+      reason: `Files missing from ${destinationPath}: ${missingFiles.join(
+        ', '
+      )}`
+    }
+  }
+
+  const areSubFoldersMatching = sourceSubFolders.every((subFolder) =>
+    destinationSubFolders.includes(subFolder)
+  )
+
+  if (!areSubFoldersMatching) {
+    const missingSubFolders = sourceSubFolders.filter(
+      (subFolder) => !destinationSubFolders.includes(subFolder)
+    )
+    return {
+      equal: false,
+      reason: `Subfolders missing from ${destinationPath}: ${missingSubFolders.join(
+        ', '
+      )}`
+    }
+  }
+
+  return {
+    equal: true,
+    reason: 'All files and subfolders are matching.'
+  }
 }
