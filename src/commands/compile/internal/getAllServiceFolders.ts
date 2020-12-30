@@ -21,5 +21,5 @@ export async function getAllServiceFolders(target: Target) {
     allServices = [...allServices, ...target.serviceConfig.serviceFolders]
 
   allServices = allServices.filter((p) => !!p)
-  return Promise.resolve([...new Set(allServices)])
+  return [...new Set(allServices)]
 }

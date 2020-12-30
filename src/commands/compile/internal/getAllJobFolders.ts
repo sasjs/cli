@@ -21,5 +21,5 @@ export async function getAllJobFolders(target: Target) {
     allJobs = [...allJobs, ...target.jobConfig.jobFolders]
 
   allJobs = allJobs.filter((s) => !!s) as string[]
-  return Promise.resolve([...new Set(allJobs)])
+  return [...new Set(allJobs)]
 }

@@ -1,12 +1,15 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
+import {
+  getAccessToken,
+  findTargetInConfiguration,
+  getConfiguration
+} from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
   isShellScript,
   readFile,
-  folderExists,
   createFile
 } from '../../utils/file'
 import { ServerType, Target } from '@sasjs/utils'
@@ -22,13 +25,11 @@ export async function deploy(targetName: string) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
     )
-
     await deployToSasViyaWithServicePack(target)
-
     process.logger?.success('Service pack has been successfully deployed.')
   }
 
-  const deployScripts = getDeployScripts(target)
+  const deployScripts = await getDeployScripts(target)
 
   if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
     throw new Error(
@@ -36,17 +37,9 @@ export async function deploy(targetName: string) {
     )
   }
 
-  const pathExistsInCurrentFolder = await folderExists(
-    path.join(process.projectDir, 'sasjsbuild')
-  )
-  const pathExistsInParentFolder = await folderExists(
-    path.join(process.projectDir, '..', 'sasjsbuild')
-  )
-  const logFilePath = pathExistsInCurrentFolder
-    ? path.join(process.projectDir, 'sasjsbuild')
-    : pathExistsInParentFolder
-    ? path.join(process.projectDir, '..', 'sasjsbuild')
-    : null
+  const { buildDestinationFolder } = getConstants()
+
+  const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
     if (isSasFile(deployScript)) {
       process.logger?.info(
@@ -86,8 +79,23 @@ export async function deploy(targetName: string) {
   })
 }
 
-function getDeployScripts(target: Target) {
-  return target?.deployConfig?.deployScripts ?? []
+async function getDeployScripts(target: Target) {
+  const { buildSourceFolder } = getConstants()
+  const configuration = await getConfiguration(
+    path.join(buildSourceFolder, 'sasjsconfig.json')
+  )
+
+  let allDeployScripts: string[] = [
+    ...(configuration?.deployConfig?.deployScripts || [])
+  ]
+
+  allDeployScripts = [
+    ...allDeployScripts,
+    ...(target.deployConfig?.deployScripts || [])
+  ]
+
+  allDeployScripts = allDeployScripts.filter((d) => !!d)
+  return [...new Set(allDeployScripts)]
 }
 
 async function getSASjsAndAccessToken(target: Target) {
