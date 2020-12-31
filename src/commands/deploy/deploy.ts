@@ -14,6 +14,7 @@ import {
 } from '../../utils/file'
 import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
+import chalk from 'chalk'
 
 export async function deploy(targetName: string) {
   const { target, isLocal } = await findTargetInConfiguration(targetName)
@@ -67,14 +68,13 @@ export async function deploy(targetName: string) {
         `Executing shell script ${path.basename(deployScript)}...`
       )
 
-      await executeShellScript(
-        deployScript,
-        path.join(
-          process.projectDir,
-          'sasjsbuild',
-          `${path.basename(deployScript).replace('.sh', '')}.log`
-        )
+      const { buildSourceFolder, buildDestinationFolder } = getConstants()
+      const deployScriptPath = path.join(buildSourceFolder, deployScript)
+      const logPath = path.join(
+        buildDestinationFolder,
+        `${path.basename(deployScript).replace('.sh', '')}.log`
       )
+      await executeShellScript(deployScriptPath, logPath)
       process.logger?.success(
         `Shell script execution completed! Log is available at ${path.join(
           'sasjsbuild',
