@@ -156,7 +156,9 @@ export async function getAndValidateSasViyaFields(
       dotenv.config({
         path: path.join(process.projectDir, `.env.${targetName}`)
       })
-      contexts = await sasjs.getAllContexts(process.env.ACCESS_TOKEN as string)
+      contexts = await sasjs.getComputeContexts(
+        process.env.ACCESS_TOKEN as string
+      )
     } else {
       const { target } = await findTargetInConfiguration(targetName)
       if (!target.authConfig || !target.authConfig.access_token) {
@@ -165,7 +167,7 @@ export async function getAndValidateSasViyaFields(
         )
       }
 
-      contexts = await sasjs.getAllContexts(target.authConfig.access_token)
+      contexts = await sasjs.getComputeContexts(target.authConfig.access_token)
     }
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
