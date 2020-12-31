@@ -19,7 +19,6 @@ import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 
-let buildDestinationFolder = ''
 const permittedServerTypes = {
   SAS9: 'SAS9',
   SASVIYA: 'SASVIYA'
@@ -35,13 +34,7 @@ const exampleStreamConfig: StreamConfig = {
 export async function createWebAppServices(targetName: string) {
   const { target } = await findTargetInConfiguration(targetName)
 
-  const { buildDestinationFolder } = getConstants()
-
-  if (!target) {
-    throw new Error(
-      `Invalid target: Target ${targetName} was not found in your configuration.`
-    )
-  }
+  const { buildDestinationServicesFolder } = getConstants()
 
   const { streamConfig } = target
 
@@ -80,8 +73,7 @@ export async function createWebAppServices(targetName: string) {
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(
-    buildDestinationFolder,
-    'services',
+    buildDestinationServicesFolder,
     streamWebFolder
   )
   await createTargetDestinationFolder(destinationPath)
@@ -352,6 +344,7 @@ function getFaviconTags(parsedHtml: JSDOM) {
 }
 
 async function createBuildDestinationFolder() {
+  const { buildDestinationFolder } = getConstants()
   const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists) {
     await createFolder(buildDestinationFolder)
@@ -451,8 +444,9 @@ async function createClickMeService(indexHtmlContent: string) {
     }
   })
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
+  const { buildDestinationServicesFolder } = getConstants()
   await createFile(
-    path.join(buildDestinationFolder, 'services', 'clickme.sas'),
+    path.join(buildDestinationServicesFolder, 'clickme.sas'),
     clickMeServiceContent
   )
 }
