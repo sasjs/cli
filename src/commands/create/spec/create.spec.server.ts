@@ -1,13 +1,14 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { verifyFolderStructure } from '../../../utils/test'
-import { createFolder, deleteFolder, fileExists } from '../../../utils/file'
-import { asyncForEach, generateTimestamp } from '../../../utils/utils'
+import { verifyFolder } from '../../../utils/test'
+import { createFolder, deleteFolder } from '../../../utils/file'
+import { generateTimestamp } from '../../../utils/utils'
 import { getFolders } from '../../../utils/config'
-import fileStructureMinimalObj from './files-minimal-app.json'
-import fileStructureReactObj from './files-react-app.json'
-import fileStructureAngularrObj from './files-angular-app.json'
+import { minimalAppFiles } from './minimalAppFiles'
+import { reactAppFiles } from './reactAppFiles'
+import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
+import { Folder } from '../../../types'
 
 describe('sasjs create', () => {
   beforeAll(() => {
@@ -117,69 +118,41 @@ describe('sasjs create', () => {
   })
 })
 
-const verifyCreateWeb = async (parentFolderName: string, appType: string) => {
-  let everythingPresent = true
-  const fileStructure =
+const verifyCreateWeb = async (appName: string, appType: string) => {
+  const fileStructure: Folder =
     appType === 'minimal'
-      ? fileStructureMinimalObj
+      ? minimalAppFiles
       : appType === 'react'
-      ? fileStructureReactObj
+      ? reactAppFiles
       : appType === 'angular'
-      ? fileStructureAngularrObj
-      : null
+      ? angularAppFiles
+      : minimalAppFiles
+  fileStructure.folderName = appName
 
-  const fileStructureClone = JSON.parse(JSON.stringify(fileStructure))
-
-  await asyncForEach(fileStructureClone.files, async (file) => {
-    const filePath = path.join(
-      process.projectDir,
-      parentFolderName,
-      file.fileName
-    )
-    everythingPresent = everythingPresent && (await fileExists(filePath))
-  })
-  if (everythingPresent) {
-    await asyncForEach(fileStructureClone.subFolders, async (folder) => {
-      everythingPresent =
-        everythingPresent &&
-        (await verifyFolderStructure(folder, parentFolderName, ''))
-    })
-  }
-  expect(everythingPresent).toEqual(true)
+  await verifyFolder(fileStructure)
 }
 
 const verifyCreate = async (parentFolderName: string, appType: string) => {
   let fileStructure
   if (appType === 'sasonly') {
-    fileStructure = [
-      {
-        folderName: 'sasjs',
-        files: [],
-        subFolders: []
-      }
-    ]
-  } else {
-    fileStructure = await getFolders()
-  }
-  let everythingPresent = false
-  await asyncForEach(fileStructure, async (folder, index) => {
-    everythingPresent = await verifyFolderStructure(
-      folder,
-      parentFolderName,
-      ''
-    )
-    if (everythingPresent && index === 0) {
-      const configDestinationPath = path.join(
-        process.projectDir,
-        parentFolderName,
-        folder.folderName,
-        'sasjsconfig.json'
-      )
-      const configPresent = await fileExists(configDestinationPath)
-      expect(configPresent).toEqual(true)
-    } else {
-      console.log(`No present`, folder, parentFolderName)
+    fileStructure = {
+      folderName: parentFolderName,
+      files: [],
+      subFolders: [
+        {
+          folderName: 'sasjs',
+          files: [],
+          subFolders: []
+        }
+      ]
     }
-  })
-  expect(everythingPresent).toEqual(true)
+  } else {
+    fileStructure = (await getFolders())[0]
+    fileStructure = {
+      folderName: parentFolderName,
+      subFolders: fileStructure,
+      files: []
+    }
+  }
+  await verifyFolder(fileStructure)
 }

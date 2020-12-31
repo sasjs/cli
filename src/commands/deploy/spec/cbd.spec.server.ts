@@ -50,12 +50,12 @@ describe('sasjs cbd with global config', () => {
     const servicePath = path.join(
       __dirname,
       target.name,
-      'sasjsbuild/testJob/job.sas'
+      'sasjsbuild/jobs/testJob/job.sas'
     )
     const jobPath = path.join(
       __dirname,
       target.name,
-      'sasjsbuild/testJob/job.sas'
+      'sasjsbuild/jobs/testJob/job.sas'
     )
     const buildJsonPath = path.join(
       __dirname,
