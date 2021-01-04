@@ -42,7 +42,7 @@ describe('sasjs flow', () => {
     )
     await deleteFile(csvPath)
     await deleteFolder(logPath)
-    // await removeTestApp(__dirname, target.name)
+    await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()
   })
@@ -297,7 +297,7 @@ describe('sasjs flow', () => {
     done()
   })
 
-  it.only(`should execute 6 chained flows with failing and succeeding jobs`, async (done) => {
+  it(`should execute 6 chained flows with failing and succeeding jobs`, async (done) => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_7.json')
 
     const command = new Command(
