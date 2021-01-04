@@ -29,6 +29,17 @@ export async function docs(targetName: string, outDirectory: string) {
     ' '
   )
 
+  if (combinedFolders.length === 0) {
+    throw new Error(
+      `Unable to locate folders for generating docs.\n` +
+        `Please add one of these:\n` +
+        ` - 'macroFolders'\n` +
+        ` - 'programFolders'\n` +
+        ` - 'serviceConfig.serviceFolders'\n` +
+        ` - 'jobConfig.jobFolders'\n`
+    )
+  }
+
   const doxyParams =
     `DOXY_CONTENT=${doxyContent}${path.sep} ` +
     `DOXY_INPUT="${combinedFolders}" ` +
