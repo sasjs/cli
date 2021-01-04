@@ -48,10 +48,11 @@ export async function createFileStructure(command: Command) {
     })
 }
 export async function generateDocs(command: Command) {
+  const targetName = command.getFlagValue('target') as string
   const outDirectory = command.getFlagValue('outDirectory') as string
   const { buildDestinationDocsFolder } = getConstants()
 
-  return await docs(outDirectory)
+  return await docs(targetName, outDirectory)
     .then(() => {
       displaySuccess(
         `Docs have been generated!\nThe docs are located at the ${chalk.cyanBright(

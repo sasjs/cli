@@ -92,7 +92,10 @@ const commandFlags = [
   },
   { command: initialCommands.add, flags: [initialFlags.target] },
   { command: initialCommands.create, flags: [initialFlags.template] },
-  { command: initialCommands.doc, flags: [initialFlags.outDirectory] },
+  {
+    command: initialCommands.doc,
+    flags: [initialFlags.target, initialFlags.outDirectory]
+  },
   { command: initialCommands.web, flags: [initialFlags.target] },
   { command: initialCommands['build-DB'], flags: [initialFlags.target] },
   { command: initialCommands.compile, flags: [initialFlags.target] },

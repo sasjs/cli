@@ -4,36 +4,44 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { createFolder } from '../../utils/file'
+import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
-export async function docs(outDirectory: string) {
+import { getFoldersForDocs } from './internal/getFoldersForDocs'
+import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
+
+export async function docs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
   if (!outDirectory) outDirectory = buildDestinationDocsFolder
 
-  await createFolder(outDirectory)
+  const config = await getLocalConfig()
+  const rootFolders = getFoldersForDocs(config)
+
+  const targetFolders: string[] = []
+  if (targetName) {
+    const { target } = await findTargetInConfiguration(targetName)
+    targetFolders.push(...getFoldersForDocs(target))
+  } else {
+    targetFolders.push(...getFoldersForDocsAllTargets(config))
+  }
+
+  const combinedFolders = [...new Set([...rootFolders, ...targetFolders])].join(
+    ' '
+  )
+
+  const doxyParams =
+    `DOXY_CONTENT=${doxyContent}${path.sep} ` +
+    `DOXY_INPUT="${combinedFolders}" ` +
+    `DOXY_HTML_OUTPUT=${outDirectory}`
+
+  const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
 
   const spinner = ora(
     chalk.greenBright('Generating docs', chalk.cyanBright(outDirectory))
   )
-
-  const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
-
   spinner.start()
-  const DOXY_INPUT = './sasjs/'
-  const HTML_HEADER = path.join(doxyContent, 'new_header.html')
-  const HTML_FOOTER = path.join(doxyContent, 'new_footer.html')
-  const HTML_EXTRA_STYLESHEET = path.join(doxyContent, 'new_stylesheet.css')
-  const LAYOUT_FILE = path.join(doxyContent, 'DoxygenLayout.xml')
-  const PROJECT_LOGO = path.join(doxyContent, 'Macro_core_website_1.png')
 
-  const doxyParams =
-    `HTML_HEADER=${HTML_HEADER} ` +
-    `HTML_FOOTER=${HTML_FOOTER} ` +
-    `HTML_EXTRA_STYLESHEET=${HTML_EXTRA_STYLESHEET} ` +
-    `LAYOUT_FILE=${LAYOUT_FILE}` +
-    `PROJECT_LOGO=${PROJECT_LOGO}` +
-    `DOXY_INPUT=${DOXY_INPUT} DOXY_HTML_OUTPUT=${outDirectory}`
-
+  await createFolder(outDirectory)
   shelljs.exec(`${doxyParams} doxygen ${doxyConfigPath}`, {
     silent: true
   })
