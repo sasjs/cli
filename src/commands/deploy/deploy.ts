@@ -1,10 +1,6 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import {
-  getAccessToken,
-  findTargetInConfiguration,
-  getConfiguration
-} from '../../utils/config'
+import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
@@ -14,7 +10,7 @@ import {
 } from '../../utils/file'
 import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
-import chalk from 'chalk'
+import { getDeployScripts } from './internal/getDeployScripts'
 
 export async function deploy(targetName: string) {
   const { target, isLocal } = await findTargetInConfiguration(targetName)
@@ -83,25 +79,6 @@ export async function deploy(targetName: string) {
       )
     }
   })
-}
-
-async function getDeployScripts(target: Target) {
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
-  )
-
-  let allDeployScripts: string[] = [
-    ...(configuration?.deployConfig?.deployScripts || [])
-  ]
-
-  allDeployScripts = [
-    ...allDeployScripts,
-    ...(target.deployConfig?.deployScripts || [])
-  ]
-
-  allDeployScripts = allDeployScripts.filter((d) => !!d)
-  return [...new Set(allDeployScripts)]
 }
 
 async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {

@@ -17,6 +17,7 @@ import {
 } from '../../../utils/config'
 import * as configUtils from '../../../utils/config'
 import * as displayResultModule from '../../../utils/displayResult'
+import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
   createTestMinimalApp,
@@ -50,7 +51,7 @@ describe('sasjs cbd with global config', () => {
     const servicePath = path.join(
       __dirname,
       target.name,
-      'sasjsbuild/jobs/testJob/job.sas'
+      'sasjsbuild/services/testJob/job.sas'
     )
     const jobPath = path.join(
       __dirname,
@@ -131,7 +132,7 @@ describe('sasjs cbd with local config', () => {
     await updateLocalTarget(target.name, {
       deployConfig: {
         deployServicePack: false,
-        deployScripts: ['sasjs/build/copyscript.sh']
+        deployScripts: ['build/copyscript.sh']
       }
     })
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
@@ -147,6 +148,9 @@ describe('sasjs cbd with local config', () => {
         deployScripts: []
       }
     })
+    jest
+      .spyOn(getDeployScriptsModule, 'getDeployScripts')
+      .mockImplementation(() => Promise.resolve([]))
     jest.spyOn(displayResultModule, 'displayError')
 
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
@@ -173,7 +177,7 @@ describe('sasjs cbd with local config', () => {
 
     expect(displayResultModule.displayError).toHaveBeenCalledWith(
       new Error(
-        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+        `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env.${target.name} file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
       ),
       'An error has occurred when deploying services.'
     )
@@ -264,7 +268,7 @@ const createLocalTarget = async () => {
     {
       ...target.toJson(),
       deployConfig: {
-        deployScripts: ['sasjs/build/copyscript.sh'],
+        deployScripts: ['build/copyscript.sh'],
         deployServicePack: true
       }
     }

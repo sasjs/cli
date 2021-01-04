@@ -79,62 +79,6 @@ export const createTestGlobalTarget = async (
   return target
 }
 
-const createLocalTarget = async (
-  targetName: string,
-  serviceConfig = {
-    serviceFolders: ['services'],
-    initProgram: '',
-    termProgram: '',
-    macroVars: {}
-  }
-) => {
-  dotenv.config()
-
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
-  const target = new Target({
-    name: targetName,
-    serverType,
-    serverUrl: process.env.SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    serviceConfig,
-    jobConfig: {
-      jobFolders: [],
-      initProgram: '',
-      termProgram: '',
-      macroVars: {}
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-
-  const configContent = await readFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
-  )
-
-  const configJSON = JSON.parse(configContent)
-  configJSON.targets = [
-    {
-      ...target.toJson(),
-      deployConfig: {
-        deployScripts: ['sasjs/build/copyscript.sh'],
-        deployServicePack: true
-      }
-    }
-  ]
-
-  await createFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
-    JSON.stringify(configJSON, null, 2)
-  )
-
-  return target
-}
-
 export const verifyStep = async (
   step: 'db' | 'compile' | 'build' = 'compile'
 ) => {
