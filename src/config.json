@@ -52,11 +52,11 @@
             },
             {
               "fileName": "deployscript.sh",
-              "content": "echo shell script for deployscript"
+              "content": "echo 'shell script for deployscript'"
             },
             {
               "fileName": "deploysas9.sh",
-              "content": "echo shell script for deploysas9"
+              "content": "echo 'shell script for deploysas9'"
             }
           ]
         },

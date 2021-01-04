@@ -21,7 +21,7 @@ export async function edit(
   let result
 
   const editedContext = await sasjs
-    .editContext(name, config, accessToken)
+    .editComputeContext(name, config, accessToken)
     .catch((err) => {
       result = err
 

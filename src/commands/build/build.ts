@@ -59,8 +59,6 @@ async function createFinalSasFile(target: Target) {
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
   const buildInfo = await getBuildInfo(target).catch((_) => {})
 
-  if (!buildConfig) return
-
   finalSasFileContent += `\n${buildInfo}`
 
   const buildInit = await getBuildInit(target)

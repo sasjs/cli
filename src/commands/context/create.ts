@@ -16,7 +16,7 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
   let result
 
   const createdContext = await sasjs
-    .createContext(
+    .createComputeContext(
       name,
       launchName,
       sharedAccountId,
