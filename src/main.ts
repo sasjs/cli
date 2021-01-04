@@ -14,7 +14,8 @@ import {
   processServicepack,
   printVersion,
   createWebAppServices,
-  processFlow
+  processFlow,
+  docs
 } from './commands'
 import chalk from 'chalk'
 import { displayError, displaySuccess } from './utils/displayResult'
@@ -43,6 +44,24 @@ export async function createFileStructure(command: Command) {
     })
     .catch((err: any) => {
       displayError(err, 'An error has occurred whilst creating your project.')
+      return ReturnCode.InternalError
+    })
+}
+export async function generateDocs(command: Command) {
+  const outDirectory = command.getFlagValue('outDirectory') as string
+  const { buildDestinationDocsFolder } = getConstants()
+
+  return await docs(outDirectory)
+    .then(() => {
+      displaySuccess(
+        `Docs have been generated!\nThe docs are located at the ${chalk.cyanBright(
+          outDirectory ? outDirectory : buildDestinationDocsFolder
+        )} directory.`
+      )
+      return ReturnCode.Success
+    })
+    .catch((err: any) => {
+      displayError(err, 'An error has occurred whilst generating docs.')
       return ReturnCode.InternalError
     })
 }
