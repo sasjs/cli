@@ -129,7 +129,7 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {
-  const doxyFilesPath = '../commands/create/doxy'
+  const doxyFilesPath = '../doxy'
   const doxyFolderPathSource = path.join(__dirname, doxyFilesPath)
   const doxyFolderPath = path.join(
     process.projectDir,
