@@ -160,11 +160,7 @@ async function getFolderContent(serverType: ServerType) {
 
     folderContent += `\n${content}`
 
-    if (contentJSON.name === 'services') {
-      folderContentJSON?.members.push(...contentJSON?.members)
-    } else {
-      folderContentJSON?.members.push(contentJSON)
-    }
+    folderContentJSON.members.push(contentJSON)
   })
 
   return { folderContent, folderContentJSON }

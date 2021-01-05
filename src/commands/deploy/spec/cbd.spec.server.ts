@@ -75,12 +75,12 @@ describe('sasjs cbd with global config', () => {
     expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
     expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
     /**
-     * test to ensure that services are deployed as direct subfolders, not in a subfolder of a folder called services
+     * test to ensure that services are deployed in a subfolder of a folder called services
      *  */
     const jsonContent = JSON.parse(await readFile(buildJsonPath))
     expect(
       !!jsonContent.members.find((x: any) => x.name === 'services')
-    ).toEqual(false)
+    ).toEqual(true)
     /**
      * test to ensure that web services do have pre code
      */
