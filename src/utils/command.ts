@@ -1,6 +1,5 @@
 import { displayError } from './displayResult'
 import { arrToObj, checkNodeVersion } from './utils'
-import chalk from 'chalk'
 
 const showInvalidCommandMessage = () => {
   displayError(
@@ -258,10 +257,8 @@ export class Command {
     const today = new Date()
 
     if (today < deprecationDate && this.values.length) {
-      console.log(
-        chalk.yellowBright(
-          `WARNING: use --target or -t flag to specify the target name. Specifying the target name without a flag will not be supported starting from November 1, 2021.`
-        )
+      process.logger?.warn(
+        `Please use --target or -t flag to specify the target name. Specifying the target name without a flag will not be supported starting from November 1, 2021.`
       )
 
       return this.values.shift()

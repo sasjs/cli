@@ -5,7 +5,6 @@ import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 import SASjs, { Link } from '@sasjs/adapter/node'
 import { Target } from '@sasjs/utils/types'
-import chalk from 'chalk'
 
 /**
  * Triggers existing job for execution.

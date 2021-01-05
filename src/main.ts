@@ -16,7 +16,6 @@ import {
   createWebAppServices,
   processFlow
 } from './commands'
-import chalk from 'chalk'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
 import { compile } from './commands/compile/compile'
@@ -67,9 +66,7 @@ export async function compileServices(command: Command) {
   return await compile(targetName, true)
     .then(() => {
       displaySuccess(
-        `Services have been successfully compiled!\nThe build output is located in the ${chalk.cyanBright(
-          'sasjsbuild'
-        )} directory.`
+        `Services have been successfully compiled!\nThe build output is located in the 'sasjsbuild' directory.`
       )
       return ReturnCode.Success
     })
