@@ -259,12 +259,6 @@ export async function getProgramFolders(targetName: string) {
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  if (!target) {
-    throw new Error(
-      'Target not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
-    )
-  }
-
   if (target.programFolders) {
     programFolders = programFolders.concat(target.programFolders)
   }
@@ -295,12 +289,6 @@ export async function getMacroFolders(targetName: string) {
   }
 
   const { target } = await findTargetInConfiguration(targetName)
-
-  if (!target) {
-    throw new Error(
-      'Target not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
-    )
-  }
 
   if (target.programFolders) {
     macroFolders = macroFolders.concat(target.programFolders)
