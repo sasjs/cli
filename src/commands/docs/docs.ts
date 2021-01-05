@@ -3,6 +3,7 @@ import shelljs from 'shelljs'
 import chalk from 'chalk'
 import ora from 'ora'
 
+import { isWindows } from '../../utils/command'
 import { createFolder } from '../../utils/file'
 import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
@@ -40,10 +41,11 @@ export async function docs(targetName: string, outDirectory: string) {
     )
   }
 
-  const doxyParams =
-    `DOXY_CONTENT=${doxyContent}${path.sep} ` +
-    `DOXY_INPUT="${combinedFolders}" ` +
-    `DOXY_HTML_OUTPUT=${outDirectory}`
+  const doxyParams = setVariableCmd({
+    DOXY_CONTENT: `${doxyContent}${path.sep}`,
+    DOXY_INPUT: combinedFolders,
+    DOXY_HTML_OUTPUT: outDirectory
+  })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
 
@@ -57,4 +59,19 @@ export async function docs(targetName: string, outDirectory: string) {
     silent: true
   })
   spinner.stop()
+}
+
+function setVariableCmd(params: any): string {
+  let command = ''
+  const isWin = isWindows()
+  if (isWin) {
+    for (const param in params) {
+      command += `set ${param}=${params[param]} && `
+    }
+  } else {
+    for (const param in params) {
+      command += `${param}="${params[param]}" `
+    }
+  }
+  return command
 }

@@ -306,10 +306,14 @@ class Flag {
   }
 }
 
+export function isWindows(): boolean {
+  return process.platform === 'win32'
+}
+
 export function parseCommand(rawArgs: string[]) {
   checkNodeVersion()
 
-  const isWin = process.platform === 'win32'
+  const isWin = isWindows()
   const isMSys = !!process.env.MSYSTEM
   const prefix = process.env.EXEPATH
     ? process.env.EXEPATH.replace(/\\/g, '/')
