@@ -24,9 +24,7 @@ describe('sasjs job execute', () => {
   })
 
   it('should list a folders for given path', async (done) => {
-    const command = new Command(
-      `folder list /Public -t ${target.name}`
-    )
+    const command = new Command(`folder list /Public -t ${target.name}`)
 
     let folderList = await folder(command)
 

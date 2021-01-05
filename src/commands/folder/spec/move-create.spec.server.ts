@@ -49,22 +49,18 @@ describe('sasjs job execute', () => {
       `folder move ${testFolderPath}/temp ${testFolderPath}/test2 -t ${target.name}`
     )
     await folder(commandMove1)
-      
+
     // Check if operations are executed correctly
     let folderList1 = await folder(
-      new Command(
-        `folder list ${testFolderPath}/test2 -t ${target.name}`
-      )
+      new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )
     expect(folderList1).toContain('temp')
 
     let folderList2 = await folder(
-      new Command(
-        `folder list ${testFolderPath}/test2/temp -t ${target.name}`
-      )
+      new Command(`folder list ${testFolderPath}/test2/temp -t ${target.name}`)
     )
     expect(folderList2).toContain('test')
-  
+
     await deleteTestFolder(testFolderPath, target.name)
     done()
   })
@@ -90,15 +86,13 @@ describe('sasjs job execute', () => {
       `folder move ${testFolderPath}/temp/test ${testFolderPath}/temp/test_renamed -t ${target.name}`
     )
     await folder(commandMove1)
-      
+
     // Check if operations are executed correctly
     let folderList1 = await folder(
-      new Command(
-        `folder list ${testFolderPath}/temp -t ${target.name}`
-      )
+      new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
     )
     expect(folderList1).toContain('test_renamed')
-  
+
     await deleteTestFolder(testFolderPath, target.name)
     done()
   })
