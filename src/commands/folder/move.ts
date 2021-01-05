@@ -33,7 +33,7 @@ export const move = async (
   if (movedFolder) {
     displaySuccess(
       `Folder successfully moved from '${sourceFolder}' to '${
-        targetFolder + '/' + targetFolderName
+        targetFolder
       }'.`
     )
   }

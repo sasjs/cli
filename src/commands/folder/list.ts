@@ -12,7 +12,7 @@ export const list = async (path: string, sasjs: SASjs, accessToken: string) => {
   const sourceFolder = path
 
   const folderList = await sasjs
-    .listFolder(sourceFolder, accessToken)
+    .listFolder(sourceFolder, accessToken, 10000)
     .catch((err: any) => {
       displayError(err)
     })
