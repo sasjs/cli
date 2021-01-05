@@ -55,10 +55,19 @@ export async function docs(targetName: string, outDirectory: string) {
   spinner.start()
 
   await createFolder(outDirectory)
-  shelljs.exec(`${doxyParams} doxygen ${doxyConfigPath}`, {
-    silent: true
-  })
+  const { stderr, code } = shelljs.exec(
+    `${doxyParams} doxygen ${doxyConfigPath}`,
+    {
+      silent: true
+    }
+  )
   spinner.stop()
+
+  if (stderr || code) {
+    throw new Error(
+      `'Doxygen' is not installed or configured, make sure 'doxygen' avaiable in console.\n${stderr}`
+    )
+  }
 }
 
 function setVariableCmd(params: any): string {
