@@ -34,6 +34,8 @@ export async function execute(
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
+    const logger = new Logger(LogLevel.Info)
+
     if (!source || !isJsonFile(source)) {
       return reject(
         `Please provide flow source (--source) file.\n${examples.command}`
@@ -108,6 +110,8 @@ export async function execute(
         return reject(examples.source)
 
       if (!flow.predecessors || flow.predecessors.length === 0) {
+        displaySuccess(`'${flowName}' flow started.`)
+
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
@@ -126,10 +130,16 @@ export async function execute(
               true
             )
             .catch(async (err: any) => {
+              displaySuccess(
+                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
+              )
+
               const logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
@@ -294,7 +304,8 @@ export async function execute(
       links: any[],
       flowName: string,
       jobLocation: string,
-      lineCount: number = 1000000
+      lineCount: number = 1000000,
+      printLogPath = false
     ) => {
       return new Promise(async (resolve, reject) => {
         if (!logFolder) return reject('No log folder provided')
@@ -452,6 +463,8 @@ export async function execute(
           if (successFullPredecessors.includes(false)) return
         }
 
+        displaySuccess(`'${successor}' flow started.`)
+
         flows[successor].jobs.forEach((job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
@@ -562,10 +575,16 @@ export async function execute(
               }
             })
             .catch(async (err: any) => {
+              displaySuccess(
+                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
+              )
+
               const logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
