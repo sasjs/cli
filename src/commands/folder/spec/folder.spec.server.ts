@@ -23,6 +23,22 @@ describe('sasjs job execute', () => {
     done()
   })
 
+  it('list folder children', async (done) => {
+    const timestamp = generateTimestamp()
+    const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
+
+    await createTestFolder(testFolderPath, target.name)
+
+    const commandList1 = new Command(
+      `folder list /Public/app/cli-tests -t ${target.name}`
+    )
+    const list1 = await folder(commandList1)
+    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+
+    await deleteTestFolder(testFolderPath, target.name)
+    done()
+  })
+
   it('move folders keeping the folder name', async (done) => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
@@ -65,7 +81,7 @@ describe('sasjs job execute', () => {
     done()
   })
 
-  it('move folder renaming the folder', async (done) => {
+  it('move folder to same location renaming the folder', async (done) => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -90,6 +106,43 @@ describe('sasjs job execute', () => {
     // Check if operations are executed correctly
     let folderList1 = await folder(
       new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
+    )
+    expect(folderList1).toContain('test_renamed')
+
+    await deleteTestFolder(testFolderPath, target.name)
+    done()
+  })
+
+  it('move folder to different location renaming the folder', async (done) => {
+    const timestamp = generateTimestamp()
+    const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
+
+    await createTestFolder(testFolderPath, target.name)
+
+    const commandList1 = new Command(
+      `folder list /Public/app/cli-tests -t ${target.name}`
+    )
+    const list1 = await folder(commandList1)
+    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+
+    const commandCreate2 = new Command(
+      `folder create ${testFolderPath}/temp/test -t ${target.name}`
+    )
+    await folder(commandCreate2)
+
+    const commandCreate3 = new Command(
+      `folder create ${testFolderPath}/test2 -t ${target.name}`
+    )
+    await folder(commandCreate3)
+
+    const commandMove1 = new Command(
+      `folder move ${testFolderPath}/temp ${testFolderPath}/test2/test_renamed -t ${target.name}`
+    )
+    await folder(commandMove1)
+
+    // Check if operations are executed correctly
+    let folderList1 = await folder(
+      new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )
     expect(folderList1).toContain('test_renamed')
 
