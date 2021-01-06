@@ -72,166 +72,150 @@ describe('sasjs context', () => {
   })
 
   describe('exportContext', () => {
-    it(
-      'should export a compute context',
-      async () => {
-        const contextName = contexts[0].name
-        const command = new Command(
-          `context export ${contextName} -t ${targetName}`
-        )
+    it('should export a compute context', async (done) => {
+      const contextName = contexts[0].name
+      const command = new Command(
+        `context export ${contextName} -t ${targetName}`
+      )
 
-        await expect(processContext(command)).resolves.toEqual(true)
-      },
-      60 * 1000
-    )
+      await expect(processContext(command)).resolves.toEqual(true)
+
+      done()
+    })
   })
 
   describe('create', () => {
-    it(
-      'should create a compute context',
-      async () => {
-        testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
-        testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
+    it('should create a compute context', async (done) => {
+      testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
+      testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
 
-        let contextConfig = await readFile(testContextConfigPath)
+      let contextConfig = await readFile(testContextConfigPath)
 
-        testContextConfig = JSON.parse(contextConfig)
-        testContextConfig = {
-          ...testContextConfig,
-          launchContext: {
-            contextName: 'CLI Unit Tests launcher context'
-          }
+      testContextConfig = JSON.parse(contextConfig)
+      testContextConfig = {
+        ...testContextConfig,
+        launchContext: {
+          contextName: 'CLI Unit Tests launcher context'
         }
-        testContextConfig.name += '_' + Date.now()
+      }
+      testContextConfig.name += '_' + Date.now()
 
-        if (!testContextConfig.attributes) {
-          testContextConfig.attributes = { runServerAs: 'cas' }
+      if (!testContextConfig.attributes) {
+        testContextConfig.attributes = { runServerAs: 'cas' }
+      }
+
+      contextConfig = JSON.stringify(testContextConfig, null, 2)
+
+      await createFile(testContextConfigPath, contextConfig)
+
+      const command = new Command(
+        `context create -s ${testContextConfigFile} -t targetName`
+      )
+
+      await expect(processContext(command)).resolves.toEqual(true)
+
+      done()
+    })
+
+    it('should return an error if trying to create compute context that already exists', async (done) => {
+      testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
+      testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
+
+      let contextConfig = await readFile(testContextConfigPath)
+
+      testContextConfig = JSON.parse(contextConfig)
+      testContextConfig = {
+        ...testContextConfig,
+        launchContext: {
+          contextName: 'CLI Unit Tests launcher context'
         }
+      }
 
-        contextConfig = JSON.stringify(testContextConfig, null, 2)
+      if (!testContextConfig.attributes) {
+        testContextConfig.attributes = { runServerAs: 'cas' }
+      }
 
-        await createFile(testContextConfigPath, contextConfig)
+      contextConfig = JSON.stringify(testContextConfig, null, 2)
 
-        const command = new Command(
-          `context create -s ${testContextConfigFile} -t targetName`
-        )
+      await createFile(testContextConfigPath, contextConfig)
 
-        await expect(processContext(command)).resolves.toEqual(true)
-      },
-      60 * 1000
-    )
+      const command = new Command(
+        `context create -s ${testContextConfigFile} -t targetName`
+      )
 
-    it(
-      'should return an error if trying to create compute context that already exists',
-      async () => {
-        testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
-        testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
+      await expect(processContext(command)).resolves.toEqual(
+        new Error(`Compute context '${testContextConfig.name}' already exists.`)
+      )
 
-        let contextConfig = await readFile(testContextConfigPath)
-
-        testContextConfig = JSON.parse(contextConfig)
-        testContextConfig = {
-          ...testContextConfig,
-          launchContext: {
-            contextName: 'CLI Unit Tests launcher context'
-          }
-        }
-
-        if (!testContextConfig.attributes) {
-          testContextConfig.attributes = { runServerAs: 'cas' }
-        }
-
-        contextConfig = JSON.stringify(testContextConfig, null, 2)
-
-        await createFile(testContextConfigPath, contextConfig)
-
-        const command = new Command(
-          `context create -s ${testContextConfigFile} -t targetName`
-        )
-
-        await expect(processContext(command)).resolves.toEqual(
-          new Error(
-            `Compute context '${testContextConfig.name}' already exists.`
-          )
-        )
-      },
-      60 * 1000
-    )
+      done()
+    })
   })
 
   describe('edit', () => {
-    it(
-      'should return an error if trying to edit default compute context',
-      async () => {
-        testContextConfig.description += '_updated'
+    it('should return an error if trying to edit default compute context', async (done) => {
+      testContextConfig.description += '_updated'
 
-        setDefaultContextName()
+      setDefaultContextName()
 
-        const contextConfig = JSON.stringify(testContextConfig, null, 2)
+      const contextConfig = JSON.stringify(testContextConfig, null, 2)
 
-        await createFile(testContextConfigPath, contextConfig)
+      await createFile(testContextConfigPath, contextConfig)
 
-        const command = new Command(
-          `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
-        )
+      const command = new Command(
+        `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
+      )
 
-        await expect(processContext(command)).resolves.toEqual(
-          defaultContextError('Editing')
-        )
+      await expect(processContext(command)).resolves.toEqual(
+        defaultContextError('Editing')
+      )
 
-        restoreTestContextName()
-      },
-      60 * 1000
-    )
+      restoreTestContextName()
 
-    it(
-      'should edit compute context',
-      async () => {
-        testContextConfig.description += '_updated'
+      done()
+    })
 
-        const contextConfig = JSON.stringify(testContextConfig, null, 2)
+    it('should edit compute context', async (done) => {
+      testContextConfig.description += '_updated'
 
-        await createFile(testContextConfigPath, contextConfig)
+      const contextConfig = JSON.stringify(testContextConfig, null, 2)
 
-        const command = new Command(
-          `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
-        )
+      await createFile(testContextConfigPath, contextConfig)
 
-        await expect(processContext(command)).resolves.toEqual(true)
-      },
-      60 * 1000
-    )
+      const command = new Command(
+        `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
+      )
+
+      await expect(processContext(command)).resolves.toEqual(true)
+
+      done()
+    })
   })
 
   describe('delete', () => {
-    it(
-      'should return an error if trying to delete default compute context',
-      async () => {
-        setDefaultContextName()
+    it('should return an error if trying to delete default compute context', async (done) => {
+      setDefaultContextName()
 
-        const command = new Command(
-          `context delete ${testContextConfig.name} -t targetName`
-        )
+      const command = new Command(
+        `context delete ${testContextConfig.name} -t targetName`
+      )
 
-        await expect(processContext(command)).resolves.toEqual(
-          defaultContextError('Deleting')
-        )
+      await expect(processContext(command)).resolves.toEqual(
+        defaultContextError('Deleting')
+      )
 
-        restoreTestContextName()
-      },
-      60 * 1000
-    )
+      restoreTestContextName()
 
-    it(
-      'should delete compute context',
-      async () => {
-        const command = new Command(
-          `context delete ${testContextConfig.name} -t targetName`
-        )
+      done()
+    })
 
-        await expect(processContext(command)).resolves.toEqual(true)
-      },
-      60 * 1000
-    )
+    it('should delete compute context', async (done) => {
+      const command = new Command(
+        `context delete ${testContextConfig.name} -t targetName`
+      )
+
+      await expect(processContext(command)).resolves.toEqual(true)
+
+      done()
+    })
   })
 })
