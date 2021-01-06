@@ -42,7 +42,7 @@ export async function execute(
 
     if (
       !(await fileExists(source).catch((err) =>
-        displayResult(err, 'Error while checking if source file exists.')
+        displayError(err, 'Error while checking if source file exists.')
       ))
     ) {
       return reject(`Source file does not exist.\n${examples.command}`)
@@ -87,7 +87,7 @@ export async function execute(
     if (
       logFolder &&
       !(await folderExists(logFolder).catch((err) =>
-        displayResult(err, 'Error while checking if log folder exists.')
+        displayError(err, 'Error while checking if log folder exists.')
       ))
     ) {
       await createFolder(logFolder).catch((err) =>
@@ -111,11 +111,7 @@ export async function execute(
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
 
-          displayResult(
-            null,
-            null,
-            `'${job.location}' has been submitted for execution.`
-          )
+          displaySuccess(`'${job.location}' has been submitted for execution.`)
 
           let submittedJob: any = await sasjs
             .startComputeJob(
