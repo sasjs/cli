@@ -18,7 +18,6 @@ import { getAccessToken } from '../../utils/config'
 import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
-import { setInterval } from 'timers'
 import examples from './examples'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
 
@@ -35,13 +34,19 @@ export async function execute(
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
+    const logger = new Logger(LogLevel.Info)
+
     if (!source || !isJsonFile(source)) {
       return reject(
         `Please provide flow source (--source) file.\n${examples.command}`
       )
     }
 
-    if (!(await fileExists(source))) {
+    if (
+      !(await fileExists(source).catch((err) =>
+        displayError(err, 'Error while checking if source file exists.')
+      ))
+    ) {
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
@@ -81,7 +86,12 @@ export async function execute(
       )
     }
 
-    if (logFolder && !(await folderExists(logFolder))) {
+    if (
+      logFolder &&
+      !(await folderExists(logFolder).catch((err) =>
+        displayError(err, 'Error while checking if log folder exists.')
+      ))
+    ) {
       await createFolder(logFolder).catch((err) =>
         displayError(err, 'Error while creating log folder file.')
       )
@@ -100,8 +110,12 @@ export async function execute(
         return reject(examples.source)
 
       if (!flow.predecessors || flow.predecessors.length === 0) {
+        displaySuccess(`'${flowName}' flow started.`)
+
         flow.jobs.forEach(async (job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
+
+          displaySuccess(`'${job.location}' has been submitted for execution.`)
 
           let submittedJob: any = await sasjs
             .startComputeJob(
@@ -112,17 +126,20 @@ export async function execute(
               },
               accessToken,
               true,
-              pollOptions
+              pollOptions,
+              true
             )
             .catch(async (err: any) => {
+              displaySuccess(
+                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
+              )
+
               const logName = await saveLog(
-                target,
-                logFolder,
-                sasjs,
-                accessToken,
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
@@ -163,10 +180,6 @@ export async function execute(
             const details = parseJobDetails(submittedJob)
 
             const logName = await saveLog(
-              target,
-              logFolder,
-              sasjs,
-              accessToken,
               submittedJob.links,
               flowName,
               jobLocation,
@@ -286,6 +299,62 @@ export async function execute(
       }
     }
 
+    // REFACTOR: move to utility
+    const saveLog = async (
+      links: any[],
+      flowName: string,
+      jobLocation: string,
+      lineCount: number = 1000000,
+      printLogPath = false
+    ) => {
+      return new Promise(async (resolve, reject) => {
+        if (!logFolder) return reject('No log folder provided')
+        if (!links) return reject('No links provided')
+
+        const logObj = links.find(
+          (link: any) => link.rel === 'log' && link.method === 'GET'
+        )
+
+        if (logObj) {
+          const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
+          const logData = await sasjs
+            .fetchLogFileContent(logUrl, accessToken)
+            .catch((err) =>
+              displayError(err, 'Error while fetching log content.')
+            )
+          const logJson = JSON.parse(logData as string)
+
+          const logParsed = parseLogLines(logJson)
+
+          const generateFileName = () =>
+            `${flowName}_${jobLocation
+              .split('/')
+              .splice(-1, 1)
+              .join('')
+              .replace(/\W/g, '_')}_${generateTimestamp()}.log`
+
+          let logName = generateFileName()
+
+          while (
+            await fileExists(path.join(logFolder, logName)).catch((err) =>
+              displayError(err, 'Error while checking if log file exists.')
+            )
+          ) {
+            logName = generateFileName()
+          }
+
+          await createFile(
+            path.join(logFolder, logName),
+            logParsed
+          ).catch((err) => displayError(err, 'Error while creating log file.'))
+
+          return resolve(logName)
+        }
+
+        return resolve(null)
+      })
+    }
+
     let csvFileAbleToSave = true
 
     // REFACTOR: move to utility
@@ -303,6 +372,16 @@ export async function execute(
         const timerId = setInterval(async () => {
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
+
+            if (
+              !(await fileExists(csvFile).catch((err) =>
+                displayError(err, 'Error while checking if csv file exists.')
+              ))
+            ) {
+              await createFile(csvFile, '').catch((err) =>
+                displayError(err, 'Error while creating CSV file.')
+              )
+            }
 
             let csvData = await readFile(csvFile).catch((err) =>
               displayError(err, 'Error while reading CSV file.')
@@ -384,8 +463,12 @@ export async function execute(
           if (successFullPredecessors.includes(false)) return
         }
 
+        displaySuccess(`'${successor}' flow started.`)
+
         flows[successor].jobs.forEach((job: any) => {
           const jobLocation = prefixAppLoc(target.appLoc, job.location)
+
+          displaySuccess(`'${job.location}' has been submitted for execution.`)
 
           sasjs
             .startComputeJob(
@@ -396,7 +479,8 @@ export async function execute(
               },
               accessToken,
               true,
-              pollOptions
+              pollOptions,
+              true
             )
             .then(async (res: any) => {
               if (res && res.job) {
@@ -405,10 +489,6 @@ export async function execute(
                 const details = parseJobDetails(res)
 
                 const logName = await saveLog(
-                  target,
-                  logFolder,
-                  sasjs,
-                  accessToken,
                   res.links,
                   successor,
                   jobLocation,
@@ -495,14 +575,16 @@ export async function execute(
               }
             })
             .catch(async (err: any) => {
+              displaySuccess(
+                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
+              )
+
               const logName = await saveLog(
-                target,
-                logFolder,
-                sasjs,
-                accessToken,
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
-                jobLocation
+                jobLocation,
+                1000000,
+                true
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
@@ -569,55 +651,4 @@ const parseJobDetails = (response: any) => {
   }
 
   return { details, lineCount }
-}
-
-// REFACTOR: move to utility
-const saveLog = async (
-  target: Target,
-  logFolder: string,
-  sasjs: SASjs,
-  accessToken: string | undefined,
-  links: any[],
-  flowName: string,
-  jobLocation: string,
-  lineCount: number = 1000000
-) => {
-  return new Promise(async (resolve, reject) => {
-    if (!logFolder) return reject('No log folder provided')
-    if (!links) return reject('No links provided')
-
-    const logObj = links.find(
-      (link: any) => link.rel === 'log' && link.method === 'GET'
-    )
-
-    if (logObj) {
-      const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
-      const logData = await sasjs
-        .fetchLogFileContent(logUrl, accessToken)
-        .catch((err) => displayError(err, 'Error while fetching log content.'))
-      const logJson = JSON.parse(logData as string)
-
-      const logParsed = parseLogLines(logJson)
-
-      const generateFileName = () =>
-        `${flowName}_${jobLocation.replace(
-          /\W/g,
-          '_'
-        )}_${generateTimestamp()}.log`
-
-      let logName = generateFileName()
-
-      while (await fileExists(path.join(logFolder, logName))) {
-        logName = generateFileName()
-      }
-
-      await createFile(path.join(logFolder, logName), logParsed).catch((err) =>
-        displayError(err, 'Error while creating log file.')
-      )
-
-      return resolve(logName)
-    }
-
-    return resolve(null)
-  })
 }

@@ -64,7 +64,8 @@ export async function execute(
       { contextName },
       accessToken,
       waitForJob || logFile !== undefined ? true : false,
-      pollOptions
+      pollOptions,
+      true
     )
     .catch(async (err) => {
       if (err && err.log) {
