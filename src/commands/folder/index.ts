@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import { create } from './create'
@@ -33,10 +32,8 @@ export async function folder(command: Command) {
   const { target } = await findTargetInConfiguration(targetName)
 
   if (!folderPath) {
-    console.log(
-      chalk.redBright(
-        `Please provide folder path (eg 'sasjs folder <command> /Public/folder').`
-      )
+    process.logger?.error(
+      `Please provide folder path (eg 'sasjs folder <command> /Public/folder').`
     )
 
     return

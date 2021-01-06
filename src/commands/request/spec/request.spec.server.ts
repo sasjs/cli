@@ -57,7 +57,7 @@ describe('sasjs request without compute API', () => {
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
-        serviceFolders: ['runRequest', 'services'],
+        serviceFolders: ['runRequest'],
         initProgram: '',
         termProgram: '',
         macroVars: {}
@@ -100,7 +100,7 @@ describe('sasjs request without compute API', () => {
     await expect(
       runRequest(
         new Command(
-          `request /Public/app/cli-tests/${target.name}/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
+          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -116,7 +116,7 @@ describe('sasjs request without compute API', () => {
     await expect(
       runRequest(
         new Command(
-          `request /Public/app/cli-tests/${target.name}/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
+          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -132,7 +132,7 @@ describe('sasjs request without compute API', () => {
     await expect(
       runRequest(
         new Command(
-          `request runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
+          `request services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -149,7 +149,7 @@ describe('sasjs request without compute API', () => {
     await expect(
       runRequest(
         new Command(
-          `request runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
+          `request services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -175,7 +175,7 @@ describe(`sasjs request with compute API`, () => {
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
-        serviceFolders: ['runRequest', 'services'],
+        serviceFolders: ['runRequest'],
         initProgram: '',
         termProgram: '',
         macroVars: {}
@@ -188,8 +188,6 @@ describe(`sasjs request with compute API`, () => {
 
     await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
 
-    const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
-    await deleteFolder(sasjsBuildDirPath)
     done()
   })
 
@@ -226,7 +224,7 @@ describe(`sasjs request with compute API`, () => {
     await expect(
       runRequest(
         new Command(
-          `request /Public/app/cli-tests/${target.name}/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
+          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -243,7 +241,7 @@ describe(`sasjs request with compute API`, () => {
     await expect(
       runRequest(
         new Command(
-          `request /Public/app/cli-tests/${target.name}/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
+          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -260,7 +258,7 @@ describe(`sasjs request with compute API`, () => {
     await expect(
       runRequest(
         new Command(
-          `request runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
+          `request services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
@@ -277,7 +275,7 @@ describe(`sasjs request with compute API`, () => {
     await expect(
       runRequest(
         new Command(
-          `request runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
+          `request services/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
         )
       )
     ).toResolve()
