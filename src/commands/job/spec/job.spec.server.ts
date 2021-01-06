@@ -39,11 +39,11 @@ describe('sasjs job execute', () => {
   })
 
   afterAll(async (done) => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    // await folder(
+    //   new Command(
+    //     `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
+    //   )
+    // )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()
@@ -55,7 +55,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job for execution', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name}`
+      `job execute /Public/app/cli-tests/${target.name}/services/testJob/job -t ${target.name}`
     )
 
     await expect(processJob(command)).toResolve()

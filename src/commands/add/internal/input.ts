@@ -151,7 +151,7 @@ export async function getAndValidateSasViyaFields(
       serverType: ServerType.SasViya,
       debug: process.logger?.logLevel === LogLevel.Debug
     })
-    let contexts = []
+    let contexts: any[] = []
     if (scope === TargetScope.Local) {
       dotenv.config({
         path: path.join(process.projectDir, `.env.${targetName}`)
@@ -174,7 +174,7 @@ export async function getAndValidateSasViyaFields(
     const contextNumber = await getChoice(
       'Please pick your SAS Viya execution context: ',
       contextNumberErrorMessage,
-      contexts.map((c) => ({ title: c.name }))
+      contexts.map((c: any) => ({ title: c.name }))
     )
 
     contextName = contexts[contextNumber - 1].name

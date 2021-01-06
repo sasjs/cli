@@ -1,9 +1,8 @@
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { readFile, fileExists, folderExists, createFile } from './file'
+import { readFile, folderExists, createFile } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
-import chalk from 'chalk'
 import dotenv from 'dotenv'
 import { Configuration } from '../types'
 import { getConstants } from '../constants'
@@ -264,10 +263,8 @@ export async function getProgramFolders(targetName: string) {
   }
 
   if (!programFolders.length) {
-    console.log(
-      chalk.yellowBright(
-        'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
-      )
+    process.logger?.warn(
+      'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
     )
   }
   return programFolders
@@ -295,10 +292,8 @@ export async function getMacroFolders(targetName: string) {
   }
 
   if (!macroFolders.length) {
-    console.log(
-      chalk.yellowBright(
-        'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
-      )
+    process.logger?.warn(
+      'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
     )
   }
   return macroFolders
