@@ -80,16 +80,6 @@ export async function readFile(fileName, debug = false, silent = false) {
   })
 }
 
-export async function deleteFile(fileName) {
-  return new Promise((resolve, reject) => {
-    fs.unlink(fileName, (err) => {
-      if (err) return reject(err)
-
-      resolve()
-    })
-  })
-}
-
 export async function base64EncodeFile(fileName, debug = false) {
   if (debug) {
     console.log('Encoding file: ', chalk.cyan(fileName))
@@ -201,7 +191,7 @@ export async function createFile(fileName, content, debug = false) {
       if (!(await folderExists(folderPath))) await createFolder(folderPath)
     }
 
-    fs.writeFile(fileName, content, function (error, data) {
+    fs.writeFile(fileName, content, function (error) {
       if (error) {
         console.log(
           chalk.red(`Error creating file %s`),
@@ -209,7 +199,8 @@ export async function createFile(fileName, content, debug = false) {
         )
         return reject(error)
       }
-      resolve(data)
+
+      resolve(content)
     })
   })
 }
