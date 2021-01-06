@@ -1,5 +1,6 @@
 declare namespace NodeJS {
-  interface Process {
+  export interface Process {
     projectDir: string
+    logger: import('@sasjs/utils/logger').Logger
   }
 }

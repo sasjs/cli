@@ -8,10 +8,12 @@
   "scripts": {
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm link --force\"",
     "build": "rimraf build && tsc -p . && cp-cli ./src/config.json build/config.json",
-    "test": "jest --silent",
+    "test": "npm run test:mocked && npm run test:server",
+    "test:server": "jest --silent --config=jest.server.config.js",
+    "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
     "semantic-release": "semantic-release -d",
-    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\"",
-    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,json,yml,md,graphql}\""
+    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
+    "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\""
   },
   "release": {
     "branches": [
@@ -40,9 +42,9 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^1.19.4",
-    "@sasjs/core": "^1.12.3",
-    "@sasjs/utils": "^1.1.5",
+    "@sasjs/adapter": "^2.0.2",
+    "@sasjs/core": "^2.0.0",
+    "@sasjs/utils": "^2.0.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
@@ -63,10 +65,18 @@
   "devDependencies": {
     "@babel/preset-env": "^7.11.5",
     "@babel/preset-typescript": "^7.12.7",
+    "@types/btoa": "^1.2.3",
+    "@types/find": "^0.2.1",
+    "@types/jsdom": "^16.2.5",
+    "@types/lodash.groupby": "^4.6.6",
+    "@types/lodash.uniqby": "^4.7.6",
     "@types/node": "^14.14.10",
+    "@types/shelljs": "^0.8.8",
     "babel-jest": "^26.5.0",
     "cp-cli": "^2.0.0",
+    "jest": "^26.6.3",
     "jest-cli": "^26.5.0",
+    "jest-extended": "^0.11.5",
     "mock-stdin": "^1.0.0",
     "nodemon": "^2.0.6",
     "puppeteer": "^5.3.1",
