@@ -1,6 +1,7 @@
 node_modules
-build
+/build
 sas
 sasbuild
 .env
 .DS_Store
+/coverage

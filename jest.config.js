@@ -2,11 +2,12 @@
 // https://jestjs.io/docs/en/configuration.html
 
 module.exports = {
+  testTimeout: 90000,
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
   // Stop running tests after `n` failures
-  // bail: 0,
+  // bail: 1,
 
   // Respect "browser" field in package.json when resolving modules
   // browser: false,
@@ -79,15 +80,7 @@ module.exports = {
   // ],
 
   // A map from regular expressions to module names that allow to stub out resources with a single module
-  moduleNameMapper: {
-    'files-db.json': '<rootDir>/test/__mocks__/files-db.json',
-    'files-minimal-app.json': '<rootDir>/test/__mocks__/files-minimal-app.json',
-    'files-react-app.json': '<rootDir>/test/__mocks__/files-react-app.json',
-    'files-angular-app.json': '<rootDir>/test/__mocks__/files-angular-app.json',
-    'files-compiled.json':
-      '<rootDir>/test/__mocks__/files-compiled-for-new-app.json',
-    'files-built.json': '<rootDir>/test/__mocks__/files-built-for-new-app.json'
-  },
+  moduleNameMapper: {},
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
   // modulePathIgnorePatterns: [],
@@ -131,10 +124,10 @@ module.exports = {
   // runner: "jest-runner",
 
   // The paths to modules that run some code to configure or set up the testing environment before each test
-  setupFiles: ['./test/helpers.js'],
+  setupFiles: [],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  // setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['jest-extended'],
 
   // A list of paths to snapshot serializer modules Jest should use for snapshot testing
   // snapshotSerializers: [],
@@ -149,12 +142,10 @@ module.exports = {
   // testLocationInResults: false,
 
   // The glob patterns Jest uses to detect test files
-  testMatch: ['**/test/**/*spec.[j|t]s?(x)'],
+  testMatch: ['**/*spec.[j|t]s?(x)'],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-  // testPathIgnorePatterns: [
-  //   "/node_modules/"
-  // ],
+  testPathIgnorePatterns: ['/node_modules/', '/build'],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
   // testRegex: [],
