@@ -28,6 +28,11 @@ export function displayError(err: any, errorMessage: string = '') {
       }
     } else if (err.hasOwnProperty('message')) {
       failureDetails = err.message
+    } else if (
+      err.hasOwnProperty('body') &&
+      err.body.hasOwnProperty('message')
+    ) {
+      if (err.body.hasOwnProperty('details')) failureDetails = err.body.details
     } else {
       failureDetails = typeof err === 'object' ? JSON.stringify(err) : err
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
