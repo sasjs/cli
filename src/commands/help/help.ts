@@ -57,8 +57,8 @@ export async function printHelpText() {
       title: 'compile <targetName>',
       description: [
         `compiles the services specified in the ${chalk.cyanBright(
-          'cmnServices'
-        )} and ${chalk.cyanBright('tgtServices')}.`
+          'serviceFolders'
+        )} property of the 'serviceConfig' in your target and common configuration.`
       ]
     },
     {
@@ -79,8 +79,8 @@ export async function printHelpText() {
       title: 'compilebuild <targetName>',
       description: [
         `compiles the services specified in the ${chalk.cyanBright(
-          'cmnServices'
-        )} and ${chalk.cyanBright('tgtServices')}.`,
+          'serviceFolders'
+        )}in the 'serviceConfig' in your target and common configurations.`,
         `It will also perform ${chalk.greenBright('build')} command.`
       ]
     },
@@ -88,32 +88,29 @@ export async function printHelpText() {
       name: 'deploy',
       title: 'deploy <targetName>',
       description: [
-        `triggers a shell command as specified in ${chalk.cyanBright(
-          'tgtDeployScripts'
-        )} (or ${chalk.cyanBright('cmnDeployScript')}).`,
+        `triggers a shell command as specified in the ${chalk.cyanBright(
+          'deployScripts'
+        )} property in your target's 'deployConfig' and the common 'deployConfig').`,
         `This command would perform tasks such as executing the deployment script, exporting the SPK, triggering tests etc.`,
         `The ${chalk.cyanBright(
-          'tgtDeployScripts'
-        )} specified for each target can include an array of scripts.`,
+          'deployScripts'
+        )} specified in each target's 'deployConfig' can include an array of scripts.`,
         `Each script can be a SAS file or a shell script.`,
         `If it is a shell script, it is executed locally and the output is displayed on the command line.`,
         `If it is a SAS file, it is sent to the SAS server for execution.`,
-        `To facilitate this, some configuration needs to be provided as part of the build target as ${chalk.cyanBright(
-          'tgtDeployVars'
-        )}.`,
+        `To facilitate this, some configuration needs to be provided.`,
         `This configuration is different for SAS VIYA and SAS9 servers:`,
-        `For SAS VIYA servers, the following items are required in the ${chalk.cyanBright(
-          'tgtDeployVars'
-        )}:`,
+        `For SAS VIYA servers, the following items are required:`,
         `[2spaces]* ${chalk.cyanBright(
-          'access_token'
+          'ACCESS_TOKEN'
         )} - An access token for performing operations with the SAS VIYA API.`,
+        `If the target has been specified in your project's local sasjsconfig.json file, this token needs to be present in a '.env' file corresponding to your target's name.`,
+        `So if your target was called 'viya-test', your '.env' file must be called '.env.viya-test'.`,
+        `You can automatically generate an access token and add it to the correct .env file using the sasjs add or sasjs add cred commands.`,
         `[2spaces]* ${chalk.cyanBright(
           'contextName'
-        )} - The name of the compute context that must be used to execute SAS code, e.g. "SharedCompute".`,
-        `For SAS9 servers, the following items are required in the ${chalk.cyanBright(
-          'tgtDeployVars'
-        )}:`,
+        )} - The name of the compute context that must be used to execute SAS code, e.g. "SharedCompute". This needs to be specified as part of the target JSON as the 'contextName' property.`,
+        `For SAS9 servers, the following items are required to be specified in the target JSON:`,
         `[2spaces]* ${chalk.cyanBright(
           'serverName'
         )} - The name of the server where SAS code will be executed, e.g. "SASApp".`,
@@ -133,8 +130,8 @@ export async function printHelpText() {
       title: 'compilebuilddeploy <targetName>',
       description: [
         `executes script file specified in the ${chalk.cyanBright(
-          'cmnDeployScript'
-        )} OR ${chalk.cyanBright('tgtDeployScript')}.`,
+          'deployScripts'
+        )} property in the target and common 'deployConfig'`,
         `It will also perform ${chalk.greenBright('compilebuild')} command.`,
         ``,
         `NOTE: If no target name is specified/matched, it will build the first target present in config.json.`,

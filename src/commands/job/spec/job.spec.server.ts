@@ -39,11 +39,11 @@ describe('sasjs job execute', () => {
   })
 
   afterAll(async (done) => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    // await folder(
+    //   new Command(
+    //     `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
+    //   )
+    // )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()
@@ -55,7 +55,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job for execution', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name}`
+      `job execute /Public/app/cli-tests/${target.name}/services/testJob/job -t ${target.name}`
     )
 
     await expect(processJob(command)).toResolve()
@@ -65,7 +65,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and wait for completion', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -w`
+      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w`
     )
 
     await expect(processJob(command)).toResolve()
@@ -74,7 +74,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and wait for its output', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -w -o`
+      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w -o`
     )
 
     await expect(processJob(command)).toResolve()
@@ -84,7 +84,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with job output', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput`
+      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput`
     )
 
     const folderPath = path.join(process.projectDir, 'testOutput')
@@ -100,7 +100,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with job output and wait', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput -w`
+      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -w`
     )
 
     const folderPath = path.join(process.projectDir, 'testOutput')
@@ -116,7 +116,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with job output, log and auto-wait', async (done) => {
     const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/testJob/job -t ${target.name} -o testOutput -l testLog.txt`
+      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -l testLog.txt`
     )
 
     const folderPathOutput = path.join(process.projectDir, 'testOutput')
@@ -138,7 +138,9 @@ describe('sasjs job execute', () => {
   })
 
   it('should submit a job and create a file with job log', async (done) => {
-    const command = new Command(`job execute testJob/job -t ${target.name} -l`)
+    const command = new Command(
+      `job execute jobs/testJob/job -t ${target.name} -l`
+    )
 
     const filePath = path.join(process.projectDir, 'job.log')
     await processJob(command)
@@ -150,7 +152,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with provided job log filename', async (done) => {
     const command = new Command(
-      `job execute testJob/job -t ${target.name} -l mycustom.log`
+      `job execute jobs/testJob/job -t ${target.name} -l mycustom.log`
     )
 
     const filePath = path.join(process.projectDir, 'mycustom.log')
@@ -164,7 +166,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with provided job log filename and path', async (done) => {
     const command = new Command(
-      `job execute testJob/job -t ${target.name} -l ./my/folder/mycustom.log`
+      `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log`
     )
 
     const folderPath = path.join(process.projectDir, 'my/folder')
@@ -180,7 +182,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job and create a file with provided job log filename and status file', async (done) => {
     const command = new Command(
-      `job execute testJob/job -t ${target.name} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
+      `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
     )
 
     const folderPath = path.join(process.projectDir, 'my/folder')
@@ -230,7 +232,7 @@ describe('sasjs job execute', () => {
 
   it('should submit a job that fails and create a status file', async (done) => {
     const command = new Command(
-      `job execute testJob/failingJob -t ${target.name} --wait --status ./my/folder/job.status`
+      `job execute jobs/testJob/failingJob -t ${target.name} --wait --status ./my/folder/job.status`
     )
 
     const folderPath = path.join(process.projectDir, 'my/folder')
@@ -250,7 +252,7 @@ describe('sasjs job execute', () => {
 
   it(`should submit a job that completes and return it's status`, async (done) => {
     const command = new Command(
-      `job execute testJob/job -t ${target.name} --wait --returnStatusOnly`
+      `job execute jobs/testJob/job -t ${target.name} --wait --returnStatusOnly`
     )
 
     const mockExit = mockProcessExit()
@@ -264,7 +266,7 @@ describe('sasjs job execute', () => {
 
   it(`should submit a job that completes with a warning and return it's status`, async (done) => {
     const command = new Command(
-      `job execute testJob/jobWithWarning -t ${target.name} --returnStatusOnly`
+      `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly`
     )
 
     const mockExit = mockProcessExit()
@@ -278,7 +280,7 @@ describe('sasjs job execute', () => {
 
   it(`should submit a job that completes with ignored warning and return it's status`, async (done) => {
     const command = new Command(
-      `job execute testJob/jobWithWarning -t ${target.name} --returnStatusOnly --ignoreWarnings`
+      `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly --ignoreWarnings`
     )
 
     const mockExit = mockProcessExit()
@@ -290,9 +292,9 @@ describe('sasjs job execute', () => {
     done()
   })
 
-  it(`should submit a job that fails and return it's status`, async (done) => {
+  it(`should submit a job that fails and return its status`, async (done) => {
     const command = new Command(
-      `job execute testJob/failingJob -t ${target.name} --returnStatusOnly -l`
+      `job execute jobs/testJob/failingJob -t ${target.name} --returnStatusOnly -l`
     )
 
     const mockExit = mockProcessExit()
@@ -311,14 +313,14 @@ describe('sasjs job execute', () => {
     expect(
       logData.match('ERROR: The %ABORT statement is not valid in open code.')
     ).toBeTruthy()
-    expect(logData.match(/\* ServiceTerm end;$/gm)).toBeTruthy()
+    expect(logData.match(/\* JobTerm end;$/gm)).toBeTruthy()
 
     done()
   })
 
   it(`should submit a job that does not exist and return it's status`, async (done) => {
     const command = new Command(
-      `job execute testJob/failingJob_DOES_NOT_EXIST -t ${target.name} --wait --returnStatusOnly`
+      `job execute jobs/testJob/failingJob_DOES_NOT_EXIST -t ${target.name} --wait --returnStatusOnly`
     )
 
     const mockExit = mockProcessExit()

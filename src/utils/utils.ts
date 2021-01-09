@@ -1,5 +1,4 @@
 import shelljs from 'shelljs'
-import chalk from 'chalk'
 import path from 'path'
 import ora from 'ora'
 import { fileExists, createFile, readFile, copy } from './file'
@@ -65,16 +64,14 @@ function createApp(
   repoUrl: string,
   installDependencies = true
 ) {
-  const spinner = ora(
-    chalk.greenBright('Creating web app in', chalk.cyanBright(folderPath))
-  )
+  const spinner = ora(`Creating web app in ${folderPath}.`)
   spinner.start()
   shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
     silent: true
   })
   spinner.stop()
   if (installDependencies) {
-    spinner.text = chalk.greenBright('Installing dependencies...')
+    spinner.text = 'Installing dependencies...'
     spinner.start()
     shelljs.exec(`cd ${folderPath} && npm install`, {
       silent: true
@@ -88,19 +85,14 @@ export async function setupNpmProject(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {
-      console.log(
-        chalk.greenBright(
-          'Initialising NPM project in',
-          chalk.cyanBright(folderPath)
-        )
-      )
+      process.logger?.info(`Initialising NPM project in ${folderPath}`)
       shelljs.exec(`cd ${folderPath} && npm init --yes`, {
         silent: true
       })
     } else {
-      console.log(chalk.greenBright('Existing NPM project detected.\n'))
+      process.logger?.success('Existing NPM project detected.')
     }
-    console.log(chalk.greenBright('Installing @sasjs/core'))
+    process.logger?.info('Installing @sasjs/core')
     shelljs.exec(`cd ${folderPath} && npm i @sasjs/core --save`, {
       silent: true
     })
@@ -118,13 +110,13 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
     await createFile(gitIgnoreFilePath, `${gitIgnoreContent}\nsasjsbuild/\n`)
-    console.log(chalk.greenBright('Existing .gitignore has been updated.'))
+    process.logger?.success('Existing .gitignore has been updated.')
   } else {
     shelljs.exec(`cd ${folderPath} && git init`, {
       silent: true
     })
     await createFile(gitIgnoreFilePath, 'node_modules/\nsasjsbuild/\n.env\n')
-    console.log(chalk.greenBright('.gitignore file has been created.'))
+    process.logger?.success('.gitignore file has been created.')
   }
 }
 
@@ -209,9 +201,9 @@ export async function executeShellScript(
       }
     )
     if (result.code) {
-      console.error(chalk.redBright('Error:\n'), chalk.red(result.stderr))
+      process.logger?.error(`Error: ${result.stderr}`)
       reject(result.code)
-      throw new Error(chalk.cyanBright('Ended with code ' + result.code))
+      throw new Error('Error executing shell script: Code ' + result.code)
     } else {
       if (logFilePath) {
         await createFile(logFilePath, result.stdout)
@@ -276,10 +268,8 @@ export function checkNodeVersion() {
   const nodeVersion = process.versions.node
   const majorVersion = parseInt(nodeVersion.substr(0, 2))
   if (majorVersion < 12) {
-    console.log(
-      chalk.redBright(
-        'SASjs CLI requires at least NodeJS version 12. Please upgrade NodeJS and try again.'
-      )
+    process.logger?.error(
+      'SASjs CLI requires at least NodeJS version 12. Please upgrade NodeJS and try again.'
     )
     process.exit(1)
   }

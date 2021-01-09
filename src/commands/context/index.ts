@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import { create } from './create'
 import { edit } from './edit'
 import { remove } from './remove'
@@ -40,13 +39,13 @@ export async function processContext(command: Command) {
     if (!configPath) {
       const message = `'--source' flag is missing (eg '${commandExample}')`
 
-      console.log(chalk.redBright(message))
+      process.logger?.error(message)
 
       return
     } else if (!validateConfigPath(configPath)) {
       const message = `Provide a path to context config file (eg '${commandExample}')`
 
-      console.log(chalk.redBright(message))
+      process.logger?.error(message)
 
       return
     }
@@ -60,7 +59,7 @@ export async function processContext(command: Command) {
     if (!contextName) {
       const message = `Provide a context name (eg 'sasjs context <command> contextName')`
 
-      console.log(chalk.redBright(message))
+      process.logger?.error(message)
 
       return null
     }

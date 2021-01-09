@@ -14,9 +14,9 @@ export async function getDependencyPaths(
   const { buildSourceFolder } = getConstants()
   const sourcePaths = await getSourcePaths(buildSourceFolder)
   if (macroFolders.length) {
-    macroFolders.forEach((tm) => {
-      const tgtMacroPath = path.join(buildSourceFolder, tm)
-      sourcePaths.push(tgtMacroPath)
+    macroFolders.forEach((macroFolder) => {
+      const macroPath = path.join(buildSourceFolder, macroFolder)
+      sourcePaths.push(macroPath)
     })
   }
 
@@ -73,7 +73,7 @@ export async function getDependencyPaths(
 export function prioritiseDependencyOverrides(
   dependencyNames: string[],
   dependencyPaths: string[],
-  tgtMacros: string[] = []
+  macroPaths: string[] = []
 ) {
   dependencyNames.forEach((depFileName) => {
     const paths = dependencyPaths.filter((p) => p.includes(`/${depFileName}`))
@@ -81,12 +81,13 @@ export function prioritiseDependencyOverrides(
     let overriddenDependencyPaths = paths.filter(
       (p) => !p.includes('node_modules')
     )
-    if (tgtMacros.length) {
-      const foundInTgtMacros = overriddenDependencyPaths.filter((p) => {
-        const pathExist = tgtMacros.find((tm) => p.includes(tm))
+    if (macroPaths.length) {
+      const foundInMacroPaths = overriddenDependencyPaths.filter((p) => {
+        const pathExist = macroPaths.find((tm) => p.includes(tm))
         return pathExist ? true : false
       })
-      if (foundInTgtMacros.length) overriddenDependencyPaths = foundInTgtMacros
+      if (foundInMacroPaths.length)
+        overriddenDependencyPaths = foundInMacroPaths
     }
 
     if (
@@ -201,7 +202,7 @@ export function getProgramList(
 ): { fileName: string; fileRef: string }[] {
   let programList = getList('<h4> SAS Programs </h4>', fileContent)
   programList = programList.map((l) => {
-    const [fileName, fileRef] = l.split(' ')
+    const [fileName, fileRef] = l.split(' ').filter((f: string) => !!f)
 
     if (!fileName) {
       throw new Error(

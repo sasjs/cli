@@ -5,7 +5,6 @@ import { parseLogLines } from '../../utils/utils'
 import path from 'path'
 import SASjs, { Link } from '@sasjs/adapter/node'
 import { Target } from '@sasjs/utils/types'
-import chalk from 'chalk'
 
 /**
  * Triggers existing job for execution.
@@ -34,36 +33,6 @@ export async function execute(
   ignoreWarnings: boolean
 ) {
   const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
-
-  const saveLog = async (logData: any) => {
-    let logPath
-
-    if (typeof logFile === 'string') {
-      const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
-      logPath = path.join(currentDirPath, logFile)
-    } else {
-      logPath = path.join(
-        process.projectDir,
-        `${jobPath.split('/').slice(-1).pop()}.log`
-      )
-    }
-
-    let folderPath = logPath.split(path.sep)
-    folderPath.pop()
-    const parentfolderPath = folderPath.join(path.sep)
-
-    if (!(await folderExists(parentfolderPath))) {
-      await createFolder(parentfolderPath)
-    }
-
-    let logLines =
-      typeof logData === 'object' ? parseLogLines(logData) : logData
-
-    process.logger?.info(`Creating log file at ${logPath}.`)
-    await createFile(logPath, logLines)
-
-    if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
-  }
 
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
@@ -95,11 +64,12 @@ export async function execute(
       { contextName },
       accessToken,
       waitForJob || logFile !== undefined ? true : false,
-      pollOptions
+      pollOptions,
+      true
     )
     .catch(async (err) => {
       if (err && err.log) {
-        await saveLog(err.log)
+        await saveLog(err.log, logFile, jobPath, returnStatusOnly)
       }
 
       if (returnStatusOnly) process.exit(2)
@@ -184,7 +154,7 @@ export async function execute(
             )
             const logData = JSON.parse(logFileContent as string)
 
-            await saveLog(logData)
+            await saveLog(logData, logFile, jobPath, returnStatusOnly)
           }
         }
 
@@ -277,4 +247,38 @@ async function displayStatus(
     await createFile(statusPath, status)
     if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusPath}`)
   }
+}
+
+const saveLog = async (
+  logData: any,
+  logFile: string,
+  jobPath: string,
+  returnStatusOnly: boolean
+) => {
+  let logPath
+
+  if (typeof logFile === 'string') {
+    const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
+    logPath = path.join(currentDirPath, logFile)
+  } else {
+    logPath = path.join(
+      process.projectDir,
+      `${jobPath.split('/').slice(-1).pop()}.log`
+    )
+  }
+
+  let folderPath = logPath.split(path.sep)
+  folderPath.pop()
+  const parentfolderPath = folderPath.join(path.sep)
+
+  if (!(await folderExists(parentfolderPath))) {
+    await createFolder(parentfolderPath)
+  }
+
+  let logLines = typeof logData === 'object' ? parseLogLines(logData) : logData
+
+  process.logger?.info(`Creating log file at ${logPath}.`)
+  await createFile(logPath, logLines)
+
+  if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
 }
