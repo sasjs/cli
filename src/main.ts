@@ -54,9 +54,9 @@ export async function generateDocs(command: Command) {
   return await docs(targetName, outDirectory)
     .then(() => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located at the ${chalk.cyanBright(
+        `Docs have been generated!\nThe docs are located at the '${
           outDirectory ? outDirectory : buildDestinationDocsFolder
-        )} directory.`
+        }' directory.`
       )
       return ReturnCode.Success
     })
