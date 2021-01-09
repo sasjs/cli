@@ -1,0 +1,24 @@
+{
+  "macroFolders": ["macros"],
+  "serviceConfig": {
+    "serviceFolders": ["services"]
+  },
+  "targets": [
+    {
+      "name": "",
+      "serverType": "",
+      "serverUrl": "",
+      "appLoc": "/Public/app/cli-tests",
+      "deployConfig": {
+        "deployScripts": ["sasjs/build/copyscript.sh"],
+        "deployServicePack": true
+      },
+      "streamConfig": {
+        "assetPaths": [],
+        "streamWeb": true,
+        "streamWebFolder": "webv",
+        "webSourcePath": "src"
+      }
+    }
+  ]
+}

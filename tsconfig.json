@@ -13,11 +13,12 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "files": ["./test/helpers.d.ts"],
   "exclude": [
     "test/**/*",
     "node_modules",
-    "**/*.spec.ts",
+    "**/*.spec.*",
+    "src/utils/test.ts",
+    "src/utils/fileStructures",
     "PULL_REQUEST_TEMPLATE.md",
     "test.sh",
     "jest.config.js",
