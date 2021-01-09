@@ -202,7 +202,7 @@ export function getProgramList(
 ): { fileName: string; fileRef: string }[] {
   let programList = getList('<h4> SAS Programs </h4>', fileContent)
   programList = programList.map((l) => {
-    const [fileName, fileRef] = l.split(' ')
+    const [fileName, fileRef] = l.split(' ').filter((f: string) => !!f)
 
     if (!fileName) {
       throw new Error(
