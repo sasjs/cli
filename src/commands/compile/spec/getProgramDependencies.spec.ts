@@ -168,6 +168,23 @@ describe('getProgramList', () => {
     done()
   })
 
+  test('it should get program dependencies when having extra spacing', async (done) => {
+    let fileContent = await readFile(
+      path.join(__dirname, './extra-spacing-sas-programs.sas')
+    )
+
+    const expectedList = [
+      { fileName: 'demotable1.ddl', fileRef: 'FREF1' },
+      { fileName: 'demotable1.sas', fileRef: 'FREF2' }
+    ]
+
+    const actualList = await getProgramList(fileContent)
+
+    expect(actualList).toEqual(expectedList)
+
+    done()
+  })
+
   test('it should handle empty programs list', async (done) => {
     const fileContent = await readFile(path.join(__dirname, './empty-list.sas'))
     const actualList = await getProgramList(fileContent)
