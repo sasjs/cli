@@ -65,7 +65,7 @@ export async function docs(targetName: string, outDirectory: string) {
 
   if (code !== 0) {
     throw new Error(
-      `'Doxygen' is not installed or configured, make sure 'doxygen' avaiable in console.\n${stderr}`
+      `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )
   }
 }

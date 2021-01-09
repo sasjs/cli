@@ -270,7 +270,7 @@ export async function printHelpText() {
       name: 'doc',
       title: 'doc <command>',
       description: [
-        `Generates docs for SAS Programs / Macros / Jobs / Services for all targets and root of sasjsconfig by default. If target is provided, generated docs will be according to target.`,
+        `Generates docs for all SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default. If a target is provided, the generated docs will ignore content from the other targets.`,
         `[2spaces]command example: sasjs doc -t <targetName> --outDirectory <sasFilePath>`,
         `[2spaces]NOTE: Providing outDirectory flag is optional. If present, CLI will generate docs to outDirectory.`,
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`
