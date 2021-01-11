@@ -241,11 +241,21 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
  */
 export function generateTimestamp(): string {
   const date = new Date()
-  const timestamp = `${date.getUTCFullYear()}${
+  const timestamp = `${date.getUTCFullYear()}${padWithNumber(
     date.getUTCMonth() + 1
-  }${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
+  )}${padWithNumber(date.getUTCDate())}${padWithNumber(
+    date.getUTCHours()
+  )}${padWithNumber(date.getUTCMinutes())}${padWithNumber(
+    date.getUTCSeconds()
+  )}`
 
   return timestamp
+}
+
+export function padWithNumber(number: number, padWith = 0) {
+  if (number > 9) return number
+
+  return `${padWith}${number}`
 }
 
 export const arrToObj = (arr: any[]): any =>
