@@ -85,7 +85,8 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
-    serverType: target.serverType
+    serverType: target.serverType,
+    debug: true
   })
 
   let accessToken = null

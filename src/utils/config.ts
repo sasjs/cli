@@ -262,11 +262,6 @@ export async function getProgramFolders(targetName: string) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
-  if (!programFolders.length) {
-    process.logger?.warn(
-      'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
-    )
-  }
   return programFolders
 }
 
@@ -291,11 +286,6 @@ export async function getMacroFolders(targetName: string) {
     macroFolders = macroFolders.concat(target.programFolders)
   }
 
-  if (!macroFolders.length) {
-    process.logger?.warn(
-      'No program folders found. If you have SAS program dependencies, please specify the program paths in the `programFolders` array in your configuration.'
-    )
-  }
   return macroFolders
 }
 
