@@ -6,8 +6,7 @@ import { addTarget } from '../addTarget'
 import {
   getConfiguration,
   getGlobalRcFile,
-  removeFromGlobalConfig,
-  saveGlobalRcFile
+  removeFromGlobalConfig
 } from '../../../utils/config'
 import { deleteFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'

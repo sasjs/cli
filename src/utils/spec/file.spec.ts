@@ -5,8 +5,8 @@ import {
   fileExists,
   deleteFile,
   deleteFolder
-} from './file'
-import { generateTimestamp } from './utils'
+} from '../file'
+import { generateTimestamp } from '../utils'
 
 describe('file utility', () => {
   describe('createFile', () => {

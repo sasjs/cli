@@ -3,7 +3,7 @@ import {
   parseLogLines,
   millisecondsToDdHhMmSs,
   padWithNumber
-} from './utils'
+} from '../utils'
 
 describe('utils', () => {
   describe('generateTimestamp', () => {
