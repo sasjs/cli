@@ -3,6 +3,7 @@ import path from 'path'
 import {
   setupNpmProject,
   setupGitIgnore,
+  setupDoxygen,
   asyncForEach,
   createReactApp,
   createAngularApp,
@@ -65,4 +66,5 @@ export async function create(parentFolderName: string, appType: string) {
     await setupNpmProject(parentFolderName)
   }
   await setupGitIgnore(parentFolderName)
+  await setupDoxygen(parentFolderName)
 }

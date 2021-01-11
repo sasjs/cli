@@ -1,7 +1,7 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, createFile, readFile } from './file'
+import { fileExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 
@@ -118,6 +118,18 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
     await createFile(gitIgnoreFilePath, 'node_modules/\nsasjsbuild/\n.env\n')
     process.logger?.success('.gitignore file has been created.')
   }
+}
+
+export async function setupDoxygen(folderPath: string): Promise<void> {
+  const doxyFilesPath = '../doxy'
+  const doxyFolderPathSource = path.join(__dirname, doxyFilesPath)
+  const doxyFolderPath = path.join(
+    process.projectDir,
+    folderPath,
+    'sasjs',
+    'doxy'
+  )
+  await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
 export async function asyncForEach(

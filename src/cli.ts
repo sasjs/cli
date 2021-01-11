@@ -1,5 +1,6 @@
 import {
   createFileStructure,
+  generateDocs,
   buildServices,
   deployServices,
   compileServices,
@@ -45,6 +46,7 @@ export async function cli(args: string[]) {
     case 'compilebuild':
     case 'compilebuilddeploy':
     case 'web':
+    case 'doc':
       try {
         await checkAndSetProjectDirectory()
       } catch (err) {
@@ -61,6 +63,10 @@ export async function cli(args: string[]) {
   switch (parsedCommand.name) {
     case 'create': {
       result = await createFileStructure(command)
+      break
+    }
+    case 'doc': {
+      result = await generateDocs(command)
       break
     }
     case 'compile': {

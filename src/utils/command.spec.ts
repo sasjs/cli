@@ -521,6 +521,33 @@ describe('parseCommandLine', () => {
     })
   })
 
+  describe('doc command', () => {
+    const expectedName = 'doc'
+    const expectedFlagNames = ['target', 'outDirectory']
+    const expectedFlagValues = ['targetName', '<path/to/folder>']
+
+    test('full syntax', () => {
+      const commandLine =
+        'doc --target targetName --outDirectory <path/to/folder>'
+
+      const command = new Command(commandLine)
+
+      expect(command.name).toEqual(expectedName)
+      expect(command.flags.map((flag) => flag.name)).toEqual(expectedFlagNames)
+      expect(command.flags.map((f) => f.value)).toEqual(expectedFlagValues)
+    })
+
+    test('short syntax', () => {
+      const commandLine = 'doc -t targetName --outDirectory <path/to/folder>'
+
+      const command = new Command(commandLine)
+
+      expect(command.name).toEqual(expectedName)
+      expect(command.flags.map((flag) => flag.name)).toEqual(expectedFlagNames)
+      expect(command.flags.map((f) => f.value)).toEqual(expectedFlagValues)
+    })
+  })
+
   test('not supported command', () => {
     const commandLine = 'notSupported command'
 

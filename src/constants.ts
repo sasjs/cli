@@ -7,6 +7,8 @@ interface Constants {
   buildDestinationServicesFolder: string
   buildDestinationJobsFolder: string
   buildDestinationDbFolder: string
+  buildDestinationDocsFolder: string
+  doxyContent: string
 }
 
 // process.projectDir sets in cli.js
@@ -29,12 +31,20 @@ export const getConstants = (): Constants => {
     'sasjsbuild',
     'db'
   )
+  const buildDestinationDocsFolder = path.join(
+    process.projectDir,
+    'sasjsbuild',
+    'docs'
+  )
+  const doxyContent = path.join(process.projectDir, 'sasjs', 'doxy')
   return {
     buildSourceFolder,
     buildSourceDbFolder,
     buildDestinationFolder,
     buildDestinationServicesFolder,
     buildDestinationJobsFolder,
-    buildDestinationDbFolder
+    buildDestinationDbFolder,
+    buildDestinationDocsFolder,
+    doxyContent
   }
 }

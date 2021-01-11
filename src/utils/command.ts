@@ -25,6 +25,7 @@ const showInvalidFlagMessage = (
 const initialCommands = arrToObj([
   ...new Set([
     'create',
+    'doc',
     'web',
     'build-DB',
     'compile',
@@ -60,7 +61,8 @@ const initialFlags = arrToObj([
     'logFolder',
     'csvFile',
     'returnStatusOnly',
-    'ignoreWarnings'
+    'ignoreWarnings',
+    'outDirectory'
   ])
 ])
 
@@ -89,6 +91,10 @@ const commandFlags = [
   },
   { command: initialCommands.add, flags: [initialFlags.target] },
   { command: initialCommands.create, flags: [initialFlags.template] },
+  {
+    command: initialCommands.doc,
+    flags: [initialFlags.target, initialFlags.outDirectory]
+  },
   { command: initialCommands.web, flags: [initialFlags.target] },
   { command: initialCommands['build-DB'], flags: [initialFlags.target] },
   { command: initialCommands.compile, flags: [initialFlags.target] },
@@ -141,7 +147,8 @@ const flagsWithValue = [
   initialFlags.logFile,
   initialFlags.status,
   initialFlags.csvFile,
-  initialFlags.logFolder
+  initialFlags.logFolder,
+  initialFlags.outDirectory
 ]
 
 export class Command {
@@ -296,10 +303,14 @@ class Flag {
   }
 }
 
+export function isWindows(): boolean {
+  return process.platform === 'win32'
+}
+
 export function parseCommand(rawArgs: string[]) {
   checkNodeVersion()
 
-  const isWin = process.platform === 'win32'
+  const isWin = isWindows()
   const isMSys = !!process.env.MSYSTEM
   const prefix = process.env.EXEPATH
     ? process.env.EXEPATH.replace(/\\/g, '/')
