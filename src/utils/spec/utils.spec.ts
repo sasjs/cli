@@ -2,8 +2,11 @@ import {
   generateTimestamp,
   parseLogLines,
   millisecondsToDdHhMmSs,
-  padWithNumber
+  padWithNumber,
+  inExistingProject
 } from '../utils'
+import { createFile, deleteFile } from '../file'
+import path from 'path'
 
 describe('utils', () => {
   describe('generateTimestamp', () => {
@@ -101,6 +104,30 @@ describe('utils', () => {
 
     it('should pad number', () => {
       expect(padWithNumber(5, 6)).toEqual('65')
+    })
+  })
+
+  describe('inExistingProject', () => {
+    const folderPath = 'src/utils/spec'
+
+    it('should return true if package.json exists in folder', async () => {
+      process.projectDir = process.cwd()
+
+      const packagePath = path.join(
+        process.projectDir,
+        folderPath,
+        'package.json'
+      )
+
+      await createFile(packagePath, '{}')
+
+      await expect(inExistingProject(folderPath)).resolves.toEqual(true)
+
+      await deleteFile(packagePath)
+    })
+
+    it('should return false if package.json does not exist in folder', async () => {
+      await expect(inExistingProject(folderPath)).resolves.toEqual(false)
     })
   })
 })

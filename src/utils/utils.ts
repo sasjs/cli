@@ -5,20 +5,18 @@ import { fileExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 
-async function inExistingProject(folderPath: string) {
+export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
     path.join(process.projectDir, folderPath, 'package.json')
   )
-  return packageJsonExists
-}
 
-export function diff(x: any[], y: any[]) {
-  return x.filter((a) => !y.includes(a))
+  return packageJsonExists
 }
 
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
+
     return resolve()
   })
 }
@@ -66,6 +64,7 @@ function createApp(
 ) {
   const spinner = ora(`Creating web app in ${folderPath}.`)
   spinner.start()
+
   shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
     silent: true
   })
