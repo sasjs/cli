@@ -13,6 +13,21 @@ export async function inExistingProject(folderPath: string) {
   return packageJsonExists
 }
 
+export function diff(a: any[], b: any[]) {
+  const notInA = a.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(b).includes(JSON.stringify(item))
+      : !b.includes(item)
+  )
+  const notInB = b.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(a).includes(JSON.stringify(item))
+      : !a.includes(item)
+  )
+
+  return [...notInA, ...notInB]
+}
+
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')

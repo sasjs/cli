@@ -3,7 +3,8 @@ import {
   parseLogLines,
   millisecondsToDdHhMmSs,
   padWithNumber,
-  inExistingProject
+  inExistingProject,
+  diff
 } from '../utils'
 import { createFile, deleteFile } from '../file'
 import path from 'path'
@@ -128,6 +129,31 @@ describe('utils', () => {
 
     it('should return false if package.json does not exist in folder', async () => {
       await expect(inExistingProject(folderPath)).resolves.toEqual(false)
+    })
+  })
+
+  describe('diff', () => {
+    it('should return an array of differences', () => {
+      expect(diff([1, 2, 3], [2])).toEqual([1, 3])
+      expect(diff(['b'], ['a', 'b', 'c'])).toEqual(['a', 'c'])
+      expect(diff([{}, { test: 1 }], [{}])).toEqual([{ test: 1 }])
+      expect(diff([[1], []], [[]])).toEqual([[1]])
+      expect(diff([null, NaN, undefined], [[]])).toEqual([
+        null,
+        NaN,
+        undefined,
+        []
+      ])
+      expect(diff([true], [false])).toEqual([true, false])
+    })
+
+    it('should return an empty array if provided two equal arrays', () => {
+      expect(diff([2], [2])).toEqual([])
+      expect(diff(['b'], ['b'])).toEqual([])
+      expect(diff([{}], [{}])).toEqual([])
+      expect(diff([[]], [[]])).toEqual([])
+      expect(diff([null, NaN, undefined], [null, NaN, undefined])).toEqual([])
+      expect(diff([true], [true])).toEqual([])
     })
   })
 })

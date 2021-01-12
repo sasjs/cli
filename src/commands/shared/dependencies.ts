@@ -5,8 +5,7 @@ import groupBy from 'lodash.groupby'
 import { getConstants } from '../../constants'
 import { getSourcePaths } from '../../utils/config'
 import { getList, folderExists, readFile } from '../../utils/file'
-import _ from 'lodash'
-import { asyncForEach, chunk } from '../../utils/utils'
+import { asyncForEach, diff, chunk } from '../../utils/utils'
 
 export async function getDependencyPaths(
   fileContent: string,
@@ -50,7 +49,7 @@ export async function getDependencyPaths(
 
       process.logger?.error(errorMessage)
 
-      const unFoundDependencies = _.difference(dependencies, foundDependencies)
+      const unFoundDependencies = diff(dependencies, foundDependencies)
 
       if (unFoundDependencies.length) {
         process.logger?.error(
