@@ -20,11 +20,16 @@ import {
 import examples from '../examples'
 import { Command } from '../../../utils/command'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs flow', () => {
   let target: Target
   const csvPath = path.join(__dirname, 'output.csv')
   const logPath = path.join(__dirname, 'logs')
+
+  beforeEach(() => {
+    process.logger = new Logger(LogLevel.Off)
+  })
 
   beforeAll(async (done) => {
     target = await createGlobalTarget()
