@@ -1,7 +1,7 @@
 import { Target } from '@sasjs/utils/types'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
-import { deleteFolder, readFile } from '../../../utils/file'
+import { readFile } from '../../../utils/file'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,
