@@ -27,15 +27,15 @@ describe('sasjs flow', () => {
   const csvPath = path.join(__dirname, 'output.csv')
   const logPath = path.join(__dirname, 'logs')
 
-  beforeEach(() => {
-    process.logger = new Logger(LogLevel.Off)
-  })
-
   beforeAll(async (done) => {
+    process.logger = new Logger(LogLevel.Off)
+
     target = await createGlobalTarget()
+
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+
     done()
   })
 

@@ -1,4 +1,3 @@
-import ora from 'ora'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
@@ -49,11 +48,11 @@ export async function execute(
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus({ state: 'Initiating' }, statusFile)
 
-  const spinner = ora(
-    `Job located at ${jobPath} has been submitted for execution...\n`
-  )
-
-  if (!returnStatusOnly) spinner.start()
+  if (!returnStatusOnly) {
+    process.logger.success(
+      `Job located at ${jobPath} has been submitted for execution...`
+    )
+  }
 
   const contextName = getContextName(target, returnStatusOnly)
 
@@ -83,8 +82,6 @@ export async function execute(
         return err.job
       }
     })
-
-  spinner.stop()
 
   const endTime = new Date().getTime()
 
