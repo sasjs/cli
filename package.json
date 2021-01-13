@@ -44,7 +44,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^2.0.2",
+    "@sasjs/adapter": "^2.0.3",
     "@sasjs/core": "^2.0.0",
     "@sasjs/utils": "^2.0.1",
     "base64-img": "^1.0.4",
@@ -60,7 +60,7 @@
     "jwt-decode": "^3.1.2",
     "lodash.groupby": "^4.6.0",
     "lodash.uniqby": "^4.7.0",
-    "ora": "^5.1.0",
+    "ora": "^5.2.0",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4"
   },
@@ -85,7 +85,7 @@
     "semantic-release": "^17.1.1",
     "ts-jest": "^26.4.4",
     "ts-node": "^9.0.0",
-    "tslib": "^2.0.3",
+    "tslib": "^2.1.0",
     "typescript": "^4.1.2"
   },
   "version": "1.0.0",

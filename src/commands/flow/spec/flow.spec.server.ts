@@ -20,6 +20,7 @@ import {
 import examples from '../examples'
 import { Command } from '../../../utils/command'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -27,10 +28,14 @@ describe('sasjs flow', () => {
   const logPath = path.join(__dirname, 'logs')
 
   beforeAll(async (done) => {
+    process.logger = new Logger(LogLevel.Off)
+
     target = await createGlobalTarget()
+
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+
     done()
   })
 

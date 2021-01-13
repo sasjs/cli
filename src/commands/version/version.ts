@@ -7,13 +7,13 @@ export async function printVersion() {
 
   const line = result.split('\n').find((l) => l.includes('@sasjs/cli')) || ''
   const version = line.split('@')[2].trim()
-  if (version.includes('->')) {
-    process.logger?.info(
-      `You are using a linked version of SASjs CLI running from sources at ${version
+  const message = version.includes('->')
+    ? `You are using a linked version of SASjs CLI running from sources at ${version
         .replace('->', '')
         .trim()}`
-    )
-  } else {
-    process.logger.info(`You are using SASjs CLI v${version}`)
-  }
+    : `You are using SASjs CLI v${version}`
+
+  process.logger?.info(message)
+
+  return message
 }

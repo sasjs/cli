@@ -19,7 +19,6 @@ import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 export async function execute(
   source: string,
@@ -28,13 +27,10 @@ export async function execute(
   target: Target,
   prefixAppLoc: Function
 ) {
-  const logLevel = (process.env.LOG_LEVEL || LogLevel.Error) as LogLevel
-  const logger = new Logger(logLevel)
-
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
-    const logger = new Logger(LogLevel.Info)
+    const logger = process.logger
 
     if (!source || !isJsonFile(source)) {
       return reject(
@@ -134,7 +130,7 @@ export async function execute(
                 `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
 
-              const logName = await saveLog(
+              let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
                 jobLocation,
@@ -143,6 +139,7 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
+              logName = logName ? path.join(logFolder, logName as string) : ''
 
               await saveToCsv(
                 flowName,
@@ -150,7 +147,7 @@ export async function execute(
                 jobLocation,
                 'failure',
                 err.message || '',
-                logName ? path.join(logFolder, logName as string) : ''
+                logName as string
               ).catch((err) =>
                 displayError(err, 'Error while saving CSV file.')
               )
@@ -161,6 +158,8 @@ export async function execute(
                 {},
                 `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
+
+              logger.info(`Log file located at: ${logName}`)
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -179,7 +178,7 @@ export async function execute(
 
             const details = parseJobDetails(submittedJob)
 
-            const logName = await saveLog(
+            let logName = await saveLog(
               submittedJob.links,
               flowName,
               jobLocation,
@@ -187,6 +186,7 @@ export async function execute(
             ).catch((err: any) =>
               displayError(err, 'Error while saving log file.')
             )
+            logName = logName ? path.join(logFolder, logName as string) : ''
 
             await saveToCsv(
               flowName,
@@ -194,7 +194,7 @@ export async function execute(
               jobLocation,
               submittedJob.state || 'failure',
               details?.details,
-              logName ? path.join(logFolder, logName as string) : ''
+              logName as string
             ).catch((err) => displayError(err, 'Error while saving CSV file.'))
 
             job.status =
@@ -220,6 +220,8 @@ export async function execute(
                 }`
               )
             }
+
+            logger.info(`Log file located at: ${logName}`)
 
             if (
               flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -488,7 +490,7 @@ export async function execute(
 
                 const details = parseJobDetails(res)
 
-                const logName = await saveLog(
+                let logName = await saveLog(
                   res.links,
                   successor,
                   jobLocation,
@@ -496,6 +498,7 @@ export async function execute(
                 ).catch((err: any) => {
                   displayError(err, 'Error while saving log file.')
                 })
+                logName = logName ? path.join(logFolder, logName as string) : ''
 
                 await saveToCsv(
                   successor,
@@ -503,7 +506,7 @@ export async function execute(
                   jobLocation,
                   res.state || 'failure',
                   details?.details,
-                  logName ? path.join(logFolder, logName as string) : ''
+                  logName as string
                 ).catch((err) =>
                   displayError(err, 'Error while saving CSV file.')
                 )
@@ -530,6 +533,8 @@ export async function execute(
                     }`
                   )
                 }
+
+                logger.info(`Log file located at: ${logName}`)
 
                 if (
                   flows[successor].jobs.filter(
@@ -579,7 +584,7 @@ export async function execute(
                 `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
 
-              const logName = await saveLog(
+              let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
                 jobLocation,
@@ -588,6 +593,7 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
+              logName = logName ? path.join(logFolder, logName as string) : ''
 
               await saveToCsv(
                 successor,
@@ -595,7 +601,7 @@ export async function execute(
                 jobLocation,
                 'failure',
                 err.message || '',
-                logName ? path.join(logFolder, logName as string) : ''
+                logName as string
               ).catch((err) =>
                 displayError(err, 'Error while saving CSV file.')
               )
@@ -606,6 +612,8 @@ export async function execute(
                 {},
                 `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
+
+              logger.info(`Log file located at: ${logName}`)
 
               if (
                 flows[successor].jobs.filter((j: any) =>

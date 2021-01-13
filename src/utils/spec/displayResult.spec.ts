@@ -1,4 +1,4 @@
-import { displayError, displaySuccess } from './displayResult'
+import { displayError, displaySuccess } from '../displayResult'
 import { ErrorResponse } from '@sasjs/adapter/node'
 import { Logger, LogLevel } from '@sasjs/utils'
 
