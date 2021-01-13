@@ -1,4 +1,4 @@
-import { removeComments } from './utils'
+import { removeComments } from '../utils'
 
 describe('removeComments', () => {
   test('should remove block comment', () => {
