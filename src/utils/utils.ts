@@ -5,20 +5,33 @@ import { fileExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 
-async function inExistingProject(folderPath: string) {
+export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
     path.join(process.projectDir, folderPath, 'package.json')
   )
+
   return packageJsonExists
 }
 
-export function diff(x: any[], y: any[]) {
-  return x.filter((a) => !y.includes(a))
+export function diff(a: any[], b: any[]) {
+  const notInA = a.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(b).includes(JSON.stringify(item))
+      : !b.includes(item)
+  )
+  const notInB = b.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(a).includes(JSON.stringify(item))
+      : !a.includes(item)
+  )
+
+  return [...notInA, ...notInB]
 }
 
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
+
     return resolve()
   })
 }
@@ -66,6 +79,7 @@ function createApp(
 ) {
   const spinner = ora(`Creating web app in ${folderPath}.`)
   spinner.start()
+
   shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
     silent: true
   })
@@ -241,11 +255,21 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
  */
 export function generateTimestamp(): string {
   const date = new Date()
-  const timestamp = `${date.getUTCFullYear()}${
+  const timestamp = `${date.getUTCFullYear()}${padWithNumber(
     date.getUTCMonth() + 1
-  }${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
+  )}${padWithNumber(date.getUTCDate())}${padWithNumber(
+    date.getUTCHours()
+  )}${padWithNumber(date.getUTCMinutes())}${padWithNumber(
+    date.getUTCSeconds()
+  )}`
 
   return timestamp
+}
+
+export function padWithNumber(number: number, padWith = 0) {
+  if (number > 9) return number
+
+  return `${padWith}${number}`
 }
 
 export const arrToObj = (arr: any[]): any =>

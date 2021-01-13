@@ -109,7 +109,7 @@ describe('sasjs context', () => {
       await createFile(testContextConfigPath, contextConfig)
 
       const command = new Command(
-        `context create -s ${testContextConfigFile} -t targetName`
+        `context create -s ${testContextConfigFile} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
@@ -140,7 +140,7 @@ describe('sasjs context', () => {
       await createFile(testContextConfigPath, contextConfig)
 
       const command = new Command(
-        `context create -s ${testContextConfigFile} -t targetName`
+        `context create -s ${testContextConfigFile} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(
@@ -196,7 +196,7 @@ describe('sasjs context', () => {
       setDefaultContextName()
 
       const command = new Command(
-        `context delete ${testContextConfig.name} -t targetName`
+        `context delete ${testContextConfig.name} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(
@@ -210,7 +210,7 @@ describe('sasjs context', () => {
 
     it('should delete compute context', async (done) => {
       const command = new Command(
-        `context delete ${testContextConfig.name} -t targetName`
+        `context delete ${testContextConfig.name} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
