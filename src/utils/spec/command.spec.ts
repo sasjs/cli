@@ -5,7 +5,7 @@ describe('parseCommandLine', () => {
   const defaultFlagNames = ['target']
   const defaultFlagValues = ['targetName']
 
-  beforeEach(() => {
+  beforeAll(() => {
     process.logger = new Logger(LogLevel.Off)
   })
 

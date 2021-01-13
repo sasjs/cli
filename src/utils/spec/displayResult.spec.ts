@@ -3,7 +3,7 @@ import { ErrorResponse } from '@sasjs/adapter/node'
 import { Logger, LogLevel } from '@sasjs/utils'
 
 describe('display error', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     process.logger = new Logger(LogLevel.Off)
   })
 
