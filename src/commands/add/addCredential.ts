@@ -47,8 +47,8 @@ export const addCredential = async (targetName: string): Promise<void> => {
     await saveToLocalConfig(target)
   } else {
     target = new Target({
-      ...target,
-      authInfo: { client, secret, access_token, refresh_token }
+      ...target.toJson(),
+      authConfig: { client, secret, access_token, refresh_token }
     })
     await saveToGlobalConfig(target)
   }
