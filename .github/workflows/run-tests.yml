@@ -33,8 +33,10 @@ jobs:
       - name: Run smoke tests
         run: sh ./test.sh
 
+      - uses: docker://hrektts/doxygen
       - name: Run mocked tests
         run: npm run test:mocked
+
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
