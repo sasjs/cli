@@ -5,10 +5,6 @@ describe('parseCommandLine', () => {
   const defaultFlagNames = ['target']
   const defaultFlagValues = ['targetName']
 
-  beforeAll(() => {
-    process.logger = new Logger(LogLevel.Off)
-  })
-
   afterEach(() => {
     jest.resetAllMocks()
   })

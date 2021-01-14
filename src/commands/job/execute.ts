@@ -49,7 +49,7 @@ export async function execute(
     await displayStatus({ state: 'Initiating' }, statusFile)
 
   if (!returnStatusOnly) {
-    process.logger.success(
+    process.logger?.success(
       `Job located at ${jobPath} has been submitted for execution...`
     )
   }
