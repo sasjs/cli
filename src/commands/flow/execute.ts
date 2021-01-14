@@ -95,7 +95,7 @@ export async function execute(
 
     const contextName = target.contextName
 
-    logger.info(
+    logger?.info(
       `Executing flow for '${target.name}' target with app location '${target.appLoc}':`
     )
 
@@ -159,7 +159,7 @@ export async function execute(
                 `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
 
-              logger.info(`Log file located at: ${logName}`)
+              logger?.info(`Log file located at: ${logName}`)
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -221,7 +221,7 @@ export async function execute(
               )
             }
 
-            logger.info(`Log file located at: ${logName}`)
+            logger?.info(`Log file located at: ${logName}`)
 
             if (
               flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -534,7 +534,7 @@ export async function execute(
                   )
                 }
 
-                logger.info(`Log file located at: ${logName}`)
+                logger?.info(`Log file located at: ${logName}`)
 
                 if (
                   flows[successor].jobs.filter(
@@ -613,7 +613,7 @@ export async function execute(
                 `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
 
-              logger.info(`Log file located at: ${logName}`)
+              logger?.info(`Log file located at: ${logName}`)
 
               if (
                 flows[successor].jobs.filter((j: any) =>

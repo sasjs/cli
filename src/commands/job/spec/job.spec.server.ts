@@ -23,8 +23,6 @@ describe('sasjs job execute', () => {
   let target: Target
 
   beforeAll(async (done) => {
-    process.logger = new Logger(LogLevel.Off)
-
     target = await createGlobalTarget()
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
