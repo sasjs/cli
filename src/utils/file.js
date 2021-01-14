@@ -183,7 +183,10 @@ export async function createFile(fileName, content, debug = false) {
   }
 
   return new Promise(async (resolve, reject) => {
-    console.log(`[path.sep]`, path.sep)
+    console.log(`[fileName]`, fileName)
+    fileName = fileName.split('/').join(path.sep)
+    console.log(`[fileName]`, fileName)
+
     if (fileName.split(path.sep).length > 1) {
       let folderPath = fileName.split(path.sep)
       folderPath.pop()
