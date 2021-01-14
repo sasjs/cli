@@ -139,6 +139,8 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
+              console.log(`[logName]`, logName)
+              console.log(`[logFolder]`, logFolder)
               logName = logName ? path.join(logFolder, logName as string) : ''
 
               await saveToCsv(
@@ -186,6 +188,8 @@ export async function execute(
             ).catch((err: any) =>
               displayError(err, 'Error while saving log file.')
             )
+            console.log(`[logName]`, logName)
+            console.log(`[logFolder]`, logFolder)
             logName = logName ? path.join(logFolder, logName as string) : ''
 
             await saveToCsv(
@@ -498,6 +502,8 @@ export async function execute(
                 ).catch((err: any) => {
                   displayError(err, 'Error while saving log file.')
                 })
+                console.log(`[logName]`, logName)
+                console.log(`[logFolder]`, logFolder)
                 logName = logName ? path.join(logFolder, logName as string) : ''
 
                 await saveToCsv(
@@ -593,6 +599,8 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
+              console.log(`[logName]`, logName)
+              console.log(`[logFolder]`, logFolder)
               logName = logName ? path.join(logFolder, logName as string) : ''
 
               await saveToCsv(
