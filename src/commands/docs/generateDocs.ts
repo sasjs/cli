@@ -11,7 +11,7 @@ import { getConstants } from '../../constants'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
 
-export async function docs(targetName: string, outDirectory: string) {
+export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
   if (!outDirectory) outDirectory = buildDestinationDocsFolder
 
@@ -64,6 +64,9 @@ export async function docs(targetName: string, outDirectory: string) {
   spinner.stop()
 
   if (code !== 0) {
+    if (stderr.startsWith('error: ')) {
+      throw new Error(`\n${stderr}`)
+    }
     throw new Error(
       `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )

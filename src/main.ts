@@ -15,7 +15,8 @@ import {
   printVersion,
   createWebAppServices,
   processFlow,
-  docs
+  generateDocs,
+  initDocs
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
@@ -46,12 +47,26 @@ export async function createFileStructure(command: Command) {
       return ReturnCode.InternalError
     })
 }
-export async function generateDocs(command: Command) {
+export async function doc(command: Command) {
+  const subCommand = command.getSubCommand()
+
+  if (subCommand === 'init') {
+    return await initDocs()
+      .then(() => {
+        displaySuccess(`Docs are initialited. You can generate docs now.`)
+        return ReturnCode.Success
+      })
+      .catch((err: any) => {
+        displayError(err, 'An error has occurred whilst initiating docs.')
+        return ReturnCode.InternalError
+      })
+  }
+
   const targetName = command.getFlagValue('target') as string
   const outDirectory = command.getFlagValue('outDirectory') as string
   const { buildDestinationDocsFolder } = getConstants()
 
-  return await docs(targetName, outDirectory)
+  return await generateDocs(targetName, outDirectory)
     .then(() => {
       displaySuccess(
         `Docs have been generated!\nThe docs are located at the '${
