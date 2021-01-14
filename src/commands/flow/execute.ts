@@ -139,8 +139,7 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
-              console.log(`[2 logName]`, logName)
-              console.log(`[2 logFolder]`, logFolder)
+
               logName = logName ? `${logFolder}/${logName}` : ''
 
               await saveToCsv(
@@ -188,8 +187,7 @@ export async function execute(
             ).catch((err: any) =>
               displayError(err, 'Error while saving log file.')
             )
-            console.log(`[3 logName]`, logName)
-            console.log(`[3 logFolder]`, logFolder)
+
             logName = logName ? `${logFolder}/${logName}` : ''
 
             await saveToCsv(
@@ -502,8 +500,7 @@ export async function execute(
                 ).catch((err: any) => {
                   displayError(err, 'Error while saving log file.')
                 })
-                console.log(`[4 logName]`, logName)
-                console.log(`[4 logFolder]`, logFolder)
+
                 logName = logName ? `${logFolder}/${logName}` : ''
 
                 await saveToCsv(
@@ -599,8 +596,7 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
-              console.log(`[1 logName]`, logName)
-              console.log(`[1 logFolder]`, logFolder)
+
               logName = logName ? `${logFolder}/${logName}` : ''
 
               await saveToCsv(
