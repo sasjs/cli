@@ -139,9 +139,9 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
-              console.log(`[logName]`, logName)
-              console.log(`[logFolder]`, logFolder)
-              logName = logName ? path.join(logFolder, logName as string) : ''
+              console.log(`[2 logName]`, logName)
+              console.log(`[2 logFolder]`, logFolder)
+              logName = logName ? `${logFolder}/${logName}` : ''
 
               await saveToCsv(
                 flowName,
@@ -188,9 +188,9 @@ export async function execute(
             ).catch((err: any) =>
               displayError(err, 'Error while saving log file.')
             )
-            console.log(`[logName]`, logName)
-            console.log(`[logFolder]`, logFolder)
-            logName = logName ? path.join(logFolder, logName as string) : ''
+            console.log(`[3 logName]`, logName)
+            console.log(`[3 logFolder]`, logFolder)
+            logName = logName ? `${logFolder}/${logName}` : ''
 
             await saveToCsv(
               flowName,
@@ -502,9 +502,9 @@ export async function execute(
                 ).catch((err: any) => {
                   displayError(err, 'Error while saving log file.')
                 })
-                console.log(`[logName]`, logName)
-                console.log(`[logFolder]`, logFolder)
-                logName = logName ? path.join(logFolder, logName as string) : ''
+                console.log(`[4 logName]`, logName)
+                console.log(`[4 logFolder]`, logFolder)
+                logName = logName ? `${logFolder}/${logName}` : ''
 
                 await saveToCsv(
                   successor,
@@ -599,9 +599,9 @@ export async function execute(
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
-              console.log(`[logName]`, logName)
-              console.log(`[logFolder]`, logFolder)
-              logName = logName ? path.join(logFolder, logName as string) : ''
+              console.log(`[1 logName]`, logName)
+              console.log(`[1 logFolder]`, logFolder)
+              logName = logName ? `${logFolder}/${logName}` : ''
 
               await saveToCsv(
                 successor,
