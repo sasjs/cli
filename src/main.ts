@@ -53,7 +53,9 @@ export async function doc(command: Command) {
   if (subCommand === 'init') {
     return await initDocs()
       .then(() => {
-        displaySuccess(`Docs are initialited. You can generate docs now.`)
+        displaySuccess(
+          'The doxygen configuration files have been initialised under `/sasjs/doxy/`. You can now run sasjs doc.'
+        )
         return ReturnCode.Success
       })
       .catch((err: any) => {

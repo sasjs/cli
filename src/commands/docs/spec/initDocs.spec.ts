@@ -17,7 +17,7 @@ describe('sasjs doc', () => {
     `should create 'doxy' folder in 'sasjs'`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
-      const doxypath = path.join(__dirname, appName, 'sasjs/doxy')
+      const doxypath = path.join(__dirname, appName, 'sasjs', 'doxy')
 
       await createTestApp(__dirname, appName)
 

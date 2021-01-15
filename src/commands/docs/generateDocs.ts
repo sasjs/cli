@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder } from '../../utils/file'
+import { createFolder, deleteFolder } from '../../utils/file'
 import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
@@ -54,7 +54,9 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   )
   spinner.start()
 
+  await deleteFolder(outDirectory)
   await createFolder(outDirectory)
+
   const { stderr, code } = shelljs.exec(
     `${doxyParams} doxygen ${doxyConfigPath}`,
     {
