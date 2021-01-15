@@ -56,5 +56,28 @@ describe('file utility', () => {
 
       expect(unifyFilePath(filePath, '\\')).toEqual(expectedFilePath)
     })
+
+    it('should unify file path with mixed separators', () => {
+      const filePath = '/folder/subFolder\\file.txt'
+      const unixSeparator = '/'
+      const winSeparator = '\\'
+      const expectedUnixPath = filePath.replace(/\\/g, unixSeparator)
+      const expectedWinPath = filePath.replace(/\//g, winSeparator)
+
+      expect(unifyFilePath(filePath, unixSeparator)).toEqual(expectedUnixPath)
+      expect(unifyFilePath(filePath, winSeparator)).toEqual(expectedWinPath)
+    })
+
+    it('should return file path with custom separator', () => {
+      let filePath = '/folder/subFolder/file.txt'
+      let expectedFilePath = filePath.replace(/\//g, '$')
+
+      expect(unifyFilePath(filePath, '$')).toEqual(expectedFilePath)
+
+      filePath = '\\folder\\subFolder\\file.txt'
+      expectedFilePath = filePath.replace(/\\/g, '$')
+
+      expect(unifyFilePath(filePath, '$', '\\')).toEqual(expectedFilePath)
+    })
   })
 })
