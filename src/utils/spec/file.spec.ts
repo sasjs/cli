@@ -4,7 +4,8 @@ import {
   readFile,
   fileExists,
   deleteFile,
-  deleteFolder
+  deleteFolder,
+  unifyFilePath
 } from '../file'
 import { generateTimestamp } from '../utils'
 
@@ -39,6 +40,21 @@ describe('file utility', () => {
       await expect(readFile(filePath)).resolves.toEqual(content)
 
       deleteFolder(path.join(process.cwd(), 'testFolder_1'))
+    })
+  })
+
+  describe('unifyFilePath', () => {
+    it('should unify file path in Unix-like systems', () => {
+      const filePath = '/folder/subFolder/file.txt'
+
+      expect(unifyFilePath(filePath, '/')).toEqual(filePath)
+    })
+
+    it('should unify file path in Windows system', () => {
+      const filePath = '/folder/subFolder/file.txt'
+      const expectedFilePath = filePath.replace(/\//g, '\\')
+
+      expect(unifyFilePath(filePath, '\\')).toEqual(expectedFilePath)
     })
   })
 })

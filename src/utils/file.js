@@ -183,7 +183,7 @@ export async function createFile(fileName, content, debug = false) {
   }
 
   return new Promise(async (resolve, reject) => {
-    fileName = fileName.split('/').join(path.sep)
+    fileName = unifyFilePath(fileName)
 
     if (fileName.split(path.sep).length > 1) {
       let folderPath = fileName.split(path.sep)
@@ -205,6 +205,10 @@ export async function createFile(fileName, content, debug = false) {
       resolve(content)
     })
   })
+}
+
+export function unifyFilePath(filePath, separator = path.sep) {
+  return filePath.split('/').join(separator)
 }
 
 export async function deleteFolder(folderName, debug = false) {
