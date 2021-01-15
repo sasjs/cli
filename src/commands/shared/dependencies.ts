@@ -73,10 +73,13 @@ export async function getDependencyPaths(
 export function prioritiseDependencyOverrides(
   dependencyNames: string[],
   dependencyPaths: string[],
-  macroPaths: string[] = []
+  macroPaths: string[] = [],
+  pathSeparator = path.sep
 ) {
   dependencyNames.forEach((depFileName) => {
-    const paths = dependencyPaths.filter((p) => p.includes(`/${depFileName}`))
+    const paths = dependencyPaths.filter((p) =>
+      p.includes(`${pathSeparator}${depFileName}`)
+    )
 
     let overriddenDependencyPaths = paths.filter(
       (p) => !p.includes('node_modules')
