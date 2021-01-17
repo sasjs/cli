@@ -1,6 +1,6 @@
 import {
   createFileStructure,
-  generateDocs,
+  doc,
   buildServices,
   deployServices,
   compileServices,
@@ -66,7 +66,7 @@ export async function cli(args: string[]) {
       break
     }
     case 'doc': {
-      result = await generateDocs(command)
+      result = await doc(command)
       break
     }
     case 'compile': {
