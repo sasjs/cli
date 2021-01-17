@@ -279,6 +279,7 @@ export async function printHelpText() {
   ]
 
   const aliases = [
+    { name: 'doc', aliases: ['docs'] },
     { name: 'build-DB', aliases: ['DB', 'db'] },
     { name: 'build', aliases: ['b'] },
     { name: 'compile', aliases: ['c'] },

@@ -91,7 +91,6 @@ export async function loadDependencies(
     fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
   }
 
-  process.logger?.log('Finished loading dependencies.')
   return fileContent
 }
 

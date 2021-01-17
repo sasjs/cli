@@ -67,6 +67,7 @@ const initialFlags = arrToObj([
 ])
 
 const initialAliases = [
+  { name: initialCommands.doc, aliases: ['docs'] },
   { name: initialCommands['build-DB'], aliases: ['db'] },
   { name: initialCommands.compile, aliases: ['c'] },
   { name: initialCommands.build, aliases: ['b'] },
@@ -359,6 +360,10 @@ function getUnaliasedCommand(command: string) {
 
   if (command === 'create') {
     return 'create'
+  }
+
+  if (command === 'doc' || command === 'docs') {
+    return 'doc'
   }
 
   if (command === 'compile' || command === 'c') {

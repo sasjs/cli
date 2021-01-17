@@ -4,14 +4,14 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder } from '../../utils/file'
+import { createFolder, deleteFolder } from '../../utils/file'
 import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
 
-export async function docs(targetName: string, outDirectory: string) {
+export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
   if (!outDirectory) outDirectory = buildDestinationDocsFolder
 
@@ -54,7 +54,9 @@ export async function docs(targetName: string, outDirectory: string) {
   )
   spinner.start()
 
+  await deleteFolder(outDirectory)
   await createFolder(outDirectory)
+
   const { stderr, code } = shelljs.exec(
     `${doxyParams} doxygen ${doxyConfigPath}`,
     {
@@ -64,6 +66,9 @@ export async function docs(targetName: string, outDirectory: string) {
   spinner.stop()
 
   if (code !== 0) {
+    if (stderr.startsWith('error: ')) {
+      throw new Error(`\n${stderr}`)
+    }
     throw new Error(
       `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )
