@@ -129,8 +129,6 @@ describe('getTokens', () => {
 })
 
 describe('createEnvFile', () => {
-  const testLogger = new Logger(LogLevel.Off)
-
   it('should create a dotenv file with the supplied information', async (done) => {
     const targetName = 'testAddCredential'
     const clientId = 'cli3nt'

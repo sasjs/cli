@@ -21,6 +21,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install Doxygen
+        run: sudo apt-get install doxygen
+
       - name: Install dependencies
         run: npm ci
 

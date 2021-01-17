@@ -17,7 +17,7 @@ export async function addTarget(): Promise<boolean> {
 
   let targetJson: any = {
     name,
-    serverType: serverType,
+    serverType,
     serverUrl,
     appLoc
   }

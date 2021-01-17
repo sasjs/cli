@@ -183,6 +183,8 @@ export async function createFile(fileName, content, debug = false) {
   }
 
   return new Promise(async (resolve, reject) => {
+    fileName = unifyFilePath(fileName)
+
     if (fileName.split(path.sep).length > 1) {
       let folderPath = fileName.split(path.sep)
       folderPath.pop()
@@ -203,6 +205,25 @@ export async function createFile(fileName, content, debug = false) {
       resolve(content)
     })
   })
+}
+
+export function unifyFilePath(filePath, separator = path.sep, replace = '/') {
+  const separators = { unix: '/', win: '\\' }
+
+  let osSeparator = Object.keys(separators).find(
+    (key) => separators[key] === separator
+  )
+
+  if (osSeparator) {
+    const notValidSeparator =
+      separators[Object.keys(separators).find((key) => key !== osSeparator)]
+
+    osSeparator = separators[osSeparator]
+
+    return filePath.split(notValidSeparator).join(osSeparator)
+  }
+
+  return filePath.split(replace).join(separator)
 }
 
 export async function deleteFolder(folderName, debug = false) {

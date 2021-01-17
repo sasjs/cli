@@ -128,9 +128,9 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 function getWebServiceScriptInvocation(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
-      return '%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)'
+      return '%mv_createwebservice(path=&appLoc/services/&path, name=&service, code=sascode ,replace=yes)'
     case ServerType.Sas9:
-      return '%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)'
+      return '%mm_createwebservice(path=&appLoc/services/&path, name=&service, code=sascode ,replace=yes)'
     default:
       throw new Error(
         `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`

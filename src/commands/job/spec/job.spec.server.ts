@@ -36,10 +36,6 @@ describe('sasjs job execute', () => {
       })
     )
 
-    beforeEach(() => {
-      process.logger = new Logger(LogLevel.Off)
-    })
-
     done()
   })
 
