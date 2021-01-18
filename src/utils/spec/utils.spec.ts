@@ -11,7 +11,7 @@ import { createFile, deleteFile, fileExists, readFile } from '../file'
 import path from 'path'
 
 describe('utils', () => {
-  const folderPath = 'src/utils/spec'
+  const folderPath = path.join('src', 'utils', 'spec')
 
   describe('generateTimestamp', () => {
     let realDate: DateConstructor
