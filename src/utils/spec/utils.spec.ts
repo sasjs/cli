@@ -4,12 +4,15 @@ import {
   millisecondsToDdHhMmSs,
   padWithNumber,
   inExistingProject,
-  diff
+  diff,
+  setupGitIgnore
 } from '../utils'
-import { createFile, deleteFile } from '../file'
+import { createFile, deleteFile, fileExists, readFile } from '../file'
 import path from 'path'
 
 describe('utils', () => {
+  const folderPath = 'src/utils/spec'
+
   describe('generateTimestamp', () => {
     let realDate: DateConstructor
     beforeAll(() => {
@@ -109,8 +112,6 @@ describe('utils', () => {
   })
 
   describe('inExistingProject', () => {
-    const folderPath = 'src/utils/spec'
-
     it('should return true if package.json exists in folder', async () => {
       process.projectDir = process.cwd()
 
@@ -154,6 +155,50 @@ describe('utils', () => {
       expect(diff([[]], [[]])).toEqual([])
       expect(diff([null, NaN, undefined], [null, NaN, undefined])).toEqual([])
       expect(diff([true], [true])).toEqual([])
+    })
+  })
+
+  describe('setupGitIgnore', () => {
+    process.projectDir = process.cwd()
+
+    const gitFilePath = path.join(process.projectDir, folderPath, '.gitignore')
+
+    it('should create .gitignore file', async () => {
+      await expect(setupGitIgnore(folderPath)).toResolve()
+      await expect(fileExists(gitFilePath)).resolves.toEqual(true)
+
+      const gitIgnoreContent = await readFile(gitFilePath)
+
+      expect(gitIgnoreContent.includes('sasjsbuild/')).toEqual(true)
+
+      await deleteFile(gitFilePath)
+    })
+
+    it('should add sasjsbuild folder to .gitignore file', async () => {
+      let gitIgnoreContent = 'node_modules/'
+
+      await createFile(gitFilePath, gitIgnoreContent)
+
+      await expect(setupGitIgnore(folderPath)).toResolve()
+
+      const regExp = new RegExp(`^node_modules\/\nsasjsbuild\/\n`, 'gm')
+
+      gitIgnoreContent = await readFile(gitFilePath)
+
+      expect(gitIgnoreContent.match(regExp)).toBeTruthy()
+    })
+
+    it('should not add sasjsbuild folder to .gitignore file if such rule already exists', async () => {
+      const gitIgnoreContent = await readFile(gitFilePath)
+
+      await expect(setupGitIgnore(folderPath)).toResolve()
+
+      const regExp = new RegExp(`^sasjsbuild\/`, 'gm')
+
+      expect(gitIgnoreContent.match(regExp)).toBeTruthy()
+      expect(gitIgnoreContent.match(regExp).length).toEqual(1)
+
+      await deleteFile(gitFilePath)
     })
   })
 })
