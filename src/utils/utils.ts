@@ -4,6 +4,7 @@ import ora from 'ora'
 import { fileExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
+import { padWithNumber } from '@sasjs/utils/formatter'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -276,12 +277,6 @@ export function generateTimestamp(): string {
   )}`
 
   return timestamp
-}
-
-export function padWithNumber(number: number, padWith = 0) {
-  if (number > 9) return number
-
-  return `${padWith}${number}`
 }
 
 export const arrToObj = (arr: any[]): any =>
