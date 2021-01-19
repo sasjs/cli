@@ -6,6 +6,12 @@ import { Configuration } from '../../../types/configuration'
 
 export function getFoldersForDocs(config: Target | Configuration) {
   const { buildSourceFolder } = getConstants()
+  const macroCoreFolders =
+    'docConfig' in config &&
+    config.docConfig &&
+    config.docConfig.displayMacroCore
+      ? [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+      : []
   const macroFolders =
     config && config.macroFolders
       ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))
@@ -25,5 +31,11 @@ export function getFoldersForDocs(config: Target | Configuration) {
       ? config.jobConfig.jobFolders.map((f) => path.join(buildSourceFolder, f))
       : []
 
-  return [...macroFolders, ...programFolders, ...serviceFolders, ...jobFolders]
+  return [
+    ...macroCoreFolders,
+    ...macroFolders,
+    ...programFolders,
+    ...serviceFolders,
+    ...jobFolders
+  ]
 }

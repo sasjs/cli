@@ -194,6 +194,9 @@
     }
   ],
   "config": {
+    "docConfig": {
+      "displayMacroCore": true
+    },
     "buildConfig": {
       "initProgram": "build/buildinit.sas",
       "termProgram": "build/buildterm.sas",

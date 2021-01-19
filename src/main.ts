@@ -69,11 +69,9 @@ export async function doc(command: Command) {
   const { buildDestinationDocsFolder } = getConstants()
 
   return await generateDocs(targetName, outDirectory)
-    .then(() => {
+    .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located at the '${
-          outDirectory ? outDirectory : buildDestinationDocsFolder
-        }' directory.`
+        `Docs have been generated!\nThe docs are located at the '${res.outDirectory}' directory.`
       )
       return ReturnCode.Success
     })

@@ -13,11 +13,16 @@ import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTarg
 
 export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
-  if (!outDirectory) outDirectory = buildDestinationDocsFolder
 
   const config = await getLocalConfig()
-  const rootFolders = getFoldersForDocs(config)
 
+  if (!outDirectory)
+    outDirectory =
+      config.docConfig && config.docConfig.outDirectory
+        ? config.docConfig.outDirectory
+        : buildDestinationDocsFolder
+
+  const rootFolders = getFoldersForDocs(config)
   const targetFolders: string[] = []
   if (targetName) {
     const { target } = await findTargetInConfiguration(targetName)
@@ -73,6 +78,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
       `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )
   }
+
+  return { outDirectory }
 }
 
 function setVariableCmd(params: any): string {
