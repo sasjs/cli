@@ -4,14 +4,19 @@ import { getConstants } from '../../../constants'
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
 
-export function getFoldersForDocs(config: Target | Configuration) {
+export function getFoldersForDocs(
+  config: Target | Configuration,
+  root: boolean = false
+) {
   const { buildSourceFolder } = getConstants()
-  const macroCoreFolders =
-    'docConfig' in config &&
-    config.docConfig &&
-    config.docConfig.displayMacroCore
-      ? [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
-      : []
+  let macroCoreFolders: string[] = []
+  if (root)
+    macroCoreFolders =
+      'docConfig' in config &&
+      config.docConfig &&
+      config.docConfig.displayMacroCore === false
+        ? []
+        : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
   const macroFolders =
     config && config.macroFolders
       ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))

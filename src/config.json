@@ -195,7 +195,8 @@
   ],
   "config": {
     "docConfig": {
-      "displayMacroCore": true
+      "displayMacroCore": true,
+      "outDirectory": ""
     },
     "buildConfig": {
       "initProgram": "build/buildinit.sas",
