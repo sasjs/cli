@@ -17,12 +17,13 @@ export async function addTarget(): Promise<boolean> {
 
   let targetJson: any = {
     name,
-    serverType: serverType,
+    serverType,
     serverUrl,
     appLoc
   }
 
   let filePath = await saveConfig(scope, new Target(targetJson))
+
   process.logger?.info(`Target configuration has been saved to ${filePath}.`)
 
   if (serverType === ServerType.Sas9) {
@@ -54,12 +55,15 @@ export async function addTarget(): Promise<boolean> {
   }
 
   filePath = await saveConfig(scope, new Target(targetJson))
+
   process.logger?.info(`Target configuration has been saved to ${filePath}.`)
+
   return true
 }
 
 async function saveConfig(scope: TargetScope, target: Target) {
   let filePath = ''
+
   if (scope === TargetScope.Local) {
     filePath = await saveToLocalConfig(target as Target)
   } else if (scope === TargetScope.Global) {

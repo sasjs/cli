@@ -1,6 +1,5 @@
-import { getAccessToken, sanitizeAppLoc } from './config'
-import * as authUtils from './auth'
-import { isAccessTokenExpiring, refreshTokens, getNewAccessToken } from './auth'
+import { getAccessToken, sanitizeAppLoc } from '../config'
+import * as authUtils from '../auth'
 import dotenv from 'dotenv'
 import { Target } from '@sasjs/utils/types'
 jest.mock('@sasjs/adapter/node')

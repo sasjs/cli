@@ -49,11 +49,11 @@ export async function getDependencyPaths(
 
       process.logger?.error(errorMessage)
 
-      const unFoundDependencies = diff(dependencies, foundDependencies)
+      const notFoundDependencies = diff(dependencies, foundDependencies)
 
-      if (unFoundDependencies.length) {
+      if (notFoundDependencies.length) {
         process.logger?.error(
-          'Unable to locate dependencies: ' + unFoundDependencies.join(', ')
+          'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
         )
       }
 
@@ -73,10 +73,13 @@ export async function getDependencyPaths(
 export function prioritiseDependencyOverrides(
   dependencyNames: string[],
   dependencyPaths: string[],
-  macroPaths: string[] = []
+  macroPaths: string[] = [],
+  pathSeparator = path.sep
 ) {
   dependencyNames.forEach((depFileName) => {
-    const paths = dependencyPaths.filter((p) => p.includes(`/${depFileName}`))
+    const paths = dependencyPaths.filter((p) =>
+      p.includes(`${pathSeparator}${depFileName}`)
+    )
 
     let overriddenDependencyPaths = paths.filter(
       (p) => !p.includes('node_modules')
@@ -146,13 +149,20 @@ export async function getProgramDependencies(
       })
     })
 
-    const unfoundProgramNames = programs.filter(
+    const notFoundProgramNames = programs.filter(
       (program) => !foundProgramNames.includes(program.fileName)
     )
-    if (unfoundProgramNames.length) {
+    if (notFoundProgramNames.length) {
+      const programList = notFoundProgramNames
+        .map(
+          (program, i) =>
+            `${i + 1}. '${program.fileName}' with fileRef '${program.fileRef}'`
+        )
+        .join('\n')
+
       process.logger
         ?.warn(`The following files were listed under SAS Programs but could not be found:
-${unfoundProgramNames.join(', ')}
+${programList}
 Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n`)
     }
 

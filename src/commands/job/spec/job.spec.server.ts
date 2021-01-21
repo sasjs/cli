@@ -17,6 +17,7 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -39,11 +40,11 @@ describe('sasjs job execute', () => {
   })
 
   afterAll(async (done) => {
-    // await folder(
-    //   new Command(
-    //     `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-    //   )
-    // )
+    await folder(
+      new Command(
+        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
+      )
+    )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()

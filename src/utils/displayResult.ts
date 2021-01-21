@@ -1,5 +1,3 @@
-import { LogLevel, Logger } from '@sasjs/utils/logger'
-
 export function displaySuccess(message: string) {
   process.logger?.success(message)
 }

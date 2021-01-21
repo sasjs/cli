@@ -6,10 +6,11 @@
     "build/**/*"
   ],
   "scripts": {
-    "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm link --force\"",
-    "build": "rimraf build && tsc -p . && npm run copy-files",
-    "copy-files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy-doxy",
-    "copy-doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
+    "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
+    "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "rimraf build && tsc -p . && npm run copy:files",
+    "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy",
+    "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
@@ -44,13 +45,13 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^2.0.2",
-    "@sasjs/core": "^2.0.1",
-    "@sasjs/utils": "^2.0.1",
+    "@sasjs/adapter": "^2.0.3",
+    "@sasjs/core": "^2.3.2",
+    "@sasjs/utils": "^2.2.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
-    "csv-stringify": "^5.5.3",
+    "csv-stringify": "^5.6.1",
     "dotenv": "^8.2.0",
     "esm": "^3.2.25",
     "find": "^0.3.0",
@@ -60,7 +61,7 @@
     "jwt-decode": "^3.1.2",
     "lodash.groupby": "^4.6.0",
     "lodash.uniqby": "^4.7.0",
-    "ora": "^5.1.0",
+    "ora": "^5.2.0",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4"
   },
@@ -69,10 +70,10 @@
     "@babel/preset-typescript": "^7.12.7",
     "@types/btoa": "^1.2.3",
     "@types/find": "^0.2.1",
-    "@types/jsdom": "^16.2.5",
+    "@types/jsdom": "^16.2.6",
     "@types/lodash.groupby": "^4.6.6",
     "@types/lodash.uniqby": "^4.7.6",
-    "@types/node": "^14.14.10",
+    "@types/node": "^14.14.21",
     "@types/shelljs": "^0.8.8",
     "babel-jest": "^26.5.0",
     "copyfiles": "^2.4.1",
@@ -81,15 +82,10 @@
     "jest-extended": "^0.11.5",
     "mock-stdin": "^1.0.0",
     "nodemon": "^2.0.6",
-    "puppeteer": "^5.3.1",
-    "semantic-release": "^17.1.1",
+    "semantic-release": "^17.3.2",
     "ts-jest": "^26.4.4",
     "ts-node": "^9.0.0",
-    "tslib": "^2.0.3",
+    "tslib": "^2.1.0",
     "typescript": "^4.1.2"
-  },
-  "version": "1.0.0",
-  "directories": {
-    "test": "test"
   }
 }

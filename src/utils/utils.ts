@@ -4,21 +4,35 @@ import ora from 'ora'
 import { fileExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
+import { padWithNumber } from '@sasjs/utils/formatter'
 
-async function inExistingProject(folderPath: string) {
+export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
     path.join(process.projectDir, folderPath, 'package.json')
   )
+
   return packageJsonExists
 }
 
-export function diff(x: any[], y: any[]) {
-  return x.filter((a) => !y.includes(a))
+export function diff(a: any[], b: any[]) {
+  const notInA = a.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(b).includes(JSON.stringify(item))
+      : !b.includes(item)
+  )
+  const notInB = b.filter((item) =>
+    typeof item === 'object'
+      ? !JSON.stringify(a).includes(JSON.stringify(item))
+      : !a.includes(item)
+  )
+
+  return [...notInA, ...notInB]
 }
 
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
     createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
+
     return resolve()
   })
 }
@@ -66,6 +80,7 @@ function createApp(
 ) {
   const spinner = ora(`Creating web app in ${folderPath}.`)
   spinner.start()
+
   shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
     silent: true
   })
@@ -107,15 +122,27 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
     '.gitignore'
   )
   const gitIgnoreExists = await fileExists(gitIgnoreFilePath)
+
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
-    await createFile(gitIgnoreFilePath, `${gitIgnoreContent}\nsasjsbuild/\n`)
-    process.logger?.success('Existing .gitignore has been updated.')
+
+    const regExp = new RegExp(`^sasjsbuild\/`, 'gm')
+
+    if (!gitIgnoreContent.match(regExp)) {
+      await createFile(
+        gitIgnoreFilePath,
+        `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+      )
+
+      process.logger?.success('Existing .gitignore has been updated.')
+    }
   } else {
     shelljs.exec(`cd ${folderPath} && git init`, {
       silent: true
     })
+
     await createFile(gitIgnoreFilePath, 'node_modules/\nsasjsbuild/\n.env\n')
+
     process.logger?.success('.gitignore file has been created.')
   }
 }
@@ -241,9 +268,13 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
  */
 export function generateTimestamp(): string {
   const date = new Date()
-  const timestamp = `${date.getUTCFullYear()}${
+  const timestamp = `${date.getUTCFullYear()}${padWithNumber(
     date.getUTCMonth() + 1
-  }${date.getUTCDate()}${date.getUTCHours()}${date.getUTCMinutes()}${date.getUTCSeconds()}`
+  )}${padWithNumber(date.getUTCDate())}${padWithNumber(
+    date.getUTCHours()
+  )}${padWithNumber(date.getUTCMinutes())}${padWithNumber(
+    date.getUTCSeconds()
+  )}`
 
   return timestamp
 }

@@ -28,9 +28,11 @@ describe('sasjs flow', () => {
 
   beforeAll(async (done) => {
     target = await createGlobalTarget()
+
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+
     done()
   })
 

@@ -1,7 +1,7 @@
 import { Target } from '@sasjs/utils/types'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
-import { deleteFolder, readFile } from '../../../utils/file'
+import { readFile } from '../../../utils/file'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,
@@ -134,6 +134,23 @@ describe('getDependencyPaths', () => {
     )
 
     expect(result).toEqual(['sas/macros/mf_abort.sas'])
+  })
+
+  test('it should prioritise overridden dependencies with windows file paths', () => {
+    const dependencyNames = ['mf_abort.sas']
+    const dependencyPaths = [
+      'node_modules\\@sasjs\\core\\core\\mf_abort.sas',
+      'sas\\macros\\mf_abort.sas'
+    ]
+
+    const result = prioritiseDependencyOverrides(
+      dependencyNames,
+      dependencyPaths,
+      [],
+      '\\'
+    )
+
+    expect(result).toEqual(['sas\\macros\\mf_abort.sas'])
   })
 
   test('it should prioritise overridden dependencies provided specific macros', () => {
