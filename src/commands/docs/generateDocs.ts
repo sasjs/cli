@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder, deleteFolder } from '../../utils/file'
+import { createFolder, deleteFolder, folderExists } from '../../utils/file'
 import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
@@ -17,12 +17,9 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const config = await getLocalConfig()
 
   if (!outDirectory)
-    outDirectory =
-      config.docConfig &&
-      config.docConfig.outDirectory &&
-      config.docConfig.outDirectory.length
-        ? config.docConfig.outDirectory
-        : buildDestinationDocsFolder
+    outDirectory = config?.docConfig?.outDirectory?.length
+      ? config.docConfig.outDirectory
+      : buildDestinationDocsFolder
 
   const rootFolders = getFoldersForDocs(config, true)
   const targetFolders: string[] = []

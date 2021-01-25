@@ -12,9 +12,7 @@ export function getFoldersForDocs(
   let macroCoreFolders: string[] = []
   if (root)
     macroCoreFolders =
-      'docConfig' in config &&
-      config.docConfig &&
-      config.docConfig.displayMacroCore === false
+      (config as Configuration)?.docConfig?.displayMacroCore === false
         ? []
         : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
   const macroFolders =
