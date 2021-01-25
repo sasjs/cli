@@ -82,6 +82,30 @@ describe('sasjs doc', () => {
   )
 
   it(
+    `should generate docs without sasjs/core`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateConfig({ displayMacroCore: false } as DocConfig)
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, undefined, false)
+    },
+    60 * 1000
+  )
+
+  it(
     `should generate docs to sasjsconfig.json's outDirectory`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
@@ -147,7 +171,11 @@ const updateConfig = async (docConfig: DocConfig) => {
   await createFile(configPath, JSON.stringify(config, null, 1))
 }
 
-const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
+const verifyDocs = async (
+  docsFolder: string,
+  target: string = 'no-target',
+  macroCore: boolean = true
+) => {
   const indexHTML = path.join(docsFolder, 'index.html')
   const appInitHTML = path.join(docsFolder, 'appinit_8sas.html')
 
@@ -172,6 +200,8 @@ const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
     docsFolder,
     'yetanothermacro_8sas_source.html'
   )
+  const macroCoreFile = path.join(docsFolder, 'all_8sas.html')
+  const macroCoreFileSource = path.join(docsFolder, 'all_8sas_source.html')
 
   await expect(folderExists(docsFolder)).resolves.toEqual(true)
 
@@ -196,4 +226,7 @@ const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
 
   await expect(fileExists(yetAnotherMacro)).resolves.toEqual(true)
   await expect(fileExists(yetAnotherMacroSource)).resolves.toEqual(true)
+
+  await expect(fileExists(macroCoreFile)).resolves.toEqual(macroCore)
+  await expect(fileExists(macroCoreFileSource)).resolves.toEqual(macroCore)
 }
