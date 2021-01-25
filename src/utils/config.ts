@@ -357,10 +357,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
     accessToken.trim() === 'null' ||
     accessToken.trim() === 'undefined'
   ) {
-    // Check .env file for target if available
-    dotenv.config({
-      path: path.join(process.projectDir, `.env.${target?.name}`)
-    })
+    await overrideEnvVariables(target?.name)
     accessToken = process.env.ACCESS_TOKEN as string
   }
 
@@ -434,4 +431,32 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   }
 
   return accessToken
+}
+
+/**
+ * Overrides environment variables with values from a target-specific env file if available.
+ * Displays a warning if the file is unavailable.
+ * @param {string} targetName - the name of the target corresponding to the .env file.
+ */
+export const overrideEnvVariables = async (targetName: string) => {
+  if (!targetName) {
+    return
+  }
+  const targetEnvFile = await readFile(
+    path.join(process.projectDir, `.env.${targetName}`),
+    true
+  ).catch((e) => {
+    process.logger?.warn(
+      `A .env.${targetName} file was not found in your project directory. Defaulting to variables from the main .env file.`
+    )
+  })
+
+  if (!targetEnvFile) {
+    return
+  }
+
+  const targetEnvConfig = dotenv.parse(targetEnvFile)
+  for (const k in targetEnvConfig) {
+    process.env[k] = targetEnvConfig[k]
+  }
 }
