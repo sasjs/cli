@@ -7,7 +7,8 @@ import {
   isCsvFile,
   createFile,
   folderExists,
-  createFolder
+  createFolder,
+  saveToDefaultLocation
 } from '../../utils/file'
 import {
   generateTimestamp,
@@ -70,16 +71,28 @@ export async function execute(
       throw err
     })
 
+    const defaultCsvFileName = 'flowResults.csv'
+
     if (csvFile) {
-      if (!isCsvFile(csvFile)) {
-        return reject(
-          `Please provide csv file location (--csvFile).\n${examples.command}`
-        )
+      if (csvFile.includes('.')) {
+        if (!isCsvFile(csvFile)) {
+          return reject(
+            `Please provide csv file location (--csvFile).\n${examples.command}`
+          )
+        }
+      } else {
+        csvFile = path.join(csvFile, defaultCsvFileName)
       }
 
       await createFile(csvFile, '').catch((err) =>
         displayError(err, 'Error while creating CSV file.')
       )
+    } else {
+      const defaultCsvLoc = await saveToDefaultLocation(defaultCsvFileName, '')
+
+      if (typeof defaultCsvLoc.relativePath === 'string') {
+        csvFile = defaultCsvLoc.relativePath as string
+      }
     }
 
     if (
@@ -296,7 +309,7 @@ export async function execute(
           ).length)
       )
 
-      if (jobsCount === jobsWithSuccessStatus) resolve(true)
+      if (jobsCount === jobsWithSuccessStatus) resolve(csvFile)
       if (jobsCount === jobsWithNotSuccessStatus) resolve(false)
       if (jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus) {
         resolve(false)
@@ -648,7 +661,7 @@ const parseJobDetails = (response: any) => {
         details.length ? ' | ' : '',
         `${title}: ${Object.keys(data)
           .map((key) => `${key}: ${data[key]}`)
-          .join('; ')}}`
+          .join('; ')}`
       )
   }
 

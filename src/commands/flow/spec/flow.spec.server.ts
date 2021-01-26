@@ -345,6 +345,39 @@ describe('sasjs flow', () => {
 
     done()
   })
+
+  it('should execute flow and create csv file in default location', async (done) => {
+    const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
+    const csvLoc = path.join(
+      __dirname,
+      target.name,
+      'sasjsbuild',
+      'flowResults.csv'
+    )
+
+    const command = new Command(
+      `flow execute -s ${sourcePath} --logFolder ${logPath} -t ${target.name}`
+    )
+
+    await processFlow(command)
+
+    await expect(fileExists(csvLoc)).resolves.toEqual(true)
+
+    const csvData = (await readFile(csvLoc)) as string
+
+    const csvColumnsRegExp = new RegExp(
+      '^id,Flow,Predecessors,Location,Status,Log location,Details'
+    )
+    const csvRowRegExp = new RegExp(
+      `\\d,firstFlow,none,\/Public\/app\/cli-tests\/${target.name}\/jobs\/testJob\/job,completed,`,
+      'gm'
+    )
+
+    expect((csvData.match(csvColumnsRegExp) || []).length).toEqual(1)
+    expect((csvData.match(csvRowRegExp) || []).length).toEqual(2)
+
+    done()
+  })
 })
 
 const createGlobalTarget = async () => {

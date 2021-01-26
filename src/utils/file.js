@@ -3,6 +3,7 @@ import fs from 'fs'
 import fsExtra from 'fs-extra'
 import rimraf from 'rimraf'
 import path from 'path'
+import { getProjectRoot } from './config'
 
 export async function createFolderStructure(folder, parentFolderName = '.') {
   let folderPath = path.join(process.projectDir, folder.folderName)
@@ -345,4 +346,53 @@ export function getList(listHeader, fileContent) {
     .filter((l) => l.startsWith('@li'))
     .map((d) => d.replace(/\@li/g, ''))
     .map((d) => d.trim())
+}
+
+export function getRelativePath(from, to) {
+  const fromFolders = from.split(path.sep)
+  const toFolders = to.split(path.sep)
+
+  let similarPath = []
+  let relativePath = []
+
+  fromFolders.forEach((fromFolder, i) => {
+    if (toFolders[i] !== undefined && fromFolders[i] === toFolders[i]) {
+      similarPath.push(fromFolder)
+    } else {
+      if (fromFolder) relativePath.push(fromFolder)
+    }
+  })
+
+  similarPath = similarPath.join(path.sep)
+
+  const leadingPathSepRegExp = new RegExp(`^${path.sep}`)
+  const trailingPathSepRegExp = new RegExp(`${path.sep}$`)
+
+  relativePath =
+    (relativePath.length
+      ? `..${path.sep}`.repeat(relativePath.length)
+      : `.${path.sep}`) +
+    to
+      .replace(similarPath, '')
+      .replace(leadingPathSepRegExp, '')
+      .replace(trailingPathSepRegExp, '')
+
+  return relativePath
+}
+
+export async function saveToDefaultLocation(filePath, data) {
+  const root = await getProjectRoot()
+
+  const destination = path.join(root, 'sasjsbuild', filePath)
+
+  getRelativePath(process.cwd(), destination)
+
+  const relativePath = getRelativePath(process.cwd(), destination)
+
+  await createFile(destination, data)
+
+  return Promise.resolve({
+    absolutePath: destination,
+    relativePath: relativePath
+  })
 }

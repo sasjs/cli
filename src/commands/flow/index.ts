@@ -15,7 +15,7 @@ export async function processFlow(command: Command) {
 
   switch (subCommand) {
     case 'execute':
-      await execute(
+      const csvFilePath = await execute(
         source,
         logFolder,
         csvFile,
@@ -26,6 +26,10 @@ export async function processFlow(command: Command) {
 
         result = err
       })
+
+      if (csvFilePath) {
+        process.logger?.info(`CSV file located at: ${csvFilePath}`)
+      }
 
       break
     default:
