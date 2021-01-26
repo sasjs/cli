@@ -95,13 +95,13 @@ async function executeOnSasViya(
   process.logger?.success('Job execution completed!')
 
   process.logger?.info(
-    `Creating ${isOutput ? 'output' : 'log'} file in ${process.cwd()}.`
+    `Creating ${isOutput ? 'output' : 'log'} file in ${process.cwd()} .`
   )
   const createdFilePath = await createOutputFile(log)
   process.logger?.success(
     `${
       isOutput ? 'Output' : 'Log'
-    } file has been created at ${createdFilePath}.`
+    } file has been created at ${createdFilePath} .`
   )
 
   return { log }
@@ -134,10 +134,10 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
 
-        process.logger?.info(`Creating log file in ${process.cwd()}.`)
+        process.logger?.info(`Creating log file in ${process.cwd()} .`)
         const createdFilePath = await createOutputFile(log)
         process.logger?.success(
-          `Log file has been created at ${createdFilePath}.`
+          `Log file has been created at ${createdFilePath} .`
         )
 
         throw new ErrorResponse('Find more error details in the log file.')
@@ -156,11 +156,11 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
   process.logger?.success('Job execution completed!')
 
-  process.logger?.info(`Creating log file in ${process.cwd()}.`)
+  process.logger?.info(`Creating log file in ${process.cwd()} .`)
   const createdFilePath = await createOutputFile(
     JSON.stringify(parsedLog, null, 2)
   )
-  process.logger?.success(`Log file has been created at ${createdFilePath}.`)
+  process.logger?.success(`Log file has been created at ${createdFilePath} .`)
 
   return { parsedLog }
 }
