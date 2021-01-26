@@ -17,9 +17,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const config = await getLocalConfig()
 
   if (!outDirectory)
-    outDirectory = config?.docConfig?.outDirectory?.length
-      ? config.docConfig.outDirectory
-      : buildDestinationDocsFolder
+    outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
 
   const rootFolders = getFoldersForDocs(config, true)
   const targetFolders: string[] = []
