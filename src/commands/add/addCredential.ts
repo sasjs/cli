@@ -17,8 +17,13 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  * The file will contain the client ID, secret, access token and refresh token.
  * Its name will be of the form `.env.{targetName}`
  * @param {string} targetName- the name of the target to create the env file for.
+ * @param {boolean} insecure- boolean to use insecure connection, default is false.
  */
-export const addCredential = async (targetName: string): Promise<void> => {
+export const addCredential = async (
+  targetName: string,
+  insecure: boolean = false
+): Promise<void> => {
+  if (insecure) process.logger?.warn('Executing with insecure connection.')
   targetName = validateTargetName(targetName)
 
   let { target, isLocal } = await findTargetInConfiguration(targetName)
@@ -33,7 +38,8 @@ export const addCredential = async (targetName: string): Promise<void> => {
   const { access_token, refresh_token } = await getTokens(
     target,
     client,
-    secret
+    secret,
+    insecure
   )
 
   if (isLocal) {
@@ -77,7 +83,8 @@ export const validateTargetName = (targetName: string): string => {
 export const getTokens = async (
   target: Target,
   client: string,
-  secret: string
+  secret: string,
+  insecure: boolean = false
 ): Promise<SasAuthResponse> => {
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
@@ -88,7 +95,8 @@ export const getTokens = async (
     adapter,
     client,
     secret,
-    target
+    target,
+    insecure
   ).catch((e) => {
     process.logger?.error(
       `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID and Client Secret and try again.\n`
