@@ -365,13 +365,17 @@ export function getRelativePath(from, to) {
 
   similarPath = similarPath.join(path.sep)
 
-  const leadingPathSepRegExp = new RegExp(`^${path.sep}`)
-  const trailingPathSepRegExp = new RegExp(`${path.sep}$`)
+  const leadingPathSepRegExp = new RegExp(`^${path.sep.replace(/\\/g, '\\\\')}`)
+  const trailingPathSepRegExp = new RegExp(
+    `${path.sep.replace(/\\/g, '\\\\')}$`
+  )
 
   relativePath =
-    (relativePath.length
-      ? `..${path.sep}`.repeat(relativePath.length)
-      : `.${path.sep}`) +
+    (!path.sep.match(/\\/)
+      ? relativePath.length
+        ? `..${path.sep}`.repeat(relativePath.length)
+        : `.${path.sep}`
+      : '') +
     to
       .replace(similarPath, '')
       .replace(leadingPathSepRegExp, '')
@@ -393,6 +397,10 @@ export async function saveToDefaultLocation(filePath, data) {
 
   return Promise.resolve({
     absolutePath: destination,
-    relativePath: relativePath
+    relativePath: `${relativePath}`
   })
+}
+
+export function getRealPath(file) {
+  return fs.realpathSync(file)
 }
