@@ -392,17 +392,21 @@ export async function execute(
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
 
+            const csvFileRealPath = getRealPath(csvFile)
+
+            console.log(`[csvFileRealPath]`, csvFileRealPath)
+
             if (
-              !(await fileExists(csvFile).catch((err) =>
+              !(await fileExists(csvFileRealPath).catch((err) =>
                 displayError(err, 'Error while checking if csv file exists.')
               ))
             ) {
-              await createFile(csvFile, '').catch((err) =>
+              await createFile(getRealPath(csvFileRealPath), '').catch((err) =>
                 displayError(err, 'Error while creating CSV file.')
               )
             }
 
-            let csvData = await readFile(csvFile).catch((err) =>
+            let csvData = await readFile(csvFileRealPath).catch((err) =>
               displayError(err, 'Error while reading CSV file.')
             )
 
@@ -443,7 +447,7 @@ export async function execute(
               async (err, output) => {
                 if (err) reject(err)
 
-                await createFile(csvFile, output).catch((err) =>
+                await createFile(csvFileRealPath, output).catch((err) =>
                   displayError(err, 'Error while creating CSV file.')
                 )
 
