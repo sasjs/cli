@@ -32,6 +32,12 @@ export async function execute(
 ) {
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+
+    const normalizeFilePath = (filePath: string) => {
+      const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
+
+      return getRealPath(filePath).replace(pathSepRegExp, '/')
+    }
     let defaultCsvLoc: FilePath
 
     const logger = process.logger
@@ -174,7 +180,9 @@ export async function execute(
                 `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
 
-              logger?.info(`Log file located at: ${getRealPath(logName)}`)
+              logger?.info(
+                `Log file located at: ${normalizeFilePath(logName as string)}`
+              )
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -237,7 +245,9 @@ export async function execute(
               )
             }
 
-            logger?.info(`Log file located at: ${getRealPath(logName)}`)
+            logger?.info(
+              `Log file located at: ${normalizeFilePath(logName as string)}`
+            )
 
             if (
               flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -311,7 +321,7 @@ export async function execute(
       )
 
       if (jobsCount === jobsWithSuccessStatus)
-        resolve(defaultCsvLoc?.absolutePath || csvFile)
+        resolve(defaultCsvLoc?.absolutePath || getRealPath(csvFile))
       if (jobsCount === jobsWithNotSuccessStatus) resolve(false)
       if (jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus) {
         resolve(false)
@@ -392,9 +402,7 @@ export async function execute(
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
 
-            const csvFileRealPath = getRealPath(csvFile)
-
-            console.log(`[csvFileRealPath]`, csvFileRealPath)
+            const csvFileRealPath = defaultCsvLoc?.absolutePath || csvFile
 
             if (
               !(await fileExists(csvFileRealPath).catch((err) =>
@@ -556,7 +564,9 @@ export async function execute(
                   )
                 }
 
-                logger?.info(`Log file located at: ${getRealPath(logName)}`)
+                logger?.info(
+                  `Log file located at: ${normalizeFilePath(logName as string)}`
+                )
 
                 if (
                   flows[successor].jobs.filter(
@@ -636,7 +646,9 @@ export async function execute(
                 `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
 
-              logger?.info(`Log file located at: ${getRealPath(logName)}`)
+              logger?.info(
+                `Log file located at: ${normalizeFilePath(logName as string)}`
+              )
 
               if (
                 flows[successor].jobs.filter((j: any) =>
