@@ -1,4 +1,3 @@
-import chalk from 'chalk'
 import fs from 'fs'
 import fsExtra from 'fs-extra'
 import rimraf from 'rimraf'
@@ -14,12 +13,7 @@ export async function createFolderStructure(folder, parentFolderName = '.') {
     )
   }
   await createFolder(folderPath).catch(() =>
-    console.log(
-      chalk.redBright(
-        'Error creating folder: ',
-        chalk.redBright.bold(folder.folderName)
-      )
-    )
+    process.logger?.error('Error creating folder: ', folder.folderName)
   )
   if (folder.files && folder.files.length) {
     folder.files.forEach(async (file) => {
@@ -29,12 +23,7 @@ export async function createFolderStructure(folder, parentFolderName = '.') {
         `${folder.folderName}/${file.fileName}`
       )
       await createFile(filePath, file.content).catch(() => {
-        console.log(
-          chalk.redBright(
-            'Error creating file: ',
-            chalk.redBright.bold(filePath)
-          )
-        )
+        process.logger?.error('Error creating file: ', filePath)
       })
     })
   }
@@ -60,114 +49,83 @@ export async function folderExists(folderPath) {
   })
 }
 
-export async function readFile(fileName, debug = false, silent = false) {
-  if (debug) {
-    console.log('Reading file: ', chalk.cyan(fileName))
-  }
+export async function readFile(fileName) {
+  process.logger?.info('Reading file: ', fileName)
   return new Promise((resolve, reject) => {
     fs.readFile(fileName, 'utf8', function (error, data) {
       if (error) {
-        if (!silent) {
-          console.log(
-            chalk.red(`Error accessing file: `),
-            chalk.redBright.bold(fileName)
-          )
-        }
+        process.logger?.error(`Error accessing file: ${fileName}`)
         return reject(error)
       }
-      resolve(data)
+      return resolve(data)
     })
   })
 }
 
-export async function base64EncodeFile(fileName, debug = false) {
-  if (debug) {
-    console.log('Encoding file: ', chalk.cyan(fileName))
-  }
+export async function base64EncodeFile(fileName) {
+  process.logger?.info('Encoding file: ', fileName)
   return new Promise((resolve, reject) => {
     fs.readFile(fileName, { encoding: 'base64' }, function (error, data) {
       if (error) {
-        console.log(
-          chalk.red(`Error accessing file: `),
-          chalk.redBright.bold(fileName)
-        )
+        process.logger?.error(`Error accessing file: ${fileName}`)
         return reject(error)
       }
-      resolve(data)
+      return resolve(data)
     })
   })
 }
 
-export async function getSubFoldersInFolder(folderName, debug = false) {
-  if (debug) {
-    console.log('Getting subfolders in %s', chalk.cyan(folderName))
-  }
+export async function getSubFoldersInFolder(folderName) {
+  process.logger?.info(`Getting subfolders in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
-        console.log(
-          chalk.red(`Error listing subfolders in %s`),
-          chalk.redBright.bold(folderName)
-        )
+        process.logger?.error(`Error listing subfolders in: ${folderName}`)
         return reject(error)
       }
       const subFolders = data.filter((d) => d.isDirectory()).map((d) => d.name)
-      resolve(subFolders)
+      return resolve(subFolders)
     })
   })
 }
 
-export async function getFilesInFolder(folderName, debug = false) {
-  if (debug) {
-    console.log('Getting files in %s', chalk.cyan(folderName))
-  }
+export async function getFilesInFolder(folderName) {
+  process.logger?.info(`Getting files in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
-        console.log(
-          chalk.red(`Error listing subfolders in %s`),
-          chalk.redBright.bold(folderName)
-        )
+        process.logger?.error(`Error listing files in: ${folderName}`)
         return reject(error)
       }
       const files = data.filter((d) => !d.isDirectory()).map((d) => d.name)
-      resolve(files)
+      return resolve(files)
     })
   })
 }
 
-export async function getIniFilesInFolder(folderName, debug = false) {
-  if (debug) {
-    console.log('Getting *.ini file in %s', chalk.cyan(folderName))
-  }
+export async function getIniFilesInFolder(folderName) {
+  process.logger?.info(`Getting *.ini files in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
-        console.log(
-          chalk.red(`Error listing subfolders in %s`),
-          chalk.redBright.bold(folderName)
-        )
+        process.logger?.error(`Error listing *.ini files in: ${folderName}`)
         return reject(error)
       }
       const files = data
         .filter((d) => !d.isDirectory())
         .map((d) => d.name)
         .filter((name) => name.endsWith('.ini'))
-      resolve(files)
+      return resolve(files)
     })
   })
 }
 
-export async function createFolder(folderName, debug = false) {
-  if (debug) console.log('Creating folder %s', chalk.cyan(folderName))
-
+export async function createFolder(folderName) {
+  process.logger?.info(`Creating folder ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.mkdir(folderName, { recursive: true }, (error, data) => {
       if (error) {
-        console.log(
-          chalk.red(`Error creating folder %s`),
-          chalk.redBright.bold(folderName)
-        )
+        process.logger?.error(`Error creating folder ${folderName}`)
 
         return reject(error)
       }
@@ -177,10 +135,8 @@ export async function createFolder(folderName, debug = false) {
   })
 }
 
-export async function createFile(fileName, content, debug = false) {
-  if (debug) {
-    console.log('Creating file %s', chalk.cyan(fileName))
-  }
+export async function createFile(fileName, content) {
+  process.logger?.info(`Creating file ${fileName}`)
 
   return new Promise(async (resolve, reject) => {
     fileName = unifyFilePath(fileName)
@@ -195,10 +151,7 @@ export async function createFile(fileName, content, debug = false) {
 
     fs.writeFile(fileName, content, function (error) {
       if (error) {
-        console.log(
-          chalk.red(`Error creating file %s`),
-          chalk.redBright.bold(fileName)
-        )
+        process.logger?.error(`Error creating file ${fileName}`)
         return reject(error)
       }
 
@@ -226,53 +179,43 @@ export function unifyFilePath(filePath, separator = path.sep, replace = '/') {
   return filePath.split(replace).join(separator)
 }
 
-export async function deleteFolder(folderName, debug = false) {
-  if (debug) {
-    console.log('Deleting folder %s', chalk.cyan(folderName))
-  }
+export async function deleteFolder(folderName) {
+  process.logger?.info(`Deleting folder ${folderName}`)
+
   return new Promise((resolve, reject) => {
     rimraf(folderName, function (error) {
       if (error) {
-        console.log(
-          chalk.red(`Error deleting folder %s`),
-          chalk.redBright.bold(folderName)
-        )
-        reject(error)
+        process.logger?.error(`Error deleting folder ${folderName}`)
+
+        return reject(error)
       }
-      resolve()
+      return resolve()
     })
   })
 }
 
-export async function deleteFile(filePath, debug = false) {
-  if (debug) {
-    console.log('Deleting file %s', chalk.cyan(filePath))
-  }
+export async function deleteFile(filePath) {
+  process.logger?.info(`Deleting file ${filePath}`)
+
   return new Promise((resolve, reject) => {
     rimraf(filePath, function (error) {
       if (error) {
-        console.log(
-          chalk.red(`Error deleting file %s`),
-          chalk.redBright.bold(filePath)
-        )
-        reject(error)
+        process.logger?.error(`Error deleting file ${filePath}`)
+
+        return reject(error)
       }
-      resolve()
+      return resolve()
     })
   })
 }
 
-export async function copy(source, destination, debug = false) {
-  if (debug) {
-    console.log('Copying %s to %s', chalk.cyan(source), chalk.cyan(destination))
-  }
+export async function copy(source, destination) {
+  process.logger?.info(`Copying ${source} to ${destination}`)
+
   return new Promise((resolve, reject) => {
     fsExtra.copy(source, destination, function (error) {
       if (error) {
-        console.log(
-          chalk.red(`Error copying files`),
-          chalk.redBright.bold(source, destination)
-        )
+        process.logger?.error(`Error copying ${source} to ${destination}`)
         return reject(error)
       }
       return resolve()
@@ -311,10 +254,8 @@ export function getList(listHeader, fileContent) {
     if (!hasFileHeader) return []
     fileHeader = fileContent.split('/**')[1].split('**/')[0]
   } catch (e) {
-    console.error(
-      chalk.redBright(
-        'File header parse error.\nPlease make sure your file header is in the correct format.'
-      )
+    process.logger?.error(
+      'File header parse error.\nPlease make sure your file header is in the correct format.'
     )
   }
 
