@@ -24,7 +24,7 @@ export async function servicePackDeploy(
   }
 
   process.logger?.info(
-    `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
+    `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
   )
 
   let success

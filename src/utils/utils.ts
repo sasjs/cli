@@ -266,15 +266,19 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
 /**
  * Returns a timestamp in YYYYMMDDSS format
  */
-export function generateTimestamp(): string {
+export function generateTimestamp(sep = ''): string {
   const date = new Date()
-  const timestamp = `${date.getUTCFullYear()}${padWithNumber(
-    date.getUTCMonth() + 1
-  )}${padWithNumber(date.getUTCDate())}${padWithNumber(
-    date.getUTCHours()
-  )}${padWithNumber(date.getUTCMinutes())}${padWithNumber(
+
+  const timestamp = [
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
     date.getUTCSeconds()
-  )}`
+  ]
+    .map((item) => padWithNumber(item))
+    .join(sep)
 
   return timestamp
 }

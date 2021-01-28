@@ -22,7 +22,7 @@ export async function getConfiguration(
     return (configJson.config ? configJson.config : configJson) as Configuration
   }
 
-  throw new Error(`No configuration was found at path ${pathToFile}.`)
+  throw new Error(`No configuration was found at path ${pathToFile} .`)
 }
 
 /**
@@ -38,6 +38,12 @@ export async function findTargetInConfiguration(
   targetName: string,
   viyaSpecific = false
 ): Promise<{ target: Target; isLocal: boolean }> {
+  const rootDir = await getProjectRoot()
+
+  if (rootDir !== process.projectDir) {
+    process.projectDir = rootDir
+  }
+
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)

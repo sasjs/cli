@@ -19,7 +19,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
   const startTime = new Date().getTime()
 
   const spinner = ora(
-    `Checking the compute contexts on ${target.serverUrl}...\n`
+    `Checking the compute contexts on ${target.serverUrl} ...\n`
   )
 
   spinner.start()
