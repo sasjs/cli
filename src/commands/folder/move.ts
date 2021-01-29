@@ -28,7 +28,10 @@ export const move = async (
   const movedFolder = await sasjs
     .moveFolder(sourceFolder, parentFolder, targetFolderName, accessToken)
     .catch((err) => {
-      displayError(err, `An error occurred when moving folder ${sourceFolder}.`)
+      displayError(
+        err,
+        `An error occurred when moving folder ${sourceFolder} .`
+      )
     })
 
   if (movedFolder) {

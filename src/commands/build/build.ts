@@ -80,11 +80,11 @@ async function createFinalSasFile(target: Target) {
   finalSasFileContent += `\n${buildTerm}`
   finalSasFileContent = removeComments(finalSasFileContent)
 
-  process.logger?.info(`Creating file ${finalFilePath}.`)
+  process.logger?.info(`Creating file ${finalFilePath} .`)
   await createFile(finalFilePath, finalSasFileContent)
   process.logger?.success(`File ${finalFilePath} has been created.`)
 
-  process.logger?.info(`Creating file ${finalFilePathJSON}.`)
+  process.logger?.info(`Creating file ${finalFilePathJSON} .`)
   await createFile(
     finalFilePathJSON,
     JSON.stringify(folderContentJSON, null, 1)
