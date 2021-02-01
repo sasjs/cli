@@ -17,7 +17,7 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  * The file will contain the client ID, secret, access token and refresh token.
  * Its name will be of the form `.env.{targetName}`
  * @param {string} targetName- the name of the target to create the env file for.
- * @param {boolean} insecure- boolean to use insecure connection, default is false.
+ * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
 export const addCredential = async (
   targetName: string,
