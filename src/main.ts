@@ -250,6 +250,7 @@ export async function buildWebApp(command: Command) {
 export async function add(command: Command) {
   const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target') as string
+  const insecure = !!command.getFlag('insecure')
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
@@ -257,7 +258,7 @@ export async function add(command: Command) {
 
   if (command && command.name === 'add') {
     if (subCommand === 'cred') {
-      return await addCredential(targetName)
+      return await addCredential(targetName, insecure)
         .then(() => {
           displaySuccess('Credential has been successfully added!')
           return ReturnCode.Success
