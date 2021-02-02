@@ -274,7 +274,7 @@ const saveLog = async (
 
   let logLines = typeof logData === 'object' ? parseLogLines(logData) : logData
 
-  process.logger?.info(`Creating log file at ${logPath}.`)
+  process.logger?.info(`Creating log file at ${logPath} .`)
   await createFile(logPath, logLines)
 
   if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)

@@ -20,7 +20,7 @@ export async function deploy(targetName: string) {
     target.deployConfig?.deployServicePack
   ) {
     process.logger?.info(
-      `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
+      `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
     )
     await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Service pack has been successfully deployed.')
@@ -40,7 +40,7 @@ export async function deploy(targetName: string) {
   await asyncForEach(deployScripts, async (deployScript) => {
     if (isSasFile(deployScript)) {
       process.logger?.info(
-        `Processing SAS file ${path.basename(deployScript)}...`
+        `Processing SAS file ${path.basename(deployScript)} ...`
       )
       // get content of file
       const deployScriptFile = await readFile(
@@ -61,7 +61,7 @@ export async function deploy(targetName: string) {
       }
     } else if (isShellScript(deployScript)) {
       process.logger?.info(
-        `Executing shell script ${path.basename(deployScript)}...`
+        `Executing shell script ${path.basename(deployScript)} ...`
       )
 
       const { buildSourceFolder, buildDestinationFolder } = getConstants()

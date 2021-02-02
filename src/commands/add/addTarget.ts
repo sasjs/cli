@@ -24,7 +24,7 @@ export async function addTarget(): Promise<boolean> {
 
   let filePath = await saveConfig(scope, new Target(targetJson))
 
-  process.logger?.info(`Target configuration has been saved to ${filePath}.`)
+  process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName } = await getAndValidateSas9Fields()
@@ -56,7 +56,7 @@ export async function addTarget(): Promise<boolean> {
 
   filePath = await saveConfig(scope, new Target(targetJson))
 
-  process.logger?.info(`Target configuration has been saved to ${filePath}.`)
+  process.logger?.info(`Target configuration has been saved to ${filePath}`)
 
   return true
 }

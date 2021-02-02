@@ -48,7 +48,7 @@ export async function compile(targetName: string, forceCompile = false) {
 export async function copyFilesToBuildFolder(target: Target) {
   const { buildSourceFolder, buildDestinationFolder } = getConstants()
   await recreateBuildFolder()
-  process.logger?.info(`Copying files to ${buildDestinationFolder}.`)
+  process.logger?.info(`Copying files to ${buildDestinationFolder} .`)
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
@@ -66,7 +66,7 @@ export async function copyFilesToBuildFolder(target: Target) {
     })
   } catch (error) {
     process.logger?.error(
-      `An error has occurred when copying files to ${buildDestinationFolder}.`
+      `An error has occurred when copying files to ${buildDestinationFolder} .`
     )
     throw error
   }
