@@ -4,6 +4,11 @@ import { getConstants } from '../../../constants'
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
 
+/**
+ * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
+ * @param {Target | Configuration} config- from which folders list will be extracted
+ * @param {boolean} root- tells if param config is of specific target or not, in case of root level it will add macroCore folder to list conditionally
+ */
 export function getFoldersForDocs(
   config: Target | Configuration,
   root: boolean = false

@@ -11,6 +11,14 @@ import { getConstants } from '../../constants'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
 
+/**
+ * Generates documentation(Doxygen)
+ * By default the docs will be at 'sasjsbuild/docs' folder
+ * If a target is supplied, generates docs only for the SAS programs / macros / jobs / services in that target (and the root).
+ * If no target is supplied, generates for all sas programs/ macros / jobs / services.
+ * @param {string} targetName- the name of the target to be specific for docs.
+ * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
+ */
 export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
 
