@@ -21,7 +21,7 @@ describe('addCredential', () => {
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
     expect(configUtils.saveToLocalConfig).toHaveBeenCalledWith(
-      new Target({
+      jasmine.objectContaining({
         name: 'test-target',
         serverUrl: 'http://server.com',
         serverType: ServerType.SasViya,
@@ -197,12 +197,12 @@ const setupMocks = () => {
     .mockImplementation(() => Promise.resolve('.'))
   jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
     Promise.resolve({
-      target: {
+      target: new Target({
         name: 'test-target',
         serverUrl: '',
         serverType: ServerType.SasViya,
         appLoc: '/test'
-      } as Target,
+      }),
       isLocal: true
     })
   )
