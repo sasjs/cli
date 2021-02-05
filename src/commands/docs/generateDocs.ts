@@ -4,20 +4,30 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder, deleteFolder } from '../../utils/file'
+import { createFolder, deleteFolder, folderExists } from '../../utils/file'
 import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
 
+/**
+ * Generates documentation(Doxygen)
+ * By default the docs will be at 'sasjsbuild/docs' folder
+ * If a target is supplied, generates docs only for the SAS programs / macros / jobs / services in that target (and the root).
+ * If no target is supplied, generates for all sas programs/ macros / jobs / services.
+ * @param {string} targetName- the name of the target to be specific for docs.
+ * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
+ */
 export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent, buildDestinationDocsFolder } = getConstants()
-  if (!outDirectory) outDirectory = buildDestinationDocsFolder
 
   const config = await getLocalConfig()
-  const rootFolders = getFoldersForDocs(config)
 
+  if (!outDirectory)
+    outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
+
+  const rootFolders = getFoldersForDocs(config, true)
   const targetFolders: string[] = []
   if (targetName) {
     const { target } = await findTargetInConfiguration(targetName)
@@ -73,6 +83,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
       `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )
   }
+
+  return { outDirectory }
 }
 
 function setVariableCmd(params: any): string {
