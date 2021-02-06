@@ -74,7 +74,7 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
   paramNodes.forEach((node, key) => {
     dotNodes += `${nodeDictionary.get(key)} [label="${
       node.label
-    }" URL="${'url'}" shape="cylinder" style="filled" color="#A3D0D4"]\n`
+    }" shape="cylinder" style="filled" color="#A3D0D4"]\n`
     if (node.edges.length)
       dotVertices += `${nodeDictionary.get(
         key
@@ -84,9 +84,12 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
   })
 
   fileNodes.forEach((node, key) => {
+    const url =
+      key.toLowerCase().replace(/_/g, '__').replace('.sas', '_8sas') + '.html'
+
     dotNodes += `${nodeDictionary.get(key)} [ shape="record" label="{${
       node.label
-    }}" href="${'url'}" ]\n`
+    }}" href="${url}" ]\n`
     if (node.edges.length)
       dotVertices += `${nodeDictionary.get(
         key
