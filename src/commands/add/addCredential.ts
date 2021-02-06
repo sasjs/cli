@@ -30,7 +30,7 @@ export const addCredential = async (
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl()
-    target = new Target({ ...target, serverUrl })
+    target = new Target({ ...target.toJson(), serverUrl })
   }
 
   const { client, secret } = await getCredentialsInput(target.name)
