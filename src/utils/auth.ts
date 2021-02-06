@@ -63,9 +63,5 @@ export async function getNewAccessToken(
     insecure
   )
 
-  if (authResponse && authResponse.error) {
-    throw new Error(`${authResponse.error} - ${authResponse.error_description}`)
-  }
-
   return authResponse
 }
