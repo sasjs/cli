@@ -4,7 +4,7 @@ import {
   createEnvFile,
   addCredential
 } from '../addCredential'
-import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
+import { ServerType, Target, SasAuthResponse } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as authUtils from '../../../utils/auth'
@@ -117,7 +117,7 @@ describe('getTokens', () => {
       Promise.resolve({
         access_token: 't0k3n',
         refresh_token: 'r3fr3sh'
-      })
+      } as SasAuthResponse)
     )
 
     const authResponse = await getTokens(testTarget as Target, clientId, secret)
@@ -187,11 +187,12 @@ const setupMocks = () => {
     .mockImplementation(() =>
       Promise.resolve({ client: 'client', secret: 'secret' })
     )
-  jest
-    .spyOn(authUtils, 'getNewAccessToken')
-    .mockImplementation(() =>
-      Promise.resolve({ access_token: 'access', refresh_token: 'refresh' })
-    )
+  jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
+    Promise.resolve({
+      access_token: 'access',
+      refresh_token: 'refresh'
+    } as SasAuthResponse)
+  )
   jest
     .spyOn(configUtils, 'saveToLocalConfig')
     .mockImplementation(() => Promise.resolve('.'))
