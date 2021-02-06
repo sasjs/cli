@@ -21,7 +21,7 @@ describe('addCredential', () => {
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
     expect(configUtils.saveToLocalConfig).toHaveBeenCalledWith(
-      jasmine.objectContaining({
+      expect.objectContaining({
         name: 'test-target',
         serverUrl: 'http://server.com',
         serverType: ServerType.SasViya,
