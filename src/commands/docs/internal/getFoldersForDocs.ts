@@ -3,47 +3,34 @@ import { getConstants } from '../../../constants'
 
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
+import { findTargetInConfiguration } from '../../../utils/config'
+
+import { getFoldersForDocsFromConfig } from './getFoldersForDocsFromConfig'
+import { getFoldersForDocsAllTargets } from './getFoldersForDocsAllTargets'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
- * @param {Target | Configuration} config- from which folders list will be extracted
- * @param {boolean} root- tells if param config is of specific target or not, in case of root level it will add macroCore folder to list conditionally
+ * @param {string} targetName- the name of the target to be specific for docs.
+ * @param {Configuration} config- sasjsconfig.json
  */
-export function getFoldersForDocs(
-  config: Target | Configuration,
-  root: boolean = false
+export async function getFoldersForDocs(
+  targetName: string,
+  config: Configuration
 ) {
-  const { buildSourceFolder } = getConstants()
-  let macroCoreFolders: string[] = []
-  if (root)
-    macroCoreFolders =
-      (config as Configuration)?.docConfig?.displayMacroCore === false
-        ? []
-        : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
-  const macroFolders =
-    config && config.macroFolders
-      ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))
-      : []
-  const programFolders =
-    config && config.programFolders
-      ? config.programFolders.map((f) => path.join(buildSourceFolder, f))
-      : []
-  const serviceFolders =
-    config && config.serviceConfig && config.serviceConfig.serviceFolders
-      ? config.serviceConfig.serviceFolders.map((f) =>
-          path.join(buildSourceFolder, f)
-        )
-      : []
-  const jobFolders =
-    config && config.jobConfig && config.jobConfig.jobFolders
-      ? config.jobConfig.jobFolders.map((f) => path.join(buildSourceFolder, f))
-      : []
+  const rootFolders = getFoldersForDocsFromConfig(config, true)
+  let targetFolders
+  if (targetName) {
+    const { target } = await findTargetInConfiguration(targetName)
+    targetFolders = getFoldersForDocsFromConfig(target)
+  } else {
+    targetFolders = getFoldersForDocsAllTargets(config)
+  }
 
-  return [
-    ...macroCoreFolders,
-    ...macroFolders,
-    ...programFolders,
-    ...serviceFolders,
-    ...jobFolders
-  ]
+  return {
+    macroCore: rootFolders.macroCore.concat(targetFolders.macroCore),
+    macro: rootFolders.macro.concat(targetFolders.macro),
+    program: rootFolders.program.concat(targetFolders.program),
+    service: rootFolders.service.concat(targetFolders.service),
+    job: rootFolders.job.concat(targetFolders.job)
+  }
 }

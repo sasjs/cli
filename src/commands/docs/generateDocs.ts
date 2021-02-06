@@ -5,11 +5,11 @@ import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
 import { createFolder, deleteFolder, folderExists } from '../../utils/file'
-import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
+import { getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
-import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
+import { createDotFiles } from './internal/createDotFiles'
 
 /**
  * Generates documentation(Doxygen)
@@ -27,18 +27,23 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   if (!outDirectory)
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
 
-  const rootFolders = getFoldersForDocs(config, true)
-  const targetFolders: string[] = []
-  if (targetName) {
-    const { target } = await findTargetInConfiguration(targetName)
-    targetFolders.push(...getFoldersForDocs(target))
-  } else {
-    targetFolders.push(...getFoldersForDocsAllTargets(config))
-  }
+  const {
+    macroCore: macroCoreFolders,
+    macro: macroFolders,
+    program: programFolders,
+    service: serviceFolders,
+    job: jobFolders
+  } = await getFoldersForDocs(targetName, config)
 
-  const combinedFolders = [...new Set([...rootFolders, ...targetFolders])].join(
-    ' '
-  )
+  const combinedFolders = [
+    ...new Set([
+      ...macroCoreFolders,
+      ...macroFolders,
+      ...programFolders,
+      ...serviceFolders,
+      ...jobFolders
+    ])
+  ].join(' ')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -83,6 +88,10 @@ export async function generateDocs(targetName: string, outDirectory: string) {
       `The Doxygen application is not installed or configured. This external tool is used by 'sasjs doc'.\n${stderr}\nPlease download and install from here: https://www.doxygen.nl/download.html#srcbin`
     )
   }
+
+  const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
+
+  await createDotFiles(foldersListForDot, outDirectory)
 
   return { outDirectory }
 }
