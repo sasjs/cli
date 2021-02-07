@@ -18,14 +18,20 @@ import { getDocConfig } from './internal/getDocConfig'
  * If a target is supplied, generates docs only for the SAS programs / macros / jobs / services in that target (and the root).
  * If no target is supplied, generates for all sas programs/ macros / jobs / services.
  * @param {string} targetName- the name of the target to be specific for docs.
- * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
+ * @param {string} outDirectoryInput- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDocs(targetName: string, outDirectory: string) {
+export async function generateDocs(
+  targetName: string,
+  outDirectoryInput: string
+) {
   const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
-  let serverUrl = ''
-  ;({ serverUrl, outDirectory } = getDocConfig(config, outDirectory))
+  const { target, serverUrl, outDirectory } = await getDocConfig(
+    config,
+    targetName,
+    outDirectoryInput
+  )
 
   const {
     macroCore: macroCoreFolders,
@@ -33,7 +39,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     program: programFolders,
     service: serviceFolders,
     job: jobFolders
-  } = await getFoldersForDocs(targetName, config)
+  } = await getFoldersForDocs(target, config)
 
   const combinedFolders = [
     ...new Set([

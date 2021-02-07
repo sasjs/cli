@@ -11,24 +11,29 @@ import { getDocConfig } from './internal/getDocConfig'
  * If a target is supplied, generates dot files only for the jobs / services in that target (and the root).
  * If no target is supplied, generates for all jobs / services.
  * @param {string} targetName- the name of the target to be specific for dot files.
- * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
+ * @param {string} outDirectoryInput- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDot(targetName: string, outDirectory: string) {
+export async function generateDot(
+  targetName: string,
+  outDirectoryInput: string
+) {
   const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
 
-  let serverUrl = ''
-  ;({ serverUrl, outDirectory } = getDocConfig(config, outDirectory))
+  const { target, serverUrl, outDirectory } = await getDocConfig(
+    config,
+    targetName,
+    outDirectoryInput
+  )
 
   const { service: serviceFolders, job: jobFolders } = await getFoldersForDocs(
-    targetName,
+    target,
     config
   )
 
   const folderList = [...new Set([...serviceFolders, ...jobFolders])]
 
-  console.log(serverUrl)
   await createDotFiles(folderList, outDirectory, serverUrl)
 
   return { outDirectory }

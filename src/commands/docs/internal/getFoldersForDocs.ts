@@ -1,30 +1,18 @@
 import path from 'path'
-import { getConstants } from '../../../constants'
 
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
-import { findTargetInConfiguration } from '../../../utils/config'
 
 import { getFoldersForDocsFromConfig } from './getFoldersForDocsFromConfig'
-import { getFoldersForDocsAllTargets } from './getFoldersForDocsAllTargets'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
- * @param {string} targetName- the name of the target to be specific for docs.
+ * @param {Target} target- target for docs.
  * @param {Configuration} config- sasjsconfig.json
  */
-export async function getFoldersForDocs(
-  targetName: string,
-  config: Configuration
-) {
-  const rootFolders = getFoldersForDocsFromConfig(config, true)
-  let targetFolders
-  if (targetName) {
-    const { target } = await findTargetInConfiguration(targetName)
-    targetFolders = getFoldersForDocsFromConfig(target)
-  } else {
-    targetFolders = getFoldersForDocsAllTargets(config)
-  }
+export async function getFoldersForDocs(target: Target, config: Configuration) {
+  const rootFolders = getFoldersForDocsFromConfig(config)
+  const targetFolders = getFoldersForDocsFromConfig(target)
 
   return {
     macroCore: rootFolders.macroCore.concat(targetFolders.macroCore),
