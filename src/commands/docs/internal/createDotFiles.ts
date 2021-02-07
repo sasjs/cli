@@ -10,7 +10,8 @@ import { getDotFileContent } from './getDotFileContent'
 
 export async function createDotFiles(
   folderList: string[],
-  outDirectory: string
+  outDirectory: string,
+  serverUrl: string
 ) {
   const spinner = ora(
     chalk.greenBright('Generating Dot files', chalk.cyanBright(outDirectory))
@@ -19,7 +20,7 @@ export async function createDotFiles(
 
   await createFolder(outDirectory)
 
-  const dotFileContent = await getDotFileContent(folderList)
+  const dotFileContent = await getDotFileContent(folderList, serverUrl)
   const dotFilePath = path.join(outDirectory, 'generated_code.dot')
   const dotGraphPath = path.join(outDirectory, 'graph_diagram.svg')
 

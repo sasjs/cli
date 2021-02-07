@@ -7,7 +7,10 @@ import { getFileOutputs } from './getFileOutputs'
 import { populateNodeDictionary } from './populateNodeDictionary'
 import { populateParamNodeTypes } from './populateParamNodeTypes'
 
-export async function getDotFileContent(folderList: string[]): Promise<string> {
+export async function getDotFileContent(
+  folderList: string[],
+  serverUrl: string
+): Promise<string> {
   let nodeDictionary = new Map()
   let fileNodes = new Map()
   let paramNodes = new Map()
@@ -37,7 +40,7 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
 
       fileNodes.set(fileName, {
         edges: fileOutputs,
-        label: `${fileName}|${fileBrief}`
+        label: `${fileName} | ${fileBrief}`
       })
 
       if (!nodeDictionary.has(fileName))
@@ -53,9 +56,12 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
     let color = '#A3D0D4'
     const librefFound = key.match(/^[A-Z]{2,5}\./)
     if (librefFound) color = paramNodeTyes.get(librefFound[0])
+
+    const attrURL = serverUrl ? `URL="${serverUrl + key}"` : ''
+
     dotNodes += `${nodeDictionary.get(key)} [label="${
       node.label
-    }" shape="cylinder" style="filled" color="${color}"]\n`
+    }" ${attrURL} shape="cylinder" style="filled" color="${color}"]\n`
 
     if (node.edges.length)
       dotVertices += `${nodeDictionary.get(
