@@ -8,7 +8,6 @@ import {
   AuthConfig
 } from '@sasjs/utils/types/config'
 import { ServerType } from '@sasjs/utils/types/serverType'
-import { Target } from '@sasjs/utils/types/target'
 
 export interface Configuration {
   docConfig?: DocConfig
