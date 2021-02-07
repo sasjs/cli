@@ -194,10 +194,6 @@
     }
   ],
   "config": {
-    "docConfig": {
-      "displayMacroCore": true,
-      "outDirectory": ""
-    },
     "buildConfig": {
       "initProgram": "build/buildinit.sas",
       "termProgram": "build/buildterm.sas",
@@ -227,6 +223,11 @@
         "serverUrl": "http://sas.analytium.co.uk",
         "appLoc": "/Public/app",
         "contextName": "SAS Job Execution compute context",
+        "docConfig": {
+          "displayMacroCore": true,
+          "outDirectory": "",
+          "dataControllerUrl": ""
+        },
         "buildConfig": {
           "buildOutputFileName": "myviyadeploy.sas",
           "initProgram": "build/buildinitviya.sas",

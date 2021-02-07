@@ -166,14 +166,14 @@ const updateConfig = async (docConfig: DocConfig) => {
   const { buildSourceFolder } = getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
-  config.docConfig = docConfig
+  if (config?.targets?.[0].docConfig) config.targets[0].docConfig = docConfig
 
   await createFile(configPath, JSON.stringify(config, null, 1))
 }
 
 const verifyDocs = async (
   docsFolder: string,
-  target: string = 'no-target',
+  target: string = 'viya',
   macroCore: boolean = true
 ) => {
   const indexHTML = path.join(docsFolder, 'index.html')
@@ -208,8 +208,8 @@ const verifyDocs = async (
   await expect(fileExists(indexHTML)).resolves.toEqual(true)
   await expect(fileExists(appInitHTML)).resolves.toEqual(true)
 
-  const expectSas9Files = target === 'no-target' || target === 'sas9'
-  const expectViyaFiles = target === 'no-target' || target === 'viya'
+  const expectSas9Files = target === 'sas9'
+  const expectViyaFiles = target === 'viya'
 
   await expect(fileExists(sas9MacrosExampleMacro)).resolves.toEqual(
     expectSas9Files
