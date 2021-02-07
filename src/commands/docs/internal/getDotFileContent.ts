@@ -67,7 +67,8 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
 
   fileNodes.forEach((node, key) => {
     const url =
-      key.toLowerCase().replace(/_/g, '__').replace('.sas', '_8sas') + '.html'
+      key.toLowerCase().replace(/_/g, '__').replace('.sas', '_8sas') +
+      '_source.html'
 
     dotNodes += `${nodeDictionary.get(key)} [ shape="record" label="{${
       node.label
