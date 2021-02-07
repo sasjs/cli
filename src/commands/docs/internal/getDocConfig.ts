@@ -11,12 +11,18 @@ export async function getDocConfig(
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  if (!outDirectory)
-    outDirectory = target?.docConfig?.outDirectory || buildDestinationDocsFolder
+  if (!outDirectory) {
+    outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
+    outDirectory = target?.docConfig?.outDirectory || outDirectory
+  }
 
-  const serverUrl = target?.docConfig?.dataControllerUrl
-    ? target.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
+  let serverUrl = ''
+  serverUrl = config?.docConfig?.dataControllerUrl
+    ? config.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
     : ''
+  serverUrl = target?.docConfig?.dataControllerUrl
+    ? target.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
+    : serverUrl
 
   return { target, serverUrl, outDirectory }
 }

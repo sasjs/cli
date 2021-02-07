@@ -11,11 +11,16 @@ import { getFoldersForDocsFromConfig } from './getFoldersForDocsFromConfig'
  * @param {Configuration} config- sasjsconfig.json
  */
 export async function getFoldersForDocs(target: Target, config: Configuration) {
+  let macroCore = []
+
   const rootFolders = getFoldersForDocsFromConfig(config)
+  macroCore = rootFolders.macroCore
+
   const targetFolders = getFoldersForDocsFromConfig(target)
+  macroCore = targetFolders.macroCore
 
   return {
-    macroCore: rootFolders.macroCore.concat(targetFolders.macroCore),
+    macroCore,
     macro: rootFolders.macro.concat(targetFolders.macro),
     program: rootFolders.program.concat(targetFolders.program),
     service: rootFolders.service.concat(targetFolders.service),

@@ -12,11 +12,10 @@ export function getFoldersForDocsFromConfig(config: Target | Configuration) {
   const { buildSourceFolder } = getConstants()
 
   const macroCoreFolders =
-    config instanceof Target
-      ? config?.docConfig?.displayMacroCore === false
-        ? []
-        : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
-      : []
+    config?.docConfig?.displayMacroCore === false
+      ? []
+      : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+
   const macroFolders =
     config && config.macroFolders
       ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))

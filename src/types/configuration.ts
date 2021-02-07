@@ -10,6 +10,7 @@ import {
 import { ServerType } from '@sasjs/utils/types/serverType'
 
 export interface Configuration {
+  docConfig?: DocConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig
   serviceConfig?: ServiceConfig
