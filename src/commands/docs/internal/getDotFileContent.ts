@@ -1,35 +1,11 @@
 import path from 'path'
-import {
-  getFilesInFolder,
-  getList,
-  getBrief,
-  readFile
-} from '../../../utils/file'
+import { getFilesInFolder, getBrief, readFile } from '../../../utils/file'
 import { asyncForEach } from '../../../utils/utils'
 
-const CRAYONS = [
-  '#e6194b', // red
-  '#3cb44b', // green
-  '#4363d8', // blue
-  '#f58231', // orange
-  '#911eb4', // purple
-  '#46f0f0', // cyan
-  '#f032e6', // magenta
-  '#bcf60c', // lime
-  '#fabebe', // pink
-  '#008080', // teal
-  '#e6beff', // lavender
-  '#9a6324', // brown
-  '#fffac8', // beige
-  '#800000', // maroon
-  '#aaffc3', // mint
-  '#808000', // olive
-  '#ffd8b1', // apricot
-  '#000075', // navy
-  '#808080', // gray
-  '#ffe119', // yellow
-  '#ffffff' // white
-]
+import { getFileInputs } from './getFileInputs'
+import { getFileOutputs } from './getFileOutputs'
+import { populateNodeDictionary } from './populateNodeDictionary'
+import { populateParamNodeTypes } from './populateParamNodeTypes'
 
 export async function getDotFileContent(folderList: string[]): Promise<string> {
   let nodeDictionary = new Map()
@@ -51,44 +27,11 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
 
       fileName = fileName.toUpperCase()
 
-      const fileInputs = getList('<h4> Data Inputs </h4>', fileContent)
-        .map((input) => input.toUpperCase())
-        .filter((input) => !input.endsWith('.DLL'))
-      fileInputs.forEach((inputParam) => {
-        inputParam = inputParam.toUpperCase()
-        if (paramNodes.has(inputParam)) {
-          const paramNode = paramNodes.get(inputParam)
-          paramNode.edges.push(fileName)
-          paramNodes.set(inputParam, paramNode)
-        } else
-          paramNodes.set(inputParam, {
-            edges: [fileName],
-            label: inputParam
-          })
-        if (!nodeDictionary.has(inputParam))
-          nodeDictionary.set(inputParam, `n${nodeDictionary.size}`)
+      const fileInputs = getFileInputs(fileName, fileContent, paramNodes)
+      const fileOutputs = getFileOutputs(fileContent, paramNodes)
 
-        const librefFound = inputParam.match(/^[A-Z]{2,5}\./)
-        if (librefFound && !paramNodeTyes.has(librefFound[0]))
-          paramNodeTyes.set(librefFound[0], CRAYONS[paramNodeTyes.size])
-      })
-
-      const fileOutputs = getList('<h4> Data Outputs </h4>', fileContent)
-        .map((output) => output.toUpperCase())
-        .filter((output) => !output.endsWith('.DLL'))
-      fileOutputs.forEach((outputParam) => {
-        if (!paramNodes.has(outputParam))
-          paramNodes.set(outputParam, {
-            edges: [],
-            label: outputParam
-          })
-        if (!nodeDictionary.has(outputParam))
-          nodeDictionary.set(outputParam, `n${nodeDictionary.size}`)
-
-        const librefFound = outputParam.match(/^[A-Z]{2,5}\./)
-        if (librefFound && !paramNodeTyes.has(librefFound[0]))
-          paramNodeTyes.set(librefFound[0], CRAYONS[paramNodeTyes.size])
-      })
+      populateNodeDictionary(nodeDictionary, paramNodes)
+      populateParamNodeTypes(paramNodeTyes, paramNodes)
 
       if (fileInputs.length === 0 && fileOutputs.length === 0) return
 
@@ -113,6 +56,7 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
     dotNodes += `${nodeDictionary.get(key)} [label="${
       node.label
     }" shape="cylinder" style="filled" color="${color}"]\n`
+
     if (node.edges.length)
       dotVertices += `${nodeDictionary.get(
         key
@@ -128,6 +72,7 @@ export async function getDotFileContent(folderList: string[]): Promise<string> {
     dotNodes += `${nodeDictionary.get(key)} [ shape="record" label="{${
       node.label
     }}" href="${url}" ]\n`
+
     if (node.edges.length)
       dotVertices += `${nodeDictionary.get(
         key
