@@ -15,7 +15,7 @@ import { getConstants } from '../constants'
 export async function getConfiguration(
   pathToFile: string
 ): Promise<Configuration> {
-  const config = await readFile(pathToFile, false, true).catch(() => null)
+  const config = await readFile(pathToFile).catch(() => null)
 
   if (config) {
     const configJson = JSON.parse(config)
@@ -117,9 +117,7 @@ export async function findTargetInConfiguration(
 export async function getGlobalRcFile() {
   const homeDir = require('os').homedir()
   const sasjsRcFileContent = await readFile(
-    path.join(homeDir, '.sasjsrc'),
-    false,
-    true
+    path.join(homeDir, '.sasjsrc')
   ).catch(() => null)
   return sasjsRcFileContent
     ? JSON.parse(sasjsRcFileContent)
@@ -459,8 +457,7 @@ export const overrideEnvVariables = async (targetName: string) => {
     return
   }
   const targetEnvFile = await readFile(
-    path.join(process.projectDir, `.env.${targetName}`),
-    true
+    path.join(process.projectDir, `.env.${targetName}`)
   ).catch((e) => {
     process.logger?.warn(
       `A .env.${targetName} file was not found in your project directory. Defaulting to variables from the main .env file.`

@@ -4,7 +4,7 @@ import {
   createEnvFile,
   addCredential
 } from '../addCredential'
-import { ServerType, Logger, LogLevel, Target } from '@sasjs/utils'
+import { ServerType, Target, SasAuthResponse } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as authUtils from '../../../utils/auth'
@@ -21,7 +21,7 @@ describe('addCredential', () => {
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
     expect(configUtils.saveToLocalConfig).toHaveBeenCalledWith(
-      new Target({
+      expect.objectContaining({
         name: 'test-target',
         serverUrl: 'http://server.com',
         serverType: ServerType.SasViya,
@@ -117,7 +117,7 @@ describe('getTokens', () => {
       Promise.resolve({
         access_token: 't0k3n',
         refresh_token: 'r3fr3sh'
-      })
+      } as SasAuthResponse)
     )
 
     const authResponse = await getTokens(testTarget as Target, clientId, secret)
@@ -187,22 +187,23 @@ const setupMocks = () => {
     .mockImplementation(() =>
       Promise.resolve({ client: 'client', secret: 'secret' })
     )
-  jest
-    .spyOn(authUtils, 'getNewAccessToken')
-    .mockImplementation(() =>
-      Promise.resolve({ access_token: 'access', refresh_token: 'refresh' })
-    )
+  jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
+    Promise.resolve({
+      access_token: 'access',
+      refresh_token: 'refresh'
+    } as SasAuthResponse)
+  )
   jest
     .spyOn(configUtils, 'saveToLocalConfig')
     .mockImplementation(() => Promise.resolve('.'))
   jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
     Promise.resolve({
-      target: {
+      target: new Target({
         name: 'test-target',
         serverUrl: '',
         serverType: ServerType.SasViya,
         appLoc: '/test'
-      } as Target,
+      }),
       isLocal: true
     })
   )

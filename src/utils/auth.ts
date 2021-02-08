@@ -51,19 +51,17 @@ export async function getNewAccessToken(
   sasjsInstance: SASjs,
   clientId: string,
   clientSecret: string,
-  target: Target
+  target: Target,
+  insecure: boolean = false
 ) {
   const authUrl = getAuthUrl(target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
   const authResponse = await sasjsInstance.getAccessToken(
     clientId,
     clientSecret,
-    authCode
+    authCode,
+    insecure
   )
-
-  if (authResponse && authResponse.error) {
-    throw new Error(`${authResponse.error} - ${authResponse.error_description}`)
-  }
 
   return authResponse
 }
