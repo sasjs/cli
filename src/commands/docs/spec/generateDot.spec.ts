@@ -168,8 +168,8 @@ const updateConfig = async (target: Target) => {
 }
 
 const verifyDotFiles = async (docsFolder: string) => {
-  const dotCodeFile = path.join(docsFolder, 'generated_code.dot')
-  const dotGraphFile = path.join(docsFolder, 'graph_diagram.svg')
+  const dotCodeFile = path.join(docsFolder, 'data_lineage.dot')
+  const dotGraphFile = path.join(docsFolder, 'data_lineage.svg')
 
   await expect(folderExists(docsFolder)).resolves.toEqual(true)
 
@@ -178,7 +178,7 @@ const verifyDotFiles = async (docsFolder: string) => {
 }
 
 const verifyCustomDotFiles = async (docsFolder: string) => {
-  const dotCodeFile = path.join(docsFolder, 'generated_code.dot')
+  const dotCodeFile = path.join(docsFolder, 'data_lineage.dot')
   const dotFileContent = await readFile(dotCodeFile)
 
   const { objects: nodes, edges } = JSON.parse(
