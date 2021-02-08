@@ -262,7 +262,7 @@ export async function getBuildVars(target: Target) {
   const targetBuildVars = target?.buildConfig?.macroVars ?? {}
   const { buildSourceFolder } = getConstants()
   const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
   const commonBuildVars = configuration?.buildConfig?.macroVars ?? {}
 

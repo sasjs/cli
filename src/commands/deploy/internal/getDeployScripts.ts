@@ -6,7 +6,7 @@ import { getConfiguration } from '../../../utils/config'
 export async function getDeployScripts(target: Target) {
   const { buildSourceFolder } = getConstants()
   const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
 
   let allDeployScripts: string[] = [

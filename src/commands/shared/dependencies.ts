@@ -13,6 +13,7 @@ export async function getDependencyPaths(
 ) {
   const { buildSourceFolder } = getConstants()
   const sourcePaths = await getSourcePaths(buildSourceFolder)
+
   if (macroFolders.length) {
     macroFolders.forEach((macroFolder) => {
       const macroPath = path.join(buildSourceFolder, macroFolder)

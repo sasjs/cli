@@ -64,13 +64,15 @@ export async function deploy(targetName: string) {
         `Executing shell script ${path.basename(deployScript)} ...`
       )
 
-      const { buildSourceFolder, buildDestinationFolder } = getConstants()
-      const deployScriptPath = path.join(buildSourceFolder, deployScript)
+      const { buildDestinationFolder } = getConstants()
+      const deployScriptPath = path.join(process.projectDir, deployScript)
       const logPath = path.join(
-        buildDestinationFolder,
+        process.projectDir,
         `${path.basename(deployScript).replace('.sh', '')}.log`
       )
+
       await executeShellScript(deployScriptPath, logPath)
+
       process.logger?.success(
         `Shell script execution completed! Log is available at ${path.join(
           'sasjsbuild',

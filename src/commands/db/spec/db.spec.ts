@@ -33,6 +33,8 @@ describe(`sasjs db`, () => {
 
     await expect(buildDB()).rejects.toThrow('no such file or directory')
 
+    await removeTestApp(__dirname, parentFolderNameTimeStamped)
+
     done()
   })
 })

@@ -395,15 +395,15 @@ const createGlobalTarget = async () => {
     serverUrl: process.env.SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['testServices', 'testJob', 'services'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     jobConfig: {
-      jobFolders: ['testJob'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      jobFolders: ['sasjs/testJob'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     authConfig: {

@@ -108,7 +108,7 @@ export async function getServiceVars(target: Target) {
   const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
   const { buildSourceFolder } = getConstants()
   const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
   const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
 

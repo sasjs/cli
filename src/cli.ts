@@ -24,6 +24,7 @@ import { fileExists } from './utils/file'
 import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'
+import { getProjectRoot } from './utils/config'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export async function cli(args: string[]) {
@@ -31,6 +32,7 @@ export async function cli(args: string[]) {
   await instantiateLogger()
 
   const parsedCommand = parseCommand(args)
+
   if (!parsedCommand) {
     handleInvalidCommand()
     return
@@ -39,23 +41,44 @@ export async function cli(args: string[]) {
   const command = new Command(parsedCommand.parameters)
 
   switch (parsedCommand.name) {
+    case 'create':
+      if (!process.projectDir) process.projectDir = process.cwd()
+
+      break
     case 'compile':
+      break
     case 'build':
+      break
     case 'deploy':
+      break
     case 'db':
+      break
     case 'compilebuild':
+      break
     case 'compilebuilddeploy':
+      break
     case 'web':
+      break
     case 'doc':
       try {
         await checkAndSetProjectDirectory()
       } catch (err) {
         process.logger.error('An error occurred', err)
+
         return
       }
+
       break
     default:
-      process.projectDir = process.cwd()
+      if (!process.projectDir) {
+        process.projectDir = process.cwd()
+
+        const rootDir = await getProjectRoot()
+
+        if (rootDir !== process.projectDir) {
+          process.projectDir = rootDir
+        }
+      }
   }
 
   let result: ReturnCode
