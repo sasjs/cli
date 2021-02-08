@@ -7,6 +7,11 @@ import { getFileOutputs } from './getFileOutputs'
 import { populateNodeDictionary } from './populateNodeDictionary'
 import { populateParamNodeTypes } from './populateParamNodeTypes'
 
+/**
+ * Returns Dot-code
+ * @param {string[]} folderList- dot-code will be generated against provided folderList
+ * @param {string} serverUrl- prefixes with links to Libs(Inputs/Outputs)
+ */
 export async function getDotFileContent(
   folderList: string[],
   serverUrl: string
@@ -33,20 +38,19 @@ export async function getDotFileContent(
       const fileInputs = getFileInputs(fileName, fileContent, paramNodes)
       const fileOutputs = getFileOutputs(fileContent, paramNodes)
 
-      populateNodeDictionary(nodeDictionary, paramNodes)
-      populateParamNodeTypes(paramNodeTyes, paramNodes)
-
       if (fileInputs.length === 0 && fileOutputs.length === 0) return
 
       fileNodes.set(fileName, {
         edges: fileOutputs,
         label: `${fileName} | ${fileBrief}`
       })
-
-      if (!nodeDictionary.has(fileName))
-        nodeDictionary.set(fileName, `n${nodeDictionary.size}`)
     })
   })
+
+  populateNodeDictionary(nodeDictionary, paramNodes)
+  populateNodeDictionary(nodeDictionary, fileNodes)
+
+  populateParamNodeTypes(paramNodeTyes, paramNodes)
 
   let dotNodes = '',
     dotVertices = ''

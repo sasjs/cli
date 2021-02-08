@@ -2,8 +2,7 @@ import path from 'path'
 
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
-
-import { getFoldersForDocsFromConfig } from './getFoldersForDocsFromConfig'
+import { getConstants } from '../../../constants'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
@@ -13,10 +12,10 @@ import { getFoldersForDocsFromConfig } from './getFoldersForDocsFromConfig'
 export async function getFoldersForDocs(target: Target, config: Configuration) {
   let macroCore = []
 
-  const rootFolders = getFoldersForDocsFromConfig(config)
+  const rootFolders = extractFoldersForDocs(config)
   macroCore = rootFolders.macroCore
 
-  const targetFolders = getFoldersForDocsFromConfig(target)
+  const targetFolders = extractFoldersForDocs(target)
   macroCore = targetFolders.macroCore
 
   return {
@@ -25,5 +24,41 @@ export async function getFoldersForDocs(target: Target, config: Configuration) {
     program: rootFolders.program.concat(targetFolders.program),
     service: rootFolders.service.concat(targetFolders.service),
     job: rootFolders.job.concat(targetFolders.job)
+  }
+}
+
+function extractFoldersForDocs(config: Target | Configuration) {
+  const { buildSourceFolder } = getConstants()
+
+  const macroCoreFolders =
+    config?.docConfig?.displayMacroCore === false
+      ? []
+      : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+
+  const macroFolders =
+    config && config.macroFolders
+      ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))
+      : []
+  const programFolders =
+    config && config.programFolders
+      ? config.programFolders.map((f) => path.join(buildSourceFolder, f))
+      : []
+  const serviceFolders =
+    config && config.serviceConfig && config.serviceConfig.serviceFolders
+      ? config.serviceConfig.serviceFolders.map((f) =>
+          path.join(buildSourceFolder, f)
+        )
+      : []
+  const jobFolders =
+    config && config.jobConfig && config.jobConfig.jobFolders
+      ? config.jobConfig.jobFolders.map((f) => path.join(buildSourceFolder, f))
+      : []
+
+  return {
+    macroCore: macroCoreFolders,
+    macro: macroFolders,
+    program: programFolders,
+    service: serviceFolders,
+    job: jobFolders
   }
 }

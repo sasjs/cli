@@ -302,8 +302,6 @@ export function getBrief(fileContent) {
     )
   }
 
-  const list = []
-
   const lines = fileHeader.split('\n').map((s) => (s ? s.trim() : s))
 
   let brief = lines.find((l) => l.startsWith('@brief'))

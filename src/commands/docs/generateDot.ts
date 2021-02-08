@@ -8,9 +8,9 @@ import { getDocConfig } from './internal/getDocConfig'
 /**
  * Generates lineage in dot language
  * By default the dot files will be at 'sasjsbuild/docs' folder
- * If a target is supplied, generates dot files only for the jobs / services in that target (and the root).
- * If no target is supplied, generates for all jobs / services.
- * @param {string} targetName- the name of the target to be specific for dot files.
+ * Generates dot files only for the jobs / services in target (and the root).
+ * If no target is supplied, first target from sasjsconfig will be used.
+ * @param {string} targetName- the name of the target for dot files.
  * @param {string} outDirectoryInput- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDot(

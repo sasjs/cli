@@ -2,15 +2,22 @@ import { Configuration } from '../../../types/configuration'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
 
+/**
+ * Returns doc related config from root-level and Target-specfic(having precedence)
+ * @param {Configuration} config- from which doc related config will be extracted
+ * @param {string} targetName- the name of the target for dot files.
+ * @param {string} outDirectoryInput- the name of the output folder, provided using command.
+ */
 export async function getDocConfig(
   config: Configuration,
   targetName: string,
-  outDirectory: string
+  outDirectoryInput: string
 ) {
   const { buildDestinationDocsFolder } = getConstants()
 
   const { target } = await findTargetInConfiguration(targetName)
 
+  let outDirectory = outDirectoryInput
   if (!outDirectory) {
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
     outDirectory = target?.docConfig?.outDirectory || outDirectory

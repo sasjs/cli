@@ -22,6 +22,11 @@ const CRAYONS = [
   '#ffffff' // white
 ]
 
+/**
+ * Populates Types of Nodes Map for param (Inputs/Outputs)
+ * @param {Map} paramNodeTypes- Map for param Nodes having colors
+ * @param {Map} nodes- Map for params(Inputs/Outputs) Or files
+ */
 export function populateParamNodeTypes(
   paramNodeTypes: Map<string, string>,
   nodes: Map<string, string>

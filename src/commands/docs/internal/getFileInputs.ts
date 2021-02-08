@@ -1,5 +1,11 @@
 import { getList } from '../../../utils/file'
 
+/**
+ * Returns list of Inputs and populates Map of Nodes
+ * @param {string} fileName- Name of the file from which Inputs need to extract
+ * @param {string} fileContent- Contents of the file from which Inputs need to extract
+ * @param {Map} paramNodes- Map for params(Inputs/Outputs)
+ */
 export function getFileInputs(
   fileName: string,
   fileContent: string,
