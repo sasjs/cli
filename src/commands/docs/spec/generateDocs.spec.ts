@@ -4,7 +4,15 @@ import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
-import { folderExists, fileExists, deleteFile } from '../../../utils/file'
+import {
+  folderExists,
+  fileExists,
+  createFile,
+  deleteFile
+} from '../../../utils/file'
+import { getConfiguration } from '../../../utils/config'
+import { getConstants } from '../../../constants'
+import { DocConfig } from '@sasjs/utils/types/config'
 
 describe('sasjs doc', () => {
   let appName: string
@@ -74,6 +82,72 @@ describe('sasjs doc', () => {
   )
 
   it(
+    `should generate docs without sasjs/core`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateConfig({ displayMacroCore: false } as DocConfig)
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, undefined, false)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs to sasjsconfig.json's outDirectory`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputProvided = path.join(__dirname, appName, 'xyz')
+
+      await createTestApp(__dirname, appName)
+      await updateConfig({ outDirectory: docOutputProvided } as DocConfig)
+
+      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputProvided)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs to default location having docConfig.outDirectory is empty`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateConfig({ outDirectory: '' } as DocConfig)
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault)
+    },
+    60 * 1000
+  )
+
+  it(
     `should fail to generate docs for not having Doxyfile configuration`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
@@ -88,7 +162,20 @@ describe('sasjs doc', () => {
   )
 })
 
-const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
+const updateConfig = async (docConfig: DocConfig) => {
+  const { buildSourceFolder } = getConstants()
+  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+  const config = await getConfiguration(configPath)
+  config.docConfig = docConfig
+
+  await createFile(configPath, JSON.stringify(config, null, 1))
+}
+
+const verifyDocs = async (
+  docsFolder: string,
+  target: string = 'no-target',
+  macroCore: boolean = true
+) => {
   const indexHTML = path.join(docsFolder, 'index.html')
   const appInitHTML = path.join(docsFolder, 'appinit_8sas.html')
 
@@ -113,6 +200,8 @@ const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
     docsFolder,
     'yetanothermacro_8sas_source.html'
   )
+  const macroCoreFile = path.join(docsFolder, 'all_8sas.html')
+  const macroCoreFileSource = path.join(docsFolder, 'all_8sas_source.html')
 
   await expect(folderExists(docsFolder)).resolves.toEqual(true)
 
@@ -137,4 +226,7 @@ const verifyDocs = async (docsFolder: string, target: string = 'no-target') => {
 
   await expect(fileExists(yetAnotherMacro)).resolves.toEqual(true)
   await expect(fileExists(yetAnotherMacroSource)).resolves.toEqual(true)
+
+  await expect(fileExists(macroCoreFile)).resolves.toEqual(macroCore)
+  await expect(fileExists(macroCoreFileSource)).resolves.toEqual(macroCore)
 }

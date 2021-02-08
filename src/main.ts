@@ -69,11 +69,9 @@ export async function doc(command: Command) {
   const { buildDestinationDocsFolder } = getConstants()
 
   return await generateDocs(targetName, outDirectory)
-    .then(() => {
+    .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located at the '${
-          outDirectory ? outDirectory : buildDestinationDocsFolder
-        }' directory.`
+        `Docs have been generated!\nThe docs are located at the '${res.outDirectory}' directory.`
       )
       return ReturnCode.Success
     })
@@ -250,6 +248,7 @@ export async function buildWebApp(command: Command) {
 export async function add(command: Command) {
   const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target') as string
+  const insecure = !!command.getFlag('insecure')
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
@@ -257,7 +256,7 @@ export async function add(command: Command) {
 
   if (command && command.name === 'add') {
     if (subCommand === 'cred') {
-      return await addCredential(targetName)
+      return await addCredential(targetName, insecure)
         .then(() => {
           displaySuccess('Credential has been successfully added!')
           return ReturnCode.Success
