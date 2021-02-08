@@ -319,8 +319,6 @@ export function sanitizeAppLoc(appLoc: string) {
   return appLoc
 }
 
-// TODO: also look for sasjsconfig.json
-// TODO: increase maxLevel
 export async function getProjectRoot() {
   let root = ''
   let rootFound = false
