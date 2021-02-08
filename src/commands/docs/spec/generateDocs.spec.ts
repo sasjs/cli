@@ -22,7 +22,7 @@ describe('sasjs doc', () => {
   })
 
   it(
-    `should generate docs`,
+    `should generate docs for (fallback first Target from config)`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
       const docOutputDefault = path.join(
@@ -42,7 +42,7 @@ describe('sasjs doc', () => {
   )
 
   it(
-    `should generate docs for single target`,
+    `should generate docs for supplied target`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
       const docOutputDefault = path.join(
@@ -54,9 +54,9 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t sas9`))).resolves.toEqual(0)
 
-      await verifyDocs(docOutputDefault, 'viya')
+      await verifyDocs(docOutputDefault, 'sas9')
     },
     60 * 1000
   )
