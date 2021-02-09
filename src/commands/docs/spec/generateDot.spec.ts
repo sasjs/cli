@@ -159,7 +159,7 @@ describe('sasjs doc lineage', () => {
 
 const updateConfig = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   if (config?.targets?.[0])
     config.targets[0] = { ...config.targets[0], ...target }
