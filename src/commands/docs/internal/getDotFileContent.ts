@@ -63,16 +63,15 @@ export async function getDotFileContent(
 
     const attrURL = serverUrl ? `URL="${serverUrl + key}"` : ''
 
-    dotNodes += `${nodeDictionary.get(key)} [label="${
-      node.label
-    }" ${attrURL} shape="cylinder" style="filled" color="${color}"]\n`
+    const NDkey = nodeDictionary.get(key)
+    dotNodes += `${NDkey} [label="${node.label}" ${attrURL} shape="cylinder" style="filled" color="${color}"]\n`
 
-    if (node.edges.length)
-      dotVertices += `${nodeDictionary.get(
-        key
-      )} -> {${node.edges
-        .map((e: string) => nodeDictionary.get(e))
-        .join(' ')}}\n`
+    if (node.edges.length) {
+      const dotFormatEdges = node.edges
+        .map((edgeKey: string) => nodeDictionary.get(edgeKey))
+        .join(' ')
+      dotVertices += `${nodeDictionary.get(key)} -> {${dotFormatEdges}}\n`
+    }
   })
 
   fileNodes.forEach((node, key) => {
@@ -80,16 +79,15 @@ export async function getDotFileContent(
       key.toLowerCase().replace(/_/g, '__').replace('.sas', '_8sas') +
       '_source.html'
 
-    dotNodes += `${nodeDictionary.get(key)} [ shape="record" label="{${
-      node.label
-    }}" href="${url}" ]\n`
+    const NDkey = nodeDictionary.get(key)
+    dotNodes += `${NDkey} [ shape="record" label="{${node.label}}" href="${url}" ]\n`
 
-    if (node.edges.length)
-      dotVertices += `${nodeDictionary.get(
-        key
-      )} -> {${node.edges
-        .map((e: string) => nodeDictionary.get(e))
-        .join(' ')}}\n`
+    if (node.edges.length) {
+      const dotFormatEdges = node.edges
+        .map((edgeKey: string) => nodeDictionary.get(edgeKey))
+        .join(' ')
+      dotVertices += `${nodeDictionary.get(key)} -> {${dotFormatEdges}}\n`
+    }
   })
 
   return `digraph lliprc{\n${dotNodes}\n${dotVertices}\n}`
