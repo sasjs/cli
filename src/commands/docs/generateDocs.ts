@@ -18,19 +18,16 @@ import { getDocConfig } from './internal/getDocConfig'
  * If a target is supplied, generates docs only for the SAS programs / macros / jobs / services in that target (and the root).
  * If no target is supplied, generates for all sas programs/ macros / jobs / services.
  * @param {string} targetName- the name of the target to be specific for docs.
- * @param {string} outDirectoryInput- the name of the output folder, picks from sasjsconfig.docConfig if present.
+ * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDocs(
-  targetName: string,
-  outDirectoryInput: string
-) {
+export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
-  const { target, serverUrl, outDirectory } = await getDocConfig(
+  const { target, serverUrl, newOutDirectory } = await getDocConfig(
     config,
     targetName,
-    outDirectoryInput
+    outDirectory
   )
 
   const {
@@ -65,18 +62,18 @@ export async function generateDocs(
   const doxyParams = setVariableCmd({
     DOXY_CONTENT: `${doxyContent}${path.sep}`,
     DOXY_INPUT: combinedFolders,
-    DOXY_HTML_OUTPUT: outDirectory
+    DOXY_HTML_OUTPUT: newOutDirectory
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
 
   const spinner = ora(
-    chalk.greenBright('Generating docs', chalk.cyanBright(outDirectory))
+    chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))
   )
   spinner.start()
 
-  await deleteFolder(outDirectory)
-  await createFolder(outDirectory)
+  await deleteFolder(newOutDirectory)
+  await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(
     `${doxyParams} doxygen ${doxyConfigPath}`,
@@ -97,9 +94,9 @@ export async function generateDocs(
 
   const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
 
-  await createDotFiles(foldersListForDot, outDirectory, serverUrl)
+  await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
 
-  return { outDirectory }
+  return { outDirectory: newOutDirectory }
 }
 
 function setVariableCmd(params: any): string {

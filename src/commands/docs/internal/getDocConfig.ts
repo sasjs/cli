@@ -6,18 +6,17 @@ import { getConstants } from '../../../constants'
  * Returns doc related config from root-level and Target-specfic(having precedence)
  * @param {Configuration} config- from which doc related config will be extracted
  * @param {string} targetName- the name of the target for dot files.
- * @param {string} outDirectoryInput- the name of the output folder, provided using command.
+ * @param {string} outDirectory- the name of the output folder, provided using command.
  */
 export async function getDocConfig(
   config: Configuration,
   targetName: string,
-  outDirectoryInput: string
+  outDirectory: string
 ) {
   const { buildDestinationDocsFolder } = getConstants()
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  let outDirectory = outDirectoryInput
   if (!outDirectory) {
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
     outDirectory = target?.docConfig?.outDirectory || outDirectory
@@ -31,5 +30,5 @@ export async function getDocConfig(
     ? target.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
     : serverUrl
 
-  return { target, serverUrl, outDirectory }
+  return { target, serverUrl, newOutDirectory: outDirectory }
 }
