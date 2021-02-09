@@ -25,6 +25,7 @@ export interface TargetJson {
   name: string
   serverUrl: string
   serverType: ServerType
+  allowInsecureRequests: boolean
   contextName?: string
   serverName?: string
   repositoryName?: string
