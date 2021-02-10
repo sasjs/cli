@@ -49,16 +49,13 @@ export async function cli(args: string[]) {
       break
     case 'build':
       break
-    case 'deploy':
-      break
     case 'db':
       break
     case 'compilebuild':
       break
     case 'compilebuilddeploy':
-      break
+    case 'deploy':
     case 'web':
-      break
     case 'doc':
       try {
         await checkAndSetProjectDirectory()
