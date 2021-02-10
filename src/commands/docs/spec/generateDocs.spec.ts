@@ -10,7 +10,11 @@ import {
   createFile,
   deleteFile
 } from '../../../utils/file'
-import { getConfiguration } from '../../../utils/config'
+import {
+  getConfiguration,
+  getGlobalRcFile,
+  saveGlobalRcFile
+} from '../../../utils/config'
 import { getConstants } from '../../../constants'
 import { DocConfig } from '@sasjs/utils/types/config'
 
@@ -160,6 +164,28 @@ describe('sasjs doc', () => {
     },
     60 * 1000
   )
+
+  it(
+    `should generate docs if no target is present`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+
+      await removeAllTargetsFromConfigs()
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'no-target')
+    },
+    60 * 1000
+  )
 })
 
 const updateConfig = async (docConfig: DocConfig) => {
@@ -169,6 +195,18 @@ const updateConfig = async (docConfig: DocConfig) => {
   if (config?.targets?.[0].docConfig) config.targets[0].docConfig = docConfig
 
   await createFile(configPath, JSON.stringify(config, null, 1))
+}
+
+const removeAllTargetsFromConfigs = async () => {
+  const { buildSourceFolder } = getConstants()
+  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+  const config = await getConfiguration(configPath)
+  config.targets = []
+  await createFile(configPath, JSON.stringify(config, null, 1))
+
+  const globalConfig = await getGlobalRcFile()
+  if (globalConfig?.targets?.length) globalConfig.targets = []
+  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 const verifyDocs = async (
