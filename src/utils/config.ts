@@ -1,6 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { readFile, folderExists, createFile } from './file'
+import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
@@ -177,7 +177,7 @@ export async function removeFromGlobalConfig(targetName: string) {
 export async function getLocalConfig() {
   const { buildSourceFolder } = getConstants()
   let config = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
 
   return config
@@ -204,7 +204,7 @@ export async function saveToLocalConfig(target: Target) {
     config = { targets: [targetJson] }
   }
 
-  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
 
   await createFile(configPath, JSON.stringify(config, null, 2))
 
@@ -223,8 +223,9 @@ export async function getFolders() {
 
 export async function getSourcePaths(buildSourceFolder: string) {
   let configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
+
   if (!configuration) {
     configuration = { macroFolders: [] }
   }
@@ -317,22 +318,31 @@ export function sanitizeAppLoc(appLoc: string) {
 }
 
 export async function getProjectRoot() {
-  let root = '',
-    rootFound = false,
-    i = 1
+  let root = ''
+  let rootFound = false
+  let i = 1
   let currentLocation = process.projectDir
-  const maxLevels = 4
+
+  const maxLevels = currentLocation.split(path.sep).length
+
   while (!rootFound && i <= maxLevels) {
-    const isRoot = await folderExists(path.join(currentLocation, 'sasjs'))
+    const isRoot =
+      (await folderExists(path.join(currentLocation, 'sasjs'))) &&
+      (await fileExists(
+        path.join(currentLocation, 'sasjs', 'sasjsconfig.json')
+      ))
+
     if (isRoot) {
       rootFound = true
       root = currentLocation
+
       break
     } else {
       currentLocation = path.join(currentLocation, '..')
       i++
     }
   }
+
   return root
 }
 

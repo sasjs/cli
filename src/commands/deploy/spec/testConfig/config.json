@@ -1,7 +1,7 @@
 {
-  "macroFolders": ["macros"],
+  "macroFolders": ["sasjs/macros"],
   "serviceConfig": {
-    "serviceFolders": ["services"]
+    "serviceFolders": ["sasjs/services"]
   },
   "targets": [
     {
