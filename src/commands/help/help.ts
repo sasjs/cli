@@ -270,10 +270,21 @@ export async function printHelpText() {
       name: 'doc',
       title: 'doc <command>',
       description: [
-        `Generates docs for all SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default. If a target is provided, the generated docs will ignore content from the other targets.`,
+        `Generates docs for SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default and supplied Target. If target is not provided, it will pick first target present in config.json`,
         `[2spaces]command example: sasjs doc -t <targetName> --outDirectory <sasFilePath>`,
+        ``,
+        `[2spaces]* ${chalk.cyanBright(
+          'lineage'
+        )} - Generates dot files for all Jobs / Services listed in the sasjsconfig.json file by default and supplied Target.`,
+        `[2spaces]command example: sasjs doc lineage -t <targetName> --outDirectory <sasFilePath>`,
+        ``,
         `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will generate docs in the sasjsbuild/docs directory.`,
-        `The target can exist either in the local project configuration or in the global .sasjsrc file.`
+        `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
+        ``,
+        `[2spaces]* ${chalk.cyanBright(
+          'init'
+        )} - Initialize/reset doxy folder (having content files + configuration) for docs`,
+        `[2spaces]command example: sasjs doc init`
       ]
     }
   ]

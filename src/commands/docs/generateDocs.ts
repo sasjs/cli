@@ -5,11 +5,12 @@ import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
 import { createFolder, deleteFolder, folderExists } from '../../utils/file'
-import { findTargetInConfiguration, getLocalConfig } from '../../utils/config'
+import { getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
-import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTargets'
+import { createDotFiles } from './internal/createDotFiles'
+import { getDocConfig } from './internal/getDocConfig'
 
 /**
  * Generates documentation(Doxygen)
@@ -20,25 +21,32 @@ import { getFoldersForDocsAllTargets } from './internal/getFoldersForDocsAllTarg
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDocs(targetName: string, outDirectory: string) {
-  const { doxyContent, buildDestinationDocsFolder } = getConstants()
+  const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
-
-  if (!outDirectory)
-    outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
-
-  const rootFolders = getFoldersForDocs(config, true)
-  const targetFolders: string[] = []
-  if (targetName) {
-    const { target } = await findTargetInConfiguration(targetName)
-    targetFolders.push(...getFoldersForDocs(target))
-  } else {
-    targetFolders.push(...getFoldersForDocsAllTargets(config))
-  }
-
-  const combinedFolders = [...new Set([...rootFolders, ...targetFolders])].join(
-    ' '
+  const { target, serverUrl, newOutDirectory } = await getDocConfig(
+    config,
+    targetName,
+    outDirectory
   )
+
+  const {
+    macroCore: macroCoreFolders,
+    macro: macroFolders,
+    program: programFolders,
+    service: serviceFolders,
+    job: jobFolders
+  } = await getFoldersForDocs(target, config)
+
+  const combinedFolders = [
+    ...new Set([
+      ...macroCoreFolders,
+      ...macroFolders,
+      ...programFolders,
+      ...serviceFolders,
+      ...jobFolders
+    ])
+  ].join(' ')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -54,18 +62,18 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const doxyParams = setVariableCmd({
     DOXY_CONTENT: `${doxyContent}${path.sep}`,
     DOXY_INPUT: combinedFolders,
-    DOXY_HTML_OUTPUT: outDirectory
+    DOXY_HTML_OUTPUT: newOutDirectory
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
 
   const spinner = ora(
-    chalk.greenBright('Generating docs', chalk.cyanBright(outDirectory))
+    chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))
   )
   spinner.start()
 
-  await deleteFolder(outDirectory)
-  await createFolder(outDirectory)
+  await deleteFolder(newOutDirectory)
+  await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(
     `${doxyParams} doxygen ${doxyConfigPath}`,
@@ -84,7 +92,11 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
-  return { outDirectory }
+  const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
+
+  await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
+
+  return { outDirectory: newOutDirectory }
 }
 
 function setVariableCmd(params: any): string {

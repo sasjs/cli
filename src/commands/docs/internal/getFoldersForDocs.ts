@@ -1,25 +1,40 @@
 import path from 'path'
-import { getConstants } from '../../../constants'
 
 import { Target } from '@sasjs/utils'
 import { Configuration } from '../../../types/configuration'
+import { getConstants } from '../../../constants'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
- * @param {Target | Configuration} config- from which folders list will be extracted
- * @param {boolean} root- tells if param config is of specific target or not, in case of root level it will add macroCore folder to list conditionally
+ * @param {Target} target- target for docs.
+ * @param {Configuration} config- sasjsconfig.json
  */
-export function getFoldersForDocs(
-  config: Target | Configuration,
-  root: boolean = false
-) {
+export async function getFoldersForDocs(target: Target, config: Configuration) {
+  let macroCore = []
+
+  const rootFolders = extractFoldersForDocs(config)
+  macroCore = rootFolders.macroCore
+
+  const targetFolders = extractFoldersForDocs(target)
+  macroCore = targetFolders.macroCore
+
+  return {
+    macroCore,
+    macro: rootFolders.macro.concat(targetFolders.macro),
+    program: rootFolders.program.concat(targetFolders.program),
+    service: rootFolders.service.concat(targetFolders.service),
+    job: rootFolders.job.concat(targetFolders.job)
+  }
+}
+
+function extractFoldersForDocs(config: Target | Configuration) {
   const { buildSourceFolder } = getConstants()
-  let macroCoreFolders: string[] = []
-  if (root)
-    macroCoreFolders =
-      (config as Configuration)?.docConfig?.displayMacroCore === false
-        ? []
-        : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+
+  const macroCoreFolders =
+    config?.docConfig?.displayMacroCore === false
+      ? []
+      : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+
   const macroFolders =
     config && config.macroFolders
       ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))
@@ -39,11 +54,11 @@ export function getFoldersForDocs(
       ? config.jobConfig.jobFolders.map((f) => path.join(buildSourceFolder, f))
       : []
 
-  return [
-    ...macroCoreFolders,
-    ...macroFolders,
-    ...programFolders,
-    ...serviceFolders,
-    ...jobFolders
-  ]
+  return {
+    macroCore: macroCoreFolders,
+    macro: macroFolders,
+    program: programFolders,
+    service: serviceFolders,
+    job: jobFolders
+  }
 }

@@ -47,7 +47,7 @@
   "dependencies": {
     "@sasjs/adapter": "^2.1.0",
     "@sasjs/core": "^2.9.3",
-    "@sasjs/utils": "^2.2.1",
+    "@sasjs/utils": "^2.3.0",
     "base64-img": "^1.0.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
@@ -61,6 +61,7 @@
     "jwt-decode": "^3.1.2",
     "lodash.groupby": "^4.6.0",
     "lodash.uniqby": "^4.7.0",
+    "node-graphviz": "^0.1.0",
     "ora": "^5.2.0",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.4"

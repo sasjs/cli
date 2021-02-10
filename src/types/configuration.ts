@@ -29,6 +29,7 @@ export interface TargetJson {
   serverName?: string
   repositoryName?: string
   appLoc: string
+  docConfig?: DocConfig
   authConfig?: AuthConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig
