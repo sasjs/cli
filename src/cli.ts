@@ -46,13 +46,9 @@ export async function cli(args: string[]) {
 
       break
     case 'compile':
-      break
     case 'build':
-      break
     case 'db':
-      break
     case 'compilebuild':
-      break
     case 'compilebuilddeploy':
     case 'deploy':
     case 'web':
