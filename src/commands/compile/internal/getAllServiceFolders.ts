@@ -5,8 +5,9 @@ import { getConfiguration } from '../../../utils/config'
 
 export async function getAllServiceFolders(target: Target) {
   const { buildSourceFolder } = getConstants()
+
   const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
   let allServices: string[] = []
 
@@ -21,5 +22,6 @@ export async function getAllServiceFolders(target: Target) {
     allServices = [...allServices, ...target.serviceConfig.serviceFolders]
 
   allServices = allServices.filter((p) => !!p)
+
   return [...new Set(allServices)]
 }

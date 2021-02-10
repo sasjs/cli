@@ -132,7 +132,7 @@ describe('sasjs cbd with local config', () => {
     await updateLocalTarget(target.name, {
       deployConfig: {
         deployServicePack: false,
-        deployScripts: ['build/copyscript.sh']
+        deployScripts: ['sasjs/build/copyscript.sh']
       }
     })
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
@@ -201,15 +201,15 @@ const createGlobalTarget = async () => {
     serverUrl: process.env.SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['testServices', 'testJob'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     jobConfig: {
-      jobFolders: ['testJob'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      jobFolders: ['sasjs/testJob'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     authConfig: {
@@ -242,15 +242,15 @@ const createLocalTarget = async () => {
     serverUrl: process.env.SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
-      serviceFolders: ['testServices', 'testJob', 'services'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     jobConfig: {
-      jobFolders: ['testJob'],
-      initProgram: 'testServices/serviceinit.sas',
-      termProgram: 'testServices/serviceterm.sas',
+      jobFolders: ['sasjs/testJob'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
     deployConfig: {
@@ -268,7 +268,7 @@ const createLocalTarget = async () => {
     {
       ...target.toJson(),
       deployConfig: {
-        deployScripts: ['build/copyscript.sh'],
+        deployScripts: ['sasjs/build/copyscript.sh'],
         deployServicePack: true
       }
     }

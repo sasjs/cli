@@ -1,7 +1,7 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { fileExists } from '../../../utils/file'
+import { folderExists } from '../../../utils/file'
 import { asyncForEach } from '../../../utils/utils'
 import { compareFolders } from './compareFolders'
 import { getAllJobFolders } from './getAllJobFolders'
@@ -13,8 +13,8 @@ import {
 
 export async function checkCompileStatus(target: Target) {
   const { buildDestinationFolder } = getConstants()
+  const pathExists = await folderExists(buildDestinationFolder)
 
-  const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists) {
     return {
       compiled: false,
@@ -26,6 +26,7 @@ export async function checkCompileStatus(target: Target) {
     areServiceFoldersMatching,
     reasons: serviceReasons
   } = await checkServiceFolders(target)
+
   const { areJobFoldersMatching, reasons: jobReasons } = await checkJobFolders(
     target
   )

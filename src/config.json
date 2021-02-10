@@ -145,7 +145,7 @@
                       "files": [
                         {
                           "fileName": "dostuff.sas",
-                          "content": "%put this came from targets/sas9/services/admin/dostuff.sas;\n"
+                          "content": "%put this came from sasjs/targets/sas9/services/admin/dostuff.sas;\n"
                         }
                       ]
                     }
@@ -180,7 +180,7 @@
                       "files": [
                         {
                           "fileName": "dostuff.sas",
-                          "content": "%put this came from targets/viya/services/admin/dostuff.sas;\n"
+                          "content": "%put this came from sasjs/targets/viya/services/admin/dostuff.sas;\n"
                         }
                       ]
                     }
@@ -199,27 +199,27 @@
       "outDirectory": ""
     },
     "buildConfig": {
-      "initProgram": "build/buildinit.sas",
-      "termProgram": "build/buildterm.sas",
+      "initProgram": "sasjs/build/buildinit.sas",
+      "termProgram": "sasjs/build/buildterm.sas",
       "macroVars": {
         "name": "value",
         "numvar": "42"
       }
     },
     "deployConfig": {
-      "deployScripts": ["build/deployscript.sh"]
+      "deployScripts": ["sasjs/build/deployscript.sh"]
     },
     "serviceConfig": {
-      "serviceFolders": ["services/common", "services/admin"],
-      "initProgram": "build/serviceinit.sas",
-      "termProgram": "build/serviceterm.sas",
+      "serviceFolders": ["sasjs/services/common", "sasjs/services/admin"],
+      "initProgram": "sasjs/build/serviceinit.sas",
+      "termProgram": "sasjs/build/serviceterm.sas",
       "macroVars": {
         "name": "value",
         "numvar": "42"
       }
     },
-    "macroFolders": ["macros"],
-    "programFolders": ["programs"],
+    "macroFolders": ["sasjs/macros"],
+    "programFolders": ["sasjs/programs"],
     "targets": [
       {
         "name": "viya",
@@ -230,8 +230,8 @@
         "contextName": "SAS Job Execution compute context",
         "buildConfig": {
           "buildOutputFileName": "myviyadeploy.sas",
-          "initProgram": "build/buildinitviya.sas",
-          "termProgram": "targets/viya/viyabuildterm.sas",
+          "initProgram": "sasjs/build/buildinitviya.sas",
+          "termProgram": "sasjs/targets/viya/viyabuildterm.sas",
           "macroVars": {
             "name": "viyavalue",
             "extravar": "this too"
@@ -242,9 +242,9 @@
           "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
         },
         "serviceConfig": {
-          "serviceFolders": ["targets/viya/services/admin"],
-          "initProgram": "build/serviceinit.sas",
-          "termProgram": "build/serviceinit.sas",
+          "serviceFolders": ["sasjs/targets/viya/services/admin"],
+          "initProgram": "sasjs/build/serviceinit.sas",
+          "termProgram": "sasjs/build/serviceinit.sas",
           "macroVars": {
             "name": "viyavalue",
             "extravar": "this too"
@@ -262,7 +262,7 @@
           "streamWebFolder": "webv",
           "webSourcePath": "dist"
         },
-        "macroFolders": ["targets/viya/macros"],
+        "macroFolders": ["sasjs/targets/viya/macros"],
         "programFolders": []
       },
       {
@@ -279,13 +279,13 @@
           "macroVars": {}
         },
         "deployConfig": {
-          "deployScripts": ["build/deploysas9.sh"],
+          "deployScripts": ["sasjs/build/deploysas9.sh"],
           "deployServicePack": false
         },
         "serviceConfig": {
-          "serviceFolders": ["targets/sas9/services/admin"],
+          "serviceFolders": ["sasjs/targets/sas9/services/admin"],
           "initProgram": "",
-          "termProgram": "build/servicetermother.sas",
+          "termProgram": "sasjs/build/servicetermother.sas",
           "macroVars": {}
         },
         "streamConfig": {
@@ -294,7 +294,7 @@
           "streamWebFolder": "web9",
           "webSourcePath": "dist"
         },
-        "macroFolders": ["targets/sas9/macros"],
+        "macroFolders": ["sasjs/targets/sas9/macros"],
         "programFolders": []
       }
     ]

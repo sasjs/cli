@@ -24,6 +24,7 @@ import { fileExists } from './utils/file'
 import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'
+import { getProjectRoot } from './utils/config'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export async function cli(args: string[]) {
@@ -31,6 +32,7 @@ export async function cli(args: string[]) {
   await instantiateLogger()
 
   const parsedCommand = parseCommand(args)
+
   if (!parsedCommand) {
     handleInvalidCommand()
     return
@@ -39,23 +41,32 @@ export async function cli(args: string[]) {
   const command = new Command(parsedCommand.parameters)
 
   switch (parsedCommand.name) {
+    case 'create':
+      if (!process.projectDir) process.projectDir = process.cwd()
+
+      break
     case 'compile':
+      break
     case 'build':
-    case 'deploy':
+      break
     case 'db':
+      break
     case 'compilebuild':
+      break
     case 'compilebuilddeploy':
+    case 'deploy':
     case 'web':
     case 'doc':
-      try {
-        await checkAndSetProjectDirectory()
-      } catch (err) {
-        process.logger.error('An error occurred', err)
-        return
-      }
-      break
     default:
-      process.projectDir = process.cwd()
+      if (!process.projectDir) {
+        process.projectDir = process.cwd()
+
+        const rootDir = await getProjectRoot()
+
+        if (rootDir !== process.projectDir) {
+          process.projectDir = rootDir
+        }
+      }
   }
 
   let result: ReturnCode
@@ -151,41 +162,6 @@ function handleInvalidCommand() {
     'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
   )
   process.exit(1)
-}
-
-export async function checkAndSetProjectDirectory() {
-  const projectDir = process.projectDir
-  if (
-    !projectDir ||
-    projectDir.trim() === 'null' ||
-    projectDir.trim() === 'undefined'
-  ) {
-    process.projectDir = process.cwd()
-  }
-  const buildSourceFolder = path.join(process.projectDir, 'sasjs')
-  let newBSF = buildSourceFolder,
-    found = false
-  do {
-    const pathExists = await fileExists(path.join(newBSF, 'sasjsconfig.json'))
-    if (pathExists) {
-      found = true
-    } else {
-      let strBreak = newBSF.split(path.sep)
-      strBreak.splice(-1, 1)
-      newBSF = strBreak.join(path.sep)
-    }
-  } while (newBSF.length && !found)
-  if (found) {
-    let strBreak = newBSF.split(path.sep)
-    strBreak.splice(-1, 1)
-    let newProDir = strBreak.join(path.sep)
-    process.projectDir = newProDir
-    process.logger?.info(`Current project directory is: ${process.projectDir}`)
-  } else {
-    throw new Error(
-      `${process.projectDir} is not a SASjs project directory or sub-directory. Please set up your SASjs app first using \`sasjs create\`.\nYou can find more info on this and all other SASjs commands at https://cli.sasjs.io/.`
-    )
-  }
 }
 
 export async function instantiateLogger() {

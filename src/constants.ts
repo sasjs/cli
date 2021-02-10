@@ -13,7 +13,7 @@ interface Constants {
 
 // process.projectDir sets in cli.js
 export const getConstants = (): Constants => {
-  const buildSourceFolder = path.join(process.projectDir, 'sasjs')
+  const buildSourceFolder = path.join(process.projectDir)
   const buildSourceDbFolder = path.join(process.projectDir, 'sasjs', 'db')
   const buildDestinationFolder = path.join(process.projectDir, 'sasjsbuild')
   const buildDestinationServicesFolder = path.join(
