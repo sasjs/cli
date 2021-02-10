@@ -142,7 +142,7 @@ describe('sasjs doc lineage', () => {
       await createTestApp(__dirname, appName)
       await updateConfig({
         jobConfig: {
-          jobFolders: ['../../testJobs']
+          jobFolders: ['../testJobs']
         }
       } as Target)
 
