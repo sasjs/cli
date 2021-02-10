@@ -57,15 +57,6 @@ export async function cli(args: string[]) {
     case 'deploy':
     case 'web':
     case 'doc':
-      try {
-        await checkAndSetProjectDirectory()
-      } catch (err) {
-        process.logger.error('An error occurred', err)
-
-        return
-      }
-
-      break
     default:
       if (!process.projectDir) {
         process.projectDir = process.cwd()
@@ -171,41 +162,6 @@ function handleInvalidCommand() {
     'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
   )
   process.exit(1)
-}
-
-export async function checkAndSetProjectDirectory() {
-  const projectDir = process.projectDir
-  if (
-    !projectDir ||
-    projectDir.trim() === 'null' ||
-    projectDir.trim() === 'undefined'
-  ) {
-    process.projectDir = process.cwd()
-  }
-  const buildSourceFolder = path.join(process.projectDir, 'sasjs')
-  let newBSF = buildSourceFolder,
-    found = false
-  do {
-    const pathExists = await fileExists(path.join(newBSF, 'sasjsconfig.json'))
-    if (pathExists) {
-      found = true
-    } else {
-      let strBreak = newBSF.split(path.sep)
-      strBreak.splice(-1, 1)
-      newBSF = strBreak.join(path.sep)
-    }
-  } while (newBSF.length && !found)
-  if (found) {
-    let strBreak = newBSF.split(path.sep)
-    strBreak.splice(-1, 1)
-    let newProDir = strBreak.join(path.sep)
-    process.projectDir = newProDir
-    process.logger?.info(`Current project directory is: ${process.projectDir}`)
-  } else {
-    throw new Error(
-      `${process.projectDir} is not a SASjs project directory or sub-directory. Please set up your SASjs app first using \`sasjs create\`.\nYou can find more info on this and all other SASjs commands at https://cli.sasjs.io/.`
-    )
-  }
 }
 
 export async function instantiateLogger() {
