@@ -59,7 +59,7 @@ describe('addTarget', () => {
 
     const { buildSourceFolder } = getConstants()
     const config = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     expect(config).toBeTruthy()
     expect(config!.targets).toBeTruthy()
@@ -96,7 +96,7 @@ describe('addTarget', () => {
 
     const { buildSourceFolder } = getConstants()
     const config = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
 
     expect(config).toBeTruthy()

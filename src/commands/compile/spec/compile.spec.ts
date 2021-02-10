@@ -26,6 +26,7 @@ describe('sasjs compile', () => {
     await expect(compileModule.compile('viya')).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+
     done()
   })
 
@@ -35,9 +36,11 @@ describe('sasjs compile', () => {
     expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
 
     jest.resetAllMocks()
+
     await compileModule.compile('viya')
     expect(compileModule.copyFilesToBuildFolder).not.toHaveBeenCalled()
     expect(compileModule.compileJobsAndServices).not.toHaveBeenCalled()
+
     done()
   })
 })

@@ -31,12 +31,13 @@ export async function compile(targetName: string, forceCompile = false) {
   let { target } = await findTargetInConfiguration(targetName)
   const result = await checkCompileStatus(target)
 
+  // no need to compile again
   if (result.compiled && !forceCompile) {
-    // no need to compile again
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
     return
   }
+
   await compileModule.copyFilesToBuildFolder(target).catch((error) => {
     process.logger?.error('Project compilation has failed.')
     throw error
@@ -47,8 +48,11 @@ export async function compile(targetName: string, forceCompile = false) {
 
 export async function copyFilesToBuildFolder(target: Target) {
   const { buildSourceFolder, buildDestinationFolder } = getConstants()
+
   await recreateBuildFolder()
+
   process.logger?.info(`Copying files to ${buildDestinationFolder} .`)
+
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
@@ -95,6 +99,7 @@ export async function compileJobsAndServices(target: Target) {
     process.logger?.error(
       'An error has occurred when compiling your jobs and services.'
     )
+
     throw error
   }
 }
