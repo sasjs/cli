@@ -60,9 +60,7 @@ export async function deploy(targetName: string) {
         await deployToSas9(deployScript, target, linesToExecute, logFilePath)
       }
     } else if (isShellScript(deployScript)) {
-      process.logger?.info(
-        `Executing shell script ${deployScript} ...`
-      )
+      process.logger?.info(`Executing shell script ${deployScript} ...`)
 
       const { buildDestinationFolder } = getConstants()
       const deployScriptPath = path.join(process.projectDir, deployScript)
