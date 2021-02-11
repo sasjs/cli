@@ -8,6 +8,7 @@ import {
   folderExists,
   fileExists,
   createFile,
+  readFile,
   deleteFile
 } from '../../../utils/file'
 import {
@@ -267,4 +268,10 @@ const verifyDocs = async (
 
   await expect(fileExists(macroCoreFile)).resolves.toEqual(macroCore)
   await expect(fileExists(macroCoreFileSource)).resolves.toEqual(macroCore)
+
+  const indexHTMLContent = await readFile(indexHTML)
+
+  expect(indexHTMLContent).toEqual(
+    expect.stringContaining('<h1><a class="anchor" id="autotoc_md1"></a>')
+  )
 }
