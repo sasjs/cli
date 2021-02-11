@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { createFile } from '../../../utils/file'
+import { createFile, fileExists } from '../../../utils/file'
 
 const contentReadMe = `
 # SASjs Project Repo
@@ -43,5 +43,6 @@ export async function createReadme(folderPath: string) {
     folderPath,
     'README.md'
   )
-  await createFile(readMeDestinationPath, contentReadMe)
+  if (!fileExists(readMeDestinationPath))
+    await createFile(readMeDestinationPath, contentReadMe)
 }

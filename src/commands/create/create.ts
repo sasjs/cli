@@ -61,7 +61,6 @@ export async function create(parentFolderName: string, appType: string) {
         await createFile(configDestinationPath, JSON.stringify(config, null, 1))
       }
     })
-    await createReadme(parentFolderName)
   }
 
   if (!appType) {
@@ -69,4 +68,6 @@ export async function create(parentFolderName: string, appType: string) {
   }
   await setupGitIgnore(parentFolderName)
   await setupDoxygen(parentFolderName)
+
+  await createReadme(parentFolderName)
 }
