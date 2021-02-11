@@ -62,7 +62,8 @@ const initialFlags = arrToObj([
     'csvFile',
     'returnStatusOnly',
     'ignoreWarnings',
-    'outDirectory'
+    'outDirectory',
+    'insecure'
   ])
 ])
 
@@ -92,7 +93,7 @@ const commandFlags = [
   },
   {
     command: initialCommands.add,
-    flags: [initialFlags.target]
+    flags: [initialFlags.target, initialFlags.insecure]
   },
   { command: initialCommands.create, flags: [initialFlags.template] },
   {

@@ -17,26 +17,34 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  * The file will contain the client ID, secret, access token and refresh token.
  * Its name will be of the form `.env.{targetName}`
  * @param {string} targetName- the name of the target to create the env file for.
+ * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
-export const addCredential = async (targetName: string): Promise<void> => {
+export const addCredential = async (
+  targetName: string,
+  insecure: boolean | undefined
+): Promise<void> => {
   targetName = validateTargetName(targetName)
 
   let { target, isLocal } = await findTargetInConfiguration(targetName)
+
+  if (insecure) process.logger?.warn('Executing with insecure connection.')
+  else if (insecure === undefined && target.allowInsecureRequests) {
+    insecure = target.allowInsecureRequests
+    process.logger?.warn('Executing with insecure connection.')
+  }
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl()
     target = new Target({ ...target.toJson(), serverUrl })
   }
 
-  if (target.allowInsecureRequests)
-    process.logger?.warn('Executing with insecure connection.')
-
   const { client, secret } = await getCredentialsInput(target.name)
 
   const { access_token, refresh_token } = await getTokens(
     target,
     client,
-    secret
+    secret,
+    insecure
   )
 
   if (isLocal) {
@@ -80,15 +88,15 @@ export const validateTargetName = (targetName: string): string => {
 export const getTokens = async (
   target: Target,
   client: string,
-  secret: string
+  secret: string,
+  insecure: boolean = false
 ): Promise<SasAuthResponse> => {
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
-    allowInsecureRequests: target.allowInsecureRequests,
+    allowInsecureRequests: insecure,
     debug: process.logger?.logLevel === LogLevel.Debug
   })
-
   const authResponse: SasAuthResponse = await getNewAccessToken(
     adapter,
     client,
