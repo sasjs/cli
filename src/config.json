@@ -194,6 +194,7 @@
     }
   ],
   "config": {
+    "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
     "docConfig": {
       "displayMacroCore": true,
       "outDirectory": "",
