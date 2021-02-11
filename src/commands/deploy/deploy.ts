@@ -61,23 +61,21 @@ export async function deploy(targetName: string) {
       }
     } else if (isShellScript(deployScript)) {
       process.logger?.info(
-        `Executing shell script ${path.basename(deployScript)} ...`
+        `Executing shell script ${deployScript} ...`
       )
 
       const { buildDestinationFolder } = getConstants()
       const deployScriptPath = path.join(process.projectDir, deployScript)
       const logPath = path.join(
         process.projectDir,
+        'sasjsbuild',
         `${path.basename(deployScript).replace('.sh', '')}.log`
       )
 
       await executeShellScript(deployScriptPath, logPath)
 
       process.logger?.success(
-        `Shell script execution completed! Log is available at ${path.join(
-          'sasjsbuild',
-          `${path.basename(deployScript).replace('.sh', '')}.log`
-        )}`
+        `Shell script execution completed! Log is here: ${logPath}`
       )
     }
   })
