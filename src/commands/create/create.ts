@@ -18,6 +18,7 @@ import {
   fileExists
 } from '../../utils/file'
 import { Folder } from '../../types'
+import { createReadme } from './internal/createReadme'
 
 export async function create(parentFolderName: string, appType: string) {
   const configPath = '../../config.json'
@@ -60,6 +61,7 @@ export async function create(parentFolderName: string, appType: string) {
         await createFile(configDestinationPath, JSON.stringify(config, null, 1))
       }
     })
+    await createReadme(parentFolderName)
   }
 
   if (!appType) {
