@@ -1,3 +1,4 @@
+import { Target } from '@sasjs/utils/types'
 import { Configuration } from '../../../types/configuration'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
@@ -15,7 +16,10 @@ export async function getDocConfig(
 ) {
   const { buildDestinationDocsFolder } = getConstants()
 
-  const { target } = await findTargetInConfiguration(targetName)
+  let target: Target = {} as Target
+  try {
+    target = (await findTargetInConfiguration(targetName, false, true)).target
+  } catch (error) {}
 
   if (!outDirectory) {
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
