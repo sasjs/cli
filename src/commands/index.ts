@@ -8,6 +8,7 @@ export { processContext } from './context'
 export { create } from './create/create'
 
 export { generateDocs } from './docs/generateDocs'
+export { generateDot } from './docs/generateDot'
 export { initDocs } from './docs/initDocs'
 
 export { buildDB } from './db/db'

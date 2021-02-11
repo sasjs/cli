@@ -288,6 +288,26 @@ export function getList(listHeader, fileContent) {
     .map((d) => d.replace(/\@li/g, ''))
     .map((d) => d.trim())
 }
+export function getBrief(fileContent) {
+  let fileHeader
+  try {
+    const hasFileHeader = fileContent.split('/**')[0] !== fileContent
+    if (!hasFileHeader) return []
+    fileHeader = fileContent.split('/**')[1].split('**/')[0]
+  } catch (e) {
+    console.error(
+      chalk.redBright(
+        'File header parse error.\nPlease make sure your file header is in the correct format.'
+      )
+    )
+  }
+
+  const lines = fileHeader.split('\n').map((s) => (s ? s.trim() : s))
+
+  let brief = lines.find((l) => l.startsWith('@brief'))
+  if (brief) brief = brief.replace(/\@brief/g, '').trim()
+  return brief
+}
 
 export function getRelativePath(from, to) {
   const fromFolders = from.split(path.sep)

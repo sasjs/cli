@@ -32,11 +32,13 @@ export async function getConfiguration(
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
  * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
+ * @param {boolean} enforceLocal - will enforce to find target in local config only.
  * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
-  viyaSpecific = false
+  viyaSpecific = false,
+  enforceLocal = false
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
@@ -59,7 +61,7 @@ export async function findTargetInConfiguration(
     }
   }
 
-  const globalConfig = await getGlobalRcFile()
+  const globalConfig = enforceLocal ? { targets: [] } : await getGlobalRcFile()
 
   if (globalConfig && globalConfig.targets) {
     const targetJson = globalConfig.targets.find(

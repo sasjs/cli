@@ -10,6 +10,7 @@ import {
 import { ServerType } from '@sasjs/utils/types/serverType'
 
 export interface Configuration {
+  $schema?: string
   docConfig?: DocConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig
@@ -30,6 +31,7 @@ export interface TargetJson {
   serverName?: string
   repositoryName?: string
   appLoc: string
+  docConfig?: DocConfig
   authConfig?: AuthConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig

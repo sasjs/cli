@@ -194,9 +194,11 @@
     }
   ],
   "config": {
+    "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
     "docConfig": {
       "displayMacroCore": true,
-      "outDirectory": ""
+      "outDirectory": "",
+      "dataControllerUrl": ""
     },
     "buildConfig": {
       "initProgram": "sasjs/build/buildinit.sas",
@@ -228,6 +230,11 @@
         "allowInsecureRequests": false,
         "appLoc": "/Public/app",
         "contextName": "SAS Job Execution compute context",
+        "docConfig": {
+          "displayMacroCore": true,
+          "outDirectory": "",
+          "dataControllerUrl": ""
+        },
         "buildConfig": {
           "buildOutputFileName": "myviyadeploy.sas",
           "initProgram": "sasjs/build/buildinitviya.sas",

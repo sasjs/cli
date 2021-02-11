@@ -16,6 +16,7 @@ import {
   createWebAppServices,
   processFlow,
   generateDocs,
+  generateDot,
   initDocs
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
@@ -68,10 +69,24 @@ export async function doc(command: Command) {
   const outDirectory = command.getFlagValue('outDirectory') as string
   const { buildDestinationDocsFolder } = getConstants()
 
+  if (subCommand === 'lineage') {
+    return await generateDot(targetName, outDirectory)
+      .then((res) => {
+        displaySuccess(
+          `Dot files have been generated!\nFiles are located at ${res.outDirectory}' directory.`
+        )
+        return ReturnCode.Success
+      })
+      .catch((err: any) => {
+        displayError(err, 'An error has occurred whilst initiating docs.')
+        return ReturnCode.InternalError
+      })
+  }
+
   return await generateDocs(targetName, outDirectory)
     .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located at the '${res.outDirectory}' directory.`
+        `Docs have been generated!\nThe docs are located at ${res.outDirectory}' directory.`
       )
       return ReturnCode.Success
     })
