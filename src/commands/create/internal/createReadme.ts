@@ -43,6 +43,6 @@ export async function createReadme(folderPath: string) {
     folderPath,
     'README.md'
   )
-  if (!fileExists(readMeDestinationPath))
-    await createFile(readMeDestinationPath, contentReadMe)
+  const pathExists = await fileExists(readMeDestinationPath)
+  if (!pathExists) await createFile(readMeDestinationPath, contentReadMe)
 }
