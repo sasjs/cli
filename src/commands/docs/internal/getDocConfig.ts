@@ -34,5 +34,9 @@ export async function getDocConfig(
     ? target.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
     : serverUrl
 
-  return { target, serverUrl, newOutDirectory: outDirectory }
+  let disableLineage: boolean = !!config.docConfig?.disableLineage
+  if (target.docConfig?.disableLineage !== undefined)
+    disableLineage = target.docConfig.disableLineage
+
+  return { target, serverUrl, newOutDirectory: outDirectory, disableLineage }
 }

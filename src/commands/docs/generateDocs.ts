@@ -4,7 +4,12 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder, deleteFolder, folderExists } from '../../utils/file'
+import {
+  createFolder,
+  deleteFolder,
+  folderExists,
+  readFile
+} from '../../utils/file'
 import { getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
@@ -24,11 +29,12 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
-  const { target, serverUrl, newOutDirectory } = await getDocConfig(
-    config,
-    targetName,
-    outDirectory
-  )
+  const {
+    target,
+    serverUrl,
+    newOutDirectory,
+    disableLineage
+  } = await getDocConfig(config, targetName, outDirectory)
 
   const {
     macroCore: macroCoreFolders,
@@ -59,10 +65,27 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
+  let PROJECT_NAME = 'SAS JS'
+  let PROJECT_BRIEF = 'Command line interface for SASjs'
+  let PROJECT_REPO = 'https://github.com/sasjs/cli'
+
+  const packageJsonContent = await readFile(
+    path.join(process.projectDir, 'package.json')
+  )
+  if (packageJsonContent) {
+    const packageJson = JSON.parse(packageJsonContent)
+    PROJECT_NAME = packageJson.name
+    PROJECT_BRIEF = packageJson.description
+    PROJECT_REPO = packageJson.homepage
+  }
+
   const doxyParams = setVariableCmd({
     DOXY_CONTENT: `${doxyContent}${path.sep}`,
     DOXY_INPUT: combinedFolders,
-    DOXY_HTML_OUTPUT: newOutDirectory
+    DOXY_HTML_OUTPUT: newOutDirectory,
+    PROJECT_NAME,
+    PROJECT_BRIEF,
+    PROJECT_REPO
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
@@ -92,9 +115,11 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
-  const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
+  if (!disableLineage) {
+    const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
 
-  await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
+    await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
+  }
 
   return { outDirectory: newOutDirectory }
 }

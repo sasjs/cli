@@ -2,7 +2,15 @@ import path from 'path'
 
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  removeAllTargetsFromConfigs,
+  updateDocConfig,
+  verifyDocs,
+  verifyDotFiles,
+  verifyDotFilesNotGenerated
+} from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import {
   folderExists,
@@ -11,11 +19,6 @@ import {
   readFile,
   deleteFile
 } from '../../../utils/file'
-import {
-  getConfiguration,
-  getGlobalRcFile,
-  saveGlobalRcFile
-} from '../../../utils/config'
 import { getConstants } from '../../../constants'
 import { DocConfig } from '@sasjs/utils/types/config'
 
@@ -99,13 +102,13 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ displayMacroCore: false } as DocConfig)
+      await updateDocConfig({ displayMacroCore: false } as DocConfig)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
       await expect(doc(new Command(`doc`))).resolves.toEqual(0)
 
-      await verifyDocs(docOutputDefault, undefined, false)
+      await verifyDocs(docOutputDefault, 'viya', false)
     },
     60 * 1000
   )
@@ -118,7 +121,7 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ outDirectory: docOutputProvided } as DocConfig)
+      await updateDocConfig({ outDirectory: docOutputProvided } as DocConfig)
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
@@ -141,7 +144,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ outDirectory: '' } as DocConfig)
+      await updateDocConfig({ outDirectory: '' } as DocConfig)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -187,91 +190,161 @@ describe('sasjs doc', () => {
     },
     60 * 1000
   )
+
+  it(
+    `should generate docs having target precedence over root level`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputProvided = path.join(__dirname, appName, 'xyz')
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig(
+        {
+          displayMacroCore: false,
+          disableLineage: true,
+          outDirectory: docOutputProvided
+        } as DocConfig,
+        'viya'
+      )
+
+      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputProvided, 'viya', false)
+      await verifyDotFilesNotGenerated(docOutputProvided)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs having target precedence over root level(no docConfig)`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputProvided = path.join(__dirname, appName, 'xyz')
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig((null as unknown) as DocConfig)
+      await updateDocConfig(
+        {
+          displayMacroCore: false,
+          disableLineage: true,
+          outDirectory: docOutputProvided
+        } as DocConfig,
+        'viya'
+      )
+
+      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputProvided, 'viya', false)
+      await verifyDotFilesNotGenerated(docOutputProvided)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs having no docConfig at root level`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig((null as unknown) as DocConfig)
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'viya')
+      await verifyDotFiles(docOutputDefault)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs having empty docConfig at root level`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig({} as DocConfig)
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'viya')
+      await verifyDotFiles(docOutputDefault)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs having no docConfig at root level and no targets`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig((null as unknown) as DocConfig)
+      await removeAllTargetsFromConfigs()
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'no-target')
+      await verifyDotFiles(docOutputDefault)
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs having empty docConfig at root level and not targets`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateDocConfig({} as DocConfig)
+      await removeAllTargetsFromConfigs()
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'no-target')
+      await verifyDotFiles(docOutputDefault)
+    },
+    60 * 1000
+  )
 })
-
-const updateConfig = async (docConfig: DocConfig) => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
-  if (config?.targets?.[0].docConfig) config.targets[0].docConfig = docConfig
-
-  await createFile(configPath, JSON.stringify(config, null, 1))
-}
-
-const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
-  config.targets = []
-  await createFile(configPath, JSON.stringify(config, null, 1))
-
-  const globalConfig = await getGlobalRcFile()
-  if (globalConfig?.targets?.length) globalConfig.targets = []
-  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
-}
-
-const verifyDocs = async (
-  docsFolder: string,
-  target: string = 'viya',
-  macroCore: boolean = true
-) => {
-  const indexHTML = path.join(docsFolder, 'index.html')
-  const appInitHTML = path.join(docsFolder, 'appinit_8sas.html')
-
-  const sas9MacrosExampleMacro = path.join(
-    docsFolder,
-    'targets_2sas9_2macros_2examplemacro_8sas_source.html'
-  )
-  const sas9ServicesAdminDostuff = path.join(
-    docsFolder,
-    'targets_2sas9_2services_2admin_2dostuff_8sas_source.html'
-  )
-  const viyaMacrosExampleMacro = path.join(
-    docsFolder,
-    'targets_2viya_2macros_2examplemacro_8sas_source.html'
-  )
-  const viyaServicesAdminDostuff = path.join(
-    docsFolder,
-    'targets_2viya_2services_2admin_2dostuff_8sas_source.html'
-  )
-  const yetAnotherMacro = path.join(docsFolder, 'yetanothermacro_8sas.html')
-  const yetAnotherMacroSource = path.join(
-    docsFolder,
-    'yetanothermacro_8sas_source.html'
-  )
-  const macroCoreFile = path.join(docsFolder, 'all_8sas.html')
-  const macroCoreFileSource = path.join(docsFolder, 'all_8sas_source.html')
-
-  await expect(folderExists(docsFolder)).resolves.toEqual(true)
-
-  await expect(fileExists(indexHTML)).resolves.toEqual(true)
-  await expect(fileExists(appInitHTML)).resolves.toEqual(true)
-
-  const expectSas9Files = target === 'sas9'
-  const expectViyaFiles = target === 'viya'
-
-  await expect(fileExists(sas9MacrosExampleMacro)).resolves.toEqual(
-    expectSas9Files
-  )
-  await expect(fileExists(sas9ServicesAdminDostuff)).resolves.toEqual(
-    expectSas9Files
-  )
-  await expect(fileExists(viyaMacrosExampleMacro)).resolves.toEqual(
-    expectViyaFiles
-  )
-  await expect(fileExists(viyaServicesAdminDostuff)).resolves.toEqual(
-    expectViyaFiles
-  )
-
-  await expect(fileExists(yetAnotherMacro)).resolves.toEqual(true)
-  await expect(fileExists(yetAnotherMacroSource)).resolves.toEqual(true)
-
-  await expect(fileExists(macroCoreFile)).resolves.toEqual(macroCore)
-  await expect(fileExists(macroCoreFileSource)).resolves.toEqual(macroCore)
-
-  const indexHTMLContent = await readFile(indexHTML)
-
-  expect(indexHTMLContent).toEqual(
-    expect.stringContaining('<h1><a class="anchor" id="autotoc_md1"></a>')
-  )
-}

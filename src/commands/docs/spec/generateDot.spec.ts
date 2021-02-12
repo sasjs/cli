@@ -3,7 +3,12 @@ import { graphviz } from 'node-graphviz'
 
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  updateTarget,
+  verifyDotFiles
+} from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import {
   folderExists,
@@ -92,9 +97,12 @@ describe('sasjs doc lineage', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateConfig({
-        docConfig: { outDirectory: docOutputProvided }
-      } as Target)
+      await updateTarget(
+        {
+          docConfig: { outDirectory: docOutputProvided }
+        } as Target,
+        'viya'
+      )
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
@@ -117,7 +125,7 @@ describe('sasjs doc lineage', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: { outDirectory: '' } } as Target)
+      await updateTarget({ docConfig: { outDirectory: '' } } as Target, 'viya')
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -140,11 +148,14 @@ describe('sasjs doc lineage', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({
-        jobConfig: {
-          jobFolders: ['../testJobs']
-        }
-      } as Target)
+      await updateTarget(
+        {
+          jobConfig: {
+            jobFolders: ['../testJobs']
+          }
+        } as Target,
+        'viya'
+      )
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -156,26 +167,6 @@ describe('sasjs doc lineage', () => {
     60 * 1000
   )
 })
-
-const updateConfig = async (target: Target) => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
-  if (config?.targets?.[0])
-    config.targets[0] = { ...config.targets[0], ...target }
-
-  await createFile(configPath, JSON.stringify(config, null, 1))
-}
-
-const verifyDotFiles = async (docsFolder: string) => {
-  const dotCodeFile = path.join(docsFolder, 'data_lineage.dot')
-  const dotGraphFile = path.join(docsFolder, 'data_lineage.svg')
-
-  await expect(folderExists(docsFolder)).resolves.toEqual(true)
-
-  await expect(fileExists(dotCodeFile)).resolves.toEqual(true)
-  await expect(fileExists(dotGraphFile)).resolves.toEqual(true)
-}
 
 const verifyCustomDotFiles = async (docsFolder: string) => {
   const dotCodeFile = path.join(docsFolder, 'data_lineage.dot')
