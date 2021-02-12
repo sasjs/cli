@@ -3,6 +3,7 @@ import {
   addTarget,
   build,
   processContext,
+  init,
   create,
   buildDB,
   deploy,
@@ -30,6 +31,19 @@ export enum ReturnCode {
   InternalError
 }
 
+export async function initSasjs() {
+  return await init()
+    .then(() => {
+      displaySuccess(
+        'Project is powered with SASjs. You can use any sasjs command, now.'
+      )
+      return ReturnCode.Success
+    })
+    .catch((err: any) => {
+      displayError(err, 'An error has occurred whilst initiating init.')
+      return ReturnCode.InternalError
+    })
+}
 export async function createFileStructure(command: Command) {
   const template = command.getFlagValue('template') as string
   const parentFolderName = command.values.shift()

@@ -126,14 +126,19 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
 
-    const regExp = new RegExp(`^sasjsbuild\/`, 'gm')
+    const regExp1 = new RegExp(`^sasjsbuild\/`, 'gm')
+    const regExp2 = new RegExp(`^node_modules\/`, 'gm')
 
-    if (!gitIgnoreContent.match(regExp)) {
-      await createFile(
-        gitIgnoreFilePath,
-        `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
-      )
+    let newgitIgnoreContent = gitIgnoreContent.match(regExp1)
+      ? gitIgnoreContent
+      : `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
 
+    newgitIgnoreContent = newgitIgnoreContent.match(regExp2)
+      ? newgitIgnoreContent
+      : `${newgitIgnoreContent + '\n'}node_modules/\n`
+
+    if (gitIgnoreContent !== newgitIgnoreContent) {
+      await createFile(gitIgnoreFilePath, newgitIgnoreContent)
       process.logger?.success('Existing .gitignore has been updated.')
     }
   } else {
