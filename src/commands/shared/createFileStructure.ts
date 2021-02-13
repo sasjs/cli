@@ -1,27 +1,12 @@
 import path from 'path'
 
 import { asyncForEach } from '../../utils/utils'
-import { getFolders, getConfiguration } from '../../utils/config'
-import {
-  createFolderStructure,
-  createFolder,
-  createFile,
-  fileExists
-} from '../../utils/file'
+import { getFolders } from '../../utils/config'
+import { createFolderStructure, fileExists } from '../../utils/file'
 import { Folder } from '../../types'
 
-const createConfigFile = async (parentFolderName: string) => {
-  const config = await getConfiguration(
-    path.join(__dirname, '../../config.json')
-  )
-  const configDestinationPath = path.join(
-    process.projectDir,
-    parentFolderName,
-    'sasjs',
-    'sasjsconfig.json'
-  )
-  await createFile(configDestinationPath, JSON.stringify(config, null, 1))
-}
+import { createConfigFile } from './createConfigFile'
+
 export const createFileStructure = async (parentFolderName: string) => {
   const fileStructure = await getFolders()
   await asyncForEach(fileStructure, async (folder: Folder, index: number) => {

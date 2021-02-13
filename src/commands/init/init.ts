@@ -7,17 +7,15 @@ import {
 } from '../../utils/utils'
 
 import { createFolder } from '../../utils/file'
-import { createFileStructure } from '../shared/createFileStructure'
+import { createConfigFile } from '../shared/createConfigFile'
 
 export async function init() {
   process.logger?.info('Creating folders and files...')
   const parentFolderName = '.'
 
-  await createFileStructure(parentFolderName)
+  await setupDoxygen(parentFolderName)
+  await createConfigFile(parentFolderName)
 
   await setupNpmProject(parentFolderName)
-
   await setupGitIgnore(parentFolderName)
-
-  await setupDoxygen(parentFolderName)
 }
