@@ -8,20 +8,14 @@ import {
   createFile
 } from '../../utils/file'
 import { asyncForEach, removeComments, chunk } from '../../utils/utils'
-import {
-  getConfiguration,
-  findTargetInConfiguration,
-  getMacroCorePath
-} from '../../utils/config'
+import { getConfiguration, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getDependencyPaths } from '../shared/dependencies'
 
-export async function build(targetName: string) {
-  const { target } = await findTargetInConfiguration(targetName)
-
-  await compile(targetName)
+export async function build(target: Target) {
+  await compile(target)
 
   await createFinalSasFiles(target)
 }
@@ -35,7 +29,7 @@ async function createFinalSasFiles(target: Target) {
     process.logger?.info(
       'Building web app services since `streamWeb` is enabled.'
     )
-    await createWebAppServices(target.name)
+    await createWebAppServices(target)
       .then(() => process.logger?.success(`Web app services have been built.`))
       .catch((err) => {
         process.logger?.error(
@@ -80,11 +74,11 @@ async function createFinalSasFile(target: Target) {
   finalSasFileContent += `\n${buildTerm}`
   finalSasFileContent = removeComments(finalSasFileContent)
 
-  process.logger?.info(`Creating file ${finalFilePath} .`)
+  process.logger?.debug(`Creating file ${finalFilePath} .`)
   await createFile(finalFilePath, finalSasFileContent)
   process.logger?.success(`File ${finalFilePath} has been created.`)
 
-  process.logger?.info(`Creating file ${finalFilePathJSON} .`)
+  process.logger?.debug(`Creating file ${finalFilePathJSON} .`)
   await createFile(
     finalFilePathJSON,
     JSON.stringify(folderContentJSON, null, 1)
@@ -103,7 +97,7 @@ async function getBuildInfo(target: Target) {
   )
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
-  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let syscc=0;\noptions ps=max noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
+  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {

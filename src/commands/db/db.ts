@@ -52,7 +52,7 @@ export async function buildDB() {
         newDbFileContent += `\n\n${fileContent}`
       })
 
-      process.logger?.info(`Creating file ${destinationFilePath} .`)
+      process.logger?.debug(`Creating file ${destinationFilePath} .`)
       await createFile(destinationFilePath, newDbFileContent)
       process.logger?.success(`File ${destinationFilePath} has been created.`)
     })

@@ -1,4 +1,3 @@
-import { findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, chunk } from '../../utils/utils'
 import {
   readFile,
@@ -15,7 +14,7 @@ import jsdom, { JSDOM } from 'jsdom'
 import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
-import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 
@@ -28,12 +27,11 @@ const exampleStreamConfig: StreamConfig = {
   streamWeb: true,
   streamWebFolder: '/example/folder/path',
   assetPaths: [],
-  webSourcePath: '/example/path'
+  webSourcePath: '/example/path',
+  streamServiceName: 'clickme'
 }
 
-export async function createWebAppServices(targetName: string) {
-  const { target } = await findTargetInConfiguration(targetName)
-
+export async function createWebAppServices(target: Target) {
   const { buildDestinationServicesFolder } = getConstants()
 
   const { streamConfig } = target
@@ -69,7 +67,7 @@ export async function createWebAppServices(targetName: string) {
     )
   }
 
-  process.logger?.info(`Building web app services for target ${targetName}...`)
+  process.logger?.info(`Building web app services for target ${target.name}...`)
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(
@@ -108,7 +106,10 @@ export async function createWebAppServices(targetName: string) {
       await updateFaviconHref(faviconTag, webSourcePath)
     })
 
-    await createClickMeService(indexHtml.serialize())
+    await createClickMeService(
+      indexHtml.serialize(),
+      streamConfig.streamServiceName
+    )
   }
 }
 
@@ -295,8 +296,8 @@ function getScriptPath(
   }
   const storedProcessPath =
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+      ? `/SASJobExecution?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
@@ -313,8 +314,8 @@ function getLinkHref(
   }
   const storedProcessPath =
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+      ? `/SASJobExecution?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
@@ -417,7 +418,10 @@ file sasjs;
   return serviceContent
 }
 
-async function createClickMeService(indexHtmlContent: string) {
+async function createClickMeService(
+  indexHtmlContent: string,
+  fileName: string
+) {
   const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
   let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 
@@ -446,7 +450,7 @@ async function createClickMeService(indexHtmlContent: string) {
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
   const { buildDestinationServicesFolder } = getConstants()
   await createFile(
-    path.join(buildDestinationServicesFolder, 'clickme.sas'),
+    path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent
   )
 }
