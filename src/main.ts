@@ -24,6 +24,8 @@ import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
 import { compile } from './commands/compile/compile'
 import { getConstants } from './constants'
+import { findTargetInConfiguration } from './utils/config'
+import { Target } from '@sasjs/utils/types'
 
 export enum ReturnCode {
   Success,
@@ -81,7 +83,6 @@ export async function doc(command: Command) {
 
   const targetName = command.getFlagValue('target') as string
   const outDirectory = command.getFlagValue('outDirectory') as string
-  const { buildDestinationDocsFolder } = getConstants()
 
   if (subCommand === 'lineage') {
     return await generateDot(targetName, outDirectory)
@@ -127,17 +128,9 @@ export async function compileServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compile(targetName, true)
-    .then(() => {
-      displaySuccess(
-        `Services have been successfully compiled!\nThe build output is located in the 'sasjsbuild' directory.`
-      )
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when compiling services.')
-      return ReturnCode.InternalError
-    })
+  const { target } = await findTargetInConfiguration(targetName)
+
+  return await executeCompile(target)
 }
 
 export async function buildServices(command: Command) {
@@ -147,29 +140,9 @@ export async function buildServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await build(targetName)
-    .then(() => {
-      const { buildDestinationFolder } = getConstants()
-      displaySuccess(
-        `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
-      )
-      return ReturnCode.Success
-    })
-    .catch((error) => {
-      if (Array.isArray(error)) {
-        const nodeModulesErrors = error.find((err) =>
-          err.includes('node_modules/@sasjs/core')
-        )
+  const { target } = await findTargetInConfiguration(targetName)
 
-        if (nodeModulesErrors)
-          process.logger.info(
-            `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
-          )
-      } else {
-        displayError(error, 'An error has occurred when building services.')
-      }
-      return ReturnCode.InternalError
-    })
+  return await executeBuild(target)
 }
 
 export async function deployServices(command: Command) {
@@ -179,27 +152,23 @@ export async function deployServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await deploy(targetName)
-    .then(() => {
-      displaySuccess(`Services have been successfully deployed!`)
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when deploying services.')
-      return ReturnCode.InternalError
-    })
+  const { target, isLocal } = await findTargetInConfiguration(targetName)
+
+  return await executeDeploy(target, isLocal)
 }
 
 export async function compileBuildServices(command: Command) {
-  let targetName = command.getFlagValue('target')
+  let targetName = command.getFlagValue('target') as string
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compileServices(command).then(async (returnCode) => {
+  const { target } = await findTargetInConfiguration(targetName)
+
+  return await executeCompile(target).then(async (returnCode) => {
     if (returnCode === ReturnCode.Success) {
-      return await buildServices(command)
+      return await executeBuild(target)
     } else {
       return ReturnCode.InternalError
     }
@@ -207,16 +176,18 @@ export async function compileBuildServices(command: Command) {
 }
 
 export async function compileBuildDeployServices(command: Command) {
-  let targetName = command.getFlagValue('target')
+  let targetName = command.getFlagValue('target') as string
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await compileServices(command)
+  const { target, isLocal } = await findTargetInConfiguration(targetName)
+
+  return await executeCompile(target)
     .then(async (returnCode) => {
       if (returnCode === ReturnCode.Success) {
-        return await buildServices(command)
+        return await executeBuild(target)
       } else {
         displayError(
           null,
@@ -227,7 +198,7 @@ export async function compileBuildDeployServices(command: Command) {
     })
     .then(async (returnCode) => {
       if (returnCode === ReturnCode.Success) {
-        return await deployServices(command)
+        return await executeDeploy(target, isLocal)
       } else {
         displayError(
           null,
@@ -260,7 +231,9 @@ export async function buildWebApp(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await createWebAppServices(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
+
+  return await createWebAppServices(target)
     .then(() => {
       const { buildDestinationFolder } = getConstants()
       displaySuccess(
@@ -421,6 +394,57 @@ export async function flowManagement(command: Command) {
     })
     .catch((err) => {
       displayError('An error has occurred when processing flow operation.', err)
+      return ReturnCode.InternalError
+    })
+}
+
+async function executeCompile(target: Target) {
+  return await compile(target, true)
+    .then(() => {
+      displaySuccess(
+        `Services have been successfully compiled!\nThe build output is located in the 'sasjsbuild' directory.`
+      )
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when compiling services.')
+      return ReturnCode.InternalError
+    })
+}
+
+async function executeBuild(target: Target) {
+  return await build(target)
+    .then(() => {
+      const { buildDestinationFolder } = getConstants()
+      displaySuccess(
+        `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
+      )
+      return ReturnCode.Success
+    })
+    .catch((error) => {
+      if (Array.isArray(error)) {
+        const nodeModulesErrors = error.find((err) =>
+          err.includes('node_modules/@sasjs/core')
+        )
+
+        if (nodeModulesErrors)
+          process.logger.info(
+            `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
+          )
+      } else {
+        displayError(error, 'An error has occurred when building services.')
+      }
+      return ReturnCode.InternalError
+    })
+}
+
+async function executeDeploy(target: Target, isLocal: boolean) {
+  return await deploy(target, isLocal)
+    .then(() => {
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when deploying services.')
       return ReturnCode.InternalError
     })
 }
