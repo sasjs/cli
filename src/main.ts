@@ -217,7 +217,9 @@ export async function buildWebApp(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  return await createWebAppServices(targetName)
+  const { target } = await findTargetInConfiguration(targetName)
+
+  return await createWebAppServices(target)
     .then(() => {
       const { buildDestinationFolder } = getConstants()
       displaySuccess(

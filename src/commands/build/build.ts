@@ -29,7 +29,7 @@ async function createFinalSasFiles(target: Target) {
     process.logger?.info(
       'Building web app services since `streamWeb` is enabled.'
     )
-    await createWebAppServices(target.name)
+    await createWebAppServices(target)
       .then(() => process.logger?.success(`Web app services have been built.`))
       .catch((err) => {
         process.logger?.error(

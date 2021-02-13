@@ -1,4 +1,3 @@
-import { findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, chunk } from '../../utils/utils'
 import {
   readFile,
@@ -32,9 +31,7 @@ const exampleStreamConfig: StreamConfig = {
   streamServiceName: 'clickme'
 }
 
-export async function createWebAppServices(targetName: string) {
-  const { target } = await findTargetInConfiguration(targetName)
-
+export async function createWebAppServices(target: Target) {
   const { buildDestinationServicesFolder } = getConstants()
 
   const { streamConfig } = target
@@ -70,7 +67,7 @@ export async function createWebAppServices(targetName: string) {
     )
   }
 
-  process.logger?.info(`Building web app services for target ${targetName}...`)
+  process.logger?.info(`Building web app services for target ${target.name}...`)
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(
