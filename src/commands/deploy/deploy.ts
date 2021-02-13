@@ -241,6 +241,10 @@ async function deployToSas9(
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
     )
+    if (!!target.streamConfig?.streamWeb) {
+      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${target.appLoc}/services/${target.streamConfig.streamServiceName}`
+      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
+    }
   } else {
     process.logger?.error('Unable to create log file.')
   }
