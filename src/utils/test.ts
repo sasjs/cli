@@ -8,13 +8,19 @@ import {
   readFile
 } from './file'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { saveToGlobalConfig } from './config'
+import {
+  saveToGlobalConfig,
+  getConfiguration,
+  getGlobalRcFile,
+  saveGlobalRcFile
+} from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
 import { builtFiles } from './fileStructures/builtFiles'
 import { asyncForEach } from './utils'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
+import { getConstants } from '../constants'
 import { create } from '../commands/create/create'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
@@ -130,4 +136,18 @@ export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
   })
 
   return true
+}
+
+export const removeAllTargetsFromConfigs = async () => {
+  const { buildSourceFolder } = getConstants()
+  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+  const config = await getConfiguration(configPath)
+  config.targets = []
+  await createFile(configPath, JSON.stringify(config, null, 1))
+
+  const globalConfig = await getGlobalRcFile()
+  if (globalConfig?.targets?.length) {
+    globalConfig.targets = []
+    await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
+  }
 }

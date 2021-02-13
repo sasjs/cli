@@ -222,7 +222,7 @@
     },
     "macroFolders": ["sasjs/macros"],
     "programFolders": ["sasjs/programs"],
-    "serverType": "SAS9",
+    "serverType": "SASVIYA",
     "targets": [
       {
         "name": "viya",

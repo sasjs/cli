@@ -2,7 +2,11 @@ import path from 'path'
 
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  removeAllTargetsFromConfigs
+} from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import {
   folderExists,
@@ -11,11 +15,7 @@ import {
   readFile,
   deleteFile
 } from '../../../utils/file'
-import {
-  getConfiguration,
-  getGlobalRcFile,
-  saveGlobalRcFile
-} from '../../../utils/config'
+import { getConfiguration, getGlobalRcFile } from '../../../utils/config'
 import { getConstants } from '../../../constants'
 import { DocConfig } from '@sasjs/utils/types/config'
 
@@ -196,18 +196,6 @@ const updateConfig = async (docConfig: DocConfig) => {
   if (config?.targets?.[0].docConfig) config.targets[0].docConfig = docConfig
 
   await createFile(configPath, JSON.stringify(config, null, 1))
-}
-
-const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
-  config.targets = []
-  await createFile(configPath, JSON.stringify(config, null, 1))
-
-  const globalConfig = await getGlobalRcFile()
-  if (globalConfig?.targets?.length) globalConfig.targets = []
-  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 const verifyDocs = async (
