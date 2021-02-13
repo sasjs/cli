@@ -22,13 +22,17 @@ import { loadDependencies } from './internal/loadDependencies'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
+import { getServerType } from './internal/getServerType'
 import {
   getDestinationServicePath,
   getDestinationJobPath
 } from './internal/getDestinationPath'
 
 export async function compile(targetName: string, forceCompile = false) {
-  let { target } = await findTargetInConfiguration(targetName)
+  let target: Target = {} as Target
+  try {
+    target = (await findTargetInConfiguration(targetName)).target
+  } catch (error) {}
   const result = await checkCompileStatus(target)
 
   // no need to compile again
@@ -81,7 +85,7 @@ export async function compileJobsAndServices(target: Target) {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
     const macroFolders = target ? target.macroFolders : []
-    const programFolders = await getProgramFolders(target.name)
+    const programFolders = await getProgramFolders(target)
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
       await compileServiceFolder(
@@ -178,7 +182,8 @@ const compileServiceFolder = async (
       programFolders
     )
 
-    const preCode = await getPreCodeForServicePack(target.serverType)
+    const serverType = await getServerType(target)
+    const preCode = await getPreCodeForServicePack(serverType)
 
     dependencies = `${preCode}\n${dependencies}`
 
