@@ -15,7 +15,7 @@ import jsdom, { JSDOM } from 'jsdom'
 import base64img from 'base64-img'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
-import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 
@@ -295,8 +295,8 @@ function getScriptPath(
   }
   const storedProcessPath =
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+      ? `/SASJobExecution?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
@@ -313,8 +313,8 @@ function getLinkHref(
   }
   const storedProcessPath =
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/${streamWebFolder}`
+      ? `/SASJobExecution?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
