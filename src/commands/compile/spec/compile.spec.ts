@@ -1,6 +1,10 @@
 import { Target } from '@sasjs/utils'
 import { findTargetInConfiguration } from '../../../utils/config'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  removeAllTargetsFromConfigs
+} from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import * as compileModule from '../compile'
 
@@ -26,6 +30,16 @@ describe('sasjs compile', () => {
 
   it('should compile an uncompiled project', async (done) => {
     await expect(compileModule.compile(target)).toResolve()
+    expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
+    expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+
+    done()
+  })
+
+  it('should compile an uncompiled project having not target', async (done) => {
+    await removeAllTargetsFromConfigs()
+
+    await expect(compileModule.compile({} as Target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
 
