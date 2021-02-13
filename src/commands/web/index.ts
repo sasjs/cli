@@ -28,7 +28,8 @@ const exampleStreamConfig: StreamConfig = {
   streamWeb: true,
   streamWebFolder: '/example/folder/path',
   assetPaths: [],
-  webSourcePath: '/example/path'
+  webSourcePath: '/example/path',
+  streamServiceName: 'clickme'
 }
 
 export async function createWebAppServices(targetName: string) {
@@ -108,7 +109,10 @@ export async function createWebAppServices(targetName: string) {
       await updateFaviconHref(faviconTag, webSourcePath)
     })
 
-    await createClickMeService(indexHtml.serialize())
+    await createClickMeService(
+      indexHtml.serialize(),
+      streamConfig.streamServiceName
+    )
   }
 }
 
@@ -417,7 +421,10 @@ file sasjs;
   return serviceContent
 }
 
-async function createClickMeService(indexHtmlContent: string) {
+async function createClickMeService(
+  indexHtmlContent: string,
+  fileName: string
+) {
   const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
   let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 
@@ -446,7 +453,7 @@ async function createClickMeService(indexHtmlContent: string) {
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
   const { buildDestinationServicesFolder } = getConstants()
   await createFile(
-    path.join(buildDestinationServicesFolder, 'clickme.sas'),
+    path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent
   )
 }
