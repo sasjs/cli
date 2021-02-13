@@ -1,9 +1,5 @@
 import path from 'path'
-import {
-  getProgramFolders,
-  findTargetInConfiguration,
-  getMacroCorePath
-} from '../../utils/config'
+import { getProgramFolders, getMacroCorePath } from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
@@ -28,11 +24,7 @@ import {
   getDestinationJobPath
 } from './internal/getDestinationPath'
 
-export async function compile(targetName: string, forceCompile = false) {
-  let target: Target = {} as Target
-  try {
-    target = (await findTargetInConfiguration(targetName)).target
-  } catch (error) {}
+export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target)
 
   // no need to compile again
