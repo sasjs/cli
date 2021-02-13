@@ -1,7 +1,7 @@
 import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
-import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
+import { getAccessToken } from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
@@ -13,9 +13,7 @@ import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 
-export async function deploy(targetName: string) {
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
-
+export async function deploy(target: Target, isLocal: boolean) {
   if (
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack

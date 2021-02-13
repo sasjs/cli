@@ -8,20 +8,14 @@ import {
   createFile
 } from '../../utils/file'
 import { asyncForEach, removeComments, chunk } from '../../utils/utils'
-import {
-  getConfiguration,
-  findTargetInConfiguration,
-  getMacroCorePath
-} from '../../utils/config'
+import { getConfiguration, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getDependencyPaths } from '../shared/dependencies'
 
-export async function build(targetName: string) {
-  const { target } = await findTargetInConfiguration(targetName)
-
-  await compile(targetName)
+export async function build(target: Target) {
+  await compile(target)
 
   await createFinalSasFiles(target)
 }
