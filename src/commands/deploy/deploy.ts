@@ -1,4 +1,5 @@
 import path from 'path'
+import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { asyncForEach, executeShellScript } from '../../utils/utils'
@@ -156,11 +157,12 @@ async function deployToSasViya(
 
   let log
   try {
+    console.log('items: ', !!executionResult.log.items)
     log = executionResult.log.items
       ? executionResult.log.items
           .map((i: { line: string }) => i.line)
-          .join('\n')
-      : JSON.stringify(executionResult.log)
+          .join(os.EOL)
+      : JSON.stringify(executionResult.log).replace(/\\n/g, os.EOL)
   } catch (e) {
     process.logger?.error(
       `An error occurred when parsing the execution response: ${e.message}`
