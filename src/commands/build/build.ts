@@ -80,11 +80,11 @@ async function createFinalSasFile(target: Target) {
   finalSasFileContent += `\n${buildTerm}`
   finalSasFileContent = removeComments(finalSasFileContent)
 
-  process.logger?.info(`Creating file ${finalFilePath} .`)
+  process.logger?.debug(`Creating file ${finalFilePath} .`)
   await createFile(finalFilePath, finalSasFileContent)
   process.logger?.success(`File ${finalFilePath} has been created.`)
 
-  process.logger?.info(`Creating file ${finalFilePathJSON} .`)
+  process.logger?.debug(`Creating file ${finalFilePathJSON} .`)
   await createFile(
     finalFilePathJSON,
     JSON.stringify(folderContentJSON, null, 1)
@@ -103,7 +103,7 @@ async function getBuildInfo(target: Target) {
   )
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
-  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let syscc=0;\noptions ps=max noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
+  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {

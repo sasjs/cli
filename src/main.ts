@@ -167,7 +167,6 @@ export async function deployServices(command: Command) {
 
   return await deploy(targetName)
     .then(() => {
-      displaySuccess(`Services have been successfully deployed!`)
       return ReturnCode.Success
     })
     .catch((err) => {
