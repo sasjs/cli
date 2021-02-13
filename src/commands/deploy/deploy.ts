@@ -63,7 +63,6 @@ export async function deploy(targetName: string) {
     } else if (isShellScript(deployScript)) {
       process.logger?.info(`Executing shell script ${deployScript} ...`)
 
-      const { buildDestinationFolder } = getConstants()
       const deployScriptPath = path.join(process.projectDir, deployScript)
       const logPath = path.join(
         process.projectDir,
@@ -178,12 +177,17 @@ async function deployToSasViya(
       ),
       log
     )
-    console.log(
+    process.logger?.success(
       `Deployment completed! Log is available at ${path.join(
         logFilePath,
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
     )
+
+    if (!!target.streamConfig?.streamWeb) {
+      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_PROGRAM=${target.appLoc}/services/${target.streamConfig.streamServiceName}`
+      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
+    }
   } else {
     process.logger?.error('Unable to create log file.')
   }
@@ -234,7 +238,7 @@ async function deployToSas9(
       parsedLog
     )
     process.logger?.success(
-      `Job execution completed! Log is available at ${path.join(
+      `Deployment completed! Log is available at ${path.join(
         logFilePath,
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
