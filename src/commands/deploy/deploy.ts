@@ -157,7 +157,6 @@ async function deployToSasViya(
 
   let log
   try {
-    console.log('items: ', !!executionResult.log.items)
     log = executionResult.log.items
       ? executionResult.log.items
           .map((i: { line: string }) => i.line)
@@ -180,7 +179,7 @@ async function deployToSasViya(
       log
     )
     console.log(
-      `Job execution completed! Log is available at ${path.join(
+      `Deployment completed! Log is available at ${path.join(
         logFilePath,
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
