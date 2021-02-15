@@ -16,9 +16,7 @@ import { addCredential } from './addCredential'
  * Creates new target for either local config or global config file.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
-export async function addTarget(
-  insecure: boolean | undefined
-): Promise<boolean> {
+export async function addTarget(insecure: boolean = false): Promise<boolean> {
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()

@@ -21,17 +21,15 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  */
 export const addCredential = async (
   targetName: string,
-  insecure: boolean | undefined
+  insecure: boolean | undefined = undefined
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
 
   let { target, isLocal } = await findTargetInConfiguration(targetName)
 
+  insecure = insecure ?? target.allowInsecureRequests
+
   if (insecure) process.logger?.warn('Executing with insecure connection.')
-  else if (insecure === undefined && target.allowInsecureRequests) {
-    insecure = target.allowInsecureRequests
-    process.logger?.warn('Executing with insecure connection.')
-  }
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl()
