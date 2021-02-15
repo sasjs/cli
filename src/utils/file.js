@@ -51,7 +51,7 @@ export async function folderExists(folderPath) {
 }
 
 export async function readFile(fileName) {
-  process.logger?.info('Reading file: ', fileName)
+  process.logger?.debug('Reading file: ', fileName)
   return new Promise((resolve, reject) => {
     fs.readFile(fileName, 'utf8', function (error, data) {
       if (error) {
@@ -64,7 +64,7 @@ export async function readFile(fileName) {
 }
 
 export async function base64EncodeFile(fileName) {
-  process.logger?.info('Encoding file: ', fileName)
+  process.logger?.debug('Encoding file: ', fileName)
   return new Promise((resolve, reject) => {
     fs.readFile(fileName, { encoding: 'base64' }, function (error, data) {
       if (error) {
@@ -77,7 +77,7 @@ export async function base64EncodeFile(fileName) {
 }
 
 export async function getSubFoldersInFolder(folderName) {
-  process.logger?.info(`Getting subfolders in ${folderName}`)
+  process.logger?.debug(`Getting subfolders in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
@@ -91,7 +91,7 @@ export async function getSubFoldersInFolder(folderName) {
 }
 
 export async function getFilesInFolder(folderName) {
-  process.logger?.info(`Getting files in ${folderName}`)
+  process.logger?.debug(`Getting files in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
@@ -105,7 +105,7 @@ export async function getFilesInFolder(folderName) {
 }
 
 export async function getIniFilesInFolder(folderName) {
-  process.logger?.info(`Getting *.ini files in ${folderName}`)
+  process.logger?.debug(`Getting *.ini files in ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
       if (error) {
@@ -122,7 +122,7 @@ export async function getIniFilesInFolder(folderName) {
 }
 
 export async function createFolder(folderName) {
-  process.logger?.info(`Creating folder ${folderName}`)
+  process.logger?.debug(`Creating folder ${folderName}`)
   return new Promise((resolve, reject) => {
     fs.mkdir(folderName, { recursive: true }, (error, data) => {
       if (error) {
@@ -137,7 +137,7 @@ export async function createFolder(folderName) {
 }
 
 export async function createFile(fileName, content) {
-  process.logger?.info(`Creating file ${fileName}`)
+  process.logger?.debug(`Creating file ${fileName}`)
 
   return new Promise(async (resolve, reject) => {
     fileName = unifyFilePath(fileName)
@@ -181,7 +181,7 @@ export function unifyFilePath(filePath, separator = path.sep, replace = '/') {
 }
 
 export async function deleteFolder(folderName) {
-  process.logger?.info(`Deleting folder ${folderName}`)
+  process.logger?.debug(`Deleting folder ${folderName}`)
 
   return new Promise((resolve, reject) => {
     rimraf(folderName, function (error) {
@@ -196,7 +196,7 @@ export async function deleteFolder(folderName) {
 }
 
 export async function deleteFile(filePath) {
-  process.logger?.info(`Deleting file ${filePath}`)
+  process.logger?.debug(`Deleting file ${filePath}`)
 
   return new Promise((resolve, reject) => {
     rimraf(filePath, function (error) {
@@ -211,7 +211,7 @@ export async function deleteFile(filePath) {
 }
 
 export async function copy(source, destination) {
-  process.logger?.info(`Copying ${source} to ${destination}`)
+  process.logger?.debug(`Copying ${source} to ${destination}`)
 
   return new Promise((resolve, reject) => {
     fsExtra.copy(source, destination, function (error) {
