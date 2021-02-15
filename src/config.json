@@ -197,7 +197,7 @@
     "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
     "docConfig": {
       "displayMacroCore": true,
-      "disableLineage": false,
+      "enableLineage": true,
       "outDirectory": "",
       "dataControllerUrl": ""
     },

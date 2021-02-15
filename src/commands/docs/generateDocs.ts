@@ -33,7 +33,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     target,
     serverUrl,
     newOutDirectory,
-    disableLineage
+    enableLineage
   } = await getDocConfig(config, targetName, outDirectory)
 
   const {
@@ -115,7 +115,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
-  if (!disableLineage) {
+  if (enableLineage) {
     const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
 
     await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)

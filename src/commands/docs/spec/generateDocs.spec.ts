@@ -202,7 +202,7 @@ describe('sasjs doc', () => {
       await updateDocConfig(
         {
           displayMacroCore: false,
-          disableLineage: true,
+          enableLineage: false,
           outDirectory: docOutputProvided
         } as DocConfig,
         'viya'
@@ -230,7 +230,7 @@ describe('sasjs doc', () => {
       await updateDocConfig(
         {
           displayMacroCore: false,
-          disableLineage: true,
+          enableLineage: false,
           outDirectory: docOutputProvided
         } as DocConfig,
         'viya'
