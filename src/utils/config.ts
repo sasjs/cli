@@ -498,7 +498,5 @@ const getPrecedenceOfInsecureRequests = (
   config: Configuration,
   target: TargetJson
 ): boolean => {
-  return typeof target.allowInsecureRequests === 'boolean'
-    ? target.allowInsecureRequests
-    : !!config.allowInsecureRequests
+  return target.allowInsecureRequests ?? !!config.allowInsecureRequests
 }
