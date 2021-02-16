@@ -7,6 +7,11 @@ import { Folder } from '../../types'
 
 import { createConfigFile } from './createConfigFile'
 
+/**
+ * Creates the folder structure specified in config.json
+ * Also Creates a SASjs configation file, named 'sasjsconfig.json'.
+ * @param {string} parentFolderName- the name of the project folder.
+ */
 export const createFileStructure = async (parentFolderName: string) => {
   const fileStructure = await getFolders()
   await asyncForEach(fileStructure, async (folder: Folder, index: number) => {
