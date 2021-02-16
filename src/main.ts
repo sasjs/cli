@@ -236,7 +236,7 @@ export async function buildWebApp(command: Command) {
 export async function add(command: Command) {
   const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target') as string
-  const insecure = command.getFlag('insecure') === undefined ? undefined : true
+  const insecure = !!command.getFlag('insecure')
 
   if (!targetName) {
     targetName = command.getTargetWithoutFlag() as string
