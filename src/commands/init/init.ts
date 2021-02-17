@@ -10,7 +10,7 @@ import { createFolder } from '../../utils/file'
 import { createConfigFile } from '../shared/createConfigFile'
 
 export async function init() {
-  process.logger?.info('Creating folders and files...')
+  process.logger?.info('Initialising SASjs...')
   const parentFolderName = '.'
 
   await setupDoxygen(parentFolderName)
