@@ -227,6 +227,7 @@
         "name": "viya",
         "serverType": "SASVIYA",
         "serverUrl": "http://sas.analytium.co.uk",
+        "allowInsecureRequests": false,
         "appLoc": "/Public/app",
         "contextName": "SAS Job Execution compute context",
         "docConfig": {

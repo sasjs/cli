@@ -5,7 +5,7 @@ import dotenv from 'dotenv'
 import { Target } from '@sasjs/utils/types'
 import { createFile, deleteFile } from '../file'
 import path from 'path'
-import { Logger, LogLevel } from '@sasjs/utils'
+import { Logger, LogLevel, SasAuthResponse } from '@sasjs/utils'
 jest.mock('@sasjs/adapter/node')
 
 describe('getAccessToken', () => {
@@ -89,7 +89,7 @@ describe('getAccessToken', () => {
     jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
       Promise.resolve({
         access_token: 'N3WT0K3N'
-      })
+      } as SasAuthResponse)
     )
 
     const target = {
@@ -117,7 +117,7 @@ describe('getAccessToken', () => {
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
       Promise.resolve({
         access_token: 'N3WT0K3N'
-      })
+      } as SasAuthResponse)
     )
     const target = {
       authConfig: {

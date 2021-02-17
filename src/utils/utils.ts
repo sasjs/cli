@@ -335,6 +335,7 @@ export function getAdapterInstance(target: Target): SASjs {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
+    allowInsecureRequests: target.allowInsecureRequests,
     contextName: target.contextName,
     useComputeApi: true,
     debug: process.env.LOG_LEVEL === LogLevel.Debug

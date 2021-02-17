@@ -44,7 +44,7 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   %end;
 %end;
 %if &type=HTML %then %do;
-  /* 
+  /*
   We need to perform some substitutions -eg to get the APPLOC and SERVERTYPE.
   Therefore the developer should avoid writing lines that exceed 32k
   characters (eg base64 encoded images) as they will get truncated when passing
@@ -52,13 +52,13 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   the length restriction.  Pull requests are welcome!
   */
   filename _sjs temp;
-  data _null_; 
+  data _null_;
     file _sjs lrecl=32767 encoding='utf-8';
     infile &fref lrecl=32767;
     input;
     if find(_infile_,' appLoc: ') then do;
       pgm="&_program";
-      rootlen=length(trim(pgm))-length(scan(pgm,-1,'/'))-1;
+      rootlen=length(trim(pgm))-length(scan(pgm,-2,'/'))-1;
       root=quote(substr(pgm,1,rootlen));
       put '    appLoc: ' root ',';
     end;

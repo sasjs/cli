@@ -82,6 +82,7 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType,
+    allowInsecureRequests: target.allowInsecureRequests,
     debug: true
   })
 
@@ -211,6 +212,7 @@ async function deployToSas9(
   }
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType
   })
