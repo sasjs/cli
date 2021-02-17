@@ -51,6 +51,7 @@ async function deployToSasViyaWithServicePack(
 ) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
+    allowInsecureRequests: buildTarget.allowInsecureRequests,
     appLoc: buildTarget.appLoc,
     serverType: buildTarget.serverType
   })
