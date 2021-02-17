@@ -72,6 +72,7 @@ export async function execute(
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
       appLoc: target.appLoc,
       serverType: target.serverType
     })

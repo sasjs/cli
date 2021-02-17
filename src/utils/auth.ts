@@ -51,16 +51,14 @@ export async function getNewAccessToken(
   sasjsInstance: SASjs,
   clientId: string,
   clientSecret: string,
-  target: Target,
-  insecure: boolean = false
+  target: Target
 ) {
   const authUrl = getAuthUrl(target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
   const authResponse = await sasjsInstance.getAccessToken(
     clientId,
     clientSecret,
-    authCode,
-    insecure
+    authCode
   )
 
   return authResponse
