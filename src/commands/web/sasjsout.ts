@@ -58,7 +58,8 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     input;
     if find(_infile_,' appLoc: ') then do;
       pgm="&_program";
-      rootlen=length(trim(pgm))-length(scan(pgm,-2,'/'))-1;
+      /* index is deployed in the /services/ folder under the appLoc */
+      rootlen=length(trim(pgm))-length(scan(pgm,-1,'/'))-10;
       root=quote(substr(pgm,1,rootlen));
       put '    appLoc: ' root ',';
     end;
