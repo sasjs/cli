@@ -19,7 +19,7 @@ import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
 import { builtFiles } from './fileStructures/builtFiles'
 import { asyncForEach } from './utils'
-import { Folder, File } from '../types'
+import { Configuration, Folder, File } from '../types'
 import { ServiceConfig, DocConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 
@@ -166,20 +166,16 @@ export const updateTarget = async (target: Target, targetName: string) => {
   }
 }
 
-export const updateDocConfig = async (
-  docConfig: DocConfig,
-  target: string | undefined = undefined
-) => {
+export const updateConfig = async (config: Configuration) => {
   const { buildSourceFolder } = getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
-  if (target) {
-    if (config?.targets?.[0]) config.targets[0].docConfig = docConfig
-  } else {
-    config.docConfig = docConfig
+
+  const newConfig = {
+    ...(await getConfiguration(configPath)),
+    ...config
   }
 
-  await createFile(configPath, JSON.stringify(config, null, 1))
+  await createFile(configPath, JSON.stringify(newConfig, null, 1))
 }
 
 export const verifyDocs = async (

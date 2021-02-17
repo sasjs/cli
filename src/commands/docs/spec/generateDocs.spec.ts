@@ -6,7 +6,8 @@ import {
   createTestApp,
   removeTestApp,
   removeAllTargetsFromConfigs,
-  updateDocConfig,
+  updateConfig,
+  updateTarget,
   verifyDocs,
   verifyDotFiles,
   verifyDotFilesNotGenerated
@@ -20,7 +21,9 @@ import {
   deleteFile
 } from '../../../utils/file'
 import { getConstants } from '../../../constants'
+import { Target } from '@sasjs/utils/types'
 import { DocConfig } from '@sasjs/utils/types/config'
+import { Configuration } from '../../../types'
 
 describe('sasjs doc', () => {
   let appName: string
@@ -102,7 +105,9 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig({ displayMacroCore: false } as DocConfig)
+      await updateConfig({
+        docConfig: { displayMacroCore: false }
+      } as Configuration)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -121,7 +126,9 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig({ outDirectory: docOutputProvided } as DocConfig)
+      await updateConfig({
+        docConfig: { outDirectory: docOutputProvided }
+      } as Configuration)
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
@@ -144,7 +151,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig({ outDirectory: '' } as DocConfig)
+      await updateConfig({ docConfig: { outDirectory: '' } } as Configuration)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -199,12 +206,14 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig(
-        {
-          displayMacroCore: false,
-          enableLineage: false,
-          outDirectory: docOutputProvided
-        } as DocConfig,
+      await updateTarget(
+        ({
+          docConfig: {
+            displayMacroCore: false,
+            enableLineage: false,
+            outDirectory: docOutputProvided
+          }
+        } as unknown) as Target,
         'viya'
       )
 
@@ -226,13 +235,15 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig((null as unknown) as DocConfig)
-      await updateDocConfig(
-        {
-          displayMacroCore: false,
-          enableLineage: false,
-          outDirectory: docOutputProvided
-        } as DocConfig,
+      await updateConfig({ docConfig: null as unknown } as Configuration)
+      await updateTarget(
+        ({
+          docConfig: {
+            displayMacroCore: false,
+            enableLineage: false,
+            outDirectory: docOutputProvided
+          }
+        } as unknown) as Target,
         'viya'
       )
 
@@ -259,7 +270,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig((null as unknown) as DocConfig)
+      await updateConfig({ docConfig: null as unknown } as Configuration)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -284,7 +295,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig({} as DocConfig)
+      await updateConfig({ docConfig: {} } as Configuration)
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -309,7 +320,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig((null as unknown) as DocConfig)
+      await updateConfig({ docConfig: null as unknown } as Configuration)
       await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
@@ -335,7 +346,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateDocConfig({} as DocConfig)
+      await updateConfig({ docConfig: {} } as Configuration)
       await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
