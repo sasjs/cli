@@ -19,6 +19,7 @@ import {
 } from '../../../utils/file'
 import { getConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
+import { JobConfig } from '@sasjs/utils/types/config'
 
 describe('sasjs doc lineage', () => {
   let appName: string
@@ -150,7 +151,7 @@ describe('sasjs doc lineage', () => {
         {
           jobConfig: {
             jobFolders: ['../testJobs']
-          }
+          } as JobConfig
         },
         'viya'
       )
