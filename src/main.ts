@@ -37,12 +37,12 @@ export async function initSasjs() {
   return await init()
     .then(() => {
       displaySuccess(
-        'Project is powered with SASjs. You can use any sasjs command, now.'
+        'This project is powered by SASjs. You can now use any sasjs command within the project. For more information, type "sasjs help" or visit https://cli.sasjs.io/'
       )
       return ReturnCode.Success
     })
     .catch((err: any) => {
-      displayError(err, 'An error has occurred whilst initiating init.')
+      displayError(err, 'An error has occurred whilst initiating sasjs init.')
       return ReturnCode.InternalError
     })
 }
