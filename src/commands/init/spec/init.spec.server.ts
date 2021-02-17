@@ -17,7 +17,7 @@ describe('sasjs init', () => {
     done()
   })
 
-  it('should initialize with default app in the current folder', async (done) => {
+  it('should initialise with default app in the current folder', async (done) => {
     const appName = `test-app-init-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
@@ -33,7 +33,7 @@ describe('sasjs init', () => {
     done()
   })
 
-  it(`should initialize with 'sasonly' app in the current folder`, async (done) => {
+  it(`should initialise with 'sasonly' app in the current folder`, async (done) => {
     const appName = `test-app-init-.-${generateTimestamp()}-sasonly`
 
     process.projectDir = path.join(__dirname, appName)
@@ -48,7 +48,7 @@ describe('sasjs init', () => {
 
     done()
   })
-  it('should initialize in an empty current folder', async (done) => {
+  it('should initialise in an empty current folder', async (done) => {
     const appName = `test-app-init-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
