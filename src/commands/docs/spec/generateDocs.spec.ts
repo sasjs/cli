@@ -21,9 +21,7 @@ import {
   deleteFile
 } from '../../../utils/file'
 import { getConstants } from '../../../constants'
-import { Target } from '@sasjs/utils/types'
 import { DocConfig } from '@sasjs/utils/types/config'
-import { Configuration } from '../../../types'
 
 describe('sasjs doc', () => {
   let appName: string
@@ -107,7 +105,7 @@ describe('sasjs doc', () => {
       await createTestApp(__dirname, appName)
       await updateConfig({
         docConfig: { displayMacroCore: false }
-      } as Configuration)
+      })
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -128,7 +126,7 @@ describe('sasjs doc', () => {
       await createTestApp(__dirname, appName)
       await updateConfig({
         docConfig: { outDirectory: docOutputProvided }
-      } as Configuration)
+      })
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
@@ -151,7 +149,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: { outDirectory: '' } } as Configuration)
+      await updateConfig({ docConfig: { outDirectory: '' } })
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -207,13 +205,13 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
       await updateTarget(
-        ({
+        {
           docConfig: {
             displayMacroCore: false,
             enableLineage: false,
             outDirectory: docOutputProvided
           }
-        } as unknown) as Target,
+        },
         'viya'
       )
 
@@ -235,15 +233,15 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown } as Configuration)
+      await updateConfig({ docConfig: (null as unknown) as DocConfig })
       await updateTarget(
-        ({
+        {
           docConfig: {
             displayMacroCore: false,
             enableLineage: false,
             outDirectory: docOutputProvided
           }
-        } as unknown) as Target,
+        },
         'viya'
       )
 
@@ -270,7 +268,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown } as Configuration)
+      await updateConfig({ docConfig: (null as unknown) as DocConfig })
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -295,7 +293,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: {} } as Configuration)
+      await updateConfig({ docConfig: {} })
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -320,7 +318,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown } as Configuration)
+      await updateConfig({ docConfig: (null as unknown) as DocConfig })
       await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
@@ -346,7 +344,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: {} } as Configuration)
+      await updateConfig({ docConfig: {} })
       await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)

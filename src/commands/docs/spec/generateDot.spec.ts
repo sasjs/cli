@@ -19,8 +19,6 @@ import {
 } from '../../../utils/file'
 import { getConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
-import { Target } from '@sasjs/utils'
-import { DocConfig } from '@sasjs/utils/types/config'
 
 describe('sasjs doc lineage', () => {
   let appName: string
@@ -100,7 +98,7 @@ describe('sasjs doc lineage', () => {
       await updateTarget(
         {
           docConfig: { outDirectory: docOutputProvided }
-        } as Target,
+        },
         'viya'
       )
 
@@ -125,7 +123,7 @@ describe('sasjs doc lineage', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateTarget({ docConfig: { outDirectory: '' } } as Target, 'viya')
+      await updateTarget({ docConfig: { outDirectory: '' } }, 'viya')
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -153,7 +151,7 @@ describe('sasjs doc lineage', () => {
           jobConfig: {
             jobFolders: ['../testJobs']
           }
-        } as Target,
+        },
         'viya'
       )
 

@@ -150,7 +150,10 @@ export const removeAllTargetsFromConfigs = async () => {
   await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
-export const updateTarget = async (target: Target, targetName: string) => {
+export const updateTarget = async (
+  target: Partial<Target>,
+  targetName: string
+) => {
   const { buildSourceFolder } = getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
