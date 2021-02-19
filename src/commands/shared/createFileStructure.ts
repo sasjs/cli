@@ -9,7 +9,7 @@ import { createConfigFile } from './createConfigFile'
 
 /**
  * Creates the folder structure specified in config.json
- * Also Creates a SASjs configation file, named 'sasjsconfig.json'.
+ * Also creates a SASjs configation file, named 'sasjsconfig.json'.
  * @param {string} parentFolderName- the name of the project folder.
  */
 export const createFileStructure = async (parentFolderName: string) => {
