@@ -6,7 +6,7 @@ export async function printHelpText() {
       name: 'init',
       title: 'init',
       description: [
-        `creates the folder 'sasjs' and place doxy folder (having content files + configuration) for docs`,
+        `creates the folder 'sasjs' and places doxy folder (having content files + configuration) for docs`,
         `- It creates the folder structure in the current working directory.`,
         `- If this is an existing NPM project, it will update package.json with the @sasjs/core dependency.`
       ]
