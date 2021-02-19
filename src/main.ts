@@ -60,7 +60,7 @@ export async function createFileStructure(command: Command) {
       return ReturnCode.Success
     })
     .catch((err: any) => {
-      displayError(err, 'An error has occurred whilst creating your project.')
+      displayError(err, 'An error has occurred while creating your project.')
       return ReturnCode.InternalError
     })
 }
@@ -71,7 +71,7 @@ export async function doc(command: Command) {
     return await initDocs()
       .then(() => {
         displaySuccess(
-          'The doxygen configuration files have been initialised under `/sasjs/doxy/`. You can now run sasjs doc.'
+          'The doxygen configuration files have been initialised under `/sasjs/doxy/`. You can now run `sasjs doc`.'
         )
         return ReturnCode.Success
       })
@@ -88,7 +88,7 @@ export async function doc(command: Command) {
     return await generateDot(targetName, outDirectory)
       .then((res) => {
         displaySuccess(
-          `Dot files have been generated!\nFiles are located at ${res.outDirectory}' directory.`
+          `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
         )
         return ReturnCode.Success
       })
@@ -101,12 +101,12 @@ export async function doc(command: Command) {
   return await generateDocs(targetName, outDirectory)
     .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located at ${res.outDirectory}' directory.`
+        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.`
       )
       return ReturnCode.Success
     })
     .catch((err: any) => {
-      displayError(err, 'An error has occurred whilst generating docs.')
+      displayError(err, 'An error has occurred while generating docs.')
       return ReturnCode.InternalError
     })
 }
