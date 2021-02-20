@@ -128,7 +128,10 @@ export async function compileServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
+  let target: Target = {} as Target
+  try {
+    target = (await findTargetInConfiguration(targetName)).target
+  } catch (error) {}
 
   return await executeCompile(target)
 }

@@ -11,14 +11,10 @@ export async function getAllServiceFolders(target: Target) {
   )
   let allServices: string[] = []
 
-  if (
-    configuration &&
-    configuration.serviceConfig &&
-    configuration.serviceConfig.serviceFolders
-  )
+  if (configuration?.serviceConfig?.serviceFolders)
     allServices = [...configuration.serviceConfig.serviceFolders]
 
-  if (target && target.serviceConfig && target.serviceConfig.serviceFolders)
+  if (target?.serviceConfig?.serviceFolders)
     allServices = [...allServices, ...target.serviceConfig.serviceFolders]
 
   allServices = allServices.filter((p) => !!p)

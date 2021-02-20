@@ -21,7 +21,7 @@ export const initFiles: Folder = {
             { fileName: 'new_footer.html' },
             { fileName: 'new_header.html' },
             { fileName: 'new_stylesheet.css' },
-            { fileName: 'sasjs-logo.png' }
+            { fileName: 'logo.png' }
           ],
           subFolders: []
         }

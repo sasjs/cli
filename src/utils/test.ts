@@ -146,8 +146,10 @@ export const removeAllTargetsFromConfigs = async () => {
   await createFile(configPath, JSON.stringify(config, null, 1))
 
   const globalConfig = await getGlobalRcFile()
-  if (globalConfig?.targets?.length) globalConfig.targets = []
-  await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
+  if (globalConfig?.targets?.length) {
+    globalConfig.targets = []
+    await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
+  }
 }
 
 export const updateTarget = async (
