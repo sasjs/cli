@@ -36,7 +36,7 @@ describe('sasjs compile', () => {
     done()
   })
 
-  it('should compile an uncompiled project having not target', async (done) => {
+  it('should compile an uncompiled project having no target', async (done) => {
     await removeAllTargetsFromConfigs()
 
     await expect(compileModule.compile({} as Target)).toResolve()
