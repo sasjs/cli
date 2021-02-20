@@ -73,10 +73,14 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     path.join(process.projectDir, 'package.json')
   )
   if (packageJsonContent) {
-    const packageJson = JSON.parse(packageJsonContent)
-    PROJECT_NAME = packageJson.name || PROJECT_NAME
-    PROJECT_BRIEF = packageJson.description || PROJECT_BRIEF
-    PROJECT_REPO = packageJson.homepage || PROJECT_REPO
+    try {
+      const packageJson = JSON.parse(packageJsonContent)
+      PROJECT_NAME = packageJson.name || PROJECT_NAME
+      PROJECT_BRIEF = packageJson.description || PROJECT_BRIEF
+      PROJECT_REPO = packageJson.homepage || PROJECT_REPO
+    } catch (e) {
+      process.logger?.info(`Unable to parse content of 'package.json'`)
+    }
   }
 
   const doxyParams = setVariableCmd({
