@@ -63,6 +63,27 @@ export async function readFile(fileName) {
   })
 }
 
+export async function base64EncodeImageFile(fileName) {
+  process.logger?.debug('Encoding image file: ', fileName)
+  return new Promise((resolve, reject) => {
+    fs.readFile(fileName, function (error, data) {
+      if (error) {
+        process.logger?.error(`Error accessing image file: ${fileName}`)
+        return reject(error)
+      }
+      let extname = path.extname(fileName).substr(1) || 'png'
+
+      if (extname === 'svg') {
+        extname = 'svg+xml'
+      }
+
+      return resolve(
+        'data:image/' + extname + ';base64,' + data.toString('base64')
+      )
+    })
+  })
+}
+
 export async function base64EncodeFile(fileName) {
   process.logger?.debug('Encoding file: ', fileName)
   return new Promise((resolve, reject) => {

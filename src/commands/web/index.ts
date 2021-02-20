@@ -2,6 +2,7 @@ import { asyncForEach, chunk } from '../../utils/utils'
 import {
   readFile,
   base64EncodeFile,
+  base64EncodeImageFile,
   fileExists,
   folderExists,
   createFolder,
@@ -11,7 +12,6 @@ import {
 } from '../../utils/file'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
-import imageToBase64 from 'image-to-base64'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
 import { ServerType, Target } from '@sasjs/utils'
@@ -276,7 +276,7 @@ async function updateFaviconHref(
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
-    const base64string = await imageToBase64(
+    const base64string = await base64EncodeImageFile(
       path.join(process.projectDir, webAppSourcePath, linkSourcePath)
     )
     linkTag.setAttribute('href', base64string)
