@@ -23,10 +23,13 @@ export const addCredential = async (
   targetName: string,
   insecure: boolean = false
 ): Promise<void> => {
-  if (insecure) process.logger?.warn('Executing with insecure connection.')
   targetName = validateTargetName(targetName)
 
   let { target, isLocal } = await findTargetInConfiguration(targetName)
+
+  insecure = insecure || target.allowInsecureRequests
+
+  if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl()
@@ -89,14 +92,14 @@ export const getTokens = async (
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
+    allowInsecureRequests: insecure,
     debug: process.logger?.logLevel === LogLevel.Debug
   })
   const authResponse: SasAuthResponse = await getNewAccessToken(
     adapter,
     client,
     secret,
-    target,
-    insecure
+    target
   ).catch((e) => {
     process.logger?.error(
       `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID and Client Secret and try again.\n`

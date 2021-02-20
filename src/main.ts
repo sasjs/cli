@@ -257,7 +257,7 @@ export async function add(command: Command) {
           return ReturnCode.InternalError
         })
     } else if (subCommand === 'target' || !subCommand) {
-      return await addTarget()
+      return await addTarget(insecure)
         .then(() => {
           displaySuccess('Target has been successfully added!')
           return ReturnCode.Success

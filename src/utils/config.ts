@@ -4,7 +4,7 @@ import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { Configuration } from '../types'
+import { Configuration, TargetJson } from '../types'
 import { getConstants } from '../constants'
 
 /**
@@ -56,6 +56,10 @@ export async function findTargetInConfiguration(
       process.logger?.info(
         `Target ${targetName} was found in your local sasjsconfig.json file.`
       )
+      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        localConfig,
+        targetJson
+      )
 
       return { target: new Target(targetJson), isLocal: true }
     }
@@ -71,6 +75,11 @@ export async function findTargetInConfiguration(
       process.logger?.info(
         `Target ${targetName} was found in your global .sasjsrc file.`
       )
+      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        globalConfig,
+        targetJson
+      )
+
       return { target: new Target(targetJson), isLocal: false }
     }
   }
@@ -83,16 +92,20 @@ export async function findTargetInConfiguration(
       : localConfig.targets?.[0]
       ? localConfig.targets[0]
       : undefined
-  }
 
-  if (fallBackTargetJson) {
-    process.logger?.warn(
-      `Target ${targetName || ''} was not found. Falling back to target ${
-        fallBackTargetJson.name
-      } from your local sasjsconfig.json file.`
-    )
+    if (fallBackTargetJson) {
+      process.logger?.warn(
+        `Target ${targetName || ''} was not found. Falling back to target ${
+          fallBackTargetJson.name
+        } from your local sasjsconfig.json file.`
+      )
+      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        localConfig,
+        fallBackTargetJson
+      )
 
-    return { target: new Target(fallBackTargetJson), isLocal: true }
+      return { target: new Target(fallBackTargetJson), isLocal: true }
+    }
   }
 
   fallBackTargetJson = viyaSpecific
@@ -108,6 +121,10 @@ export async function findTargetInConfiguration(
       `Target ${targetName || ''} was not found. Falling back to target ${
         fallBackTargetJson.name
       } from your global .sasjsrc file.`
+    )
+    fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+      globalConfig,
+      fallBackTargetJson
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: false }
@@ -392,6 +409,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
       serverType: target.serverType
     })
 
@@ -476,4 +494,11 @@ export const overrideEnvVariables = async (targetName: string) => {
   for (const k in targetEnvConfig) {
     process.env[k] = targetEnvConfig[k]
   }
+}
+
+const getPrecedenceOfInsecureRequests = (
+  config: Configuration,
+  target: TargetJson
+): boolean => {
+  return target.allowInsecureRequests ?? !!config.allowInsecureRequests
 }

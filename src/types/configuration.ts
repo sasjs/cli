@@ -11,6 +11,7 @@ import { ServerType } from '@sasjs/utils/types/serverType'
 
 export interface Configuration {
   $schema?: string
+  allowInsecureRequests?: boolean
   docConfig?: DocConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig
@@ -27,6 +28,7 @@ export interface TargetJson {
   name: string
   serverUrl: string
   serverType: ServerType
+  allowInsecureRequests?: boolean
   contextName?: string
   serverName?: string
   repositoryName?: string
