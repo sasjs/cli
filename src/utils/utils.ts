@@ -126,14 +126,13 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
 
-    const regExp1 = new RegExp(`^sasjsbuild\/`, 'gm')
-    const regExp2 = new RegExp(`^node_modules\/`, 'gm')
-
-    let newgitIgnoreContent = gitIgnoreContent.match(regExp1)
+    const regExpSasjsBuild = new RegExp(`^sasjsbuild\/`, 'gm')
+    let newgitIgnoreContent = gitIgnoreContent.match(regExpSasjsBuild)
       ? gitIgnoreContent
       : `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
 
-    newgitIgnoreContent = newgitIgnoreContent.match(regExp2)
+    const regExpNodeModules = new RegExp(`^node_modules\/`, 'gm')
+    newgitIgnoreContent = newgitIgnoreContent.match(regExpNodeModules)
       ? newgitIgnoreContent
       : `${newgitIgnoreContent + '\n'}node_modules/\n`
 
