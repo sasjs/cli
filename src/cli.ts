@@ -1,4 +1,5 @@
 import {
+  initSasjs,
   createFileStructure,
   doc,
   buildServices,
@@ -68,6 +69,10 @@ export async function cli(args: string[]) {
   let result: ReturnCode
 
   switch (parsedCommand.name) {
+    case 'init': {
+      result = await initSasjs()
+      break
+    }
     case 'create': {
       result = await createFileStructure(command)
       break

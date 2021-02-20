@@ -24,6 +24,7 @@ const showInvalidFlagMessage = (
 
 const initialCommands = arrToObj([
   ...new Set([
+    'init',
     'create',
     'doc',
     'web',

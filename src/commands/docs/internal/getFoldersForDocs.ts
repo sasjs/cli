@@ -16,7 +16,8 @@ export async function getFoldersForDocs(target: Target, config: Configuration) {
   macroCore = rootFolders.macroCore
 
   const targetFolders = extractFoldersForDocs(target)
-  macroCore = targetFolders.macroCore
+  if (target?.docConfig?.displayMacroCore !== undefined)
+    macroCore = targetFolders.macroCore
 
   return {
     macroCore,
