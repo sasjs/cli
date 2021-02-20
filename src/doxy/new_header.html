@@ -20,19 +20,8 @@
     <link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
     <link rel="shortcut icon" href="$relpath^favicon.ico" type="image/x-icon" />
     $extrastylesheet
-    <script>
-      var [projectbrief, projectrepo] = '$projectbrief'.split(' PROJECT_REPO=')
-
-      function updateProjectInfo() {
-        const innerHTML = `${projectbrief}<br /><a href="${projectrepo}"> ${projectrepo} </a>`
-        document.getElementById('projectbrief').innerHTML = innerHTML
-        document
-          .querySelector('meta[name="description"]')
-          .setAttribute('content', projectbrief)
-      }
-    </script>
   </head>
-  <body onload="updateProjectInfo()">
+  <body>
     <div id="top">
       <!-- do not remove this div, it is closed by doxygen! -->
 
@@ -56,10 +45,7 @@
                   ><!--END PROJECT_NUMBER-->
                 </div>
                 <!--BEGIN PROJECT_BRIEF-->
-                <div id="projectbrief">
-                  projectbrief<br />
-                  <a href="$PROJECT_REPO"> PROJECT_REPO </a>
-                </div>
+                <div id="projectbrief">$projectbrief</div>
                 <!--END PROJECT_BRIEF-->
               </td>
               <!--END PROJECT_NAME-->
