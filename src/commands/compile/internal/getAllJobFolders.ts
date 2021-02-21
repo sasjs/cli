@@ -10,14 +10,10 @@ export async function getAllJobFolders(target: Target) {
   )
   let allJobs: string[] = []
 
-  if (
-    configuration &&
-    configuration.jobConfig &&
-    configuration.jobConfig.jobFolders
-  )
+  if (configuration?.jobConfig?.jobFolders)
     allJobs = [...configuration.jobConfig.jobFolders]
 
-  if (target && target.jobConfig && target.jobConfig.jobFolders)
+  if (target?.jobConfig?.jobFolders)
     allJobs = [...allJobs, ...target.jobConfig.jobFolders]
 
   allJobs = allJobs.filter((s) => !!s) as string[]

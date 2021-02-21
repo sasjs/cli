@@ -6,7 +6,7 @@ import { getConstants } from '../../../constants'
 /**
  * Returns doc related config from root-level and Target-specfic(having precedence)
  * @param {Configuration} config- from which doc related config will be extracted
- * @param {string} targetName- the name of the target for dot files.
+ * @param {string} targetName- the name of the target for doc config.
  * @param {string} outDirectory- the name of the output folder, provided using command.
  */
 export async function getDocConfig(
@@ -34,5 +34,8 @@ export async function getDocConfig(
     ? target.docConfig.dataControllerUrl.split('#')[0] + '#/view/viewer/'
     : serverUrl
 
-  return { target, serverUrl, newOutDirectory: outDirectory }
+  const enableLineage: boolean =
+    target.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
+
+  return { target, serverUrl, newOutDirectory: outDirectory, enableLineage }
 }

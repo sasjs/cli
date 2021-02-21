@@ -4,7 +4,12 @@ import chalk from 'chalk'
 import ora from 'ora'
 
 import { isWindows } from '../../utils/command'
-import { createFolder, deleteFolder, folderExists } from '../../utils/file'
+import {
+  createFolder,
+  deleteFolder,
+  folderExists,
+  readFile
+} from '../../utils/file'
 import { getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 
@@ -24,11 +29,12 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const { doxyContent } = getConstants()
 
   const config = await getLocalConfig()
-  const { target, serverUrl, newOutDirectory } = await getDocConfig(
-    config,
-    targetName,
-    outDirectory
-  )
+  const {
+    target,
+    serverUrl,
+    newOutDirectory,
+    enableLineage
+  } = await getDocConfig(config, targetName, outDirectory)
 
   const {
     macroCore: macroCoreFolders,
@@ -59,10 +65,28 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
+  let PROJECT_NAME = `Please update the 'name' property in the package.json file`
+  let PROJECT_BRIEF = `Please update the 'description' property in the package.json file`
+
+  const packageJsonContent = await readFile(
+    path.join(process.projectDir, 'package.json')
+  )
+  if (packageJsonContent) {
+    try {
+      const packageJson = JSON.parse(packageJsonContent)
+      PROJECT_NAME = packageJson.name || PROJECT_NAME
+      PROJECT_BRIEF = packageJson.description || PROJECT_BRIEF
+    } catch (e) {
+      process.logger?.info(`Unable to parse content of 'package.json'`)
+    }
+  }
+
   const doxyParams = setVariableCmd({
     DOXY_CONTENT: `${doxyContent}${path.sep}`,
     DOXY_INPUT: combinedFolders,
-    DOXY_HTML_OUTPUT: newOutDirectory
+    DOXY_HTML_OUTPUT: newOutDirectory,
+    PROJECT_NAME,
+    PROJECT_BRIEF
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
@@ -92,9 +116,11 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     )
   }
 
-  const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
+  if (enableLineage) {
+    const foldersListForDot = [...new Set([...serviceFolders, ...jobFolders])]
 
-  await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
+    await createDotFiles(foldersListForDot, newOutDirectory, serverUrl)
+  }
 
   return { outDirectory: newOutDirectory }
 }

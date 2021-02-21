@@ -18,6 +18,7 @@ import { loadDependencies } from './internal/loadDependencies'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
+import { getServerType } from './internal/getServerType'
 import {
   getDestinationServicePath,
   getDestinationJobPath
@@ -76,7 +77,7 @@ export async function compileJobsAndServices(target: Target) {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
     const macroFolders = target ? target.macroFolders : []
-    const programFolders = await getProgramFolders(target.name)
+    const programFolders = await getProgramFolders(target)
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
       await compileServiceFolder(
@@ -173,7 +174,8 @@ const compileServiceFolder = async (
       programFolders
     )
 
-    const preCode = await getPreCodeForServicePack(target.serverType)
+    const serverType = await getServerType(target)
+    const preCode = await getPreCodeForServicePack(serverType)
 
     dependencies = `${preCode}\n${dependencies}`
 

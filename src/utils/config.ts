@@ -50,7 +50,7 @@ export async function findTargetInConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
 
-  if (localConfig && localConfig.targets) {
+  if (localConfig?.targets) {
     const targetJson = localConfig.targets.find((t) => t.name === targetName)
     if (targetJson) {
       process.logger?.info(
@@ -67,7 +67,7 @@ export async function findTargetInConfiguration(
 
   const globalConfig = enforceLocal ? { targets: [] } : await getGlobalRcFile()
 
-  if (globalConfig && globalConfig.targets) {
+  if (globalConfig?.targets) {
     const targetJson = globalConfig.targets.find(
       (t: Target) => t.name === targetName
     )
@@ -86,10 +86,12 @@ export async function findTargetInConfiguration(
 
   let fallBackTargetJson
 
-  if (localConfig && localConfig.targets) {
+  if (localConfig?.targets) {
     fallBackTargetJson = viyaSpecific
       ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
-      : localConfig.targets[0]
+      : localConfig.targets?.[0]
+      ? localConfig.targets[0]
+      : undefined
 
     if (fallBackTargetJson) {
       process.logger?.warn(
@@ -110,7 +112,9 @@ export async function findTargetInConfiguration(
     ? globalConfig.targets.find(
         (t: Target) => t.serverType === ServerType.SasViya
       )
-    : globalConfig.targets[0]
+    : globalConfig.targets?.[0]
+    ? globalConfig.targets[0]
+    : undefined
 
   if (fallBackTargetJson) {
     process.logger?.warn(
@@ -268,9 +272,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
 /**
  * Returns SAS program folders from configuration.
  * This list includes both common and target-specific folders.
- * @param {string} targetName - name of the configuration.
+ * @param {Target} target- the target to check program folders for.
  */
-export async function getProgramFolders(targetName: string) {
+export async function getProgramFolders(target: Target) {
   let programFolders: string[] = []
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
@@ -280,9 +284,7 @@ export async function getProgramFolders(targetName: string) {
     programFolders = programFolders.concat(localConfig.programFolders)
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
-  if (target.programFolders) {
+  if (target?.programFolders) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
