@@ -60,7 +60,7 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     if _n_=1 then do;
       retain pgm "&_program" appLoc expanded_path;
       /* index is deployed in the /services/ folder under the appLoc */
-      appLoc=substr(pgm,1,find(pgm,'/services/')-1);;
+      appLoc=substr(pgm,1,find(pgm,'/services/')-1);
       expanded_path=cats('?_PROGRAM=',appLoc,'/services/');
     end;
     if find(_infile_,' appLoc: ') then put '    appLoc: ' apploc:$quote1048. ',';
