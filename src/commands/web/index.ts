@@ -295,9 +295,10 @@ function getScriptPath(
     )
   }
   const storedProcessPath =
+    // the appLoc is inserted dynamically by SAS
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=${appLoc}/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      ? `/SASJobExecution?_PROGRAM=/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
