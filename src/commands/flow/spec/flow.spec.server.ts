@@ -20,6 +20,7 @@ import {
 import examples from '../examples'
 import { Command } from '../../../utils/command'
 import { ServerType, Target } from '@sasjs/utils/types'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -33,7 +34,13 @@ describe('sasjs flow', () => {
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
+    process.logger = new Logger(LogLevel.Off)
+
     done()
+  })
+
+  afterEach(() => {
+    jest.resetAllMocks()
   })
 
   afterAll(async (done) => {
@@ -181,6 +188,8 @@ describe('sasjs flow', () => {
       `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
     )
 
+    jest.spyOn(process.logger, 'error')
+
     await processFlow(command)
 
     const csvData = await readFile(csvPath)
@@ -200,6 +209,11 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
     expect(csvData.match(csvRowCompletedRegExp).length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+
+    expect(process.logger.error).toHaveBeenNthCalledWith(
+      1,
+      "An error has occurred when executing 'firstFlow' flow's job located at: 'jobs/testJob/DOES_NOT_EXIST'. Job was not found."
+    )
 
     done()
   })
