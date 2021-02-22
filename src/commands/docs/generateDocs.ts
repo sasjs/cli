@@ -67,7 +67,6 @@ export async function generateDocs(targetName: string, outDirectory: string) {
 
   let PROJECT_NAME = `Please update the 'name' property in the package.json file`
   let PROJECT_BRIEF = `Please update the 'description' property in the package.json file`
-  let PROJECT_REPO = `Please update the 'homepage' property in the package.json file`
 
   const packageJsonContent = await readFile(
     path.join(process.projectDir, 'package.json')
@@ -76,8 +75,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     try {
       const packageJson = JSON.parse(packageJsonContent)
       PROJECT_NAME = packageJson.name || PROJECT_NAME
-      PROJECT_BRIEF = packageJson.description || PROJECT_BRIEF
-      PROJECT_REPO = packageJson.homepage || PROJECT_REPO
+      PROJECT_BRIEF =
+        packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
     } catch (e) {
       process.logger?.info(`Unable to parse content of 'package.json'`)
     }
@@ -88,8 +87,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     DOXY_INPUT: combinedFolders,
     DOXY_HTML_OUTPUT: newOutDirectory,
     PROJECT_NAME,
-    PROJECT_BRIEF,
-    PROJECT_REPO
+    PROJECT_BRIEF
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')

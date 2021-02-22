@@ -36,6 +36,8 @@ describe('sasjs job execute', () => {
       })
     )
 
+    process.logger = new Logger(LogLevel.Off)
+
     done()
   })
 
@@ -214,11 +216,20 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePathStatus = path.join(process.projectDir, 'my/folder/status.txt')
 
+    jest.spyOn(process.logger, 'error')
+
     await expect(processJob(command)).resolves.toEqual(
       'Error: Job was not found.'
     )
+
     await expect(folderExists(folderPath)).toResolve()
     await expect(fileExists(filePathStatus)).toResolve()
+
+    expect(process.logger.error).toHaveBeenNthCalledWith(
+      1,
+      'An error has occurred when executing a job.',
+      'Error: Job was not found.'
+    )
 
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
