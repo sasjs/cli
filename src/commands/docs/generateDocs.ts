@@ -75,7 +75,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     try {
       const packageJson = JSON.parse(packageJsonContent)
       PROJECT_NAME = packageJson.name || PROJECT_NAME
-      PROJECT_BRIEF = packageJson.description || PROJECT_BRIEF
+      PROJECT_BRIEF =
+        packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
     } catch (e) {
       process.logger?.info(`Unable to parse content of 'package.json'`)
     }
