@@ -73,10 +73,14 @@ export async function execute(
 
       if (returnStatusOnly) process.exit(2)
 
+      if (err?.name === 'NotFoundError') {
+        throw `Job located at '${jobPath}' was not found.`
+      }
+
       result = returnStatusOnly
         ? 2
         : typeof err === 'object' && Object.keys(err).length
-        ? JSON.stringify({ state: err.job.state })
+        ? JSON.stringify({ state: err.job?.state })
         : `${err}`
       if (err.job) {
         return err.job
