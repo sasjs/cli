@@ -147,16 +147,11 @@ export async function execute(
               true
             )
             .catch(async (err: any) => {
-              displaySuccess(
-                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
-              )
-
               let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
                 jobLocation,
-                1000000,
-                true
+                1000000
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
@@ -176,14 +171,21 @@ export async function execute(
 
               job.status = 'failure'
 
-              displayError(
-                {},
-                `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
+              logger?.error(
+                `An error has occurred when executing '${flowName}' flow's job located at: '${
+                  job.location
+                }'.${
+                  err?.name === 'NotFoundError'
+                    ? ' Job was not found.'
+                    : ' ' + err?.message || ''
+                }`
               )
 
-              logger?.info(
-                `Log file located at: ${normalizeFilePath(logName as string)}`
-              )
+              if (logName) {
+                logger?.info(
+                  `Log file located at: ${normalizeFilePath(logName as string)}`
+                )
+              }
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -246,9 +248,11 @@ export async function execute(
               )
             }
 
-            logger?.info(
-              `Log file located at: ${normalizeFilePath(logName as string)}`
-            )
+            if (logName) {
+              logger?.info(
+                `Log file located at: ${normalizeFilePath(logName as string)}`
+              )
+            }
 
             if (
               flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -334,8 +338,7 @@ export async function execute(
       links: any[],
       flowName: string,
       jobLocation: string,
-      lineCount: number = 1000000,
-      printLogPath = false
+      lineCount: number = 1000000
     ) => {
       return new Promise(async (resolve, reject) => {
         if (!logFolder) return reject('No log folder provided')
@@ -565,9 +568,13 @@ export async function execute(
                   )
                 }
 
-                logger?.info(
-                  `Log file located at: ${normalizeFilePath(logName as string)}`
-                )
+                if (logName) {
+                  logger?.info(
+                    `Log file located at: ${normalizeFilePath(
+                      logName as string
+                    )}`
+                  )
+                }
 
                 if (
                   flows[successor].jobs.filter(
@@ -613,16 +620,11 @@ export async function execute(
               }
             })
             .catch(async (err: any) => {
-              displaySuccess(
-                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
-              )
-
               let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
                 jobLocation,
-                1000000,
-                true
+                1000000
               ).catch((err) =>
                 displayError(err, 'Error while saving log file.')
               )
@@ -642,14 +644,21 @@ export async function execute(
 
               job.status = 'failure'
 
-              displayError(
-                {},
-                `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
+              logger?.error(
+                `An error has occurred when executing '${flowName}' flow's job located at: '${
+                  job.location
+                }'.${
+                  err?.name === 'NotFoundError'
+                    ? ' Job was not found.'
+                    : ' ' + err?.message || ''
+                }`
               )
 
-              logger?.info(
-                `Log file located at: ${normalizeFilePath(logName as string)}`
-              )
+              if (logName) {
+                logger?.info(
+                  `Log file located at: ${normalizeFilePath(logName as string)}`
+                )
+              }
 
               if (
                 flows[successor].jobs.filter((j: any) =>
