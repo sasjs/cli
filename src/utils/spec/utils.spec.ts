@@ -36,6 +36,20 @@ describe('utils', () => {
       expect(timestamp).toEqual(expectedTimestamp)
     })
 
+    test('should generate a timestamp separated by _', () => {
+      const expectedTimestamp = '2020_10_02_10_10_10'
+
+      const timestamp = generateTimestamp('_')
+
+      expect(timestamp).toEqual(expectedTimestamp)
+    })
+
+    afterAll(() => {
+      global.Date = realDate
+    })
+  })
+
+  describe('parseLogLines', () => {
     test('should generate plain text log from json', () => {
       const expectedLog = `line1\nline2\nline3\nline4\n`
 
@@ -57,10 +71,6 @@ describe('utils', () => {
       }
 
       expect(parseLogLines(json)).toEqual(expectedLog)
-    })
-
-    afterAll(() => {
-      global.Date = realDate
     })
   })
 

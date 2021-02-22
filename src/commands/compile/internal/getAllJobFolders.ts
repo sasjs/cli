@@ -6,18 +6,14 @@ import { getConfiguration } from '../../../utils/config'
 export async function getAllJobFolders(target: Target) {
   const { buildSourceFolder } = getConstants()
   const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
   let allJobs: string[] = []
 
-  if (
-    configuration &&
-    configuration.jobConfig &&
-    configuration.jobConfig.jobFolders
-  )
+  if (configuration?.jobConfig?.jobFolders)
     allJobs = [...configuration.jobConfig.jobFolders]
 
-  if (target && target.jobConfig && target.jobConfig.jobFolders)
+  if (target?.jobConfig?.jobFolders)
     allJobs = [...allJobs, ...target.jobConfig.jobFolders]
 
   allJobs = allJobs.filter((s) => !!s) as string[]

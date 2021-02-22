@@ -1,4 +1,5 @@
 import {
+  DocConfig,
   BuildConfig,
   DeployConfig,
   ServiceConfig,
@@ -7,9 +8,11 @@ import {
   AuthConfig
 } from '@sasjs/utils/types/config'
 import { ServerType } from '@sasjs/utils/types/serverType'
-import { Target } from '@sasjs/utils/types/target'
 
 export interface Configuration {
+  $schema?: string
+  allowInsecureRequests?: boolean
+  docConfig?: DocConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig
   serviceConfig?: ServiceConfig
@@ -17,6 +20,7 @@ export interface Configuration {
   streamConfig?: StreamConfig
   macroFolders?: string[]
   programFolders?: string[]
+  serverType?: ServerType
   targets?: TargetJson[]
 }
 
@@ -24,10 +28,12 @@ export interface TargetJson {
   name: string
   serverUrl: string
   serverType: ServerType
+  allowInsecureRequests?: boolean
   contextName?: string
   serverName?: string
   repositoryName?: string
   appLoc: string
+  docConfig?: DocConfig
   authConfig?: AuthConfig
   buildConfig?: BuildConfig
   deployConfig?: DeployConfig

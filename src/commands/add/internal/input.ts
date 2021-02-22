@@ -5,7 +5,7 @@ import {
   getUrl
 } from '@sasjs/utils/input'
 import { Target, ServerType } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { LogLevel } from '@sasjs/utils/logger'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
@@ -34,8 +34,8 @@ async function getAndValidateScope(): Promise<TargetScope> {
     'Please pick a scope for the new target: ',
     'Please choose either option 1 or 2.',
     [
-      { title: '1. Local project config file' },
-      { title: '2. Global config file' }
+      { title: '1. Local project config file', value: 1 },
+      { title: '2. Global config file', value: 2 }
     ]
   ).catch(() => {
     throw new Error(errorMessage)
@@ -45,6 +45,7 @@ async function getAndValidateScope(): Promise<TargetScope> {
     throw new Error(errorMessage)
   }
 
+  console.log('Scope: ', scope)
   return scope === 1 ? TargetScope.Local : TargetScope.Global
 }
 
@@ -52,7 +53,10 @@ async function getAndValidateServerType(): Promise<ServerType> {
   const serverType = await getChoice(
     'Please pick a server type: ',
     'Please choose either option 1 or 2.',
-    [{ title: '1. SAS Viya' }, { title: '2. SAS 9' }]
+    [
+      { title: '1. SAS Viya', value: 1 },
+      { title: '2. SAS 9', value: 2 }
+    ]
   )
 
   return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
@@ -133,7 +137,8 @@ export async function getAndValidateSasViyaFields(
   targetName: string,
   scope: TargetScope,
   serverUrl: string,
-  authenticateCallback: (targetName: string) => Promise<void>
+  insecure: boolean,
+  authenticateCallback: (targetName: string, insecure: boolean) => Promise<void>
 ): Promise<{
   contextName: string
 }> {
@@ -144,11 +149,12 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await authenticateCallback(targetName)
+    await authenticateCallback(targetName, insecure)
 
     const sasjs = new SASjs({
       serverUrl,
       serverType: ServerType.SasViya,
+      allowInsecureRequests: insecure,
       debug: process.logger?.logLevel === LogLevel.Debug
     })
     let contexts: any[] = []
@@ -174,10 +180,10 @@ export async function getAndValidateSasViyaFields(
     const contextNumber = await getChoice(
       'Please pick your SAS Viya execution context: ',
       contextNumberErrorMessage,
-      contexts.map((c: any) => ({ title: c.name }))
+      contexts.map((c: any, i) => ({ title: c.name, value: i }))
     )
 
-    contextName = contexts[contextNumber - 1].name
+    contextName = contexts[contextNumber].name
 
     return { contextName }
   }

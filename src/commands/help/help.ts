@@ -3,10 +3,19 @@ import chalk from 'chalk'
 export async function printHelpText() {
   const commands = [
     {
+      name: 'init',
+      title: 'init',
+      description: [
+        `Creates the 'sasjs' folder and doxy subfolder (with content files + configuration) for docs`,
+        `- Inserted in the current working directory.`,
+        `- If an existing NPM project, package.json is updated with the @sasjs/core dependency.`
+      ]
+    },
+    {
       name: 'create',
       title: 'create <foldername>.',
       description: [
-        `creates the folder structure specified in config.json, inside the provided parent folder e.g. ${chalk.cyanBright(
+        `Creates the folder structure specified in config.json, inside the provided parent folder e.g. ${chalk.cyanBright(
           'sasjs create my-sas-project'
         )}.`,
         `- if no foldername is specified, it creates the folder structure in the current working directory.`,
@@ -20,7 +29,7 @@ export async function printHelpText() {
       - if no foldername is specified, it creates the folder structure in the current working directory.
       - If this is an existing NPM project, it will update package.json with the @sasjs/core dependency.
       - An additional option can be specified to create a web app from a template.
-        This supports creation of Angular, React and minimal web apps.  There is also a sasonly option.
+        This supports creation of Angular, React and minimal web apps.  There are also sasonly and jobs options.
         e.g. ${chalk.cyanBright('sasjs create my-sas-project --template react')}
         ${chalk.cyanBright('sasjs create my-sas-project -t angular')}`
     },
@@ -65,7 +74,7 @@ export async function printHelpText() {
       name: 'build',
       title: 'build <targetName>',
       description: [
-        `prepares a single deployment script (SAS9 or Viya program) per configuration`,
+        `Prepares a single deployment script (SAS9 or Viya program) per configuration`,
         `in sasjsconfig.json.`,
         `First Build (macro) variables are inserted, then all of the buildinit / buildterm dependencies,then the buildinit (a good place to source the Viya app tokens), then all of the compiled services are added, and finally the buildterm script (where you might perform additional deployment actions such as database build).`,
         `This SAS file could be executed as part of a web service (executed by the Deploy command) or simply copy pasted into Enterprise Guide or SAS Studio.`,
@@ -259,7 +268,7 @@ export async function printHelpText() {
       name: 'flow',
       title: 'flow <command>',
       description: [
-        `performs operations on flows of jobs.`,
+        `Performs operations on flows of jobs.`,
         `[2spaces]* ${chalk.cyanBright(
           'execute'
         )} - triggers flow for execution.`,
@@ -270,10 +279,21 @@ export async function printHelpText() {
       name: 'doc',
       title: 'doc <command>',
       description: [
-        `Generates docs for all SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default. If a target is provided, the generated docs will ignore content from the other targets.`,
+        `Generates docs for SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default and supplied Target. If target is not provided, it will pick first target present in config.json`,
         `[2spaces]command example: sasjs doc -t <targetName> --outDirectory <sasFilePath>`,
+        ``,
+        `[2spaces]* ${chalk.cyanBright(
+          'lineage'
+        )} - Generates dot files for all Jobs / Services listed in the sasjsconfig.json file by default and supplied Target.`,
+        `[2spaces]command example: sasjs doc lineage -t <targetName> --outDirectory <sasFilePath>`,
+        ``,
         `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will generate docs in the sasjsbuild/docs directory.`,
-        `The target can exist either in the local project configuration or in the global .sasjsrc file.`
+        `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
+        ``,
+        `[2spaces]* ${chalk.cyanBright(
+          'init'
+        )} - Initialize/reset doxy folder (having content files + configuration) for docs`,
+        `[2spaces]command example: sasjs doc init`
       ]
     }
   ]

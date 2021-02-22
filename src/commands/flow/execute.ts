@@ -7,7 +7,9 @@ import {
   isCsvFile,
   createFile,
   folderExists,
-  createFolder
+  createFolder,
+  saveToDefaultLocation,
+  getRealPath
 } from '../../utils/file'
 import {
   generateTimestamp,
@@ -19,6 +21,7 @@ import { Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
+import { FilePath } from '../../types'
 
 export async function execute(
   source: string,
@@ -29,6 +32,13 @@ export async function execute(
 ) {
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+
+    const normalizeFilePath = (filePath: string) => {
+      const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
+
+      return getRealPath(filePath).replace(pathSepRegExp, '/')
+    }
+    let defaultCsvLoc: FilePath
 
     const logger = process.logger
 
@@ -62,6 +72,7 @@ export async function execute(
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -70,16 +81,26 @@ export async function execute(
       throw err
     })
 
+    const defaultCsvFileName = 'flowResults.csv'
+
     if (csvFile) {
-      if (!isCsvFile(csvFile)) {
-        return reject(
-          `Please provide csv file location (--csvFile).\n${examples.command}`
-        )
+      if (csvFile.includes('.')) {
+        if (!isCsvFile(csvFile)) {
+          return reject(
+            `Please provide csv file location (--csvFile).\n${examples.command}`
+          )
+        }
+      } else {
+        csvFile = path.join(csvFile, defaultCsvFileName)
       }
 
       await createFile(csvFile, '').catch((err) =>
         displayError(err, 'Error while creating CSV file.')
       )
+    } else {
+      defaultCsvLoc = await saveToDefaultLocation(defaultCsvFileName, '')
+
+      csvFile = defaultCsvLoc.relativePath
     }
 
     if (
@@ -160,7 +181,9 @@ export async function execute(
                 `An error has occurred when executing '${flowName}' flow's job located at: '${job.location}'.`
               )
 
-              logger?.info(`Log file located at: ${logName}`)
+              logger?.info(
+                `Log file located at: ${normalizeFilePath(logName as string)}`
+              )
 
               if (
                 flow.jobs.filter((j: any) => j.hasOwnProperty('status'))
@@ -223,7 +246,9 @@ export async function execute(
               )
             }
 
-            logger?.info(`Log file located at: ${logName}`)
+            logger?.info(
+              `Log file located at: ${normalizeFilePath(logName as string)}`
+            )
 
             if (
               flow.jobs.filter((j: any) => j.status === 'success').length ===
@@ -296,7 +321,8 @@ export async function execute(
           ).length)
       )
 
-      if (jobsCount === jobsWithSuccessStatus) resolve(true)
+      if (jobsCount === jobsWithSuccessStatus)
+        resolve(defaultCsvLoc?.absolutePath || getRealPath(csvFile))
       if (jobsCount === jobsWithNotSuccessStatus) resolve(false)
       if (jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus) {
         resolve(false)
@@ -335,7 +361,7 @@ export async function execute(
               .split('/')
               .splice(-1, 1)
               .join('')
-              .replace(/\W/g, '_')}_${generateTimestamp()}.log`
+              .replace(/\W/g, '_')}_${generateTimestamp('_')}.log`
 
           let logName = generateFileName()
 
@@ -377,17 +403,19 @@ export async function execute(
           if (csvFileAbleToSave) {
             csvFileAbleToSave = false
 
+            const csvFileRealPath = defaultCsvLoc?.absolutePath || csvFile
+
             if (
-              !(await fileExists(csvFile).catch((err) =>
+              !(await fileExists(csvFileRealPath).catch((err) =>
                 displayError(err, 'Error while checking if csv file exists.')
               ))
             ) {
-              await createFile(csvFile, '').catch((err) =>
+              await createFile(getRealPath(csvFileRealPath), '').catch((err) =>
                 displayError(err, 'Error while creating CSV file.')
               )
             }
 
-            let csvData = await readFile(csvFile).catch((err) =>
+            let csvData = await readFile(csvFileRealPath).catch((err) =>
               displayError(err, 'Error while reading CSV file.')
             )
 
@@ -428,7 +456,7 @@ export async function execute(
               async (err, output) => {
                 if (err) reject(err)
 
-                await createFile(csvFile, output).catch((err) =>
+                await createFile(csvFileRealPath, output).catch((err) =>
                   displayError(err, 'Error while creating CSV file.')
                 )
 
@@ -537,7 +565,9 @@ export async function execute(
                   )
                 }
 
-                logger?.info(`Log file located at: ${logName}`)
+                logger?.info(
+                  `Log file located at: ${normalizeFilePath(logName as string)}`
+                )
 
                 if (
                   flows[successor].jobs.filter(
@@ -617,7 +647,9 @@ export async function execute(
                 `An error has occurred when executing '${successor}' flow's job located at: '${job.location}'.`
               )
 
-              logger?.info(`Log file located at: ${logName}`)
+              logger?.info(
+                `Log file located at: ${normalizeFilePath(logName as string)}`
+              )
 
               if (
                 flows[successor].jobs.filter((j: any) =>
@@ -648,7 +680,7 @@ const parseJobDetails = (response: any) => {
         details.length ? ' | ' : '',
         `${title}: ${Object.keys(data)
           .map((key) => `${key}: ${data[key]}`)
-          .join('; ')}}`
+          .join('; ')}`
       )
   }
 

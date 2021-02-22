@@ -44,7 +44,7 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   %end;
 %end;
 %if &type=HTML %then %do;
-  /* 
+  /*
   We need to perform some substitutions -eg to get the APPLOC and SERVERTYPE.
   Therefore the developer should avoid writing lines that exceed 32k
   characters (eg base64 encoded images) as they will get truncated when passing
@@ -52,24 +52,30 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   the length restriction.  Pull requests are welcome!
   */
   filename _sjs temp;
-  data _null_; 
+  data _null_;
     file _sjs lrecl=32767 encoding='utf-8';
     infile &fref lrecl=32767;
     input;
-    if find(_infile_,' appLoc: ') then do;
-      pgm="&_program";
-      rootlen=length(trim(pgm))-length(scan(pgm,-1,'/'))-1;
-      root=quote(substr(pgm,1,rootlen));
-      put '    appLoc: ' root ',';
+    length appLoc expanded_path $1048;
+    if _n_=1 then do;
+      retain pgm "&_program" appLoc expanded_path;
+      /* index is deployed in the /services/ folder under the appLoc */
+      appLoc=substr(pgm,1,find(pgm,'/services/')-1);
+      expanded_path=cats('?_PROGRAM=',appLoc,'/services/');
     end;
+    if find(_infile_,' appLoc: ') then put '    appLoc: ' apploc:$quote1048. ',';
     else if find(_infile_,' serverType: ') then do;
       if symexist('_metaperson') then put '    serverType: "SAS9" ,';
       else put '    serverType: "SASVIYA" ,';
     end;
     else if find(_infile_,' hostUrl: ') then do;
-      /* nothing - we are streaming so this will default to hostname */
+      /* nothing - we are streaming, so remove to default as hostname */
     end;
-    else put _infile_;
+    else do;
+      length newline $32767;
+      newline=tranwrd(_infile_,'?_PROGRAM=/services/',cats(expanded_path));
+      put newline;
+    end;
   run;
   %let fref=_sjs;
 %end;

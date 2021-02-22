@@ -21,7 +21,7 @@ describe('sasjs run', () => {
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
-        serviceFolders: ['testServices'],
+        serviceFolders: ['sasjs/testServices'],
         initProgram: '',
         termProgram: '',
         macroVars: {}

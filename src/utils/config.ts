@@ -1,10 +1,10 @@
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { readFile, folderExists, createFile } from './file'
+import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { Configuration } from '../types'
+import { Configuration, TargetJson } from '../types'
 import { getConstants } from '../constants'
 
 /**
@@ -15,14 +15,14 @@ import { getConstants } from '../constants'
 export async function getConfiguration(
   pathToFile: string
 ): Promise<Configuration> {
-  const config = await readFile(pathToFile, false, true).catch(() => null)
+  const config = await readFile(pathToFile).catch(() => null)
 
   if (config) {
     const configJson = JSON.parse(config)
     return (configJson.config ? configJson.config : configJson) as Configuration
   }
 
-  throw new Error(`No configuration was found at path ${pathToFile}.`)
+  throw new Error(`No configuration was found at path ${pathToFile} .`)
 }
 
 /**
@@ -32,30 +32,42 @@ export async function getConfiguration(
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
  * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
+ * @param {boolean} enforceLocal - will enforce to find target in local config only.
  * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
-  viyaSpecific = false
+  viyaSpecific = false,
+  enforceLocal = false
 ): Promise<{ target: Target; isLocal: boolean }> {
+  const rootDir = await getProjectRoot()
+
+  if (rootDir !== process.projectDir) {
+    process.projectDir = rootDir
+  }
+
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
 
-  if (localConfig && localConfig.targets) {
+  if (localConfig?.targets) {
     const targetJson = localConfig.targets.find((t) => t.name === targetName)
     if (targetJson) {
       process.logger?.info(
         `Target ${targetName} was found in your local sasjsconfig.json file.`
+      )
+      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        localConfig,
+        targetJson
       )
 
       return { target: new Target(targetJson), isLocal: true }
     }
   }
 
-  const globalConfig = await getGlobalRcFile()
+  const globalConfig = enforceLocal ? { targets: [] } : await getGlobalRcFile()
 
-  if (globalConfig && globalConfig.targets) {
+  if (globalConfig?.targets) {
     const targetJson = globalConfig.targets.find(
       (t: Target) => t.name === targetName
     )
@@ -63,39 +75,56 @@ export async function findTargetInConfiguration(
       process.logger?.info(
         `Target ${targetName} was found in your global .sasjsrc file.`
       )
+      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        globalConfig,
+        targetJson
+      )
+
       return { target: new Target(targetJson), isLocal: false }
     }
   }
 
   let fallBackTargetJson
 
-  if (localConfig && localConfig.targets) {
+  if (localConfig?.targets) {
     fallBackTargetJson = viyaSpecific
       ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
-      : localConfig.targets[0]
-  }
+      : localConfig.targets?.[0]
+      ? localConfig.targets[0]
+      : undefined
 
-  if (fallBackTargetJson) {
-    process.logger?.warn(
-      `Target ${targetName || ''} was not found. Falling back to target ${
-        fallBackTargetJson.name
-      } from your local sasjsconfig.json file.`
-    )
+    if (fallBackTargetJson) {
+      process.logger?.warn(
+        `Target ${targetName || ''} was not found. Falling back to target ${
+          fallBackTargetJson.name
+        } from your local sasjsconfig.json file.`
+      )
+      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        localConfig,
+        fallBackTargetJson
+      )
 
-    return { target: new Target(fallBackTargetJson), isLocal: true }
+      return { target: new Target(fallBackTargetJson), isLocal: true }
+    }
   }
 
   fallBackTargetJson = viyaSpecific
     ? globalConfig.targets.find(
         (t: Target) => t.serverType === ServerType.SasViya
       )
-    : globalConfig.targets[0]
+    : globalConfig.targets?.[0]
+    ? globalConfig.targets[0]
+    : undefined
 
   if (fallBackTargetJson) {
     process.logger?.warn(
       `Target ${targetName || ''} was not found. Falling back to target ${
         fallBackTargetJson.name
       } from your global .sasjsrc file.`
+    )
+    fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+      globalConfig,
+      fallBackTargetJson
     )
 
     return { target: new Target(fallBackTargetJson), isLocal: false }
@@ -111,9 +140,7 @@ export async function findTargetInConfiguration(
 export async function getGlobalRcFile() {
   const homeDir = require('os').homedir()
   const sasjsRcFileContent = await readFile(
-    path.join(homeDir, '.sasjsrc'),
-    false,
-    true
+    path.join(homeDir, '.sasjsrc')
   ).catch(() => null)
   return sasjsRcFileContent
     ? JSON.parse(sasjsRcFileContent)
@@ -173,7 +200,7 @@ export async function removeFromGlobalConfig(targetName: string) {
 export async function getLocalConfig() {
   const { buildSourceFolder } = getConstants()
   let config = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
 
   return config
@@ -200,7 +227,7 @@ export async function saveToLocalConfig(target: Target) {
     config = { targets: [targetJson] }
   }
 
-  const configPath = path.join(buildSourceFolder, 'sasjsconfig.json')
+  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
 
   await createFile(configPath, JSON.stringify(config, null, 2))
 
@@ -219,8 +246,9 @@ export async function getFolders() {
 
 export async function getSourcePaths(buildSourceFolder: string) {
   let configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjsconfig.json')
+    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )
+
   if (!configuration) {
     configuration = { macroFolders: [] }
   }
@@ -244,9 +272,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
 /**
  * Returns SAS program folders from configuration.
  * This list includes both common and target-specific folders.
- * @param {string} targetName - name of the configuration.
+ * @param {Target} target- the target to check program folders for.
  */
-export async function getProgramFolders(targetName: string) {
+export async function getProgramFolders(target: Target) {
   let programFolders: string[] = []
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
@@ -256,9 +284,7 @@ export async function getProgramFolders(targetName: string) {
     programFolders = programFolders.concat(localConfig.programFolders)
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
-  if (target.programFolders) {
+  if (target?.programFolders) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
@@ -313,22 +339,31 @@ export function sanitizeAppLoc(appLoc: string) {
 }
 
 export async function getProjectRoot() {
-  let root = '',
-    rootFound = false,
-    i = 1
+  let root = ''
+  let rootFound = false
+  let i = 1
   let currentLocation = process.projectDir
-  const maxLevels = 4
+
+  const maxLevels = currentLocation.split(path.sep).length
+
   while (!rootFound && i <= maxLevels) {
-    const isRoot = await folderExists(path.join(currentLocation, 'sasjs'))
+    const isRoot =
+      (await folderExists(path.join(currentLocation, 'sasjs'))) &&
+      (await fileExists(
+        path.join(currentLocation, 'sasjs', 'sasjsconfig.json')
+      ))
+
     if (isRoot) {
       rootFound = true
       root = currentLocation
+
       break
     } else {
       currentLocation = path.join(currentLocation, '..')
       i++
     }
   }
+
   return root
 }
 
@@ -374,6 +409,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
       serverType: target.serverType
     })
 
@@ -443,8 +479,7 @@ export const overrideEnvVariables = async (targetName: string) => {
     return
   }
   const targetEnvFile = await readFile(
-    path.join(process.projectDir, `.env.${targetName}`),
-    true
+    path.join(process.projectDir, `.env.${targetName}`)
   ).catch((e) => {
     process.logger?.warn(
       `A .env.${targetName} file was not found in your project directory. Defaulting to variables from the main .env file.`
@@ -459,4 +494,11 @@ export const overrideEnvVariables = async (targetName: string) => {
   for (const k in targetEnvConfig) {
     process.env[k] = targetEnvConfig[k]
   }
+}
+
+const getPrecedenceOfInsecureRequests = (
+  config: Configuration,
+  target: TargetJson
+): boolean => {
+  return target.allowInsecureRequests ?? !!config.allowInsecureRequests
 }

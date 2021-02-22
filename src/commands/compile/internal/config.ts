@@ -7,19 +7,15 @@ import { getConfiguration } from '../../../utils/config'
 export const getServiceInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let serviceInitContent = ''
-  if (target && target.serviceConfig && target.serviceConfig.initProgram) {
+  if (target?.serviceConfig?.initProgram) {
     serviceInitContent = await readFile(
       path.join(buildSourceFolder, target.serviceConfig.initProgram)
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.serviceConfig &&
-      configuration.serviceConfig.initProgram
-    ) {
+    if (configuration?.serviceConfig?.initProgram) {
       serviceInitContent = await readFile(
         path.join(buildSourceFolder, configuration.serviceConfig.initProgram)
       )
@@ -34,19 +30,15 @@ export const getServiceInit = async (target: Target) => {
 export const getServiceTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let serviceTermContent = ''
-  if (target && target.serviceConfig && target.serviceConfig.termProgram) {
+  if (target?.serviceConfig?.termProgram) {
     serviceTermContent = await readFile(
       path.join(buildSourceFolder, target.serviceConfig.termProgram)
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.serviceConfig &&
-      configuration.serviceConfig.termProgram
-    ) {
+    if (configuration?.serviceConfig?.termProgram) {
       serviceTermContent = await readFile(
         path.join(buildSourceFolder, configuration.serviceConfig.termProgram)
       )
@@ -67,13 +59,9 @@ export const getJobInit = async (target: Target) => {
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.jobConfig &&
-      configuration.jobConfig.initProgram
-    ) {
+    if (configuration?.jobConfig?.initProgram) {
       jobInitContent = await readFile(
         path.join(buildSourceFolder, configuration.jobConfig.initProgram)
       )
@@ -88,19 +76,15 @@ export const getJobInit = async (target: Target) => {
 export const getJobTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let jobTermContent = ''
-  if (target && target.jobConfig && target.jobConfig.termProgram) {
+  if (target?.jobConfig?.termProgram) {
     jobTermContent = await readFile(
       path.join(buildSourceFolder, target.jobConfig.termProgram)
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.jobConfig &&
-      configuration.jobConfig.termProgram
-    ) {
+    if (configuration?.jobConfig?.termProgram) {
       jobTermContent = await readFile(
         path.join(buildSourceFolder, configuration.jobConfig.termProgram)
       )

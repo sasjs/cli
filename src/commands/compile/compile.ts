@@ -1,9 +1,5 @@
 import path from 'path'
-import {
-  getProgramFolders,
-  findTargetInConfiguration,
-  getMacroCorePath
-} from '../../utils/config'
+import { getProgramFolders, getMacroCorePath } from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
@@ -22,21 +18,22 @@ import { loadDependencies } from './internal/loadDependencies'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
+import { getServerType } from './internal/getServerType'
 import {
   getDestinationServicePath,
   getDestinationJobPath
 } from './internal/getDestinationPath'
 
-export async function compile(targetName: string, forceCompile = false) {
-  let { target } = await findTargetInConfiguration(targetName)
+export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target)
 
+  // no need to compile again
   if (result.compiled && !forceCompile) {
-    // no need to compile again
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
     return
   }
+
   await compileModule.copyFilesToBuildFolder(target).catch((error) => {
     process.logger?.error('Project compilation has failed.')
     throw error
@@ -47,8 +44,11 @@ export async function compile(targetName: string, forceCompile = false) {
 
 export async function copyFilesToBuildFolder(target: Target) {
   const { buildSourceFolder, buildDestinationFolder } = getConstants()
+
   await recreateBuildFolder()
-  process.logger?.info(`Copying files to ${buildDestinationFolder}.`)
+
+  process.logger?.info(`Copying files to ${buildDestinationFolder} .`)
+
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
@@ -66,7 +66,7 @@ export async function copyFilesToBuildFolder(target: Target) {
     })
   } catch (error) {
     process.logger?.error(
-      `An error has occurred when copying files to ${buildDestinationFolder}.`
+      `An error has occurred when copying files to ${buildDestinationFolder} .`
     )
     throw error
   }
@@ -77,7 +77,7 @@ export async function compileJobsAndServices(target: Target) {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
     const macroFolders = target ? target.macroFolders : []
-    const programFolders = await getProgramFolders(target.name)
+    const programFolders = await getProgramFolders(target)
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
       await compileServiceFolder(
@@ -95,6 +95,7 @@ export async function compileJobsAndServices(target: Target) {
     process.logger?.error(
       'An error has occurred when compiling your jobs and services.'
     )
+
     throw error
   }
 }
@@ -173,7 +174,8 @@ const compileServiceFolder = async (
       programFolders
     )
 
-    const preCode = await getPreCodeForServicePack(target.serverType)
+    const serverType = await getServerType(target)
+    const preCode = await getPreCodeForServicePack(serverType)
 
     dependencies = `${preCode}\n${dependencies}`
 

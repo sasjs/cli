@@ -13,7 +13,7 @@ export const getBuildInit = async (target: Target) => {
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (
       configuration &&
@@ -40,7 +40,7 @@ export const getBuildTerm = async (target: Target) => {
     )
   } else {
     const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjsconfig.json')
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (
       configuration &&

@@ -24,7 +24,7 @@ export async function servicePackDeploy(
   }
 
   process.logger?.info(
-    `Deploying service pack to ${target.serverUrl} at location ${target.appLoc}.`
+    `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
   )
 
   let success
@@ -51,6 +51,7 @@ async function deployToSasViyaWithServicePack(
 ) {
   const sasjs = new SASjs({
     serverUrl: buildTarget.serverUrl,
+    allowInsecureRequests: buildTarget.allowInsecureRequests,
     appLoc: buildTarget.appLoc,
     serverType: buildTarget.serverType
   })

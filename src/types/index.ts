@@ -1,4 +1,4 @@
-export { Configuration } from './configuration'
-export { File } from './file'
+export { Configuration, TargetJson } from './configuration'
+export { File, FilePath } from './file'
 export { Folder } from './folder'
 export { TargetScope } from './targetScope'

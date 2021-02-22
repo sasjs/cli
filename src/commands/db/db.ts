@@ -52,7 +52,7 @@ export async function buildDB() {
         newDbFileContent += `\n\n${fileContent}`
       })
 
-      process.logger?.info(`Creating file ${destinationFilePath}.`)
+      process.logger?.debug(`Creating file ${destinationFilePath} .`)
       await createFile(destinationFilePath, newDbFileContent)
       process.logger?.success(`File ${destinationFilePath} has been created.`)
     })
@@ -61,7 +61,7 @@ export async function buildDB() {
 
 async function recreateBuildFolder() {
   const { buildDestinationFolder, buildDestinationDbFolder } = getConstants()
-  process.logger?.info(`Recreating folder ${buildDestinationDbFolder}...`)
+  process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)
   else await createFolder(buildDestinationFolder)

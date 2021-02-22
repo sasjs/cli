@@ -61,9 +61,5 @@ export async function getNewAccessToken(
     authCode
   )
 
-  if (authResponse && authResponse.error) {
-    throw new Error(`${authResponse.error} - ${authResponse.error_description}`)
-  }
-
   return authResponse
 }

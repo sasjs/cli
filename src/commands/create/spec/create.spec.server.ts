@@ -137,7 +137,7 @@ const verifyCreate = async (parentFolderName: string, appType: string) => {
   if (appType === 'sasonly') {
     fileStructure = {
       folderName: parentFolderName,
-      files: [],
+      files: [{ fileName: 'README.md' }],
       subFolders: [
         {
           folderName: 'sasjs',
@@ -151,7 +151,7 @@ const verifyCreate = async (parentFolderName: string, appType: string) => {
     fileStructure = {
       folderName: parentFolderName,
       subFolders: fileStructure,
-      files: []
+      files: [{ fileName: 'README.md' }]
     }
   }
   await verifyFolder(fileStructure)
