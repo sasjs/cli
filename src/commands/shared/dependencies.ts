@@ -161,10 +161,13 @@ export async function getProgramDependencies(
         )
         .join('\n')
 
-      process.logger
-        ?.warn(`The following files were listed under SAS Programs but could not be found:
-${programList}
-Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n`)
+      throw new Error(
+        `The following files were listed under SAS Programs but could not be found:\n` +
+          `${programList}\n` +
+          `Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n` +
+          `Program Folders:\n` +
+          programFolders.map((pf) => `- ${pf}`).join('\n')
+      )
     }
 
     return foundPrograms.join('\n')
