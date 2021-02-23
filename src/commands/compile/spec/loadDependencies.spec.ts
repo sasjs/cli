@@ -69,6 +69,35 @@ const fakeServiceTerm2 = `/**
 
 %put service is finishing.  Thanks, SASjs!;`
 
+const fakeJobInit = `/**
+  @file
+  @brief This code is inserted into the beginning of each Viya Job.
+  @details Inserted during the \`sasjs compile\` step.  Add any code here that
+  should go at the beginning of every deployed job.
+
+  The path to this file should be listed in the \`jobInit\` property of the
+  sasjsconfig file.
+
+  <h4> SAS Programs </h4>
+  @li test.sas TEST
+
+  <h4> SAS Macros </h4>
+  @li example.sas
+
+**/
+
+%example(Job Init is executing!)
+
+%let mylib=WORK;`
+
+const fakeProgramLines = [
+  'filename TEST temp;',
+  'data _null_;',
+  'file TEST lrecl=32767;',
+  "put '%put ''Hello, world!'';';",
+  'run;'
+]
+
 describe('loadDependencies', () => {
   let target: Target
 
@@ -183,6 +212,122 @@ describe('loadDependencies', () => {
     expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
     expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    done()
+  })
+
+  test("it should load dependencies for a job having jobInit's <h4> SAS Programs </h4>", async (done) => {
+    spyOn(internalModule, 'getJobInit').and.returnValue(
+      `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`
+    )
+    spyOn(internalModule, 'getJobTerm').and.returnValue(
+      `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`
+    )
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      [],
+      ['../', '../services'],
+      'job'
+    )
+
+    expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    expect(dependencies).toEqual(
+      expect.stringContaining(fakeProgramLines.join('\n'))
+    )
+
+    done()
+  })
+
+  test("it should load dependencies for a job having jobTerm's <h4> SAS Programs </h4>", async (done) => {
+    spyOn(internalModule, 'getJobInit').and.returnValue(
+      `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`
+    )
+    spyOn(internalModule, 'getJobTerm').and.returnValue(
+      `\n* JobTerm start;\n${fakeJobInit}\n* JobTerm end;`
+    )
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      [],
+      ['../', '../services'],
+      'job'
+    )
+
+    expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+
+    expect(dependencies).toEqual(
+      expect.stringContaining(fakeProgramLines.join('\n'))
+    )
+
+    done()
+  })
+
+  test("it should load dependencies for a service having serviceInit's <h4> SAS Programs </h4>", async (done) => {
+    spyOn(internalModule, 'getServiceInit').and.returnValue(
+      `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`
+    )
+    spyOn(internalModule, 'getServiceTerm').and.returnValue(
+      `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`
+    )
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      [],
+      ['../', '../services'],
+      'service'
+    )
+    expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    expect(dependencies).toEqual(
+      expect.stringContaining(fakeProgramLines.join('\n'))
+    )
+
+    done()
+  })
+
+  test("it should load dependencies for a service having serviceTerm's <h4> SAS Programs </h4>", async (done) => {
+    spyOn(internalModule, 'getServiceInit').and.returnValue(
+      `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`
+    )
+    spyOn(internalModule, 'getServiceTerm').and.returnValue(
+      `\n* ServiceTerm start;\n${fakeJobInit}\n* ServiceTerm end;`
+    )
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      [],
+      ['../', '../services'],
+      'service'
+    )
+    expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+
+    expect(dependencies).toEqual(
+      expect.stringContaining(fakeProgramLines.join('\n'))
+    )
 
     done()
   })
