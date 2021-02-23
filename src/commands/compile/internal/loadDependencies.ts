@@ -77,6 +77,18 @@ export async function loadDependencies(
     ...fileDependencyPaths,
     ...termDependencyPaths
   ]
+
+  const initProgramDependencies = await getProgramDependencies(
+    init,
+    programFolders,
+    buildSourceFolder
+  )
+  const termProgramDependencies = await getProgramDependencies(
+    term,
+    programFolders,
+    buildSourceFolder
+  )
+
   const programDependencies = await getProgramDependencies(
     fileContent,
     programFolders,
@@ -85,7 +97,7 @@ export async function loadDependencies(
 
   const dependenciesContent = await getDependencies(allDependencyPaths)
 
-  fileContent = `* Dependencies start;\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
+  fileContent = `* Dependencies start;\n${initProgramDependencies}\n${termProgramDependencies}\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
 
   if (type === 'service') {
     fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
