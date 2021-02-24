@@ -8,7 +8,7 @@ export async function compileJobFile(
   target: Target,
   filePath: string,
   macroFolders: string[],
-  programFolders: string[],
+  programFolders: string[]
 ) {
   const dependencies = await loadDependencies(
     target,
@@ -17,6 +17,6 @@ export async function compileJobFile(
     programFolders,
     'job'
   )
-  
+
   await createFile(filePath, dependencies)
 }
