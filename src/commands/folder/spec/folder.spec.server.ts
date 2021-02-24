@@ -8,7 +8,7 @@ import {
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 
-describe('sasjs job execute', () => {
+describe('sasjs folder operations', () => {
   let target: Target
 
   beforeAll(async (done) => {
@@ -29,11 +29,11 @@ describe('sasjs job execute', () => {
 
     await createTestFolder(testFolderPath, target.name)
 
-    const commandList1 = new Command(
+    const commandList = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list1 = await folder(commandList1)
-    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+    const list = await folder(commandList)
+    expect(list).toContain(/cli-tests-folder-${timestamp}/gm)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
@@ -48,8 +48,8 @@ describe('sasjs job execute', () => {
     const commandList1 = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list1 = await folder(commandList1)
-    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+    const list = await folder(commandList1)
+    expect(list).toContain(/cli-tests-folder-${timestamp}/gm)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -61,27 +61,27 @@ describe('sasjs job execute', () => {
     )
     await folder(commandCreate3)
 
-    const commandMove1 = new Command(
+    const commandMove = new Command(
       `folder move ${testFolderPath}/temp ${testFolderPath}/test2 -t ${target.name}`
     )
-    await folder(commandMove1)
+    await folder(commandMove)
 
     // Check if operations are executed correctly
     let folderList1 = await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )
-    expect(folderList1).toContain('temp')
+    expect(folderList1).toContain(/temp/gm)
 
     let folderList2 = await folder(
       new Command(`folder list ${testFolderPath}/test2/temp -t ${target.name}`)
     )
-    expect(folderList2).toContain('test')
+    expect(folderList2).toContain(/test/gm)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
   })
 
-  it('move folder to same location renaming the folder', async (done) => {
+  it('move folder to the same location and rename it', async (done) => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -91,7 +91,7 @@ describe('sasjs job execute', () => {
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
     const list1 = await folder(commandList1)
-    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+    expect(list1).toContain(/cli-tests-folder-${timestamp}/gm)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -107,7 +107,7 @@ describe('sasjs job execute', () => {
     let folderList1 = await folder(
       new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
     )
-    expect(folderList1).toContain('test_renamed')
+    expect(folderList1).toContain(/test_renamed/gm)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
@@ -123,7 +123,7 @@ describe('sasjs job execute', () => {
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
     const list1 = await folder(commandList1)
-    expect(list1).toContain(`cli-tests-folder-${timestamp}`)
+    expect(list1).toContain(/cli-tests-folder-${timestamp}/gm)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -144,7 +144,7 @@ describe('sasjs job execute', () => {
     let folderList1 = await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )
-    expect(folderList1).toContain('test_renamed')
+    expect(folderList1).toContain(/test_renamed/gm)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
