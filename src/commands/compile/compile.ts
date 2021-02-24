@@ -1,24 +1,22 @@
 import path from 'path'
-import { getProgramFolders, getMacroCorePath } from '../../utils/config'
+import { getProgramFolders } from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
-  createFile,
   copy,
   fileExists,
   deleteFolder,
-  createFolder,
-  readFile
+  createFolder
 } from '../../utils/file'
 import { asyncForEach } from '../../utils/utils'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'
-import { loadDependencies } from './internal/loadDependencies'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
-import { getServerType } from './internal/getServerType'
+import { compileServiceFile } from './internal/compileServiceFile'
+import { compileJobFile } from './internal/compileJobFile'
 import {
   getDestinationServicePath,
   getDestinationJobPath
@@ -110,47 +108,6 @@ async function recreateBuildFolder() {
   await createFolder(buildDestinationFolder)
 }
 
-async function getPreCodeForServicePack(serverType: ServerType) {
-  let content = ''
-  const macroCorePath = getMacroCorePath()
-  switch (serverType) {
-    case ServerType.SasViya:
-      content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)
-      content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
-      content += await readFile(`${macroCorePath}/viya/mv_webout.sas`)
-      content +=
-        '/* if calling viya service with _job param, _program will conflict */\n' +
-        '/* so we provide instead as __program */\n' +
-        '%global __program _program;\n' +
-        '%let _program=%sysfunc(coalescec(&__program,&_program));\n' +
-        '%macro webout(action,ds,dslabel=,fmt=);\n' +
-        '%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
-        '%mend;\n'
-      break
-
-    case ServerType.Sas9:
-      content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)
-      content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
-      content += await readFile(`${macroCorePath}/meta/mm_webout.sas`)
-      content +=
-        '  %macro webout(action,ds,dslabel=,fmt=);\n' +
-        '    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
-        '  %mend;\n'
-      break
-
-    default:
-      throw new Error(
-        `Invalid server type: valid options are 'SASVIYA' and 'SAS9'.`
-      )
-  }
-  content +=
-    '/* provide additional debug info */\n' +
-    '%put user=%mf_getuser();\n' +
-    '%put pgm=&_program;\n' +
-    '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
-  return content
-}
-
 const compileServiceFolder = async (
   target: Target,
   serviceFolder: string,
@@ -162,24 +119,11 @@ const compileServiceFolder = async (
   const destinationPath = getDestinationServicePath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)
-  const errors: Error[] = []
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
-    let dependencies = await loadDependencies(
-      target,
-      filePath,
-      macroFolders,
-      programFolders
-    )
-
-    const serverType = await getServerType(target)
-    const preCode = await getPreCodeForServicePack(serverType)
-
-    dependencies = `${preCode}\n${dependencies}`
-
-    if (dependencies) await createFile(filePath, dependencies)
+    await compileServiceFile(target, filePath, macroFolders, programFolders)
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
@@ -188,20 +132,9 @@ const compileServiceFolder = async (
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
-      const dependencies = await loadDependencies(
-        target,
-        filePath,
-        macroFolders,
-        programFolders
-      ).catch((err) => {
-        errors.push(err)
-      })
-
-      if (dependencies) await createFile(filePath, dependencies)
+      await compileServiceFile(target, filePath, macroFolders, programFolders)
     })
   })
-
-  if (errors.length) throw errors
 }
 
 const compileJobFolder = async (
@@ -215,29 +148,20 @@ const compileJobFolder = async (
   const destinationPath = getDestinationJobPath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)
+
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
-    const dependencies = await loadDependencies(
-      target,
-      filePath,
-      macroFolders,
-      programFolders,
-      'job'
-    )
-    await createFile(filePath, dependencies)
+
+    await compileJobFile(target, filePath, macroFolders, programFolders)
   })
+
   await asyncForEach(subFolders, async (subFolder) => {
     const fileNames = await getFilesInFolder(path.join(folderPath, subFolder))
+
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
-      const dependencies = await loadDependencies(
-        target,
-        filePath,
-        macroFolders,
-        programFolders,
-        'job'
-      )
-      await createFile(filePath, dependencies)
+
+      await compileJobFile(target, filePath, macroFolders, programFolders)
     })
   })
 }
