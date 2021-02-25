@@ -2,11 +2,16 @@ import { Target } from '@sasjs/utils'
 import { findTargetInConfiguration } from '../../../utils/config'
 import {
   createTestApp,
+  createTestJobsApp,
   removeTestApp,
   removeAllTargetsFromConfigs
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
+import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
+import { compileSingleFile } from '../compileSingleFile'
+import * as compileJobFile from '../internal/compileJobFile'
+import * as compileServiceFile from '../internal/compileServiceFile'
 
 describe('sasjs compile', () => {
   let appName: string
@@ -79,5 +84,65 @@ describe('sasjs compile', () => {
     expect(compileModule.compileJobsAndServices).not.toHaveBeenCalled()
 
     done()
+  })
+})
+
+describe('sasjs compile', () => {
+  let appName: string
+  let target: Target
+
+  afterEach(async (done) => {
+    await removeTestApp(__dirname, appName)
+    jest.clearAllMocks()
+
+    done()
+  })
+
+  describe('job', () => {
+    beforeEach(async (done) => {
+      appName = `cli-tests-compile-${generateTimestamp()}`
+      await createTestJobsApp(__dirname, appName)
+      jest.spyOn(compileJobFile, 'compileJobFile')
+      done()
+    })
+
+    it('should compile single file', async (done) => {
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(
+            `compile job -s ${process.projectDir}/jobs/extract/makedata1.sas`
+          ),
+          'job'
+        )
+      ).toResolve()
+      expect(compileJobFile.compileJobFile).toHaveBeenCalled()
+
+      done()
+    })
+  })
+
+  describe('service', () => {
+    beforeEach(async (done) => {
+      appName = `cli-tests-compile-${generateTimestamp()}`
+      await createTestApp(__dirname, appName)
+      jest.spyOn(compileServiceFile, 'compileServiceFile')
+      done()
+    })
+
+    it('should compile single file', async (done) => {
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(
+            `compile service -s ${process.projectDir}/sasjs/services/common/example.sas`
+          ),
+          'service'
+        )
+      ).toResolve()
+      expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
+
+      done()
+    })
   })
 })

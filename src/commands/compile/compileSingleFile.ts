@@ -36,8 +36,8 @@ export async function compileSingleFile(
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
-  const sourcePath = path.join(process.cwd(), source)
-  const outputPath = output ?? './sasjsbuild'
+  const sourcePath = path.resolve(process.projectDir, source)
+  const outputPath = path.resolve(process.projectDir, output ?? './sasjsbuild')
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
@@ -45,7 +45,7 @@ export async function compileSingleFile(
   await createFolder(outputPath)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string
-  const destinationPath = path.join(process.cwd(), outputPath, sourceFileName)
+  const destinationPath = path.join(outputPath, sourceFileName)
   await copy(sourcePath, destinationPath)
 
   const macroFolders = target ? target.macroFolders : []
@@ -61,13 +61,13 @@ export async function compileSingleFile(
       )
       break
     case subCommands.job:
-      break
       await compileJobFile(
         target,
         destinationPath,
         macroFolders,
         programFolders
       )
+      break
     default:
       break
   }
