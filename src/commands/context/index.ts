@@ -42,7 +42,7 @@ export async function processContext(command: Command) {
       process.logger?.error(message)
 
       return
-    } else if (!validateConfigPath(configPath)) {
+    } else if (!(await validateConfigPath(configPath))) {
       const message = `Provide a path to context config file (eg '${commandExample}')`
 
       process.logger?.error(message)
