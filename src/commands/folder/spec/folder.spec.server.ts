@@ -81,7 +81,7 @@ describe('sasjs folder operations', () => {
     await folder(commandMove)
 
     // Check if operations are executed correctly
-    let folderList1: string = (await folder(
+    const folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )) as string
 
@@ -91,12 +91,9 @@ describe('sasjs folder operations', () => {
      */
     const regex2 = new RegExp(`(?<!\S)temp(?!\S)`, 'gm')
 
-    console.log(`[folderList1]`, folderList1.length)
-    console.log(`[regex2]`, regex2)
-
     expect(regex2.test(folderList1)).toBe(true)
 
-    let folderList2: string = (await folder(
+    const folderList2: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2/temp -t ${target.name}`)
     )) as string
 
@@ -105,9 +102,6 @@ describe('sasjs folder operations', () => {
      * It will ignore whitespaces.
      */
     const regex3 = new RegExp(`(?<!\S)test(?!\S)`, 'gm')
-
-    console.log(`[folderList2]`, folderList2)
-    console.log(`[regex3]`, regex3)
 
     expect(regex3.test(folderList2)).toBe(true)
 
@@ -145,7 +139,7 @@ describe('sasjs folder operations', () => {
     await folder(commandMove1)
 
     // Check if operations are executed correctly
-    let folderList1: string = (await folder(
+    const folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
     )) as string
 
@@ -196,7 +190,7 @@ describe('sasjs folder operations', () => {
     await folder(commandMove1)
 
     // Check if operations are executed correctly
-    let folderList1: string = (await folder(
+    const folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
     )) as string
 
