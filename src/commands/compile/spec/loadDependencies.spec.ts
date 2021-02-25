@@ -114,12 +114,14 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a service with <h4> Dependencies </h4>', async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue(
-      `\n* ServiceInit start;\n${fakeServiceInit}\n* ServiceInit end;`
-    )
-    spyOn(internalModule, 'getServiceTerm').and.returnValue(
-      `\n* ServiceTerm start;\n${fakeServiceTerm}\n* ServiceTerm end;`
-    )
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeServiceInit}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeServiceTerm}\n* ServiceTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -140,12 +142,14 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> Dependencies </h4>', async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue(
-      `\n* JobInit start;\n${fakeServiceInit}\n* JobInit end;`
-    )
-    spyOn(internalModule, 'getJobTerm').and.returnValue(
-      `\n* JobTerm start;\n${fakeServiceTerm}\n* JobTerm end;`
-    )
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeServiceInit}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeServiceTerm}\n* JobTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -166,12 +170,14 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a service with <h4> SAS MAcros </h4>', async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue(
-      `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`
-    )
-    spyOn(internalModule, 'getServiceTerm').and.returnValue(
-      `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`
-    )
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -191,12 +197,14 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> SAS MAcros </h4>', async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue(
-      `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`
-    )
-    spyOn(internalModule, 'getJobTerm').and.returnValue(
-      `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`
-    )
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -217,12 +225,14 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a job having jobInit's <h4> SAS Programs </h4>", async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue(
-      `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`
-    )
-    spyOn(internalModule, 'getJobTerm').and.returnValue(
-      `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`
-    )
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeServiceTerm2}\n* JobTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -247,12 +257,14 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a job having jobTerm's <h4> SAS Programs </h4>", async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue(
-      `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`
-    )
-    spyOn(internalModule, 'getJobTerm').and.returnValue(
-      `\n* JobTerm start;\n${fakeJobInit}\n* JobTerm end;`
-    )
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeServiceInit2}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeJobInit}\n* JobTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -276,12 +288,14 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a service having serviceInit's <h4> SAS Programs </h4>", async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue(
-      `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`
-    )
-    spyOn(internalModule, 'getServiceTerm').and.returnValue(
-      `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`
-    )
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeServiceTerm2}\n* ServiceTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
@@ -305,12 +319,14 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a service having serviceTerm's <h4> SAS Programs </h4>", async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue(
-      `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`
-    )
-    spyOn(internalModule, 'getServiceTerm').and.returnValue(
-      `\n* ServiceTerm start;\n${fakeJobInit}\n* ServiceTerm end;`
-    )
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeServiceInit2}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeJobInit}\n* ServiceTerm end;`,
+      filePath: ''
+    })
 
     const dependencies = await loadDependencies(
       target,
