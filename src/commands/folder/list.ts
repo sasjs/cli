@@ -8,7 +8,11 @@ import SASjs from '@sasjs/adapter/node'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export const list = async (path: string, sasjs: SASjs, accessToken: string) => {
+export const list = async (
+  path: string,
+  sasjs: SASjs,
+  accessToken: string
+): Promise<string> => {
   const sourceFolder = path
 
   const folderList = await sasjs
@@ -25,5 +29,5 @@ export const list = async (path: string, sasjs: SASjs, accessToken: string) => {
     return Promise.resolve(folderFormattedList)
   }
 
-  return Promise.reject()
+  return Promise.reject('')
 }

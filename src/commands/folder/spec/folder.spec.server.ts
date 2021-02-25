@@ -32,8 +32,15 @@ describe('sasjs folder operations', () => {
     const commandList = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list = await folder(commandList)
-    expect(list).toContain(/cli-tests-folder-${timestamp}/gm)
+    const list: string = (await folder(commandList)) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
+
+    expect(regex.test(list)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
@@ -48,8 +55,15 @@ describe('sasjs folder operations', () => {
     const commandList1 = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list = await folder(commandList1)
-    expect(list).toContain(/cli-tests-folder-${timestamp}/gm)
+    const list: string = (await folder(commandList1)) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
+
+    expect(regex.test(list)).toBe(true)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -67,15 +81,35 @@ describe('sasjs folder operations', () => {
     await folder(commandMove)
 
     // Check if operations are executed correctly
-    let folderList1 = await folder(
+    let folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
-    )
-    expect(folderList1).toContain(/temp/gm)
+    )) as string
 
-    let folderList2 = await folder(
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex2 = new RegExp(`(?<!\S)temp(?!\S)`, 'gm')
+
+    console.log(`[folderList1]`, folderList1.length)
+    console.log(`[regex2]`, regex2)
+
+    expect(regex2.test(folderList1)).toBe(true)
+
+    let folderList2: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2/temp -t ${target.name}`)
-    )
-    expect(folderList2).toContain(/test/gm)
+    )) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex3 = new RegExp(`(?<!\S)test(?!\S)`, 'gm')
+
+    console.log(`[folderList2]`, folderList2)
+    console.log(`[regex3]`, regex3)
+
+    expect(regex3.test(folderList2)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
@@ -90,8 +124,15 @@ describe('sasjs folder operations', () => {
     const commandList1 = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list1 = await folder(commandList1)
-    expect(list1).toContain(/cli-tests-folder-${timestamp}/gm)
+    const list1: string = (await folder(commandList1)) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
+
+    expect(regex.test(list1)).toBe(true)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -104,10 +145,17 @@ describe('sasjs folder operations', () => {
     await folder(commandMove1)
 
     // Check if operations are executed correctly
-    let folderList1 = await folder(
+    let folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
-    )
-    expect(folderList1).toContain(/test_renamed/gm)
+    )) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex2 = new RegExp(`(?<!\S)test_renamed(?!\S)`, 'gm')
+
+    expect(regex2.test(folderList1)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
@@ -122,8 +170,15 @@ describe('sasjs folder operations', () => {
     const commandList1 = new Command(
       `folder list /Public/app/cli-tests -t ${target.name}`
     )
-    const list1 = await folder(commandList1)
-    expect(list1).toContain(/cli-tests-folder-${timestamp}/gm)
+    const list1: string = (await folder(commandList1)) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
+
+    expect(regex.test(list1)).toBe(true)
 
     const commandCreate2 = new Command(
       `folder create ${testFolderPath}/temp/test -t ${target.name}`
@@ -141,10 +196,17 @@ describe('sasjs folder operations', () => {
     await folder(commandMove1)
 
     // Check if operations are executed correctly
-    let folderList1 = await folder(
+    let folderList1: string = (await folder(
       new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
-    )
-    expect(folderList1).toContain(/test_renamed/gm)
+    )) as string
+
+    /**
+     * This regex function will pass only if it matches the whole word.
+     * It will ignore whitespaces.
+     */
+    const regex2 = new RegExp(`(?<!\S)test_renamed(?!\S)`, 'gm')
+
+    expect(regex2.test(folderList1)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
     done()
