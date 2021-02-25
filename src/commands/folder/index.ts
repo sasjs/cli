@@ -4,12 +4,14 @@ import { create } from './create'
 import { move } from './move'
 import { deleteFolder } from './delete'
 import { Command } from '../../utils/command'
+import { list } from './list'
 import { getAdapterInstance } from '../../utils/utils'
 
 export async function folder(command: Command) {
   const subCommand = command.getSubCommand()
 
   const subCommands = {
+    list: 'list',
     create: 'create',
     move: 'move',
     delete: 'delete'
@@ -58,6 +60,8 @@ export async function folder(command: Command) {
       return await deleteFolder(folderPath, sasjs, accessToken)
     case subCommands.move:
       return await move(folderPath, sasjs, accessToken)
+    case subCommands.list:
+      return await list(folderPath, sasjs, accessToken)
     default:
       break
   }
