@@ -22,5 +22,5 @@ export const deleteFolder = async (
     displaySuccess(`Folder '${path}' has been moved to 'Recycle Bin'.`)
     return Promise.resolve(true)
   }
-  return Promise.reject()
+  return Promise.reject(false)
 }
