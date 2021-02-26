@@ -263,7 +263,7 @@ export class Command {
 
     return path
       .split(' ')
-      .map((p) => (/^\//.test(p) ? path : `${appLoc}/${p}`))
+      .map((p) => (/^\//.test(p) ? p : `${appLoc}/${p}`))
       .join(' ')
   }
 
