@@ -87,7 +87,7 @@ describe('sasjs compile', () => {
   })
 })
 
-describe('sasjs compile', () => {
+describe('sasjs compile single file', () => {
   let appName: string
   let target: Target
 

@@ -78,7 +78,7 @@ export async function compileSingleFile(
 async function validateSourcePath(path: string) {
   if (!path) return false
 
-  const isSourceFile = /\.sas/i.test(path)
+  const isSourceFile = /\.sas$/i.test(path)
 
   if (!isSourceFile) return false
 

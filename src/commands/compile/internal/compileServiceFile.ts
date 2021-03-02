@@ -24,7 +24,7 @@ export async function compileServiceFile(
 
   dependencies = `${preCode}\n${dependencies}`
 
-  if (dependencies) await createFile(filePath, dependencies)
+  await createFile(filePath, dependencies)
 }
 
 async function getPreCodeForServicePack(serverType: ServerType) {
