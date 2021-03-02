@@ -86,12 +86,7 @@ describe('compileJobFile', () => {
     await copy(filePath, destinationPath)
 
     await expect(
-      compileJobFile(
-        target,
-        destinationPath,
-        [],
-        ['../', '../services']
-      )
+      compileJobFile(target, destinationPath, [], ['../', '../services'])
     ).toResolve()
 
     const compiledContent = await readFile(destinationPath)
