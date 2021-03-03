@@ -52,13 +52,17 @@ export async function copyFilesToBuildFolder(target: Target) {
     const jobFolders = await getAllJobFolders(target)
 
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
-      const sourcePath = path.join(buildSourceFolder, serviceFolder)
+      const sourcePath = path.isAbsolute(serviceFolder)
+        ? serviceFolder
+        : path.join(buildSourceFolder, serviceFolder)
       const destinationPath = getDestinationServicePath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
-      const sourcePath = path.join(buildSourceFolder, jobFolder)
+      const sourcePath = path.isAbsolute(jobFolder)
+        ? jobFolder
+        : path.join(buildSourceFolder, jobFolder)
       const destinationPath = getDestinationJobPath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
@@ -115,7 +119,9 @@ const compileServiceFolder = async (
   programFolders: string[]
 ) => {
   const { buildSourceFolder } = getConstants()
-  const folderPath = path.join(buildSourceFolder, serviceFolder)
+  const folderPath = path.isAbsolute(serviceFolder)
+    ? serviceFolder
+    : path.join(buildSourceFolder, serviceFolder)
   const destinationPath = getDestinationServicePath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)
@@ -144,7 +150,9 @@ const compileJobFolder = async (
   programFolders: string[]
 ) => {
   const { buildSourceFolder } = getConstants()
-  const folderPath = path.join(buildSourceFolder, jobFolder)
+  const folderPath = path.isAbsolute(jobFolder)
+    ? jobFolder
+    : path.join(buildSourceFolder, jobFolder)
   const destinationPath = getDestinationJobPath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)

@@ -9,7 +9,9 @@ export const getServiceInit = async (target: Target) => {
   let serviceInitContent = ''
   if (target?.serviceConfig?.initProgram) {
     serviceInitContent = await readFile(
-      path.join(buildSourceFolder, target.serviceConfig.initProgram)
+      path.isAbsolute(target.serviceConfig.initProgram)
+        ? target.serviceConfig.initProgram
+        : path.join(buildSourceFolder, target.serviceConfig.initProgram)
     )
   } else {
     const configuration = await getConfiguration(
@@ -17,7 +19,12 @@ export const getServiceInit = async (target: Target) => {
     )
     if (configuration?.serviceConfig?.initProgram) {
       serviceInitContent = await readFile(
-        path.join(buildSourceFolder, configuration.serviceConfig.initProgram)
+        path.isAbsolute(configuration.serviceConfig.initProgram)
+          ? configuration.serviceConfig.initProgram
+          : path.join(
+              buildSourceFolder,
+              configuration.serviceConfig.initProgram
+            )
       )
     }
   }
@@ -32,7 +39,9 @@ export const getServiceTerm = async (target: Target) => {
   let serviceTermContent = ''
   if (target?.serviceConfig?.termProgram) {
     serviceTermContent = await readFile(
-      path.join(buildSourceFolder, target.serviceConfig.termProgram)
+      path.isAbsolute(target.serviceConfig.termProgram)
+        ? target.serviceConfig.termProgram
+        : path.join(buildSourceFolder, target.serviceConfig.termProgram)
     )
   } else {
     const configuration = await getConfiguration(
@@ -40,7 +49,12 @@ export const getServiceTerm = async (target: Target) => {
     )
     if (configuration?.serviceConfig?.termProgram) {
       serviceTermContent = await readFile(
-        path.join(buildSourceFolder, configuration.serviceConfig.termProgram)
+        path.isAbsolute(configuration.serviceConfig.termProgram)
+          ? configuration.serviceConfig.termProgram
+          : path.join(
+              buildSourceFolder,
+              configuration.serviceConfig.termProgram
+            )
       )
     }
   }
@@ -55,7 +69,9 @@ export const getJobInit = async (target: Target) => {
   let jobInitContent = ''
   if (target?.jobConfig?.initProgram) {
     jobInitContent = await readFile(
-      path.join(buildSourceFolder, target.jobConfig.initProgram)
+      path.isAbsolute(target.jobConfig.initProgram)
+        ? target.jobConfig.initProgram
+        : path.join(buildSourceFolder, target.jobConfig.initProgram)
     )
   } else {
     const configuration = await getConfiguration(
@@ -63,7 +79,9 @@ export const getJobInit = async (target: Target) => {
     )
     if (configuration?.jobConfig?.initProgram) {
       jobInitContent = await readFile(
-        path.join(buildSourceFolder, configuration.jobConfig.initProgram)
+        path.isAbsolute(configuration.jobConfig.initProgram)
+          ? configuration.jobConfig.initProgram
+          : path.join(buildSourceFolder, configuration.jobConfig.initProgram)
       )
     }
   }
@@ -78,7 +96,9 @@ export const getJobTerm = async (target: Target) => {
   let jobTermContent = ''
   if (target?.jobConfig?.termProgram) {
     jobTermContent = await readFile(
-      path.join(buildSourceFolder, target.jobConfig.termProgram)
+      path.isAbsolute(target.jobConfig.termProgram)
+        ? target.jobConfig.termProgram
+        : path.join(buildSourceFolder, target.jobConfig.termProgram)
     )
   } else {
     const configuration = await getConfiguration(
@@ -86,7 +106,9 @@ export const getJobTerm = async (target: Target) => {
     )
     if (configuration?.jobConfig?.termProgram) {
       jobTermContent = await readFile(
-        path.join(buildSourceFolder, configuration.jobConfig.termProgram)
+        path.isAbsolute(configuration.jobConfig.termProgram)
+          ? configuration.jobConfig.termProgram
+          : path.join(buildSourceFolder, configuration.jobConfig.termProgram)
       )
     }
   }

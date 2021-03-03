@@ -36,8 +36,12 @@ export async function compileSingleFile(
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
-  const sourcePath = path.resolve(process.projectDir, source)
-  const outputPath = path.resolve(process.projectDir, output ?? './sasjsbuild')
+  const sourcePath = path.isAbsolute(source)
+    ? source
+    : path.join(process.projectDir, source)
+  const outputPath = path.isAbsolute(output)
+    ? output
+    : path.join(process.projectDir, output ?? './sasjsbuild')
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
