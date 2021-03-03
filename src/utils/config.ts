@@ -99,7 +99,7 @@ export async function findTargetInConfiguration(
       : undefined
 
     if (fallBackTargetJson) {
-      process.logger?.warn(
+      process.logger?.info(
         `Target ${targetName || ''} was not found. Falling back to target ${
           fallBackTargetJson.name
         } from your local sasjsconfig.json file.`
@@ -122,7 +122,7 @@ export async function findTargetInConfiguration(
     : undefined
 
   if (fallBackTargetJson) {
-    process.logger?.warn(
+    process.logger?.info(
       `Target ${targetName || ''} was not found. Falling back to target ${
         fallBackTargetJson.name
       } from your global .sasjsrc file.`
