@@ -84,6 +84,11 @@ export async function findTargetInConfiguration(
     }
   }
 
+  if (targetName)
+    throw new Error(
+      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
+
   let fallBackTargetJson
 
   if (localConfig?.targets) {
