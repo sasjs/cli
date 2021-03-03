@@ -81,7 +81,7 @@ describe('compileServiceFile', () => {
     )
 
     const filePath = path.join(__dirname, './service.sas')
-    const buildPath = path.join(process.projectDir, 'sasjsbuild-test')
+    const buildPath = path.join(process.projectDir, 'sasjsbuild')
     const destinationPath = path.join(buildPath, 'service.sas')
 
     await createFolder(buildPath)
