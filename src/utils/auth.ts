@@ -1,4 +1,4 @@
-import { getString, Target } from '@sasjs/utils'
+import { getString, Target, SasAuthResponse } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
 import SASjs from '@sasjs/adapter/node'
 
@@ -37,7 +37,7 @@ export async function refreshTokens(
   clientId: string,
   clientSecret: string,
   refreshToken: string
-) {
+): Promise<SasAuthResponse> {
   const authResponse = await sasjsInstance.refreshTokens(
     clientId,
     clientSecret,
@@ -52,7 +52,7 @@ export async function getNewAccessToken(
   clientId: string,
   clientSecret: string,
   target: Target
-) {
+): Promise<SasAuthResponse> {
   const authUrl = getAuthUrl(target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
   const authResponse = await sasjsInstance.getAccessToken(

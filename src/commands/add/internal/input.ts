@@ -16,16 +16,30 @@ import {
   getLocalConfig
 } from '../../../utils/config'
 
-export async function getCommonFields() {
+export async function getCommonFields(): Promise<{
+  scope: TargetScope
+  serverType: ServerType
+  name: string
+  appLoc: string
+  serverUrl: string
+  existingTarget: Target
+}> {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
-  const name = await getAndValidateTargetName(scope, serverType)
+  const name = await getAndValidateTargetName(serverType)
+  const { target, retry } = await getAndValidateUpdateExisting(scope, name)
 
-  const appLoc = await getAndValidateAppLoc(name)
+  if (retry) return await getCommonFields()
 
-  const serverUrl = await getAndValidateServerUrl()
+  if (target) {
+    process.logger?.info(`Updating current target '${name}'`)
+  }
 
-  return { scope, serverType, name, appLoc, serverUrl }
+  const appLoc = await getAndValidateAppLoc(name, target)
+
+  const serverUrl = await getAndValidateServerUrl(target)
+
+  return { scope, serverType, name, appLoc, serverUrl, existingTarget: target }
 }
 
 async function getAndValidateScope(): Promise<TargetScope> {
@@ -62,36 +76,20 @@ async function getAndValidateServerType(): Promise<ServerType> {
   return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
 }
 
-export async function getAndValidateServerUrl() {
+export async function getAndValidateServerUrl(target: Target) {
   const serverUrl = await getUrl(
     'Please enter a target server URL (including port, if relevant): ',
-    'Server URL is required.'
+    'Server URL is required.',
+    target?.serverUrl
   )
 
   return serverUrl
 }
 
 async function getAndValidateTargetName(
-  targetScope: TargetScope,
   serverType: ServerType
 ): Promise<string> {
   const validator = async (value: string) => {
-    let config
-    if (targetScope === TargetScope.Local) {
-      config = await getLocalConfig()
-    } else {
-      config = await getGlobalRcFile()
-    }
-
-    let existingTargetNames = []
-    if (config && config.targets) {
-      existingTargetNames = config.targets.map((t: Target) => t.name)
-    }
-
-    if (existingTargetNames.includes(value)) {
-      return `A target with the name ${value} already exists. Please try again with a different target name.`
-    }
-
     if (!value) {
       return 'Target name is required.'
     }
@@ -115,6 +113,44 @@ async function getAndValidateTargetName(
   )
 
   return targetName
+}
+
+async function getAndValidateUpdateExisting(
+  targetScope: TargetScope,
+  targetName: string
+): Promise<{ target: Target; retry: boolean }> {
+  let config, target: Target
+  if (targetScope === TargetScope.Local) {
+    config = await getLocalConfig()
+  } else {
+    config = await getGlobalRcFile()
+  }
+
+  target = config?.targets?.find((t: Target) => t.name === targetName)
+
+  if (target) {
+    process.logger?.info(`Found target with same name: '${targetName}'`)
+    const errorMessage = 'Target update choice must be either 1 or 2.'
+    const choice = await getChoice(
+      'Please pick an option for the current target: ',
+      'Please choose either option 1 or 2.',
+      [
+        { title: '1. Update this target', value: 1 },
+        { title: '2. Re-enter target name for new', value: 2 }
+      ]
+    ).catch(() => {
+      throw new Error(errorMessage)
+    })
+
+    if (choice === null || choice === undefined || Number.isNaN(choice)) {
+      throw new Error(errorMessage)
+    }
+
+    console.log('Choice: ', choice)
+    return { target, retry: choice === 2 }
+  }
+
+  return { target, retry: false }
 }
 
 export async function getAndValidateSas9Fields() {
@@ -193,12 +229,16 @@ export async function getAndValidateSasViyaFields(
   }
 }
 
-async function getAndValidateAppLoc(targetName: string): Promise<string> {
+async function getAndValidateAppLoc(
+  targetName: string,
+  target: Target
+): Promise<string> {
   const errorMessage = 'App location is required.'
+
   const appLoc = await getString(
     'Please provide an app location: ',
     (v: string) => !!v || errorMessage,
-    `/Public/app/${targetName}`
+    target?.appLoc ?? `/Public/app/${targetName}`
   )
 
   return appLoc
