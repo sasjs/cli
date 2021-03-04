@@ -38,21 +38,27 @@ function extractFoldersForDocs(config: Target | Configuration) {
 
   const macroFolders =
     config && config.macroFolders
-      ? config.macroFolders.map((f) => path.join(buildSourceFolder, f))
+      ? config.macroFolders.map((f) =>
+          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+        )
       : []
   const programFolders =
     config && config.programFolders
-      ? config.programFolders.map((f) => path.join(buildSourceFolder, f))
+      ? config.programFolders.map((f) =>
+          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+        )
       : []
   const serviceFolders =
     config && config.serviceConfig && config.serviceConfig.serviceFolders
       ? config.serviceConfig.serviceFolders.map((f) =>
-          path.join(buildSourceFolder, f)
+          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
         )
       : []
   const jobFolders =
     config && config.jobConfig && config.jobConfig.jobFolders
-      ? config.jobConfig.jobFolders.map((f) => path.join(buildSourceFolder, f))
+      ? config.jobConfig.jobFolders.map((f) =>
+          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+        )
       : []
 
   return {

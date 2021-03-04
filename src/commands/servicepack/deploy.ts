@@ -65,7 +65,11 @@ async function deployToSasViyaWithServicePack(
   let jsonContent
 
   if (jsonFilePath) {
-    jsonContent = await readFile(path.join(process.cwd(), jsonFilePath))
+    jsonContent = await readFile(
+      path.isAbsolute(jsonFilePath)
+        ? jsonFilePath
+        : path.join(process.cwd(), jsonFilePath)
+    )
   } else {
     jsonContent = await readFile(finalFilePathJSON)
   }

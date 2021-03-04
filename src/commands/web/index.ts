@@ -77,13 +77,14 @@ export async function createWebAppServices(target: Target) {
   await createTargetDestinationFolder(destinationPath)
 
   const assetPathMap = await createAssetServices(target, destinationPath)
-  const hasIndexHtml = await fileExists(
-    path.join(process.projectDir, webSourcePath, 'index.html')
-  )
-  if (hasIndexHtml) {
-    const indexHtml = await readFile(
-      path.join(process.projectDir, webSourcePath, 'index.html')
-    ).then((content) => new jsdom.JSDOM(content))
+  const indexHtmlPath = path.isAbsolute(webSourcePath)
+    ? path.join(webSourcePath, 'index.html')
+    : path.join(process.projectDir, webSourcePath, 'index.html')
+
+  if (await fileExists(indexHtmlPath)) {
+    const indexHtml = await readFile(indexHtmlPath).then(
+      (content) => new jsdom.JSDOM(content)
+    )
 
     const scriptTags = getScriptTags(indexHtml)
     await asyncForEach(scriptTags, async (tag) => {
@@ -118,13 +119,18 @@ async function createAssetServices(target: Target, destinationPath: string) {
   const { webSourcePath, streamWebFolder, assetPaths } = streamConfig!
   const assetPathMap: { source: string; target: string }[] = []
   await asyncForEach(assetPaths, async (assetPath) => {
+    const pathExistsAsAbsoluteFolder = await folderExists(
+      path.join(webSourcePath, assetPath)
+    )
     const pathExistsInCurrentFolder = await folderExists(
       path.join(process.cwd(), webSourcePath, assetPath)
     )
     const pathExistsInParentFolder = await folderExists(
       path.join(process.cwd(), '..', webSourcePath, assetPath)
     )
-    const fullAssetPath = pathExistsInCurrentFolder
+    const fullAssetPath = pathExistsAsAbsoluteFolder
+      ? path.join(webSourcePath, assetPath)
+      : pathExistsInCurrentFolder
       ? path.join(process.cwd(), webSourcePath, assetPath)
       : pathExistsInParentFolder
       ? path.join(process.cwd(), '..', webSourcePath, assetPath)
@@ -277,7 +283,9 @@ async function updateFaviconHref(
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
     const base64string = await base64EncodeImageFile(
-      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+      path.isAbsolute(webAppSourcePath)
+        ? path.join(webAppSourcePath, linkSourcePath)
+        : path.join(process.projectDir, webAppSourcePath, linkSourcePath)
     )
     linkTag.setAttribute('href', base64string)
   }

@@ -25,7 +25,9 @@ export async function runSasCode(command: Command) {
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')
   }
-  const sasFile = await readFile(path.join(process.cwd(), filePath))
+  const sasFile = await readFile(
+    path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath)
+  )
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === 'SASVIYA') {
     return await executeOnSasViya(filePath, target, linesToExecute)

@@ -16,7 +16,9 @@ export async function getDependencyPaths(
 
   if (macroFolders.length) {
     macroFolders.forEach((macroFolder) => {
-      const macroPath = path.join(buildSourceFolder, macroFolder)
+      const macroPath = path.isAbsolute(macroFolder)
+        ? macroFolder
+        : path.join(buildSourceFolder, macroFolder)
       sourcePaths.push(macroPath)
     })
   }
@@ -129,14 +131,19 @@ export async function getProgramDependencies(
     const foundProgramNames: string[] = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
-        const filePath = path.join(buildSourceFolder, programFolder)
-        const filePaths = find.fileSync(program.fileName, filePath)
+        const folderPath = path.isAbsolute(programFolder)
+          ? programFolder
+          : path.join(buildSourceFolder, programFolder)
+        const filePaths = find.fileSync(program.fileName, folderPath)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
 
           if (!fileContent) {
             process.logger?.warn(
-              `Program file ${path.join(filePath, program.fileName)} is empty.`
+              `Program file ${path.join(
+                folderPath,
+                program.fileName
+              )} is empty.`
             )
           }
 
