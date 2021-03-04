@@ -144,7 +144,7 @@ async function getAndValidateUpdateExisting(
       'Please choose either option 1 or 2.',
       [
         { title: '1. Update this target', value: 1 },
-        { title: '2. Re-enter target name for new', value: 2 }
+        { title: '2. Go back and create a new target', value: 2 }
       ]
     ).catch(() => {
       throw new Error(errorMessage)
