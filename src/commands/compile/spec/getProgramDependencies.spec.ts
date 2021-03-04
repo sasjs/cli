@@ -19,12 +19,14 @@ describe('getProgramDependencies', () => {
   ]
 
   test('it should get all program dependencies', async (done) => {
-    const fileContent = await readFile(path.join(__dirname, './example.sas'))
+    const filePath = path.join(__dirname, './example.sas')
+    const fileContent = await readFile(filePath)
 
     const dependencies = await getProgramDependencies(
       fileContent,
       ['programs'],
-      __dirname
+      __dirname,
+      filePath
     )
     const actualLines = dependencies.split('\n')
 
@@ -34,12 +36,14 @@ describe('getProgramDependencies', () => {
   })
 
   test('it should choose the first dependency when there are duplicates', async (done) => {
-    const fileContent = await readFile(path.join(__dirname, './duplicates.sas'))
+    const filePath = path.join(__dirname, './duplicates.sas')
+    const fileContent = await readFile(filePath)
 
     const dependencies = await getProgramDependencies(
       fileContent,
       ['programs'],
-      __dirname
+      __dirname,
+      filePath
     )
     const actualLines = dependencies.split('\n')
 
@@ -49,9 +53,8 @@ describe('getProgramDependencies', () => {
   })
 
   test('it should handle duplicate filenames with different extensions', async (done) => {
-    const fileContent = await readFile(
-      path.join(__dirname, './duplicates-extensions.sas')
-    )
+    const filePath = path.join(__dirname, './duplicates-extensions.sas')
+    const fileContent = await readFile(filePath)
     const expectedOutput = [
       'filename TEST temp;',
       'data _null_;',
@@ -69,7 +72,8 @@ describe('getProgramDependencies', () => {
     const dependencies = await getProgramDependencies(
       fileContent,
       ['programs'],
-      __dirname
+      __dirname,
+      filePath
     )
     const actualLines = dependencies.split('\n')
 
@@ -79,12 +83,11 @@ describe('getProgramDependencies', () => {
   })
 
   test('it should throw an error when a fileref is not specified', async (done) => {
-    const fileContent = await readFile(
-      path.join(__dirname, './missing-fileref.sas')
-    )
+    const filePath = path.join(__dirname, './missing-fileref.sas')
+    const fileContent = await readFile(filePath)
 
     await expect(
-      getProgramDependencies(fileContent, ['programs'], __dirname)
+      getProgramDependencies(fileContent, ['programs'], __dirname, filePath)
     ).rejects.toThrow(
       `SAS Program test.sas is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
     )
