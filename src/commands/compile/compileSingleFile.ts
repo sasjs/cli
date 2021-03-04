@@ -32,16 +32,21 @@ export async function compileSingleFile(
 
   if (!source) {
     throw new Error(`'--source' flag is missing (eg '${commandExample}')`)
-  } else if (!(await validateSourcePath(source))) {
-    throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
   const sourcePath = path.isAbsolute(source)
     ? source
     : path.join(process.projectDir, source)
-  const outputPath = path.isAbsolute(output)
-    ? output
-    : path.join(process.projectDir, output ?? './sasjsbuild')
+
+  if (!(await validateSourcePath(sourcePath))) {
+    throw new Error(`Provide a path to source file (eg '${commandExample}')`)
+  }
+
+  const outputPath = output
+    ? path.isAbsolute(output)
+      ? output
+      : path.join(process.projectDir, output)
+    : path.join(process.projectDir, './sasjsbuild')
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 

@@ -110,6 +110,19 @@ describe('sasjs compile single file', () => {
       await expect(
         compileSingleFile(
           target,
+          new Command(`compile job -s ./jobs/extract/makedata1.sas`),
+          'job'
+        )
+      ).toResolve()
+      expect(compileJobFile.compileJobFile).toHaveBeenCalled()
+
+      done()
+    })
+
+    it('should compile single file with absolute path', async (done) => {
+      await expect(
+        compileSingleFile(
+          target,
           new Command(
             `compile job -s ${process.projectDir}/jobs/extract/makedata1.sas`
           ),
@@ -131,6 +144,18 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file', async (done) => {
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s sasjs/services/common/example.sas`),
+          'service'
+        )
+      ).toResolve()
+      expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
+
+      done()
+    })
+    it('should compile single file with absolute path', async (done) => {
       await expect(
         compileSingleFile(
           target,
