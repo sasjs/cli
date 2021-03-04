@@ -42,24 +42,21 @@ export async function loadDependencies(
     }
   }
 
-  let init
-  let term
+  let init, initPath
+  let term, termPath
   let serviceVars = ''
 
   if (type === 'service') {
     serviceVars = await getServiceVars(target)
-
-    init = await getServiceInit(target)
-
-    term = await getServiceTerm(target)
+    ;({ content: init, filePath: initPath } = await getServiceInit(target))
+    ;({ content: term, filePath: termPath } = await getServiceTerm(target))
 
     fileContent = fileContent
       ? `\n* Service start;\n${fileContent}\n* Service end;`
       : ''
   } else {
-    init = await getJobInit(target)
-
-    term = await getJobTerm(target)
+    ;({ content: init, filePath: initPath } = await getJobInit(target))
+    ;({ content: term, filePath: termPath } = await getJobTerm(target))
 
     fileContent = fileContent
       ? `\n* Job start;\n${fileContent}\n* Job end;`
@@ -81,18 +78,21 @@ export async function loadDependencies(
   const initProgramDependencies = await getProgramDependencies(
     init,
     programFolders,
-    buildSourceFolder
+    buildSourceFolder,
+    initPath
   )
   const termProgramDependencies = await getProgramDependencies(
     term,
     programFolders,
-    buildSourceFolder
+    buildSourceFolder,
+    termPath
   )
 
   const programDependencies = await getProgramDependencies(
     fileContent,
     programFolders,
-    buildSourceFolder
+    buildSourceFolder,
+    filePath
   )
 
   const dependenciesContent = await getDependencies(allDependencyPaths)

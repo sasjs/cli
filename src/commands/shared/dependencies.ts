@@ -122,7 +122,8 @@ export function prioritiseDependencyOverrides(
 export async function getProgramDependencies(
   fileContent: string,
   programFolders: string[],
-  buildSourceFolder: string
+  buildSourceFolder: string,
+  filePath: string
 ) {
   programFolders = (uniqBy as any)(programFolders)
   const programs = getProgramList(fileContent)
@@ -169,7 +170,8 @@ export async function getProgramDependencies(
         .join('\n')
 
       throw new Error(
-        `The following files were listed under SAS Programs but could not be found:\n` +
+        `Unable to load dependencies for: ${filePath}\n` +
+          `The following files were listed under SAS Programs but could not be found:\n` +
           `${programList}\n` +
           `Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n` +
           `Program Folders:\n` +
