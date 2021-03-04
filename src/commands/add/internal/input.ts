@@ -15,6 +15,7 @@ import {
   getGlobalRcFile,
   getLocalConfig
 } from '../../../utils/config'
+import { TargetJson } from '../../../types/configuration'
 
 export async function getCommonFields(): Promise<{
   scope: TargetScope
@@ -22,24 +23,31 @@ export async function getCommonFields(): Promise<{
   name: string
   appLoc: string
   serverUrl: string
-  existingTarget: Target
+  existingTarget: TargetJson
 }> {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
   const name = await getAndValidateTargetName(serverType)
-  const { target, retry } = await getAndValidateUpdateExisting(scope, name)
+  const { targetJson, retry } = await getAndValidateUpdateExisting(scope, name)
 
   if (retry) return await getCommonFields()
 
-  if (target) {
+  if (targetJson) {
     process.logger?.info(`Updating current target '${name}'`)
   }
 
-  const appLoc = await getAndValidateAppLoc(name, target)
+  const appLoc = await getAndValidateAppLoc(name, targetJson)
 
-  const serverUrl = await getAndValidateServerUrl(target)
+  const serverUrl = await getAndValidateServerUrl(targetJson)
 
-  return { scope, serverType, name, appLoc, serverUrl, existingTarget: target }
+  return {
+    scope,
+    serverType,
+    name,
+    appLoc,
+    serverUrl,
+    existingTarget: targetJson
+  }
 }
 
 async function getAndValidateScope(): Promise<TargetScope> {
@@ -76,7 +84,7 @@ async function getAndValidateServerType(): Promise<ServerType> {
   return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
 }
 
-export async function getAndValidateServerUrl(target: Target) {
+export async function getAndValidateServerUrl(target: TargetJson) {
   const serverUrl = await getUrl(
     'Please enter a target server URL (including port, if relevant): ',
     'Server URL is required.',
@@ -118,17 +126,17 @@ async function getAndValidateTargetName(
 async function getAndValidateUpdateExisting(
   targetScope: TargetScope,
   targetName: string
-): Promise<{ target: Target; retry: boolean }> {
-  let config, target: Target
+): Promise<{ targetJson: TargetJson; retry: boolean }> {
+  let config, targetJson: TargetJson
   if (targetScope === TargetScope.Local) {
     config = await getLocalConfig()
   } else {
     config = await getGlobalRcFile()
   }
 
-  target = config?.targets?.find((t: Target) => t.name === targetName)
+  targetJson = config?.targets?.find((t: Target) => t.name === targetName)
 
-  if (target) {
+  if (targetJson) {
     process.logger?.info(`Found target with same name: '${targetName}'`)
     const errorMessage = 'Target update choice must be either 1 or 2.'
     const choice = await getChoice(
@@ -147,10 +155,10 @@ async function getAndValidateUpdateExisting(
     }
 
     console.log('Choice: ', choice)
-    return { target, retry: choice === 2 }
+    return { targetJson, retry: choice === 2 }
   }
 
-  return { target, retry: false }
+  return { targetJson, retry: false }
 }
 
 export async function getAndValidateSas9Fields() {
@@ -231,7 +239,7 @@ export async function getAndValidateSasViyaFields(
 
 async function getAndValidateAppLoc(
   targetName: string,
-  target: Target
+  target: TargetJson
 ): Promise<string> {
   const errorMessage = 'App location is required.'
 
