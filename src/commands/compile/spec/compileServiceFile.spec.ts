@@ -73,12 +73,14 @@ describe('compileServiceFile', () => {
   })
 
   test('it should compile and create file', async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue(
-      `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`
-    )
-    spyOn(internalModule, 'getServiceTerm').and.returnValue(
-      `\n* ServiceTerm start;\n${fakeJobTerm}\n* ServiceTerm end;`
-    )
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeJobTerm}\n* ServiceTerm end;`,
+      filePath: ''
+    })
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
