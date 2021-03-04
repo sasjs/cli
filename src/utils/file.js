@@ -55,7 +55,6 @@ export async function readFile(fileName) {
   return new Promise((resolve, reject) => {
     fs.readFile(fileName, 'utf8', function (error, data) {
       if (error) {
-        process.logger?.error(`Error accessing file: ${fileName}`)
         return reject(error)
       }
       return resolve(data)
