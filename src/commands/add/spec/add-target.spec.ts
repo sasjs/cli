@@ -13,16 +13,8 @@ import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
 import { TargetJson } from '../../../types/configuration'
 import { TargetScope } from '../../../types/targetScope'
+import { CommonFields } from '../../../types/commonFields'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
-
-interface CommonFields {
-  scope: TargetScope
-  serverType: ServerType
-  name: string
-  appLoc: string
-  serverUrl: string
-  existingTarget: TargetJson
-}
 
 describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`

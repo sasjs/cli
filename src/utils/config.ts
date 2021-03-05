@@ -100,9 +100,7 @@ export async function findTargetInConfiguration(
 
     if (fallBackTargetJson) {
       process.logger?.info(
-        `Target ${targetName || ''} was not found. Falling back to target ${
-          fallBackTargetJson.name
-        } from your local sasjsconfig.json file.`
+        `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
@@ -123,9 +121,7 @@ export async function findTargetInConfiguration(
 
   if (fallBackTargetJson) {
     process.logger?.info(
-      `Target ${targetName || ''} was not found. Falling back to target ${
-        fallBackTargetJson.name
-      } from your global .sasjsrc file.`
+      `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,

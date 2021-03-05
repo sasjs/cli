@@ -10,6 +10,7 @@ import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
 import { TargetScope } from '../../../types/targetScope'
+import { CommonFields } from '../../../types/commonFields'
 import {
   findTargetInConfiguration,
   getGlobalRcFile,
@@ -17,14 +18,7 @@ import {
 } from '../../../utils/config'
 import { TargetJson } from '../../../types/configuration'
 
-export async function getCommonFields(): Promise<{
-  scope: TargetScope
-  serverType: ServerType
-  name: string
-  appLoc: string
-  serverUrl: string
-  existingTarget: TargetJson
-}> {
+export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
   const name = await getAndValidateTargetName(serverType)
@@ -63,11 +57,10 @@ async function getAndValidateScope(): Promise<TargetScope> {
     throw new Error(errorMessage)
   })
 
-  if (scope === null || scope === undefined || Number.isNaN(scope)) {
+  if (!scope) {
     throw new Error(errorMessage)
   }
 
-  console.log('Scope: ', scope)
   return scope === 1 ? TargetScope.Local : TargetScope.Global
 }
 
@@ -150,11 +143,10 @@ async function getAndValidateUpdateExisting(
       throw new Error(errorMessage)
     })
 
-    if (choice === null || choice === undefined || Number.isNaN(choice)) {
+    if (!choice) {
       throw new Error(errorMessage)
     }
 
-    console.log('Choice: ', choice)
     return { targetJson, retry: choice === 2 }
   }
 
