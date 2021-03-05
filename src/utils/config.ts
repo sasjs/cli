@@ -256,7 +256,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
 
   const sourcePaths = configuration.macroFolders
     ? configuration.macroFolders.map((macroPath: string) =>
-        path.join(buildSourceFolder, macroPath)
+        path.isAbsolute(macroPath)
+          ? macroPath
+          : path.join(buildSourceFolder, macroPath)
       )
     : []
   const macroCorePath = path.join(
