@@ -11,17 +11,18 @@ export const getServiceInit = async (
   let serviceInitContent = '',
     filePath = ''
   if (target?.serviceConfig?.initProgram) {
-    filePath = path.join(buildSourceFolder, target.serviceConfig.initProgram)
+    filePath = path.isAbsolute(target.serviceConfig.initProgram)
+      ? target.serviceConfig.initProgram
+      : path.join(buildSourceFolder, target.serviceConfig.initProgram)
     serviceInitContent = await readFile(filePath)
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (configuration?.serviceConfig?.initProgram) {
-      filePath = path.join(
-        buildSourceFolder,
-        configuration.serviceConfig.initProgram
-      )
+      filePath = path.isAbsolute(configuration.serviceConfig.initProgram)
+        ? configuration.serviceConfig.initProgram
+        : path.join(buildSourceFolder, configuration.serviceConfig.initProgram)
       serviceInitContent = await readFile(filePath)
     }
   }
@@ -45,16 +46,18 @@ export const getServiceTerm = async (
     filePath = ''
   if (target?.serviceConfig?.termProgram) {
     filePath = path.join(buildSourceFolder, target.serviceConfig.termProgram)
+    filePath = path.isAbsolute(target.serviceConfig.termProgram)
+      ? target.serviceConfig.termProgram
+      : path.join(buildSourceFolder, target.serviceConfig.termProgram)
     serviceTermContent = await readFile(filePath)
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (configuration?.serviceConfig?.termProgram) {
-      filePath = path.join(
-        buildSourceFolder,
-        configuration.serviceConfig.termProgram
-      )
+      filePath = path.isAbsolute(configuration.serviceConfig.termProgram)
+        ? configuration.serviceConfig.termProgram
+        : path.join(buildSourceFolder, configuration.serviceConfig.termProgram)
       serviceTermContent = await readFile(filePath)
     }
   }
@@ -78,16 +81,18 @@ export const getJobInit = async (
     filePath = ''
   if (target?.jobConfig?.initProgram) {
     filePath = path.join(buildSourceFolder, target.jobConfig.initProgram)
+    filePath = path.isAbsolute(target.jobConfig.initProgram)
+      ? target.jobConfig.initProgram
+      : path.join(buildSourceFolder, target.jobConfig.initProgram)
     jobInitContent = await readFile(filePath)
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (configuration?.jobConfig?.initProgram) {
-      filePath = path.join(
-        buildSourceFolder,
-        configuration.jobConfig.initProgram
-      )
+      filePath = path.isAbsolute(configuration.jobConfig.initProgram)
+        ? configuration.jobConfig.initProgram
+        : path.join(buildSourceFolder, configuration.jobConfig.initProgram)
       jobInitContent = await readFile(filePath)
     }
   }
@@ -110,17 +115,18 @@ export const getJobTerm = async (
   let jobTermContent = '',
     filePath = ''
   if (target?.jobConfig?.termProgram) {
-    filePath = path.join(buildSourceFolder, target.jobConfig.termProgram)
+    filePath = path.isAbsolute(target.jobConfig.termProgram)
+      ? target.jobConfig.termProgram
+      : path.join(buildSourceFolder, target.jobConfig.termProgram)
     jobTermContent = await readFile(filePath)
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
     if (configuration?.jobConfig?.termProgram) {
-      filePath = path.join(
-        buildSourceFolder,
-        configuration.jobConfig.termProgram
-      )
+      filePath = path.isAbsolute(configuration.jobConfig.termProgram)
+        ? configuration.jobConfig.termProgram
+        : path.join(buildSourceFolder, configuration.jobConfig.termProgram)
       jobTermContent = await readFile(filePath)
     }
   }

@@ -29,6 +29,15 @@ export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = path.join(parentFolder, appName)
 }
 
+export const createTestJobsApp = async (
+  parentFolder: string,
+  appName: string
+) => {
+  process.projectDir = parentFolder
+  await create(appName, 'jobs')
+  process.projectDir = path.join(parentFolder, appName)
+}
+
 export const createTestMinimalApp = async (
   parentFolder: string,
   appName: string
