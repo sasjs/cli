@@ -84,6 +84,11 @@ export async function findTargetInConfiguration(
     }
   }
 
+  if (targetName)
+    throw new Error(
+      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
+
   let fallBackTargetJson
 
   if (localConfig?.targets) {
@@ -94,10 +99,8 @@ export async function findTargetInConfiguration(
       : undefined
 
     if (fallBackTargetJson) {
-      process.logger?.warn(
-        `Target ${targetName || ''} was not found. Falling back to target ${
-          fallBackTargetJson.name
-        } from your local sasjsconfig.json file.`
+      process.logger?.info(
+        `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
@@ -117,10 +120,8 @@ export async function findTargetInConfiguration(
     : undefined
 
   if (fallBackTargetJson) {
-    process.logger?.warn(
-      `Target ${targetName || ''} was not found. Falling back to target ${
-        fallBackTargetJson.name
-      } from your global .sasjsrc file.`
+    process.logger?.info(
+      `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,
@@ -255,7 +256,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
 
   const sourcePaths = configuration.macroFolders
     ? configuration.macroFolders.map((macroPath: string) =>
-        path.join(buildSourceFolder, macroPath)
+        path.isAbsolute(macroPath)
+          ? macroPath
+          : path.join(buildSourceFolder, macroPath)
       )
     : []
   const macroCorePath = path.join(

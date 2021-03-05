@@ -32,7 +32,7 @@ export const addCredential = async (
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   if (!target.serverUrl) {
-    const serverUrl = await getAndValidateServerUrl()
+    const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(), serverUrl })
   }
 
