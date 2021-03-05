@@ -51,7 +51,6 @@ const initialFlags = arrToObj([
     'target',
     'source',
     'template',
-    'source',
     'datafile',
     'configfile',
     'wait',
@@ -103,7 +102,10 @@ const commandFlags = [
   },
   { command: initialCommands.web, flags: [initialFlags.target] },
   { command: initialCommands['build-DB'], flags: [initialFlags.target] },
-  { command: initialCommands.compile, flags: [initialFlags.target] },
+  {
+    command: initialCommands.compile,
+    flags: [initialFlags.target, initialFlags.source, initialFlags.output]
+  },
   { command: initialCommands.build, flags: [initialFlags.target] },
   { command: initialCommands.compilebuild, flags: [initialFlags.target] },
   { command: initialCommands.deploy, flags: [initialFlags.target] },

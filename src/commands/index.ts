@@ -1,6 +1,9 @@
 export { addTarget } from './add/addTarget'
 export { addCredential } from './add/addCredential'
 
+export { compile } from './compile/compile'
+export { compileSingleFile } from './compile/compileSingleFile'
+
 export { build, getBuildVars } from './build/build'
 
 export { processContext } from './context'
