@@ -170,7 +170,7 @@ export async function saveGlobalRcFile(content: string) {
   return rcFilePath
 }
 
-export async function saveToGlobalConfig(target: Target, isDefault: boolean) {
+export async function saveToGlobalConfig(target: Target, isDefault: boolean = false) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson()
   if (globalConfig) {
@@ -240,7 +240,7 @@ export async function getLocalConfig() {
   return config
 }
 
-export async function saveToLocalConfig(target: Target, isDefault: boolean) {
+export async function saveToLocalConfig(target: Target, isDefault: boolean = false) {
   const { buildSourceFolder } = getConstants()
   const targetJson = target.toJson()
   let config = await getLocalConfig()
