@@ -8,7 +8,8 @@ import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,
   getAndValidateSasViyaFields,
-  getAndValidateSas9Fields
+  getAndValidateSas9Fields,
+  getIsDefault
 } from './internal/input'
 import { addCredential } from './addCredential'
 
@@ -36,7 +37,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     appLoc
   }
 
-  let filePath = await saveConfig(scope, new Target(targetJson))
+  let filePath = await saveConfig(scope, new Target(targetJson), false)
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
@@ -69,20 +70,26 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     targetJson = { ...currentTarget.toJson(), ...targetJson }
   }
 
-  filePath = await saveConfig(scope, new Target(targetJson))
+  const isDefault = await getIsDefault()
+
+  filePath = await saveConfig(scope, new Target(targetJson), isDefault)
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
 
   return true
 }
 
-async function saveConfig(scope: TargetScope, target: Target) {
+async function saveConfig(
+  scope: TargetScope,
+  target: Target,
+  isDefault: boolean
+) {
   let filePath = ''
 
   if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(target as Target)
+    filePath = await saveToLocalConfig(target, isDefault)
   } else if (scope === TargetScope.Global) {
-    filePath = await saveToGlobalConfig(target as Target)
+    filePath = await saveToGlobalConfig(target, isDefault)
   }
 
   return filePath

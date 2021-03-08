@@ -1,10 +1,14 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils/types'
+import {
+  Configuration,
+  ServerType,
+  Target,
+  TargetJson
+} from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { Configuration, TargetJson } from '../types'
 import { getConstants } from '../constants'
 
 /**
@@ -166,13 +170,16 @@ export async function saveGlobalRcFile(content: string) {
   return rcFilePath
 }
 
-export async function saveToGlobalConfig(buildTarget: Target) {
+export async function saveToGlobalConfig(
+  target: Target,
+  isDefault: boolean = false
+) {
   let globalConfig = await getGlobalRcFile()
-  const targetJson = buildTarget.toJson()
+  const targetJson = target.toJson()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
-        (t: Target) => t.name === buildTarget.name
+        (t: Target) => t.name === target.name
       )
       if (existingTargetIndex > -1) {
         globalConfig.targets[existingTargetIndex] = targetJson
@@ -185,16 +192,45 @@ export async function saveToGlobalConfig(buildTarget: Target) {
   } else {
     globalConfig = { targets: [targetJson] }
   }
+
+  if (isDefault) {
+    globalConfig.defaultTarget = target.name
+  }
+
   return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 export async function removeFromGlobalConfig(targetName: string) {
-  let globalConfig = await getGlobalRcFile()
+  let globalConfig = (await getGlobalRcFile()) as Configuration
   if (globalConfig && globalConfig.targets && globalConfig.targets.length) {
-    const targets = globalConfig.targets.filter(
-      (t: Target) => t.name !== targetName
+    const targets = globalConfig.targets.filter((t) => t.name !== targetName)
+
+    if (globalConfig.defaultTarget === targetName) {
+      globalConfig.defaultTarget = ''
+    }
+
+    await saveGlobalRcFile(
+      JSON.stringify({ ...globalConfig, targets }, null, 2)
     )
-    await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
+  }
+}
+
+export async function removeFromLocalConfig(targetName: string) {
+  let config = (await getLocalConfig()) as Configuration
+  if (config && config.targets && config.targets.length) {
+    const { buildSourceFolder } = getConstants()
+    const targets = config.targets.filter((t) => t.name !== targetName)
+
+    if (config.defaultTarget === targetName) {
+      config.defaultTarget = ''
+    }
+
+    const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+
+    await createFile(
+      configPath,
+      JSON.stringify({ ...config, targets }, null, 2)
+    )
   }
 }
 
@@ -207,7 +243,10 @@ export async function getLocalConfig() {
   return config
 }
 
-export async function saveToLocalConfig(target: Target) {
+export async function saveToLocalConfig(
+  target: Target,
+  isDefault: boolean = false
+) {
   const { buildSourceFolder } = getConstants()
   const targetJson = target.toJson()
   let config = await getLocalConfig()
@@ -226,6 +265,10 @@ export async function saveToLocalConfig(target: Target) {
     }
   } else {
     config = { targets: [targetJson] }
+  }
+
+  if (isDefault) {
+    config.defaultTarget = target.name
   }
 
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')

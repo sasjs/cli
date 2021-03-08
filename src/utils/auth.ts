@@ -1,4 +1,4 @@
-import { getString, Target, SasAuthResponse } from '@sasjs/utils'
+import { getString, SasAuthResponse, Target } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
 import SASjs from '@sasjs/adapter/node'
 
