@@ -280,5 +280,8 @@ export const getDefaultValues = (targetName: string) => {
 }
 
 export const getIsDefault = async () => {
-  return await getConfirmation('Would you like to set this as your default target?', false)
+  return await getConfirmation(
+    'Would you like to set this as your default target?',
+    false
+  )
 }
