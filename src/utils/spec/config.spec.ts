@@ -216,7 +216,7 @@ describe('overrideEnvVariables', () => {
   it('should display a warning when the target env file is not found', async (done) => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
-    jest.spyOn(fileUtils, 'readFile').mockImplementation(() => Promise.reject())
+    jest.spyOn(fileUtils, 'readFile').mockImplementationOnce(() => Promise.reject())
     jest.spyOn(process.logger, 'warn')
     jest.spyOn(dotenv, 'parse')
 
@@ -234,7 +234,7 @@ describe('overrideEnvVariables', () => {
     process.projectDir = __dirname
     jest
       .spyOn(fileUtils, 'readFile')
-      .mockImplementation(() => Promise.resolve('ACCESS_TOKEN=T4RG3TT0K3N'))
+      .mockImplementationOnce(() => Promise.resolve('ACCESS_TOKEN=T4RG3TT0K3N'))
 
     jest.spyOn(process.logger, 'warn')
     jest.spyOn(dotenv, 'parse')
@@ -394,6 +394,73 @@ describe('saveToLocalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
     await removeFromLocalConfig(target.name)
+
+    done()
+  })
+})
+
+describe('removeFromLocalConfig', () => {
+  let appName: string
+
+  beforeEach(async (done) => {
+    appName = `cli-tests-config-${generateTimestamp()}`
+    await createTestMinimalApp(__dirname, appName)
+    done()
+  })
+
+  afterEach(async (done) => {
+    await removeTestApp(__dirname, appName)
+    done()
+  })
+
+  it('should reset the default target when that target is removed', async (done) => {
+    const appName = 'cli-tests-config-' + generateTimestamp()
+    const target = await generateTestTarget(
+      appName,
+      `/Public/app/cli-tests/${appName}`
+    )
+
+    await saveToLocalConfig(target, true)
+
+    let config = (await getLocalConfig()) as Configuration
+    expect(config.defaultTarget).toEqual(target.name)
+    await removeFromLocalConfig(target.name)
+
+    config = (await getLocalConfig()) as Configuration
+    const configTarget = config.targets?.find((t) => t.name === target.name)
+    expect(configTarget).toBeFalsy()
+    expect(config.defaultTarget).toEqual('')
+
+    done()
+  })
+
+  it('should not change the default target when another target is removed', async (done) => {
+    const appName1 = 'cli-tests-config-1-' + generateTimestamp()
+    const appName2 = 'cli-tests-config-2-' + generateTimestamp()
+    const target1 = await generateTestTarget(
+      appName1,
+      `/Public/app/cli-tests/${appName1}`
+    )
+    const target2 = await generateTestTarget(
+      appName2,
+      `/Public/app/cli-tests/${appName2}`
+    )
+
+    await saveToLocalConfig(target1, true)
+    await saveToLocalConfig(target2, false)
+
+    let config = (await getLocalConfig()) as Configuration
+    expect(config.defaultTarget).toEqual(target1.name)
+    const configTarget1 = config.targets?.find((t) => t.name === target1.name)
+    expect(configTarget1).toBeTruthy()
+    let configTarget2 = config.targets?.find((t) => t.name === target2.name)
+    expect(configTarget2).toBeTruthy()
+
+    await removeFromLocalConfig(target2.name)
+    config = (await getLocalConfig()) as Configuration
+    configTarget2 = config.targets?.find((t) => t.name === target2.name)
+    expect(configTarget2).toBeFalsy()
+    expect(config.defaultTarget).toEqual(target1.name)
 
     done()
   })
