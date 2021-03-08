@@ -216,7 +216,9 @@ describe('overrideEnvVariables', () => {
   it('should display a warning when the target env file is not found', async (done) => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
-    jest.spyOn(fileUtils, 'readFile').mockImplementationOnce(() => Promise.reject())
+    jest
+      .spyOn(fileUtils, 'readFile')
+      .mockImplementationOnce(() => Promise.reject())
     jest.spyOn(process.logger, 'warn')
     jest.spyOn(dotenv, 'parse')
 
