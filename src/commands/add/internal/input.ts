@@ -4,7 +4,7 @@ import {
   getChoice,
   getUrl
 } from '@sasjs/utils/input'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { Target, TargetJson, ServerType } from '@sasjs/utils/types'
 import { LogLevel } from '@sasjs/utils/logger'
 import path from 'path'
 import dotenv from 'dotenv'
@@ -16,7 +16,6 @@ import {
   getGlobalRcFile,
   getLocalConfig
 } from '../../../utils/config'
-import { TargetJson } from '../../../types/configuration'
 
 export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()

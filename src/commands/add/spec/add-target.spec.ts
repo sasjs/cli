@@ -1,4 +1,4 @@
-import { ServerType, Target } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
@@ -8,10 +8,8 @@ import {
   getGlobalRcFile,
   removeFromGlobalConfig
 } from '../../../utils/config'
-import { deleteFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
-import { TargetJson } from '../../../types/configuration'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'

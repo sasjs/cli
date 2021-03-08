@@ -1,10 +1,14 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils/types'
+import {
+  Configuration,
+  ServerType,
+  Target,
+  TargetJson
+} from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { Configuration, TargetJson } from '../types'
 import { getConstants } from '../constants'
 
 /**
