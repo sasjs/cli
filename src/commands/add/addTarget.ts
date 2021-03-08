@@ -44,7 +44,6 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName } = await getAndValidateSas9Fields()
     targetJson = {
-      ...targetJson,
       serverName,
       repositoryName
     }
@@ -58,7 +57,6 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     )
 
     targetJson = {
-      ...targetJson,
       contextName,
       deployConfig: {
         deployServicePack: true,
