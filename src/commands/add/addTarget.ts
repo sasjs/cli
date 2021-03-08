@@ -8,10 +8,10 @@ import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,
   getAndValidateSasViyaFields,
-  getAndValidateSas9Fields
+  getAndValidateSas9Fields,
+  getIsDefault
 } from './internal/input'
 import { addCredential } from './addCredential'
-import { getConfirmation } from '@sasjs/utils'
 
 /**
  * Creates new target/ updates current target(if found) for either local config or global config file.
@@ -70,10 +70,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     targetJson = { ...currentTarget.toJson(), ...targetJson }
   }
 
-  const isDefault = await getConfirmation(
-    'Would you like to set this as your default target?',
-    false
-  )
+  const isDefault = await getIsDefault()
 
   filePath = await saveConfig(scope, new Target(targetJson), isDefault)
 

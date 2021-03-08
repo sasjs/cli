@@ -278,3 +278,7 @@ export const getDefaultValues = (targetName: string) => {
 
   return { client: defaultClient, secret: defaultSecret }
 }
+
+export const getIsDefault = async () => {
+  return await getConfirmation('Would you like to set this as your default target?', false)
+}

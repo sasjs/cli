@@ -50,6 +50,9 @@ describe('addTarget', () => {
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
     jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
         Promise.resolve({ contextName: 'Test Context' })
@@ -74,6 +77,9 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
       Promise.resolve({
         serverName: 'testServer',
@@ -100,6 +106,9 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
@@ -134,6 +143,9 @@ describe('addTarget', () => {
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
     jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
         Promise.resolve({ contextName: 'Test Context' })
@@ -166,6 +178,9 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
       Promise.resolve({
         serverName: 'testServer',
@@ -197,6 +212,9 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
