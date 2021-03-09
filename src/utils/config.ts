@@ -87,23 +87,23 @@ export async function findTargetInConfiguration(
     throw new Error(
       `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
     )
+  } else {
+    try {
+      target = await getLocalFallbackTarget(viyaSpecific)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: true }
+
+    try {
+      target = await getGlobalFallbackTarget(viyaSpecific)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: false }
+
+    throw new Error(
+      `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
   }
-
-  try {
-    target = await getLocalFallbackTarget(viyaSpecific)
-  } catch (e) {}
-
-  if (target) return { target, isLocal: true }
-
-  try {
-    target = await getGlobalFallbackTarget(viyaSpecific)
-  } catch (e) {}
-
-  if (target) return { target, isLocal: false }
-
-  throw new Error(
-    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-  )
 }
 
 async function getLocalTarget(targetName: string): Promise<Target> {
