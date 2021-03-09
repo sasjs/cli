@@ -10,7 +10,7 @@ import path from 'path'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -24,7 +24,6 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
-import { TargetJson } from '../../../types/configuration'
 
 describe('sasjs cbd with global config', () => {
   let target: Target

@@ -1,7 +1,6 @@
 import path from 'path'
 
-import { Target } from '@sasjs/utils'
-import { Configuration } from '../../../types/configuration'
+import { Target, Configuration } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
 
 /**
