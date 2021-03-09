@@ -10,6 +10,7 @@ import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { getConstants } from '../constants'
+import { TargetScope } from '../types/targetScope'
 
 /**
  * Returns an object that represents the SASjs CLI configuration in a given file.
@@ -36,13 +37,13 @@ export async function getConfiguration(
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
  * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
- * @param {boolean} enforceLocal - will enforce to find target in local config only.
+ * @param {TargetScope} targetScope - if specified will either consider only Local OR only Global targets.
  * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
-  viyaSpecific = false,
-  enforceLocal = false
+  viyaSpecific: boolean = false,
+  targetScope: TargetScope | undefined = undefined
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
@@ -50,6 +51,63 @@ export async function findTargetInConfiguration(
     process.projectDir = rootDir
   }
 
+  if (targetScope === TargetScope.Local) {
+    return targetName
+      ? { target: await getLocalTarget(targetName), isLocal: true }
+      : {
+          target: await getLocalFallbackTarget(viyaSpecific),
+          isLocal: true
+        }
+  }
+
+  if (targetScope === TargetScope.Global) {
+    return targetName
+      ? { target: await getGlobalTarget(targetName), isLocal: false }
+      : {
+          target: await getGlobalFallbackTarget(viyaSpecific),
+          isLocal: false
+        }
+  }
+
+  let target
+
+  if (targetName) {
+    try {
+      target = await getLocalTarget(targetName)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: true }
+
+    try {
+      target = await getGlobalTarget(targetName)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: false }
+
+    throw new Error(
+      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
+  }
+
+  try {
+    target = await getLocalFallbackTarget(viyaSpecific)
+  } catch (e) {}
+
+  if (target) return { target, isLocal: true }
+
+  try {
+    target = await getGlobalFallbackTarget(viyaSpecific)
+  } catch (e) {}
+
+  if (target) return { target, isLocal: false }
+
+  throw new Error(
+    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+
+async function getLocalTarget(targetName: string): Promise<Target> {
+  let target
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
@@ -65,36 +123,21 @@ export async function findTargetInConfiguration(
         targetJson
       )
 
-      return { target: new Target(targetJson), isLocal: true }
+      return new Target(targetJson)
     }
   }
 
-  const globalConfig = enforceLocal ? { targets: [] } : await getGlobalRcFile()
-
-  if (globalConfig?.targets) {
-    const targetJson = globalConfig.targets.find(
-      (t: Target) => t.name === targetName
-    )
-    if (targetJson) {
-      process.logger?.info(
-        `Target ${targetName} was found in your global .sasjsrc file.`
-      )
-      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        globalConfig,
-        targetJson
-      )
-
-      return { target: new Target(targetJson), isLocal: false }
-    }
-  }
-
-  if (targetName)
-    throw new Error(
-      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-    )
+  throw new Error(
+    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getLocalFallbackTarget(viyaSpecific: boolean): Promise<Target> {
+  let target
+  const localConfig = await getConfiguration(
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
 
   let fallBackTargetJson
-
   if (localConfig?.targets) {
     fallBackTargetJson = viyaSpecific
       ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
@@ -111,9 +154,40 @@ export async function findTargetInConfiguration(
         fallBackTargetJson
       )
 
-      return { target: new Target(fallBackTargetJson), isLocal: true }
+      return new Target(fallBackTargetJson)
     }
   }
+  throw new Error(
+    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getGlobalTarget(targetName: string): Promise<Target> {
+  const globalConfig = await getGlobalRcFile()
+
+  if (globalConfig?.targets) {
+    const targetJson = globalConfig.targets.find(
+      (t: Target) => t.name === targetName
+    )
+    if (targetJson) {
+      process.logger?.info(
+        `Target ${targetName} was found in your global .sasjsrc file.`
+      )
+      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        globalConfig,
+        targetJson
+      )
+
+      return new Target(targetJson)
+    }
+  }
+
+  throw new Error(
+    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getGlobalFallbackTarget(viyaSpecific: boolean): Promise<Target> {
+  const globalConfig = await getGlobalRcFile()
+  let fallBackTargetJson
 
   fallBackTargetJson = viyaSpecific
     ? globalConfig.targets.find(
@@ -132,13 +206,11 @@ export async function findTargetInConfiguration(
       fallBackTargetJson
     )
 
-    return { target: new Target(fallBackTargetJson), isLocal: false }
+    return new Target(fallBackTargetJson)
   }
 
   throw new Error(
-    `Target ${
-      targetName || ''
-    } was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
 }
 

@@ -11,6 +11,7 @@ import {
 } from '../../utils/config'
 import { createFile } from '../../utils/file'
 import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
+import { TargetScope } from '../../types/targetScope'
 
 /**
  * Creates a .env file for the specified target.
@@ -21,11 +22,16 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  */
 export const addCredential = async (
   targetName: string,
-  insecure: boolean = false
+  insecure: boolean = false,
+  targetScope: TargetScope | undefined = undefined
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
 
-  let { target, isLocal } = await findTargetInConfiguration(targetName)
+  let { target, isLocal } = await findTargetInConfiguration(
+    targetName,
+    false,
+    targetScope
+  )
 
   insecure = insecure || target.allowInsecureRequests
 

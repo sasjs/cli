@@ -173,7 +173,11 @@ export async function getAndValidateSasViyaFields(
   scope: TargetScope,
   serverUrl: string,
   insecure: boolean,
-  authenticateCallback: (targetName: string, insecure: boolean) => Promise<void>
+  authenticateCallback: (
+    targetName: string,
+    insecure: boolean,
+    targetScope: TargetScope
+  ) => Promise<void>
 ): Promise<{
   contextName: string
 }> {
@@ -184,7 +188,7 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await authenticateCallback(targetName, insecure)
+    await authenticateCallback(targetName, insecure, scope)
 
     const sasjs = new SASjs({
       serverUrl,
