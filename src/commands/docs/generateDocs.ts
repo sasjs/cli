@@ -52,7 +52,9 @@ export async function generateDocs(targetName: string, outDirectory: string) {
       ...serviceFolders,
       ...jobFolders
     ])
-  ].join(' ')
+  ]
+    .map((fpath: string) => `"${fpath}"`)
+    .join(' \\ \n')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -101,7 +103,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(
-    `${doxyParams} doxygen ${doxyConfigPath}`,
+    `${doxyParams} doxygen '${doxyConfigPath}'`,
     {
       silent: true
     }
@@ -135,7 +137,7 @@ function setVariableCmd(params: any): string {
     }
   } else {
     for (const param in params) {
-      command += `${param}="${params[param]}" `
+      command += `${param}='${params[param]}' `
     }
   }
   return command
