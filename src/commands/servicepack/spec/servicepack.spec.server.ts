@@ -3,8 +3,7 @@ import path from 'path'
 import { processServicepack } from '..'
 import { folder } from '../../folder/index'
 import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target } from '@sasjs/utils/types'
-import { TargetJson } from '../../../types/configuration'
+import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -26,6 +25,7 @@ describe('sasjs servicepack', () => {
       name: targetName,
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
+      allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
       authConfig: {
         client: process.env.CLIENT as string,

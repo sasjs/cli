@@ -37,14 +37,16 @@ export async function deploy(target: Target, isLocal: boolean) {
 
   const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
+    const deployScriptPath = path.isAbsolute(deployScript)
+      ? deployScript
+      : path.join(process.projectDir, deployScript)
+
     if (isSasFile(deployScript)) {
       process.logger?.info(
         `Processing SAS file ${path.basename(deployScript)} ...`
       )
       // get content of file
-      const deployScriptFile = await readFile(
-        path.join(process.projectDir, deployScript)
-      )
+      const deployScriptFile = await readFile(deployScriptPath)
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
       if (target.serverType === ServerType.SasViya) {
@@ -61,7 +63,6 @@ export async function deploy(target: Target, isLocal: boolean) {
     } else if (isShellScript(deployScript)) {
       process.logger?.info(`Executing shell script ${deployScript} ...`)
 
-      const deployScriptPath = path.join(process.projectDir, deployScript)
       const logPath = path.join(
         process.projectDir,
         'sasjsbuild',

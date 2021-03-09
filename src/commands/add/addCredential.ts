@@ -32,7 +32,7 @@ export const addCredential = async (
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   if (!target.serverUrl) {
-    const serverUrl = await getAndValidateServerUrl()
+    const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(), serverUrl })
   }
 
@@ -53,13 +53,13 @@ export const addCredential = async (
       access_token,
       refresh_token
     )
-    await saveToLocalConfig(target)
+    await saveToLocalConfig(target, false)
   } else {
     target = new Target({
       ...target.toJson(),
       authConfig: { client, secret, access_token, refresh_token }
     })
-    await saveToGlobalConfig(target)
+    await saveToGlobalConfig(target, false)
   }
 }
 

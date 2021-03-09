@@ -30,7 +30,11 @@ export async function runSasJob(command: Command) {
       throw new Error('Provided data file must be valid json.')
     }
 
-    const dataFile = await readFile(path.join(process.projectDir, dataFilePath))
+    const dataFile = await readFile(
+      path.isAbsolute(dataFilePath)
+        ? dataFilePath
+        : path.join(process.projectDir, dataFilePath)
+    )
 
     try {
       dataJson = JSON.parse(dataFile)
@@ -45,7 +49,9 @@ export async function runSasJob(command: Command) {
     }
 
     const configFile = await readFile(
-      path.join(process.projectDir, configFilePath)
+      path.isAbsolute(configFilePath)
+        ? configFilePath
+        : path.join(process.projectDir, configFilePath)
     )
 
     try {

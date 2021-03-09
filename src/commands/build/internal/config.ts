@@ -7,21 +7,21 @@ import { readFile } from '../../../utils/file'
 export const getBuildInit = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let buildInitContent = ''
-  if (target && target.buildConfig && target.buildConfig.initProgram) {
+  if (target?.buildConfig?.initProgram) {
     buildInitContent = await readFile(
-      path.join(buildSourceFolder, target.buildConfig.initProgram)
+      path.isAbsolute(target.buildConfig.initProgram)
+        ? target.buildConfig.initProgram
+        : path.join(buildSourceFolder, target.buildConfig.initProgram)
     )
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.buildConfig &&
-      configuration.buildConfig.initProgram
-    ) {
+    if (configuration?.buildConfig?.initProgram) {
       buildInitContent = await readFile(
-        path.join(buildSourceFolder, configuration.buildConfig.initProgram)
+        path.isAbsolute(configuration.buildConfig.initProgram)
+          ? configuration.buildConfig.initProgram
+          : path.join(buildSourceFolder, configuration.buildConfig.initProgram)
       )
     }
   }
@@ -34,21 +34,21 @@ export const getBuildInit = async (target: Target) => {
 export const getBuildTerm = async (target: Target) => {
   const { buildSourceFolder } = getConstants()
   let buildTermContent = ''
-  if (target && target.buildConfig && target.buildConfig.termProgram) {
+  if (target?.buildConfig?.termProgram) {
     buildTermContent = await readFile(
-      path.join(buildSourceFolder, target.buildConfig.termProgram)
+      path.isAbsolute(target.buildConfig.termProgram)
+        ? target.buildConfig.termProgram
+        : path.join(buildSourceFolder, target.buildConfig.termProgram)
     )
   } else {
     const configuration = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    if (
-      configuration &&
-      configuration.buildConfig &&
-      configuration.buildConfig.termProgram
-    ) {
+    if (configuration?.buildConfig?.termProgram) {
       buildTermContent = await readFile(
-        path.join(buildSourceFolder, configuration.buildConfig.termProgram)
+        path.isAbsolute(configuration.buildConfig.termProgram)
+          ? configuration.buildConfig.termProgram
+          : path.join(buildSourceFolder, configuration.buildConfig.termProgram)
       )
     }
   }

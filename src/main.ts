@@ -1,6 +1,8 @@
 import {
   addCredential,
   addTarget,
+  compile,
+  compileSingleFile,
   build,
   processContext,
   init,
@@ -22,7 +24,6 @@ import {
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
-import { compile } from './commands/compile/compile'
 import { getConstants } from './constants'
 import { findTargetInConfiguration } from './utils/config'
 import { Target } from '@sasjs/utils/types'
@@ -122,6 +123,7 @@ export async function showVersion() {
 }
 
 export async function compileServices(command: Command) {
+  const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target') as string
 
   if (!targetName) {
@@ -133,6 +135,9 @@ export async function compileServices(command: Command) {
     target = (await findTargetInConfiguration(targetName)).target
   } catch (error) {}
 
+  if (subCommand) {
+    return await executeSingleFileCompile(target, command, subCommand)
+  }
   return await executeCompile(target)
 }
 
@@ -401,6 +406,23 @@ export async function flowManagement(command: Command) {
     })
 }
 
+async function executeSingleFileCompile(
+  target: Target,
+  command: Command,
+  subCommand: string
+) {
+  return await compileSingleFile(target, command, subCommand)
+    .then((res) => {
+      displaySuccess(
+        `Source has been successfully compiled!\nThe compiled output is located in at:\n- '${res.destinationPath}'`
+      )
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when compiling source.')
+      return ReturnCode.InternalError
+    })
+}
 async function executeCompile(target: Target) {
   return await compile(target, true)
     .then(() => {

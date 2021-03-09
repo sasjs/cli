@@ -4,28 +4,43 @@ import {
   getChoice,
   getUrl
 } from '@sasjs/utils/input'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { Target, TargetJson, ServerType } from '@sasjs/utils/types'
 import { LogLevel } from '@sasjs/utils/logger'
 import path from 'path'
 import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
 import { TargetScope } from '../../../types/targetScope'
+import { CommonFields } from '../../../types/commonFields'
 import {
   findTargetInConfiguration,
   getGlobalRcFile,
   getLocalConfig
 } from '../../../utils/config'
 
-export async function getCommonFields() {
+export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
-  const name = await getAndValidateTargetName(scope, serverType)
+  const name = await getAndValidateTargetName(serverType)
+  const { targetJson, retry } = await getAndValidateUpdateExisting(scope, name)
 
-  const appLoc = await getAndValidateAppLoc(name)
+  if (retry) return await getCommonFields()
 
-  const serverUrl = await getAndValidateServerUrl()
+  if (targetJson) {
+    process.logger?.info(`Updating current target '${name}'`)
+  }
 
-  return { scope, serverType, name, appLoc, serverUrl }
+  const appLoc = await getAndValidateAppLoc(name, targetJson)
+
+  const serverUrl = await getAndValidateServerUrl(targetJson)
+
+  return {
+    scope,
+    serverType,
+    name,
+    appLoc,
+    serverUrl,
+    existingTarget: targetJson
+  }
 }
 
 async function getAndValidateScope(): Promise<TargetScope> {
@@ -41,11 +56,10 @@ async function getAndValidateScope(): Promise<TargetScope> {
     throw new Error(errorMessage)
   })
 
-  if (scope === null || scope === undefined || Number.isNaN(scope)) {
+  if (!scope) {
     throw new Error(errorMessage)
   }
 
-  console.log('Scope: ', scope)
   return scope === 1 ? TargetScope.Local : TargetScope.Global
 }
 
@@ -62,36 +76,20 @@ async function getAndValidateServerType(): Promise<ServerType> {
   return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
 }
 
-export async function getAndValidateServerUrl() {
+export async function getAndValidateServerUrl(target: TargetJson) {
   const serverUrl = await getUrl(
     'Please enter a target server URL (including port, if relevant): ',
-    'Server URL is required.'
+    'Server URL is required.',
+    target?.serverUrl
   )
 
   return serverUrl
 }
 
 async function getAndValidateTargetName(
-  targetScope: TargetScope,
   serverType: ServerType
 ): Promise<string> {
   const validator = async (value: string) => {
-    let config
-    if (targetScope === TargetScope.Local) {
-      config = await getLocalConfig()
-    } else {
-      config = await getGlobalRcFile()
-    }
-
-    let existingTargetNames = []
-    if (config && config.targets) {
-      existingTargetNames = config.targets.map((t: Target) => t.name)
-    }
-
-    if (existingTargetNames.includes(value)) {
-      return `A target with the name ${value} already exists. Please try again with a different target name.`
-    }
-
     if (!value) {
       return 'Target name is required.'
     }
@@ -115,6 +113,43 @@ async function getAndValidateTargetName(
   )
 
   return targetName
+}
+
+async function getAndValidateUpdateExisting(
+  targetScope: TargetScope,
+  targetName: string
+): Promise<{ targetJson: TargetJson; retry: boolean }> {
+  let config, targetJson: TargetJson
+  if (targetScope === TargetScope.Local) {
+    config = await getLocalConfig()
+  } else {
+    config = await getGlobalRcFile()
+  }
+
+  targetJson = config?.targets?.find((t: Target) => t.name === targetName)
+
+  if (targetJson) {
+    process.logger?.info(`Found target with same name: '${targetName}'`)
+    const errorMessage = 'Target update choice must be either 1 or 2.'
+    const choice = await getChoice(
+      'Please pick an option for the current target: ',
+      'Please choose either option 1 or 2.',
+      [
+        { title: '1. Update this target', value: 1 },
+        { title: '2. Go back and create a new target', value: 2 }
+      ]
+    ).catch(() => {
+      throw new Error(errorMessage)
+    })
+
+    if (!choice) {
+      throw new Error(errorMessage)
+    }
+
+    return { targetJson, retry: choice === 2 }
+  }
+
+  return { targetJson, retry: false }
 }
 
 export async function getAndValidateSas9Fields() {
@@ -193,12 +228,16 @@ export async function getAndValidateSasViyaFields(
   }
 }
 
-async function getAndValidateAppLoc(targetName: string): Promise<string> {
+async function getAndValidateAppLoc(
+  targetName: string,
+  target: TargetJson
+): Promise<string> {
   const errorMessage = 'App location is required.'
+
   const appLoc = await getString(
     'Please provide an app location: ',
     (v: string) => !!v || errorMessage,
-    `/Public/app/${targetName}`
+    target?.appLoc ?? `/Public/app/${targetName}`
   )
 
   return appLoc
@@ -238,4 +277,11 @@ export const getDefaultValues = (targetName: string) => {
       : process.env.SECRET
 
   return { client: defaultClient, secret: defaultSecret }
+}
+
+export const getIsDefault = async () => {
+  return await getConfirmation(
+    'Would you like to set this as your default target?',
+    false
+  )
 }

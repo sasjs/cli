@@ -1,5 +1,4 @@
-import { Target } from '@sasjs/utils/types'
-import { Configuration } from '../../../types/configuration'
+import { Target, Configuration } from '@sasjs/utils/types'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
 

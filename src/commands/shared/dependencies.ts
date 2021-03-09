@@ -16,7 +16,9 @@ export async function getDependencyPaths(
 
   if (macroFolders.length) {
     macroFolders.forEach((macroFolder) => {
-      const macroPath = path.join(buildSourceFolder, macroFolder)
+      const macroPath = path.isAbsolute(macroFolder)
+        ? macroFolder
+        : path.join(buildSourceFolder, macroFolder)
       sourcePaths.push(macroPath)
     })
   }
@@ -120,7 +122,8 @@ export function prioritiseDependencyOverrides(
 export async function getProgramDependencies(
   fileContent: string,
   programFolders: string[],
-  buildSourceFolder: string
+  buildSourceFolder: string,
+  filePath: string
 ) {
   programFolders = (uniqBy as any)(programFolders)
   const programs = getProgramList(fileContent)
@@ -129,14 +132,19 @@ export async function getProgramDependencies(
     const foundProgramNames: string[] = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
-        const filePath = path.join(buildSourceFolder, programFolder)
-        const filePaths = find.fileSync(program.fileName, filePath)
+        const folderPath = path.isAbsolute(programFolder)
+          ? programFolder
+          : path.join(buildSourceFolder, programFolder)
+        const filePaths = find.fileSync(program.fileName, folderPath)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
 
           if (!fileContent) {
             process.logger?.warn(
-              `Program file ${path.join(filePath, program.fileName)} is empty.`
+              `Program file ${path.join(
+                folderPath,
+                program.fileName
+              )} is empty.`
             )
           }
 
@@ -162,7 +170,8 @@ export async function getProgramDependencies(
         .join('\n')
 
       throw new Error(
-        `The following files were listed under SAS Programs but could not be found:\n` +
+        `Unable to load dependencies for: ${filePath}\n` +
+          `The following files were listed under SAS Programs but could not be found:\n` +
           `${programList}\n` +
           `Please check that they exist in the folder(s) listed in the \`programFolders\` array in your sasjsconfig.json file.\n` +
           `Program Folders:\n` +

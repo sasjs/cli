@@ -1,4 +1,4 @@
-import { ServerType, Target } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
@@ -8,11 +8,10 @@ import {
   getGlobalRcFile,
   removeFromGlobalConfig
 } from '../../../utils/config'
-import { deleteFolder } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
-import { TargetJson } from '../../../types/configuration'
 import { TargetScope } from '../../../types/targetScope'
+import { CommonFields } from '../../../types/commonFields'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
 
 describe('addTarget', () => {
@@ -39,16 +38,20 @@ describe('addTarget', () => {
   })
 
   it('should create a Viya target in the local sasjsconfig.json file', async (done) => {
-    const commonFields = {
+    const commonFields: CommonFields = {
       scope: TargetScope.Local,
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: {} as TargetJson
     }
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
@@ -57,34 +60,26 @@ describe('addTarget', () => {
 
     await expect(addTarget()).resolves.toEqual(true)
 
-    const { buildSourceFolder } = getConstants()
-    const config = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
-    expect(config).toBeTruthy()
-    expect(config!.targets).toBeTruthy()
-    const target: TargetJson = (config!.targets || []).find(
-      (t: TargetJson) => t.name === viyaTargetName
-    ) as TargetJson
-    expect(target.name).toEqual(viyaTargetName)
-    expect(target.serverType).toEqual(ServerType.SasViya)
-    expect(target.appLoc).toEqual('/Public/app')
-    expect(target.serverUrl).toEqual(process.env.SERVER_URL)
+    await verifyTarget(commonFields, true)
 
     done()
   })
 
   it('should create a SAS9 target in the local sasjsconfig.json file', async (done) => {
-    const commonFields = {
+    const commonFields: CommonFields = {
       scope: TargetScope.Local,
       serverType: ServerType.Sas9,
       name: sas9TargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: {} as TargetJson
     }
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
       Promise.resolve({
         serverName: 'testServer',
@@ -94,42 +89,26 @@ describe('addTarget', () => {
 
     await expect(addTarget()).resolves.toEqual(true)
 
-    const { buildSourceFolder } = getConstants()
-    const config = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
-
-    expect(config).toBeTruthy()
-    expect(config!.targets).toBeTruthy()
-
-    const target: TargetJson = (config!.targets || []).find(
-      (t: TargetJson) => t.name === sas9TargetName
-    ) as TargetJson
-
-    expect(target.name).toEqual(sas9TargetName)
-    expect(target.serverType).toEqual(ServerType.Sas9)
-    expect(target.appLoc).toEqual('/Public/app')
-    expect(target.serverUrl).toEqual(process.env.SERVER_URL)
-
-    const buildFileName = target.buildConfig
-      ? target.buildConfig.buildOutputFileName
-      : ''
-    expect(buildFileName).toEqual(`${sas9TargetName}.sas`)
+    await verifyTarget(commonFields, true)
 
     done()
   })
 
   it('should create a target in the global .sasjsrc file', async (done) => {
-    const commonFields = {
+    const commonFields: CommonFields = {
       scope: TargetScope.Global,
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: {} as TargetJson
     }
     jest
       .spyOn(inputModule, 'getCommonFields')
       .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
@@ -138,19 +117,137 @@ describe('addTarget', () => {
 
     await expect(addTarget()).resolves.toEqual(true)
 
-    const config = await getGlobalRcFile()
-    expect(config).toBeTruthy()
-    expect(config.targets).toBeTruthy()
-    const matchingTargets: Target[] = config.targets.filter(
-      (t: Target) => t.name === viyaTargetName
+    await verifyTarget(commonFields, false)
+
+    done()
+  })
+
+  it('should update a Viya target in the local sasjsconfig.json file', async (done) => {
+    const { buildSourceFolder } = getConstants()
+    const config = await getConfiguration(
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    expect(matchingTargets.length).toEqual(1)
-    const target = matchingTargets[0]
-    expect(target.name).toEqual(viyaTargetName)
-    expect(target.serverType).toEqual(ServerType.SasViya)
-    expect(target.appLoc).toEqual('/Public/app')
-    expect(target.serverUrl).toEqual(process.env.SERVER_URL)
+    const target: TargetJson = (config!.targets || []).find(
+      (t: TargetJson) => t.name === 'viya'
+    ) as TargetJson
+
+    const commonFields: CommonFields = {
+      scope: TargetScope.Local,
+      serverType: ServerType.SasViya,
+      name: 'viya',
+      appLoc: '/Public/app/new/location',
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: target
+    }
+    jest
+      .spyOn(inputModule, 'getCommonFields')
+      .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest
+      .spyOn(inputModule, 'getAndValidateSasViyaFields')
+      .mockImplementation(() =>
+        Promise.resolve({ contextName: 'Test Context' })
+      )
+
+    await expect(addTarget()).resolves.toEqual(true)
+
+    await verifyTarget(commonFields, true)
+
+    done()
+  })
+
+  it('should update a SAS9 target in the local sasjsconfig.json file', async (done) => {
+    const { buildSourceFolder } = getConstants()
+    const config = await getConfiguration(
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+    )
+    const target: TargetJson = (config!.targets || []).find(
+      (t: TargetJson) => t.name === 'sas9'
+    ) as TargetJson
+
+    const commonFields: CommonFields = {
+      scope: TargetScope.Local,
+      serverType: ServerType.Sas9,
+      name: 'sas9',
+      appLoc: '/Public/app/new/location/2',
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: target
+    }
+    jest
+      .spyOn(inputModule, 'getCommonFields')
+      .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
+      Promise.resolve({
+        serverName: 'testServer',
+        repositoryName: 'testRepo'
+      })
+    )
+
+    await expect(addTarget()).resolves.toEqual(true)
+
+    await verifyTarget(commonFields, true)
+
+    done()
+  })
+
+  it('should update a target in the global .sasjsrc file', async (done) => {
+    const config = await getGlobalRcFile()
+    const target: TargetJson = (config!.targets || []).find(
+      (t: TargetJson) => t.name === 'viya'
+    ) as TargetJson
+
+    const commonFields: CommonFields = {
+      scope: TargetScope.Global,
+      serverType: ServerType.SasViya,
+      name: 'viya',
+      appLoc: '/Public/app/new/location/3',
+      serverUrl: process.env.SERVER_URL as string,
+      existingTarget: target
+    }
+    jest
+      .spyOn(inputModule, 'getCommonFields')
+      .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest
+      .spyOn(inputModule, 'getAndValidateSasViyaFields')
+      .mockImplementation(() =>
+        Promise.resolve({ contextName: 'Test Context' })
+      )
+
+    await expect(addTarget()).resolves.toEqual(true)
+
+    await verifyTarget(commonFields, false)
 
     done()
   })
 })
+
+async function verifyTarget(commonFields: CommonFields, isLocal: boolean) {
+  let config
+  if (isLocal) {
+    const { buildSourceFolder } = getConstants()
+    config = await getConfiguration(
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+    )
+  } else {
+    config = await getGlobalRcFile()
+  }
+
+  const matchingTargets: Target[] = config.targets.filter(
+    (t: Target) => t.name === commonFields.name
+  )
+  expect(matchingTargets.length).toEqual(1)
+  const target = matchingTargets[0]
+
+  expect(target.name).toEqual(commonFields.name)
+  expect(target.serverType).toEqual(commonFields.serverType)
+  expect(target.appLoc).toEqual(commonFields.appLoc)
+  expect(target.serverUrl).toEqual(commonFields.serverUrl)
+}

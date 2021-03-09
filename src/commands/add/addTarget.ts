@@ -8,27 +8,36 @@ import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,
   getAndValidateSasViyaFields,
-  getAndValidateSas9Fields
+  getAndValidateSas9Fields,
+  getIsDefault
 } from './internal/input'
 import { addCredential } from './addCredential'
 
 /**
- * Creates new target for either local config or global config file.
+ * Creates new target/ updates current target(if found) for either local config or global config file.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
 export async function addTarget(insecure: boolean = false): Promise<boolean> {
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
-  const { scope, serverType, name, appLoc, serverUrl } = await getCommonFields()
+  const {
+    scope,
+    serverType,
+    name,
+    appLoc,
+    serverUrl,
+    existingTarget
+  } = await getCommonFields()
 
   let targetJson: any = {
+    ...existingTarget,
     name,
     serverType,
     serverUrl,
     appLoc
   }
 
-  let filePath = await saveConfig(scope, new Target(targetJson))
+  let filePath = await saveConfig(scope, new Target(targetJson), false)
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
@@ -61,20 +70,26 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     targetJson = { ...currentTarget.toJson(), ...targetJson }
   }
 
-  filePath = await saveConfig(scope, new Target(targetJson))
+  const isDefault = await getIsDefault()
+
+  filePath = await saveConfig(scope, new Target(targetJson), isDefault)
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
 
   return true
 }
 
-async function saveConfig(scope: TargetScope, target: Target) {
+async function saveConfig(
+  scope: TargetScope,
+  target: Target,
+  isDefault: boolean
+) {
   let filePath = ''
 
   if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(target as Target)
+    filePath = await saveToLocalConfig(target, isDefault)
   } else if (scope === TargetScope.Global) {
-    filePath = await saveToGlobalConfig(target as Target)
+    filePath = await saveToGlobalConfig(target, isDefault)
   }
 
   return filePath
