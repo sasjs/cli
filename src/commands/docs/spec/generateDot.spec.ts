@@ -6,6 +6,7 @@ import { Command } from '../../../utils/command'
 import {
   createTestApp,
   removeTestApp,
+  updateConfig,
   updateTarget,
   verifyDotFiles
 } from '../../../utils/test'
@@ -29,7 +30,7 @@ describe('sasjs doc lineage', () => {
   })
 
   it(
-    `should generate dot-files (fallback first Target from config)`,
+    `should generate dot-files (default Target from config)`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
       const docOutputDefault = path.join(
@@ -40,6 +41,9 @@ describe('sasjs doc lineage', () => {
       )
 
       await createTestApp(__dirname, appName)
+      await updateConfig({
+        defaultTarget: 'viya'
+      })
 
       await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
 
@@ -80,7 +84,9 @@ describe('sasjs doc lineage', () => {
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
       await expect(
-        doc(new Command(`doc lineage --outDirectory ${docOutputProvided}`))
+        doc(
+          new Command(`doc lineage -t viya --outDirectory ${docOutputProvided}`)
+        )
       ).resolves.toEqual(0)
 
       await verifyDotFiles(docOutputProvided)
@@ -105,7 +111,7 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
 
       await verifyDotFiles(docOutputProvided)
     },
@@ -128,7 +134,7 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
 
       await verifyDotFiles(docOutputDefault)
     },
@@ -158,7 +164,7 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
 
       await verifyDotFiles(docOutputDefault)
       await verifyCustomDotFiles(docOutputDefault)
