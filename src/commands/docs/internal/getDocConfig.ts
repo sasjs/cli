@@ -18,9 +18,8 @@ export async function getDocConfig(
 
   let target: Target = {} as Target
   try {
-    target = (
-      await findTargetInConfiguration(targetName, TargetScope.Local)
-    ).target
+    target = (await findTargetInConfiguration(targetName, TargetScope.Local))
+      .target
   } catch (error) {}
 
   if (!outDirectory) {
