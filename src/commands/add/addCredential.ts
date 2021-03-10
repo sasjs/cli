@@ -29,7 +29,6 @@ export const addCredential = async (
 
   let { target, isLocal } = await findTargetInConfiguration(
     targetName,
-    false,
     targetScope
   )
 

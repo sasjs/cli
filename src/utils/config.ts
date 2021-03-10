@@ -1,10 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import {
-  Configuration,
-  ServerType,
-  Target,
-  TargetJson
-} from '@sasjs/utils/types'
+import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
@@ -36,14 +31,12 @@ export async function getConfiguration(
  * this function then looks in the global configuration.
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
- * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
  * @param {TargetScope} targetScope - if specified will either consider only Local OR only Global targets.
  * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
-  viyaSpecific: boolean = false,
-  targetScope: TargetScope | undefined = undefined
+  targetScope?: TargetScope
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
@@ -55,7 +48,7 @@ export async function findTargetInConfiguration(
     return targetName
       ? { target: await getLocalTarget(targetName), isLocal: true }
       : {
-          target: await getLocalFallbackTarget(viyaSpecific),
+          target: await getLocalFallbackTarget(),
           isLocal: true
         }
   }
@@ -64,7 +57,7 @@ export async function findTargetInConfiguration(
     return targetName
       ? { target: await getGlobalTarget(targetName), isLocal: false }
       : {
-          target: await getGlobalFallbackTarget(viyaSpecific),
+          target: await getGlobalFallbackTarget(),
           isLocal: false
         }
   }
@@ -89,13 +82,13 @@ export async function findTargetInConfiguration(
     )
   } else {
     try {
-      target = await getLocalFallbackTarget(viyaSpecific)
+      target = await getLocalFallbackTarget()
     } catch (e) {}
 
     if (target) return { target, isLocal: true }
 
     try {
-      target = await getGlobalFallbackTarget(viyaSpecific)
+      target = await getGlobalFallbackTarget()
     } catch (e) {}
 
     if (target) return { target, isLocal: false }
@@ -107,7 +100,6 @@ export async function findTargetInConfiguration(
 }
 
 async function getLocalTarget(targetName: string): Promise<Target> {
-  let target
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
@@ -131,23 +123,23 @@ async function getLocalTarget(targetName: string): Promise<Target> {
     `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
 }
-async function getLocalFallbackTarget(viyaSpecific: boolean): Promise<Target> {
-  let target
+async function getLocalFallbackTarget(): Promise<Target> {
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
 
   let fallBackTargetJson
   if (localConfig?.targets) {
-    fallBackTargetJson = viyaSpecific
-      ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
-      : localConfig.targets?.[0]
-      ? localConfig.targets[0]
-      : undefined
+    const defaultTargetName = localConfig?.defaultTarget
+    if (defaultTargetName) {
+      fallBackTargetJson = localConfig?.targets?.find(
+        (t) => t.name === defaultTargetName
+      )
+    }
 
     if (fallBackTargetJson) {
       process.logger?.info(
-        `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
+        `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
@@ -185,21 +177,20 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
     `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
 }
-async function getGlobalFallbackTarget(viyaSpecific: boolean): Promise<Target> {
-  const globalConfig = await getGlobalRcFile()
+async function getGlobalFallbackTarget(): Promise<Target> {
+  const globalConfig = (await getGlobalRcFile()) as Configuration
   let fallBackTargetJson
 
-  fallBackTargetJson = viyaSpecific
-    ? globalConfig.targets.find(
-        (t: Target) => t.serverType === ServerType.SasViya
-      )
-    : globalConfig.targets?.[0]
-    ? globalConfig.targets[0]
-    : undefined
+  const defaultTargetName = globalConfig?.defaultTarget
+  if (defaultTargetName) {
+    fallBackTargetJson = globalConfig?.targets?.find(
+      (t) => t.name === defaultTargetName
+    )
+  }
 
   if (fallBackTargetJson) {
     process.logger?.info(
-      `No target was specified. Falling back to target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
+      `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,

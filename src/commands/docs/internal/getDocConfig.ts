@@ -19,7 +19,7 @@ export async function getDocConfig(
   let target: Target = {} as Target
   try {
     target = (
-      await findTargetInConfiguration(targetName, false, TargetScope.Local)
+      await findTargetInConfiguration(targetName, TargetScope.Local)
     ).target
   } catch (error) {}
 
