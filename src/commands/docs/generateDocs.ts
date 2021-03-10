@@ -54,7 +54,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     ])
   ]
     .map((fpath: string) => `"${fpath}"`)
-    .join(' \\ \n')
+    .join(' \\ \\n')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -103,7 +103,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(
-    `${doxyParams} doxygen '${doxyConfigPath}'`,
+    `${doxyParams} doxygen "${doxyConfigPath}"`,
     {
       silent: true
     }
