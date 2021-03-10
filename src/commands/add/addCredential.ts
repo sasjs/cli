@@ -23,7 +23,7 @@ import { TargetScope } from '../../types/targetScope'
 export const addCredential = async (
   targetName: string,
   insecure: boolean = false,
-  targetScope: TargetScope | undefined = undefined
+  targetScope?: TargetScope
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
 
