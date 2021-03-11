@@ -26,8 +26,6 @@ import { getDocConfig } from './internal/getDocConfig'
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDocs(targetName: string, outDirectory: string) {
-  const { doxyContent } = getConstants()
-
   const config = await getLocalConfig()
   const {
     target,
@@ -82,22 +80,34 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     process.logger?.info(`Unable to parse content of 'package.json'`)
   }
 
-  const DOXY_CONTENT = `${doxyContent}${path.sep}`
+  const { doxyContent: doxyContentPath } = getConstants()
+
+  const doxyContent = config.docConfig?.doxyContent ?? {
+    favIcon: 'favicon.ico',
+    footer: 'new_footer.html',
+    header: 'new_header.html',
+    layout: 'DoxygenLayout.xml',
+    logo: 'logo.png',
+    readMe: '../../README.md',
+    stylesheet: 'new_stylesheet.css'
+  }
+
+  const DOXY_CONTENT = `${doxyContentPath}${path.sep}`
+
   const doxyParams = setVariableCmd({
-    DOXY_CONTENT,
     DOXY_HTML_OUTPUT: newOutDirectory,
-    DOXY_INPUT: `"${DOXY_CONTENT}../../README.md" ${combinedFolders}`,
-    HTML_EXTRA_FILES: `"${DOXY_CONTENT}favicon.ico"`,
-    HTML_EXTRA_STYLESHEET: `"${DOXY_CONTENT}new_stylesheet.css"`,
-    HTML_FOOTER: `${DOXY_CONTENT}new_footer.html`,
-    HTML_HEADER: `${DOXY_CONTENT}new_header.html`,
-    LAYOUT_FILE: `${DOXY_CONTENT}DoxygenLayout.xml`,
+    DOXY_INPUT: `"${DOXY_CONTENT}${doxyContent.readMe}" ${combinedFolders}`,
+    HTML_EXTRA_FILES: `"${DOXY_CONTENT}${doxyContent.favIcon}"`,
+    HTML_EXTRA_STYLESHEET: `"${DOXY_CONTENT}${doxyContent.stylesheet}"`,
+    HTML_FOOTER: `${DOXY_CONTENT}${doxyContent.footer}`,
+    HTML_HEADER: `${DOXY_CONTENT}${doxyContent.header}`,
+    LAYOUT_FILE: `${DOXY_CONTENT}${doxyContent.layout}`,
     PROJECT_BRIEF,
-    PROJECT_LOGO: `${DOXY_CONTENT}logo.png`,
+    PROJECT_LOGO: `${DOXY_CONTENT}${doxyContent.logo}`,
     PROJECT_NAME
   })
 
-  const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
+  const doxyConfigPath = path.join(doxyContentPath, 'Doxyfile')
 
   const spinner = ora(
     chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))

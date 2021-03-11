@@ -199,7 +199,16 @@
       "displayMacroCore": true,
       "enableLineage": true,
       "outDirectory": "",
-      "dataControllerUrl": ""
+      "dataControllerUrl": "",
+      "doxyContent": {
+        "favIcon": "favicon.ico",
+        "footer": "new_footer.html",
+        "header": "new_header.html",
+        "layout": "DoxygenLayout.xml",
+        "logo": "logo.png",
+        "readMe": "../../README.md",
+        "stylesheet": "new_stylesheet.css"
+      }
     },
     "buildConfig": {
       "initProgram": "sasjs/build/buildinit.sas",
