@@ -31,7 +31,7 @@ describe('sasjs doc', () => {
   })
 
   it(
-    `should generate docs for (fallback first Target from config)`,
+    `should generate docs for (default Target from config)`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
       const docOutputDefault = path.join(
@@ -42,10 +42,13 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
+      await updateConfig({
+        defaultTarget: 'viya'
+      })
 
       await expect(doc(new Command(`doc`))).resolves.toEqual(0)
 
-      await verifyDocs(docOutputDefault)
+      await verifyDocs(docOutputDefault, 'viya')
     },
     60 * 1000
   )
@@ -82,10 +85,10 @@ describe('sasjs doc', () => {
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
       await expect(
-        doc(new Command(`doc --outDirectory ${docOutputProvided}`))
+        doc(new Command(`doc -t viya --outDirectory ${docOutputProvided}`))
       ).resolves.toEqual(0)
 
-      await verifyDocs(docOutputProvided)
+      await verifyDocs(docOutputProvided, 'viya')
     },
     60 * 1000
   )
@@ -109,7 +112,7 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
       await verifyDocs(docOutputDefault, 'viya', false)
     },
@@ -130,9 +133,9 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
-      await verifyDocs(docOutputProvided)
+      await verifyDocs(docOutputProvided, 'viya')
     },
     60 * 1000
   )
@@ -153,9 +156,9 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
-      await verifyDocs(docOutputDefault)
+      await verifyDocs(docOutputDefault, 'viya')
     },
     60 * 1000
   )
@@ -217,7 +220,7 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
       await verifyDocs(docOutputProvided, 'viya', false)
       await verifyDotFilesNotGenerated(docOutputProvided)
@@ -247,7 +250,7 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
       await verifyDocs(docOutputProvided, 'viya', false)
       await verifyDotFilesNotGenerated(docOutputProvided)
@@ -272,7 +275,7 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
       await verifyDocs(docOutputDefault, 'viya')
       await verifyDotFiles(docOutputDefault)
@@ -297,7 +300,7 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
 
       await verifyDocs(docOutputDefault, 'viya')
       await verifyDotFiles(docOutputDefault)

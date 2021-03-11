@@ -15,7 +15,7 @@ export async function servicePackDeploy(
     throw new Error('Provided data file must be valid json.')
   }
 
-  const { target } = await findTargetInConfiguration(targetName, true)
+  const { target } = await findTargetInConfiguration(targetName)
 
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
