@@ -70,18 +70,16 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   let PROJECT_NAME = `Please update the 'name' property in the package.json file`
   let PROJECT_BRIEF = `Please update the 'description' property in the package.json file`
 
-  const packageJsonContent = await readFile(
-    path.join(process.projectDir, 'package.json')
-  )
-  if (packageJsonContent) {
-    try {
-      const packageJson = JSON.parse(packageJsonContent)
-      PROJECT_NAME = packageJson.name || PROJECT_NAME
-      PROJECT_BRIEF =
-        packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
-    } catch (e) {
-      process.logger?.info(`Unable to parse content of 'package.json'`)
-    }
+  try {
+    const packageJsonContent = await readFile(
+      path.join(process.projectDir, 'package.json')
+    )
+    const packageJson = JSON.parse(packageJsonContent)
+    PROJECT_NAME = packageJson.name || PROJECT_NAME
+    PROJECT_BRIEF =
+      packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
+  } catch (e) {
+    process.logger?.info(`Unable to parse content of 'package.json'`)
   }
 
   const doxyParams = setVariableCmd({

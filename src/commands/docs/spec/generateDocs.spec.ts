@@ -54,6 +54,30 @@ describe('sasjs doc', () => {
   )
 
   it(
+    `should generate docs for (default Target from config) having space in folderPath(parent Folder)`,
+    async () => {
+      appName = `test app  doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateConfig({
+        docConfig: { displayMacroCore: false },
+        defaultTarget: 'viya'
+      })
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'viya', false)
+    },
+    60 * 1000
+  )
+
+  it(
     `should generate docs for supplied target`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
