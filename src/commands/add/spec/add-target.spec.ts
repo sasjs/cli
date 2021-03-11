@@ -12,12 +12,17 @@ import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
-import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestMinimalApp,
+  removeTestApp,
+  createTestGlobalTarget
+} from '../../../utils/test'
 
 describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`
   const viyaTargetName = `test-viya-${generateTimestamp()}`
   const sas9TargetName = `test-sas9-${generateTimestamp()}`
+  let globalTestTarget: Target
 
   beforeAll(async () => {
     dotenv.config()
@@ -31,7 +36,16 @@ describe('addTarget', () => {
     done()
   })
 
+  beforeEach(async (done) => {
+    globalTestTarget = await createTestGlobalTarget(
+      `test-target-global-${generateTimestamp()}`,
+      `/Public/app/cli-tests/${appName}`
+    )
+
+    done()
+  })
   afterEach(async (done) => {
+    await removeFromGlobalConfig(globalTestTarget.name)
     jest.clearAllMocks()
 
     done()
@@ -196,18 +210,13 @@ describe('addTarget', () => {
   })
 
   it('should update a target in the global .sasjsrc file', async (done) => {
-    const config = await getGlobalRcFile()
-    const target: TargetJson = (config!.targets || []).find(
-      (t: TargetJson) => t.name === 'viya'
-    ) as TargetJson
-
     const commonFields: CommonFields = {
       scope: TargetScope.Global,
-      serverType: ServerType.SasViya,
-      name: 'viya',
+      serverType: globalTestTarget.serverType,
+      name: globalTestTarget.name,
       appLoc: '/Public/app/new/location/3',
       serverUrl: process.env.SERVER_URL as string,
-      existingTarget: target
+      existingTarget: globalTestTarget
     }
     jest
       .spyOn(inputModule, 'getCommonFields')

@@ -50,9 +50,9 @@ describe('sasjs run', () => {
       const file = 'test.sas.txt'
       const error = new Error(`'sasjs run' command supports only *.sas files.`)
 
-      await expect(runSasCode(new Command(`run ${file}`))).rejects.toEqual(
-        error
-      )
+      await expect(
+        runSasCode(new Command(`run -t ${target.name} ${file}`))
+      ).rejects.toEqual(error)
     })
 
     it(
@@ -61,7 +61,9 @@ describe('sasjs run', () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
         let result: any = await runSasCode(
-          new Command(`run src/commands/run/spec/testServices/logJob.sas`)
+          new Command(
+            `run -t ${target.name} src/commands/run/spec/testServices/logJob.sas`
+          )
         )
 
         expect(result.log.includes(logPart)).toBeTruthy()

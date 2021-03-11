@@ -209,7 +209,7 @@ export const updateConfig = async (config: Configuration) => {
 
 export const verifyDocs = async (
   docsFolder: string,
-  target: string = 'viya',
+  target: string,
   macroCore: boolean = true
 ) => {
   const indexHTML = path.join(docsFolder, 'index.html')

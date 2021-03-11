@@ -58,7 +58,6 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     )
 
     targetJson = {
-      ...targetJson,
       contextName,
       deployConfig: {
         deployServicePack: true,

@@ -10,6 +10,7 @@ import {
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
+import { ServerType } from '@sasjs/utils/types'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -17,9 +18,15 @@ export async function runSasJob(command: Command) {
   const configFilePath = command.getFlagValue('configfile') as string
   const targetName = command.getFlagValue('target') as string
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName, true)
+  const { target, isLocal } = await findTargetInConfiguration(targetName)
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')
+  }
+
+  if (target.serverType !== ServerType.SasViya) {
+    throw new Error(
+      `Unable to execute request against target ${targetName}. This command is only supported for server type ${ServerType.SasViya}.`
+    )
   }
 
   let dataJson
