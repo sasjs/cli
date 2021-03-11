@@ -54,7 +54,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     ])
   ]
     .map((fpath: string) => `"${fpath}"`)
-    .join(' \\ \\n')
+    .join(' ')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -82,12 +82,19 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     process.logger?.info(`Unable to parse content of 'package.json'`)
   }
 
+  const DOXY_CONTENT = `${doxyContent}${path.sep}`
   const doxyParams = setVariableCmd({
-    DOXY_CONTENT: `${doxyContent}${path.sep}`,
-    DOXY_INPUT: combinedFolders,
+    DOXY_CONTENT,
     DOXY_HTML_OUTPUT: newOutDirectory,
-    PROJECT_NAME,
-    PROJECT_BRIEF
+    DOXY_INPUT: `"${DOXY_CONTENT}../../README.md" ${combinedFolders}`,
+    HTML_EXTRA_FILES: `"${DOXY_CONTENT}favicon.ico"`,
+    HTML_EXTRA_STYLESHEET: `"${DOXY_CONTENT}new_stylesheet.css"`,
+    HTML_FOOTER: `${DOXY_CONTENT}new_footer.html`,
+    HTML_HEADER: `${DOXY_CONTENT}new_header.html`,
+    LAYOUT_FILE: `${DOXY_CONTENT}DoxygenLayout.xml`,
+    PROJECT_BRIEF,
+    PROJECT_LOGO: `${DOXY_CONTENT}logo.png`,
+    PROJECT_NAME
   })
 
   const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
