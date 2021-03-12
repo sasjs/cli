@@ -45,8 +45,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "^2.2.8",
-    "@sasjs/core": "^2.10.0",
+    "@sasjs/adapter": "^2.2.9",
+    "@sasjs/core": "^2.12.3",
     "@sasjs/utils": "^2.6.4",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
@@ -70,6 +70,7 @@
     "@babel/preset-typescript": "^7.12.16",
     "@types/btoa": "^1.2.3",
     "@types/find": "^0.2.1",
+    "@types/jest": "^26.0.20",
     "@types/jsdom": "^16.2.6",
     "@types/lodash.groupby": "^4.6.6",
     "@types/lodash.uniqby": "^4.7.6",
