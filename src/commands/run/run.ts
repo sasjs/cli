@@ -71,7 +71,7 @@ async function executeOnSasViya(
       let log = err.log
 
       if (!log)
-        throw new ErrorResponse('We werent able to fetch the log this time.')
+        throw new ErrorResponse('We were not able to fetch the log this time.')
 
       await createOutputFile(log)
 
