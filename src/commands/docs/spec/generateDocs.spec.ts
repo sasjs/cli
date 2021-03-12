@@ -18,6 +18,8 @@ import {
   fileExists,
   createFile,
   readFile,
+  copy,
+  deleteFolder,
   deleteFile
 } from '../../../utils/file'
 import { getConstants } from '../../../constants'
@@ -44,6 +46,84 @@ describe('sasjs doc', () => {
       await createTestApp(__dirname, appName)
       await updateConfig({
         defaultTarget: 'viya'
+      })
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'viya')
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs for (default Target from config) having doxy folder at relative path`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+      const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
+      const doxyContentPathNew = path.join(
+        __dirname,
+        appName,
+        'doxy-custom-folder'
+      )
+
+      await createTestApp(__dirname, appName)
+
+      await copy(doxyContentPath, doxyContentPathNew)
+      await deleteFolder(doxyContentPath)
+
+      await updateConfig({
+        defaultTarget: 'viya',
+        docConfig: {
+          doxyContent: {
+            readMe: '../README.md',
+            path: './doxy-custom-folder'
+          }
+        }
+      })
+
+      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+
+      await verifyDocs(docOutputDefault, 'viya')
+    },
+    60 * 1000
+  )
+
+  it(
+    `should generate docs for (default Target from config) having doxy folder at absolute path`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+      const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
+      const doxyContentPathNew = path.join(
+        __dirname,
+        appName,
+        'doxy-custom-folder'
+      )
+
+      await createTestApp(__dirname, appName)
+
+      await copy(doxyContentPath, doxyContentPathNew)
+      await deleteFolder(doxyContentPath)
+
+      await updateConfig({
+        defaultTarget: 'viya',
+        docConfig: {
+          doxyContent: {
+            readMe: '../README.md',
+            path: doxyContentPathNew
+          }
+        }
       })
 
       await expect(doc(new Command(`doc`))).resolves.toEqual(0)

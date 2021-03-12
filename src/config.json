@@ -207,7 +207,8 @@
         "layout": "DoxygenLayout.xml",
         "logo": "logo.png",
         "readMe": "../../README.md",
-        "stylesheet": "new_stylesheet.css"
+        "stylesheet": "new_stylesheet.css",
+        "path": "./sasjs/doxy/"
       }
     },
     "buildConfig": {
