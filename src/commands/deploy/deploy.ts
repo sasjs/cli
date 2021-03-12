@@ -22,7 +22,10 @@ export async function deploy(target: Target, isLocal: boolean) {
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
     )
     await deployToSasViyaWithServicePack(target, isLocal)
-    process.logger?.success('Service pack has been successfully deployed.')
+    process.logger?.success('Build pack has been successfully deployed.')
+    process.logger?.success(
+      `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}&_action=1063`
+    )
   }
 
   const deployScripts = await getDeployScripts(target)
