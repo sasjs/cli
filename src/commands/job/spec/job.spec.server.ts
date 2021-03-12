@@ -153,6 +153,31 @@ describe('sasjs job execute', () => {
     done()
   })
 
+  it(
+    'should submit a job and create a file with job log having large log',
+    async (done) => {
+      const largeLogFileLines = 2000268
+      const command = new Command(
+        `job execute jobs/testJob/largeLogJob -t ${target.name} -l`
+      )
+
+      const filePath = path.join(process.projectDir, 'largeLogJob.log')
+
+      await processJob(command)
+
+      await expect(fileExists(filePath)).resolves.toEqual(true)
+
+      const content = await readFile(filePath)
+      let count = 0
+      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+
+      expect(count).toEqual(largeLogFileLines)
+
+      done()
+    },
+    30 * 60 * 1000
+  )
+
   it('should submit a job and create a file with provided job log filename', async (done) => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} -l mycustom.log`

@@ -84,6 +84,34 @@ describe('sasjs flow', () => {
     done()
   })
 
+  it(
+    'should execute flow with job log having large log',
+    async (done) => {
+      const largeLogFileLines = 2000268
+      const logFilePath = path.join(logPath, 'largeLogJob.log')
+
+      const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
+
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${target.name} --logFolder ${logPath}`
+      )
+
+      await processFlow(command)
+
+      await expect(folderExists(logPath)).resolves.toEqual(true)
+      await expect(fileExists(logFilePath)).resolves.toEqual(true)
+
+      const content = await readFile(logFilePath)
+      let count = 0
+      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+
+      expect(count).toEqual(largeLogFileLines)
+
+      done()
+    },
+    30 * 60 * 1000
+  )
+
   it('should return an error if provided source file is not JSON', async (done) => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid.txt')
 
