@@ -5,6 +5,7 @@ import { generateTimestamp } from '../../../utils/utils'
 import {
   fileExists,
   readFile,
+  readdir,
   folderExists,
   deleteFolder,
   deleteFile,
@@ -87,8 +88,7 @@ describe('sasjs flow', () => {
   it(
     'should execute flow with job log having large log',
     async (done) => {
-      const largeLogFileLines = 2000268
-      const logFilePath = path.join(logPath, 'largeLogJob.log')
+      const largeLogFileLines = 2000000
 
       const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
 
@@ -99,13 +99,14 @@ describe('sasjs flow', () => {
       await processFlow(command)
 
       await expect(folderExists(logPath)).resolves.toEqual(true)
-      await expect(fileExists(logFilePath)).resolves.toEqual(true)
+      const filesInLogFolder = await readdir(logPath)
+      const logFilePath = path.join(logPath, filesInLogFolder[0])
 
       const content = await readFile(logFilePath)
       let count = 0
       for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
 
-      expect(count).toEqual(largeLogFileLines)
+      expect(count).toBeGreaterThan(largeLogFileLines)
 
       done()
     },
