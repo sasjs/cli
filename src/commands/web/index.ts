@@ -112,7 +112,7 @@ export async function createWebAppServices(target: Target) {
 
     await createClickMeService(
       indexHtml.serialize(),
-      streamConfig.streamServiceName
+      streamConfig.streamServiceName as string
     )
   }
 }
