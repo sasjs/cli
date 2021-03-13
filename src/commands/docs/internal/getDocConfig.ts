@@ -38,5 +38,16 @@ export async function getDocConfig(
   const enableLineage: boolean =
     target.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
 
-  return { target, serverUrl, newOutDirectory: outDirectory, enableLineage }
+  const doxyContent = {
+    ...config?.docConfig?.doxyContent,
+    ...target?.docConfig?.doxyContent
+  }
+
+  return {
+    target,
+    serverUrl,
+    newOutDirectory: outDirectory,
+    enableLineage,
+    doxyContent
+  }
 }

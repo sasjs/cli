@@ -26,14 +26,13 @@ import { getDocConfig } from './internal/getDocConfig'
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDocs(targetName: string, outDirectory: string) {
-  const { doxyContent } = getConstants()
-
   const config = await getLocalConfig()
   const {
     target,
     serverUrl,
     newOutDirectory,
-    enableLineage
+    enableLineage,
+    doxyContent: doxyContentFromConfig
   } = await getDocConfig(config, targetName, outDirectory)
 
   const {
@@ -52,7 +51,9 @@ export async function generateDocs(targetName: string, outDirectory: string) {
       ...serviceFolders,
       ...jobFolders
     ])
-  ].join(' ')
+  ]
+    .map((fpath: string) => `"${fpath}"`)
+    .join(' ')
 
   if (combinedFolders.length === 0) {
     throw new Error(
@@ -68,29 +69,55 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   let PROJECT_NAME = `Please update the 'name' property in the package.json file`
   let PROJECT_BRIEF = `Please update the 'description' property in the package.json file`
 
-  const packageJsonContent = await readFile(
-    path.join(process.projectDir, 'package.json')
-  )
-  if (packageJsonContent) {
-    try {
-      const packageJson = JSON.parse(packageJsonContent)
-      PROJECT_NAME = packageJson.name || PROJECT_NAME
-      PROJECT_BRIEF =
-        packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
-    } catch (e) {
-      process.logger?.info(`Unable to parse content of 'package.json'`)
-    }
+  try {
+    const packageJsonContent = await readFile(
+      path.join(process.projectDir, 'package.json')
+    )
+    const packageJson = JSON.parse(packageJsonContent)
+    PROJECT_NAME = packageJson.name || PROJECT_NAME
+    PROJECT_BRIEF =
+      packageJson.description.replace(/`/g, '\\`') || PROJECT_BRIEF
+  } catch (e) {
+    process.logger?.info(`Unable to parse content of 'package.json'`)
   }
 
+  const doxyContent = {
+    favIcon: 'favicon.ico',
+    footer: 'new_footer.html',
+    header: 'new_header.html',
+    layout: 'DoxygenLayout.xml',
+    logo: 'logo.png',
+    readMe: '../../README.md',
+    stylesheet: 'new_stylesheet.css',
+    path: path.join(process.projectDir, 'sasjs', 'doxy'),
+    ...doxyContentFromConfig
+  }
+
+  if (doxyContentFromConfig?.path)
+    doxyContent.path = path.isAbsolute(doxyContentFromConfig.path)
+      ? doxyContentFromConfig.path
+      : path.join(process.projectDir, doxyContentFromConfig.path)
+
   const doxyParams = setVariableCmd({
-    DOXY_CONTENT: `${doxyContent}${path.sep}`,
-    DOXY_INPUT: combinedFolders,
     DOXY_HTML_OUTPUT: newOutDirectory,
-    PROJECT_NAME,
-    PROJECT_BRIEF
+    DOXY_INPUT: `"${path.join(
+      doxyContent.path,
+      doxyContent.readMe
+    )}" ${combinedFolders}`,
+    HTML_EXTRA_FILES: `"${path.join(doxyContent.path, doxyContent.favIcon)}"`,
+    HTML_EXTRA_STYLESHEET: `"${path.join(
+      doxyContent.path,
+      doxyContent.stylesheet
+    )}"`,
+    HTML_FOOTER: path.join(doxyContent.path, doxyContent.footer),
+    HTML_HEADER: path.join(doxyContent.path, doxyContent.header),
+    LAYOUT_FILE: path.join(doxyContent.path, doxyContent.layout),
+    PROJECT_BRIEF,
+    PROJECT_LOGO: path.join(doxyContent.path, doxyContent.logo),
+    PROJECT_NAME
   })
 
-  const doxyConfigPath = path.join(doxyContent, 'Doxyfile')
+  const doxyConfigPath = path.join(doxyContent.path, 'Doxyfile')
 
   const spinner = ora(
     chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))
@@ -101,7 +128,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(
-    `${doxyParams} doxygen ${doxyConfigPath}`,
+    `${doxyParams} doxygen "${doxyConfigPath}"`,
     {
       silent: true
     }
@@ -135,7 +162,7 @@ function setVariableCmd(params: any): string {
     }
   } else {
     for (const param in params) {
-      command += `${param}="${params[param]}" `
+      command += `${param}='${params[param]}' `
     }
   }
   return command
