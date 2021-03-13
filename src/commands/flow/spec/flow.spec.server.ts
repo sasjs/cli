@@ -40,8 +40,10 @@ describe('sasjs flow', () => {
     done()
   })
 
-  afterEach(() => {
+  afterEach(async (done) => {
+    await deleteFolder(logPath)
     jest.resetAllMocks()
+    done()
   })
 
   afterAll(async (done) => {
@@ -51,7 +53,6 @@ describe('sasjs flow', () => {
       )
     )
     await deleteFile(csvPath)
-    await deleteFolder(logPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()
