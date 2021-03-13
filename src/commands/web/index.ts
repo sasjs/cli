@@ -10,6 +10,7 @@ import {
   deleteFolder,
   getFilesInFolder
 } from '../../utils/file'
+import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
@@ -34,7 +35,9 @@ const exampleStreamConfig: StreamConfig = {
 export async function createWebAppServices(target: Target) {
   const { buildDestinationServicesFolder } = getConstants()
 
-  const { streamConfig } = target
+  const localConfig = await getLocalConfig()
+
+  const streamConfig = { ...localConfig?.streamConfig, ...target.streamConfig }
 
   if (!streamConfig) {
     throw new Error(
