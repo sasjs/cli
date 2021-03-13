@@ -14,8 +14,6 @@ import { getDocConfig } from './internal/getDocConfig'
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDot(targetName: string, outDirectory: string) {
-  const { doxyContent } = getConstants()
-
   const config = await getLocalConfig()
 
   const { target, serverUrl, newOutDirectory } = await getDocConfig(
