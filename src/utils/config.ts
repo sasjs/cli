@@ -94,7 +94,7 @@ export async function findTargetInConfiguration(
     if (target) return { target, isLocal: false }
 
     throw new Error(
-      `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+      `Unable to find any default target.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
     )
   }
 }
