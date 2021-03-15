@@ -55,7 +55,9 @@ const checkServiceFolders = async (target: Target) => {
   let areServiceFoldersMatching = true
   const reasons: string[] = []
   await asyncForEach(serviceFolders, async (serviceFolder) => {
-    const sourcePath = path.join(buildSourceFolder, serviceFolder)
+    const sourcePath = path.isAbsolute(serviceFolder)
+      ? serviceFolder
+      : path.join(buildSourceFolder, serviceFolder)
     const destinationPath = getDestinationServicePath(sourcePath)
 
     const { equal, reason } = await compareFolders(sourcePath, destinationPath)
@@ -80,7 +82,9 @@ const checkJobFolders = async (target: Target) => {
   let areJobFoldersMatching = true
   const reasons: string[] = []
   await asyncForEach(jobFolders, async (jobFolder) => {
-    const sourcePath = path.join(buildSourceFolder, jobFolder)
+    const sourcePath = path.isAbsolute(jobFolder)
+      ? jobFolder
+      : path.join(buildSourceFolder, jobFolder)
     const destinationPath = getDestinationJobPath(sourcePath)
 
     const { equal, reason } = await compareFolders(sourcePath, destinationPath)

@@ -11,6 +11,7 @@ import {
 } from '../../utils/config'
 import { createFile } from '../../utils/file'
 import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
+import { TargetScope } from '../../types/targetScope'
 
 /**
  * Creates a .env file for the specified target.
@@ -21,18 +22,22 @@ import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
  */
 export const addCredential = async (
   targetName: string,
-  insecure: boolean = false
+  insecure: boolean = false,
+  targetScope?: TargetScope
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
 
-  let { target, isLocal } = await findTargetInConfiguration(targetName)
+  let { target, isLocal } = await findTargetInConfiguration(
+    targetName,
+    targetScope
+  )
 
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   if (!target.serverUrl) {
-    const serverUrl = await getAndValidateServerUrl()
+    const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(), serverUrl })
   }
 
@@ -53,13 +58,13 @@ export const addCredential = async (
       access_token,
       refresh_token
     )
-    await saveToLocalConfig(target)
+    await saveToLocalConfig(target, false)
   } else {
     target = new Target({
       ...target.toJson(),
       authConfig: { client, secret, access_token, refresh_token }
     })
-    await saveToGlobalConfig(target)
+    await saveToGlobalConfig(target, false)
   }
 }
 

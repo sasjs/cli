@@ -1,6 +1,8 @@
 import {
   addCredential,
   addTarget,
+  compile,
+  compileSingleFile,
   build,
   processContext,
   init,
@@ -22,7 +24,6 @@ import {
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
-import { compile } from './commands/compile/compile'
 import { getConstants } from './constants'
 import { findTargetInConfiguration } from './utils/config'
 import { Target } from '@sasjs/utils/types'
@@ -122,6 +123,7 @@ export async function showVersion() {
 }
 
 export async function compileServices(command: Command) {
+  const subCommand = command.getSubCommand()
   let targetName = command.getFlagValue('target') as string
 
   if (!targetName) {
@@ -131,8 +133,17 @@ export async function compileServices(command: Command) {
   let target: Target = {} as Target
   try {
     target = (await findTargetInConfiguration(targetName)).target
-  } catch (error) {}
+  } catch (error) {
+    if (targetName) {
+      displayError(error, 'An error has occurred when compiling services.')
+      return ReturnCode.InternalError
+    }
+    process.logger.info(`Proceeding without any Target`)
+  }
 
+  if (subCommand) {
+    return await executeSingleFileCompile(target, command, subCommand)
+  }
   return await executeCompile(target)
 }
 
@@ -143,7 +154,13 @@ export async function buildServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
+  let target: Target
+  try {
+    ;({ target } = await findTargetInConfiguration(targetName))
+  } catch (error) {
+    displayError(error, 'An error has occurred when building services.')
+    return ReturnCode.InternalError
+  }
 
   return await executeBuild(target)
 }
@@ -155,7 +172,13 @@ export async function deployServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
+  let target: Target, isLocal: boolean
+  try {
+    ;({ target, isLocal } = await findTargetInConfiguration(targetName))
+  } catch (error) {
+    displayError(error, 'An error has occurred when deploying services.')
+    return ReturnCode.InternalError
+  }
 
   return await executeDeploy(target, isLocal)
 }
@@ -167,7 +190,16 @@ export async function compileBuildServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
+  let target: Target
+  try {
+    ;({ target } = await findTargetInConfiguration(targetName))
+  } catch (error) {
+    displayError(
+      error,
+      'An error has occurred when compiling/building services.'
+    )
+    return ReturnCode.InternalError
+  }
 
   return await executeCompile(target).then(async (returnCode) => {
     if (returnCode === ReturnCode.Success) {
@@ -185,7 +217,16 @@ export async function compileBuildDeployServices(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
+  let target: Target, isLocal: boolean
+  try {
+    ;({ target, isLocal } = await findTargetInConfiguration(targetName))
+  } catch (error) {
+    displayError(
+      error,
+      'An error has occurred when compiling/building/deploying services.'
+    )
+    return ReturnCode.InternalError
+  }
 
   return await executeCompile(target)
     .then(async (returnCode) => {
@@ -234,7 +275,13 @@ export async function buildWebApp(command: Command) {
     targetName = command.getTargetWithoutFlag() as string
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
+  let target: Target
+  try {
+    ;({ target } = await findTargetInConfiguration(targetName))
+  } catch (error) {
+    displayError(error, 'An error has occurred when building web app.')
+    return ReturnCode.InternalError
+  }
 
   return await createWebAppServices(target)
     .then(() => {
@@ -401,6 +448,23 @@ export async function flowManagement(command: Command) {
     })
 }
 
+async function executeSingleFileCompile(
+  target: Target,
+  command: Command,
+  subCommand: string
+) {
+  return await compileSingleFile(target, command, subCommand)
+    .then((res) => {
+      displaySuccess(
+        `Source has been successfully compiled!\nThe compiled output is located in at:\n- '${res.destinationPath}'`
+      )
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when compiling source.')
+      return ReturnCode.InternalError
+    })
+}
 async function executeCompile(target: Target) {
   return await compile(target, true)
     .then(() => {

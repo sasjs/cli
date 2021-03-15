@@ -8,7 +8,7 @@ import {
   createFile
 } from '../../utils/file'
 import { asyncForEach, removeComments, chunk } from '../../utils/utils'
-import { getConfiguration, getMacroCorePath } from '../../utils/config'
+import { getLocalConfig, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
@@ -23,8 +23,11 @@ export async function build(target: Target) {
 async function createFinalSasFiles(target: Target) {
   process.logger?.info('Creating output SAS and JSON files.')
 
-  const { streamConfig } = target
-  const streamWeb = streamConfig?.streamWeb ?? false
+  const localConfig = await getLocalConfig()
+
+  const streamConfig = { ...localConfig?.streamConfig, ...target.streamConfig }
+  const streamWeb = streamConfig.streamWeb ?? false
+
   if (streamWeb) {
     process.logger?.info(
       'Building web app services since `streamWeb` is enabled.'
@@ -254,10 +257,7 @@ function getLines(text: string): string[] {
 
 export async function getBuildVars(target: Target) {
   const targetBuildVars = target?.buildConfig?.macroVars ?? {}
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const configuration = await getLocalConfig()
   const commonBuildVars = configuration?.buildConfig?.macroVars ?? {}
 
   return convertVarsToSasFormat({ ...commonBuildVars, ...targetBuildVars })

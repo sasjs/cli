@@ -15,7 +15,7 @@ export async function servicePackDeploy(
     throw new Error('Provided data file must be valid json.')
   }
 
-  const { target } = await findTargetInConfiguration(targetName, true)
+  const { target } = await findTargetInConfiguration(targetName)
 
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
@@ -65,7 +65,11 @@ async function deployToSasViyaWithServicePack(
   let jsonContent
 
   if (jsonFilePath) {
-    jsonContent = await readFile(path.join(process.cwd(), jsonFilePath))
+    jsonContent = await readFile(
+      path.isAbsolute(jsonFilePath)
+        ? jsonFilePath
+        : path.join(process.cwd(), jsonFilePath)
+    )
   } else {
     jsonContent = await readFile(finalFilePathJSON)
   }

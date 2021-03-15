@@ -1,11 +1,11 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { Configuration, TargetJson } from '../types'
 import { getConstants } from '../constants'
+import { TargetScope } from '../types/targetScope'
 
 /**
  * Returns an object that represents the SASjs CLI configuration in a given file.
@@ -31,14 +31,12 @@ export async function getConfiguration(
  * this function then looks in the global configuration.
  * If it is still unable to find it, it throws an error.
  * @param {string} targetName - the name of the target in question.
- * @param {boolean} viyaSpecific - will fall back to the first target of type SASVIYA.
- * @param {boolean} enforceLocal - will enforce to find target in local config only.
+ * @param {TargetScope} targetScope - if specified will either consider only Local OR only Global targets.
  * @returns {Target} target or fallback when one is found.
  */
 export async function findTargetInConfiguration(
   targetName: string,
-  viyaSpecific = false,
-  enforceLocal = false
+  targetScope?: TargetScope
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
@@ -46,6 +44,62 @@ export async function findTargetInConfiguration(
     process.projectDir = rootDir
   }
 
+  if (targetScope === TargetScope.Local) {
+    return targetName
+      ? { target: await getLocalTarget(targetName), isLocal: true }
+      : {
+          target: await getLocalFallbackTarget(),
+          isLocal: true
+        }
+  }
+
+  if (targetScope === TargetScope.Global) {
+    return targetName
+      ? { target: await getGlobalTarget(targetName), isLocal: false }
+      : {
+          target: await getGlobalFallbackTarget(),
+          isLocal: false
+        }
+  }
+
+  let target
+
+  if (targetName) {
+    try {
+      target = await getLocalTarget(targetName)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: true }
+
+    try {
+      target = await getGlobalTarget(targetName)
+    } catch (e) {}
+
+    if (target) return { target, isLocal: false }
+
+    throw new Error(
+      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
+  } else {
+    try {
+      target = await getLocalFallbackTarget()
+    } catch (e) {}
+
+    if (target) return { target, isLocal: true }
+
+    try {
+      target = await getGlobalFallbackTarget()
+    } catch (e) {}
+
+    if (target) return { target, isLocal: false }
+
+    throw new Error(
+      `Unable to find any default target.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    )
+  }
+}
+
+async function getLocalTarget(targetName: string): Promise<Target> {
   const localConfig = await getConfiguration(
     path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
@@ -61,11 +115,46 @@ export async function findTargetInConfiguration(
         targetJson
       )
 
-      return { target: new Target(targetJson), isLocal: true }
+      return new Target(targetJson)
     }
   }
 
-  const globalConfig = enforceLocal ? { targets: [] } : await getGlobalRcFile()
+  throw new Error(
+    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getLocalFallbackTarget(): Promise<Target> {
+  const localConfig = await getConfiguration(
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+
+  let fallBackTargetJson
+  if (localConfig?.targets) {
+    const defaultTargetName = localConfig?.defaultTarget
+    if (defaultTargetName) {
+      fallBackTargetJson = localConfig?.targets?.find(
+        (t) => t.name === defaultTargetName
+      )
+    }
+
+    if (fallBackTargetJson) {
+      process.logger?.info(
+        `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
+      )
+      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
+        localConfig,
+        fallBackTargetJson
+      )
+
+      return new Target(fallBackTargetJson)
+    }
+  }
+  throw new Error(
+    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getGlobalTarget(targetName: string): Promise<Target> {
+  const globalConfig = await getGlobalRcFile()
 
   if (globalConfig?.targets) {
     const targetJson = globalConfig.targets.find(
@@ -80,60 +169,39 @@ export async function findTargetInConfiguration(
         targetJson
       )
 
-      return { target: new Target(targetJson), isLocal: false }
+      return new Target(targetJson)
     }
   }
 
+  throw new Error(
+    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  )
+}
+async function getGlobalFallbackTarget(): Promise<Target> {
+  const globalConfig = (await getGlobalRcFile()) as Configuration
   let fallBackTargetJson
 
-  if (localConfig?.targets) {
-    fallBackTargetJson = viyaSpecific
-      ? localConfig.targets.find((t) => t.serverType === 'SASVIYA')
-      : localConfig.targets?.[0]
-      ? localConfig.targets[0]
-      : undefined
-
-    if (fallBackTargetJson) {
-      process.logger?.warn(
-        `Target ${targetName || ''} was not found. Falling back to target ${
-          fallBackTargetJson.name
-        } from your local sasjsconfig.json file.`
-      )
-      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        localConfig,
-        fallBackTargetJson
-      )
-
-      return { target: new Target(fallBackTargetJson), isLocal: true }
-    }
+  const defaultTargetName = globalConfig?.defaultTarget
+  if (defaultTargetName) {
+    fallBackTargetJson = globalConfig?.targets?.find(
+      (t) => t.name === defaultTargetName
+    )
   }
 
-  fallBackTargetJson = viyaSpecific
-    ? globalConfig.targets.find(
-        (t: Target) => t.serverType === ServerType.SasViya
-      )
-    : globalConfig.targets?.[0]
-    ? globalConfig.targets[0]
-    : undefined
-
   if (fallBackTargetJson) {
-    process.logger?.warn(
-      `Target ${targetName || ''} was not found. Falling back to target ${
-        fallBackTargetJson.name
-      } from your global .sasjsrc file.`
+    process.logger?.info(
+      `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,
       fallBackTargetJson
     )
 
-    return { target: new Target(fallBackTargetJson), isLocal: false }
+    return new Target(fallBackTargetJson)
   }
 
   throw new Error(
-    `Target ${
-      targetName || ''
-    } was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
   )
 }
 
@@ -165,13 +233,16 @@ export async function saveGlobalRcFile(content: string) {
   return rcFilePath
 }
 
-export async function saveToGlobalConfig(buildTarget: Target) {
+export async function saveToGlobalConfig(
+  target: Target,
+  isDefault: boolean = false
+) {
   let globalConfig = await getGlobalRcFile()
-  const targetJson = buildTarget.toJson()
+  const targetJson = target.toJson()
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
-        (t: Target) => t.name === buildTarget.name
+        (t: Target) => t.name === target.name
       )
       if (existingTargetIndex > -1) {
         globalConfig.targets[existingTargetIndex] = targetJson
@@ -184,16 +255,45 @@ export async function saveToGlobalConfig(buildTarget: Target) {
   } else {
     globalConfig = { targets: [targetJson] }
   }
+
+  if (isDefault) {
+    globalConfig.defaultTarget = target.name
+  }
+
   return await saveGlobalRcFile(JSON.stringify(globalConfig, null, 2))
 }
 
 export async function removeFromGlobalConfig(targetName: string) {
-  let globalConfig = await getGlobalRcFile()
+  let globalConfig = (await getGlobalRcFile()) as Configuration
   if (globalConfig && globalConfig.targets && globalConfig.targets.length) {
-    const targets = globalConfig.targets.filter(
-      (t: Target) => t.name !== targetName
+    const targets = globalConfig.targets.filter((t) => t.name !== targetName)
+
+    if (globalConfig.defaultTarget === targetName) {
+      globalConfig.defaultTarget = ''
+    }
+
+    await saveGlobalRcFile(
+      JSON.stringify({ ...globalConfig, targets }, null, 2)
     )
-    await saveGlobalRcFile(JSON.stringify({ targets }, null, 2))
+  }
+}
+
+export async function removeFromLocalConfig(targetName: string) {
+  let config = (await getLocalConfig()) as Configuration
+  if (config && config.targets && config.targets.length) {
+    const { buildSourceFolder } = getConstants()
+    const targets = config.targets.filter((t) => t.name !== targetName)
+
+    if (config.defaultTarget === targetName) {
+      config.defaultTarget = ''
+    }
+
+    const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+
+    await createFile(
+      configPath,
+      JSON.stringify({ ...config, targets }, null, 2)
+    )
   }
 }
 
@@ -206,7 +306,10 @@ export async function getLocalConfig() {
   return config
 }
 
-export async function saveToLocalConfig(target: Target) {
+export async function saveToLocalConfig(
+  target: Target,
+  isDefault: boolean = false
+) {
   const { buildSourceFolder } = getConstants()
   const targetJson = target.toJson()
   let config = await getLocalConfig()
@@ -225,6 +328,10 @@ export async function saveToLocalConfig(target: Target) {
     }
   } else {
     config = { targets: [targetJson] }
+  }
+
+  if (isDefault) {
+    config.defaultTarget = target.name
   }
 
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
@@ -255,7 +362,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
 
   const sourcePaths = configuration.macroFolders
     ? configuration.macroFolders.map((macroPath: string) =>
-        path.join(buildSourceFolder, macroPath)
+        path.isAbsolute(macroPath)
+          ? macroPath
+          : path.join(buildSourceFolder, macroPath)
       )
     : []
   const macroCorePath = path.join(

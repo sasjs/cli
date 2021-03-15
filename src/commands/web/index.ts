@@ -10,6 +10,7 @@ import {
   deleteFolder,
   getFilesInFolder
 } from '../../utils/file'
+import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
@@ -34,7 +35,12 @@ const exampleStreamConfig: StreamConfig = {
 export async function createWebAppServices(target: Target) {
   const { buildDestinationServicesFolder } = getConstants()
 
-  const { streamConfig } = target
+  const localConfig = await getLocalConfig()
+
+  const streamConfig = {
+    ...localConfig?.streamConfig,
+    ...target.streamConfig
+  } as StreamConfig
 
   if (!streamConfig) {
     throw new Error(
@@ -76,14 +82,19 @@ export async function createWebAppServices(target: Target) {
   )
   await createTargetDestinationFolder(destinationPath)
 
-  const assetPathMap = await createAssetServices(target, destinationPath)
-  const hasIndexHtml = await fileExists(
-    path.join(process.projectDir, webSourcePath, 'index.html')
+  const assetPathMap = await createAssetServices(
+    target,
+    destinationPath,
+    streamConfig
   )
-  if (hasIndexHtml) {
-    const indexHtml = await readFile(
-      path.join(process.projectDir, webSourcePath, 'index.html')
-    ).then((content) => new jsdom.JSDOM(content))
+  const indexHtmlPath = path.isAbsolute(webSourcePath)
+    ? path.join(webSourcePath, 'index.html')
+    : path.join(process.projectDir, webSourcePath, 'index.html')
+
+  if (await fileExists(indexHtmlPath)) {
+    const indexHtml = await readFile(indexHtmlPath).then(
+      (content) => new jsdom.JSDOM(content)
+    )
 
     const scriptTags = getScriptTags(indexHtml)
     await asyncForEach(scriptTags, async (tag) => {
@@ -92,12 +103,19 @@ export async function createWebAppServices(target: Target) {
         webSourcePath,
         destinationPath,
         target,
+        streamConfig,
         assetPathMap
       )
     })
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
-      await updateLinkHref(linkTag, webSourcePath, destinationPath, target)
+      await updateLinkHref(
+        linkTag,
+        webSourcePath,
+        destinationPath,
+        target,
+        streamConfig
+      )
     })
 
     const faviconTags = getFaviconTags(indexHtml)
@@ -108,23 +126,31 @@ export async function createWebAppServices(target: Target) {
 
     await createClickMeService(
       indexHtml.serialize(),
-      streamConfig.streamServiceName
+      streamConfig.streamServiceName as string
     )
   }
 }
 
-async function createAssetServices(target: Target, destinationPath: string) {
-  const { streamConfig } = target
-  const { webSourcePath, streamWebFolder, assetPaths } = streamConfig!
+async function createAssetServices(
+  target: Target,
+  destinationPath: string,
+  streamConfig: StreamConfig
+) {
+  const { webSourcePath, streamWebFolder, assetPaths } = streamConfig
   const assetPathMap: { source: string; target: string }[] = []
   await asyncForEach(assetPaths, async (assetPath) => {
+    const pathExistsAsAbsoluteFolder = await folderExists(
+      path.join(webSourcePath, assetPath)
+    )
     const pathExistsInCurrentFolder = await folderExists(
       path.join(process.cwd(), webSourcePath, assetPath)
     )
     const pathExistsInParentFolder = await folderExists(
       path.join(process.cwd(), '..', webSourcePath, assetPath)
     )
-    const fullAssetPath = pathExistsInCurrentFolder
+    const fullAssetPath = pathExistsAsAbsoluteFolder
+      ? path.join(webSourcePath, assetPath)
+      : pathExistsInCurrentFolder
       ? path.join(process.cwd(), webSourcePath, assetPath)
       : pathExistsInParentFolder
       ? path.join(process.cwd(), '..', webSourcePath, assetPath)
@@ -189,6 +215,7 @@ async function updateTagSource(
   webAppSourcePath: string,
   destinationPath: string,
   target: Target,
+  streamConfig: StreamConfig,
   assetPathMap: { source: string; target: string }[]
 ) {
   const scriptPath = tag.getAttribute('src')
@@ -225,7 +252,7 @@ async function updateTagSource(
         getScriptPath(
           target.appLoc,
           target.serverType,
-          target.streamConfig?.streamWebFolder!,
+          streamConfig.streamWebFolder!,
           fileName
         )
       )
@@ -237,7 +264,8 @@ async function updateLinkHref(
   linkTag: HTMLLinkElement,
   webAppSourcePath: string,
   destinationPath: string,
-  target: Target
+  target: Target,
+  streamConfig: StreamConfig
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
@@ -261,7 +289,7 @@ async function updateLinkHref(
     const linkHref = getLinkHref(
       target.appLoc,
       target.serverType,
-      target.streamConfig?.streamWebFolder!,
+      streamConfig.streamWebFolder!,
       fileName
     )
     linkTag.setAttribute('href', linkHref)
@@ -277,7 +305,9 @@ async function updateFaviconHref(
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
     const base64string = await base64EncodeImageFile(
-      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+      path.isAbsolute(webAppSourcePath)
+        ? path.join(webAppSourcePath, linkSourcePath)
+        : path.join(process.projectDir, webAppSourcePath, linkSourcePath)
     )
     linkTag.setAttribute('href', base64string)
   }

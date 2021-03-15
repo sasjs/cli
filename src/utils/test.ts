@@ -8,7 +8,7 @@ import {
   folderExists,
   readFile
 } from './file'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { ServerType, Target, Configuration } from '@sasjs/utils/types'
 import {
   getConfiguration,
   getGlobalRcFile,
@@ -19,13 +19,22 @@ import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
 import { builtFiles } from './fileStructures/builtFiles'
 import { asyncForEach } from './utils'
-import { Configuration, Folder, File } from '../types'
-import { ServiceConfig, DocConfig } from '@sasjs/utils/types/config'
+import { Folder, File } from '../types'
+import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
   await create(appName, '')
+  process.projectDir = path.join(parentFolder, appName)
+}
+
+export const createTestJobsApp = async (
+  parentFolder: string,
+  appName: string
+) => {
+  process.projectDir = parentFolder
+  await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
 }
 
@@ -43,7 +52,7 @@ export const removeTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = ''
 }
 
-export const createTestGlobalTarget = async (
+export const generateTestTarget = (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
@@ -80,7 +89,22 @@ export const createTestGlobalTarget = async (
     }
   })
 
-  await saveToGlobalConfig(target)
+  return target
+}
+
+export const createTestGlobalTarget = async (
+  targetName: string,
+  appLoc: string,
+  serviceConfig: ServiceConfig = {
+    serviceFolders: ['sasjs/services'],
+    initProgram: '',
+    termProgram: '',
+    macroVars: {}
+  }
+) => {
+  const target = generateTestTarget(targetName, appLoc, serviceConfig)
+
+  await saveToGlobalConfig(target, false)
 
   return target
 }
@@ -88,7 +112,6 @@ export const createTestGlobalTarget = async (
 export const verifyStep = async (
   step: 'db' | 'compile' | 'build' = 'compile'
 ) => {
-  let everythingPresent = false
   const fileStructure: Folder =
     step === 'db'
       ? dbFiles
@@ -98,9 +121,7 @@ export const verifyStep = async (
       ? builtFiles
       : compiledFiles
 
-  everythingPresent = await verifyFolder(fileStructure)
-
-  expect(everythingPresent).toEqual(true)
+  await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
 }
 
 export const mockProcessExit = () =>
@@ -171,7 +192,7 @@ export const updateTarget = async (
   }
 }
 
-export const updateConfig = async (config: Configuration) => {
+export const updateConfig = async (config: Partial<Configuration>) => {
   const { buildSourceFolder } = getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
 
@@ -185,7 +206,7 @@ export const updateConfig = async (config: Configuration) => {
 
 export const verifyDocs = async (
   docsFolder: string,
-  target: string = 'viya',
+  target: string,
   macroCore: boolean = true
 ) => {
   const indexHTML = path.join(docsFolder, 'index.html')

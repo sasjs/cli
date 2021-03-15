@@ -26,7 +26,8 @@ describe('addCredential', () => {
         serverUrl: 'http://server.com',
         serverType: ServerType.SasViya,
         appLoc: '/test'
-      })
+      }),
+      false
     )
 
     await fileUtils.deleteFile(path.join('.', '.env.test-target'))
