@@ -47,6 +47,7 @@ export async function cli(args: string[]) {
 
       break
     case 'compile':
+      process.currentDir = process.cwd()
     case 'build':
     case 'db':
     case 'compilebuild':
