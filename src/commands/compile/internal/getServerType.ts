@@ -13,8 +13,6 @@ import { getLocalOrGlobalConfig } from '../../../utils/config'
 export async function getServerType(target: Target): Promise<ServerType> {
   if (target?.serverType) return target.serverType
 
-  const { buildSourceFolder } = await getConstants()
-
   const { configuration } = await getLocalOrGlobalConfig()
 
   return configuration?.serverType

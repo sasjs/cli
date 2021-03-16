@@ -1,10 +1,8 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
-import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 
 export async function getAllJobFolders(target: Target) {
-  const { buildSourceFolder } = await getConstants()
   const { configuration } = await getLocalOrGlobalConfig()
   let allJobs: string[] = []
 

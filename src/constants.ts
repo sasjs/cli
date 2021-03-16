@@ -13,11 +13,15 @@ interface Constants {
 
 // process.projectDir sets in cli.js
 export const getConstants = async (): Promise<Constants> => {
-  const { configuration, isLocal } = await getLocalOrGlobalConfig()
+  const { configuration, isLocal } = await getLocalOrGlobalConfig().catch(
+    () => ({
+      configuration: null,
+      isLocal: false
+    })
+  )
 
-  const homeDir = require('os').homedir()
   const buildOutputFolder =
-    configuration.buildConfig?.buildOutputFolder || 'sasjsbuild'
+    configuration?.buildConfig?.buildOutputFolder || 'sasjsbuild'
 
   const buildSourceFolder = path.join(process.projectDir)
   const buildSourceDbFolder = path.join(process.projectDir, 'sasjs', 'db')
@@ -26,7 +30,7 @@ export const getConstants = async (): Promise<Constants> => {
     ? buildOutputFolder
     : isLocal
     ? path.join(process.projectDir, buildOutputFolder)
-    : path.join(homeDir, buildOutputFolder)
+    : path.join(process.currentDir, buildOutputFolder)
   const buildDestinationServicesFolder = path.join(
     buildDestinationFolder,
     'services'

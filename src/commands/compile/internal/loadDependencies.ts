@@ -118,7 +118,6 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 
 export async function getServiceVars(target: Target) {
   const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
-  const { buildSourceFolder } = await getConstants()
   const { configuration } = await getLocalOrGlobalConfig()
   const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
 

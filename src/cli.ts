@@ -51,11 +51,11 @@ export async function cli(args: string[]) {
     case 'db':
     case 'compilebuild':
     case 'compilebuilddeploy':
-      process.currentDir = process.cwd()
     case 'deploy':
     case 'web':
     case 'doc':
     default:
+      process.currentDir = process.cwd()
       if (!process.projectDir) {
         process.projectDir = process.cwd()
 

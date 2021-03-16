@@ -2,6 +2,7 @@ import path from 'path'
 import { getProgramFolders } from '../../utils/config'
 import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
 import { Target } from '@sasjs/utils/types'
+import { getConstants } from '../../constants'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
 import { Command } from '../../utils/command'
@@ -42,11 +43,12 @@ export async function compileSingleFile(
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
+  const { buildDestinationFolder } = await getConstants()
   const outputPath = output
     ? path.isAbsolute(output)
       ? output
       : path.join(process.currentDir!, output)
-    : path.join(process.projectDir, './sasjsbuild')
+    : buildDestinationFolder
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 

@@ -9,6 +9,7 @@ describe(`sasjs db`, () => {
 
   beforeAll(async (done) => {
     await createTestApp(__dirname, appName)
+    process.currentDir = process.projectDir
     done()
   })
 
