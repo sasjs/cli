@@ -41,7 +41,7 @@ export async function compile(target: Target, forceCompile = false) {
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
-  const { buildSourceFolder, buildDestinationFolder } = getConstants()
+  const { buildSourceFolder, buildDestinationFolder } = await getConstants()
 
   await recreateBuildFolder()
 
@@ -55,7 +55,7 @@ export async function copyFilesToBuildFolder(target: Target) {
       const sourcePath = path.isAbsolute(serviceFolder)
         ? serviceFolder
         : path.join(buildSourceFolder, serviceFolder)
-      const destinationPath = getDestinationServicePath(sourcePath)
+      const destinationPath = await getDestinationServicePath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
 
@@ -63,7 +63,7 @@ export async function copyFilesToBuildFolder(target: Target) {
       const sourcePath = path.isAbsolute(jobFolder)
         ? jobFolder
         : path.join(buildSourceFolder, jobFolder)
-      const destinationPath = getDestinationJobPath(sourcePath)
+      const destinationPath = await getDestinationJobPath(sourcePath)
       await copy(sourcePath, destinationPath)
     })
   } catch (error) {
@@ -103,7 +103,7 @@ export async function compileJobsAndServices(target: Target) {
 }
 
 async function recreateBuildFolder() {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   process.logger?.info('Recreating build folder...')
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) {
@@ -118,11 +118,11 @@ const compileServiceFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const folderPath = path.isAbsolute(serviceFolder)
     ? serviceFolder
     : path.join(buildSourceFolder, serviceFolder)
-  const destinationPath = getDestinationServicePath(folderPath)
+  const destinationPath = await getDestinationServicePath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)
 
@@ -149,11 +149,11 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const folderPath = path.isAbsolute(jobFolder)
     ? jobFolder
     : path.join(buildSourceFolder, jobFolder)
-  const destinationPath = getDestinationJobPath(folderPath)
+  const destinationPath = await getDestinationJobPath(folderPath)
   const subFolders = await getSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await getFilesInFolder(destinationPath)
 

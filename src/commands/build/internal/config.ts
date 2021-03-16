@@ -5,7 +5,7 @@ import { getConfiguration } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
 
 export const getBuildInit = async (target: Target) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let buildInitContent = ''
   if (target?.buildConfig?.initProgram) {
     buildInitContent = await readFile(
@@ -32,7 +32,7 @@ export const getBuildInit = async (target: Target) => {
 }
 
 export const getBuildTerm = async (target: Target) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let buildTermContent = ''
   if (target?.buildConfig?.termProgram) {
     buildTermContent = await readFile(

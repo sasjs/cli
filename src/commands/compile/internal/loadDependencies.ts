@@ -1,7 +1,7 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
+import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
 import { asyncForEach, chunk } from '../../../utils/utils'
 import {
@@ -24,7 +24,7 @@ export async function loadDependencies(
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let fileContent = await readFile(filePath)
 
   if (fileContent.includes('<h4> Dependencies </h4>')) {
@@ -118,10 +118,8 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 
 export async function getServiceVars(target: Target) {
   const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const { buildSourceFolder } = await getConstants()
+  const { configuration } = await getLocalOrGlobalConfig()
   const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
 
   return convertVarsToSasFormat({ ...commonServiceVars, ...targetServiceVars })

@@ -219,8 +219,8 @@ export async function compileBuildDeployServices(command: Command) {
 
 export async function buildDBs() {
   return await buildDB()
-    .then(() => {
-      const { buildDestinationDbFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationDbFolder } = await getConstants()
       displaySuccess(
         `DBs been successfully built!\nThe build output is located in the ${buildDestinationDbFolder} directory.`
       )
@@ -242,8 +242,8 @@ export async function buildWebApp(command: Command) {
   const { target } = await findTargetInConfiguration(targetName)
 
   return await createWebAppServices(target)
-    .then(() => {
-      const { buildDestinationFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationFolder } = await getConstants()
       displaySuccess(
         `Web app services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )
@@ -439,16 +439,16 @@ async function executeCompile(target: Target) {
 
 async function executeBuild(target: Target) {
   return await build(target)
-    .then(() => {
-      const { buildDestinationFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationFolder } = await getConstants()
       displaySuccess(
         `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )
       return ReturnCode.Success
     })
-    .catch((error) => {
-      if (Array.isArray(error)) {
-        const nodeModulesErrors = error.find((err) =>
+    .catch((err) => {
+      if (Array.isArray(err)) {
+        const nodeModulesErrors = err.find((err) =>
           err.includes('node_modules/@sasjs/core')
         )
 
@@ -457,7 +457,7 @@ async function executeBuild(target: Target) {
             `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
           )
       } else {
-        displayError(error, 'An error has occurred when building services.')
+        displayError(err, 'An error has occurred when building services.')
       }
       return ReturnCode.InternalError
     })

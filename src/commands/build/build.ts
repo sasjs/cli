@@ -49,7 +49,7 @@ async function createFinalSasFile(target: Target) {
   const { buildConfig, serverType, macroFolders, name } = target
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
 
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
@@ -143,7 +143,7 @@ function getWebServiceScriptInvocation(serverType: ServerType) {
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType) {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''

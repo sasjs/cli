@@ -4,7 +4,7 @@ import { getConstants } from '../../../constants'
 import { getConfiguration } from '../../../utils/config'
 
 export async function getDeployScripts(target: Target) {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )

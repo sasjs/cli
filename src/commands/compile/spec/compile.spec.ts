@@ -102,6 +102,7 @@ describe('sasjs compile single file', () => {
     beforeEach(async (done) => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestJobsApp(__dirname, appName)
+      process.currentDir = process.projectDir
       jest.spyOn(compileJobFile, 'compileJobFile')
       done()
     })
@@ -139,6 +140,7 @@ describe('sasjs compile single file', () => {
     beforeEach(async (done) => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
+      process.currentDir = process.projectDir
       jest.spyOn(compileServiceFile, 'compileServiceFile')
       done()
     })

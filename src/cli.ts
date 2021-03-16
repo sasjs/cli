@@ -47,11 +47,11 @@ export async function cli(args: string[]) {
 
       break
     case 'compile':
-      process.currentDir = process.cwd()
     case 'build':
     case 'db':
     case 'compilebuild':
     case 'compilebuilddeploy':
+      process.currentDir = process.cwd()
     case 'deploy':
     case 'web':
     case 'doc':

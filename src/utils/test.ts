@@ -163,7 +163,7 @@ export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
 }
 
 export const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []
@@ -180,7 +180,7 @@ export const updateTarget = async (
   target: Partial<Target>,
   targetName: string
 ) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   if (config?.targets) {
@@ -196,7 +196,7 @@ export const updateTarget = async (
 }
 
 export const updateConfig = async (config: Configuration) => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
 
   const newConfig = {

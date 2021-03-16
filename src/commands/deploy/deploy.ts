@@ -36,7 +36,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     )
   }
 
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
 
   const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
@@ -110,7 +110,7 @@ async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean
 ) {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
     `${target.name}.json`

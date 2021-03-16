@@ -2,7 +2,7 @@ import { Target } from '@sasjs/utils'
 import path from 'path'
 import { ServerType } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
+import { getLocalOrGlobalConfig } from '../../../utils/config'
 
 /**
  * Returns server type for 'compile' step.
@@ -13,11 +13,9 @@ import { getConfiguration } from '../../../utils/config'
 export async function getServerType(target: Target): Promise<ServerType> {
   if (target?.serverType) return target.serverType
 
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
 
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const { configuration } = await getLocalOrGlobalConfig()
 
   return configuration?.serverType
     ? configuration.serverType

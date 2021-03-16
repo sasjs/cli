@@ -31,6 +31,7 @@ describe('sasjs cbd with global config', () => {
   beforeEach(async () => {
     target = await createGlobalTarget()
     await createTestMinimalApp(__dirname, target.name)
+    process.currentDir = process.projectDir
     await copyJobsAndServices(target.name)
   })
 

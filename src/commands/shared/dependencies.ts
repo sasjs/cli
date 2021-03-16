@@ -11,7 +11,7 @@ export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const sourcePaths = await getSourcePaths(buildSourceFolder)
 
   if (macroFolders.length) {

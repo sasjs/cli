@@ -18,6 +18,7 @@ describe('sasjs compile', () => {
   beforeEach(async (done) => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
     await createTestApp(__dirname, appName)
+    process.currentDir = process.projectDir
     target = await createTestGlobalTarget(
       appName,
       `/Public/app/cli-tests/${appName}`

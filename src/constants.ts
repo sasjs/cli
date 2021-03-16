@@ -1,4 +1,5 @@
 import path from 'path'
+import { getLocalOrGlobalConfig } from './utils/config'
 
 interface Constants {
   buildSourceFolder: string
@@ -11,30 +12,28 @@ interface Constants {
 }
 
 // process.projectDir sets in cli.js
-export const getConstants = (): Constants => {
+export const getConstants = async (): Promise<Constants> => {
+  const { configuration, isLocal } = await getLocalOrGlobalConfig()
+
+  const homeDir = require('os').homedir()
+  const buildOutputFolder =
+    configuration.buildConfig?.buildOutputFolder || 'sasjsbuild'
+
   const buildSourceFolder = path.join(process.projectDir)
   const buildSourceDbFolder = path.join(process.projectDir, 'sasjs', 'db')
-  const buildDestinationFolder = path.join(process.projectDir, 'sasjsbuild')
+
+  const buildDestinationFolder = path.isAbsolute(buildOutputFolder)
+    ? buildOutputFolder
+    : isLocal
+    ? path.join(process.projectDir, buildOutputFolder)
+    : path.join(homeDir, buildOutputFolder)
   const buildDestinationServicesFolder = path.join(
-    process.projectDir,
-    'sasjsbuild',
+    buildDestinationFolder,
     'services'
   )
-  const buildDestinationJobsFolder = path.join(
-    process.projectDir,
-    'sasjsbuild',
-    'jobs'
-  )
-  const buildDestinationDbFolder = path.join(
-    process.projectDir,
-    'sasjsbuild',
-    'db'
-  )
-  const buildDestinationDocsFolder = path.join(
-    process.projectDir,
-    'sasjsbuild',
-    'docs'
-  )
+  const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
+  const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
+  const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
   return {
     buildSourceFolder,
     buildSourceDbFolder,
