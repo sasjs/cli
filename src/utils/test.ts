@@ -112,7 +112,6 @@ export const createTestGlobalTarget = async (
 export const verifyStep = async (
   step: 'db' | 'compile' | 'build' = 'compile'
 ) => {
-  let everythingPresent = false
   const fileStructure: Folder =
     step === 'db'
       ? dbFiles
@@ -122,9 +121,7 @@ export const verifyStep = async (
       ? builtFiles
       : compiledFiles
 
-  everythingPresent = await verifyFolder(fileStructure)
-
-  expect(everythingPresent).toEqual(true)
+  await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
 }
 
 export const mockProcessExit = () =>
@@ -195,7 +192,7 @@ export const updateTarget = async (
   }
 }
 
-export const updateConfig = async (config: Configuration) => {
+export const updateConfig = async (config: Partial<Configuration>) => {
   const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
 
