@@ -27,6 +27,7 @@ export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const createTestJobsApp = async (
@@ -36,6 +37,7 @@ export const createTestJobsApp = async (
   process.projectDir = parentFolder
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const createTestMinimalApp = async (
@@ -45,11 +47,13 @@ export const createTestMinimalApp = async (
   process.projectDir = parentFolder
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
   process.projectDir = ''
+  process.currentDir = ''
 }
 
 export const generateTestTarget = (
