@@ -201,8 +201,8 @@ export const updateTarget = async (
         ...targetJson
       })
       isLocal
-        ? await saveLocalConfigFile(JSON.stringify(config, null, 1))
-        : await saveGlobalRcFile(JSON.stringify(config, null, 1))
+        ? await saveLocalConfigFile(JSON.stringify(config, null, 2))
+        : await saveGlobalRcFile(JSON.stringify(config, null, 2))
     }
   }
 }
@@ -219,15 +219,9 @@ export const updateConfig = async (
     ...currentConfig,
     ...config
   }
-
-  if (isLocal) {
-    const { buildSourceFolder } = await getConstants()
-    const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-
-    await createFile(configPath, JSON.stringify(updatedConfig, null, 2))
-  } else {
-    await saveGlobalRcFile(JSON.stringify(updatedConfig, null, 2))
-  }
+  isLocal
+    ? await saveLocalConfigFile(JSON.stringify(updatedConfig, null, 2))
+    : await saveGlobalRcFile(JSON.stringify(updatedConfig, null, 2))
 }
 
 export const verifyDocs = async (
