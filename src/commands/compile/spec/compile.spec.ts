@@ -187,18 +187,25 @@ const defaultBuildConfig: BuildConfig = {
   macroVars: {}
 }
 describe('sasjs compile outside project', () => {
+  let sharedAppName: string
   let appName: string
   let target: Target
   let parentOutputFolder: string
   const homedir = require('os').homedir()
   describe('with global config', () => {
+    beforeAll(async (done) => {
+      sharedAppName = `cli-tests-compile-${generateTimestamp()}`
+      await createTestApp(homedir, sharedAppName)
+      done()
+    })
+
     beforeEach(async (done) => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await updateConfig(
         {
           macroFolders: [
-            './projects/macropeople/apps_sasjs/t10/sasjs/macros',
-            './projects/macropeople/apps_sasjs/t10/sasjs/targets/viya/macros'
+            `./${sharedAppName}/sasjs/macros`,
+            `./${sharedAppName}/sasjs/targets/viya/macros`
           ]
         },
         false
@@ -222,9 +229,40 @@ describe('sasjs compile outside project', () => {
       done()
     })
 
+    afterAll(async (done) => {
+      await removeTestApp(homedir, sharedAppName)
+      done()
+    })
+
     it('should compile single file', async (done) => {
       const buildOutputFolder = path.join(homedir, 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).resolves.toEqual({
+        destinationPath: `${buildOutputFolder}/example1.sas`
+      })
+
+      done()
+    })
+
+    it('should compile single file with absolute macroFolder paths', async (done) => {
+      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      parentOutputFolder = buildOutputFolder
+      const absolutePathToSharedApp = path.join(homedir, sharedAppName)
+      await updateConfig(
+        {
+          macroFolders: [
+            `${absolutePathToSharedApp}/sasjs/macros`,
+            `${absolutePathToSharedApp}/sasjs/targets/viya/macros`
+          ]
+        },
+        false
+      )
       await expect(
         compileSingleFile(
           target,
