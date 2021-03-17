@@ -107,12 +107,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
+        `${await getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
 
     case ServerType.Sas9:
       return await readFile(
-        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
+        `${await getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
     default:

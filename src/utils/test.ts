@@ -8,9 +8,17 @@ import {
   folderExists,
   readFile
 } from './file'
-import { ServerType, Target, Configuration } from '@sasjs/utils/types'
+import {
+  ServerType,
+  Target,
+  TargetJson,
+  Configuration
+} from '@sasjs/utils/types'
 import {
   getConfiguration,
+  getLocalConfig,
+  saveLocalConfigFile,
+  saveToLocalConfig,
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig
@@ -168,7 +176,7 @@ export const removeAllTargetsFromConfigs = async () => {
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []
-  await createFile(configPath, JSON.stringify(config, null, 1))
+  await createFile(configPath, JSON.stringify(config, null, 2))
 
   const globalConfig = await getGlobalRcFile()
   if (globalConfig?.targets?.length) {
@@ -178,34 +186,48 @@ export const removeAllTargetsFromConfigs = async () => {
 }
 
 export const updateTarget = async (
-  target: Partial<Target>,
-  targetName: string
+  targetJson: Partial<TargetJson>,
+  targetName: string,
+  isLocal: boolean = true
 ) => {
-  const { buildSourceFolder } = await getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
+  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
   if (config?.targets) {
-    const targetIndex = config.targets.findIndex((t) => t.name === targetName)
+    const targetIndex = config.targets.findIndex(
+      (t: TargetJson) => t.name === targetName
+    )
     if (targetIndex >= 0) {
       config.targets.splice(targetIndex, 1, {
         ...config.targets[targetIndex],
-        ...target
+        ...targetJson
       })
-      await createFile(configPath, JSON.stringify(config, null, 1))
+      isLocal
+        ? await saveLocalConfigFile(JSON.stringify(config, null, 1))
+        : await saveGlobalRcFile(JSON.stringify(config, null, 1))
     }
   }
 }
 
-export const updateConfig = async (config: Partial<Configuration>) => {
-  const { buildSourceFolder } = await getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+export const updateConfig = async (
+  config: Partial<Configuration>,
+  isLocal: boolean = true
+) => {
+  const currentConfig = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
-  const newConfig = {
-    ...(await getConfiguration(configPath)),
+  const updatedConfig = {
+    ...currentConfig,
     ...config
   }
 
-  await createFile(configPath, JSON.stringify(newConfig, null, 1))
+  if (isLocal) {
+    const { buildSourceFolder } = await getConstants()
+    const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+
+    await createFile(configPath, JSON.stringify(updatedConfig, null, 2))
+  } else {
+    await saveGlobalRcFile(JSON.stringify(updatedConfig, null, 2))
+  }
 }
 
 export const verifyDocs = async (

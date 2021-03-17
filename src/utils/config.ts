@@ -1,4 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
+import { getConstants } from '../constants'
 import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
@@ -318,6 +319,14 @@ export async function getLocalOrGlobalConfig(): Promise<{
   }
 }
 
+export async function saveLocalConfigFile(content: string) {
+  const configPath = path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
+
+  await createFile(configPath, content)
+
+  return configPath
+}
+
 export async function saveToLocalConfig(
   target: Target,
   isDefault: boolean = false
@@ -372,12 +381,7 @@ export async function getSourcePaths(buildSourceFolder: string) {
           : path.join(buildSourceFolder, macroPath)
       )
     : []
-  const macroCorePath = path.join(
-    process.projectDir,
-    'node_modules',
-    '@sasjs',
-    'core'
-  )
+  const macroCorePath = await getMacroCorePath()
   sourcePaths.push(macroCorePath)
 
   return sourcePaths
@@ -429,8 +433,9 @@ export async function getMacroFolders(targetName: string) {
   return macroFolders
 }
 
-export function getMacroCorePath() {
-  return path.join(process.projectDir, 'node_modules', '@sasjs/core')
+export async function getMacroCorePath() {
+  const { macroCorePath } = await getConstants()
+  return macroCorePath
 }
 
 /**

@@ -25,7 +25,7 @@ const fakeJobInit = `/**
   @li test.sas TEST
 
   <h4> SAS Macros </h4>
-  @li example.sas
+  @li examplemacro.sas
 
 **/
 
@@ -88,7 +88,12 @@ describe('compileJobFile', () => {
     await copy(filePath, destinationPath)
 
     await expect(
-      compileJobFile(target, destinationPath, [], ['../', '../services'])
+      compileJobFile(
+        target,
+        destinationPath,
+        ['../macros'],
+        ['../', '../services']
+      )
     ).toResolve()
 
     const compiledContent = await readFile(destinationPath)

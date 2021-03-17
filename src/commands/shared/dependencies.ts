@@ -52,17 +52,18 @@ export async function getDependencyPaths(
 
       process.logger?.error(errorMessage)
 
-      const notFoundDependencies = diff(dependencies, foundDependencies)
-
-      if (notFoundDependencies.length) {
-        process.logger?.error(
-          'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
-        )
-      }
-
       throw errorMessage
     }
   })
+  const notFoundDependencies = diff(dependencies, foundDependencies)
+
+  if (notFoundDependencies.length) {
+    const errorMessage =
+      'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
+    process.logger?.error(errorMessage)
+
+    throw errorMessage
+  }
 
   dependencyPaths = prioritiseDependencyOverrides(
     dependencies,

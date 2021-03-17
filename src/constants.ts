@@ -1,4 +1,5 @@
 import path from 'path'
+import { getInstalledPath } from 'get-installed-path'
 import { getLocalOrGlobalConfig } from './utils/config'
 
 interface Constants {
@@ -9,6 +10,7 @@ interface Constants {
   buildDestinationJobsFolder: string
   buildDestinationDbFolder: string
   buildDestinationDocsFolder: string
+  macroCorePath: string
 }
 
 // process.projectDir sets in cli.js
@@ -19,18 +21,29 @@ export const getConstants = async (): Promise<Constants> => {
       isLocal: false
     })
   )
-
   const buildOutputFolder =
     configuration?.buildConfig?.buildOutputFolder || 'sasjsbuild'
+  const homeDir = require('os').homedir()
+  const getMacroCoreGlobalPath = async () => {
+    const sasjsPath = await getInstalledPath('@sasjs/cli')
+    const macroCoreGlobal = path.join(
+      sasjsPath,
+      'node_modules',
+      '@sasjs',
+      'core'
+    )
+    return macroCoreGlobal
+  }
 
-  const buildSourceFolder = path.join(process.projectDir)
-  const buildSourceDbFolder = path.join(process.projectDir, 'sasjs', 'db')
-
+  const buildSourceFolder = path.join(isLocal ? process.projectDir : homeDir)
+  const buildSourceDbFolder = path.join(
+    isLocal ? process.projectDir : homeDir,
+    'sasjs',
+    'db'
+  )
   const buildDestinationFolder = path.isAbsolute(buildOutputFolder)
     ? buildOutputFolder
-    : isLocal
-    ? path.join(process.projectDir, buildOutputFolder)
-    : path.join(process.currentDir, buildOutputFolder)
+    : path.join(isLocal ? process.projectDir : homeDir, buildOutputFolder)
   const buildDestinationServicesFolder = path.join(
     buildDestinationFolder,
     'services'
@@ -38,6 +51,10 @@ export const getConstants = async (): Promise<Constants> => {
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
+  const macroCorePath = isLocal
+    ? path.join(buildSourceFolder, 'node_modules', '@sasjs/core')
+    : await getMacroCoreGlobalPath()
+
   return {
     buildSourceFolder,
     buildSourceDbFolder,
@@ -45,6 +62,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationServicesFolder,
     buildDestinationJobsFolder,
     buildDestinationDbFolder,
-    buildDestinationDocsFolder
+    buildDestinationDocsFolder,
+    macroCorePath
   }
 }

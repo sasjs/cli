@@ -29,7 +29,7 @@ export async function compileServiceFile(
 
 async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
-  const macroCorePath = getMacroCorePath()
+  const macroCorePath = await getMacroCorePath()
   switch (serverType) {
     case ServerType.SasViya:
       content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)

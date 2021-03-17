@@ -1,12 +1,19 @@
+import path from 'path'
 import { Target } from '@sasjs/utils'
-import { findTargetInConfiguration } from '../../../utils/config'
+import { BuildConfig } from '@sasjs/utils/types/config'
+import {
+  findTargetInConfiguration,
+  saveGlobalRcFile
+} from '../../../utils/config'
 import {
   createTestApp,
   createTestJobsApp,
   removeTestApp,
-  removeAllTargetsFromConfigs
+  removeAllTargetsFromConfigs,
+  updateConfig
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
+import { createFolder, deleteFolder } from '../../../utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
@@ -166,6 +173,174 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
+
+      done()
+    })
+  })
+})
+
+const defaultBuildConfig: BuildConfig = {
+  buildOutputFolder: 'sasjsbuild',
+  buildOutputFileName: 'test.sas',
+  initProgram: '',
+  termProgram: '',
+  macroVars: {}
+}
+describe('sasjs compile outside project', () => {
+  let appName: string
+  let target: Target
+  let parentOutputFolder: string
+  const homedir = require('os').homedir()
+  describe('with global config', () => {
+    beforeEach(async (done) => {
+      appName = `cli-tests-compile-${generateTimestamp()}`
+      await updateConfig(
+        {
+          macroFolders: [
+            './projects/macropeople/apps_sasjs/t10/sasjs/macros',
+            './projects/macropeople/apps_sasjs/t10/sasjs/targets/viya/macros'
+          ]
+        },
+        false
+      )
+      process.projectDir = ''
+      process.currentDir = path.join(__dirname, appName)
+      await createFolder(process.currentDir)
+      done()
+    })
+
+    afterEach(async (done) => {
+      await updateConfig(
+        {
+          macroFolders: [],
+          buildConfig: defaultBuildConfig
+        },
+        false
+      )
+      await deleteFolder(parentOutputFolder)
+      await deleteFolder(process.currentDir)
+      done()
+    })
+
+    it('should compile single file', async (done) => {
+      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      parentOutputFolder = buildOutputFolder
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).resolves.toEqual({
+        destinationPath: `${buildOutputFolder}/example1.sas`
+      })
+
+      done()
+    })
+
+    it('should fail to compile single file', async (done) => {
+      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      parentOutputFolder = buildOutputFolder
+      const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
+      await updateConfig(
+        {
+          macroFolders: []
+        },
+        false
+      )
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).rejects.toEqual(
+        `Unable to locate dependencies: ${dependencies.join(', ')}`
+      )
+
+      done()
+    })
+
+    it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async (done) => {
+      parentOutputFolder = path.join(__dirname, 'random-folder')
+      const buildOutputFolder = path.join(__dirname, 'random-folder', appName)
+      await updateConfig(
+        {
+          buildConfig: {
+            ...defaultBuildConfig,
+            buildOutputFolder
+          }
+        },
+        false
+      )
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).resolves.toEqual({
+        destinationPath: `${buildOutputFolder}/example1.sas`
+      })
+
+      done()
+    })
+
+    it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async (done) => {
+      parentOutputFolder = path.join(homedir, appName)
+      const buildOutputFolder = path.join(homedir, appName, 'random-folder')
+      await updateConfig(
+        {
+          buildConfig: {
+            ...defaultBuildConfig,
+            buildOutputFolder: appName + '/random-folder'
+          }
+        },
+        false
+      )
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).resolves.toEqual({
+        destinationPath: `${buildOutputFolder}/example1.sas`
+      })
+
+      done()
+    })
+  })
+
+  describe('without global config', () => {
+    beforeEach(async (done) => {
+      appName = `cli-tests-compile-${generateTimestamp()}`
+      await saveGlobalRcFile('')
+      process.projectDir = ''
+      process.currentDir = path.join(__dirname, appName)
+      await createFolder(process.currentDir)
+      done()
+    })
+
+    afterEach(async (done) => {
+      await deleteFolder(parentOutputFolder)
+      await deleteFolder(process.currentDir)
+      done()
+    })
+
+    it('should fail to compile single file', async (done) => {
+      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      parentOutputFolder = buildOutputFolder
+      const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
+      await expect(
+        compileSingleFile(
+          target,
+          new Command(`compile service -s ../services/example1.sas`),
+          'service'
+        )
+      ).rejects.toEqual(
+        `Unable to locate dependencies: ${dependencies.join(', ')}`
+      )
 
       done()
     })
