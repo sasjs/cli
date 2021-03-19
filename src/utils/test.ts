@@ -307,3 +307,68 @@ export const verifyDotFilesNotGenerated = async (docsFolder: string) => {
   await expect(fileExists(dotCodeFile)).resolves.toEqual(false)
   await expect(fileExists(dotGraphFile)).resolves.toEqual(false)
 }
+
+export const verifyCompiledService = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean = true,
+  checkTerm: boolean = true
+) => {
+  await verifyCompile(
+    compiledContent,
+    macrosToTest,
+    checkInit,
+    checkTerm,
+    'service'
+  )
+}
+
+export const verifyCompiledJob = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean = true,
+  checkTerm: boolean = true
+) => {
+  await verifyCompile(
+    compiledContent,
+    macrosToTest,
+    checkInit,
+    checkTerm,
+    'job'
+  )
+}
+
+const verifyCompile = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean,
+  checkTerm: boolean,
+  fileType: 'job' | 'service'
+) => {
+  if (fileType === 'service') {
+    if (checkInit) {
+      expect(/\* ServcieInit start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServcieInit end;/.test(compiledContent)).toEqual(true)
+    }
+    if (checkTerm) {
+      expect(/\* ServcieTerm start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServcieTerm end;/.test(compiledContent)).toEqual(true)
+    }
+  }
+
+  if (fileType === 'job') {
+    if (checkInit) {
+      expect(/\* JobInit start;/.test(compiledContent)).toEqual(true)
+      expect(/\* JobInit end;/.test(compiledContent)).toEqual(true)
+    }
+    if (checkTerm) {
+      expect(/\* JobTerm start;/.test(compiledContent)).toEqual(true)
+      expect(/\* JobTerm end;/.test(compiledContent)).toEqual(true)
+    }
+  }
+
+  macrosToTest.forEach((macro) => {
+    const re = new RegExp(`%macro ${macro}`)
+    expect(re.test(compiledContent)).toEqual(true)
+  })
+}

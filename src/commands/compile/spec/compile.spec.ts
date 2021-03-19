@@ -10,10 +10,16 @@ import {
   createTestJobsApp,
   removeTestApp,
   removeAllTargetsFromConfigs,
+  verifyCompiledService,
   updateConfig
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
-import { createFolder, deleteFolder } from '../../../utils/file'
+import {
+  createFolder,
+  readFile,
+  fileExists,
+  deleteFolder
+} from '../../../utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
@@ -236,6 +242,7 @@ describe('sasjs compile outside project', () => {
 
     it('should compile single file', async (done) => {
       const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       parentOutputFolder = buildOutputFolder
       await expect(
         compileSingleFile(
@@ -244,8 +251,20 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
+        destinationPath
       })
+
+      await expect(fileExists(destinationPath)).resolves.toEqual(true)
+
+      const compiledContent = await readFile(destinationPath)
+
+      const macrosToTest: string[] = [
+        'mf_nobs',
+        'examplemacro',
+        'yetanothermacro'
+      ]
+
+      await verifyCompiledService(compiledContent, macrosToTest, false, false)
 
       done()
     })
@@ -253,6 +272,7 @@ describe('sasjs compile outside project', () => {
     it('should compile single file with absolute macroFolder paths', async (done) => {
       const buildOutputFolder = path.join(homedir, 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
+      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       const absolutePathToSharedApp = path.join(homedir, sharedAppName)
       await updateConfig(
         {
@@ -270,8 +290,20 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
+        destinationPath
       })
+
+      await expect(fileExists(destinationPath)).resolves.toEqual(true)
+
+      const compiledContent = await readFile(destinationPath)
+
+      const macrosToTest: string[] = [
+        'mf_nobs',
+        'examplemacro',
+        'yetanothermacro'
+      ]
+
+      await verifyCompiledService(compiledContent, macrosToTest, false, false)
 
       done()
     })
@@ -302,6 +334,7 @@ describe('sasjs compile outside project', () => {
     it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async (done) => {
       parentOutputFolder = path.join(__dirname, 'random-folder')
       const buildOutputFolder = path.join(__dirname, 'random-folder', appName)
+      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       await updateConfig(
         {
           buildConfig: {
@@ -318,8 +351,20 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
+        destinationPath
       })
+
+      await expect(fileExists(destinationPath)).resolves.toEqual(true)
+
+      const compiledContent = await readFile(destinationPath)
+
+      const macrosToTest: string[] = [
+        'mf_nobs',
+        'examplemacro',
+        'yetanothermacro'
+      ]
+
+      await verifyCompiledService(compiledContent, macrosToTest, false, false)
 
       done()
     })
@@ -327,6 +372,7 @@ describe('sasjs compile outside project', () => {
     it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async (done) => {
       parentOutputFolder = path.join(homedir, appName)
       const buildOutputFolder = path.join(homedir, appName, 'random-folder')
+      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       await updateConfig(
         {
           buildConfig: {
@@ -343,8 +389,20 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
+        destinationPath
       })
+
+      await expect(fileExists(destinationPath)).resolves.toEqual(true)
+
+      const compiledContent = await readFile(destinationPath)
+
+      const macrosToTest: string[] = [
+        'mf_nobs',
+        'examplemacro',
+        'yetanothermacro'
+      ]
+
+      await verifyCompiledService(compiledContent, macrosToTest, false, false)
 
       done()
     })

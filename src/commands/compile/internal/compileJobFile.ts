@@ -18,7 +18,7 @@ export async function compileJobFile(
     programFolders,
     'job'
   )
-  dependencies = `${programVar}\n${dependencies}`
+  dependencies = `${programVar ? programVar + '\n' : ''}${dependencies}`
 
   await createFile(filePath, dependencies)
 }

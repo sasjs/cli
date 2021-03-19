@@ -41,7 +41,7 @@ describe('sasjs cbd with global config', () => {
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
 
-    await deleteFolder(path.join(__dirname, target.name))
+    await removeTestApp(__dirname, target.name)
     done()
   })
 
@@ -63,8 +63,8 @@ describe('sasjs cbd with global config', () => {
       `sasjsbuild/${target.name}.json`
     )
     await expect(compileBuildDeployServices(command)).toResolve()
-    await expect(fileExists(servicePath)).toResolve()
-    await expect(fileExists(jobPath)).toResolve()
+    await expect(fileExists(servicePath)).resolves.toEqual(true)
+    await expect(fileExists(jobPath)).resolves.toEqual(true)
     /**
      * test to ensure that jobs do not have web service pre code
      */
