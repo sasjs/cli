@@ -237,6 +237,7 @@ describe('sasjs compile outside project', () => {
 
     afterAll(async (done) => {
       await removeTestApp(homedir, sharedAppName)
+      await deleteFolder(path.join(homedir, 'sasjsbuild'))
       done()
     })
 
@@ -425,8 +426,6 @@ describe('sasjs compile outside project', () => {
     })
 
     it('should fail to compile single file', async (done) => {
-      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
-      parentOutputFolder = buildOutputFolder
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
       await expect(
         compileSingleFile(

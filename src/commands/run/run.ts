@@ -25,9 +25,6 @@ export async function runSasCode(command: Command) {
   }
 
   const { target } = await findTargetInConfiguration(targetName)
-  if (!target) {
-    throw new Error('Target not found! Please try again with another target.')
-  }
 
   if (compile) {
     ;({ destinationPath: filePath } = await compileSingleFile(
@@ -39,7 +36,9 @@ export async function runSasCode(command: Command) {
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)
   }
   const sasFile = await readFile(
-    path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath)
+    path.isAbsolute(filePath)
+      ? filePath
+      : path.join(process.currentDir, filePath)
   )
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === 'SASVIYA') {

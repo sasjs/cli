@@ -348,12 +348,12 @@ const verifyCompile = async (
 ) => {
   if (fileType === 'service') {
     if (checkInit) {
-      expect(/\* ServcieInit start;/.test(compiledContent)).toEqual(true)
-      expect(/\* ServcieInit end;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceInit start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceInit end;/.test(compiledContent)).toEqual(true)
     }
     if (checkTerm) {
-      expect(/\* ServcieTerm start;/.test(compiledContent)).toEqual(true)
-      expect(/\* ServcieTerm end;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceTerm start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceTerm end;/.test(compiledContent)).toEqual(true)
     }
   }
 
