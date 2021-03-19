@@ -10,6 +10,8 @@ interface Constants {
   buildDestinationJobsFolder: string
   buildDestinationDbFolder: string
   buildDestinationDocsFolder: string
+  buildDestinationResultsFolder: string
+  buildDestinationResultsLogsFolder: string
   macroCorePath: string
 }
 
@@ -23,6 +25,8 @@ export const getConstants = async (): Promise<Constants> => {
   )
   const buildOutputFolder =
     configuration?.buildConfig?.buildOutputFolder || 'sasjsbuild'
+  const buildResultsFolder =
+    configuration?.buildConfig?.buildResultsFolder || 'sasjsresults'
   const homeDir = require('os').homedir()
   const getMacroCoreGlobalPath = async () => {
     try {
@@ -58,6 +62,13 @@ export const getConstants = async (): Promise<Constants> => {
   const macroCorePath = isLocal
     ? path.join(buildSourceFolder, 'node_modules', '@sasjs/core')
     : await getMacroCoreGlobalPath()
+  const buildDestinationResultsFolder = path.isAbsolute(buildResultsFolder)
+    ? buildResultsFolder
+    : path.join(isLocal ? process.projectDir : homeDir, buildResultsFolder)
+  const buildDestinationResultsLogsFolder = path.join(
+    buildDestinationResultsFolder,
+    'logs'
+  )
 
   return {
     buildSourceFolder,
@@ -67,6 +78,8 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationJobsFolder,
     buildDestinationDbFolder,
     buildDestinationDocsFolder,
+    buildDestinationResultsFolder,
+    buildDestinationResultsLogsFolder,
     macroCorePath
   }
 }

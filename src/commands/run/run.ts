@@ -7,6 +7,8 @@ import { generateTimestamp } from '../../utils/utils'
 import { Command } from '../../utils/command'
 import { Target } from '@sasjs/utils'
 import { displayError } from '../../utils/displayResult'
+import { getConstants } from '../../constants'
+import { compileSingleFile } from '../'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -14,8 +16,9 @@ import { displayError } from '../../utils/displayResult'
  * @param {string} targetName - the name of the target to run the SAS code on.
  */
 export async function runSasCode(command: Command) {
-  const filePath = command.values.shift() || ''
+  let filePath = command.values.shift() || ''
   const targetName = command.getFlagValue('target') as string
+  const compile = !!command.getFlag('compile')
 
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
@@ -24,6 +27,16 @@ export async function runSasCode(command: Command) {
   const { target } = await findTargetInConfiguration(targetName)
   if (!target) {
     throw new Error('Target not found! Please try again with another target.')
+  }
+
+  if (compile) {
+    ;({ destinationPath: filePath } = await compileSingleFile(
+      target,
+      new Command(`compile -s ${filePath}`),
+      'identify',
+      true
+    ))
+    process.logger?.success(`File Compiled and placed at: ${filePath} .`)
   }
   const sasFile = await readFile(
     path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath)
@@ -73,7 +86,8 @@ async function executeOnSasViya(
       if (!log)
         throw new ErrorResponse('We were not able to fetch the log this time.')
 
-      await createOutputFile(log)
+      const createdFilePath = await createOutputFile(log)
+      process.logger?.error(`Log file has been created at ${createdFilePath} .`)
 
       throw new ErrorResponse('Find more error details in the log file.')
     })
@@ -96,8 +110,11 @@ async function executeOnSasViya(
 
   process.logger?.success('Job execution completed!')
 
+  const { buildResultsLogsFolder } = await getConstants()
   process.logger?.info(
-    `Creating ${isOutput ? 'output' : 'log'} file in ${process.cwd()} .`
+    `Creating ${
+      isOutput ? 'output' : 'log'
+    } file in ${buildResultsLogsFolder} .`
   )
   const createdFilePath = await createOutputFile(log)
   process.logger?.success(
@@ -131,13 +148,14 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
     serverType: target.serverType,
     debug: true
   })
+  const { buildResultsLogsFolder } = await getConstants()
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, serverName, repositoryName)
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
 
-        process.logger?.info(`Creating log file in ${process.cwd()} .`)
+        process.logger?.info(`Creating log file in ${buildResultsLogsFolder} .`)
         const createdFilePath = await createOutputFile(log)
         process.logger?.success(
           `Log file has been created at ${createdFilePath} .`
@@ -159,7 +177,7 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
   process.logger?.success('Job execution completed!')
 
-  process.logger?.info(`Creating log file in ${process.cwd()} .`)
+  process.logger?.info(`Creating log file in ${buildResultsLogsFolder} .`)
   const createdFilePath = await createOutputFile(
     JSON.stringify(parsedLog, null, 2)
   )
@@ -170,7 +188,11 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
 async function createOutputFile(log: string) {
   const timestamp = generateTimestamp()
-  const outputFilePath = path.join(process.cwd(), `sasjs-run-${timestamp}.log`)
+  const { buildResultsLogsFolder } = await getConstants()
+  const outputFilePath = path.join(
+    buildResultsLogsFolder,
+    `sasjs-run-${timestamp}.log`
+  )
 
   await createFile(outputFilePath, log)
 
