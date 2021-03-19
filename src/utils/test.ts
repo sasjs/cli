@@ -219,6 +219,7 @@ export const updateConfig = async (
     ...currentConfig,
     ...config
   }
+
   isLocal
     ? await saveLocalConfigFile(JSON.stringify(updatedConfig, null, 2))
     : await saveGlobalRcFile(JSON.stringify(updatedConfig, null, 2))
