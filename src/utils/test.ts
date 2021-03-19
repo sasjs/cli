@@ -164,7 +164,7 @@ export const removeAllTargetsFromConfigs = async () => {
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []
-  await createFile(configPath, JSON.stringify(config, null, 1))
+  await createFile(configPath, JSON.stringify(config, null, 2))
 
   const globalConfig = await getGlobalRcFile()
   if (globalConfig?.targets?.length) {
@@ -187,7 +187,7 @@ export const updateTarget = async (
         ...config.targets[targetIndex],
         ...target
       })
-      await createFile(configPath, JSON.stringify(config, null, 1))
+      await createFile(configPath, JSON.stringify(config, null, 2))
     }
   }
 }
@@ -201,7 +201,7 @@ export const updateConfig = async (config: Partial<Configuration>) => {
     ...config
   }
 
-  await createFile(configPath, JSON.stringify(newConfig, null, 1))
+  await createFile(configPath, JSON.stringify(newConfig, null, 2))
 }
 
 export const verifyDocs = async (
