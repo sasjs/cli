@@ -189,7 +189,7 @@ const defaultBuildConfig: BuildConfig = {
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string
-  let target: Target
+  const target: Target = undefined as Target
   let parentOutputFolder: string
   const homedir = require('os').homedir()
   describe('with global config', () => {
@@ -244,7 +244,7 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/example1.sas`
+        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
       })
 
       done()
@@ -270,7 +270,7 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/example1.sas`
+        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
       })
 
       done()
@@ -318,7 +318,7 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/example1.sas`
+        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
       })
 
       done()
@@ -343,7 +343,7 @@ describe('sasjs compile outside project', () => {
           'service'
         )
       ).resolves.toEqual({
-        destinationPath: `${buildOutputFolder}/example1.sas`
+        destinationPath: `${buildOutputFolder}/services/services/example1.sas`
       })
 
       done()

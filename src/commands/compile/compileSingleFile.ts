@@ -2,10 +2,13 @@ import path from 'path'
 import { getProgramFolders } from '../../utils/config'
 import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
 import { Target } from '@sasjs/utils/types'
-import { getConstants } from '../../constants'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
 import { Command } from '../../utils/command'
+import {
+  getDestinationServicePath,
+  getDestinationJobPath
+} from './internal/getDestinationPath'
 
 export async function compileSingleFile(
   target: Target,
@@ -43,16 +46,24 @@ export async function compileSingleFile(
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
-  const { buildDestinationFolder } = await getConstants()
+  let sourcefilePathParts = sourcePath.split(path.sep)
+  sourcefilePathParts.splice(-1, 1)
+  const sourceFolderPath = sourcefilePathParts.join('/')
+  const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
   const outputPath = output
     ? path.isAbsolute(output)
-      ? output
-      : path.join(process.currentDir!, output)
-    : buildDestinationFolder
+      ? path.join(output, `${subCommand}s`, leafFolderName)
+      : path.join(process.currentDir!, output, `${subCommand}s`, leafFolderName)
+    : subCommand === subCommands.job
+    ? await getDestinationJobPath(sourceFolderPath)
+    : await getDestinationServicePath(sourceFolderPath)
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
-  await deleteFolder(outputPath)
+  let outputPathParts = outputPath.split('/')
+  outputPathParts.pop(), outputPathParts.pop()
+  const parentOutputFolder = outputPathParts.join('/')
+  await deleteFolder(parentOutputFolder)
   await createFolder(outputPath)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string

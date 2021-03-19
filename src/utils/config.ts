@@ -372,7 +372,7 @@ export async function getFolders() {
 }
 
 export async function getSourcePaths(buildSourceFolder: string) {
-  let { configuration } = await getLocalOrGlobalConfig()
+  const { configuration } = await getLocalOrGlobalConfig()
 
   const sourcePaths = configuration?.macroFolders
     ? configuration.macroFolders.map((macroPath: string) =>
