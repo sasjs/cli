@@ -110,11 +110,11 @@ async function executeOnSasViya(
 
   process.logger?.success('Job execution completed!')
 
-  const { buildResultsLogsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = await getConstants()
   process.logger?.info(
     `Creating ${
       isOutput ? 'output' : 'log'
-    } file in ${buildResultsLogsFolder} .`
+    } file in ${buildDestinationResultsFolder} .`
   )
   const createdFilePath = await createOutputFile(log)
   process.logger?.success(
@@ -148,14 +148,16 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
     serverType: target.serverType,
     debug: true
   })
-  const { buildResultsLogsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = await getConstants()
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, serverName, repositoryName)
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
 
-        process.logger?.info(`Creating log file in ${buildResultsLogsFolder} .`)
+        process.logger?.info(
+          `Creating log file in ${buildDestinationResultsFolder} .`
+        )
         const createdFilePath = await createOutputFile(log)
         process.logger?.success(
           `Log file has been created at ${createdFilePath} .`
@@ -177,7 +179,9 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
   process.logger?.success('Job execution completed!')
 
-  process.logger?.info(`Creating log file in ${buildResultsLogsFolder} .`)
+  process.logger?.info(
+    `Creating log file in ${buildDestinationResultsFolder} .`
+  )
   const createdFilePath = await createOutputFile(
     JSON.stringify(parsedLog, null, 2)
   )
@@ -188,9 +192,9 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
 async function createOutputFile(log: string) {
   const timestamp = generateTimestamp()
-  const { buildResultsLogsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = await getConstants()
   const outputFilePath = path.join(
-    buildResultsLogsFolder,
+    buildDestinationResultsFolder,
     `sasjs-run-${timestamp}.log`
   )
 
