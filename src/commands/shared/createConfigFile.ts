@@ -18,5 +18,5 @@ export const createConfigFile = async (parentFolderName: string) => {
     'sasjs',
     'sasjsconfig.json'
   )
-  await createFile(configDestinationPath, JSON.stringify(config, null, 1))
+  await createFile(configDestinationPath, JSON.stringify(config, null, 2))
 }
