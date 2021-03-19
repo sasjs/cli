@@ -189,7 +189,7 @@ const defaultBuildConfig: BuildConfig = {
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string
-  const target: Target = undefined as Target
+  const target: Target = (undefined as unknown) as Target
   let parentOutputFolder: string
   const homedir = require('os').homedir()
   describe('with global config', () => {
