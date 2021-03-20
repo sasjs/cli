@@ -64,7 +64,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
         )
 
@@ -79,7 +79,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
           )
@@ -96,7 +96,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `646  data;\n647    do x=1 to 100;\n648      output;\n649    end;\n650  run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} sasjs/testServices/logJob.sas --compile`
           )
@@ -113,7 +113,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `646  data;\n647    do x=1 to 100;\n648      output;\n649    end;\n650  run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
           )
@@ -183,7 +183,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(`run -t ${target.name} ../testServices/logJob.sas`)
         )
 
@@ -198,7 +198,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ${__dirname}/testServices/logJob.sas`
           )
@@ -215,7 +215,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `\n458  data;\n459    do x=1 to 100;\n460      output;\n461    end;\n462  run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ../testServices/logJob.sas --compile`
           )
@@ -232,7 +232,7 @@ describe('sasjs run', () => {
       async () => {
         const logPart = `\n458  data;\n459    do x=1 to 100;\n460      output;\n461    end;\n462  run;`
 
-        let result: any = await runSasCode(
+        const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ${__dirname}/testServices/logJob.sas --compile`
           )
