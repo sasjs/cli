@@ -33,7 +33,7 @@ const exampleStreamConfig: StreamConfig = {
 }
 
 export async function createWebAppServices(target: Target) {
-  const { buildDestinationServicesFolder } = getConstants()
+  const { buildDestinationServicesFolder } = await getConstants()
 
   const localConfig = await getLocalConfig()
 
@@ -377,7 +377,7 @@ function getFaviconTags(parsedHtml: JSDOM) {
 }
 
 async function createBuildDestinationFolder() {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists) {
     await createFolder(buildDestinationFolder)
@@ -480,7 +480,7 @@ async function createClickMeService(
     }
   })
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
-  const { buildDestinationServicesFolder } = getConstants()
+  const { buildDestinationServicesFolder } = await getConstants()
   await createFile(
     path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent

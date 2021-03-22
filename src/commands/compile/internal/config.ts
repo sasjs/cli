@@ -2,12 +2,12 @@ import { Target } from '@sasjs/utils/types'
 import { readFile } from '../../../utils/file'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
+import { getLocalOrGlobalConfig } from '../../../utils/config'
 
 export const getServiceInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let serviceInitContent = '',
     filePath = ''
   if (target?.serviceConfig?.initProgram) {
@@ -16,9 +16,8 @@ export const getServiceInit = async (
       : path.join(buildSourceFolder, target.serviceConfig.initProgram)
     serviceInitContent = await readFile(filePath)
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const { configuration } = await getLocalOrGlobalConfig()
+
     if (configuration?.serviceConfig?.initProgram) {
       filePath = path.isAbsolute(configuration.serviceConfig.initProgram)
         ? configuration.serviceConfig.initProgram
@@ -41,7 +40,7 @@ export const getServiceInit = async (
 export const getServiceTerm = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let serviceTermContent = '',
     filePath = ''
   if (target?.serviceConfig?.termProgram) {
@@ -51,9 +50,8 @@ export const getServiceTerm = async (
       : path.join(buildSourceFolder, target.serviceConfig.termProgram)
     serviceTermContent = await readFile(filePath)
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const { configuration } = await getLocalOrGlobalConfig()
+
     if (configuration?.serviceConfig?.termProgram) {
       filePath = path.isAbsolute(configuration.serviceConfig.termProgram)
         ? configuration.serviceConfig.termProgram
@@ -76,7 +74,7 @@ export const getServiceTerm = async (
 export const getJobInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let jobInitContent = '',
     filePath = ''
   if (target?.jobConfig?.initProgram) {
@@ -86,9 +84,8 @@ export const getJobInit = async (
       : path.join(buildSourceFolder, target.jobConfig.initProgram)
     jobInitContent = await readFile(filePath)
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const { configuration } = await getLocalOrGlobalConfig()
+
     if (configuration?.jobConfig?.initProgram) {
       filePath = path.isAbsolute(configuration.jobConfig.initProgram)
         ? configuration.jobConfig.initProgram
@@ -111,7 +108,7 @@ export const getJobInit = async (
 export const getJobTerm = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let jobTermContent = '',
     filePath = ''
   if (target?.jobConfig?.termProgram) {
@@ -120,9 +117,8 @@ export const getJobTerm = async (
       : path.join(buildSourceFolder, target.jobConfig.termProgram)
     jobTermContent = await readFile(filePath)
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const { configuration } = await getLocalOrGlobalConfig()
+
     if (configuration?.jobConfig?.termProgram) {
       filePath = path.isAbsolute(configuration.jobConfig.termProgram)
         ? configuration.jobConfig.termProgram

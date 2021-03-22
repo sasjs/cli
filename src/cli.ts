@@ -55,6 +55,7 @@ export async function cli(args: string[]) {
     case 'web':
     case 'doc':
     default:
+      process.currentDir = process.cwd()
       if (!process.projectDir) {
         process.projectDir = process.cwd()
 

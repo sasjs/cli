@@ -11,7 +11,7 @@ export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const sourcePaths = await getSourcePaths(buildSourceFolder)
 
   if (macroFolders.length) {
@@ -52,17 +52,18 @@ export async function getDependencyPaths(
 
       process.logger?.error(errorMessage)
 
-      const notFoundDependencies = diff(dependencies, foundDependencies)
-
-      if (notFoundDependencies.length) {
-        process.logger?.error(
-          'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
-        )
-      }
-
       throw errorMessage
     }
   })
+  const notFoundDependencies = diff(dependencies, foundDependencies)
+
+  if (notFoundDependencies.length) {
+    const errorMessage =
+      'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
+    process.logger?.error(errorMessage)
+
+    throw errorMessage
+  }
 
   dependencyPaths = prioritiseDependencyOverrides(
     dependencies,

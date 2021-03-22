@@ -4,19 +4,25 @@ import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
 import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
+import { identifySasFile } from './internal/identifySasFile'
 import { Command } from '../../utils/command'
+import {
+  getDestinationServicePath,
+  getDestinationJobPath
+} from './internal/getDestinationPath'
 
 export async function compileSingleFile(
   target: Target,
   command: Command,
-  subCommand: string
+  subCommand: string = 'identify',
+  insertProgramVar: boolean = false
 ) {
   const subCommands = {
     job: 'job',
     service: 'service'
   }
 
-  if (!subCommands.hasOwnProperty(subCommand)) {
+  if (!subCommands.hasOwnProperty(subCommand) && subCommand !== 'identify') {
     throw new Error(
       `Unsupported context command. Supported commands are:\n${Object.keys(
         subCommands
@@ -36,29 +42,46 @@ export async function compileSingleFile(
 
   const sourcePath = path.isAbsolute(source)
     ? source
-    : path.join(process.projectDir, source)
+    : path.join(process.currentDir!, source)
 
   if (!(await validateSourcePath(sourcePath))) {
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
   }
 
+  if (subCommand === 'identify') {
+    subCommand = await identifySasFile(target, sourcePath)
+  }
+
+  let sourcefilePathParts = sourcePath.split(path.sep)
+  sourcefilePathParts.splice(-1, 1)
+  const sourceFolderPath = sourcefilePathParts.join('/')
+  const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
   const outputPath = output
     ? path.isAbsolute(output)
-      ? output
-      : path.join(process.projectDir, output)
-    : path.join(process.projectDir, './sasjsbuild')
+      ? path.join(output, `${subCommand}s`, leafFolderName)
+      : path.join(process.currentDir!, output, `${subCommand}s`, leafFolderName)
+    : subCommand === subCommands.job
+    ? await getDestinationJobPath(sourceFolderPath)
+    : await getDestinationServicePath(sourceFolderPath)
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
-  await deleteFolder(outputPath)
+  let outputPathParts = outputPath.split('/')
+  outputPathParts.pop(), outputPathParts.pop()
+  const parentOutputFolder = outputPathParts.join('/')
+  await deleteFolder(parentOutputFolder)
   await createFolder(outputPath)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string
   const destinationPath = path.join(outputPath, sourceFileName)
   await copy(sourcePath, destinationPath)
 
+  const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
   const macroFolders = target ? target.macroFolders : []
   const programFolders = await getProgramFolders(target)
+  const programVar = insertProgramVar
+    ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};`
+    : ''
 
   switch (subCommand) {
     case subCommands.service:
@@ -66,7 +89,8 @@ export async function compileSingleFile(
         target,
         destinationPath,
         macroFolders,
-        programFolders
+        programFolders,
+        programVar
       )
       break
     case subCommands.job:
@@ -74,7 +98,8 @@ export async function compileSingleFile(
         target,
         destinationPath,
         macroFolders,
-        programFolders
+        programFolders,
+        programVar
       )
       break
     default:

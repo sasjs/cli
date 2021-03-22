@@ -63,7 +63,8 @@ const initialFlags = arrToObj([
     'returnStatusOnly',
     'ignoreWarnings',
     'outDirectory',
-    'insecure'
+    'insecure',
+    'compile'
   ])
 ])
 
@@ -117,7 +118,10 @@ const commandFlags = [
     command: initialCommands.servicepack,
     flags: [initialFlags.target, initialFlags.source, initialFlags.force]
   },
-  { command: initialCommands.run, flags: [initialFlags.target] },
+  {
+    command: initialCommands.run,
+    flags: [initialFlags.target, initialFlags.compile]
+  },
   {
     command: initialCommands.request,
     flags: [initialFlags.target, initialFlags.datafile, initialFlags.configfile]

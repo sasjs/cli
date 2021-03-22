@@ -49,7 +49,7 @@ async function createFinalSasFile(target: Target) {
   const { buildConfig, serverType, macroFolders, name } = target
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
 
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
@@ -107,12 +107,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
+        `${await getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
 
     case ServerType.Sas9:
       return await readFile(
-        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
+        `${await getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
     default:
@@ -143,7 +143,7 @@ function getWebServiceScriptInvocation(serverType: ServerType) {
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType) {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''

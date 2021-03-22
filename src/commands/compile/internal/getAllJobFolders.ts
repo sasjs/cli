@@ -1,13 +1,9 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
-import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
+import { getLocalOrGlobalConfig } from '../../../utils/config'
 
 export async function getAllJobFolders(target: Target) {
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const { configuration } = await getLocalOrGlobalConfig()
   let allJobs: string[] = []
 
   if (configuration?.jobConfig?.jobFolders)

@@ -8,9 +8,17 @@ import {
   folderExists,
   readFile
 } from './file'
-import { ServerType, Target, Configuration } from '@sasjs/utils/types'
+import {
+  ServerType,
+  Target,
+  TargetJson,
+  Configuration
+} from '@sasjs/utils/types'
 import {
   getConfiguration,
+  getLocalConfig,
+  saveLocalConfigFile,
+  saveToLocalConfig,
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig
@@ -27,6 +35,7 @@ export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const createTestJobsApp = async (
@@ -36,6 +45,7 @@ export const createTestJobsApp = async (
   process.projectDir = parentFolder
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const createTestMinimalApp = async (
@@ -45,11 +55,13 @@ export const createTestMinimalApp = async (
   process.projectDir = parentFolder
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
 }
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
   process.projectDir = ''
+  process.currentDir = ''
 }
 
 export const generateTestTarget = (
@@ -160,7 +172,7 @@ export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
 }
 
 export const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []
@@ -174,34 +186,43 @@ export const removeAllTargetsFromConfigs = async () => {
 }
 
 export const updateTarget = async (
-  target: Partial<Target>,
-  targetName: string
+  targetJson: Partial<TargetJson>,
+  targetName: string,
+  isLocal: boolean = true
 ) => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  const config = await getConfiguration(configPath)
+  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
   if (config?.targets) {
-    const targetIndex = config.targets.findIndex((t) => t.name === targetName)
+    const targetIndex = config.targets.findIndex(
+      (t: TargetJson) => t.name === targetName
+    )
     if (targetIndex >= 0) {
       config.targets.splice(targetIndex, 1, {
         ...config.targets[targetIndex],
-        ...target
+        ...targetJson
       })
-      await createFile(configPath, JSON.stringify(config, null, 2))
+      isLocal
+        ? await saveLocalConfigFile(JSON.stringify(config, null, 2))
+        : await saveGlobalRcFile(JSON.stringify(config, null, 2))
     }
   }
 }
 
-export const updateConfig = async (config: Partial<Configuration>) => {
-  const { buildSourceFolder } = getConstants()
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+export const updateConfig = async (
+  config: Partial<Configuration>,
+  isLocal: boolean = true
+) => {
+  const currentConfig = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
-  const newConfig = {
-    ...(await getConfiguration(configPath)),
+  const updatedConfig = {
+    ...currentConfig,
     ...config
   }
 
-  await createFile(configPath, JSON.stringify(newConfig, null, 2))
+  isLocal
+    ? await saveLocalConfigFile(JSON.stringify(updatedConfig, null, 2))
+    : await saveGlobalRcFile(JSON.stringify(updatedConfig, null, 2))
 }
 
 export const verifyDocs = async (
@@ -286,4 +307,69 @@ export const verifyDotFilesNotGenerated = async (docsFolder: string) => {
 
   await expect(fileExists(dotCodeFile)).resolves.toEqual(false)
   await expect(fileExists(dotGraphFile)).resolves.toEqual(false)
+}
+
+export const verifyCompiledService = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean = true,
+  checkTerm: boolean = true
+) => {
+  await verifyCompile(
+    compiledContent,
+    macrosToTest,
+    checkInit,
+    checkTerm,
+    'service'
+  )
+}
+
+export const verifyCompiledJob = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean = true,
+  checkTerm: boolean = true
+) => {
+  await verifyCompile(
+    compiledContent,
+    macrosToTest,
+    checkInit,
+    checkTerm,
+    'job'
+  )
+}
+
+const verifyCompile = async (
+  compiledContent: string,
+  macrosToTest: string[],
+  checkInit: boolean,
+  checkTerm: boolean,
+  fileType: 'job' | 'service'
+) => {
+  if (fileType === 'service') {
+    if (checkInit) {
+      expect(/\* ServiceInit start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceInit end;/.test(compiledContent)).toEqual(true)
+    }
+    if (checkTerm) {
+      expect(/\* ServiceTerm start;/.test(compiledContent)).toEqual(true)
+      expect(/\* ServiceTerm end;/.test(compiledContent)).toEqual(true)
+    }
+  }
+
+  if (fileType === 'job') {
+    if (checkInit) {
+      expect(/\* JobInit start;/.test(compiledContent)).toEqual(true)
+      expect(/\* JobInit end;/.test(compiledContent)).toEqual(true)
+    }
+    if (checkTerm) {
+      expect(/\* JobTerm start;/.test(compiledContent)).toEqual(true)
+      expect(/\* JobTerm end;/.test(compiledContent)).toEqual(true)
+    }
+  }
+
+  macrosToTest.forEach((macro) => {
+    const re = new RegExp(`%macro ${macro}`)
+    expect(re.test(compiledContent)).toEqual(true)
+  })
 }

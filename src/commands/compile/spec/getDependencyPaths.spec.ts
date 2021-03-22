@@ -82,15 +82,16 @@ describe('getDependencyPaths', () => {
   })
 
   test('it should throw an error when a dependency is not found', async (done) => {
-    const missingDependency = './missing-dependency.sas'
+    const missingDependencies = ['foobar.sas', 'foobar2.sas']
+    const missingDependencyFile = './missing-dependency.sas'
 
-    const fileContent = await readFile(path.join(__dirname, missingDependency))
+    const fileContent = await readFile(
+      path.join(__dirname, missingDependencyFile)
+    )
 
-    const dependencyPaths = await getDependencyPaths(fileContent)
-
-    expect(
-      dependencyPaths.find((dep) => dep.includes(missingDependency))
-    ).toEqual(undefined)
+    await expect(getDependencyPaths(fileContent)).rejects.toEqual(
+      `Unable to locate dependencies: ${missingDependencies.join(', ')}`
+    )
 
     done()
   })

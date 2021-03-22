@@ -39,6 +39,7 @@ describe('sasjs servicepack', () => {
     await saveToGlobalConfig(new Target(config))
 
     process.projectDir = path.join(process.cwd())
+    process.currentDir = process.projectDir
   })
 
   describe('processServicepack', () => {

@@ -15,7 +15,7 @@ import { getConstants } from '../../constants'
 const whiteListedDBExtensions = ['ddl', 'sas']
 
 export async function buildDB() {
-  const { buildSourceDbFolder, buildDestinationDbFolder } = getConstants()
+  const { buildSourceDbFolder, buildDestinationDbFolder } = await getConstants()
   await recreateBuildFolder()
 
   const buildDBFolders = await getSubFoldersInFolder(buildSourceDbFolder)
@@ -60,7 +60,10 @@ export async function buildDB() {
 }
 
 async function recreateBuildFolder() {
-  const { buildDestinationFolder, buildDestinationDbFolder } = getConstants()
+  const {
+    buildDestinationFolder,
+    buildDestinationDbFolder
+  } = await getConstants()
   process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)
