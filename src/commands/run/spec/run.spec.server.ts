@@ -170,7 +170,7 @@ describe('sasjs run', () => {
     it(
       'should get the log having launch code message',
       async () => {
-        const logPart = `SASjs Streaming App Created!!  Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_PROGRAM=${target.appLoc}/services/clickme\n`
+        const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_PROGRAM=${target.appLoc}/services/clickme\n`
         await build(target)
         const result: any = await runSasCode(
           new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
