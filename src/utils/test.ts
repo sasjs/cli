@@ -122,7 +122,8 @@ export const createTestGlobalTarget = async (
 }
 
 export const verifyStep = async (
-  step: 'db' | 'compile' | 'build' = 'compile'
+  step: 'db' | 'compile' | 'build' = 'compile',
+  buildFileName: string = 'viya'
 ) => {
   const fileStructure: Folder =
     step === 'db'
@@ -130,7 +131,7 @@ export const verifyStep = async (
       : step === 'compile'
       ? compiledFiles
       : step === 'build'
-      ? builtFiles
+      ? builtFiles(buildFileName)
       : compiledFiles
 
   await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
