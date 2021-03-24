@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import path from 'path'
 import { folder, runSasCode } from '../..'
 import {
@@ -12,10 +13,13 @@ import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
+  createTestMinimalApp,
   createTestGlobalTarget,
   removeTestApp,
+  updateTarget,
   updateConfig
 } from '../../../utils/test'
+import { build } from '../../build/build'
 
 describe('sasjs run', () => {
   let target: Target
@@ -117,6 +121,59 @@ describe('sasjs run', () => {
           new Command(
             `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
           )
+        )
+
+        expect(result.log.includes(logPart)).toBeTruthy()
+      },
+
+      60 * 1000
+    )
+  })
+
+  describe('runSasCode within vanilla js project', () => {
+    let appName: string
+    beforeEach(async (done) => {
+      dotenv.config()
+      appName = 'cli-tests-run-' + generateTimestamp()
+      await createTestMinimalApp(__dirname, appName)
+      target = await updateTarget(
+        {
+          appLoc: `/Public/app/cli-tests/${appName}`,
+          streamConfig: {
+            assetPaths: [],
+            streamWeb: true,
+            streamWebFolder: 'webv',
+            webSourcePath: 'src',
+            streamServiceName: 'clickme'
+          },
+          authConfig: {
+            client: process.env.CLIENT as string,
+            secret: process.env.SECRET as string,
+            access_token: process.env.ACCESS_TOKEN as string,
+            refresh_token: process.env.REFRESH_TOKEN as string
+          }
+        },
+        'viya'
+      )
+
+      done()
+    })
+
+    afterEach(async (done) => {
+      await folder(
+        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
+      ).catch(() => {})
+      await removeTestApp(__dirname, appName)
+      done()
+    })
+
+    it(
+      'should get the log having launch code message',
+      async () => {
+        const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_PROGRAM=${target.appLoc}/services/clickme\n`
+        await build(target)
+        const result: any = await runSasCode(
+          new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
         )
 
         expect(result.log.includes(logPart)).toBeTruthy()

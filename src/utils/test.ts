@@ -122,7 +122,8 @@ export const createTestGlobalTarget = async (
 }
 
 export const verifyStep = async (
-  step: 'db' | 'compile' | 'build' = 'compile'
+  step: 'db' | 'compile' | 'build' = 'compile',
+  buildFileName: string = 'viya'
 ) => {
   const fileStructure: Folder =
     step === 'db'
@@ -130,7 +131,7 @@ export const verifyStep = async (
       : step === 'compile'
       ? compiledFiles
       : step === 'build'
-      ? builtFiles
+      ? builtFiles(buildFileName)
       : compiledFiles
 
   await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
@@ -189,7 +190,7 @@ export const updateTarget = async (
   targetJson: Partial<TargetJson>,
   targetName: string,
   isLocal: boolean = true
-) => {
+): Promise<Target> => {
   const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
   if (config?.targets) {
     const targetIndex = config.targets.findIndex(
@@ -203,8 +204,11 @@ export const updateTarget = async (
       isLocal
         ? await saveLocalConfigFile(JSON.stringify(config, null, 2))
         : await saveGlobalRcFile(JSON.stringify(config, null, 2))
+      return new Target(config.targets[targetIndex])
     }
+    throw `Unable to find Target: ${targetName}`
   }
+  throw `Unable to find Target: ${targetName}`
 }
 
 export const updateConfig = async (
