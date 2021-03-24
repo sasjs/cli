@@ -171,6 +171,36 @@ describe('sasjs doc lineage', () => {
     },
     60 * 1000
   )
+
+  it(
+    `should generate dot-files custom jobs`,
+    async () => {
+      appName = `test-app-doc-${generateTimestamp()}`
+      const docOutputDefault = path.join(
+        __dirname,
+        appName,
+        'sasjsbuild',
+        'docs'
+      )
+
+      await createTestApp(__dirname, appName)
+      await updateTarget(
+        {
+          jobConfig: {
+            jobFolders: ['../testJobHavingDoubleQoutes']
+          } as JobConfig
+        },
+        'viya'
+      )
+
+      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+
+      await verifyDotFiles(docOutputDefault)
+    },
+    60 * 1000
+  )
 })
 
 const verifyCustomDotFiles = async (docsFolder: string) => {

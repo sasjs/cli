@@ -42,7 +42,7 @@ export async function getDotFileContent(
 
       fileNodes.set(fileName, {
         edges: fileOutputs,
-        label: `${fileName} | ${fileBrief}`
+        label: `${fileName} | ${fileBrief}`.replace(/"/g, '\\"')
       })
     })
   })
@@ -64,7 +64,7 @@ export async function getDotFileContent(
     const attrURL = serverUrl ? `URL="${serverUrl + key}"` : ''
 
     const NDkey = nodeDictionary.get(key)
-    dotNodes += `${NDkey} [label="${node.label}" ${attrURL} shape="cylinder" style="filled" color="${color}"]\n`
+    dotNodes += `${NDkey} [ label="${node.label}" ${attrURL} shape="cylinder" style="filled" color="${color}"]\n`
 
     if (node.edges.length) {
       const dotFormatEdges = node.edges
