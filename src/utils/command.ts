@@ -24,47 +24,48 @@ const showInvalidFlagMessage = (
 
 const initialCommands = arrToObj([
   ...new Set([
-    'init',
-    'create',
-    'doc',
-    'web',
+    'add',
+    'build',
     'build-DB',
     'compile',
-    'build',
     'compilebuild',
-    'deploy',
     'compilebuilddeploy',
-    'servicepack',
     'context',
-    'add',
-    'run',
-    'request',
-    'folder',
-    'job',
+    'create',
+    'deploy',
+    'doc',
     'flow',
-    'version'
+    'folder',
+    'init',
+    'job',
+    'lint',
+    'request',
+    'run',
+    'servicepack',
+    'version',
+    'web'
   ])
 ])
 
 const initialFlags = arrToObj([
   ...new Set([
-    'target',
-    'source',
-    'template',
-    'datafile',
+    'compile',
     'configfile',
-    'wait',
-    'output',
-    'force',
-    'logFile',
-    'status',
-    'logFolder',
     'csvFile',
-    'returnStatusOnly',
+    'datafile',
+    'force',
     'ignoreWarnings',
-    'outDirectory',
     'insecure',
-    'compile'
+    'logFile',
+    'logFolder',
+    'outDirectory',
+    'output',
+    'returnStatusOnly',
+    'source',
+    'status',
+    'target',
+    'template',
+    'wait'
   ])
 ])
 

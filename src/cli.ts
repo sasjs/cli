@@ -19,8 +19,9 @@ import {
   servicepack,
   jobManagement,
   flowManagement,
-  ReturnCode
+  lint
 } from './main'
+import { ReturnCode } from './types'
 import { fileExists } from './utils/file'
 import path from 'path'
 import dotenv from 'dotenv'
@@ -148,6 +149,10 @@ export async function cli(args: string[]) {
     }
     case 'flow': {
       result = await flowManagement(command)
+      break
+    }
+    case 'lint': {
+      result = await lint()
       break
     }
     default:
