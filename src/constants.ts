@@ -24,9 +24,11 @@ export const getConstants = async (): Promise<Constants> => {
     })
   )
   const buildOutputFolder =
-    configuration?.buildConfig?.buildOutputFolder || 'sasjsbuild'
+    configuration?.buildConfig?.buildOutputFolder ||
+    (isLocal ? 'sasjsbuild' : '.sasjs/sasjsbuild')
   const buildResultsFolder =
-    configuration?.buildConfig?.buildResultsFolder || 'sasjsresults'
+    configuration?.buildConfig?.buildResultsFolder ||
+    (isLocal ? 'sasjsresults' : '.sasjs/sasjsresults')
   const homeDir = require('os').homedir()
   const getMacroCoreGlobalPath = async () => {
     try {
