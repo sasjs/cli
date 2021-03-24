@@ -8,6 +8,7 @@ import {
   createFolder,
   deleteFolder,
   folderExists,
+  fileExists,
   readFile
 } from '../../utils/file'
 import { getLocalConfig } from '../../utils/config'
@@ -117,7 +118,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     PROJECT_NAME
   })
 
-  const doxyConfigPath = path.join(doxyContent.path, 'Doxyfile')
+  const doxyConfigPath = await getDoxyConfigPath(doxyContent.path)
+  process.logger?.info(`Using ${doxyConfigPath} as Doxygen Configuration.`)
 
   const spinner = ora(
     chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))
@@ -166,4 +168,20 @@ function setVariableCmd(params: any): string {
     }
   }
   return command
+}
+
+const getDoxyConfigPath = async (doxyContentPath: string): Promise<string> => {
+  let doxyFilePath = path.join(doxyContentPath, 'Doxyfile')
+  if (await fileExists(doxyFilePath)) return doxyFilePath
+
+  doxyFilePath = path.join(doxyContentPath, 'DoxyFile')
+  if (await fileExists(doxyFilePath)) return doxyFilePath
+
+  doxyFilePath = path.join(doxyContentPath, 'doxyfile')
+  if (await fileExists(doxyFilePath)) return doxyFilePath
+
+  doxyFilePath = path.join(doxyContentPath, 'doxyFile')
+  if (await fileExists(doxyFilePath)) return doxyFilePath
+
+  throw 'Doxygen Configuration File is not found!\n  Supported names are "Doxyfile", "DoxyFile", "doxyfile" and "doxyFile"'
 }
