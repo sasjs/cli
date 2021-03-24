@@ -42,7 +42,9 @@ export async function getDotFileContent(
 
       fileNodes.set(fileName, {
         edges: fileOutputs,
-        label: `${fileName} | ${fileBrief}`.replace(/"/g, '\\"')
+        label: `${fileName} | ${fileBrief}`
+          .replace(/\\/g, '\\\\')
+          .replace(/"/g, '\\"')
       })
     })
   })
