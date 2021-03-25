@@ -1,20 +1,26 @@
 import path from 'path'
 import chalk from 'chalk'
+import cliTable from 'cli-table'
 import { lintFile, Diagnostic, Severity } from '@sasjs/lint'
+import { getProjectRoot as getDirectoryContainingLintConfig } from '@sasjs/lint/utils/getProjectRoot'
 
 import { asyncForEach } from '../../utils/utils'
-import { getDirectoryContainingLintConfig } from '../../utils/config'
 import { getSubFoldersInFolder, getFilesInFolder } from '../../utils/file'
 
-export async function processLint(): Promise<boolean> {
+interface LintResult {
+  warnings: boolean
+  errors: boolean
+}
+
+export async function processLint(): Promise<LintResult> {
   const lintConfigFolder =
-    (await getDirectoryContainingLintConfig()) || process.currentDir
+    (await getDirectoryContainingLintConfig()) || process.projectDir
 
   return await executeLint(lintConfigFolder)
 }
 
-async function executeLint(folderPath: string): Promise<boolean> {
-  let errorsFound = false
+async function executeLint(folderPath: string): Promise<LintResult> {
+  const found = { warnings: false, errors: false }
   const files = (await getFilesInFolder(folderPath)).filter((f: string) =>
     f.endsWith('.sas')
   )
@@ -24,7 +30,16 @@ async function executeLint(folderPath: string): Promise<boolean> {
     const sasjsDiagnostics = await lintFile(filePath)
 
     if (sasjsDiagnostics.length) {
-      errorsFound = true
+      found.warnings =
+        found.warnings ||
+        !!sasjsDiagnostics.find(
+          (d: Diagnostic) => d.severity === Severity.Warning
+        )
+      found.errors =
+        found.errors ||
+        !!sasjsDiagnostics.find(
+          (d: Diagnostic) => d.severity === Severity.Error
+        )
       displayDiagnostics(filePath, sasjsDiagnostics)
     }
   })
@@ -34,11 +49,12 @@ async function executeLint(folderPath: string): Promise<boolean> {
   )
 
   await asyncForEach(subFolders, async (subFolder) => {
-    errorsFound =
-      (await executeLint(path.join(folderPath, subFolder))) || errorsFound
+    const result = await executeLint(path.join(folderPath, subFolder))
+    found.warnings = found.warnings || result.warnings
+    found.errors = found.errors || result.errors
   })
 
-  return errorsFound
+  return found
 }
 
 const displayDiagnostics = (
@@ -47,16 +63,46 @@ const displayDiagnostics = (
 ) => {
   console.log(`File: ${chalk.cyan(filePath)}`)
 
-  sasjsDiagnostics.forEach((d: Diagnostic) => {
-    const message = `${d.message} [${d.lineNumber}, ${d.startColumnNumber}]`
-
-    if (d.severity === Severity.Info) {
-      console.log(`  ${chalk.cyan.bold('Info')}:`, message)
-    } else if (d.severity === Severity.Warning) {
-      console.log(`  ${chalk.yellow.bold('Warning')}:`, message)
-    } else if (d.severity === Severity.Error) {
-      console.log(`  ${chalk.red.bold('Error')}:`, message)
-    }
+  const table = new cliTable({
+    chars: {
+      top: '═',
+      'top-mid': '╤',
+      'top-left': '╔',
+      'top-right': '╗',
+      bottom: '═',
+      'bottom-mid': '╧',
+      'bottom-left': '╚',
+      'bottom-right': '╝',
+      left: '║',
+      'left-mid': '╟',
+      mid: '─',
+      'mid-mid': '┼',
+      right: '║',
+      'right-mid': '╢',
+      middle: '│'
+    },
+    head: [
+      chalk.white.bold('Severity'),
+      chalk.white.bold('Message'),
+      chalk.white.bold('[Line #, Col #]')
+    ]
   })
-  console.log('\n')
+
+  sasjsDiagnostics.forEach((d: Diagnostic) => {
+    const severity =
+      d.severity === Severity.Info
+        ? chalk.cyan.bold('Info')
+        : d.severity === Severity.Warning
+        ? chalk.yellow.bold('Warning')
+        : d.severity === Severity.Error
+        ? chalk.red.bold('Error')
+        : 'Unknown'
+
+    table.push([
+      severity,
+      d.message,
+      `[${d.lineNumber}, ${d.startColumnNumber}]`
+    ])
+  })
+  console.log(table.toString(), '\n')
 }

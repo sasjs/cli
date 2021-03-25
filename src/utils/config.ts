@@ -486,33 +486,6 @@ export async function getProjectRoot() {
   return root
 }
 
-export async function getDirectoryContainingLintConfig() {
-  let lintConfigFolder = ''
-  let lintConfigFolderFound = false
-  let i = 1
-  let currentLocation = process.projectDir
-
-  const maxLevels = currentLocation.split(path.sep).length
-
-  while (!lintConfigFolderFound && i <= maxLevels) {
-    const isLintConfigFolder = await fileExists(
-      path.join(currentLocation, '.sasjslint')
-    )
-
-    if (isLintConfigFolder) {
-      lintConfigFolderFound = true
-      lintConfigFolder = currentLocation
-
-      break
-    } else {
-      currentLocation = path.join(currentLocation, '..')
-      i++
-    }
-  }
-
-  return lintConfigFolder
-}
-
 /**
  * Gets an access token for the specified target.
  * If the target is from the global `.sasjsrc` file,
