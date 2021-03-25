@@ -119,5 +119,5 @@ const displayDiagnostics = (
       `[${d.lineNumber}, ${d.startColumnNumber}]`
     ])
   })
-  console.log(table.toString(), '\n')
+  process.logger.log(table.toString() + '\n')
 }
