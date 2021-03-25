@@ -8,7 +8,7 @@ import {
 } from './utils/test'
 import { generateTimestamp } from './utils/utils'
 import * as mainModule from './main'
-import { ReturnCode } from './main'
+import { ReturnCode } from './types'
 import { Command } from './utils/command'
 import { Target } from '@sasjs/utils'
 
@@ -331,6 +331,18 @@ describe('CLI command parsing', () => {
     expect(mainModule.flowManagement).toHaveBeenCalledWith(
       new Command(['flow', 'execute'])
     )
+    done()
+  })
+
+  it('should call the correct function for the lint command', async (done) => {
+    jest
+      .spyOn(mainModule, 'lint')
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
+    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'lint']
+
+    await cli(args)
+
+    expect(mainModule.lint).toHaveBeenCalledTimes(1)
     done()
   })
 
