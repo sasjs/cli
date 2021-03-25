@@ -1,7 +1,7 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, createFile, readFile, copy } from './file'
+import { fileExists, folderExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { padWithNumber } from '@sasjs/utils/formatter'
@@ -115,21 +115,29 @@ export async function setupNpmProject(folderPath: string): Promise<void> {
   })
 }
 
-export async function setupGitIgnore(folderPath: string): Promise<void> {
+export async function setupGitIgnore(folderName: string): Promise<void> {
   const gitIgnoreFilePath = path.join(
     process.projectDir,
-    folderPath,
+    folderName,
     '.gitignore'
   )
   const gitIgnoreExists = await fileExists(gitIgnoreFilePath)
 
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
+    let newgitIgnoreContent = gitIgnoreContent
 
     const regExpSasjsBuild = new RegExp(`^sasjsbuild\/`, 'gm')
-    let newgitIgnoreContent = gitIgnoreContent.match(regExpSasjsBuild)
-      ? gitIgnoreContent
-      : `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsBuild)
+      ? newgitIgnoreContent
+      : `${newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+
+    const regExpSasjsResults = new RegExp(`^sasjsresults\/`, 'gm')
+    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsResults)
+      ? newgitIgnoreContent
+      : `${
+          newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''
+        }sasjsresults/\n`
 
     const regExpNodeModules = new RegExp(`^node_modules\/`, 'gm')
     newgitIgnoreContent = newgitIgnoreContent.match(regExpNodeModules)
@@ -141,14 +149,61 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
       process.logger?.success('Existing .gitignore has been updated.')
     }
   } else {
-    shelljs.exec(`cd ${folderPath} && git init`, {
-      silent: true
-    })
-
-    await createFile(gitIgnoreFilePath, 'node_modules/\nsasjsbuild/\n.env\n')
+    await createFile(
+      gitIgnoreFilePath,
+      'node_modules/\nsasjsbuild/\nsasjsresults/\n.env\n'
+    )
 
     process.logger?.success('.gitignore file has been created.')
   }
+
+  const folderPath = path.join(process.projectDir, folderName)
+  const gitDirectoryExists = await folderExists(path.join(folderPath, '.git'))
+  if (!gitDirectoryExists) {
+    shelljs.exec(`cd ${folderName} && git init`, {
+      silent: true
+    })
+  }
+
+  await configureGitPreCommitHook(folderPath)
+
+  const parentRepositoryRoot = await getGitRoot(path.join(folderPath, '..'))
+  if (parentRepositoryRoot)
+    await configureGitPreCommitHook(parentRepositoryRoot)
+}
+
+function getGitRoot(folderPath: string): string {
+  const { stdout } = shelljs.exec(
+    `cd ${folderPath} && git rev-parse --show-toplevel`,
+    {
+      silent: true
+    }
+  )
+  return stdout.split('\n')[0]
+}
+
+const preCommitHookContent = `
+echo "Linting .sas files"
+
+sasjs lint
+returnCode=$?
+
+if [ $returnCode != 0 ]
+then
+  cat <<\EOF
+Resolve all lint errors before commiting changes.
+
+To list Lint errors run 'sasjs lint'.
+EOF
+  exit 1
+fi
+`
+async function configureGitPreCommitHook(folderPath: string) {
+  const preCommitHookPath = path.join(folderPath, '.git', 'hooks', 'pre-commit')
+  await createFile(preCommitHookPath, preCommitHookContent)
+  shelljs.exec(`chmod +x ${preCommitHookPath}`, {
+    silent: false
+  })
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {

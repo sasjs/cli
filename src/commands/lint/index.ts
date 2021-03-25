@@ -12,6 +12,8 @@ interface LintResult {
   errors: boolean
 }
 
+const excludeFolders = ['.git', '.github', '.vscode', 'node_modules']
+
 /**
  * Looks for parent folder containing .sasjslint, if found that will be starting point else project directory
  * Linting all .sas files from starting point to sub-directories
@@ -19,7 +21,9 @@ interface LintResult {
  */
 export async function processLint(): Promise<LintResult> {
   const lintConfigFolder =
-    (await getDirectoryContainingLintConfig()) || process.projectDir
+    (await getDirectoryContainingLintConfig()) ||
+    process.projectDir ||
+    process.currentDir
 
   return await executeLint(lintConfigFolder)
 }
@@ -55,7 +59,7 @@ async function executeLint(folderPath: string): Promise<LintResult> {
   })
 
   const subFolders = (await getSubFoldersInFolder(folderPath)).filter(
-    (f: string) => !f.includes('node_modules')
+    (f: string) => !excludeFolders.includes(f)
   )
 
   await asyncForEach(subFolders, async (subFolder) => {
