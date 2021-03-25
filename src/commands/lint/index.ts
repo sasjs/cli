@@ -12,6 +12,11 @@ interface LintResult {
   errors: boolean
 }
 
+/**
+ * Looks for parent folder containing .sasjslint, if found that will be starting point else project directory
+ * Linting all .sas files from starting point to sub-directories
+ * @returns an object containing booleans `warnings` and `errors`
+ */
 export async function processLint(): Promise<LintResult> {
   const lintConfigFolder =
     (await getDirectoryContainingLintConfig()) || process.projectDir
@@ -19,6 +24,11 @@ export async function processLint(): Promise<LintResult> {
   return await executeLint(lintConfigFolder)
 }
 
+/**
+ * Linting all .sas files from provided folder
+ * @param {string} folderPath- the path to folder as starting point
+ * @returns an object containing booleans `warnings` and `errors`
+ */
 async function executeLint(folderPath: string): Promise<LintResult> {
   const found = { warnings: false, errors: false }
   const files = (await getFilesInFolder(folderPath)).filter((f: string) =>
@@ -57,6 +67,11 @@ async function executeLint(folderPath: string): Promise<LintResult> {
   return found
 }
 
+/**
+ * Prints Lint Diagnostics as table
+ * @param {string} filePath- the path to file having offences
+ * @param {Diagnostic[]} sasjsDiagnostics- list of offences in particular file
+ */
 const displayDiagnostics = (
   filePath: string,
   sasjsDiagnostics: Diagnostic[]
