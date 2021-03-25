@@ -20,7 +20,8 @@ import {
   processFlow,
   generateDocs,
   generateDot,
-  initDocs
+  initDocs,
+  processLint
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
@@ -31,7 +32,8 @@ import { Target } from '@sasjs/utils/types'
 export enum ReturnCode {
   Success,
   InvalidCommand,
-  InternalError
+  InternalError,
+  LintError
 }
 
 export async function initSasjs() {
@@ -444,6 +446,26 @@ export async function flowManagement(command: Command) {
     })
     .catch((err) => {
       displayError('An error has occurred when processing flow operation.', err)
+      return ReturnCode.InternalError
+    })
+}
+
+export async function lint() {
+  return await processLint()
+    .then((result) => {
+      if (result.errors) {
+        displayError('Fix identified lint errors.')
+        return ReturnCode.LintError
+      }
+      if (result.warnings) {
+        process.logger.warn('Fix identified lint warnings.')
+        return ReturnCode.Success
+      }
+      displaySuccess('All matched files use @sasjs/lint code style!')
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when processing lint operation.')
       return ReturnCode.InternalError
     })
 }
