@@ -76,7 +76,7 @@ const displayDiagnostics = (
   filePath: string,
   sasjsDiagnostics: Diagnostic[]
 ) => {
-  console.log(`File: ${chalk.cyan(filePath)}`)
+  process.logger?.info(`File: ${filePath}`)
 
   const table = new cliTable({
     chars: {
@@ -119,5 +119,5 @@ const displayDiagnostics = (
       `[${d.lineNumber}, ${d.startColumnNumber}]`
     ])
   })
-  process.logger.log(table.toString() + '\n')
+  process.logger?.log(table.toString() + '\n')
 }
