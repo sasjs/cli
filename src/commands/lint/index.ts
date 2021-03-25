@@ -5,14 +5,12 @@ import { lintFile, Diagnostic, Severity } from '@sasjs/lint'
 import { asyncForEach } from '../../utils/utils'
 import { getDirectoryContainingLintConfig } from '../../utils/config'
 import { getSubFoldersInFolder, getFilesInFolder } from '../../utils/file'
-import { ReturnCode } from '../../types'
 
-export async function processLint(): Promise<ReturnCode> {
+export async function processLint(): Promise<boolean> {
   const lintConfigFolder =
     (await getDirectoryContainingLintConfig()) || process.currentDir
 
-  const foundLintErrors = await executeLint(lintConfigFolder)
-  return foundLintErrors ? ReturnCode.LintError : ReturnCode.Success
+  return await executeLint(lintConfigFolder)
 }
 
 async function executeLint(folderPath: string): Promise<boolean> {

@@ -19,9 +19,9 @@ import {
   servicepack,
   jobManagement,
   flowManagement,
-  lint
+  lint,
+  ReturnCode
 } from './main'
-import { ReturnCode } from './types'
 import { fileExists } from './utils/file'
 import path from 'path'
 import dotenv from 'dotenv'

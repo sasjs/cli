@@ -27,8 +27,14 @@ import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
 import { getConstants } from './constants'
 import { findTargetInConfiguration } from './utils/config'
-import { ReturnCode } from './types'
 import { Target } from '@sasjs/utils/types'
+
+export enum ReturnCode {
+  Success,
+  InvalidCommand,
+  InternalError,
+  LintError
+}
 
 export async function initSasjs() {
   return await init()
@@ -446,14 +452,13 @@ export async function flowManagement(command: Command) {
 
 export async function lint() {
   return await processLint()
-    .then((returnCode: ReturnCode) => {
-      if (returnCode === ReturnCode.Success) {
-        displaySuccess('All matched files use @sasjs/lint code style!')
-        return ReturnCode.Success
+    .then((errorsFound: boolean) => {
+      if (errorsFound) {
+        displayError('Fix identified lint errors.')
+        return ReturnCode.LintError
       }
-      displayError('Fix identified lint errors.')
-
-      return ReturnCode.LintError
+      displaySuccess('All matched files use @sasjs/lint code style!')
+      return ReturnCode.Success
     })
     .catch((err) => {
       displayError(err, 'An error has occurred when processing lint operation.')
