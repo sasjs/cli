@@ -24,8 +24,13 @@ export async function createDotFiles(
   const dotFileContent = await getDotFileContent(folderList, serverUrl)
 
   await createFile(dotFilePath, dotFileContent)
+  process.logger?.success(`File ${dotFilePath} has been created.`)
 
-  const svg = await graphviz.dot(dotFileContent, 'svg')
-
-  await createFile(dotGraphPath, svg)
+  try {
+    const svg = await graphviz.dot(dotFileContent, 'svg')
+    await createFile(dotGraphPath, svg)
+    process.logger?.success(`File ${dotGraphPath} has been created.`)
+  } catch (e) {
+    throw 'Unable to generate graph from generated Dot file.\n' + e
+  }
 }
