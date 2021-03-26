@@ -78,12 +78,15 @@ function createApp(
   repoUrl: string,
   installDependencies = true
 ) {
-  const spinner = ora(`Creating web app in ${folderPath}.`)
+  const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
+  shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} .`, {
     silent: true
   })
+
+  shelljs.rm('-rf', path.join(folderPath, '.git'))
+
   spinner.stop()
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
@@ -182,6 +185,10 @@ function getGitRoot(folderPath: string): string {
   return stdout.split('\n')[0]
 }
 
+export function isWindows(): boolean {
+  return process.platform === 'win32'
+}
+
 const preCommitHookContent = `
 echo "Linting .sas files"
 
@@ -200,10 +207,17 @@ fi
 `
 async function configureGitPreCommitHook(folderPath: string) {
   const preCommitHookPath = path.join(folderPath, '.git', 'hooks', 'pre-commit')
-  await createFile(preCommitHookPath, preCommitHookContent)
-  shelljs.exec(`chmod +x ${preCommitHookPath}`, {
-    silent: false
-  })
+
+  const isWin = isWindows()
+
+  await createFile(
+    preCommitHookPath,
+    isWin ? '#!/bin/sh\n' + preCommitHookContent : preCommitHookContent
+  )
+  if (!isWin)
+    shelljs.exec(`chmod +x ${preCommitHookPath}`, {
+      silent: false
+    })
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {

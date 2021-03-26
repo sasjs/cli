@@ -3,7 +3,7 @@ import shelljs from 'shelljs'
 import chalk from 'chalk'
 import ora from 'ora'
 
-import { isWindows } from '../../utils/command'
+import { isWindows } from '../../utils/utils'
 import {
   createFolder,
   deleteFolder,
