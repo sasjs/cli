@@ -122,7 +122,7 @@ export async function setupGhooks(folderName: string) {
 
   process.logger?.info('Installing ghooks')
   shelljs.exec(`cd ${folderPath} && npm i ghooks --save-dev`, {
-    silent: false
+    silent: true
   })
 
   const packageJsonPath = path.join(folderPath, 'package.json')
