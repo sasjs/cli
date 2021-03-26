@@ -18,6 +18,8 @@ import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
 
+import { LogLevel } from '@sasjs/utils/logger'
+
 /**
  * Generates documentation(Doxygen)
  * By default the docs will be at 'sasjsbuild/docs' folder
@@ -124,7 +126,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const spinner = ora(
     chalk.greenBright('Generating docs', chalk.cyanBright(newOutDirectory))
   )
-  spinner.start()
+  if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.start()
 
   await deleteFolder(newOutDirectory)
   await createFolder(newOutDirectory)
@@ -132,10 +134,10 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   const { stderr, code } = shelljs.exec(
     `${doxyParams} doxygen "${doxyConfigPath}"`,
     {
-      silent: true
+      silent: process.env.LOG_LEVEL !== LogLevel.Debug
     }
   )
-  spinner.stop()
+  if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.stop()
 
   if (code !== 0) {
     if (stderr.startsWith('error: ')) {
