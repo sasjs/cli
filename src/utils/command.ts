@@ -1,5 +1,5 @@
 import { displayError } from './displayResult'
-import { arrToObj, checkNodeVersion, isWindows } from './utils'
+import { arrToObj, checkNodeVersion } from './utils'
 
 const showInvalidCommandMessage = () => {
   displayError(
@@ -314,6 +314,10 @@ class Flag {
   setValue(value: string) {
     this.value = value
   }
+}
+
+export function isWindows(): boolean {
+  return process.platform === 'win32'
 }
 
 export function parseCommand(rawArgs: string[]) {

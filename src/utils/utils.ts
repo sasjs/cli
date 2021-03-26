@@ -98,8 +98,8 @@ function createApp(
   }
 }
 
-export async function setupNpmProject(folderPath: string): Promise<void> {
-  folderPath = path.join(process.projectDir, folderPath)
+export async function setupNpmProject(folderName: string): Promise<void> {
+  const folderPath = path.join(process.projectDir, folderName)
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {
@@ -116,6 +116,29 @@ export async function setupNpmProject(folderPath: string): Promise<void> {
     })
     return resolve()
   })
+}
+export async function setupGhooks(folderName: string) {
+  const folderPath = path.join(process.projectDir, folderName)
+
+  process.logger?.info('Installing ghooks')
+  shelljs.exec(`cd ${folderPath} && npm i ghooks --save-dev`, {
+    silent: false
+  })
+
+  const packageJsonPath = path.join(folderPath, 'package.json')
+  const packageJson = require(packageJsonPath)
+
+  if (!packageJson.config) packageJson.config = {}
+
+  if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
+
+  if (packageJson.config.ghooks['pre-commit']) {
+    packageJson.config.ghooks['pre-commit'] += ' && sasjs lint'
+  } else {
+    packageJson.config.ghooks['pre-commit'] = 'sasjs lint'
+  }
+
+  await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
 }
 
 export async function setupGitIgnore(folderName: string): Promise<void> {
@@ -167,57 +190,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
       silent: true
     })
   }
-
-  await configureGitPreCommitHook(folderPath)
-
-  const parentRepositoryRoot = await getGitRoot(path.join(folderPath, '..'))
-  if (parentRepositoryRoot)
-    await configureGitPreCommitHook(parentRepositoryRoot)
-}
-
-function getGitRoot(folderPath: string): string {
-  const { stdout } = shelljs.exec(
-    `cd ${folderPath} && git rev-parse --show-toplevel`,
-    {
-      silent: true
-    }
-  )
-  return stdout.split('\n')[0]
-}
-
-export function isWindows(): boolean {
-  return process.platform === 'win32'
-}
-
-const preCommitHookContent = `
-echo "Linting .sas files"
-
-sasjs lint
-returnCode=$?
-
-if [ $returnCode != 0 ]
-then
-  cat <<\EOF
-Resolve all lint errors before commiting changes.
-
-To list Lint errors run 'sasjs lint'.
-EOF
-  exit 1
-fi
-`
-async function configureGitPreCommitHook(folderPath: string) {
-  const preCommitHookPath = path.join(folderPath, '.git', 'hooks', 'pre-commit')
-
-  const isWin = isWindows()
-
-  await createFile(
-    preCommitHookPath,
-    isWin ? '#!/bin/sh\n' + preCommitHookContent : preCommitHookContent
-  )
-  if (!isWin)
-    shelljs.exec(`chmod +x ${preCommitHookPath}`, {
-      silent: false
-    })
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {
