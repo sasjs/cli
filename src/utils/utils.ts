@@ -81,7 +81,7 @@ function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} .`, {
+  shelljs.exec(`cd "${folderPath}" && git clone ${repoUrl} .`, {
     silent: true
   })
 
@@ -91,7 +91,7 @@ function createApp(
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
     spinner.start()
-    shelljs.exec(`cd ${folderPath} && npm install`, {
+    shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
     spinner.stop()
@@ -104,41 +104,18 @@ export async function setupNpmProject(folderName: string): Promise<void> {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {
       process.logger?.info(`Initialising NPM project in ${folderPath}`)
-      shelljs.exec(`cd ${folderPath} && npm init --yes`, {
+      shelljs.exec(`cd "${folderPath}" && npm init --yes`, {
         silent: true
       })
     } else {
       process.logger?.success('Existing NPM project detected.')
     }
     process.logger?.info('Installing @sasjs/core')
-    shelljs.exec(`cd ${folderPath} && npm i @sasjs/core --save`, {
+    shelljs.exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
       silent: true
     })
     return resolve()
   })
-}
-export async function setupGhooks(folderName: string) {
-  const folderPath = path.join(process.projectDir, folderName)
-
-  process.logger?.info('Installing ghooks')
-  shelljs.exec(`cd ${folderPath} && npm i ghooks --save-dev`, {
-    silent: true
-  })
-
-  const packageJsonPath = path.join(folderPath, 'package.json')
-  const packageJson = require(packageJsonPath)
-
-  if (!packageJson.config) packageJson.config = {}
-
-  if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
-
-  if (packageJson.config.ghooks['pre-commit']) {
-    packageJson.config.ghooks['pre-commit'] += ' && sasjs lint'
-  } else {
-    packageJson.config.ghooks['pre-commit'] = 'sasjs lint'
-  }
-
-  await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
 }
 
 export async function setupGitIgnore(folderName: string): Promise<void> {
@@ -190,6 +167,37 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
       silent: true
     })
   }
+}
+
+export async function setupGhooks(folderName: string) {
+  const folderPath = path.join(process.projectDir, folderName)
+
+  process.logger?.info('Installing ghooks')
+  shelljs.exec(`cd "${folderPath}" && npm i ghooks --save-dev`, {
+    silent: true
+  })
+
+  try {
+    const packageJsonPath = path.join(folderPath, 'package.json')
+    const packageJsonContent = await readFile(packageJsonPath)
+    const packageJson = JSON.parse(packageJsonContent)
+
+    if (!packageJson.config) packageJson.config = {}
+
+    if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
+
+    let preCommitCmd = 'sasjs lint'
+    if (packageJson.config.ghooks['pre-commit']) {
+      preCommitCmd = ' && sasjs lint'
+    } else {
+      packageJson.config.ghooks['pre-commit'] = ''
+    }
+
+    if (!/sasjs lint/.test(packageJson.config.ghooks['pre-commit']))
+      packageJson.config.ghooks['pre-commit'] += preCommitCmd
+
+    await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
+  } catch (e) {}
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {
