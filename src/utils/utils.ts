@@ -154,7 +154,7 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
   } else {
     await createFile(
       gitIgnoreFilePath,
-      'node_modules/\nsasjsbuild/\nsasjsresults/\n.env\n'
+      'node_modules/\nsasjsbuild/\nsasjsresults/\n.env*\n'
     )
 
     process.logger?.success('.gitignore file has been created.')
