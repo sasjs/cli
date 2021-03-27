@@ -130,7 +130,7 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
   fileStructure.folderName = appName
 
   await verifyFolder(fileStructure)
-  await verifyPackageJsonContent()
+  await verifyPackageJsonContent(appName)
 }
 
 const verifyCreate = async (parentFolderName: string, appType: string) => {
@@ -156,5 +156,5 @@ const verifyCreate = async (parentFolderName: string, appType: string) => {
     }
   }
   await verifyFolder(fileStructure)
-  await verifyPackageJsonContent()
+  await verifyPackageJsonContent(parentFolderName)
 }

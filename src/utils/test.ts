@@ -172,8 +172,12 @@ export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
   return true
 }
 
-export const verifyPackageJsonContent = async () => {
-  const packageJsonPath = path.join(process.projectDir, 'package.json')
+export const verifyPackageJsonContent = async (parentFolderName = '.') => {
+  const packageJsonPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    'package.json'
+  )
 
   await expect(fileExists(packageJsonPath)).resolves.toEqual(true)
 
