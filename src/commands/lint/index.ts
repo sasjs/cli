@@ -12,7 +12,14 @@ interface LintResult {
   errors: boolean
 }
 
-const excludeFolders = ['.git', '.github', '.vscode', 'node_modules']
+const excludeFolders = [
+  '.git',
+  '.github',
+  '.vscode',
+  'node_modules',
+  'sasjsbuild',
+  'sasjsresults'
+]
 
 /**
  * Looks for parent folder containing .sasjslint, if found that will be starting point else project directory
