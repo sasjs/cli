@@ -76,7 +76,7 @@
     "@types/find": "^0.2.1",
     "@types/get-installed-path": "^4.0.0",
     "@types/jest": "^26.0.20",
-    "@types/jsdom": "^16.2.6",
+    "@types/jsdom": "^16.2.9",
     "@types/lodash.groupby": "^4.6.6",
     "@types/lodash.uniqby": "^4.7.6",
     "@types/node": "^14.14.28",
