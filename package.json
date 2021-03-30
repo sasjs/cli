@@ -48,7 +48,7 @@
     "@sasjs/adapter": "^2.2.13",
     "@sasjs/core": "^2.13.2",
     "@sasjs/lint": "^1.2.0",
-    "@sasjs/utils": "^2.8.0",
+    "@sasjs/utils": "^2.10.1",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
     "cli-table": "^0.3.6",
