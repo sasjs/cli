@@ -172,6 +172,31 @@ export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
   return true
 }
 
+export const verifyPackageJsonContent = async (parentFolderName = '.') => {
+  const packageJsonPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    'package.json'
+  )
+
+  await expect(fileExists(packageJsonPath)).resolves.toEqual(true)
+
+  const packageJsonContent = await readFile(packageJsonPath)
+
+  const packageJson = JSON.parse(packageJsonContent)
+
+  expect(packageJson.dependencies).toEqual(
+    expect.objectContaining({ '@sasjs/core': expect.anything() })
+  )
+  expect(packageJson.devDependencies).toEqual(
+    expect.objectContaining({ ghooks: expect.anything() })
+  )
+
+  expect(
+    /sasjs lint/.test(packageJson?.config?.ghooks?.['pre-commit'])
+  ).toEqual(true)
+}
+
 export const removeAllTargetsFromConfigs = async () => {
   const { buildSourceFolder } = await getConstants()
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
