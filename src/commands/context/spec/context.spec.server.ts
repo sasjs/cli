@@ -42,12 +42,16 @@ describe('sasjs context', () => {
   const targetName = `cli-tests-context-${timestamp}`
 
   beforeAll(async () => {
-    await createTestGlobalTarget(targetName, '/Public/app/cli-tests')
+    await createTestGlobalTarget(
+      targetName,
+      `/Public/app/cli-tests/${targetName}`
+    )
     process.projectDir = process.cwd()
   })
 
   afterAll(async () => {
     deleteFolder(testContextConfigPath)
+    console.log(`context [targetName]`, targetName)
     await removeFromGlobalConfig(targetName)
   })
 

@@ -1,7 +1,6 @@
-import dotenv from 'dotenv'
 import path from 'path'
-import { processJob } from '../..'
-import { processContext } from '../..'
+import dotenv from 'dotenv'
+import { processJob, processContext } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { folderExists, fileExists, readFile, copy } from '../../../utils/file'
@@ -156,7 +155,7 @@ describe('sasjs job execute', () => {
   it(
     'should submit a job and create a file with job log having large log',
     async (done) => {
-      const largeLogFileLines = 2000000
+      const largeLogFileLines = 21 * 1000
       const command = new Command(
         `job execute jobs/testJob/largeLogJob -t ${target.name} -l`
       )
@@ -371,20 +370,21 @@ describe('sasjs job execute', () => {
 })
 
 async function getAvailableContext(target: Target) {
-  const targetNameContext = 'cli-tests-context'
+  const timestamp = generateTimestamp()
+  const targetName = `cli-job-tests-context-${timestamp}`
 
   await saveToGlobalConfig(
     new Target({
       ...target.toJson(),
-      name: targetNameContext
+      name: targetName
     })
   )
 
   const contexts = await processContext(
-    new Command(['context', 'list', '-t', targetNameContext])
+    new Command(['context', 'list', '-t', targetName])
   )
 
-  await removeFromGlobalConfig(targetNameContext)
+  await removeFromGlobalConfig(targetName)
 
   return (contexts as any[])[0]
 }
