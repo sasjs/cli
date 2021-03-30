@@ -89,7 +89,7 @@ describe('sasjs flow', () => {
   it(
     'should execute flow with job log having large log',
     async (done) => {
-      const largeLogFileLines = 2000000
+      const largeLogFileLines = 21 * 1000
 
       const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
 

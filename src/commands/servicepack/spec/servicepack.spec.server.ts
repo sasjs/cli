@@ -12,11 +12,11 @@ import { Command } from '../../../utils/command'
 
 describe('sasjs servicepack', () => {
   let config: TargetJson
-  const targetName = 'cli-tests-servicepack'
+  const targetName = 'cli-tests-servicepack-' + generateTimestamp()
 
   beforeAll(async () => {
     dotenv.config()
-    const timestamp = generateTimestamp()
+
     const serverType: ServerType =
       process.env.SERVER_TYPE === ServerType.SasViya
         ? ServerType.SasViya
@@ -26,7 +26,7 @@ describe('sasjs servicepack', () => {
       serverType: serverType,
       serverUrl: process.env.SERVER_URL as string,
       allowInsecureRequests: false,
-      appLoc: `/Public/app/cli-tests/${targetName}-${timestamp}`,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
       authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,

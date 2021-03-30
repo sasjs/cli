@@ -357,7 +357,7 @@ export async function execute(
             accessToken,
             logUrl,
             lineCount
-          )
+          ).catch((err) => Promise.reject(err))
 
           const logParsed = parseLogLines(logJson)
 
