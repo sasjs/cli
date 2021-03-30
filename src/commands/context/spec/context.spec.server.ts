@@ -51,7 +51,6 @@ describe('sasjs context', () => {
 
   afterAll(async () => {
     deleteFolder(testContextConfigPath)
-    console.log(`context [targetName]`, targetName)
     await removeFromGlobalConfig(targetName)
   })
 
