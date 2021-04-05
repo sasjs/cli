@@ -1,28 +1,14 @@
-import path from 'path'
 import chalk from 'chalk'
 import cliTable from 'cli-table'
 import { lintProject, Diagnostic, Severity } from '@sasjs/lint'
-
-import { asyncForEach } from '../../utils/utils'
-import { getSubFoldersInFolder, getFilesInFolder } from '../../utils/file'
 
 interface LintResult {
   warnings: boolean
   errors: boolean
 }
 
-const excludeFolders = [
-  '.git',
-  '.github',
-  '.vscode',
-  'node_modules',
-  'sasjsbuild',
-  'sasjsresults'
-]
-
 /**
- * Looks for parent folder containing .sasjslint, if found that will be starting point else project directory
- * Linting all .sas files from starting point to sub-directories
+ * Linting all .sas files in project
  * @returns an object containing booleans `warnings` and `errors`
  */
 export async function processLint(): Promise<LintResult> {
