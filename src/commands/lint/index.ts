@@ -12,7 +12,7 @@ interface LintResult {
  * @returns an object containing booleans `warnings` and `errors`
  */
 export async function processLint(): Promise<LintResult> {
-  const found = { warnings: false, errors: false }
+  const found: LintResult = { warnings: false, errors: false }
   const sasjsDiagnosticsMap: Map<string, Diagnostic[]> = await lintProject()
 
   sasjsDiagnosticsMap.forEach(
