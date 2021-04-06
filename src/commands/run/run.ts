@@ -83,7 +83,11 @@ async function executeOnSasViya(
       let log = err.log
 
       if (!log)
-        throw new ErrorResponse('We were not able to fetch the log this time.')
+        throw new ErrorResponse(
+          'We were not able to fetch the log this time.',
+          err,
+          err
+        )
 
       const createdFilePath = await createOutputFile(log)
       process.logger?.error(`Log file has been created at ${createdFilePath} .`)
