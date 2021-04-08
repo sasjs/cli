@@ -1,56 +1,22 @@
-import path from 'path'
 import chalk from 'chalk'
 import cliTable from 'cli-table'
-import { lintFile, Diagnostic, Severity } from '@sasjs/lint'
-import { getProjectRoot as getDirectoryContainingLintConfig } from '@sasjs/lint/utils/getProjectRoot'
-
-import { asyncForEach } from '../../utils/utils'
-import { getSubFoldersInFolder, getFilesInFolder } from '../../utils/file'
+import { lintProject, Diagnostic, Severity } from '@sasjs/lint'
 
 interface LintResult {
   warnings: boolean
   errors: boolean
 }
 
-const excludeFolders = [
-  '.git',
-  '.github',
-  '.vscode',
-  'node_modules',
-  'sasjsbuild',
-  'sasjsresults'
-]
-
 /**
- * Looks for parent folder containing .sasjslint, if found that will be starting point else project directory
- * Linting all .sas files from starting point to sub-directories
+ * Linting all .sas files in project
  * @returns an object containing booleans `warnings` and `errors`
  */
 export async function processLint(): Promise<LintResult> {
-  const lintConfigFolder =
-    (await getDirectoryContainingLintConfig()) ||
-    process.projectDir ||
-    process.currentDir
+  const found: LintResult = { warnings: false, errors: false }
+  const sasjsDiagnosticsMap: Map<string, Diagnostic[]> = await lintProject()
 
-  return await executeLint(lintConfigFolder)
-}
-
-/**
- * Linting all .sas files from provided folder
- * @param {string} folderPath- the path to folder as starting point
- * @returns an object containing booleans `warnings` and `errors`
- */
-async function executeLint(folderPath: string): Promise<LintResult> {
-  const found = { warnings: false, errors: false }
-  const files = (await getFilesInFolder(folderPath)).filter((f: string) =>
-    f.endsWith('.sas')
-  )
-
-  await asyncForEach(files, async (file) => {
-    const filePath = path.join(folderPath, file)
-    const sasjsDiagnostics = await lintFile(filePath)
-
-    if (sasjsDiagnostics.length) {
+  sasjsDiagnosticsMap.forEach(
+    (sasjsDiagnostics: Diagnostic[], filePath: string) => {
       found.warnings =
         found.warnings ||
         !!sasjsDiagnostics.find(
@@ -61,19 +27,11 @@ async function executeLint(folderPath: string): Promise<LintResult> {
         !!sasjsDiagnostics.find(
           (d: Diagnostic) => d.severity === Severity.Error
         )
-      displayDiagnostics(filePath, sasjsDiagnostics)
+      if (sasjsDiagnostics.length) {
+        displayDiagnostics(filePath, sasjsDiagnostics)
+      }
     }
-  })
-
-  const subFolders = (await getSubFoldersInFolder(folderPath)).filter(
-    (f: string) => !excludeFolders.includes(f)
   )
-
-  await asyncForEach(subFolders, async (subFolder) => {
-    const result = await executeLint(path.join(folderPath, subFolder))
-    found.warnings = found.warnings || result.warnings
-    found.errors = found.errors || result.errors
-  })
 
   return found
 }
