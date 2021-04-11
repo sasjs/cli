@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import path from 'path'
 import { folder, runSasCode } from '../..'
 import {
@@ -12,10 +13,13 @@ import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
+  createTestMinimalApp,
   createTestGlobalTarget,
   removeTestApp,
+  updateTarget,
   updateConfig
 } from '../../../utils/test'
+import { build } from '../../build/build'
 
 describe('sasjs run', () => {
   let target: Target
@@ -94,7 +98,7 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPart = `646  data;\n647    do x=1 to 100;\n648      output;\n649    end;\n650  run;`
+        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -102,7 +106,7 @@ describe('sasjs run', () => {
           )
         )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
+        expect(logPartRegex.test(result.log)).toBeTruthy()
       },
 
       60 * 1000
@@ -111,12 +115,65 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPart = `646  data;\n647    do x=1 to 100;\n648      output;\n649    end;\n650  run;`
+        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
             `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
           )
+        )
+
+        expect(logPartRegex.test(result.log)).toBeTruthy()
+      },
+
+      60 * 1000
+    )
+  })
+
+  describe('runSasCode within vanilla js project', () => {
+    let appName: string
+    beforeEach(async (done) => {
+      dotenv.config()
+      appName = 'cli-tests-run-' + generateTimestamp()
+      await createTestMinimalApp(__dirname, appName)
+      target = await updateTarget(
+        {
+          appLoc: `/Public/app/cli-tests/${appName}`,
+          streamConfig: {
+            assetPaths: [],
+            streamWeb: true,
+            streamWebFolder: 'webv',
+            webSourcePath: 'src',
+            streamServiceName: 'clickme'
+          },
+          authConfig: {
+            client: process.env.CLIENT as string,
+            secret: process.env.SECRET as string,
+            access_token: process.env.ACCESS_TOKEN as string,
+            refresh_token: process.env.REFRESH_TOKEN as string
+          }
+        },
+        'viya'
+      )
+
+      done()
+    })
+
+    afterEach(async (done) => {
+      await folder(
+        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
+      ).catch(() => {})
+      await removeTestApp(__dirname, appName)
+      done()
+    })
+
+    it(
+      'should get the log having launch code message',
+      async () => {
+        const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_PROGRAM=${target.appLoc}/services/clickme\n`
+        await build(target)
+        const result: any = await runSasCode(
+          new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
         )
 
         expect(result.log.includes(logPart)).toBeTruthy()
@@ -213,7 +270,7 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPart = `\n458  data;\n459    do x=1 to 100;\n460      output;\n461    end;\n462  run;`
+        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -221,7 +278,7 @@ describe('sasjs run', () => {
           )
         )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
+        expect(logPartRegex.test(result.log)).toBeTruthy()
       },
 
       60 * 1000
@@ -230,7 +287,7 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPart = `\n458  data;\n459    do x=1 to 100;\n460      output;\n461    end;\n462  run;`
+        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -238,7 +295,7 @@ describe('sasjs run', () => {
           )
         )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
+        expect(logPartRegex.test(result.log)).toBeTruthy()
       },
 
       60 * 1000

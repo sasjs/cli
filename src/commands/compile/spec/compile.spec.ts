@@ -186,7 +186,7 @@ describe('sasjs compile single file', () => {
 })
 
 const defaultBuildConfig: BuildConfig = {
-  buildOutputFolder: 'sasjsbuild',
+  buildOutputFolder: '.sasjs/sasjsbuild',
   buildOutputFileName: 'test.sas',
   initProgram: '',
   termProgram: '',
@@ -237,12 +237,12 @@ describe('sasjs compile outside project', () => {
 
     afterAll(async (done) => {
       await removeTestApp(homedir, sharedAppName)
-      await deleteFolder(path.join(homedir, 'sasjsbuild'))
+      await deleteFolder(path.join(homedir, '.sasjs'))
       done()
     })
 
     it('should compile single file', async (done) => {
-      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       parentOutputFolder = buildOutputFolder
       await expect(
@@ -271,7 +271,7 @@ describe('sasjs compile outside project', () => {
     })
 
     it('should compile single file with absolute macroFolder paths', async (done) => {
-      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       const absolutePathToSharedApp = path.join(homedir, sharedAppName)
@@ -310,7 +310,7 @@ describe('sasjs compile outside project', () => {
     })
 
     it('should fail to compile single file', async (done) => {
-      const buildOutputFolder = path.join(homedir, 'sasjsbuild')
+      const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
       await updateConfig(

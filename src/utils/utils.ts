@@ -1,7 +1,7 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, createFile, readFile, copy } from './file'
+import { fileExists, folderExists, createFile, readFile, copy } from './file'
 import { LogLevel, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { padWithNumber } from '@sasjs/utils/formatter'
@@ -78,58 +78,69 @@ function createApp(
   repoUrl: string,
   installDependencies = true
 ) {
-  const spinner = ora(`Creating web app in ${folderPath}.`)
+  const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  shelljs.exec(`cd ${folderPath} && git clone ${repoUrl} . && rm -rf .git`, {
+  shelljs.exec(`cd "${folderPath}" && git clone ${repoUrl} .`, {
     silent: true
   })
+
+  shelljs.rm('-rf', path.join(folderPath, '.git'))
+
   spinner.stop()
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
     spinner.start()
-    shelljs.exec(`cd ${folderPath} && npm install`, {
+    shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
     spinner.stop()
   }
 }
 
-export async function setupNpmProject(folderPath: string): Promise<void> {
-  folderPath = path.join(process.projectDir, folderPath)
+export async function setupNpmProject(folderName: string): Promise<void> {
+  const folderPath = path.join(process.projectDir, folderName)
   return new Promise(async (resolve, _) => {
     const isExistingProject = await inExistingProject(folderPath)
     if (!isExistingProject) {
       process.logger?.info(`Initialising NPM project in ${folderPath}`)
-      shelljs.exec(`cd ${folderPath} && npm init --yes`, {
+      shelljs.exec(`cd "${folderPath}" && npm init --yes`, {
         silent: true
       })
     } else {
       process.logger?.success('Existing NPM project detected.')
     }
     process.logger?.info('Installing @sasjs/core')
-    shelljs.exec(`cd ${folderPath} && npm i @sasjs/core --save`, {
+    shelljs.exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
       silent: true
     })
     return resolve()
   })
 }
 
-export async function setupGitIgnore(folderPath: string): Promise<void> {
+export async function setupGitIgnore(folderName: string): Promise<void> {
   const gitIgnoreFilePath = path.join(
     process.projectDir,
-    folderPath,
+    folderName,
     '.gitignore'
   )
   const gitIgnoreExists = await fileExists(gitIgnoreFilePath)
 
   if (gitIgnoreExists) {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
+    let newgitIgnoreContent = gitIgnoreContent
 
     const regExpSasjsBuild = new RegExp(`^sasjsbuild\/`, 'gm')
-    let newgitIgnoreContent = gitIgnoreContent.match(regExpSasjsBuild)
-      ? gitIgnoreContent
-      : `${gitIgnoreContent ? gitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsBuild)
+      ? newgitIgnoreContent
+      : `${newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+
+    const regExpSasjsResults = new RegExp(`^sasjsresults\/`, 'gm')
+    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsResults)
+      ? newgitIgnoreContent
+      : `${
+          newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''
+        }sasjsresults/\n`
 
     const regExpNodeModules = new RegExp(`^node_modules\/`, 'gm')
     newgitIgnoreContent = newgitIgnoreContent.match(regExpNodeModules)
@@ -141,14 +152,52 @@ export async function setupGitIgnore(folderPath: string): Promise<void> {
       process.logger?.success('Existing .gitignore has been updated.')
     }
   } else {
-    shelljs.exec(`cd ${folderPath} && git init`, {
-      silent: true
-    })
-
-    await createFile(gitIgnoreFilePath, 'node_modules/\nsasjsbuild/\n.env\n')
+    await createFile(
+      gitIgnoreFilePath,
+      'node_modules/\nsasjsbuild/\nsasjsresults/\n.env*\n'
+    )
 
     process.logger?.success('.gitignore file has been created.')
   }
+
+  const folderPath = path.join(process.projectDir, folderName)
+  const gitDirectoryExists = await folderExists(path.join(folderPath, '.git'))
+  if (!gitDirectoryExists) {
+    shelljs.exec(`cd ${folderName} && git init`, {
+      silent: true
+    })
+  }
+}
+
+export async function setupGhooks(folderName: string) {
+  const folderPath = path.join(process.projectDir, folderName)
+
+  process.logger?.info('Installing ghooks')
+  shelljs.exec(`cd "${folderPath}" && npm i ghooks --save-dev`, {
+    silent: true
+  })
+
+  try {
+    const packageJsonPath = path.join(folderPath, 'package.json')
+    const packageJsonContent = await readFile(packageJsonPath)
+    const packageJson = JSON.parse(packageJsonContent)
+
+    if (!packageJson.config) packageJson.config = {}
+
+    if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
+
+    let preCommitCmd = 'sasjs lint'
+    if (packageJson.config.ghooks['pre-commit']) {
+      preCommitCmd = ' && sasjs lint'
+    } else {
+      packageJson.config.ghooks['pre-commit'] = ''
+    }
+
+    if (!/sasjs lint/.test(packageJson.config.ghooks['pre-commit']))
+      packageJson.config.ghooks['pre-commit'] += preCommitCmd
+
+    await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
+  } catch (e) {}
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {

@@ -3,6 +3,7 @@ import path from 'path'
 import {
   setupNpmProject,
   setupGitIgnore,
+  setupGhooks,
   setupDoxygen
 } from '../../utils/utils'
 
@@ -13,9 +14,13 @@ export async function init() {
   process.logger?.info('Initialising SASjs...')
   const parentFolderName = '.'
 
-  await setupDoxygen(parentFolderName)
-  await createConfigFile(parentFolderName)
-
   await setupNpmProject(parentFolderName)
+
   await setupGitIgnore(parentFolderName)
+
+  await setupGhooks(parentFolderName)
+
+  await setupDoxygen(parentFolderName)
+
+  await createConfigFile(parentFolderName)
 }
