@@ -1,7 +1,7 @@
 import path from 'path'
 
 import { DefaultLintConfiguration } from '@sasjs/lint/utils/getLintConfig'
-import { createFile, fileExists } from '../../utils/file'
+import { createFile } from '../../utils/file'
 
 /**
  * Creates a SASjs Lint configuration file.
@@ -14,9 +14,8 @@ export const createLintConfigFile = async (parentFolderName: string) => {
     parentFolderName,
     '.sasjslint'
   )
-  if (!(await fileExists(configDestinationPath)))
-    await createFile(
-      configDestinationPath,
-      JSON.stringify(DefaultLintConfiguration, null, 2)
-    )
+  await createFile(
+    configDestinationPath,
+    JSON.stringify(DefaultLintConfiguration, null, 2)
+  )
 }

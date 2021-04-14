@@ -7,7 +7,7 @@ import {
   setupDoxygen
 } from '../../utils/utils'
 
-import { createFolder } from '../../utils/file'
+import { createFolder, fileExists } from '../../utils/file'
 import { createConfigFile } from '../shared/createConfigFile'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
@@ -25,5 +25,11 @@ export async function init() {
 
   await createConfigFile(parentFolderName)
 
-  await createLintConfigFile(parentFolderName)
+  const lintConfigPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    '.sasjslint'
+  )
+  if (!(await fileExists(lintConfigPath)))
+    await createLintConfigFile(parentFolderName)
 }

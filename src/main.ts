@@ -456,10 +456,15 @@ export async function lint(command: Command) {
 
   if (subCommand === 'init') {
     return await initLint()
-      .then(() => {
-        displaySuccess(
-          'The lint configuration file have been initialised. You can now run `sasjs lint`.'
-        )
+      .then((res: { fileAlreadyExisted: boolean }) => {
+        if (res.fileAlreadyExisted)
+          displaySuccess(
+            'The lint configuration file already present `.sasjslint`.'
+          )
+        else
+          displaySuccess(
+            'The lint configuration file have been initialised. You can now run `sasjs lint`.'
+          )
         return ReturnCode.Success
       })
       .catch((err: any) => {
