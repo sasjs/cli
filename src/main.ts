@@ -105,7 +105,7 @@ export async function doc(command: Command) {
   return await generateDocs(targetName, outDirectory)
     .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.`
+        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
       )
       return ReturnCode.Success
     })
