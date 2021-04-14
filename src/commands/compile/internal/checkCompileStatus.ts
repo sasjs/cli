@@ -12,7 +12,7 @@ import {
 } from './getDestinationPath'
 
 export async function checkCompileStatus(target: Target) {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const pathExists = await folderExists(buildDestinationFolder)
 
   if (!pathExists) {
@@ -50,7 +50,7 @@ export async function checkCompileStatus(target: Target) {
  */
 const checkServiceFolders = async (target: Target) => {
   const serviceFolders = await getAllServiceFolders(target)
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
 
   let areServiceFoldersMatching = true
   const reasons: string[] = []
@@ -58,7 +58,7 @@ const checkServiceFolders = async (target: Target) => {
     const sourcePath = path.isAbsolute(serviceFolder)
       ? serviceFolder
       : path.join(buildSourceFolder, serviceFolder)
-    const destinationPath = getDestinationServicePath(sourcePath)
+    const destinationPath = await getDestinationServicePath(sourcePath)
 
     const { equal, reason } = await compareFolders(sourcePath, destinationPath)
     areServiceFoldersMatching = areServiceFoldersMatching && equal
@@ -77,7 +77,7 @@ const checkServiceFolders = async (target: Target) => {
  */
 const checkJobFolders = async (target: Target) => {
   const jobFolders = await getAllJobFolders(target)
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
 
   let areJobFoldersMatching = true
   const reasons: string[] = []
@@ -85,7 +85,7 @@ const checkJobFolders = async (target: Target) => {
     const sourcePath = path.isAbsolute(jobFolder)
       ? jobFolder
       : path.join(buildSourceFolder, jobFolder)
-    const destinationPath = getDestinationJobPath(sourcePath)
+    const destinationPath = await getDestinationJobPath(sourcePath)
 
     const { equal, reason } = await compareFolders(sourcePath, destinationPath)
     areJobFoldersMatching = areJobFoldersMatching && equal

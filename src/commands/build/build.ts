@@ -12,7 +12,9 @@ import { getLocalConfig, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
+import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
+import { StreamConfig } from '@sasjs/utils/types/config'
 
 export async function build(target: Target) {
   await compile(target)
@@ -25,7 +27,10 @@ async function createFinalSasFiles(target: Target) {
 
   const localConfig = await getLocalConfig()
 
-  const streamConfig = { ...localConfig?.streamConfig, ...target.streamConfig }
+  const streamConfig = {
+    ...localConfig?.streamConfig,
+    ...target.streamConfig
+  } as StreamConfig
   const streamWeb = streamConfig.streamWeb ?? false
 
   if (streamWeb) {
@@ -42,14 +47,14 @@ async function createFinalSasFiles(target: Target) {
       })
   }
 
-  await createFinalSasFile(target)
+  await createFinalSasFile(target, streamConfig)
 }
 
-async function createFinalSasFile(target: Target) {
+async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const { buildConfig, serverType, macroFolders, name } = target
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
 
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
@@ -75,6 +80,14 @@ async function createFinalSasFile(target: Target) {
   finalSasFileContent += `\n${folderContent}`
 
   finalSasFileContent += `\n${buildTerm}`
+
+  if (streamConfig.streamWeb) {
+    finalSasFileContent += getLaunchPageCode(
+      target.serverType,
+      streamConfig.streamServiceName
+    )
+  }
+
   finalSasFileContent = removeComments(finalSasFileContent)
 
   process.logger?.debug(`Creating file ${finalFilePath} .`)
@@ -107,12 +120,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
+        `${await getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
 
     case ServerType.Sas9:
       return await readFile(
-        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
+        `${await getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
     default:
@@ -143,7 +156,7 @@ function getWebServiceScriptInvocation(serverType: ServerType) {
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType) {
-  const { buildDestinationFolder } = getConstants()
+  const { buildDestinationFolder } = await getConstants()
   const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''

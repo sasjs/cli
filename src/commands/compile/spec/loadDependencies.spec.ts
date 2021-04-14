@@ -82,7 +82,28 @@ const fakeJobInit = `/**
   @li test.sas TEST
 
   <h4> SAS Macros </h4>
-  @li example.sas
+  @li examplemacro.sas
+
+**/
+
+%example(Job Init is executing!)
+
+%let mylib=WORK;`
+
+const fakeJobInit2 = `/**
+  @file
+  @brief This code is inserted into the beginning of each Viya Job.
+  @details Inserted during the \`sasjs compile\` step.  Add any code here that
+  should go at the beginning of every deployed job.
+
+  The path to this file should be listed in the \`jobInit\` property of the
+  sasjsconfig file.
+
+  <h4> SAS Includes </h4>
+  @li test.sas TEST
+
+  <h4> SAS Macros </h4>
+  @li examplemacro.sas
 
 **/
 
@@ -224,6 +245,117 @@ describe('loadDependencies', () => {
     done()
   })
 
+  test('it should load programs for a service with <h4> SAS Programs </h4>', async (done) => {
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeTerm}\n* ServiceTerm end;`,
+      filePath: ''
+    })
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      ['../macros'],
+      ['../', '../services'],
+      'service'
+    )
+
+    expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    done()
+  })
+
+  test('it should load programs for a job <h4> SAS Programs </h4>', async (done) => {
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeTerm}\n* JobTerm end;`,
+      filePath: ''
+    })
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      ['../macros'],
+      ['../', '../services'],
+      'job'
+    )
+
+    expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    done()
+  })
+
+  test('it should load programs for a service with <h4> SAS Includes </h4>', async (done) => {
+    spyOn(internalModule, 'getServiceInit').and.returnValue({
+      content: `\n* ServiceInit start;\n${fakeJobInit2}\n* ServiceInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getServiceTerm').and.returnValue({
+      content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
+      filePath: ''
+    })
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      ['../macros'],
+      ['../', '../services'],
+      'service'
+    )
+    expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    done()
+  })
+
+  test('it should load programs for a job <h4> SAS Includes </h4>', async (done) => {
+    spyOn(internalModule, 'getJobInit').and.returnValue({
+      content: `\n* JobInit start;\n${fakeJobInit2}\n* JobInit end;`,
+      filePath: ''
+    })
+    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
+      filePath: ''
+    })
+
+    const dependencies = await loadDependencies(
+      target,
+      path.join(__dirname, './service.sas'),
+      ['../macros'],
+      ['../', '../services'],
+      'job'
+    )
+
+    expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
+    expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
+    expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
+
+    done()
+  })
+
   test("it should load dependencies for a job having jobInit's <h4> SAS Programs </h4>", async (done) => {
     spyOn(internalModule, 'getJobInit').and.returnValue({
       content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
@@ -237,7 +369,7 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      [],
+      ['../macros'],
       ['../', '../services'],
       'job'
     )
@@ -246,6 +378,8 @@ describe('loadDependencies', () => {
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro examplemacro/.test(dependencies)).toEqual(true)
+    expect(/%macro doesnothing/.test(dependencies)).toEqual(true)
     expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
 
@@ -269,7 +403,7 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      [],
+      ['../macros'],
       ['../', '../services'],
       'job'
     )
@@ -278,6 +412,8 @@ describe('loadDependencies', () => {
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro examplemacro/.test(dependencies)).toEqual(true)
+    expect(/%macro doesnothing/.test(dependencies)).toEqual(true)
     expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
 
     expect(dependencies).toEqual(
@@ -300,7 +436,7 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      [],
+      ['../macros'],
       ['../', '../services'],
       'service'
     )
@@ -308,6 +444,8 @@ describe('loadDependencies', () => {
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro examplemacro/.test(dependencies)).toEqual(true)
+    expect(/%macro doesnothing/.test(dependencies)).toEqual(true)
     expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
 
@@ -331,7 +469,7 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      [],
+      ['../macros'],
       ['../', '../services'],
       'service'
     )
@@ -339,6 +477,8 @@ describe('loadDependencies', () => {
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm end;/.test(dependencies)).toEqual(true)
+    expect(/%macro examplemacro/.test(dependencies)).toEqual(true)
+    expect(/%macro doesnothing/.test(dependencies)).toEqual(true)
     expect(/%macro mf_abort/.test(dependencies)).toEqual(true)
 
     expect(dependencies).toEqual(

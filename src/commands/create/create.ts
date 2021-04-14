@@ -2,6 +2,7 @@ import path from 'path'
 
 import {
   setupNpmProject,
+  setupGhooks,
   setupGitIgnore,
   setupDoxygen,
   createReactApp,
@@ -39,6 +40,9 @@ export async function create(parentFolderName: string, appType: string) {
     await setupNpmProject(parentFolderName)
   }
   await setupGitIgnore(parentFolderName)
+
+  await setupGhooks(parentFolderName)
+
   await setupDoxygen(parentFolderName)
 
   await createReadme(parentFolderName)

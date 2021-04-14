@@ -37,3 +37,5 @@ export { printVersion } from './version/version'
 export { createWebAppServices } from './web'
 
 export { processFlow } from './flow'
+
+export { processLint } from './lint'

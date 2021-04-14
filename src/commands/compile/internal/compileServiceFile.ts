@@ -10,7 +10,8 @@ export async function compileServiceFile(
   target: Target,
   filePath: string,
   macroFolders: string[],
-  programFolders: string[]
+  programFolders: string[],
+  programVar: string = ''
 ) {
   let dependencies = await loadDependencies(
     target,
@@ -22,14 +23,14 @@ export async function compileServiceFile(
   const serverType = await getServerType(target)
   const preCode = await getPreCodeForServicePack(serverType)
 
-  dependencies = `${preCode}\n${dependencies}`
+  dependencies = `${programVar}\n${preCode}\n${dependencies}`
 
   await createFile(filePath, dependencies)
 }
 
 async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
-  const macroCorePath = getMacroCorePath()
+  const macroCorePath = await getMacroCorePath()
   switch (serverType) {
     case ServerType.SasViya:
       content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)

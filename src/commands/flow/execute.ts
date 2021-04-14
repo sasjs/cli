@@ -22,6 +22,7 @@ import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
 import { FilePath } from '../../types'
+import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 
 export async function execute(
   source: string,
@@ -349,13 +350,14 @@ export async function execute(
         )
 
         if (logObj) {
-          const logUrl = target.serverUrl + logObj.href + `?limit=${lineCount}`
-          const logData = await sasjs
-            .fetchLogFileContent(logUrl, accessToken)
-            .catch((err) =>
-              displayError(err, 'Error while fetching log content.')
-            )
-          const logJson = JSON.parse(logData as string)
+          const logUrl = target.serverUrl + logObj.href
+
+          const logJson = await fetchLogFileContent(
+            sasjs,
+            accessToken,
+            logUrl,
+            lineCount
+          ).catch((err) => Promise.reject(err))
 
           const logParsed = parseLogLines(logJson)
 

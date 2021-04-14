@@ -6,7 +6,8 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,
-  removeTestApp
+  removeTestApp,
+  verifyCompiledService
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import { compileServiceFile } from '../internal/compileServiceFile'
@@ -25,7 +26,7 @@ const fakeJobInit = `/**
   @li test.sas TEST
 
   <h4> SAS Macros </h4>
-  @li example.sas
+  @li examplemacro.sas
 
 **/
 
@@ -91,17 +92,20 @@ describe('compileServiceFile', () => {
     await copy(filePath, destinationPath)
 
     await expect(
-      compileServiceFile(target, destinationPath, [], ['../', '../services'])
+      compileServiceFile(
+        target,
+        destinationPath,
+        ['../macros'],
+        ['../', '../services']
+      )
     ).toResolve()
+
+    await expect(fileExists(destinationPath)).resolves.toEqual(true)
 
     const compiledContent = await readFile(destinationPath)
 
-    expect(/\* ServiceInit start;/.test(compiledContent)).toEqual(true)
-    expect(/\* ServiceInit end;/.test(compiledContent)).toEqual(true)
-    expect(/\* ServiceTerm start;/.test(compiledContent)).toEqual(true)
-    expect(/\* ServiceTerm end;/.test(compiledContent)).toEqual(true)
-    expect(/%macro mf_abort/.test(compiledContent)).toEqual(true)
-    expect(/%macro mf_existds/.test(compiledContent)).toEqual(true)
+    const macrosToTest: string[] = ['mf_abort', 'mf_existds']
+    await verifyCompiledService(compiledContent, macrosToTest)
 
     expect(compiledContent).toEqual(
       expect.stringContaining(fakeProgramLines.join('\n'))

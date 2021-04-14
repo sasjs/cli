@@ -14,7 +14,7 @@ export async function getDocConfig(
   targetName: string,
   outDirectory: string
 ) {
-  const { buildDestinationDocsFolder } = getConstants()
+  const { buildDestinationDocsFolder } = await getConstants()
 
   let target: Target = {} as Target
   try {

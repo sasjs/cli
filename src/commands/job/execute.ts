@@ -1,6 +1,7 @@
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { createFile, createFolder, folderExists } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
+import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
 import SASjs, { Link } from '@sasjs/adapter/node'
 import { Target } from '@sasjs/utils/types'
@@ -149,11 +150,13 @@ export async function execute(
           if (logObj) {
             const logUrl = target.serverUrl + logObj.href
             const logCount = submittedJob.logStatistics.lineCount
-            const logFileContent = await sasjs.fetchLogFileContent(
-              `${logUrl}?limit=${logCount}`,
-              accessToken
+
+            const logData = await fetchLogFileContent(
+              sasjs,
+              accessToken,
+              logUrl,
+              logCount
             )
-            const logData = JSON.parse(logFileContent as string)
 
             await saveLog(logData, logFile, jobPath, returnStatusOnly)
           }

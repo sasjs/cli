@@ -21,7 +21,8 @@ export async function processJob(command: Command) {
   const targetName = command.getFlagValue('target') as string
   const waitForJob = command.getFlagValue('wait') as boolean
   const output = command.getFlagValue('output') as string
-  const log = command.getFlagValue('logFile') as string
+  const logFlag = command.getFlag('logFile')
+  const log = (logFlag ? logFlag.value ?? true : undefined) as string
   const status = command.getFlagValue('status') as string
   const returnStatusOnly = command.getFlagValue('returnStatusOnly') as boolean
   const ignoreWarnings = command.getFlagValue('ignoreWarnings') as boolean

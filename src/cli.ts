@@ -19,6 +19,7 @@ import {
   servicepack,
   jobManagement,
   flowManagement,
+  lint,
   ReturnCode
 } from './main'
 import { fileExists } from './utils/file'
@@ -55,6 +56,7 @@ export async function cli(args: string[]) {
     case 'web':
     case 'doc':
     default:
+      process.currentDir = process.cwd()
       if (!process.projectDir) {
         process.projectDir = process.cwd()
 
@@ -147,6 +149,10 @@ export async function cli(args: string[]) {
     }
     case 'flow': {
       result = await flowManagement(command)
+      break
+    }
+    case 'lint': {
+      result = await lint()
       break
     }
     default:

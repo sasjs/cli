@@ -1,10 +1,10 @@
 import SASjs from '@sasjs/adapter/node'
+import { getConstants } from '../constants'
 import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import { getConstants } from '../constants'
 import { TargetScope } from '../types/targetScope'
 
 /**
@@ -281,14 +281,17 @@ export async function removeFromGlobalConfig(targetName: string) {
 export async function removeFromLocalConfig(targetName: string) {
   let config = (await getLocalConfig()) as Configuration
   if (config && config.targets && config.targets.length) {
-    const { buildSourceFolder } = getConstants()
     const targets = config.targets.filter((t) => t.name !== targetName)
 
     if (config.defaultTarget === targetName) {
       config.defaultTarget = ''
     }
 
-    const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+    const configPath = path.join(
+      process.projectDir,
+      'sasjs',
+      'sasjsconfig.json'
+    )
 
     await createFile(
       configPath,
@@ -298,19 +301,36 @@ export async function removeFromLocalConfig(targetName: string) {
 }
 
 export async function getLocalConfig() {
-  const { buildSourceFolder } = getConstants()
   let config = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
   )
 
   return config
+}
+
+export async function getLocalOrGlobalConfig(): Promise<{
+  configuration: Configuration
+  isLocal: boolean
+}> {
+  try {
+    return { configuration: await getLocalConfig(), isLocal: true }
+  } catch (e) {
+    return { configuration: await getGlobalRcFile(), isLocal: false }
+  }
+}
+
+export async function saveLocalConfigFile(content: string) {
+  const configPath = path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
+
+  await createFile(configPath, content)
+
+  return configPath
 }
 
 export async function saveToLocalConfig(
   target: Target,
   isDefault: boolean = false
 ) {
-  const { buildSourceFolder } = getConstants()
   const targetJson = target.toJson()
   let config = await getLocalConfig()
   if (config) {
@@ -334,7 +354,7 @@ export async function saveToLocalConfig(
     config.defaultTarget = target.name
   }
 
-  const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+  const configPath = path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
 
   await createFile(configPath, JSON.stringify(config, null, 2))
 
@@ -352,27 +372,16 @@ export async function getFolders() {
 }
 
 export async function getSourcePaths(buildSourceFolder: string) {
-  let configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const { configuration } = await getLocalOrGlobalConfig()
 
-  if (!configuration) {
-    configuration = { macroFolders: [] }
-  }
-
-  const sourcePaths = configuration.macroFolders
+  const sourcePaths = configuration?.macroFolders
     ? configuration.macroFolders.map((macroPath: string) =>
         path.isAbsolute(macroPath)
           ? macroPath
           : path.join(buildSourceFolder, macroPath)
       )
     : []
-  const macroCorePath = path.join(
-    process.projectDir,
-    'node_modules',
-    '@sasjs',
-    'core'
-  )
+  const macroCorePath = await getMacroCorePath()
   sourcePaths.push(macroCorePath)
 
   return sourcePaths
@@ -389,7 +398,7 @@ export async function getProgramFolders(target: Target) {
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
-  if (localConfig && localConfig.programFolders) {
+  if (localConfig?.programFolders) {
     programFolders = programFolders.concat(localConfig.programFolders)
   }
 
@@ -411,7 +420,7 @@ export async function getMacroFolders(targetName: string) {
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
-  if (localConfig && localConfig.programFolders) {
+  if (localConfig?.programFolders) {
     macroFolders = macroFolders.concat(localConfig.programFolders)
   }
 
@@ -424,8 +433,9 @@ export async function getMacroFolders(targetName: string) {
   return macroFolders
 }
 
-export function getMacroCorePath() {
-  return path.join(process.projectDir, 'node_modules', '@sasjs/core')
+export async function getMacroCorePath() {
+  const { macroCorePath } = await getConstants()
+  return macroCorePath
 }
 
 /**
