@@ -46,9 +46,9 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^2.2.13",
-    "@sasjs/core": "^2.13.2",
-    "@sasjs/lint": "^1.2.0",
-    "@sasjs/utils": "^2.8.0",
+    "@sasjs/core": "^2.17.1",
+    "@sasjs/lint": "^1.6.1",
+    "@sasjs/utils": "^2.10.2",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
     "cli-table": "^0.3.6",
@@ -69,7 +69,7 @@
     "shelljs": "^0.8.4"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.12.16",
+    "@babel/preset-env": "^7.13.15",
     "@babel/preset-typescript": "^7.12.16",
     "@types/btoa": "^1.2.3",
     "@types/cli-table": "^0.3.0",
@@ -92,6 +92,6 @@
     "ts-jest": "^26.4.4",
     "ts-node": "^9.0.0",
     "tslib": "^2.1.0",
-    "typescript": "^4.1.5"
+    "typescript": "^4.2.4"
   }
 }

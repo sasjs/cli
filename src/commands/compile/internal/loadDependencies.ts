@@ -42,6 +42,20 @@ export async function loadDependencies(
     }
   }
 
+  if (fileContent.includes('<h4> SAS Programs </h4>')) {
+    const deprecationDate = new Date(2022, 4, 2)
+    const warningDate = new Date(2022, 10, 2)
+    const today = new Date()
+
+    const message = `Please use <h4> SAS Includes </h4> syntax to specify programs. Specifying programs with a <h4> SAS Programs </h4> syntax will not be supported starting from April 1, 2022.`
+    if (today < warningDate) process.logger?.info(message)
+    else if (today < deprecationDate) process.logger?.warn(message)
+    else
+      throw new Error(
+        'Using <h4> SAS Programs </h4> syntax is deprecated. Please use <h4> SAS Includes </h4> instead.'
+      )
+  }
+
   let init, initPath
   let term, termPath
   let serviceVars = ''
