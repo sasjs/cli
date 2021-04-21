@@ -459,16 +459,19 @@ export async function lint(command: Command) {
       .then((res: { fileAlreadyExisted: boolean }) => {
         if (res.fileAlreadyExisted)
           displaySuccess(
-            'The lint configuration file already present `.sasjslint`.'
+            'The lint configuration file `.sasjslint` is already present.'
           )
         else
           displaySuccess(
-            'The lint configuration file have been initialised. You can now run `sasjs lint`.'
+            'The lint configuration file `.sasjslint` has been created. You can now run `sasjs lint`.'
           )
         return ReturnCode.Success
       })
       .catch((err: any) => {
-        displayError(err, 'An error has occurred whilst initiating lint.')
+        displayError(
+          err,
+          'An error has occurred whilst initialising SASjs Lint.'
+        )
         return ReturnCode.InternalError
       })
   }
