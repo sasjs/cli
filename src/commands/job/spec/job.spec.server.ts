@@ -92,7 +92,7 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -108,7 +108,7 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -129,7 +129,7 @@ describe('sasjs job execute', () => {
 
     const filePathLog = path.join(process.projectDir, 'testLog.txt')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(folderExists(folderPathOutput)).resolves.toEqual(true)
     await expect(fileExists(filePathOutput)).resolves.toEqual(true)
@@ -145,7 +145,8 @@ describe('sasjs job execute', () => {
     )
 
     const filePath = path.join(process.projectDir, 'job.log')
-    await processJob(command)
+
+    await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
 
@@ -162,7 +163,7 @@ describe('sasjs job execute', () => {
 
       const filePath = path.join(process.projectDir, 'largeLogJob.log')
 
-      await processJob(command)
+      await expect(processJob(command)).toResolve()
 
       await expect(fileExists(filePath)).resolves.toEqual(true)
 
@@ -184,7 +185,7 @@ describe('sasjs job execute', () => {
 
     const filePath = path.join(process.projectDir, 'mycustom.log')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
 
@@ -199,7 +200,7 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -219,7 +220,7 @@ describe('sasjs job execute', () => {
       'my/folder/testJob.status'
     )
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
