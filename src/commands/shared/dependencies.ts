@@ -224,7 +224,10 @@ function getProgramDependencyText(
 export function getProgramList(
   fileContent: string
 ): { fileName: string; fileRef: string }[] {
-  let programList = getList('<h4> SAS Programs </h4>', fileContent)
+  const includesHeader = fileContent.includes('<h4> SAS Includes </h4>')
+    ? '<h4> SAS Includes </h4>'
+    : '<h4> SAS Programs </h4>'
+  let programList = getList(includesHeader, fileContent)
   programList = programList.map((l) => {
     const [fileName, fileRef] = l.split(' ').filter((f: string) => !!f)
 

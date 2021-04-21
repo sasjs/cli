@@ -21,7 +21,8 @@ import {
   generateDocs,
   generateDot,
   initDocs,
-  processLint
+  processLint,
+  initLint
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
@@ -104,7 +105,7 @@ export async function doc(command: Command) {
   return await generateDocs(targetName, outDirectory)
     .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.`
+        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
       )
       return ReturnCode.Success
     })
@@ -450,7 +451,31 @@ export async function flowManagement(command: Command) {
     })
 }
 
-export async function lint() {
+export async function lint(command: Command) {
+  const subCommand = command.getSubCommand()
+
+  if (subCommand === 'init') {
+    return await initLint()
+      .then((res: { fileAlreadyExisted: boolean }) => {
+        if (res.fileAlreadyExisted)
+          displaySuccess(
+            'The lint configuration file `.sasjslint` is already present.'
+          )
+        else
+          displaySuccess(
+            'The lint configuration file `.sasjslint` has been created. You can now run `sasjs lint`.'
+          )
+        return ReturnCode.Success
+      })
+      .catch((err: any) => {
+        displayError(
+          err,
+          'An error has occurred whilst initialising SASjs Lint.'
+        )
+        return ReturnCode.InternalError
+      })
+  }
+
   return await processLint()
     .then((result) => {
       if (result.errors) {
