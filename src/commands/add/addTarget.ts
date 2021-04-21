@@ -29,7 +29,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     existingTarget
   } = await getCommonFields()
 
-  const saveWithoutDefaultValues = !!existingTarget
+  const saveWithDefaultValues = !existingTarget
 
   let targetJson: any = {
     ...existingTarget,
@@ -43,7 +43,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     scope,
     new Target(targetJson),
     false,
-    saveWithoutDefaultValues
+    saveWithDefaultValues
   )
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
@@ -73,7 +73,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     }
 
     const { target: currentTarget } = await findTargetInConfiguration(name)
-    targetJson = { ...currentTarget.toJsonNoDefaults(), ...targetJson }
+    targetJson = { ...currentTarget.toJson(false), ...targetJson }
   }
 
   const isDefault = await getIsDefault()
@@ -82,7 +82,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     scope,
     new Target(targetJson),
     isDefault,
-    saveWithoutDefaultValues
+    saveWithDefaultValues
   )
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
@@ -94,21 +94,17 @@ async function saveConfig(
   scope: TargetScope,
   target: Target,
   isDefault: boolean,
-  saveWithoutDefaultValues: boolean
+  saveWithDefaultValues: boolean
 ) {
   let filePath = ''
 
   if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(
-      target,
-      isDefault,
-      saveWithoutDefaultValues
-    )
+    filePath = await saveToLocalConfig(target, isDefault, saveWithDefaultValues)
   } else if (scope === TargetScope.Global) {
     filePath = await saveToGlobalConfig(
       target,
       isDefault,
-      saveWithoutDefaultValues
+      saveWithDefaultValues
     )
   }
 
