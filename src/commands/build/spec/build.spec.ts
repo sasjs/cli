@@ -2,9 +2,14 @@ import { buildServices, compileServices } from '../../../main'
 import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
+import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs build', () => {
   let appName: string
+
+  beforeAll(() => {
+    process.logger = new Logger(LogLevel.Off)
+  })
 
   afterEach(async () => {
     await removeTestApp(__dirname, appName)

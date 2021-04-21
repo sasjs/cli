@@ -1,7 +1,6 @@
-import dotenv from 'dotenv'
 import path from 'path'
-import { processJob } from '../..'
-import { processContext } from '../..'
+import dotenv from 'dotenv'
+import { processJob, processContext } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { folderExists, fileExists, readFile, copy } from '../../../utils/file'
@@ -93,10 +92,10 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePath)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePath)).resolves.toEqual(true)
 
     done()
   })
@@ -109,10 +108,10 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePath)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePath)).resolves.toEqual(true)
 
     done()
   })
@@ -130,12 +129,12 @@ describe('sasjs job execute', () => {
 
     const filePathLog = path.join(process.projectDir, 'testLog.txt')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPathOutput)).toResolve()
-    await expect(fileExists(filePathOutput)).toResolve()
+    await expect(folderExists(folderPathOutput)).resolves.toEqual(true)
+    await expect(fileExists(filePathOutput)).resolves.toEqual(true)
 
-    await expect(fileExists(filePathLog)).toResolve()
+    await expect(fileExists(filePathLog)).resolves.toEqual(true)
 
     done()
   })
@@ -146,12 +145,38 @@ describe('sasjs job execute', () => {
     )
 
     const filePath = path.join(process.projectDir, 'job.log')
-    await processJob(command)
 
-    await expect(fileExists(filePath)).toResolve()
+    await expect(processJob(command)).toResolve()
+
+    await expect(fileExists(filePath)).resolves.toEqual(true)
 
     done()
   })
+
+  it(
+    'should submit a job and create a file with job log having large log',
+    async (done) => {
+      const largeLogFileLines = 21 * 1000
+      const command = new Command(
+        `job execute jobs/testJob/largeLogJob -t ${target.name} -l`
+      )
+
+      const filePath = path.join(process.projectDir, 'largeLogJob.log')
+
+      await expect(processJob(command)).toResolve()
+
+      await expect(fileExists(filePath)).resolves.toEqual(true)
+
+      const content = await readFile(filePath)
+      let count = 0
+      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+
+      expect(count).toBeGreaterThan(largeLogFileLines)
+
+      done()
+    },
+    30 * 60 * 1000
+  )
 
   it('should submit a job and create a file with provided job log filename', async (done) => {
     const command = new Command(
@@ -160,9 +185,9 @@ describe('sasjs job execute', () => {
 
     const filePath = path.join(process.projectDir, 'mycustom.log')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(fileExists(filePath)).toResolve()
+    await expect(fileExists(filePath)).resolves.toEqual(true)
 
     done()
   })
@@ -175,10 +200,10 @@ describe('sasjs job execute', () => {
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePath)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePath)).resolves.toEqual(true)
 
     done()
   })
@@ -195,11 +220,11 @@ describe('sasjs job execute', () => {
       'my/folder/testJob.status'
     )
 
-    await processJob(command)
+    await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePath)).toResolve()
-    await expect(fileExists(filePathStatus)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePath)).resolves.toEqual(true)
+    await expect(fileExists(filePathStatus)).resolves.toEqual(true)
 
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
@@ -222,8 +247,8 @@ describe('sasjs job execute', () => {
       'Error: Job was not found.'
     )
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePathStatus)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePathStatus)).resolves.toEqual(true)
 
     expect(process.logger.error).toHaveBeenNthCalledWith(
       1,
@@ -252,8 +277,8 @@ describe('sasjs job execute', () => {
 
     await expect(processJob(command)).toResolve()
 
-    await expect(folderExists(folderPath)).toResolve()
-    await expect(fileExists(filePathStatus)).toResolve()
+    await expect(folderExists(folderPath)).resolves.toEqual(true)
+    await expect(fileExists(filePathStatus)).resolves.toEqual(true)
 
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
@@ -314,11 +339,11 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(2)
-    await expect(folderExists(process.projectDir)).toResolve()
+    await expect(folderExists(process.projectDir)).resolves.toEqual(true)
 
     const logPath = path.join(process.projectDir, `failingJob.log`)
 
-    await expect(fileExists(logPath)).toResolve()
+    await expect(fileExists(logPath)).resolves.toEqual(true)
 
     const logData = await readFile(logPath)
 
@@ -346,20 +371,21 @@ describe('sasjs job execute', () => {
 })
 
 async function getAvailableContext(target: Target) {
-  const targetNameContext = 'cli-tests-context'
+  const timestamp = generateTimestamp()
+  const targetName = `cli-job-tests-context-${timestamp}`
 
   await saveToGlobalConfig(
     new Target({
       ...target.toJson(),
-      name: targetNameContext
+      name: targetName
     })
   )
 
   const contexts = await processContext(
-    new Command(['context', 'list', '-t', targetNameContext])
+    new Command(['context', 'list', '-t', targetName])
   )
 
-  await removeFromGlobalConfig(targetNameContext)
+  await removeFromGlobalConfig(targetName)
 
   return (contexts as any[])[0]
 }

@@ -11,10 +11,10 @@ import { getConstants } from '../../../constants'
 export async function getFoldersForDocs(target: Target, config: Configuration) {
   let macroCore = []
 
-  const rootFolders = extractFoldersForDocs(config)
+  const rootFolders = await extractFoldersForDocs(config)
   macroCore = rootFolders.macroCore
 
-  const targetFolders = extractFoldersForDocs(target)
+  const targetFolders = await extractFoldersForDocs(target)
   if (target?.docConfig?.displayMacroCore !== undefined)
     macroCore = targetFolders.macroCore
 
@@ -27,8 +27,8 @@ export async function getFoldersForDocs(target: Target, config: Configuration) {
   }
 }
 
-function extractFoldersForDocs(config: Target | Configuration) {
-  const { buildSourceFolder } = getConstants()
+async function extractFoldersForDocs(config: Target | Configuration) {
+  const { buildSourceFolder } = await getConstants()
 
   const macroCoreFolders =
     config?.docConfig?.displayMacroCore === false

@@ -214,6 +214,8 @@
     "buildConfig": {
       "initProgram": "sasjs/build/buildinit.sas",
       "termProgram": "sasjs/build/buildterm.sas",
+      "buildOutputFolder": "sasjsbuild",
+      "buildResultsFolder": "sasjsresults",
       "macroVars": {
         "name": "value",
         "numvar": "42"

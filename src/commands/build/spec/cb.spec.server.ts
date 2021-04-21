@@ -33,33 +33,33 @@ describe('sasjs compile', () => {
   })
 
   it(`should compile newly created app`, async (done) => {
-    await expect(compile(target.name)).toResolve()
+    await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
     done()
   })
 
   it(`should compile and build`, async (done) => {
-    await expect(build(target.name)).toResolve()
+    await expect(build(target)).toResolve()
 
     await verifyStep('compile')
-    await verifyStep('build')
+    await verifyStep('build', target.name)
     done()
   })
 
   it(`should compile and build(skipping compile)`, async (done) => {
-    await expect(compile(target.name)).toResolve()
+    await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
 
-    await expect(build(target.name)).toResolve()
+    await expect(build(target)).toResolve()
 
-    await verifyStep('build')
+    await verifyStep('build', target.name)
     done()
   })
 
   it(`should compile and build(with recompile)`, async (done) => {
-    await expect(compile(target.name)).toResolve()
+    await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
 
@@ -67,7 +67,7 @@ describe('sasjs compile', () => {
       compileBuildServices(new Command(`compilebuild -t ${target.name}`))
     ).toResolve()
 
-    await verifyStep('build')
+    await verifyStep('build', target.name)
     done()
   })
 })

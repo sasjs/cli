@@ -334,6 +334,18 @@ describe('CLI command parsing', () => {
     done()
   })
 
+  it('should call the correct function for the lint command', async (done) => {
+    jest
+      .spyOn(mainModule, 'lint')
+      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
+    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'lint']
+
+    await cli(args)
+
+    expect(mainModule.lint).toHaveBeenCalledTimes(1)
+    done()
+  })
+
   it('should exit with an error when an invalid command is entered', async (done) => {
     jest
       .spyOn(process, 'exit')

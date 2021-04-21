@@ -2,6 +2,7 @@ import path from 'path'
 
 import {
   setupNpmProject,
+  setupGhooks,
   setupGitIgnore,
   setupDoxygen,
   createReactApp,
@@ -10,9 +11,10 @@ import {
   createTemplateApp
 } from '../../utils/utils'
 
-import { createFolder } from '../../utils/file'
+import { createFolder, fileExists } from '../../utils/file'
 import { createReadme } from './internal/createReadme'
 import { createFileStructure } from '../shared/createFileStructure'
+import { createLintConfigFile } from '../shared/createLintConfigFile'
 
 export async function create(parentFolderName: string, appType: string) {
   process.logger?.info('Creating folders and files...')
@@ -39,7 +41,18 @@ export async function create(parentFolderName: string, appType: string) {
     await setupNpmProject(parentFolderName)
   }
   await setupGitIgnore(parentFolderName)
+
+  await setupGhooks(parentFolderName)
+
   await setupDoxygen(parentFolderName)
 
   await createReadme(parentFolderName)
+
+  const lintConfigPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    '.sasjslint'
+  )
+  if (!(await fileExists(lintConfigPath)))
+    await createLintConfigFile(parentFolderName)
 }

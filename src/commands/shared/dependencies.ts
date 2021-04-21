@@ -11,7 +11,7 @@ export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   const sourcePaths = await getSourcePaths(buildSourceFolder)
 
   if (macroFolders.length) {
@@ -52,17 +52,18 @@ export async function getDependencyPaths(
 
       process.logger?.error(errorMessage)
 
-      const notFoundDependencies = diff(dependencies, foundDependencies)
-
-      if (notFoundDependencies.length) {
-        process.logger?.error(
-          'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
-        )
-      }
-
       throw errorMessage
     }
   })
+  const notFoundDependencies = diff(dependencies, foundDependencies)
+
+  if (notFoundDependencies.length) {
+    const errorMessage =
+      'Unable to locate dependencies: ' + notFoundDependencies.join(', ')
+    process.logger?.error(errorMessage)
+
+    throw errorMessage
+  }
 
   dependencyPaths = prioritiseDependencyOverrides(
     dependencies,
@@ -223,7 +224,10 @@ function getProgramDependencyText(
 export function getProgramList(
   fileContent: string
 ): { fileName: string; fileRef: string }[] {
-  let programList = getList('<h4> SAS Programs </h4>', fileContent)
+  const includesHeader = fileContent.includes('<h4> SAS Includes </h4>')
+    ? '<h4> SAS Includes </h4>'
+    : '<h4> SAS Programs </h4>'
+  let programList = getList(includesHeader, fileContent)
   programList = programList.map((l) => {
     const [fileName, fileRef] = l.split(' ').filter((f: string) => !!f)
 

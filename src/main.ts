@@ -20,7 +20,9 @@ import {
   processFlow,
   generateDocs,
   generateDot,
-  initDocs
+  initDocs,
+  processLint,
+  initLint
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
@@ -31,7 +33,8 @@ import { Target } from '@sasjs/utils/types'
 export enum ReturnCode {
   Success,
   InvalidCommand,
-  InternalError
+  InternalError,
+  LintError
 }
 
 export async function initSasjs() {
@@ -102,7 +105,7 @@ export async function doc(command: Command) {
   return await generateDocs(targetName, outDirectory)
     .then((res) => {
       displaySuccess(
-        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.`
+        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
       )
       return ReturnCode.Success
     })
@@ -255,8 +258,8 @@ export async function compileBuildDeployServices(command: Command) {
 
 export async function buildDBs() {
   return await buildDB()
-    .then(() => {
-      const { buildDestinationDbFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationDbFolder } = await getConstants()
       displaySuccess(
         `DBs been successfully built!\nThe build output is located in the ${buildDestinationDbFolder} directory.`
       )
@@ -284,8 +287,8 @@ export async function buildWebApp(command: Command) {
   }
 
   return await createWebAppServices(target)
-    .then(() => {
-      const { buildDestinationFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationFolder } = await getConstants()
       displaySuccess(
         `Web app services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )
@@ -448,6 +451,50 @@ export async function flowManagement(command: Command) {
     })
 }
 
+export async function lint(command: Command) {
+  const subCommand = command.getSubCommand()
+
+  if (subCommand === 'init') {
+    return await initLint()
+      .then((res: { fileAlreadyExisted: boolean }) => {
+        if (res.fileAlreadyExisted)
+          displaySuccess(
+            'The lint configuration file `.sasjslint` is already present.'
+          )
+        else
+          displaySuccess(
+            'The lint configuration file `.sasjslint` has been created. You can now run `sasjs lint`.'
+          )
+        return ReturnCode.Success
+      })
+      .catch((err: any) => {
+        displayError(
+          err,
+          'An error has occurred whilst initialising SASjs Lint.'
+        )
+        return ReturnCode.InternalError
+      })
+  }
+
+  return await processLint()
+    .then((result) => {
+      if (result.errors) {
+        displayError('Fix identified lint errors.')
+        return ReturnCode.LintError
+      }
+      if (result.warnings) {
+        process.logger.warn('Fix identified lint warnings.')
+        return ReturnCode.Success
+      }
+      displaySuccess('All matched files use @sasjs/lint code style!')
+      return ReturnCode.Success
+    })
+    .catch((err) => {
+      displayError(err, 'An error has occurred when processing lint operation.')
+      return ReturnCode.InternalError
+    })
+}
+
 async function executeSingleFileCompile(
   target: Target,
   command: Command,
@@ -481,16 +528,16 @@ async function executeCompile(target: Target) {
 
 async function executeBuild(target: Target) {
   return await build(target)
-    .then(() => {
-      const { buildDestinationFolder } = getConstants()
+    .then(async () => {
+      const { buildDestinationFolder } = await getConstants()
       displaySuccess(
         `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )
       return ReturnCode.Success
     })
-    .catch((error) => {
-      if (Array.isArray(error)) {
-        const nodeModulesErrors = error.find((err) =>
+    .catch((err) => {
+      if (Array.isArray(err)) {
+        const nodeModulesErrors = err.find((err) =>
           err.includes('node_modules/@sasjs/core')
         )
 
@@ -499,7 +546,7 @@ async function executeBuild(target: Target) {
             `Suggestion: @sasjs/core dependency is missing. Try running 'npm install @sasjs/core' command.`
           )
       } else {
-        displayError(error, 'An error has occurred when building services.')
+        displayError(err, 'An error has occurred when building services.')
       }
       return ReturnCode.InternalError
     })

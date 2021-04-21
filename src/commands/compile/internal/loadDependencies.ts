@@ -1,7 +1,7 @@
 import { Target } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { getConfiguration } from '../../../utils/config'
+import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
 import { asyncForEach, chunk } from '../../../utils/utils'
 import {
@@ -24,7 +24,7 @@ export async function loadDependencies(
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
-  const { buildSourceFolder } = getConstants()
+  const { buildSourceFolder } = await getConstants()
   let fileContent = await readFile(filePath)
 
   if (fileContent.includes('<h4> Dependencies </h4>')) {
@@ -40,6 +40,20 @@ export async function loadDependencies(
         'Using <h4> Dependencies </h4> syntax is deprecated. Please use <h4> SAS Macros </h4> instead.'
       )
     }
+  }
+
+  if (fileContent.includes('<h4> SAS Programs </h4>')) {
+    const deprecationDate = new Date(2022, 4, 2)
+    const warningDate = new Date(2022, 10, 2)
+    const today = new Date()
+
+    const message = `Please use <h4> SAS Includes </h4> syntax to specify programs. Specifying programs with a <h4> SAS Programs </h4> syntax will not be supported starting from April 1, 2022.`
+    if (today < warningDate) process.logger?.info(message)
+    else if (today < deprecationDate) process.logger?.warn(message)
+    else
+      throw new Error(
+        'Using <h4> SAS Programs </h4> syntax is deprecated. Please use <h4> SAS Includes </h4> instead.'
+      )
   }
 
   let init, initPath
@@ -118,10 +132,7 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 
 export async function getServiceVars(target: Target) {
   const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
-  const { buildSourceFolder } = getConstants()
-  const configuration = await getConfiguration(
-    path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-  )
+  const { configuration } = await getLocalOrGlobalConfig()
   const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
 
   return convertVarsToSasFormat({ ...commonServiceVars, ...targetServiceVars })

@@ -137,7 +137,7 @@ describe('addTarget', () => {
   })
 
   it('should update a Viya target in the local sasjsconfig.json file', async (done) => {
-    const { buildSourceFolder } = getConstants()
+    const { buildSourceFolder } = await getConstants()
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
@@ -173,7 +173,7 @@ describe('addTarget', () => {
   })
 
   it('should update a SAS9 target in the local sasjsconfig.json file', async (done) => {
-    const { buildSourceFolder } = getConstants()
+    const { buildSourceFolder } = await getConstants()
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
@@ -241,7 +241,7 @@ describe('addTarget', () => {
 async function verifyTarget(commonFields: CommonFields, isLocal: boolean) {
   let config
   if (isLocal) {
-    const { buildSourceFolder } = getConstants()
+    const { buildSourceFolder } = await getConstants()
     config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )

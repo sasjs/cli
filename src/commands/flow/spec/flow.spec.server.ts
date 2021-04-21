@@ -5,6 +5,7 @@ import { generateTimestamp } from '../../../utils/utils'
 import {
   fileExists,
   readFile,
+  readdir,
   folderExists,
   deleteFolder,
   deleteFile,
@@ -39,8 +40,10 @@ describe('sasjs flow', () => {
     done()
   })
 
-  afterEach(() => {
+  afterEach(async (done) => {
+    await deleteFolder(logPath)
     jest.resetAllMocks()
+    done()
   })
 
   afterAll(async (done) => {
@@ -50,7 +53,6 @@ describe('sasjs flow', () => {
       )
     )
     await deleteFile(csvPath)
-    await deleteFolder(logPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     done()
@@ -83,6 +85,34 @@ describe('sasjs flow', () => {
 
     done()
   })
+
+  it(
+    'should execute flow with job log having large log',
+    async (done) => {
+      const largeLogFileLines = 21 * 1000
+
+      const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
+
+      const command = new Command(
+        `flow execute -s ${sourcePath} -t ${target.name} --logFolder ${logPath}`
+      )
+
+      await processFlow(command)
+
+      await expect(folderExists(logPath)).resolves.toEqual(true)
+      const filesInLogFolder = await readdir(logPath)
+      const logFilePath = path.join(logPath, filesInLogFolder[0])
+
+      const content = await readFile(logFilePath)
+      let count = 0
+      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+
+      expect(count).toBeGreaterThan(largeLogFileLines)
+
+      done()
+    },
+    30 * 60 * 1000
+  )
 
   it('should return an error if provided source file is not JSON', async (done) => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid.txt')

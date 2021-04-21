@@ -4,7 +4,7 @@ import { getConfiguration } from '../../utils/config'
 import { createFile } from '../../utils/file'
 
 /**
- * Creates a SASjs configation file.
+ * Creates a SASjs configuration file.
  * Its name will be of the form 'sasjsconfig.json'
  * @param {string} parentFolderName- the name of the project folder.
  */
@@ -18,5 +18,5 @@ export const createConfigFile = async (parentFolderName: string) => {
     'sasjs',
     'sasjsconfig.json'
   )
-  await createFile(configDestinationPath, JSON.stringify(config, null, 1))
+  await createFile(configDestinationPath, JSON.stringify(config, null, 2))
 }

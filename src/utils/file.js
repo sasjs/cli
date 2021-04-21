@@ -62,6 +62,18 @@ export async function readFile(fileName) {
   })
 }
 
+export async function readdir(folderName) {
+  process.logger?.debug('Reading directory: ', folderName)
+  return new Promise((resolve, reject) => {
+    fs.readdir(folderName, 'utf8', function (error, data) {
+      if (error) {
+        return reject(error)
+      }
+      return resolve(data)
+    })
+  })
+}
+
 export async function base64EncodeImageFile(fileName) {
   process.logger?.debug('Encoding image file: ', fileName)
   return new Promise((resolve, reject) => {
