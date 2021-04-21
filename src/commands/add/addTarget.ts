@@ -29,6 +29,8 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     existingTarget
   } = await getCommonFields()
 
+  const saveWithoutDefaultValues = !!existingTarget
+
   let targetJson: any = {
     ...existingTarget,
     name,
@@ -37,7 +39,12 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     appLoc
   }
 
-  let filePath = await saveConfig(scope, new Target(targetJson), false)
+  let filePath = await saveConfig(
+    scope,
+    new Target(targetJson),
+    false,
+    saveWithoutDefaultValues
+  )
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
@@ -66,12 +73,17 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     }
 
     const { target: currentTarget } = await findTargetInConfiguration(name)
-    targetJson = { ...currentTarget.toJson(), ...targetJson }
+    targetJson = { ...currentTarget.toJsonNoDefaults(), ...targetJson }
   }
 
   const isDefault = await getIsDefault()
 
-  filePath = await saveConfig(scope, new Target(targetJson), isDefault)
+  filePath = await saveConfig(
+    scope,
+    new Target(targetJson),
+    isDefault,
+    saveWithoutDefaultValues
+  )
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
 
@@ -81,14 +93,23 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
 async function saveConfig(
   scope: TargetScope,
   target: Target,
-  isDefault: boolean
+  isDefault: boolean,
+  saveWithoutDefaultValues: boolean
 ) {
   let filePath = ''
 
   if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(target, isDefault)
+    filePath = await saveToLocalConfig(
+      target,
+      isDefault,
+      saveWithoutDefaultValues
+    )
   } else if (scope === TargetScope.Global) {
-    filePath = await saveToGlobalConfig(target, isDefault)
+    filePath = await saveToGlobalConfig(
+      target,
+      isDefault,
+      saveWithoutDefaultValues
+    )
   }
 
   return filePath
