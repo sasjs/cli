@@ -59,7 +59,7 @@
     "fs": "0.0.1-security",
     "fs-extra": "^9.0.1",
     "get-installed-path": "^4.0.8",
-    "jsdom": "^16.5.1",
+    "jsdom": "^16.5.3",
     "jwt-decode": "^3.1.2",
     "lodash.groupby": "^4.6.0",
     "lodash.uniqby": "^4.7.0",
