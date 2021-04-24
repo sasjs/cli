@@ -236,7 +236,7 @@ export async function saveGlobalRcFile(content: string) {
 export async function saveToGlobalConfig(
   target: Target,
   isDefault: boolean = false,
-  saveWithDefaultValues: boolean = false
+  saveWithDefaultValues: boolean = true
 ) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson(saveWithDefaultValues)
