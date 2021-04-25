@@ -235,10 +235,11 @@ export async function saveGlobalRcFile(content: string) {
 
 export async function saveToGlobalConfig(
   target: Target,
-  isDefault: boolean = false
+  isDefault: boolean = false,
+  saveWithDefaultValues: boolean = true
 ) {
   let globalConfig = await getGlobalRcFile()
-  const targetJson = target.toJson()
+  const targetJson = target.toJson(saveWithDefaultValues)
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
@@ -329,9 +330,10 @@ export async function saveLocalConfigFile(content: string) {
 
 export async function saveToLocalConfig(
   target: Target,
-  isDefault: boolean = false
+  isDefault: boolean = false,
+  saveWithDefaultValues: boolean = true
 ) {
-  const targetJson = target.toJson()
+  const targetJson = target.toJson(saveWithDefaultValues)
   let config = await getLocalConfig()
   if (config) {
     if (config.targets && config.targets.length) {

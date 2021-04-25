@@ -38,7 +38,7 @@ export const addCredential = async (
 
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl(target)
-    target = new Target({ ...target.toJson(), serverUrl })
+    target = new Target({ ...target.toJson(false), serverUrl })
   }
 
   const { client, secret } = await getCredentialsInput(target.name)
@@ -58,13 +58,13 @@ export const addCredential = async (
       access_token,
       refresh_token
     )
-    await saveToLocalConfig(target, false)
+    await saveToLocalConfig(target, false, false)
   } else {
     target = new Target({
-      ...target.toJson(),
+      ...target.toJson(false),
       authConfig: { client, secret, access_token, refresh_token }
     })
-    await saveToGlobalConfig(target, false)
+    await saveToGlobalConfig(target, false, false)
   }
 }
 
