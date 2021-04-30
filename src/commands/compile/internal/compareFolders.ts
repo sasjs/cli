@@ -3,6 +3,7 @@ import {
   getSubFoldersInFolder,
   getFilesInFolder
 } from '../../../utils/file'
+import { isTestFile } from './compileTestFile'
 
 export const compareFolders = async (
   sourcePath: string,
@@ -29,7 +30,9 @@ export const compareFolders = async (
     destinationPath
   )) as string[]
 
-  const sourceFiles = (await getFilesInFolder(sourcePath)) as string[]
+  const sourceFiles = (await getFilesInFolder(sourcePath).then((files) =>
+    files.filter((file: string) => !isTestFile(file))
+  )) as string[]
   const destinationFiles = (await getFilesInFolder(destinationPath)) as string[]
 
   const areSubFoldersMatching = sourceSubFolders.every((subFolder) =>
