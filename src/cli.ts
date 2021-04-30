@@ -154,7 +154,7 @@ export async function cli(args: string[]) {
       break
     }
     case 'lint': {
-      result = await lint()
+      result = await lint(command)
       break
     }
     case 'test': {

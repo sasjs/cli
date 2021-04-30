@@ -82,14 +82,21 @@ export async function createWebAppServices(target: Target) {
   )
   await createTargetDestinationFolder(destinationPath)
 
+  const webSourcePathFull = path.isAbsolute(webSourcePath)
+    ? webSourcePath
+    : path.join(process.projectDir, webSourcePath)
+
+  if (!(await folderExists(webSourcePathFull)))
+    process.logger?.warn(
+      `webSourcePath: '${webSourcePathFull}' present in 'streamConfig' doesn't exist.`
+    )
+
   const assetPathMap = await createAssetServices(
     target,
     destinationPath,
     streamConfig
   )
-  const indexHtmlPath = path.isAbsolute(webSourcePath)
-    ? path.join(webSourcePath, 'index.html')
-    : path.join(process.projectDir, webSourcePath, 'index.html')
+  const indexHtmlPath = path.join(webSourcePathFull, 'index.html')
 
   if (await fileExists(indexHtmlPath)) {
     const indexHtml = await readFile(indexHtmlPath).then(
@@ -139,22 +146,19 @@ async function createAssetServices(
   const { webSourcePath, streamWebFolder, assetPaths } = streamConfig
   const assetPathMap: { source: string; target: string }[] = []
   await asyncForEach(assetPaths, async (assetPath) => {
-    const pathExistsAsAbsoluteFolder = await folderExists(
-      path.join(webSourcePath, assetPath)
-    )
-    const pathExistsInCurrentFolder = await folderExists(
-      path.join(process.cwd(), webSourcePath, assetPath)
-    )
-    const pathExistsInParentFolder = await folderExists(
-      path.join(process.cwd(), '..', webSourcePath, assetPath)
-    )
-    const fullAssetPath = pathExistsAsAbsoluteFolder
+    const fullAssetPath = path.isAbsolute(assetPath)
+      ? assetPath
+      : path.isAbsolute(webSourcePath)
       ? path.join(webSourcePath, assetPath)
-      : pathExistsInCurrentFolder
-      ? path.join(process.cwd(), webSourcePath, assetPath)
-      : pathExistsInParentFolder
-      ? path.join(process.cwd(), '..', webSourcePath, assetPath)
-      : ''
+      : path.join(process.projectDir, webSourcePath, assetPath)
+    const assetPathExists = await folderExists(fullAssetPath)
+
+    if (!assetPathExists) {
+      process.logger?.warn(
+        `Assets path '${fullAssetPath}' present in 'streamConfig' doesn't exist.`
+      )
+      return
+    }
     const filePaths = await getFilesInFolder(fullAssetPath)
     await asyncForEach(filePaths, async (filePath) => {
       const fullFileName = path.basename(filePath)

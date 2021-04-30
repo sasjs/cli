@@ -38,6 +38,8 @@ export { createWebAppServices } from './web'
 
 export { processFlow } from './flow'
 
-export { processLint } from './lint'
-
 export { runTest } from './testing'
+
+export { processLint } from './lint/processLint'
+
+export { initLint } from './lint/initLint'

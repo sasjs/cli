@@ -27,6 +27,7 @@ describe('addCredential', () => {
         serverType: ServerType.SasViya,
         appLoc: '/test'
       }),
+      false,
       false
     )
 
