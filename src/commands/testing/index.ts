@@ -300,8 +300,7 @@ export async function runTest(command: Command) {
     (res: any) => res.test_suite_result !== TestResultStatus.notProvided
   ).length
 
-  process.logger?.info(`
-  Tests provided results: ${
+  process.logger?.info(`Tests provided results: ${
     testsWithResultsCount + '/' + testsCount
   } (${chalk.greenBright(
     Math.round((testsWithResultsCount / testsCount) * 100) + '%'

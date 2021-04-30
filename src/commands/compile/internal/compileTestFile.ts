@@ -245,8 +245,11 @@ const printTestCoverage = async (
 
   process.logger?.log(table.toString() + '\n')
 
-  process.logger?.info(`
-  ${printCoverage('Services', coveredServices, servicesToCover)}
+  process.logger?.info(`${printCoverage(
+    'Services',
+    coveredServices,
+    servicesToCover
+  )}
   ${printCoverage('Jobs', coveredJobs, jobsToCover)}
   ${printCoverage('Overall', covered, toCover)}
 `)
