@@ -24,6 +24,7 @@ import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import path from 'path'
 import chalk from 'chalk'
+import cliTable from 'cli-table'
 
 export async function runTest(command: Command) {
   const targetName = command.getFlagValue('target') as string
@@ -251,7 +252,45 @@ export async function runTest(command: Command) {
       })
   )
 
-  console.table(resultTable)
+  // TODO: move to @sasjs/utils
+  const table = new cliTable({
+    chars: {
+      top: '═',
+      'top-mid': '╤',
+      'top-left': '╔',
+      'top-right': '╗',
+      bottom: '═',
+      'bottom-mid': '╧',
+      'bottom-left': '╚',
+      'bottom-right': '╝',
+      left: '║',
+      'left-mid': '╟',
+      mid: '─',
+      'mid-mid': '┼',
+      right: '║',
+      'right-mid': '╢',
+      middle: '│'
+    },
+    head: [
+      chalk.white.bold('SASjs Test ID'),
+      chalk.white.bold('Test Target'),
+      chalk.white.bold('Test Suite Result')
+    ]
+  })
+
+  Object.keys(resultTable).forEach((key) =>
+    table.push([
+      key,
+      resultTable[key].test_target,
+      resultTable[key].test_suite_result === TestResultStatus.pass
+        ? chalk.greenBright(TestResultStatus.pass)
+        : resultTable[key].test_suite_result === TestResultStatus.fail
+        ? chalk.redBright(TestResultStatus.fail)
+        : resultTable[key].test_suite_result
+    ])
+  )
+
+  process.logger?.log(table.toString() + '\n')
 
   const testsCount = flow.length
   const passedTestsCount = Object.values(resultTable).filter(
@@ -261,20 +300,18 @@ export async function runTest(command: Command) {
     (res: any) => res.test_suite_result !== TestResultStatus.notProvided
   ).length
 
-  console.log(
-    `
-    Tests provided results: ${
-      testsWithResultsCount + '/' + testsCount
-    } (${chalk.greenBright(
-      Math.round((testsWithResultsCount / testsCount) * 100) + '%'
-    )})
-    Tests that pass: ${
-      passedTestsCount + '/' + testsWithResultsCount
-    } (${chalk.greenBright(
-      Math.round((passedTestsCount / testsWithResultsCount) * 100) + '%'
-    )})
-    `
-  )
+  process.logger?.info(`
+  Tests provided results: ${
+    testsWithResultsCount + '/' + testsCount
+  } (${chalk.greenBright(
+    Math.round((testsWithResultsCount / testsCount) * 100) + '%'
+  )})
+  Tests that pass: ${
+    passedTestsCount + '/' + testsWithResultsCount
+  } (${chalk.greenBright(
+    Math.round((passedTestsCount / testsWithResultsCount) * 100) + '%'
+  )})
+  `)
 
   displaySuccess(
     `Tests execution finished. The results are stored at:
