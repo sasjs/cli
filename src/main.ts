@@ -22,7 +22,7 @@ import {
   generateDot,
   initDocs,
   processLint,
-  runTest
+  runTest,
   initLint
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
