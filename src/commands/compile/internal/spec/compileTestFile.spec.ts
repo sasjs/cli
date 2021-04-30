@@ -69,7 +69,12 @@ PS=MAX /* reduce log size slightly */
   describe('compileTestFile function', () => {
     it('should compile test file', async () => {
       const testVar = 'testVar'
-      await compileTestFile(target, testPath, [], testVar)
+      await compileTestFile(
+        target,
+        path.join('sasjs', 'services', 'admin', testFileName),
+        [],
+        testVar
+      )
       const compiledTestFilePath = path.join(
         __dirname,
         appName,
