@@ -69,14 +69,14 @@ export async function runTest(command: Command) {
   const printCodeExample = () => {
     if (!isCodeExamplePrinted) {
       process.logger?.info(`Code example to provide output:
-  data TEST_RESULTS;
+  data work.test_results;
   test_description="some description";
   test_result="PASS";
   output;
   run;
-  %WEBOUT(OPEN)
-  %WEBOUT(OBJ, TEST_RESULTS)
-  %WEBOUT(CLOSE)`)
+  %webout(OPEN)
+  %webout(OBJ, test_results)
+  %webout(CLOSE)`)
 
       isCodeExamplePrinted = true
     }
