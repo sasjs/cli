@@ -70,9 +70,9 @@ export async function runTest(command: Command) {
     if (!isCodeExamplePrinted) {
       process.logger?.info(`Code example to provide output:
   data work.test_results;
-  test_description="some description";
-  test_result="PASS";
-  output;
+    test_description="some description";
+    test_result="PASS";
+    output;
   run;
   %webout(OPEN)
   %webout(OBJ, test_results)
