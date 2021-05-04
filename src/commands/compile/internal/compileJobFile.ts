@@ -1,4 +1,3 @@
-import path from 'path'
 import { Target } from '@sasjs/utils/types'
 
 import { createFile } from '../../../utils/file'

@@ -18,7 +18,6 @@ import {
   getConfiguration,
   getLocalConfig,
   saveLocalConfigFile,
-  saveToLocalConfig,
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig
@@ -96,6 +95,13 @@ export const generateTestTarget = (
       jobFolders: []
     },
     serviceConfig,
+    testConfig: {
+      initProgram: '',
+      termProgram: '',
+      macroVars: {},
+      testSetUp: '',
+      testTearDown: ''
+    },
     deployConfig: {
       deployServicePack: true
     }

@@ -302,6 +302,11 @@ export async function printHelpText() {
       description: [
         `Provides the capability to identify, for SAS file, whether there are any ERRORs or WARNINGs present and if so, which line number they are on.`
       ]
+    },
+    {
+      name: 'test',
+      title: 'test',
+      description: [`Triggers SAS unit tests.`]
     }
   ]
 

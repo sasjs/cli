@@ -4,7 +4,7 @@
     "allowJs": true,
     "module": "commonjs",
     "downlevelIteration": true,
-    "lib": ["ES2018", "DOM", "ES2019.String"],
+    "lib": ["ES2018", "DOM", "ES2019.String", "ES2019.Array"],
     "declaration": true,
     "outDir": "build",
     "rootDir": "src",

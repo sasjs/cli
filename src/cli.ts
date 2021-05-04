@@ -20,7 +20,8 @@ import {
   jobManagement,
   flowManagement,
   lint,
-  ReturnCode
+  ReturnCode,
+  test
 } from './main'
 import { fileExists } from './utils/file'
 import path from 'path'
@@ -37,6 +38,7 @@ export async function cli(args: string[]) {
 
   if (!parsedCommand) {
     handleInvalidCommand()
+
     return
   }
 
@@ -153,6 +155,10 @@ export async function cli(args: string[]) {
     }
     case 'lint': {
       result = await lint(command)
+      break
+    }
+    case 'test': {
+      result = await test(command)
       break
     }
     default:

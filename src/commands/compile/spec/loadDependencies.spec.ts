@@ -1,7 +1,6 @@
 import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import * as internalModule from '../internal/config'
-import * as compileModule from '../compile'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,

@@ -1,5 +1,5 @@
 import { Target } from '@sasjs/utils'
-import path from 'path'
+
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
@@ -12,15 +12,19 @@ import {
   getServiceInit,
   getServiceTerm,
   getJobInit,
-  getJobTerm
+  getJobTerm,
+  getTestInit,
+  getTestTerm
 } from './config'
+import { isTestFile } from './compileTestFile'
 
 export async function loadDependencies(
   target: Target,
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  type = 'service'
+  type = 'service',
+  noInitAndTerm = false
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
@@ -60,7 +64,7 @@ export async function loadDependencies(
   let term, termPath
   let serviceVars = ''
 
-  if (type === 'service') {
+  if (type === 'service' && !isTestFile(filePath)) {
     serviceVars = await getServiceVars(target)
     ;({ content: init, filePath: initPath } = await getServiceInit(target))
     ;({ content: term, filePath: termPath } = await getServiceTerm(target))
@@ -68,14 +72,28 @@ export async function loadDependencies(
     fileContent = fileContent
       ? `\n* Service start;\n${fileContent}\n* Service end;`
       : ''
-  } else {
+  } else if (type === 'job' && !isTestFile(filePath)) {
     ;({ content: init, filePath: initPath } = await getJobInit(target))
     ;({ content: term, filePath: termPath } = await getJobTerm(target))
 
     fileContent = fileContent
       ? `\n* Job start;\n${fileContent}\n* Job end;`
       : ''
+  } else {
+    if (!noInitAndTerm) {
+      ;({ content: init, filePath: initPath } = await getTestInit(target))
+      ;({ content: term, filePath: termPath } = await getTestTerm(target))
+    }
+
+    fileContent = fileContent
+      ? `\n* Test start;\n${fileContent}\n* Test end;`
+      : ''
   }
+
+  init = init || ''
+  initPath = initPath || ''
+  term = term || ''
+  termPath = termPath || ''
 
   const fileDependencyPaths = await getDependencyPaths(
     `${fileContent}\n${init}\n${term}`,
