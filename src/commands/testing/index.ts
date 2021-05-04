@@ -24,7 +24,6 @@ import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import path from 'path'
 import chalk from 'chalk'
-import cliTable from 'cli-table'
 
 export async function runTest(command: Command) {
   const targetName = command.getFlagValue('target') as string
@@ -252,45 +251,20 @@ export async function runTest(command: Command) {
       })
   )
 
-  // TODO: move to @sasjs/utils
-  const table = new cliTable({
-    chars: {
-      top: '═',
-      'top-mid': '╤',
-      'top-left': '╔',
-      'top-right': '╗',
-      bottom: '═',
-      'bottom-mid': '╧',
-      'bottom-left': '╚',
-      'bottom-right': '╝',
-      left: '║',
-      'left-mid': '╟',
-      mid: '─',
-      'mid-mid': '┼',
-      right: '║',
-      'right-mid': '╢',
-      middle: '│'
-    },
-    head: [
-      chalk.white.bold('SASjs Test ID'),
-      chalk.white.bold('Test Target'),
-      chalk.white.bold('Test Suite Result')
-    ]
-  })
-
-  Object.keys(resultTable).forEach((key) =>
-    table.push([
-      key,
-      resultTable[key].test_target,
+  process.logger?.table(
+    Object.keys(resultTable).map((key) => [
+      key as string,
+      resultTable[key].test_target as string,
       resultTable[key].test_suite_result === TestResultStatus.pass
         ? chalk.greenBright(TestResultStatus.pass)
         : resultTable[key].test_suite_result === TestResultStatus.fail
         ? chalk.redBright(TestResultStatus.fail)
         : resultTable[key].test_suite_result
-    ])
+    ]),
+    {
+      head: ['SASjs Test ID', 'Test Target', 'Test Suite Result']
+    }
   )
-
-  process.logger?.log(table.toString() + '\n')
 
   const testsCount = flow.length
   const passedTestsCount = Object.values(resultTable).filter(
