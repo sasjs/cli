@@ -70,7 +70,8 @@ describe('getDependencyPaths', () => {
       'mp_dropmembers.sas',
       'mm_getservercontexts.sas',
       'mm_getrepos.sas',
-      'mf_trimstr.sas'
+      'mf_trimstr.sas',
+      'mf_getuniquefileref'
     ]
     const dependencyPaths = await getDependencyPaths(fileContent)
 
