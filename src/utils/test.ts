@@ -25,7 +25,7 @@ import {
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
 import { builtFiles } from './fileStructures/builtFiles'
-import { asyncForEach } from './utils'
+import { asyncForEach } from '@sasjs/utils/utils'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
