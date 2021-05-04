@@ -8,7 +8,7 @@ import {
   deleteFolder,
   createFolder
 } from '../../utils/file'
-import { asyncForEach } from '../../utils/utils'
+import { asyncForEach } from '@sasjs/utils/utils'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'

@@ -1,4 +1,5 @@
-import { asyncForEach, chunk } from '../../utils/utils'
+import { chunk } from '../../utils/utils'
+import { asyncForEach } from '@sasjs/utils/utils'
 import {
   readFile,
   base64EncodeFile,

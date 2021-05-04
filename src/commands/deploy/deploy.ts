@@ -2,7 +2,8 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
-import { asyncForEach, executeShellScript } from '../../utils/utils'
+import { asyncForEach } from '@sasjs/utils/utils'
+import { executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
   isShellScript,

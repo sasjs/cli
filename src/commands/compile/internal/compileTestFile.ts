@@ -8,7 +8,6 @@ import { createFolder, sasFileRegExp } from '../../../utils/file'
 import { moveFile, folderExists } from '@sasjs/utils/file'
 import { listFilesAndSubFoldersInFolder } from '@sasjs/utils/file'
 import chalk from 'chalk'
-import cliTable from 'cli-table'
 
 export async function compileTestFile(
   target: Target,
@@ -214,36 +213,16 @@ const printTestCoverage = async (
 
   process.logger?.info('Test coverage:')
 
-  const table = new cliTable({
-    chars: {
-      top: '═',
-      'top-mid': '╤',
-      'top-left': '╔',
-      'top-right': '╗',
-      bottom: '═',
-      'bottom-mid': '╧',
-      'bottom-left': '╚',
-      'bottom-right': '╝',
-      left: '║',
-      'left-mid': '╟',
-      mid: '─',
-      'mid-mid': '┼',
-      right: '║',
-      'right-mid': '╢',
-      middle: '│'
-    },
-    head: [
-      chalk.white.bold('File'),
-      chalk.white.bold('Type'),
-      chalk.white.bold('Coverage')
-    ]
-  })
-
-  Object.keys(coverage).forEach((key) =>
-    table.push([key, coverage[key].Type, coverage[key].Coverage])
+  process.logger?.table(
+    Object.keys(coverage).map((key) => [
+      key,
+      coverage[key].Type,
+      coverage[key].Coverage
+    ]),
+    {
+      head: ['File', 'Type', 'Coverage']
+    }
   )
-
-  process.logger?.log(table.toString() + '\n')
 
   process.logger?.info(`${printCoverage(
     'Services',
