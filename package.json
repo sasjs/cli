@@ -52,7 +52,7 @@
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
     "csv-stringify": "^5.6.1",
-    "dotenv": "^8.2.0",
+    "dotenv": "^8.5.1",
     "esm": "^3.2.25",
     "find": "^0.3.0",
     "fs": "0.0.1-security",
