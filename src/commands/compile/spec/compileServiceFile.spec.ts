@@ -56,7 +56,7 @@ const fakeProgramLines = [
 ]
 
 const preCode =
-  '/* provide additional debug info */\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n'
+  '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n'
 
 describe('compileServiceFile', () => {
   let target: Target
