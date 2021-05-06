@@ -6,9 +6,11 @@ import {
   copy,
   fileExists,
   deleteFolder,
-  createFolder
+  createFolder,
+  isSasFile,
+  folderExists
 } from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils/utils'
+import { asyncForEach, listFilesAndSubFoldersInFolder } from '@sasjs/utils'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'
@@ -17,7 +19,11 @@ import { getAllJobFolders } from './internal/getAllJobFolders'
 import { getAllServiceFolders } from './internal/getAllServiceFolders'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
-import { compileTestFile, compileTestFlow } from './internal/compileTestFile'
+import {
+  compileTestFile,
+  compileTestFlow,
+  copyTestMacroFiles
+} from './internal/compileTestFile'
 import {
   getDestinationServicePath,
   getDestinationJobPath
@@ -25,7 +31,7 @@ import {
 import { moveTestFile } from './internal/compileTestFile'
 
 export async function compile(target: Target, forceCompile = false) {
-  const result = await checkCompileStatus(target)
+  const result = await checkCompileStatus(target, ['tests'])
 
   // no need to compile again
   if (result.compiled && !forceCompile) {
@@ -40,6 +46,33 @@ export async function compile(target: Target, forceCompile = false) {
   })
 
   await compileModule.compileJobsServicesTests(target)
+
+  if (target?.macroFolders?.length) {
+    await asyncForEach(
+      target.macroFolders,
+      async (macroFolder: string) => await copyTestMacroFiles(macroFolder)
+    )
+
+    const buildMacroTestFolder = path.join(
+      (await getConstants()).buildDestinationTestFolder,
+      'macros'
+    )
+
+    if (await folderExists(buildMacroTestFolder)) {
+      const macroTestFiles = await (
+        await listFilesAndSubFoldersInFolder(buildMacroTestFolder)
+      ).filter((item: string) => isSasFile(item))
+
+      await asyncForEach(macroTestFiles, async (macroTestFile: string) =>
+        compileServiceFile(
+          target,
+          path.join(buildMacroTestFolder, macroTestFile),
+          target.macroFolders,
+          target.programFolders
+        )
+      )
+    }
+  }
 
   await compileTestFlow(target).catch((err) =>
     process.logger?.error('Test flow compilation has failed.')
@@ -93,11 +126,11 @@ export async function compileJobsServicesTests(target: Target) {
     const testTearDown = target.testConfig?.testTearDown
 
     if (testSetUp)
-      await compileTestFile(target, testSetUp, macroFolders).catch((err) =>
+      await compileTestFile(target, testSetUp).catch((err) =>
         process.logger?.error('Test set up compilation has failed.')
       )
     if (testTearDown)
-      await compileTestFile(target, testTearDown, macroFolders).catch((err) =>
+      await compileTestFile(target, testTearDown).catch((err) =>
         process.logger?.error('Test tear down compilation has failed.')
       )
 

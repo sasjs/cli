@@ -26,34 +26,71 @@ import chalk from 'chalk'
 
 export async function runTest(command: Command) {
   const targetName = command.getFlagValue('target') as string
+  const testRegExps = command.values
+
+  let outDirectory = command.getFlagValue('outDirectory') as string
+
+  if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
+  else outDirectory = (await getConstants()).buildDestinationResultsFolder
+
   const { target } = await findTargetInConfiguration(targetName)
 
   if (!target) {
-    throw new Error('Target not found! Please try again with another target.')
+    return Promise.reject(
+      'Target not found! Please try again with another target.'
+    )
   }
 
-  const { buildDestinationFolder } = await getConstants()
-  const testFlowPath = path.join(buildDestinationFolder, 'testFlow.json')
-  const testFlowData = await readFile(testFlowPath)
+  let flowSourcePath = command.getFlagValue('source') as string
+
+  flowSourcePath = flowSourcePath
+    ? path.join(process.currentDir, flowSourcePath)
+    : (flowSourcePath = path.join(
+        (await getConstants()).buildDestinationFolder,
+        'testFlow.json'
+      ))
+
+  const testFlowData = await readFile(flowSourcePath).catch((_) => {
+    return Promise.reject(`Test flow file was not found at ${flowSourcePath}`)
+  })
+
+  if (!testFlowData) return
 
   let testFlow: TestFlow = { tests: [] }
 
   try {
     testFlow = JSON.parse(testFlowData)
   } catch (error) {
-    throw new Error('Provided test flow file is not valid.')
+    return Promise.reject(`Provided test flow file is not valid.`)
   }
 
   let flow = []
 
   if (testFlow.testSetUp) flow.push(testFlow.testSetUp)
-  if (testFlow.tests) flow = [...flow, ...testFlow.tests]
+
+  if (testFlow.tests)
+    flow = [
+      ...flow,
+      ...testFlow.tests.filter((test: string) => {
+        if (!testRegExps.length) return true
+
+        let match = false
+
+        for (const pattern of testRegExps) {
+          if (new RegExp(pattern).test(test)) match = true
+        }
+
+        return match
+      })
+    ]
+
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
-    serverType: target.serverType
+    serverType: target.serverType,
+    debug: true
   })
 
   const accessToken = await getAccessToken(target)
@@ -74,7 +111,8 @@ export async function runTest(command: Command) {
   run;
   %webout(OPEN)
   %webout(OBJ, test_results)
-  %webout(CLOSE)`)
+  %webout(CLOSE)
+`)
 
       isCodeExamplePrinted = true
     }
@@ -101,77 +139,88 @@ export async function runTest(command: Command) {
         },
         accessToken
       )
-      .then(
-        async (res) => {
-          if (!res) {
-            displayError(
-              {},
-              `Job located at ${sasJobLocation} did not return a response.`
-            )
+      .then(async (res) => {
+        if (!res) {
+          displayError(
+            {},
+            `Job located at ${sasJobLocation} did not return a response.`
+          )
 
-            printCodeExample()
+          printCodeExample()
 
-            const existingTestTarget = result.sasjs_test_meta.find(
-              (testResult: TestDescription) =>
-                testResult.test_target === testTarget
-            )
+          const existingTestTarget = result.sasjs_test_meta.find(
+            (testResult: TestDescription) =>
+              testResult.test_target === testTarget
+          )
 
-            if (existingTestTarget) {
-              existingTestTarget.results.push({
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: TestResultStatus.notProvided
-              })
-            } else {
-              result.sasjs_test_meta.push({
-                test_target: testTarget,
-                results: [
-                  {
-                    test_loc: test,
-                    sasjs_test_id: testId,
-                    result: TestResultStatus.notProvided
-                  }
-                ]
-              })
-            }
-
-            return
-          }
-
-          if (res.test_results) {
-            const existingTestTarget = result.sasjs_test_meta.find(
-              (testResult: TestDescription) =>
-                testResult.test_target === testTarget
-            )
-
-            if (existingTestTarget) {
-              existingTestTarget.results.push({
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: res.test_results
-              })
-            } else {
-              result.sasjs_test_meta.push({
-                test_target: testTarget,
-                results: [
-                  {
-                    test_loc: test,
-                    sasjs_test_id: testId,
-                    result: res.test_results
-                  }
-                ]
-              })
-            }
+          if (existingTestTarget) {
+            existingTestTarget.results.push({
+              test_loc: test,
+              sasjs_test_id: testId,
+              result: TestResultStatus.notProvided
+            })
           } else {
-            displayError({}, `'test_results' not found in server response.`)
-
-            printCodeExample()
+            result.sasjs_test_meta.push({
+              test_target: testTarget,
+              results: [
+                {
+                  test_loc: test,
+                  sasjs_test_id: testId,
+                  result: TestResultStatus.notProvided
+                }
+              ]
+            })
           }
-        },
-        (err) => {
-          displayError(err, 'An error occurred while executing the request.')
+
+          return
         }
-      )
+
+        if (res.test_results) {
+          const existingTestTarget = result.sasjs_test_meta.find(
+            (testResult: TestDescription) =>
+              testResult.test_target === testTarget
+          )
+
+          if (existingTestTarget) {
+            existingTestTarget.results.push({
+              test_loc: test,
+              sasjs_test_id: testId,
+              result: res.test_results
+            })
+          } else {
+            result.sasjs_test_meta.push({
+              test_target: testTarget,
+              results: [
+                {
+                  test_loc: test,
+                  sasjs_test_id: testId,
+                  result: res.test_results
+                }
+              ]
+            })
+          }
+        } else {
+          displayError({}, `'test_results' not found in server response.`)
+
+          printCodeExample()
+        }
+      })
+      .catch(async (err) => {
+        displayError({}, 'An error occurred while executing the request.')
+
+        if (err?.error?.details?.result) {
+          const logPath = path.join(
+            outDirectory,
+            'logs',
+            test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
+              '.log'
+          )
+
+          await createFile(logPath, err.error.details.result)
+
+          process.logger.info(`Log file is located at ${logPath}\n`)
+        }
+      })
   })
 
   let finaleResult
@@ -182,13 +231,11 @@ export async function runTest(command: Command) {
     displayError(err, 'Error while converting test results into a string.')
   }
 
-  const { buildDestinationResultsFolder } = await getConstants()
-
-  if (!(await folderExists(buildDestinationResultsFolder))) {
-    await createFolder(buildDestinationResultsFolder)
+  if (!(await folderExists(outDirectory))) {
+    await createFolder(outDirectory)
   }
 
-  const csvPath = path.join(buildDestinationResultsFolder, 'testResults.csv')
+  const csvPath = path.join(outDirectory, 'testResults.csv')
 
   const saveCSV = async (data: {}[], options: {}) =>
     new Promise((resolve, reject) =>
@@ -236,7 +283,7 @@ export async function runTest(command: Command) {
     }
   }).catch((err) => displayError(err, 'Error while saving CSV file'))
 
-  const jsonPath = path.join(buildDestinationResultsFolder, 'testResults.json')
+  const jsonPath = path.join(outDirectory, 'testResults.json')
 
   await createFile(jsonPath, finaleResult)
 
@@ -276,12 +323,12 @@ export async function runTest(command: Command) {
   process.logger?.info(`Tests provided results: ${
     testsWithResultsCount + '/' + testsCount
   } (${chalk.greenBright(
-    Math.round((testsWithResultsCount / testsCount) * 100) + '%'
+    Math.round((testsWithResultsCount / testsCount) * 100 || 0) + '%'
   )})
   Tests that pass: ${
     passedTestsCount + '/' + testsWithResultsCount
   } (${chalk.greenBright(
-    Math.round((passedTestsCount / testsWithResultsCount) * 100) + '%'
+    Math.round((passedTestsCount / testsWithResultsCount) * 100 || 0) + '%'
   )})
   `)
 
