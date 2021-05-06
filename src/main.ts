@@ -29,6 +29,7 @@ import { Command } from './utils/command'
 import { getConstants } from './constants'
 import { findTargetInConfiguration } from './utils/config'
 import { Target } from '@sasjs/utils/types'
+import { lintFix } from './commands/lint/processLint'
 
 export enum ReturnCode {
   Success,
@@ -476,14 +477,19 @@ export async function lint(command: Command) {
       })
   }
 
+  if (subCommand === 'fix') {
+    await lintFix()
+    return ReturnCode.Success
+  }
+
   return await processLint()
     .then((result) => {
       if (result.errors) {
-        displayError('Fix identified lint errors.')
+        displayError('Please fix the identified lint errors.')
         return ReturnCode.LintError
       }
       if (result.warnings) {
-        process.logger.warn('Fix identified lint warnings.')
+        process.logger.warn('Please fix the identified lint warnings.')
         return ReturnCode.Success
       }
       displaySuccess('All matched files use @sasjs/lint code style!')
