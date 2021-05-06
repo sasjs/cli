@@ -5,7 +5,8 @@ import groupBy from 'lodash.groupby'
 import { getConstants } from '../../constants'
 import { getSourcePaths } from '../../utils/config'
 import { getList, folderExists, readFile } from '../../utils/file'
-import { asyncForEach, diff, chunk } from '../../utils/utils'
+import { asyncForEach } from '@sasjs/utils/utils'
+import { diff, chunk } from '../../utils/utils'
 
 export async function getDependencyPaths(
   fileContent: string,

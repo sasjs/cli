@@ -1,5 +1,4 @@
 import chalk from 'chalk'
-import cliTable from 'cli-table'
 import { lintProject, Diagnostic, Severity, formatProject } from '@sasjs/lint'
 
 interface LintResult {
@@ -65,46 +64,21 @@ const displayDiagnostics = (
 ) => {
   process.logger?.info(`File: ${filePath}`)
 
-  const table = new cliTable({
-    chars: {
-      top: '═',
-      'top-mid': '╤',
-      'top-left': '╔',
-      'top-right': '╗',
-      bottom: '═',
-      'bottom-mid': '╧',
-      'bottom-left': '╚',
-      'bottom-right': '╝',
-      left: '║',
-      'left-mid': '╟',
-      mid: '─',
-      'mid-mid': '┼',
-      right: '║',
-      'right-mid': '╢',
-      middle: '│'
-    },
-    head: [
-      chalk.white.bold('Severity'),
-      chalk.white.bold('Message'),
-      chalk.white.bold('[Line #, Col #]')
-    ]
-  })
+  process.logger?.table(
+    sasjsDiagnostics.map((d: Diagnostic) => {
+      const severity =
+        d.severity === Severity.Info
+          ? chalk.cyan.bold('Info')
+          : d.severity === Severity.Warning
+          ? chalk.yellow.bold('Warning')
+          : d.severity === Severity.Error
+          ? chalk.red.bold('Error')
+          : 'Unknown'
 
-  sasjsDiagnostics.forEach((d: Diagnostic) => {
-    const severity =
-      d.severity === Severity.Info
-        ? chalk.cyan.bold('Info')
-        : d.severity === Severity.Warning
-        ? chalk.yellow.bold('Warning')
-        : d.severity === Severity.Error
-        ? chalk.red.bold('Error')
-        : 'Unknown'
-
-    table.push([
-      severity,
-      d.message,
-      `[${d.lineNumber}, ${d.startColumnNumber}]`
-    ])
-  })
-  process.logger?.log(table.toString() + '\n')
+      return [severity, d.message, `[${d.lineNumber}, ${d.startColumnNumber}]`]
+    })
+  ),
+    {
+      head: ['Severity', 'Message', '[Line #, Col #]']
+    }
 }

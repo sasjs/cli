@@ -54,10 +54,9 @@ describe('getDependencyPaths', () => {
       path.join(__dirname, './nested-deps.sas')
     )
     const dependenciesList = [
-      'mf_isblank',
+      'mf_isblank.sas',
       'mm_createwebservice.sas',
       'mm_createstp.sas',
-      'mm_getwebappsrvprops.sas',
       'mf_getuser.sas',
       'mm_createfolder.sas',
       'mm_deletestp.sas',
@@ -69,13 +68,15 @@ describe('getDependencyPaths', () => {
       'mm_updatestpsourcecode.sas',
       'mp_dropmembers.sas',
       'mm_getservercontexts.sas',
-      'mm_getrepos.sas',
-      'mf_trimstr.sas'
+      'mm_getrepos.sas'
     ]
+
     const dependencyPaths = await getDependencyPaths(fileContent)
 
-    dependencyPaths.forEach((dep) => {
-      expect(dependenciesList.some((x) => dep.includes(x))).toBeTruthy()
+    dependenciesList.forEach((expectedDep) => {
+      expect(
+        dependencyPaths.some((dep) => dep.includes(expectedDep))
+      ).toBeTruthy()
     })
 
     done()

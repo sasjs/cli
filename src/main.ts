@@ -22,6 +22,7 @@ import {
   generateDot,
   initDocs,
   processLint,
+  runTest,
   initLint
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
@@ -51,6 +52,7 @@ export async function initSasjs() {
       return ReturnCode.InternalError
     })
 }
+
 export async function createFileStructure(command: Command) {
   const template = command.getFlagValue('template') as string
   const parentFolderName = command.values.shift()
@@ -69,6 +71,7 @@ export async function createFileStructure(command: Command) {
       return ReturnCode.InternalError
     })
 }
+
 export async function doc(command: Command) {
   const subCommand = command.getSubCommand()
 
@@ -501,6 +504,16 @@ export async function lint(command: Command) {
     })
 }
 
+export async function test(command: Command) {
+  return await runTest(command)
+    .then((_) => ReturnCode.Success)
+    .catch((err) => {
+      displayError(err, 'An error has occurred when running tests.')
+
+      return ReturnCode.InternalError
+    })
+}
+
 async function executeSingleFileCompile(
   target: Target,
   command: Command,
@@ -518,6 +531,7 @@ async function executeSingleFileCompile(
       return ReturnCode.InternalError
     })
 }
+
 async function executeCompile(target: Target) {
   return await compile(target, true)
     .then(() => {

@@ -54,7 +54,7 @@ export async function compileSingleFile(
 
   let sourcefilePathParts = sourcePath.split(path.sep)
   sourcefilePathParts.splice(-1, 1)
-  const sourceFolderPath = sourcefilePathParts.join('/')
+  const sourceFolderPath = sourcefilePathParts.join(path.sep)
   const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
   const outputPath = output
     ? path.isAbsolute(output)
@@ -66,9 +66,9 @@ export async function compileSingleFile(
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
-  let outputPathParts = outputPath.split('/')
+  let outputPathParts = outputPath.split(path.sep)
   outputPathParts.pop(), outputPathParts.pop()
-  const parentOutputFolder = outputPathParts.join('/')
+  const parentOutputFolder = outputPathParts.join(path.sep)
   await deleteFolder(parentOutputFolder)
   await createFolder(outputPath)
 

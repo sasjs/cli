@@ -1,5 +1,6 @@
 import { printHelpText } from '../help'
 import { Command } from '../../../utils/command'
+import { sanitizeSpecialChars } from '@sasjs/utils/formatter'
 
 describe('sasjs help', () => {
   describe('printHelpText', () => {
@@ -8,7 +9,7 @@ describe('sasjs help', () => {
 
       let { outputCommands } = await printHelpText()
 
-      outputCommands = sanitizeChalkInsertions(outputCommands)
+      outputCommands = sanitizeSpecialChars(outputCommands)
 
       for (const command of supportedCommands) {
         expect(outputCommands.includes(`* ${command}`)).toEqual(true)
@@ -20,7 +21,7 @@ describe('sasjs help', () => {
 
       let { outputAliases } = await printHelpText()
 
-      outputAliases = sanitizeChalkInsertions(outputAliases)
+      outputAliases = sanitizeSpecialChars(outputAliases)
 
       for (const command of supportedAliases) {
         expect(outputAliases.includes(`* ${command}`)).toEqual(true)
@@ -28,10 +29,3 @@ describe('sasjs help', () => {
     })
   })
 })
-
-// delete extra characters inserted by chalk
-const sanitizeChalkInsertions = (str: string) =>
-  str.replace(
-    /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
-    ''
-  )
