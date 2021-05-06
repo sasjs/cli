@@ -47,7 +47,7 @@
   "dependencies": {
     "@sasjs/adapter": "^2.2.15",
     "@sasjs/core": "^2.22.2",
-    "@sasjs/lint": "^1.6.1",
+    "@sasjs/lint": "^1.8.0",
     "@sasjs/utils": "^2.12.0",
     "btoa": "^1.2.1",
     "chalk": "^4.1.0",
