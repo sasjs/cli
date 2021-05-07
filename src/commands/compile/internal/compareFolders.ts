@@ -7,7 +7,8 @@ import { isTestFile } from './compileTestFile'
 
 export const compareFolders = async (
   sourcePath: string,
-  destinationPath: string
+  destinationPath: string,
+  exceptions?: string[]
 ) => {
   const sourcePathExists = await folderExists(sourcePath)
   const destinationPathExists = await folderExists(destinationPath)
@@ -36,7 +37,9 @@ export const compareFolders = async (
   const destinationFiles = (await getFilesInFolder(destinationPath)) as string[]
 
   const areSubFoldersMatching = sourceSubFolders.every((subFolder) =>
-    destinationSubFolders.includes(subFolder)
+    exceptions?.includes(subFolder)
+      ? true
+      : destinationSubFolders.includes(subFolder)
   )
 
   if (!areSubFoldersMatching) {

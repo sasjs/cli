@@ -1,8 +1,7 @@
-import { Target } from '@sasjs/utils'
+import { Target, asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
-import { asyncForEach } from '@sasjs/utils/utils'
 import { chunk } from '../../../utils/utils'
 import {
   getDependencyPaths,

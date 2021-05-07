@@ -192,6 +192,7 @@ const defaultBuildConfig: BuildConfig = {
   termProgram: '',
   macroVars: {}
 }
+
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string
