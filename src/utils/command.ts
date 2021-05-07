@@ -149,7 +149,10 @@ const commandFlags = [
       initialFlags.csvFile
     ]
   },
-  { command: initialCommands.test, flags: [initialFlags.target] }
+  {
+    command: initialCommands.test,
+    flags: [initialFlags.target, initialFlags.outDirectory, initialFlags.source]
+  }
 ]
 
 const flagsWithValue = [

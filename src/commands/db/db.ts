@@ -9,7 +9,7 @@ import {
   deleteFolder,
   fileExists
 } from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils/utils'
+import { asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 
 const whiteListedDBExtensions = ['ddl', 'sas']

@@ -1,5 +1,4 @@
 import { chunk } from '../../utils/utils'
-import { asyncForEach } from '@sasjs/utils/utils'
 import {
   readFile,
   base64EncodeFile,
@@ -16,7 +15,7 @@ import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
-import { ServerType, Target } from '@sasjs/utils'
+import { ServerType, Target, asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 
