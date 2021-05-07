@@ -6,6 +6,10 @@ interface LintResult {
   errors: boolean
 }
 
+/**
+ * Fixes lint violations in all .sas files in the current project
+ * @returns {Promise<void>} resolves successfully when formatting has completed
+ */
 export async function lintFix() {
   await formatProject().then((result) => {
     process.logger?.success(
