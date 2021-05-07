@@ -206,7 +206,10 @@ export async function runTest(command: Command) {
         }
       })
       .catch(async (err) => {
-        displayError({}, 'An error occurred while executing the request.')
+        displayError(
+          {},
+          `An error occurred while executing the request. Job location: ${sasJobLocation}`
+        )
 
         if (err?.error?.details?.result) {
           const logPath = path.join(
