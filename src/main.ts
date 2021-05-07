@@ -481,7 +481,10 @@ export async function lint(command: Command) {
   }
 
   if (subCommand === 'fix') {
-    await lintFix()
+    await lintFix().catch((err) => {
+      displayError(err, 'An error has occurred while running SASjs Lint Fix.')
+      return ReturnCode.LintError
+    })
     return ReturnCode.Success
   }
 
