@@ -61,7 +61,7 @@ export async function compile(target: Target, forceCompile = false) {
     if (await folderExists(buildMacroTestFolder)) {
       const macroTestFiles = await (
         await listFilesAndSubFoldersInFolder(buildMacroTestFolder)
-      ).filter((item: string) => isSasFile(item))
+      ).filter(isSasFile)
 
       await asyncForEach(macroTestFiles, async (macroTestFile: string) =>
         compileServiceFile(
