@@ -63,8 +63,8 @@ async function getPreCodeForServicePack(serverType: ServerType) {
   }
   content +=
     '/* provide additional debug info */\n' +
-    '%global _program;' +
-    '%put &=syscc;' +
+    '%global _program;\n' +
+    '%put &=syscc;\n' +
     '%put user=%mf_getuser();\n' +
     '%put pgm=&_program;\n' +
     '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
