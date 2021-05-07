@@ -18,7 +18,6 @@ import {
   getConfiguration,
   getLocalConfig,
   saveLocalConfigFile,
-  saveToLocalConfig,
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig
@@ -26,7 +25,7 @@ import {
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
 import { builtFiles } from './fileStructures/builtFiles'
-import { asyncForEach } from './utils'
+import { asyncForEach } from '@sasjs/utils'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
@@ -96,6 +95,13 @@ export const generateTestTarget = (
       jobFolders: []
     },
     serviceConfig,
+    testConfig: {
+      initProgram: '',
+      termProgram: '',
+      macroVars: {},
+      testSetUp: '',
+      testTearDown: ''
+    },
     deployConfig: {
       deployServicePack: true
     }

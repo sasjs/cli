@@ -212,15 +212,6 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
   await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
-export async function asyncForEach(
-  array: any[],
-  callback: (item: any, index: number, originalArray: any[]) => any
-) {
-  for (let index = 0; index < array.length; index++) {
-    await callback(array[index], index, array)
-  }
-}
-
 /**
  * Removes comments from a given block of text.
  * Preserves single line block comments and inline comments.

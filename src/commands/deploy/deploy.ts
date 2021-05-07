@@ -2,14 +2,14 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
-import { asyncForEach, executeShellScript } from '../../utils/utils'
+import { executeShellScript } from '../../utils/utils'
 import {
   isSasFile,
   isShellScript,
   readFile,
   createFile
 } from '../../utils/file'
-import { ServerType, Target } from '@sasjs/utils'
+import { ServerType, Target, asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 
