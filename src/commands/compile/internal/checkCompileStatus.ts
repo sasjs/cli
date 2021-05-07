@@ -1,8 +1,7 @@
-import { Target } from '@sasjs/utils'
+import { Target, asyncForEach } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
 import { folderExists } from '../../../utils/file'
-import { asyncForEach } from '@sasjs/utils/utils'
 import { compareFolders } from './compareFolders'
 import { getAllJobFolders } from './getAllJobFolders'
 import { getAllServiceFolders } from './getAllServiceFolders'
@@ -11,7 +10,10 @@ import {
   getDestinationServicePath
 } from './getDestinationPath'
 
-export async function checkCompileStatus(target: Target) {
+export async function checkCompileStatus(
+  target: Target,
+  exceptions?: string[]
+) {
   const { buildDestinationFolder } = await getConstants()
   const pathExists = await folderExists(buildDestinationFolder)
 
@@ -25,10 +27,11 @@ export async function checkCompileStatus(target: Target) {
   const {
     areServiceFoldersMatching,
     reasons: serviceReasons
-  } = await checkServiceFolders(target)
+  } = await checkServiceFolders(target, exceptions)
 
   const { areJobFoldersMatching, reasons: jobReasons } = await checkJobFolders(
-    target
+    target,
+    exceptions
   )
 
   const compiled = areServiceFoldersMatching && areJobFoldersMatching
@@ -46,9 +49,10 @@ export async function checkCompileStatus(target: Target) {
  * Checks if each file in each subfolder of the specified service folders
  * is present in the `sasjsbuild/services` folder.
  * @param {Target} target- the target to check job folders for.
+ * @param {string[]} exceptions- folders that should not be checked.
  * @returns an object containing a boolean `areServiceFoldersMatching` and a list of reasons if not matching.
  */
-const checkServiceFolders = async (target: Target) => {
+const checkServiceFolders = async (target: Target, exceptions?: string[]) => {
   const serviceFolders = await getAllServiceFolders(target)
   const { buildSourceFolder } = await getConstants()
 
@@ -60,7 +64,11 @@ const checkServiceFolders = async (target: Target) => {
       : path.join(buildSourceFolder, serviceFolder)
     const destinationPath = await getDestinationServicePath(sourcePath)
 
-    const { equal, reason } = await compareFolders(sourcePath, destinationPath)
+    const { equal, reason } = await compareFolders(
+      sourcePath,
+      destinationPath,
+      exceptions
+    )
     areServiceFoldersMatching = areServiceFoldersMatching && equal
     if (!equal) {
       reasons.push(reason)
@@ -73,9 +81,10 @@ const checkServiceFolders = async (target: Target) => {
  * Checks if each file in each subfolder of the specified job folders
  * is present in the `sasjsbuild/jobs` folder.
  * @param {Target} target- the target to check job folders for.
+ * @param {string[]} exceptions- folders that should not be checked.
  * @returns an object containing a boolean `areJobFoldersMatching` and a list of reasons if not matching.
  */
-const checkJobFolders = async (target: Target) => {
+const checkJobFolders = async (target: Target, exceptions?: string[]) => {
   const jobFolders = await getAllJobFolders(target)
   const { buildSourceFolder } = await getConstants()
 
@@ -87,7 +96,11 @@ const checkJobFolders = async (target: Target) => {
       : path.join(buildSourceFolder, jobFolder)
     const destinationPath = await getDestinationJobPath(sourcePath)
 
-    const { equal, reason } = await compareFolders(sourcePath, destinationPath)
+    const { equal, reason } = await compareFolders(
+      sourcePath,
+      destinationPath,
+      exceptions
+    )
     areJobFoldersMatching = areJobFoldersMatching && equal
     if (!equal) {
       reasons.push(reason)

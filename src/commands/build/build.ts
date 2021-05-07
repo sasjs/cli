@@ -7,7 +7,7 @@ import {
   getFilesInFolder,
   createFile
 } from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils/utils'
+import { asyncForEach } from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
 import { getLocalConfig, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'

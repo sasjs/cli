@@ -7,6 +7,7 @@ export interface TestFlow {
 export enum CoverageType {
   service = 'service',
   job = 'job',
+  macro = 'macro',
   test = 'test'
 }
 

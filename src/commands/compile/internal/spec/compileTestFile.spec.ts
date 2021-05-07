@@ -72,7 +72,6 @@ PS=MAX /* reduce log size slightly */
       await compileTestFile(
         target,
         path.join('sasjs', 'services', 'admin', testFileName),
-        [],
         testVar
       )
       const compiledTestFilePath = path.join(
