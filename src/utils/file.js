@@ -397,3 +397,5 @@ export async function saveToDefaultLocation(filePath, data) {
 export function getRealPath(file) {
   return fs.realpathSync(file)
 }
+
+export const sasFileRegExp = /.sas$/i

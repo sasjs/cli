@@ -205,7 +205,10 @@ export async function getAndValidateSasViyaFields(
         process.env.ACCESS_TOKEN as string
       )
     } else {
-      const { target } = await findTargetInConfiguration(targetName)
+      const { target } = await findTargetInConfiguration(
+        targetName,
+        TargetScope.Global
+      )
       if (!target.authConfig || !target.authConfig.access_token) {
         throw new Error(
           `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${targetName}\` to authenticate.`

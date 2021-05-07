@@ -43,7 +43,8 @@ const initialCommands = arrToObj([
     'run',
     'servicepack',
     'version',
-    'web'
+    'web',
+    'test'
   ])
 ])
 
@@ -147,6 +148,10 @@ const commandFlags = [
       initialFlags.logFolder,
       initialFlags.csvFile
     ]
+  },
+  {
+    command: initialCommands.test,
+    flags: [initialFlags.target, initialFlags.outDirectory, initialFlags.source]
   }
 ]
 

@@ -35,7 +35,7 @@ describe('sasjs compile', () => {
     await createTestApp(__dirname, appName)
     target = (await findTargetInConfiguration('viya')).target
     jest.spyOn(compileModule, 'copyFilesToBuildFolder')
-    jest.spyOn(compileModule, 'compileJobsAndServices')
+    jest.spyOn(compileModule, 'compileJobsServicesTests')
     done()
   })
 
@@ -49,7 +49,7 @@ describe('sasjs compile', () => {
   it('should compile an uncompiled project', async (done) => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
-    expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
 
     done()
   })
@@ -59,7 +59,7 @@ describe('sasjs compile', () => {
 
     await expect(compileModule.compile({} as Target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
-    expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
 
     done()
   })
@@ -80,7 +80,7 @@ describe('sasjs compile', () => {
       '- sasjs/programs'
     await expect(compileModule.compile(newTarget)).rejects.toThrow(errorMessage)
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
-    expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
 
     done()
   })
@@ -88,13 +88,13 @@ describe('sasjs compile', () => {
   it('should skip compilation if a project is already compiled', async (done) => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
-    expect(compileModule.compileJobsAndServices).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
 
     jest.resetAllMocks()
 
     await compileModule.compile(target)
     expect(compileModule.copyFilesToBuildFolder).not.toHaveBeenCalled()
-    expect(compileModule.compileJobsAndServices).not.toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).not.toHaveBeenCalled()
 
     done()
   })
@@ -192,6 +192,7 @@ const defaultBuildConfig: BuildConfig = {
   termProgram: '',
   macroVars: {}
 }
+
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string

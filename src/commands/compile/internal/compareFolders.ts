@@ -3,10 +3,12 @@ import {
   getSubFoldersInFolder,
   getFilesInFolder
 } from '../../../utils/file'
+import { isTestFile } from './compileTestFile'
 
 export const compareFolders = async (
   sourcePath: string,
-  destinationPath: string
+  destinationPath: string,
+  exceptions?: string[]
 ) => {
   const sourcePathExists = await folderExists(sourcePath)
   const destinationPathExists = await folderExists(destinationPath)
@@ -29,11 +31,15 @@ export const compareFolders = async (
     destinationPath
   )) as string[]
 
-  const sourceFiles = (await getFilesInFolder(sourcePath)) as string[]
+  const sourceFiles = (await getFilesInFolder(sourcePath).then((files) =>
+    files.filter((file: string) => !isTestFile(file))
+  )) as string[]
   const destinationFiles = (await getFilesInFolder(destinationPath)) as string[]
 
   const areSubFoldersMatching = sourceSubFolders.every((subFolder) =>
-    destinationSubFolders.includes(subFolder)
+    exceptions?.includes(subFolder)
+      ? true
+      : destinationSubFolders.includes(subFolder)
   )
 
   if (!areSubFoldersMatching) {

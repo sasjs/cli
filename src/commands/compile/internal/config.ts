@@ -4,6 +4,8 @@ import path from 'path'
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 
+// TODO: REFACTOR
+
 export const getServiceInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
@@ -130,6 +132,79 @@ export const getJobTerm = async (
   return jobTermContent
     ? {
         content: `\n* JobTerm start;\n${jobTermContent}\n* JobTerm end;`,
+        filePath
+      }
+    : {
+        content: '',
+        filePath: ''
+      }
+}
+
+export const getTestInit = async (
+  target: Target
+): Promise<{ content: string; filePath: string }> => {
+  const { buildSourceFolder } = await getConstants()
+  let testInitContent = '',
+    filePath = ''
+
+  if (target?.testConfig?.initProgram) {
+    filePath = path.isAbsolute(target.testConfig.initProgram)
+      ? target.testConfig.initProgram
+      : path.join(buildSourceFolder, target.testConfig.initProgram)
+
+    testInitContent = await readFile(filePath)
+  } else {
+    const { configuration } = await getLocalOrGlobalConfig()
+
+    if (configuration?.testConfig?.initProgram) {
+      filePath = path.isAbsolute(configuration.testConfig.initProgram)
+        ? configuration.testConfig.initProgram
+        : path.join(buildSourceFolder, configuration.testConfig.initProgram)
+
+      testInitContent = await readFile(filePath)
+    }
+  }
+
+  return testInitContent
+    ? {
+        content: `\n* TestInit start;\n${testInitContent}\n* TestInit end;`,
+        filePath
+      }
+    : {
+        content: '',
+        filePath: ''
+      }
+}
+
+export const getTestTerm = async (
+  target: Target
+): Promise<{ content: string; filePath: string }> => {
+  const { buildSourceFolder } = await getConstants()
+  let testTermContent = '',
+    filePath = ''
+
+  if (target?.testConfig?.termProgram) {
+    filePath = path.join(buildSourceFolder, target.testConfig.termProgram)
+    filePath = path.isAbsolute(target.testConfig.termProgram)
+      ? target.testConfig.termProgram
+      : path.join(buildSourceFolder, target.testConfig.termProgram)
+
+    testTermContent = await readFile(filePath)
+  } else {
+    const { configuration } = await getLocalOrGlobalConfig()
+
+    if (configuration?.testConfig?.termProgram) {
+      filePath = path.isAbsolute(configuration.testConfig.termProgram)
+        ? configuration.testConfig.termProgram
+        : path.join(buildSourceFolder, configuration.testConfig.termProgram)
+
+      testTermContent = await readFile(filePath)
+    }
+  }
+
+  return testTermContent
+    ? {
+        content: `\n* TestTerm start;\n${testTermContent}\n* TestTerm end;`,
         filePath
       }
     : {
