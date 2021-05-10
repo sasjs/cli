@@ -141,10 +141,8 @@ async function getLocalFallbackTarget(): Promise<Target> {
       process.logger?.info(
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
-      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        localConfig,
-        fallBackTargetJson
-      )
+      fallBackTargetJson.allowInsecureRequests =
+        getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
 
       return new Target(fallBackTargetJson)
     }

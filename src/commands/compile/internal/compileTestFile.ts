@@ -84,10 +84,8 @@ export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
 export const isTestFile = (fileName: string) => testFileRegExp.test(fileName)
 
 export const compileTestFlow = async (target: Target) => {
-  const {
-    buildDestinationFolder,
-    buildDestinationTestFolder
-  } = await getConstants()
+  const { buildDestinationFolder, buildDestinationTestFolder } =
+    await getConstants()
 
   if (await folderExists(buildDestinationTestFolder)) {
     let testFiles = await (

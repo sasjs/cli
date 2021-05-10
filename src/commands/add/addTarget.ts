@@ -20,14 +20,8 @@ import { addCredential } from './addCredential'
 export async function addTarget(insecure: boolean = false): Promise<boolean> {
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
-  const {
-    scope,
-    serverType,
-    name,
-    appLoc,
-    serverUrl,
-    existingTarget
-  } = await getCommonFields()
+  const { scope, serverType, name, appLoc, serverUrl, existingTarget } =
+    await getCommonFields()
 
   const saveWithDefaultValues = !existingTarget
 

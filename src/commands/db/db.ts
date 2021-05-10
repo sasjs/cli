@@ -60,10 +60,8 @@ export async function buildDB() {
 }
 
 async function recreateBuildFolder() {
-  const {
-    buildDestinationFolder,
-    buildDestinationDbFolder
-  } = await getConstants()
+  const { buildDestinationFolder, buildDestinationDbFolder } =
+    await getConstants()
   process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)
