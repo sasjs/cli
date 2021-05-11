@@ -1,6 +1,7 @@
 import SASjs from '@sasjs/adapter/node'
 import { getConstants } from '../constants'
 import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
+import { validateTargetName } from '@sasjs/utils/types/targetValidators'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
@@ -38,6 +39,8 @@ export async function findTargetInConfiguration(
   targetName: string,
   targetScope?: TargetScope
 ): Promise<{ target: Target; isLocal: boolean }> {
+  if (targetName) validateTargetName(targetName)
+
   const rootDir = await getProjectRoot()
 
   if (rootDir !== process.projectDir) {
