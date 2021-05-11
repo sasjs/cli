@@ -157,8 +157,15 @@ export const verifyStep = async (
     )
     const buildJson = JSON.parse(await readFile(buildJsonFilePath))
 
+    const buildSasFilePath = path.join(
+      process.projectDir,
+      'sasjsbuild',
+      `${buildFileName}.sas`
+    )
+    const buildSas = await readFile(buildSasFilePath)
+
     expect(
-      verifyBuildJson(fileStructure.subFolders, buildJson.members)
+      verifyBuildJson(fileStructure.subFolders, buildJson.members, buildSas)
     ).toEqual(true)
   }
 }
@@ -175,7 +182,11 @@ interface BuildJson {
   members?: BuildJson[]
 }
 
-const verifyBuildJson = (folders: Folder[], buildJson: BuildJson[] = []) => {
+const verifyBuildJson = (
+  folders: Folder[],
+  buildJson: BuildJson[] = [],
+  buildSas: string
+) => {
   folders.forEach((folder) => {
     const folderFound = buildJson
       .filter((buildMember) => buildMember.type === 'folder')
@@ -192,11 +203,15 @@ const verifyBuildJson = (folders: Folder[], buildJson: BuildJson[] = []) => {
         )
 
       expect(fileFound).toBeTruthy()
+
+      expect(buildSas).toEqual(
+        expect.stringContaining(`%let service=${fileFound!.name};`)
+      )
     })
 
-    expect(verifyBuildJson(folder.subFolders, folderFound!.members)).toEqual(
-      true
-    )
+    expect(
+      verifyBuildJson(folder.subFolders, folderFound!.members, buildSas)
+    ).toEqual(true)
   })
 
   return true
