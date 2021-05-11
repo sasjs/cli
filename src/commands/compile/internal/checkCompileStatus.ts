@@ -24,10 +24,8 @@ export async function checkCompileStatus(
     }
   }
 
-  const {
-    areServiceFoldersMatching,
-    reasons: serviceReasons
-  } = await checkServiceFolders(target, exceptions)
+  const { areServiceFoldersMatching, reasons: serviceReasons } =
+    await checkServiceFolders(target, exceptions)
 
   const { areJobFoldersMatching, reasons: jobReasons } = await checkJobFolders(
     target,

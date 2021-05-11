@@ -10,12 +10,11 @@ export const identifySasFile = async (
 ): Promise<'job' | 'service'> => {
   const { buildSourceFolder } = await getConstants()
 
-  const serviceFolders = (
-    await getAllServiceFolders(target)
-  ).map((serviceFolder: string) =>
-    path.isAbsolute(serviceFolder)
-      ? serviceFolder
-      : path.join(buildSourceFolder, serviceFolder)
+  const serviceFolders = (await getAllServiceFolders(target)).map(
+    (serviceFolder: string) =>
+      path.isAbsolute(serviceFolder)
+        ? serviceFolder
+        : path.join(buildSourceFolder, serviceFolder)
   )
 
   const isService = serviceFolders.find((folder) => sourcePath.includes(folder))
