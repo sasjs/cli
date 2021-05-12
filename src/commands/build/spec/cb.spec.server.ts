@@ -1,3 +1,4 @@
+import path from 'path'
 import { Target } from '@sasjs/utils'
 import { compileBuildServices } from '../../../main'
 import { Command } from '../../../utils/command'
@@ -8,6 +9,7 @@ import {
   removeTestApp,
   verifyStep
 } from '../../../utils/test'
+import { copy, deleteFile } from '../../../utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { compile } from '../../compile/compile'
 import { build } from '../build'
@@ -44,6 +46,25 @@ describe('sasjs compile', () => {
 
     await verifyStep('compile')
     await verifyStep('build', target.name)
+    done()
+  })
+
+  it(`should compile and build (special fileName case)`, async (done) => {
+    const filePath = 'sasjs/services/common/'
+    const sourcePath = path.join(process.projectDir, filePath, 'getdata.sas')
+    const destinationPath = path.join(
+      process.projectDir,
+      filePath,
+      'get.sasdata.sas'
+    )
+
+    await copy(sourcePath, destinationPath)
+    await deleteFile(sourcePath)
+
+    await expect(build(target)).toResolve()
+
+    await verifyStep('compile', undefined, 'custom')
+    await verifyStep('build', target.name, 'custom')
     done()
   })
 
