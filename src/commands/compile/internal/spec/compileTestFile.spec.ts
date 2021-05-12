@@ -183,7 +183,8 @@ PS=MAX /* reduce log size slightly */;`
           'tests/services/services/admin/random.test.0.sas',
           'test',
           'standalone'
-        ]
+        ],
+        ['tests/services/services/admin/random.test.sas', 'test', 'standalone']
       ]
 
       await compile(target)

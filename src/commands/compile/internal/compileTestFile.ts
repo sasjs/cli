@@ -191,20 +191,20 @@ const printTestCoverage = async (
     )
   })
 
-  const uniqueExtraTests: string[] = []
+  // const uniqueExtraTests: string[] = []
 
-  extraTests.forEach((test: string) => {
-    if (
-      !uniqueExtraTests.find(
-        (uniqueTest: string) =>
-          uniqueTest.replace(testFileRegExp, '') ===
-          test.replace(testFileRegExp, '')
-      )
-    )
-      uniqueExtraTests.push(test)
-  })
+  // extraTests.forEach((test: string) => {
+  //   if (
+  //     !uniqueExtraTests.find(
+  //       (uniqueTest: string) =>
+  //         uniqueTest.replace(testFileRegExp, '') ===
+  //         test.replace(testFileRegExp, '')
+  //     )
+  //   )
+  //     uniqueExtraTests.push(test)
+  // })
 
-  extraTests = uniqueExtraTests
+  // extraTests = uniqueExtraTests
 
   const filter = (files: string[], type: string) =>
     files.filter((file) => new RegExp(`^${type}`).test(file))
