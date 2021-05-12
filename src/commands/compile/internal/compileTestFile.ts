@@ -84,10 +84,8 @@ export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
 export const isTestFile = (fileName: string) => testFileRegExp.test(fileName)
 
 export const compileTestFlow = async (target: Target) => {
-  const {
-    buildDestinationFolder,
-    buildDestinationTestFolder
-  } = await getConstants()
+  const { buildDestinationFolder, buildDestinationTestFolder } =
+    await getConstants()
 
   if (await folderExists(buildDestinationTestFolder)) {
     let testFiles = await (
@@ -160,9 +158,12 @@ const printTestCoverage = async (
         if (
           testFlow.tests.find((testFile: string) => {
             const testCovering = testFile.replace(testFileRegExp, '')
-
             if (testCovering === shouldBeCovered) {
-              extraTests = extraTests.filter((test) => test !== testFile)
+              extraTests = extraTests.filter(
+                (test) =>
+                  test.replace(testFileRegExp, '') !==
+                  testFile.replace(testFileRegExp, '')
+              )
             }
 
             return testCovering === shouldBeCovered
@@ -189,6 +190,21 @@ const printTestCoverage = async (
       (file: string) => !testFileRegExp.test(file)
     )
   })
+
+  const uniqueExtraTests: string[] = []
+
+  extraTests.forEach((test: string) => {
+    if (
+      !uniqueExtraTests.find(
+        (uniqueTest: string) =>
+          uniqueTest.replace(testFileRegExp, '') ===
+          test.replace(testFileRegExp, '')
+      )
+    )
+      uniqueExtraTests.push(test)
+  })
+
+  extraTests = uniqueExtraTests
 
   const filter = (files: string[], type: string) =>
     files.filter((file) => new RegExp(`^${type}`).test(file))
@@ -239,7 +255,7 @@ const printTestCoverage = async (
   const calculateCoverage = (covered: number, from: number) =>
     (Math.round((covered / from) * 100) || 0) + '%'
 
-  const printCoverage = (type: string, covered: string[], toCover: string[]) =>
+  const formatCoverage = (type: string, covered: string[], toCover: string[]) =>
     `${type} coverage: ${covered.length}/${toCover.length} (${chalk.greenBright(
       calculateCoverage(covered.length, toCover.length)
     )})`
@@ -257,14 +273,14 @@ const printTestCoverage = async (
     }
   )
 
-  process.logger?.info(`${printCoverage(
+  process.logger?.info(`${formatCoverage(
     'Services',
     coveredServices,
     servicesToCover
   )}
-  ${printCoverage('Jobs', coveredJobs, jobsToCover)}
-  ${printCoverage('Macros', coveredMacros, macrosToCover)}
-  ${printCoverage('Overall', covered, toCover)}
+  ${formatCoverage('Jobs', coveredJobs, jobsToCover)}
+  ${formatCoverage('Macros', coveredMacros, macrosToCover)}
+  ${formatCoverage('Overall', covered, toCover)}
 `)
 
   await createFile(

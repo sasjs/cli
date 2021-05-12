@@ -20,13 +20,14 @@ import {
   readFile
 } from '../../../../utils/file'
 import path from 'path'
+import { compile } from '../../compile'
 
 describe('compileTestFile', () => {
   let appName: string
   let target: Target
-  let testPath: string
   let sasjsPath: string
   const testFileName = 'random.test.sas'
+  const subsequentTestFileName = 'random.test.0.sas'
   const testBody = `/**
 @file random.test.sas
 @brief brief desc
@@ -39,10 +40,11 @@ describe('compileTestFile', () => {
 
 options
 DATASTMTCHK=ALLKEYWORDS /* some sites have this enabled */
-PS=MAX /* reduce log size slightly */
-;`
+PS=MAX /* reduce log size slightly */;`
 
   beforeAll(async (done) => {
+    let testPath: string
+
     process.logger = new Logger(LogLevel.Off)
 
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
@@ -54,6 +56,9 @@ PS=MAX /* reduce log size slightly */
     testPath = path.join(sasjsPath, 'services', 'admin', testFileName)
 
     await createFolder(testSourceFolder)
+    await createFile(testPath, testBody)
+
+    testPath = path.join(sasjsPath, 'services', 'admin', subsequentTestFileName)
     await createFile(testPath, testBody)
 
     done()
@@ -162,6 +167,33 @@ PS=MAX /* reduce log size slightly */
       await expect(JSON.parse(await readFile(testFlowPath))).toEqual(
         expectedTestFlow
       )
+    })
+
+    it('should log coverage', async (done) => {
+      jest.spyOn(process.logger, 'table').mockImplementation(() => '')
+
+      const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
+      const expectedData = [
+        ['services/common/appinit.sas', 'service', 'not covered'],
+        ['services/common/getdata.sas', 'service', 'not covered'],
+        ['services/services/common/appinit.sas', 'service', 'not covered'],
+        ['services/services/common/getdata.sas', 'service', 'not covered'],
+        [
+          'tests/services/services/admin/random.test.0.sas',
+          'test',
+          'standalone'
+        ]
+      ]
+
+      await compile(target)
+
+      expect(process.logger.table).toHaveBeenCalledTimes(1)
+      expect(process.logger.table).toHaveBeenCalledWith(
+        expectedData,
+        expectedHeader
+      )
+
+      done()
     })
   })
 })
