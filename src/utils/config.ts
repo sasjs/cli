@@ -76,7 +76,7 @@ export async function findTargetInConfiguration(
     try {
       target = await getLocalTarget(targetName)
     } catch (e) {
-      if (e !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
+      if (e.message !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
     }
 
     if (target) return { target, isLocal: true }
@@ -84,7 +84,7 @@ export async function findTargetInConfiguration(
     try {
       target = await getGlobalTarget(targetName)
     } catch (e) {
-      if (e !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
+      if (e.message !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
     }
 
     if (target) return { target, isLocal: false }
@@ -94,7 +94,7 @@ export async function findTargetInConfiguration(
     try {
       target = await getLocalFallbackTarget()
     } catch (e) {
-      if (e !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
+      if (e.message !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
     }
 
     if (target) return { target, isLocal: true }
@@ -102,7 +102,7 @@ export async function findTargetInConfiguration(
     try {
       target = await getGlobalFallbackTarget()
     } catch (e) {
-      if (e !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
+      if (e.message !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
     }
 
     if (target) return { target, isLocal: false }

@@ -66,7 +66,10 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
       }
     }
 
-    const { target: currentTarget } = await findTargetInConfiguration(name)
+    const { target: currentTarget } = await findTargetInConfiguration(
+      name,
+      scope
+    )
     targetJson = { ...currentTarget.toJson(false), ...targetJson }
   }
 
