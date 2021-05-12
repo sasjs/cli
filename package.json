@@ -12,7 +12,7 @@
     "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy",
     "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
     "test": "npm run test:mocked && npm run test:server",
-    "test:server": "jest --silent --config=jest.server.config.js",
+    "test:server": "jest --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
@@ -49,6 +49,7 @@
     "@sasjs/core": "2.26.0",
     "@sasjs/lint": "1.8.0",
     "@sasjs/utils": "2.12.1",
+    "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
     "chalk": "4.1.1",
     "csv-stringify": "5.6.2",
@@ -65,7 +66,8 @@
     "node-graphviz": "0.1.0",
     "ora": "5.4.0",
     "rimraf": "3.0.2",
-    "shelljs": "0.8.4"
+    "shelljs": "0.8.4",
+    "url-parse": "1.5.1"
   },
   "devDependencies": {
     "@babel/preset-env": "7.14.1",

@@ -6,7 +6,15 @@ import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
+import urlParse from 'url-parse'
 import { TargetScope } from '../types/targetScope'
+
+const ERROR_MESSAGE = (targetName: string = '') => {
+  return {
+    NOT_FOUND_TARGET_NAME: `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`,
+    NOT_FOUND_FALLBACK: `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+  }
+}
 
 /**
  * Returns an object that represents the SASjs CLI configuration in a given file.
@@ -70,29 +78,35 @@ export async function findTargetInConfiguration(
   if (targetName) {
     try {
       target = await getLocalTarget(targetName)
-    } catch (e) {}
+    } catch (e) {
+      if (e !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
+    }
 
     if (target) return { target, isLocal: true }
 
     try {
       target = await getGlobalTarget(targetName)
-    } catch (e) {}
+    } catch (e) {
+      if (e !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
+    }
 
     if (target) return { target, isLocal: false }
 
-    throw new Error(
-      `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-    )
+    throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
   } else {
     try {
       target = await getLocalFallbackTarget()
-    } catch (e) {}
+    } catch (e) {
+      if (e !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
+    }
 
     if (target) return { target, isLocal: true }
 
     try {
       target = await getGlobalFallbackTarget()
-    } catch (e) {}
+    } catch (e) {
+      if (e !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
+    }
 
     if (target) return { target, isLocal: false }
 
@@ -113,6 +127,8 @@ async function getLocalTarget(targetName: string): Promise<Target> {
       process.logger?.info(
         `Target ${targetName} was found in your local sasjsconfig.json file.`
       )
+      targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
+      targetJson.serverUrl = urlParse(targetJson.serverUrl).origin
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
         targetJson
@@ -122,9 +138,7 @@ async function getLocalTarget(targetName: string): Promise<Target> {
     }
   }
 
-  throw new Error(
-    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-  )
+  throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
 }
 async function getLocalFallbackTarget(): Promise<Target> {
   const localConfig = await getConfiguration(
@@ -144,15 +158,17 @@ async function getLocalFallbackTarget(): Promise<Target> {
       process.logger?.info(
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
+      fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+      fallBackTargetJson.serverUrl = urlParse(
+        fallBackTargetJson.serverUrl
+      ).origin
       fallBackTargetJson.allowInsecureRequests =
         getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
 
       return new Target(fallBackTargetJson)
     }
   }
-  throw new Error(
-    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-  )
+  throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
 }
 async function getGlobalTarget(targetName: string): Promise<Target> {
   const globalConfig = await getGlobalRcFile()
@@ -165,6 +181,8 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
       process.logger?.info(
         `Target ${targetName} was found in your global .sasjsrc file.`
       )
+      targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
+      targetJson.serverUrl = urlParse(targetJson.serverUrl).origin
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         globalConfig,
         targetJson
@@ -174,9 +192,7 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
     }
   }
 
-  throw new Error(
-    `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-  )
+  throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
 }
 async function getGlobalFallbackTarget(): Promise<Target> {
   const globalConfig = (await getGlobalRcFile()) as Configuration
@@ -193,6 +209,8 @@ async function getGlobalFallbackTarget(): Promise<Target> {
     process.logger?.info(
       `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
+    fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+    fallBackTargetJson.serverUrl = urlParse(fallBackTargetJson.serverUrl).origin
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,
       fallBackTargetJson
@@ -201,9 +219,7 @@ async function getGlobalFallbackTarget(): Promise<Target> {
     return new Target(fallBackTargetJson)
   }
 
-  throw new Error(
-    `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
-  )
+  throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
 }
 
 export async function getGlobalRcFile() {
@@ -446,7 +462,7 @@ export async function getMacroCorePath() {
  * @param {string} appLoc - app location
  */
 export function sanitizeAppLoc(appLoc: string) {
-  if (!appLoc || typeof appLoc !== 'string') return
+  if (!appLoc || typeof appLoc !== 'string') return '/'
 
   // Removes trailing '/'
   appLoc = appLoc.replace(/\/{1,}$/, '')
