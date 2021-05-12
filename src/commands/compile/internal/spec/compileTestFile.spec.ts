@@ -1,23 +1,24 @@
 import {
-  compileTestFile,
-  moveTestFile,
   isTestFile,
+  moveTestFile,
+  compileTestFile,
   compileTestFlow
 } from '../compileTestFile'
 import { Target } from '@sasjs/utils/types'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
 import {
-  createTestGlobalTarget,
+  removeTestApp,
   createTestMinimalApp,
-  removeTestApp
+  createTestGlobalTarget
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
 import { generateTimestamp } from '../../../../utils/utils'
 import {
-  createFolder,
-  createFile,
+  copy,
+  readFile,
   fileExists,
-  readFile
+  createFile,
+  createFolder
 } from '../../../../utils/file'
 import path from 'path'
 import { compile } from '../../compile'
@@ -27,40 +28,21 @@ describe('compileTestFile', () => {
   let appName: string
   let target: Target
   let sasjsPath: string
+  let testBody: string
   const testFileName = 'random.test.sas'
-  const subsequentTestFileName = 'random.test.0.sas'
-  const testBody = `/**
-@file random.test.sas
-@brief brief desc
-@details detailed desc.
-
-<h4> SAS Macros </h4>
-@li mf_abort.sas
-
-**/
-
-options
-DATASTMTCHK=ALLKEYWORDS /* some sites have this enabled */
-PS=MAX /* reduce log size slightly */;`
 
   beforeAll(async (done) => {
-    let testPath: string
+    testBody = await readFile(path.join(__dirname, 'testFiles', testFileName))
 
     process.logger = new Logger(LogLevel.Off)
 
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
+    await copyTestFiles(appName)
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
     const testSourceFolder = path.join(sasjsPath, 'tests')
-    testPath = path.join(sasjsPath, 'services', 'admin', testFileName)
-
-    await createFolder(testSourceFolder)
-    await createFile(testPath, testBody)
-
-    testPath = path.join(sasjsPath, 'services', 'admin', subsequentTestFileName)
-    await createFile(testPath, testBody)
 
     done()
   })
@@ -88,12 +70,16 @@ PS=MAX /* reduce log size slightly */;`
         testFileName
       )
       await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
+
       const testFileContent = await readFile(compiledTestFilePath)
+
       expect(new RegExp(`^${testVar}`).test(testFileContent)).toEqual(true)
+
       const dependencyStart = '* Dependencies start;'
       const dependency =
         '%macro mf_abort(mac=mf_abort.sas, type=, msg=, iftrue=%str(1=1)'
       const dependencyEnd = '* Dependencies end;'
+
       expect(testFileContent.indexOf(dependencyStart)).toBeGreaterThan(-1)
       expect(testFileContent.indexOf(dependency)).toBeGreaterThan(-1)
       expect(testFileContent.indexOf(dependencyEnd)).toBeGreaterThan(-1)
@@ -103,7 +89,7 @@ PS=MAX /* reduce log size slightly */;`
 
   describe('moveTestFile', () => {
     it('should move service test', async () => {
-      const relativePath = path.join('services', 'admin', 'random.test.sas')
+      const relativePath = path.join('services', 'admin', testFileName)
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
@@ -118,7 +104,7 @@ PS=MAX /* reduce log size slightly */;`
     })
 
     it('should move job test', async () => {
-      const relativePath = path.join('jobs', 'jobs', 'random.test.sas')
+      const relativePath = path.join('jobs', 'jobs', testFileName)
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
@@ -233,3 +219,10 @@ describe('isTestFile', () => {
     expect(isTestFile('random.tests.sas')).toEqual(false)
   })
 })
+
+const copyTestFiles = async (appName: string) => {
+  await copy(
+    path.join(__dirname, 'testFiles'),
+    path.join(__dirname, appName, 'sasjs', 'services', 'admin')
+  )
+}
