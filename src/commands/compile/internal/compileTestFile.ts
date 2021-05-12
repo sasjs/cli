@@ -256,9 +256,15 @@ const printTestCoverage = async (
     (Math.round((covered / from) * 100) || 0) + '%'
 
   const formatCoverage = (type: string, covered: string[], toCover: string[]) =>
-    `${type} coverage: ${covered.length}/${toCover.length} (${chalk.greenBright(
-      calculateCoverage(covered.length, toCover.length)
-    )})`
+    toCover.length
+      ? process.logger?.info(
+          `${type} coverage: ${covered.length}/${
+            toCover.length
+          } (${chalk.greenBright(
+            calculateCoverage(covered.length, toCover.length)
+          )})`
+        )
+      : null
 
   process.logger?.info('Test coverage:')
 
@@ -273,15 +279,11 @@ const printTestCoverage = async (
     }
   )
 
-  process.logger?.info(`${formatCoverage(
-    'Services',
-    coveredServices,
-    servicesToCover
-  )}
-  ${formatCoverage('Jobs', coveredJobs, jobsToCover)}
-  ${formatCoverage('Macros', coveredMacros, macrosToCover)}
-  ${formatCoverage('Overall', covered, toCover)}
-`)
+  formatCoverage('Services', coveredServices, servicesToCover)
+  formatCoverage('Jobs', coveredJobs, jobsToCover)
+  formatCoverage('Macros', coveredMacros, macrosToCover)
+  formatCoverage('Overall', covered, toCover)
+  process.logger?.log('')
 
   await createFile(
     path.join(buildDestinationFolder, 'testFlow.json'),

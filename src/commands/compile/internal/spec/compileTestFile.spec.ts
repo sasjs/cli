@@ -21,6 +21,7 @@ import {
 } from '../../../../utils/file'
 import path from 'path'
 import { compile } from '../../compile'
+import chalk from 'chalk'
 
 describe('compileTestFile', () => {
   let appName: string
@@ -191,6 +192,24 @@ PS=MAX /* reduce log size slightly */;`
       expect(process.logger.table).toHaveBeenCalledWith(
         expectedData,
         expectedHeader
+      )
+
+      done()
+    })
+
+    it('should not log 0/0 coverage', async (done) => {
+      jest.spyOn(process.logger, 'info').mockImplementation(() => '')
+
+      await compile(target)
+
+      expect(process.logger.info).toHaveBeenCalledTimes(13)
+      expect(process.logger.info).toHaveBeenNthCalledWith(11, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenNthCalledWith(
+        12,
+        `Services coverage: 0/4 (${chalk.greenBright('0%')})`
+      )
+      expect(process.logger.info).toHaveBeenLastCalledWith(
+        `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
 
       done()
