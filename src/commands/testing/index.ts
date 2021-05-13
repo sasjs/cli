@@ -150,7 +150,7 @@ export async function runTest(command: Command) {
         if (!res) {
           displayError(
             {},
-            `Job located at ${sasJobLocation} did not return a response.`
+            `Job did not return a response, to debug click ${testUrl}`
           )
 
           printCodeExample()
