@@ -1,4 +1,5 @@
 import { getConstants } from '../../constants'
+import { ServerType } from '@sasjs/utils'
 import {
   TestFlow,
   TestResults,
@@ -129,6 +130,12 @@ export async function runTest(command: Command) {
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
 
+    let testUrl = `${target.serverUrl}/${
+      target.serverType === ServerType.SasViya
+        ? 'SASJobExecution'
+        : 'SASStoredProcess'
+    }/?_program=${sasJobLocation}&_debug=2477`
+
     await sasjs
       .request(
         sasJobLocation,
@@ -157,7 +164,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: TestResultStatus.notProvided
+              result: TestResultStatus.notProvided,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -166,7 +174,8 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: TestResultStatus.notProvided
+                  result: TestResultStatus.notProvided,
+                  test_url: testUrl
                 }
               ]
             })
@@ -185,7 +194,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: res.test_results
+              result: res.test_results,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -194,7 +204,8 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: res.test_results
+                  result: res.test_results,
+                  test_url: testUrl
                 }
               ]
             })
@@ -258,7 +269,8 @@ export async function runTest(command: Command) {
       let item: any = {
         test_target: resTarget.test_target,
         test_loc: res.test_loc,
-        sasjs_test_id: res.sasjs_test_id
+        sasjs_test_id: res.sasjs_test_id,
+        test_url: `=HYPERLINK("${res.test_url}")`
       }
 
       if (Array.isArray(res.result)) {
@@ -267,7 +279,8 @@ export async function runTest(command: Command) {
           test_loc: res.test_loc,
           sasjs_test_id: res.sasjs_test_id,
           test_suite_result: r.TEST_RESULT,
-          test_description: r.TEST_DESCRIPTION
+          test_description: r.TEST_DESCRIPTION,
+          test_url: `=HYPERLINK("${res.test_url}")`
         }))
       } else item.test_suite_result = res.result
 
@@ -282,7 +295,8 @@ export async function runTest(command: Command) {
       test_loc: 'test_loc',
       sasjs_test_id: 'sasjs_test_id',
       test_suite_result: 'test_suite_result',
-      test_description: 'test_description'
+      test_description: 'test_description',
+      test_url: 'test_url'
     }
   }).catch((err) => displayError(err, 'Error while saving CSV file'))
 
