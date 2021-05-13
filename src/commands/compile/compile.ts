@@ -1,5 +1,5 @@
 import path from 'path'
-import { getProgramFolders } from '../../utils/config'
+import { getProgramFolders, getMacroFolders } from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
@@ -47,9 +47,11 @@ export async function compile(target: Target, forceCompile = false) {
 
   await compileModule.compileJobsServicesTests(target)
 
-  if (target?.macroFolders?.length) {
+  let macroFolders: string[] = await getMacroFolders(target.name)
+
+  if (macroFolders.length) {
     await asyncForEach(
-      target.macroFolders,
+      macroFolders,
       async (macroFolder: string) => await copyTestMacroFiles(macroFolder)
     )
 
@@ -67,7 +69,7 @@ export async function compile(target: Target, forceCompile = false) {
         compileServiceFile(
           target,
           path.join(buildMacroTestFolder, macroTestFile),
-          target.macroFolders,
+          macroFolders,
           target.programFolders
         )
       )

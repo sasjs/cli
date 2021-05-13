@@ -9,6 +9,7 @@ import { moveFile, folderExists, deleteFolder } from '@sasjs/utils/file'
 import { listFilesAndSubFoldersInFolder } from '@sasjs/utils'
 import chalk from 'chalk'
 import { asyncForEach } from '@sasjs/utils'
+import { getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
@@ -74,7 +75,12 @@ export async function copyTestMacroFiles(folderPath: string) {
     async (file) =>
       await copy(
         path.join(folderAbsolutePath, file),
-        path.join(testsBuildFolder(), 'macros', file)
+        path.join(
+          testsBuildFolder(),
+          'macros',
+          folderPath.split(path.sep).pop() || '',
+          file
+        )
       )
   )
 }
@@ -157,7 +163,14 @@ const printTestCoverage = async (
 
         if (
           testFlow.tests.find((testFile: string) => {
-            const testCovering = testFile.replace(testFileRegExp, '')
+            let testCovering = testFile.replace(testFileRegExp, '')
+
+            if (type === 'macros')
+              testCovering = testCovering.replace(
+                new RegExp(`macros${path.sep}`),
+                ''
+              )
+
             if (testCovering === shouldBeCovered) {
               extraTests = extraTests.filter(
                 (test) =>
@@ -181,7 +194,7 @@ const printTestCoverage = async (
 
   await collectCoverage(jobFolder, 'jobs')
 
-  const macroFolders = target.macroFolders
+  const macroFolders = await getMacroFolders(target.name)
 
   await asyncForEach(macroFolders, async (macroFolder) => {
     await collectCoverage(
@@ -190,21 +203,6 @@ const printTestCoverage = async (
       (file: string) => !testFileRegExp.test(file)
     )
   })
-
-  // const uniqueExtraTests: string[] = []
-
-  // extraTests.forEach((test: string) => {
-  //   if (
-  //     !uniqueExtraTests.find(
-  //       (uniqueTest: string) =>
-  //         uniqueTest.replace(testFileRegExp, '') ===
-  //         test.replace(testFileRegExp, '')
-  //     )
-  //   )
-  //     uniqueExtraTests.push(test)
-  // })
-
-  // extraTests = uniqueExtraTests
 
   const filter = (files: string[], type: string) =>
     files.filter((file) => new RegExp(`^${type}`).test(file))
@@ -236,7 +234,23 @@ const printTestCoverage = async (
 
   const coveredMacros = filter(covered, CoverageType.macro)
   const macrosToCover = filter(toCover, CoverageType.macro)
-  const notCoveredMacros = filter(notCovered, CoverageType.macro)
+  let notCoveredMacros = filter(notCovered, CoverageType.macro)
+
+  if (notCoveredMacros.length) {
+    await asyncForEach(macroFolders, async (macroFolder: string) => {
+      const macros = await (
+        await listFilesAndSubFoldersInFolder(macroFolder)
+      ).filter((file: string) => !isTestFile(file))
+
+      const macroTypeRegExp = new RegExp(`^macros${path.sep}`)
+
+      notCoveredMacros = notCoveredMacros.map((macro: string) =>
+        macros.includes(macro.replace(macroTypeRegExp, ''))
+          ? macro.replace(macroTypeRegExp, macroFolder + path.sep)
+          : macro
+      )
+    })
+  }
 
   notCoveredMacros.forEach((file, i) => {
     coverage[file] = {

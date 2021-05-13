@@ -79,7 +79,7 @@ describe('sasjs test', () => {
           test_target: 'examplemacro',
           results: [
             {
-              test_loc: 'tests/macros/examplemacro.test.sas',
+              test_loc: 'tests/macros/macros/examplemacro.test.sas',
               sasjs_test_id: '',
               result: [
                 {
@@ -131,7 +131,7 @@ describe('sasjs test', () => {
 testsetup,tests/testsetup.sas,sasjs_test_id,not provided,
 exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,
 standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,
-examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description
+examplemacro,tests/macros/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description
 dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description
 dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 test description
 testteardown,tests/testteardown.sas,sasjs_test_id,not provided,
@@ -284,7 +284,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,
     const logPath = path.join(
       resultsFolderPath,
       'logs',
-      'macros_shouldFail.test.log'
+      'macros_macros_shouldFail.test.log'
     )
 
     await expect(fileExists(logPath)).resolves.toEqual(true)
