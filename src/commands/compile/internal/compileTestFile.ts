@@ -24,8 +24,7 @@ export async function compileTestFile(
     path.join(process.projectDir, filePath),
     target.macroFolders,
     [],
-    'test',
-    true
+    'test'
   )
   dependencies = `${testVar ? testVar + '\n' : ''}${dependencies}`
 
