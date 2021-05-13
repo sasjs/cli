@@ -141,10 +141,8 @@ async function getLocalFallbackTarget(): Promise<Target> {
       process.logger?.info(
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
-      fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        localConfig,
-        fallBackTargetJson
-      )
+      fallBackTargetJson.allowInsecureRequests =
+        getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
 
       return new Target(fallBackTargetJson)
     }
@@ -422,14 +420,14 @@ export async function getMacroFolders(targetName: string) {
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
-  if (localConfig?.programFolders) {
-    macroFolders = macroFolders.concat(localConfig.programFolders)
+  if (localConfig?.macroFolders) {
+    macroFolders = macroFolders.concat(localConfig.macroFolders)
   }
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  if (target.programFolders) {
-    macroFolders = macroFolders.concat(target.programFolders)
+  if (target.macroFolders) {
+    macroFolders = macroFolders.concat(target.macroFolders)
   }
 
   return macroFolders
