@@ -160,19 +160,21 @@ const printTestCoverage = async (
       toCover = [...toCover, ...files]
 
       files.forEach((file) => {
-        const shouldBeCovered = path
+        let shouldBeCovered = path
           .join('tests', file)
           .replace(sasFileRegExp, '')
+
+        if (type === 'macros') {
+          shouldBeCovered = shouldBeCovered.split(path.sep).pop() || ''
+        }
 
         if (
           testFlow.tests.find((testFile: string) => {
             let testCovering = testFile.replace(testFileRegExp, '')
 
-            if (type === 'macros')
-              testCovering = testCovering.replace(
-                new RegExp(`macros${path.sep}`),
-                ''
-              )
+            if (type === 'macros') {
+              testCovering = testCovering.split(path.sep).pop() || ''
+            }
 
             if (testCovering === shouldBeCovered) {
               extraTests = extraTests.filter(
