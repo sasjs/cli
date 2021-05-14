@@ -209,7 +209,7 @@ async function getContentFor(
     content += `\n${transformedContent}\n`
 
     contentJSON?.members.push({
-      name: file.replace('.sas', ''),
+      name: file.replace(/.sas$/, ''),
       type: 'service',
       code: removeComments(fileContent)
     })
@@ -218,14 +218,12 @@ async function getContentFor(
   const subFolders = await getSubFoldersInFolder(folderPath)
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const {
-      content: childContent,
-      contentJSON: childContentJSON
-    } = await getContentFor(
-      path.join(folderPath, subFolder),
-      subFolder,
-      serverType
-    )
+    const { content: childContent, contentJSON: childContentJSON } =
+      await getContentFor(
+        path.join(folderPath, subFolder),
+        subFolder,
+        serverType
+      )
     contentJSON?.members.push(childContentJSON)
     content += childContent
   })
@@ -238,7 +236,7 @@ function getServiceText(
   fileContent: string,
   serverType: ServerType
 ) {
-  const serviceName = serviceFileName.replace('.sas', '')
+  const serviceName = serviceFileName.replace(/.sas$/, '')
   const sourceCodeLines = getLines(removeComments(fileContent))
   let content = ``
   sourceCodeLines.forEach((line) => {

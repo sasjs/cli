@@ -22,9 +22,9 @@ export async function getDotFileContent(
 
   // Populating both Maps
   await asyncForEach(folderList, async (folder) => {
-    const filesNamesInPath = (
-      await getFilesInFolder(folder)
-    ).filter((f: string) => f.endsWith('.sas'))
+    const filesNamesInPath = (await getFilesInFolder(folder)).filter(
+      (f: string) => f.endsWith('.sas')
+    )
 
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folder, fileName)

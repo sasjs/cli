@@ -47,8 +47,8 @@ describe('removeComments', () => {
   })
 
   test('should return an empty string when the input is falsy', () => {
-    expect(removeComments((null as any) as string)).toEqual('')
-    expect(removeComments((undefined as any) as string)).toEqual('')
+    expect(removeComments(null as any as string)).toEqual('')
+    expect(removeComments(undefined as any as string)).toEqual('')
     expect(removeComments('')).toEqual('')
   })
 

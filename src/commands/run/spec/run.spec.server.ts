@@ -93,7 +93,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -110,7 +111,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -265,7 +267,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -282,7 +285,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(

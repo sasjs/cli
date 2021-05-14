@@ -378,10 +378,9 @@ export async function execute(
             logName = generateFileName()
           }
 
-          await createFile(
-            path.join(logFolder, logName),
-            logParsed
-          ).catch((err) => displayError(err, 'Error while creating log file.'))
+          await createFile(path.join(logFolder, logName), logParsed).catch(
+            (err) => displayError(err, 'Error while creating log file.')
+          )
 
           return resolve(logName)
         }

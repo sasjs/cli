@@ -84,7 +84,7 @@ describe('getAccessToken', () => {
     const target = null
 
     await expect(
-      getAccessToken((target as any) as Target, false)
+      getAccessToken(target as any as Target, false)
     ).rejects.toThrow()
   })
 
@@ -92,7 +92,7 @@ describe('getAccessToken', () => {
     const target = null
     process.env.ACCESS_TOKEN = '3NVT0K3N'
 
-    const token = await getAccessToken((target as any) as Target, false)
+    const token = await getAccessToken(target as any as Target, false)
 
     expect(token).toEqual('3NVT0K3N')
   })
