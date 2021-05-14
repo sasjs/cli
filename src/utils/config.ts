@@ -406,7 +406,7 @@ export async function getProgramFolders(target: Target) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
-  return programFolders
+  return [...new Set(programFolders)]
 }
 
 /**
@@ -433,7 +433,7 @@ export async function getMacroFolders(targetName: string) {
     macroFolders = macroFolders.concat(target.macroFolders)
   }
 
-  return macroFolders
+  return [...new Set(macroFolders)]
 }
 
 export async function getMacroCorePath() {
