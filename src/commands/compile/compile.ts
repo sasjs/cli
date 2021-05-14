@@ -50,6 +50,8 @@ export async function compile(target: Target, forceCompile = false) {
   let macroFolders: string[] = await getMacroFolders(target?.name)
 
   if (macroFolders.length) {
+    const programFolders = await getProgramFolders(target)
+
     await asyncForEach(
       macroFolders,
       async (macroFolder: string) => await copyTestMacroFiles(macroFolder)
@@ -70,7 +72,7 @@ export async function compile(target: Target, forceCompile = false) {
           target,
           path.join(buildMacroTestFolder, macroTestFile),
           macroFolders,
-          target.programFolders
+          programFolders
         )
       )
     }

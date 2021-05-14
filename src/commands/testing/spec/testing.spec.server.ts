@@ -304,6 +304,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
     await expect(listFilesInFolder(logFolder)).resolves.toEqual([
       'jobs_jobs_standalone.test.log',
       'macros_macros_shouldFail.test.log',
+      'services_admin_dostuff.test.0.log',
       'testsetup.log',
       'testteardown.log'
     ])

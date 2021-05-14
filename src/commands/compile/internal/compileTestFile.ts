@@ -13,7 +13,7 @@ import {
   deleteFolder,
   listFilesAndSubFoldersInFolder
 } from '@sasjs/utils'
-import { getMacroFolders } from '../../../utils/config'
+import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
@@ -26,8 +26,8 @@ export async function compileTestFile(
   let dependencies = await loadDependencies(
     target,
     path.join(process.projectDir, filePath),
-    target.macroFolders,
-    [],
+    await getMacroFolders(target.name),
+    await getProgramFolders(target),
     'test'
   )
   dependencies = `${testVar ? testVar + '\n' : ''}${dependencies}`
