@@ -1,14 +1,18 @@
-import { Target } from '@sasjs/utils/types'
 import { TestFlow, Coverage, CoverageType, CoverageState } from '../../../types'
 import path from 'path'
 import { getConstants } from '../../../constants'
 import { createFile, copy, getFilesInFolder } from '../../../utils/file'
 import { loadDependencies } from './loadDependencies'
 import { createFolder, sasFileRegExp } from '../../../utils/file'
-import { moveFile, folderExists, deleteFolder } from '@sasjs/utils/file'
-import { listFilesAndSubFoldersInFolder } from '@sasjs/utils'
 import chalk from 'chalk'
-import { asyncForEach } from '@sasjs/utils'
+import {
+  Target,
+  asyncForEach,
+  moveFile,
+  folderExists,
+  deleteFolder,
+  listFilesAndSubFoldersInFolder
+} from '@sasjs/utils'
 import { getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>

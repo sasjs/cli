@@ -2,8 +2,13 @@ import { runTest } from '../'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { TestDescription, TestResult } from '../../../types'
-import { Target, ServerType } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import {
+  Logger,
+  LogLevel,
+  Target,
+  ServerType,
+  listFilesInFolder
+} from '@sasjs/utils'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { copy, folderExists, fileExists, readFile } from '../../../utils/file'
 import { Command } from '../../../utils/command'
@@ -292,13 +297,16 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
 
     expect(resultsCSV).toEqual(expectedResultsCSV)
 
-    const logPath = path.join(
-      resultsFolderPath,
-      'logs',
-      'macros_macros_shouldFail.test.log'
-    )
+    const logFolder = path.join(resultsFolderPath, 'logs')
 
-    await expect(fileExists(logPath)).resolves.toEqual(true)
+    const logPath = path.join(logFolder, 'macros_macros_shouldFail.test.log')
+
+    await expect(listFilesInFolder(logFolder)).resolves.toEqual([
+      'jobs_jobs_standalone.test.log',
+      'macros_macros_shouldFail.test.log',
+      'testsetup.log',
+      'testteardown.log'
+    ])
 
     const log = await readFile(logPath)
 

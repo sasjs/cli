@@ -4,8 +4,7 @@ import {
   compileTestFile,
   compileTestFlow
 } from '../compileTestFile'
-import { Target } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { Logger, LogLevel, Target } from '@sasjs/utils'
 import {
   removeTestApp,
   createTestMinimalApp,
@@ -13,13 +12,7 @@ import {
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
 import { generateTimestamp } from '../../../../utils/utils'
-import {
-  copy,
-  readFile,
-  fileExists,
-  createFile,
-  createFolder
-} from '../../../../utils/file'
+import { copy, readFile, fileExists, createFile } from '../../../../utils/file'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'

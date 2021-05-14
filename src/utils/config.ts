@@ -416,6 +416,9 @@ export async function getProgramFolders(target: Target) {
  */
 export async function getMacroFolders(targetName: string) {
   let macroFolders: string[] = []
+
+  if (!targetName) return macroFolders
+
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')

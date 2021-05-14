@@ -47,7 +47,7 @@ export async function compile(target: Target, forceCompile = false) {
 
   await compileModule.compileJobsServicesTests(target)
 
-  let macroFolders: string[] = await getMacroFolders(target.name)
+  let macroFolders: string[] = await getMacroFolders(target?.name)
 
   if (macroFolders.length) {
     await asyncForEach(

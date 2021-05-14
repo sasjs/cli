@@ -1,5 +1,4 @@
 import { getConstants } from '../../constants'
-import { ServerType } from '@sasjs/utils'
 import {
   TestFlow,
   TestResults,
@@ -19,7 +18,7 @@ import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config'
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { uuidv4, asyncForEach } from '@sasjs/utils'
+import { ServerType, uuidv4, asyncForEach } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import path from 'path'
@@ -119,6 +118,19 @@ export async function runTest(command: Command) {
     }
   }
 
+  const saveLog = async (test: string, log: string) => {
+    const logPath = path.join(
+      outDirectory,
+      'logs',
+      test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
+        '.log'
+    )
+
+    await createFile(logPath, log)
+
+    process.logger.info(`Log file is located at ${logPath}\n`)
+  }
+
   await asyncForEach(flow, async (test) => {
     const sasJobLocation = path.join(
       target.appLoc,
@@ -147,7 +159,7 @@ export async function runTest(command: Command) {
         accessToken
       )
       .then(async (res) => {
-        if (!res) {
+        if (!res.result) {
           displayError(
             {},
             `Job did not return a response, to debug click ${testUrl}`
@@ -181,10 +193,12 @@ export async function runTest(command: Command) {
             })
           }
 
+          if (res.log) await saveLog(test, res.log)
+
           return
         }
 
-        if (res.test_results) {
+        if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -194,7 +208,7 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: res.test_results,
+              result: res.result.test_results,
               test_url: testUrl
             })
           } else {
@@ -204,7 +218,7 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: res.test_results,
+                  result: res.result.test_results,
                   test_url: testUrl
                 }
               ]
@@ -223,16 +237,7 @@ export async function runTest(command: Command) {
         )
 
         if (err?.error?.details?.result) {
-          const logPath = path.join(
-            outDirectory,
-            'logs',
-            test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
-              '.log'
-          )
-
-          await createFile(logPath, err.error.details.result)
-
-          process.logger.info(`Log file is located at ${logPath}\n`)
+          await saveLog(test, err.error.details.result)
         }
       })
   })
