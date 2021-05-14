@@ -118,7 +118,11 @@ export async function runTest(command: Command) {
     }
   }
 
-  const saveLog = async (test: string, log: string) => {
+  const saveLog = async (
+    test: string,
+    log: string,
+    lineBreak: boolean = false
+  ) => {
     const logPath = path.join(
       outDirectory,
       'logs',
@@ -128,7 +132,9 @@ export async function runTest(command: Command) {
 
     await createFile(logPath, log)
 
-    process.logger.info(`Log file is located at ${logPath}\n`)
+    process.logger.info(
+      `Log file is located at ${logPath}${lineBreak ? '\n' : ''}`
+    )
   }
 
   await asyncForEach(flow, async (test) => {
@@ -159,6 +165,8 @@ export async function runTest(command: Command) {
         accessToken
       )
       .then(async (res) => {
+        let lineBreak = true
+
         if (!res.result) {
           displayError(
             {},
@@ -166,6 +174,8 @@ export async function runTest(command: Command) {
           )
 
           printCodeExample()
+
+          lineBreak = false
 
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
@@ -192,11 +202,9 @@ export async function runTest(command: Command) {
               ]
             })
           }
-
-          if (res.log) await saveLog(test, res.log)
-
-          return
         }
+
+        if (res.log) await saveLog(test, res.log, lineBreak)
 
         if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
