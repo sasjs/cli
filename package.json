@@ -56,7 +56,7 @@
     "dotenv": "8.6.0",
     "esm": "3.2.25",
     "find": "0.3.0",
-    "fs": "0.0.1-security",
+    "fs": "0.0.2",
     "fs-extra": "9.1.0",
     "get-installed-path": "4.0.8",
     "jsdom": "16.5.3",
