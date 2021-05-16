@@ -7,7 +7,8 @@
 ![Snyk Vulnerabilities for npm package](https://img.shields.io/snyk/vulnerabilities/npm/@sasjs/cli)
 [![License](https://img.shields.io/apm/l/atomic-design-ui.svg)](/LICENSE)
 ![GitHub top language](https://img.shields.io/github/languages/top/sasjs/cli)
-![total lines](https://tokei.rs/b1/github/sasjs/cli)
+![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/sasjs/cli)
+![GitHub issues](https://img.shields.io/github/issues-raw/sasjs/cli)
 [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-908a85?logo=gitpod)](https://gitpod.io/#https://github.com/sasjs/cli)
 
 
@@ -18,11 +19,15 @@
 [dependency-image]:https://david-dm.org/sasjs/cli.svg
 [dependency-url]:https://github.com/sasjs/cli/blob/main/package.json
 
-`@sasjs/cli` is a Command-Line Interface to assist with creating, building, and deploying Data Science projects and SAS-Powered HTML5 Web Applications on the SAS platform (both SAS 9 and Viya). It fulfills 3 main purposes:
+`@sasjs/cli` is a Command-Line Interface to assist with creating, building, and deploying Data Science projects and HTML5 Web Applications on the SAS platform (both SAS 9 and Viya). Features include:
 
-- Creation of a project GIT repository in an 'opinionated' (structured) way.
-- Compilation of each service and job, including all the dependent macros, SAS programs and pre / post code and global macro variables.
-- Build & Deployment of the local project into SAS Metadata or SAS Drive of the target server, with no dependency on the physical server file system.
+- Scaffold a new SAS App in seconds  (`sasjs create myApp -t jobs`)
+- Compile / Build SAS Jobs, Services & Macros _locally_ and deploy / execute _remotely_, in isolation from other developers (`sasjs cbd`)
+- No dependency on the server filesystem
+- Trigger Viya Jobs & Flows (`sasjs job execute` / `sasjs flow execute`)
+- Enforce code quality rules with `sasjs lint`
+- Generate HTML5 documentation (requires doxygen) with `sasjs doc`
+- Create and execute SAS tests (`sasjs test`)
 
 There is also a feature to let you deploy a frontend application as a set of streaming web services, bypassing the need to deploy to the SAS Web Server.
 
@@ -57,7 +62,7 @@ If you are running NPM in version 6 or below, you can try running `npm update -g
 
 ## Star Gazing
 
-If you find this library useful, help us grow our star graph!
+If you find this library useful, please leave a star and help us grow our star graph!
 
 ![](https://starchart.cc/sasjs/cli.svg)
 
