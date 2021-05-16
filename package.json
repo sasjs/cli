@@ -40,7 +40,7 @@
   "bugs": {
     "url": "https://github.com/sasjs/cli/issues"
   },
-  "homepage": "https://github.com/sasjs/cli",
+  "homepage": "https://cli.sasjs.io",
   "publishConfig": {
     "access": "public"
   },
