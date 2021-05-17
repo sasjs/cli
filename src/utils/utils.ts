@@ -2,9 +2,8 @@ import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
 import { fileExists, folderExists, createFile, readFile, copy } from './file'
-import { LogLevel, Target } from '@sasjs/utils'
+import { LogLevel, Target, padWithNumber } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
-import { padWithNumber } from '@sasjs/utils/formatter'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
