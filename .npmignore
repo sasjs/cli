@@ -1,0 +1,11 @@
+.github/
+.vscode/
+.gitignore
+.prettierignore
+.prettierrc
+jest.config.js
+jest.server.config.js
+test.sh
+
+*.spec.ts
+*.spec.server.ts
