@@ -337,7 +337,7 @@ describe('sasjs doc', () => {
       const docOutputProvided = path.join(__dirname, appName, 'xyz')
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: (null as unknown) as DocConfig })
+      await updateConfig({ docConfig: null as unknown as DocConfig })
       await updateTarget(
         {
           docConfig: {
@@ -372,7 +372,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: (null as unknown) as DocConfig })
+      await updateConfig({ docConfig: null as unknown as DocConfig })
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
@@ -422,7 +422,7 @@ describe('sasjs doc', () => {
       )
 
       await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: (null as unknown) as DocConfig })
+      await updateConfig({ docConfig: null as unknown as DocConfig })
       await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
