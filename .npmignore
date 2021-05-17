@@ -9,3 +9,5 @@ test.sh
 
 *.spec.ts
 *.spec.server.ts
+src/utils/test.ts
+*/spec/
