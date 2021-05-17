@@ -11,3 +11,4 @@ test.sh
 *.spec.server.ts
 src/utils/test.ts
 */spec/
+*.md
