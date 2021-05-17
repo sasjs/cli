@@ -289,8 +289,11 @@ export const verifyDocs = async (
     docsFolder,
     'yetanothermacro_8sas_source.html'
   )
-  const macroCoreFile = path.join(docsFolder, 'all_8sas.html')
-  const macroCoreFileSource = path.join(docsFolder, 'all_8sas_source.html')
+  const macroCoreFile = path.join(docsFolder, 'mf__existds_8sas.html')
+  const macroCoreFileSource = path.join(
+    docsFolder,
+    'mf__existds_8sas_source.html'
+  )
 
   await expect(folderExists(docsFolder)).resolves.toEqual(true)
 

@@ -15,9 +15,6 @@ import {
 import { generateTimestamp } from '../../../utils/utils'
 import {
   folderExists,
-  fileExists,
-  createFile,
-  readFile,
   copy,
   deleteFolder,
   deleteFile
