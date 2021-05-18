@@ -132,9 +132,7 @@ export async function compileJobsServicesTests(target: Target) {
     const macroFolders = target ? target.macroFolders : []
     const programFolders = await getProgramFolders(target)
     const testSetUp = await getTestSetUp(target)
-    console.log(`[testSetUp]`, testSetUp)
     const testTearDown = await getTestTearDown(target)
-    console.log(`[testTearDown]`, testTearDown)
 
     if (testSetUp)
       await compileTestFile(target, testSetUp).catch((err) =>
