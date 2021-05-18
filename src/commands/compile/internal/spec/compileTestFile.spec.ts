@@ -182,10 +182,10 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(17)
-      expect(process.logger.info).toHaveBeenNthCalledWith(15, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenCalledTimes(18)
+      expect(process.logger.info).toHaveBeenNthCalledWith(16, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
-        16,
+        17,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
       expect(process.logger.info).toHaveBeenLastCalledWith(
