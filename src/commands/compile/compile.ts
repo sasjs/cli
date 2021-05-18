@@ -1,5 +1,10 @@
 import path from 'path'
-import { getProgramFolders, getMacroFolders } from '../../utils/config'
+import {
+  getProgramFolders,
+  getMacroFolders,
+  getTestSetUp,
+  getTestTearDown
+} from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
@@ -126,8 +131,10 @@ export async function compileJobsServicesTests(target: Target) {
     const jobFolders = await getAllJobFolders(target)
     const macroFolders = target ? target.macroFolders : []
     const programFolders = await getProgramFolders(target)
-    const testSetUp = target.testConfig?.testSetUp
-    const testTearDown = target.testConfig?.testTearDown
+    const testSetUp = await getTestSetUp(target)
+    console.log(`[testSetUp]`, testSetUp)
+    const testTearDown = await getTestTearDown(target)
+    console.log(`[testTearDown]`, testTearDown)
 
     if (testSetUp)
       await compileTestFile(target, testSetUp).catch((err) =>

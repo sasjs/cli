@@ -640,3 +640,33 @@ const getPrecedenceOfInsecureRequests = (
 ): boolean => {
   return target.allowInsecureRequests ?? !!config.allowInsecureRequests
 }
+
+export const getTestSetUp = async (target: Target) => {
+  if (target?.testConfig?.testSetUp) return target.testConfig.testSetUp
+
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+
+  if (localConfig?.testConfig?.testSetUp) {
+    return localConfig.testConfig.testSetUp
+  }
+
+  return undefined
+}
+
+export const getTestTearDown = async (target: Target) => {
+  if (target?.testConfig?.testTearDown) return target.testConfig?.testTearDown
+
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+
+  if (localConfig?.testConfig?.testTearDown) {
+    return localConfig.testConfig?.testTearDown
+  }
+
+  return undefined
+}
