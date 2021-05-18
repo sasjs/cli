@@ -3,12 +3,12 @@
 .gitignore
 .prettierignore
 .prettierrc
+*.md
+
 jest.config.js
 jest.server.config.js
 test.sh
-
 *.spec.ts
 *.spec.server.ts
 src/utils/test.ts
 */spec/
-*.md

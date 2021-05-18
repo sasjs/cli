@@ -1,5 +1,9 @@
 # Change Log
 
+Since March 7th, 2020, the changelog is managed by github releases.  See [https://github.com/sasjs/cli/releases](https://github.com/sasjs/cli/releases).
+
+## Changes Prior to March 7th 2020
+
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 <a name="1.0.4"></a>
