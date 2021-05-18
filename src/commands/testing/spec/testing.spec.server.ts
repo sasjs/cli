@@ -87,7 +87,7 @@ describe('sasjs test', () => {
           test_target: 'examplemacro',
           results: [
             {
-              test_loc: 'tests/macros/macros/examplemacro.test.sas',
+              test_loc: 'tests/macros/examplemacro.test.sas',
               sasjs_test_id: '',
               result: [
                 {
@@ -95,7 +95,7 @@ describe('sasjs test', () => {
                   TEST_RESULT: 'PASS'
                 }
               ],
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/macros/examplemacro.test&_debug=2477`
+              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/examplemacro.test&_debug=2477`
             }
           ]
         },
@@ -143,7 +143,7 @@ describe('sasjs test', () => {
 testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477"")"
 exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/exampleprogram.test&_debug=2477"")"
 standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477"")"
-examplemacro,tests/macros/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/macros/examplemacro.test&_debug=2477"")"
+examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/examplemacro.test&_debug=2477"")"
 dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477"")"
 dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.1&_debug=2477"")"
 testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testteardown&_debug=2477"")"
@@ -299,11 +299,11 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
 
     const logFolder = path.join(resultsFolderPath, 'logs')
 
-    const logPath = path.join(logFolder, 'macros_macros_shouldFail.test.log')
+    const logPath = path.join(logFolder, 'macros_shouldFail.test.log')
 
     await expect(listFilesInFolder(logFolder)).resolves.toEqual([
       'jobs_jobs_standalone.test.log',
-      'macros_macros_shouldFail.test.log',
+      'macros_shouldFail.test.log',
       'services_admin_dostuff.test.0.log',
       'testsetup.log',
       'testteardown.log'

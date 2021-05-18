@@ -129,7 +129,7 @@ export async function compileJobsServicesTests(target: Target) {
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
-    const macroFolders = target ? target.macroFolders : []
+    const macroFolders = await getMacroFolders(target.name)
     const programFolders = await getProgramFolders(target)
     const testSetUp = await getTestSetUp(target)
     const testTearDown = await getTestTearDown(target)

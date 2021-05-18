@@ -1,7 +1,12 @@
 import { TestFlow, Coverage, CoverageType, CoverageState } from '../../../types'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { createFile, copy, getFilesInFolder } from '../../../utils/file'
+import {
+  createFile,
+  copy,
+  getFilesInFolder,
+  fileExists
+} from '../../../utils/file'
 import { loadDependencies } from './loadDependencies'
 import { createFolder, sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
@@ -73,19 +78,13 @@ export async function copyTestMacroFiles(folderPath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
 
-  await asyncForEach(
-    macroTestFiles,
-    async (file) =>
-      await copy(
-        path.join(folderAbsolutePath, file),
-        path.join(
-          testsBuildFolder(),
-          'macros',
-          folderPath.split(path.sep).pop() || '',
-          file
-        )
-      )
-  )
+  await asyncForEach(macroTestFiles, async (file) => {
+    const destinationFile = path.join(testsBuildFolder(), 'macros', file)
+
+    if (!(await fileExists(destinationFile))) {
+      await copy(path.join(folderAbsolutePath, file), destinationFile)
+    }
+  })
 }
 
 export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
