@@ -42,6 +42,7 @@ export interface TestResult {
   test_loc: string
   sasjs_test_id: string
   result: TestResultStatus.notProvided | TestResultDescription[]
+  test_url: string
 }
 export interface TestResults {
   sasjs_test_meta: TestDescription[]

@@ -22,8 +22,7 @@ export async function loadDependencies(
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  type = 'service',
-  noInitAndTerm = false
+  type = 'service'
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
@@ -79,10 +78,8 @@ export async function loadDependencies(
       ? `\n* Job start;\n${fileContent}\n* Job end;`
       : ''
   } else {
-    if (!noInitAndTerm) {
-      ;({ content: init, filePath: initPath } = await getTestInit(target))
-      ;({ content: term, filePath: termPath } = await getTestTerm(target))
-    }
+    ;({ content: init, filePath: initPath } = await getTestInit(target))
+    ;({ content: term, filePath: termPath } = await getTestTerm(target))
 
     fileContent = fileContent
       ? `\n* Test start;\n${fileContent}\n* Test end;`
