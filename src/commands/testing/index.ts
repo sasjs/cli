@@ -204,6 +204,8 @@ export async function runTest(command: Command) {
           }
         }
 
+        if (!res.result?.test_results) lineBreak = false
+
         if (res.log) await saveLog(test, res.log, lineBreak)
 
         if (res.result?.test_results) {
@@ -233,7 +235,10 @@ export async function runTest(command: Command) {
             })
           }
         } else {
-          displayError({}, `'test_results' not found in server response.`)
+          displayError(
+            {},
+            `'test_results' not found in server response, to debug click ${testUrl}`
+          )
 
           printCodeExample()
         }
