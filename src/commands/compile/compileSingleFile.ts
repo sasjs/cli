@@ -1,5 +1,5 @@
 import path from 'path'
-import { getProgramFolders } from '../../utils/config'
+import { getProgramFolders, getMacroFolders } from '../../utils/config'
 import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
 import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
@@ -77,7 +77,7 @@ export async function compileSingleFile(
   await copy(sourcePath, destinationPath)
 
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
-  const macroFolders = target ? target.macroFolders : []
+  const macroFolders = await getMacroFolders(target?.name)
   const programFolders = await getProgramFolders(target)
   const programVar = insertProgramVar
     ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};`
