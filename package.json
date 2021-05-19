@@ -17,7 +17,7 @@
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
-    "postinstall": "git config core.hooksPath ./git-hooks"
+    "postinstall": "git config core.hooksPath ./.git-hooks"
   },
   "release": {
     "branches": [
