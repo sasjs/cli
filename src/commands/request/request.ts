@@ -91,6 +91,8 @@ export async function runSasJob(command: Command) {
     )
     .then(
       async (res) => {
+        if (res?.result) res = res.result
+
         let output
 
         try {

@@ -422,7 +422,7 @@ export async function getProgramFolders(target: Target) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
-  return programFolders
+  return [...new Set(programFolders)]
 }
 
 /**
@@ -432,21 +432,24 @@ export async function getProgramFolders(target: Target) {
  */
 export async function getMacroFolders(targetName: string) {
   let macroFolders: string[] = []
+
+  if (!targetName) return macroFolders
+
   const projectRoot = await getProjectRoot()
   const localConfig = await getConfiguration(
     path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
   ).catch(() => null)
-  if (localConfig?.programFolders) {
-    macroFolders = macroFolders.concat(localConfig.programFolders)
+  if (localConfig?.macroFolders) {
+    macroFolders = macroFolders.concat(localConfig.macroFolders)
   }
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  if (target.programFolders) {
-    macroFolders = macroFolders.concat(target.programFolders)
+  if (target.macroFolders) {
+    macroFolders = macroFolders.concat(target.macroFolders)
   }
 
-  return macroFolders
+  return [...new Set(macroFolders)]
 }
 
 export async function getMacroCorePath() {
@@ -636,4 +639,34 @@ const getPrecedenceOfInsecureRequests = (
   target: TargetJson
 ): boolean => {
   return target.allowInsecureRequests ?? !!config.allowInsecureRequests
+}
+
+export const getTestSetUp = async (target: Target) => {
+  if (target?.testConfig?.testSetUp) return target.testConfig.testSetUp
+
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+
+  if (localConfig?.testConfig?.testSetUp) {
+    return localConfig.testConfig.testSetUp
+  }
+
+  return undefined
+}
+
+export const getTestTearDown = async (target: Target) => {
+  if (target?.testConfig?.testTearDown) return target.testConfig?.testTearDown
+
+  const projectRoot = await getProjectRoot()
+  const localConfig = await getConfiguration(
+    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
+  ).catch(() => null)
+
+  if (localConfig?.testConfig?.testTearDown) {
+    return localConfig.testConfig?.testTearDown
+  }
+
+  return undefined
 }

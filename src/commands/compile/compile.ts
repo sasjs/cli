@@ -1,5 +1,10 @@
 import path from 'path'
-import { getProgramFolders } from '../../utils/config'
+import {
+  getProgramFolders,
+  getMacroFolders,
+  getTestSetUp,
+  getTestTearDown
+} from '../../utils/config'
 import {
   getSubFoldersInFolder,
   getFilesInFolder,
@@ -47,9 +52,13 @@ export async function compile(target: Target, forceCompile = false) {
 
   await compileModule.compileJobsServicesTests(target)
 
-  if (target?.macroFolders?.length) {
+  let macroFolders: string[] = await getMacroFolders(target?.name)
+
+  if (macroFolders.length) {
+    const programFolders = await getProgramFolders(target)
+
     await asyncForEach(
-      target.macroFolders,
+      macroFolders,
       async (macroFolder: string) => await copyTestMacroFiles(macroFolder)
     )
 
@@ -67,8 +76,8 @@ export async function compile(target: Target, forceCompile = false) {
         compileServiceFile(
           target,
           path.join(buildMacroTestFolder, macroTestFile),
-          target.macroFolders,
-          target.programFolders
+          macroFolders,
+          programFolders
         )
       )
     }
@@ -120,10 +129,10 @@ export async function compileJobsServicesTests(target: Target) {
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
-    const macroFolders = target ? target.macroFolders : []
+    const macroFolders = await getMacroFolders(target.name)
     const programFolders = await getProgramFolders(target)
-    const testSetUp = target.testConfig?.testSetUp
-    const testTearDown = target.testConfig?.testTearDown
+    const testSetUp = await getTestSetUp(target)
+    const testTearDown = await getTestTearDown(target)
 
     if (testSetUp)
       await compileTestFile(target, testSetUp).catch((err) =>

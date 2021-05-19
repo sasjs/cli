@@ -18,7 +18,7 @@ import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config'
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { uuidv4, asyncForEach } from '@sasjs/utils'
+import { ServerType, uuidv4, asyncForEach } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import path from 'path'
@@ -118,6 +118,25 @@ export async function runTest(command: Command) {
     }
   }
 
+  const saveLog = async (
+    test: string,
+    log: string,
+    lineBreak: boolean = false
+  ) => {
+    const logPath = path.join(
+      outDirectory,
+      'logs',
+      test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
+        '.log'
+    )
+
+    await createFile(logPath, log)
+
+    process.logger.info(
+      `Log file is located at ${logPath}${lineBreak ? '\n' : ''}`
+    )
+  }
+
   await asyncForEach(flow, async (test) => {
     const sasJobLocation = path.join(
       target.appLoc,
@@ -128,6 +147,12 @@ export async function runTest(command: Command) {
       .pop()
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
+
+    let testUrl = `${target.serverUrl}/${
+      target.serverType === ServerType.SasViya
+        ? 'SASJobExecution'
+        : 'SASStoredProcess'
+    }/?_program=${sasJobLocation}&_debug=2477`
 
     await sasjs
       .request(
@@ -140,14 +165,18 @@ export async function runTest(command: Command) {
         accessToken
       )
       .then(async (res) => {
-        if (!res) {
+        let lineBreak = true
+
+        if (!res.result) {
           displayError(
             {},
-            `Job located at ${sasJobLocation} did not return a response.`
+            `Job did not return a response, to debug click ${testUrl}`
           )
 
           printCodeExample()
 
+          lineBreak = false
+
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -157,7 +186,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: TestResultStatus.notProvided
+              result: TestResultStatus.notProvided,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -166,16 +196,19 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: TestResultStatus.notProvided
+                  result: TestResultStatus.notProvided,
+                  test_url: testUrl
                 }
               ]
             })
           }
-
-          return
         }
 
-        if (res.test_results) {
+        if (!res.result?.test_results) lineBreak = false
+
+        if (res.log) await saveLog(test, res.log, lineBreak)
+
+        if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -185,7 +218,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: res.test_results
+              result: res.result.test_results,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -194,13 +228,17 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: res.test_results
+                  result: res.result.test_results,
+                  test_url: testUrl
                 }
               ]
             })
           }
         } else {
-          displayError({}, `'test_results' not found in server response.`)
+          displayError(
+            {},
+            `'test_results' not found in server response, to debug click ${testUrl}`
+          )
 
           printCodeExample()
         }
@@ -212,16 +250,7 @@ export async function runTest(command: Command) {
         )
 
         if (err?.error?.details?.result) {
-          const logPath = path.join(
-            outDirectory,
-            'logs',
-            test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
-              '.log'
-          )
-
-          await createFile(logPath, err.error.details.result)
-
-          process.logger.info(`Log file is located at ${logPath}\n`)
+          await saveLog(test, err.error.details.result)
         }
       })
   })
@@ -258,7 +287,8 @@ export async function runTest(command: Command) {
       let item: any = {
         test_target: resTarget.test_target,
         test_loc: res.test_loc,
-        sasjs_test_id: res.sasjs_test_id
+        sasjs_test_id: res.sasjs_test_id,
+        test_url: `=HYPERLINK("${res.test_url}")`
       }
 
       if (Array.isArray(res.result)) {
@@ -267,7 +297,8 @@ export async function runTest(command: Command) {
           test_loc: res.test_loc,
           sasjs_test_id: res.sasjs_test_id,
           test_suite_result: r.TEST_RESULT,
-          test_description: r.TEST_DESCRIPTION
+          test_description: r.TEST_DESCRIPTION,
+          test_url: `=HYPERLINK("${res.test_url}")`
         }))
       } else item.test_suite_result = res.result
 
@@ -282,7 +313,8 @@ export async function runTest(command: Command) {
       test_loc: 'test_loc',
       sasjs_test_id: 'sasjs_test_id',
       test_suite_result: 'test_suite_result',
-      test_description: 'test_description'
+      test_description: 'test_description',
+      test_url: 'test_url'
     }
   }).catch((err) => displayError(err, 'Error while saving CSV file'))
 
