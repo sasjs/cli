@@ -2,14 +2,10 @@
 RED="\033[1;31m"
 GREEN="\033[1;32m"
 
-# Create a regex for a conventional commit.
-convetional_commit_regex="^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z \-]+\))?!?: .+$"
-
 # Get the commit message (the parameter we're given is just the path to the
 # temporary file which holds the message).
 commit_message=$(cat "$1")
 
-# if [[ "$commit_message" =~ "$convetional_commit_regex" ]]; then
 if (echo "$commit_message" | grep -Eq "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z \-]+\))?!?: .+$") then
    echo "${GREEN} ✔ Commit message meets Conventional Commit standards"
    exit 0
