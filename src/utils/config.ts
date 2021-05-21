@@ -1,11 +1,10 @@
 import SASjs from '@sasjs/adapter/node'
 import { getConstants } from '../constants'
-import { Configuration, Target, TargetJson } from '@sasjs/utils/types'
+import { Configuration, Target, TargetJson, urlOrigin } from '@sasjs/utils'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
-import urlParse from 'url-parse'
 import { TargetScope } from '../types/targetScope'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
@@ -125,7 +124,7 @@ async function getLocalTarget(targetName: string): Promise<Target> {
         `Target ${targetName} was found in your local sasjsconfig.json file.`
       )
       targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
-      targetJson.serverUrl = urlParse(targetJson.serverUrl).origin
+      targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
         targetJson
@@ -156,9 +155,7 @@ async function getLocalFallbackTarget(): Promise<Target> {
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
-      fallBackTargetJson.serverUrl = urlParse(
-        fallBackTargetJson.serverUrl
-      ).origin
+      fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
       fallBackTargetJson.allowInsecureRequests =
         getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
 
@@ -179,7 +176,7 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
         `Target ${targetName} was found in your global .sasjsrc file.`
       )
       targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
-      targetJson.serverUrl = urlParse(targetJson.serverUrl).origin
+      targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         globalConfig,
         targetJson
@@ -207,7 +204,7 @@ async function getGlobalFallbackTarget(): Promise<Target> {
       `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
-    fallBackTargetJson.serverUrl = urlParse(fallBackTargetJson.serverUrl).origin
+    fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,
       fallBackTargetJson
