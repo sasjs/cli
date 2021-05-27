@@ -79,9 +79,10 @@ export async function compileSingleFile(
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
   const macroFolders = await getMacroFolders(target?.name)
   const programFolders = await getProgramFolders(target)
+  const psMaxOption = 'options ps=max;'
   const programVar = insertProgramVar
-    ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};`
-    : ''
+    ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};\n${psMaxOption}`
+    : `${psMaxOption}`
 
   switch (subCommand) {
     case subCommands.service:

@@ -12,6 +12,8 @@ npm start
 
 The `npm start` script watches for changes in the source files and automatically rebuilds them.
 
+If you want to run `npm run test:server` or anything remote on Viya, you will need to provide credentials - you can rename `.env.example` as `.env` and provide your CLIENT/SECRET/ACCESS_TOKEN/REFRESH_TOKEN.
+
 We are in the process of migrating the project to TypeScript, so you may see a mix of `.ts` and `.js` files.
 Any new functionality being added should be written in TypeScript. If you're modifying an existing piece of functionality, the general guideline is to try to convert the file to TypeScript and fix compile errors if any.
 
