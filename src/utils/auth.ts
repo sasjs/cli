@@ -22,7 +22,11 @@ export async function getAuthCode(authUrl: string) {
   return authCode
 }
 
-export function isAccessTokenExpiring(token: string) {
+/**
+ * Checks if token is expired or expiring in 1 hour
+ * @param {string} token- token string that will be evaluated
+ */
+export function isAccessTokenExpiring(token: string): boolean {
   if (!token) {
     return true
   }
@@ -32,7 +36,11 @@ export function isAccessTokenExpiring(token: string) {
   return timeToLive <= 60 * 60 // 1 hour
 }
 
-export function isRefreshTokenExpired(token: string) {
+/**
+ * Checks if token is expired or expiring in 10 secs
+ * @param {string} token- token string that will be evaluated
+ */
+export function isRefreshTokenExpired(token: string): boolean {
   if (!token) {
     return true
   }
