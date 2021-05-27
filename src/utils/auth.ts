@@ -32,6 +32,16 @@ export function isAccessTokenExpiring(token: string) {
   return timeToLive <= 60 * 60 // 1 hour
 }
 
+export function isRefreshTokenExpired(token: string) {
+  if (!token) {
+    return true
+  }
+  const payload = jwtDecode<{ exp: number }>(token)
+  const timeToLive = payload.exp - new Date().valueOf() / 1000
+
+  return timeToLive <= 10 // 10 seconds
+}
+
 export async function refreshTokens(
   sasjsInstance: SASjs,
   clientId: string,

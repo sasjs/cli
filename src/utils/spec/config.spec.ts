@@ -97,10 +97,13 @@ describe('getAccessToken', () => {
     expect(token).toEqual('3NVT0K3N')
   })
 
-  it('should refresh access token when it is expiring and refresh token is available', async () => {
+  it('should refresh access token when it is expiring and refresh token is available & not expired', async () => {
     jest
       .spyOn(authUtils, 'isAccessTokenExpiring')
       .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpired')
+      .mockImplementation(() => false)
     jest.spyOn(authUtils, 'getNewAccessToken')
     jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
       Promise.resolve({
@@ -120,8 +123,41 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpired).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).toHaveBeenCalledTimes(1)
     expect(authUtils.getNewAccessToken).not.toHaveBeenCalled()
+    expect(token).toEqual('N3WT0K3N')
+  })
+
+  it('should get new access token when it is expiring and refresh token is available & expired', async () => {
+    jest
+      .spyOn(authUtils, 'isAccessTokenExpiring')
+      .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpired')
+      .mockImplementation(() => true)
+    jest.spyOn(authUtils, 'refreshTokens')
+    jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
+      Promise.resolve({
+        access_token: 'N3WT0K3N'
+      } as SasAuthResponse)
+    )
+    const target = {
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: 'R3FR35H',
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    }
+    process.env.REFRESH_TOKEN = undefined
+
+    const token = await getAccessToken(target as Target, true)
+
+    expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpired).toHaveBeenCalledTimes(1)
+    expect(authUtils.refreshTokens).not.toHaveBeenCalled()
+    expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
   })
 
