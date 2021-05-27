@@ -219,9 +219,11 @@ describe('sasjs run', () => {
 
     afterEach(async (done) => {
       await removeFromGlobalConfig(target.name)
+      await deleteFolder(process.currentDir)
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
+
       done()
     })
 
