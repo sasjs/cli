@@ -1,4 +1,3 @@
-import fs from 'fs'
 import fsExtra from 'fs-extra'
 import rimraf from 'rimraf'
 import path from 'path'
@@ -40,20 +39,20 @@ export async function createFolderStructure(folder, parentFolderName = '.') {
 
 export async function fileExists(filePath) {
   return new Promise((resolve, _) => {
-    fs.exists(filePath, (exists) => resolve(exists))
+    fsExtra.exists(filePath, (exists) => resolve(exists))
   })
 }
 
 export async function folderExists(folderPath) {
   return new Promise((resolve, _) => {
-    fs.exists(folderPath, (exists) => resolve(exists))
+    fsExtra.exists(folderPath, (exists) => resolve(exists))
   })
 }
 
 export async function readFile(fileName) {
   process.logger?.debug('Reading file: ', fileName)
   return new Promise((resolve, reject) => {
-    fs.readFile(fileName, 'utf8', function (error, data) {
+    fsExtra.readFile(fileName, 'utf8', function (error, data) {
       if (error) {
         return reject(error)
       }
@@ -65,7 +64,7 @@ export async function readFile(fileName) {
 export async function readdir(folderName) {
   process.logger?.debug('Reading directory: ', folderName)
   return new Promise((resolve, reject) => {
-    fs.readdir(folderName, 'utf8', function (error, data) {
+    fsExtra.readdir(folderName, 'utf8', function (error, data) {
       if (error) {
         return reject(error)
       }
@@ -77,7 +76,7 @@ export async function readdir(folderName) {
 export async function base64EncodeImageFile(fileName) {
   process.logger?.debug('Encoding image file: ', fileName)
   return new Promise((resolve, reject) => {
-    fs.readFile(fileName, function (error, data) {
+    fsExtra.readFile(fileName, function (error, data) {
       if (error) {
         process.logger?.error(`Error accessing image file: ${fileName}`)
         return reject(error)
@@ -98,7 +97,7 @@ export async function base64EncodeImageFile(fileName) {
 export async function base64EncodeFile(fileName) {
   process.logger?.debug('Encoding file: ', fileName)
   return new Promise((resolve, reject) => {
-    fs.readFile(fileName, { encoding: 'base64' }, function (error, data) {
+    fsExtra.readFile(fileName, { encoding: 'base64' }, function (error, data) {
       if (error) {
         process.logger?.error(`Error accessing file: ${fileName}`)
         return reject(error)
@@ -111,52 +110,66 @@ export async function base64EncodeFile(fileName) {
 export async function getSubFoldersInFolder(folderName) {
   process.logger?.debug(`Getting subfolders in ${folderName}`)
   return new Promise((resolve, reject) => {
-    fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
-      if (error) {
-        process.logger?.error(`Error listing subfolders in: ${folderName}`)
-        return reject(error)
+    fsExtra.readdir(
+      folderName,
+      { withFileTypes: true },
+      function (error, data) {
+        if (error) {
+          process.logger?.error(`Error listing subfolders in: ${folderName}`)
+          return reject(error)
+        }
+        const subFolders = data
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name)
+        return resolve(subFolders)
       }
-      const subFolders = data.filter((d) => d.isDirectory()).map((d) => d.name)
-      return resolve(subFolders)
-    })
+    )
   })
 }
 
 export async function getFilesInFolder(folderName) {
   process.logger?.debug(`Getting files in ${folderName}`)
   return new Promise((resolve, reject) => {
-    fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
-      if (error) {
-        process.logger?.error(`Error listing files in: ${folderName}`)
-        return reject(error)
+    fsExtra.readdir(
+      folderName,
+      { withFileTypes: true },
+      function (error, data) {
+        if (error) {
+          process.logger?.error(`Error listing files in: ${folderName}`)
+          return reject(error)
+        }
+        const files = data.filter((d) => !d.isDirectory()).map((d) => d.name)
+        return resolve(files)
       }
-      const files = data.filter((d) => !d.isDirectory()).map((d) => d.name)
-      return resolve(files)
-    })
+    )
   })
 }
 
 export async function getIniFilesInFolder(folderName) {
   process.logger?.debug(`Getting *.ini files in ${folderName}`)
   return new Promise((resolve, reject) => {
-    fs.readdir(folderName, { withFileTypes: true }, function (error, data) {
-      if (error) {
-        process.logger?.error(`Error listing *.ini files in: ${folderName}`)
-        return reject(error)
+    fsExtra.readdir(
+      folderName,
+      { withFileTypes: true },
+      function (error, data) {
+        if (error) {
+          process.logger?.error(`Error listing *.ini files in: ${folderName}`)
+          return reject(error)
+        }
+        const files = data
+          .filter((d) => !d.isDirectory())
+          .map((d) => d.name)
+          .filter((name) => name.endsWith('.ini'))
+        return resolve(files)
       }
-      const files = data
-        .filter((d) => !d.isDirectory())
-        .map((d) => d.name)
-        .filter((name) => name.endsWith('.ini'))
-      return resolve(files)
-    })
+    )
   })
 }
 
 export async function createFolder(folderName) {
   process.logger?.debug(`Creating folder ${folderName}`)
   return new Promise((resolve, reject) => {
-    fs.mkdir(folderName, { recursive: true }, (error, data) => {
+    fsExtra.mkdir(folderName, { recursive: true }, (error, data) => {
       if (error) {
         process.logger?.error(`Error creating folder ${folderName}`)
 
@@ -182,7 +195,7 @@ export async function createFile(fileName, content) {
       if (!(await folderExists(folderPath))) await createFolder(folderPath)
     }
 
-    fs.writeFile(fileName, content, function (error) {
+    fsExtra.writeFile(fileName, content, function (error) {
       if (error) {
         process.logger?.error(`Error creating file ${fileName}`)
         return reject(error)
@@ -395,7 +408,7 @@ export async function saveToDefaultLocation(filePath, data) {
 }
 
 export function getRealPath(file) {
-  return fs.realpathSync(file)
+  return fsExtra.realpathSync(file)
 }
 
 export const sasFileRegExp = /.sas$/i
