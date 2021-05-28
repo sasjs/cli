@@ -16,7 +16,8 @@ import {
   moveFile,
   folderExists,
   deleteFolder,
-  listFilesAndSubFoldersInFolder
+  listFilesAndSubFoldersInFolder,
+  pathSepEscaped
 } from '@sasjs/utils'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 
@@ -246,7 +247,7 @@ const printTestCoverage = async (
         await listFilesAndSubFoldersInFolder(macroFolder)
       ).filter((file: string) => !isTestFile(file))
 
-      const macroTypeRegExp = new RegExp(`^macros${path.sep}`)
+      const macroTypeRegExp = new RegExp(`^macros${pathSepEscaped}`)
 
       notCoveredMacros = notCoveredMacros.map((macro: string) =>
         macros.includes(macro.replace(macroTypeRegExp, ''))
