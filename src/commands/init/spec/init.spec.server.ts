@@ -68,6 +68,6 @@ const verifyInit = async () => {
 
   const gitIgnoreFilePath = path.join(process.projectDir, '.gitignore')
   const gitIgnoreContent = await readFile(gitIgnoreFilePath)
-  expect(gitIgnoreContent.match(/^sasjsbuild\//gm).length).toEqual(1)
-  expect(gitIgnoreContent.match(/^node_modules\//gm).length).toEqual(1)
+  expect(gitIgnoreContent.match(/^sasjsbuild\//gm)!.length).toEqual(1)
+  expect(gitIgnoreContent.match(/^node_modules\//gm)!.length).toEqual(1)
 }

@@ -5,14 +5,10 @@ import {
   readFile,
   createFile,
   folderExists,
-  createFolder
-} from '@sasjs/utils/file'
-import {
-  isJsonFile,
-  isCsvFile,
-  saveToDefaultLocation,
+  createFolder,
   getRealPath
-} from '../../utils/file'
+} from '@sasjs/utils/file'
+import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
 import {
   generateTimestamp,
   parseLogLines,
