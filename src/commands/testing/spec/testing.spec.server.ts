@@ -10,7 +10,7 @@ import {
   listFilesInFolder
 } from '@sasjs/utils'
 import { createTestApp, removeTestApp } from '../../../utils/test'
-import { copy, folderExists, fileExists, readFile } from '../../../utils/file'
+import { copy, folderExists, fileExists, readFile } from '@sasjs/utils/file'
 import { Command } from '../../../utils/command'
 import { generateTimestamp } from '../../../utils/utils'
 import {

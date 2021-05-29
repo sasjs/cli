@@ -4,11 +4,12 @@ import { getConstants } from '../../../constants'
 import {
   createFile,
   copy,
-  getFilesInFolder,
+  listFilesInFolder,
   fileExists
-} from '../../../utils/file'
+} from '@sasjs/utils/file'
 import { loadDependencies } from './loadDependencies'
-import { createFolder, sasFileRegExp } from '../../../utils/file'
+import { createFolder } from '@sasjs/utils/file'
+import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import {
   Target,
@@ -68,7 +69,7 @@ export async function moveTestFile(filePath: string) {
     .slice(0, filePath.split(path.sep).length - 1)
     .join(path.sep)
 
-  if ((await getFilesInFolder(sourceFolder)).length === 0) {
+  if ((await listFilesInFolder(sourceFolder)).length === 0) {
     await deleteFolder(sourceFolder)
   }
 }

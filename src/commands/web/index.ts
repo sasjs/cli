@@ -8,8 +8,8 @@ import {
   createFolder,
   createFile,
   deleteFolder,
-  getFilesInFolder
-} from '../../utils/file'
+  listFilesInFolder
+} from '@sasjs/utils/file'
 import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
@@ -114,6 +114,7 @@ export async function createWebAppServices(target: Target) {
         assetPathMap
       )
     })
+
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
       await updateLinkHref(
@@ -159,7 +160,7 @@ async function createAssetServices(
       )
       return
     }
-    const filePaths = await getFilesInFolder(fullAssetPath)
+    const filePaths = await listFilesInFolder(fullAssetPath)
     await asyncForEach(filePaths, async (filePath) => {
       const fullFileName = path.basename(filePath)
       const fileName = fullFileName.substring(0, fullFileName.lastIndexOf('.'))

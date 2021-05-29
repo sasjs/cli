@@ -4,7 +4,7 @@ import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
-import { folderExists, deleteFolder, deleteFile } from '../../../utils/file'
+import { folderExists, deleteFolder, deleteFile } from '@sasjs/utils/file'
 
 describe('sasjs doc', () => {
   let appName: string

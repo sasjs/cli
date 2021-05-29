@@ -23,7 +23,7 @@ import {
   ReturnCode,
   test
 } from './main'
-import { fileExists } from './utils/file'
+import { fileExists } from '@sasjs/utils/file'
 import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'

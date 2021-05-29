@@ -3,11 +3,13 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import {
   fileExists,
   readFile,
-  isJsonFile,
-  isCsvFile,
   createFile,
   folderExists,
-  createFolder,
+  createFolder
+} from '@sasjs/utils/file'
+import {
+  isJsonFile,
+  isCsvFile,
   saveToDefaultLocation,
   getRealPath
 } from '../../utils/file'
@@ -57,17 +59,17 @@ export async function execute(
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
-    let sourceConfig = await readFile(source).catch((err) =>
+    let sourceConfig: any = await readFile(source).catch((err) =>
       displayError(err, 'Error while reading source file.')
     )
 
     try {
-      sourceConfig = JSON.parse(sourceConfig)
+      sourceConfig = JSON.parse(sourceConfig as string)
     } catch (_) {
       return reject(examples.source)
     }
 
-    let flows = sourceConfig.flows
+    let flows = sourceConfig?.flows
 
     if (!flows) return reject(examples.source)
 
@@ -419,7 +421,7 @@ export async function execute(
               )
             }
 
-            let csvData = await readFile(csvFileRealPath).catch((err) =>
+            let csvData: any = await readFile(csvFileRealPath).catch((err) =>
               displayError(err, 'Error while reading CSV file.')
             )
 

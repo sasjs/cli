@@ -3,7 +3,7 @@ import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
-import { fileExists, readFile } from '../../utils/file'
+import { fileExists, readFile } from '@sasjs/utils/file'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
@@ -98,7 +98,7 @@ export async function processContext(command: Command) {
 
       const contextName = getContextName()
 
-      parsedConfig = parseConfig(config)
+      parsedConfig = parseConfig(config as string)
 
       output = await edit(
         contextName,

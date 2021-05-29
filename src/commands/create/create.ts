@@ -11,7 +11,7 @@ import {
   createTemplateApp
 } from '../../utils/utils'
 
-import { createFolder, fileExists } from '../../utils/file'
+import { createFolder, fileExists } from '@sasjs/utils/file'
 import { createReadme } from './internal/createReadme'
 import { createFileStructure } from '../shared/createFileStructure'
 import { createLintConfigFile } from '../shared/createLintConfigFile'

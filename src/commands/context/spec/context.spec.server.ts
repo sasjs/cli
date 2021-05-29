@@ -5,7 +5,7 @@ import {
   readFile,
   createFile,
   deleteFolder
-} from '../../../utils/file'
+} from '@sasjs/utils/file'
 import SASjs from '@sasjs/adapter/node'
 import { generateTimestamp } from '../../../utils/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'

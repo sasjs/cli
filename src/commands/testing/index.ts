@@ -11,9 +11,9 @@ import {
   readFile,
   folderExists,
   createFile,
-  createFolder,
-  sasFileRegExp
-} from '../../utils/file'
+  createFolder
+} from '@sasjs/utils/file'
+import { sasFileRegExp } from '../../utils/file'
 import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config'
 import { getAccessToken } from '../../utils/config'
@@ -320,7 +320,7 @@ export async function runTest(command: Command) {
 
   const jsonPath = path.join(outDirectory, 'testResults.json')
 
-  await createFile(jsonPath, finaleResult)
+  await createFile(jsonPath, finaleResult as string)
 
   const resultTable: any = {}
 

@@ -6,7 +6,7 @@ import {
   folderExists,
   createFile,
   createFolder
-} from '../../utils/file'
+} from '@sasjs/utils/file'
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'

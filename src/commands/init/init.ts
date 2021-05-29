@@ -7,7 +7,7 @@ import {
   setupDoxygen
 } from '../../utils/utils'
 
-import { createFolder, fileExists } from '../../utils/file'
+import { createFolder, fileExists } from '@sasjs/utils/file'
 import { createConfigFile } from '../shared/createConfigFile'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 

@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 import { processJob, processContext } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
-import { folderExists, fileExists, readFile, copy } from '../../../utils/file'
+import { folderExists, fileExists, readFile, copy } from '@sasjs/utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import {

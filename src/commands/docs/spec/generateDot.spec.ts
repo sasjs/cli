@@ -17,7 +17,7 @@ import {
   createFile,
   deleteFile,
   readFile
-} from '../../../utils/file'
+} from '@sasjs/utils/file'
 import { getConfiguration } from '../../../utils/config'
 import { getConstants } from '../../../constants'
 import { JobConfig } from '@sasjs/utils/types/config'

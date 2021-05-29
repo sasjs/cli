@@ -1,7 +1,13 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, folderExists, createFile, readFile, copy } from './file'
+import {
+  fileExists,
+  folderExists,
+  createFile,
+  readFile,
+  copy
+} from '@sasjs/utils/file'
 import { LogLevel, Target, padWithNumber } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 

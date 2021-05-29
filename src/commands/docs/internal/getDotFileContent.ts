@@ -1,5 +1,6 @@
 import path from 'path'
-import { getFilesInFolder, getBrief, readFile } from '../../../utils/file'
+import { listFilesInFolder, readFile } from '@sasjs/utils/file'
+import { getBrief } from '../../../utils/file'
 import { asyncForEach } from '@sasjs/utils'
 import { getFileInputs } from './getFileInputs'
 import { getFileOutputs } from './getFileOutputs'
@@ -22,7 +23,7 @@ export async function getDotFileContent(
 
   // Populating both Maps
   await asyncForEach(folderList, async (folder) => {
-    const filesNamesInPath = (await getFilesInFolder(folder)).filter(
+    const filesNamesInPath = (await listFilesInFolder(folder)).filter(
       (f: string) => f.endsWith('.sas')
     )
 

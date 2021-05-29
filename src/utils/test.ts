@@ -7,7 +7,7 @@ import {
   fileExists,
   folderExists,
   readFile
-} from './file'
+} from '@sasjs/utils/file'
 import {
   ServerType,
   Target,

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { verifyFolder, verifyPackageJsonContent } from '../../../utils/test'
-import { createFolder, deleteFolder } from '../../../utils/file'
+import { createFolder, deleteFolder } from '@sasjs/utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { getFolders } from '../../../utils/config'
 import { minimalAppFiles } from './minimalAppFiles'

@@ -1,6 +1,6 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { readFile } from '../../utils/file'
+import { readFile } from '@sasjs/utils/file'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { ServerType, Target } from '@sasjs/utils/types'

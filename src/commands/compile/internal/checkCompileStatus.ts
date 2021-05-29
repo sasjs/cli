@@ -1,7 +1,7 @@
 import { Target, asyncForEach } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { folderExists } from '../../../utils/file'
+import { folderExists } from '@sasjs/utils/file'
 import { compareFolders } from './compareFolders'
 import { getAllJobFolders } from './getAllJobFolders'
 import { getAllServiceFolders } from './getAllServiceFolders'

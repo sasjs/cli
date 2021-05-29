@@ -3,10 +3,10 @@ import { Target, ServerType } from '@sasjs/utils/types'
 import { createWebAppServices } from '../web'
 import {
   readFile,
-  getSubFoldersInFolder,
-  getFilesInFolder,
+  listSubFoldersInFolder,
+  listFilesInFolder,
   createFile
-} from '../../utils/file'
+} from '@sasjs/utils/file'
 import { asyncForEach } from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
 import { getLocalConfig, getMacroCorePath } from '../../utils/config'
@@ -161,7 +161,7 @@ function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
  */
 async function getFolderContent(serverType: ServerType) {
   const { buildDestinationFolder } = await getConstants()
-  const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
+  const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
   let folderContentJSON: any = { members: [] }
@@ -214,7 +214,7 @@ async function getContentFor(
     members: []
   }
 
-  const files = await getFilesInFolder(folderPath)
+  const files = await listFilesInFolder(folderPath)
 
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))

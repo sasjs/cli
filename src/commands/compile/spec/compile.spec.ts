@@ -19,7 +19,7 @@ import {
   readFile,
   fileExists,
   deleteFolder
-} from '../../../utils/file'
+} from '@sasjs/utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
