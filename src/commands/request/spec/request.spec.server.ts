@@ -1,8 +1,7 @@
 import path from 'path'
-import { copy, readFile } from '@sasjs/utils/file'
+import { copy, readFile, deleteFolder, createFile } from '@sasjs/utils/file'
 import { generateTimestamp } from '../../../utils/utils'
 import { runRequest, compileBuildDeployServices } from '../../../main'
-import { deleteFolder, createFile } from '@sasjs/utils/file'
 import { folder } from '../../folder/index'
 import { Target } from '@sasjs/utils/types'
 import {

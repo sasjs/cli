@@ -5,10 +5,10 @@ import {
   createFile,
   copy,
   listFilesInFolder,
-  fileExists
+  fileExists,
+  createFolder
 } from '@sasjs/utils/file'
 import { loadDependencies } from './loadDependencies'
-import { createFolder } from '@sasjs/utils/file'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import {

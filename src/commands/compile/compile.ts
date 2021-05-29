@@ -11,9 +11,9 @@ import {
   fileExists,
   deleteFolder,
   createFolder,
-  folderExists
+  folderExists,
+  copy
 } from '@sasjs/utils/file'
-import { copy } from '@sasjs/utils/file'
 import { isSasFile } from '../../utils/file'
 import { asyncForEach, listFilesAndSubFoldersInFolder } from '@sasjs/utils'
 import { Target } from '@sasjs/utils/types'

@@ -234,7 +234,7 @@ async function getContentFor(
     })
   })
 
-  const subFolders = await getSubFoldersInFolder(folderPath)
+  const subFolders = await listSubFoldersInFolder(folderPath)
 
   await asyncForEach(subFolders, async (subFolder) => {
     const { content: childContent, contentJSON: childContentJSON } =
