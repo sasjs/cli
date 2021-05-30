@@ -109,6 +109,12 @@ async function getBuildInfo(target: Target) {
   const { serverType, appLoc, macroFolders } = target
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
+
+  if (target.serverType === ServerType.SasViya) {
+    const createFileScript = await getCreateFileScript(serverType)
+    buildConfig += `${createFileScript}\n`
+  }
+
   const dependencyFilePaths = await getDependencyPaths(
     buildConfig,
     macroFolders
@@ -137,12 +143,26 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   }
 }
 
+async function getCreateFileScript(serverType: ServerType) {
+  switch (serverType) {
+    case ServerType.SasViya:
+      return await readFile(
+        `${await getMacroCorePath()}/viya/mv_createfile.sas`
+      )
+
+    default:
+      throw new Error(
+        `Invalid server type: valid option is ${ServerType.SasViya}`
+      )
+  }
+}
+
 function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
   const loc = filePath === '' ? 'services' : 'tests'
 
   switch (serverType) {
     case ServerType.SasViya:
-      return `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+      return `%mv_createfile(path=&appLoc/${loc}/&path, name=&service, inref=sasjs)`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
@@ -229,7 +249,7 @@ async function getContentFor(
 
     contentJSON?.members.push({
       name: file.replace(/.sas$/, ''),
-      type: 'service',
+      type: /.sas$/.test(file) ? 'service' : 'file',
       code: removeComments(fileContent)
     })
   })

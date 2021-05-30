@@ -126,15 +126,20 @@ export async function createWebAppServices(target: Target) {
     })
 
     const faviconTags = getFaviconTags(indexHtml)
-
     await asyncForEach(faviconTags, async (faviconTag) => {
       await updateFaviconHref(faviconTag, webSourcePath)
     })
 
-    await createClickMeService(
-      indexHtml.serialize(),
-      streamConfig.streamServiceName as string
-    )
+    if (target.serverType === ServerType.SasViya)
+      await createClickMeFile(
+        indexHtml.serialize(),
+        streamConfig.streamServiceName as string
+      )
+    else
+      await createClickMeService(
+        indexHtml.serialize(),
+        streamConfig.streamServiceName as string
+      )
   }
 }
 
@@ -227,7 +232,10 @@ async function updateTagSource(
     scriptPath && (scriptPath.startsWith('http') || scriptPath.startsWith('//'))
 
   if (scriptPath) {
-    const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
+    const fileName =
+      target.serverType === ServerType.SasViya
+        ? path.basename(scriptPath)
+        : `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
       let content = await readFile(
         path.join(process.projectDir, webAppSourcePath, scriptPath)
@@ -240,16 +248,19 @@ async function updateTagSource(
         )
       })
 
-      const serviceContent = await getWebServiceContent(
-        content,
-        'JS',
-        target.serverType
-      )
-
-      await createFile(
-        path.join(destinationPath, `${fileName}.sas`),
-        serviceContent
-      )
+      if (target.serverType === ServerType.SasViya) {
+        await createFile(path.join(destinationPath, fileName), content)
+      } else {
+        const serviceContent = await getWebServiceContent(
+          content,
+          'JS',
+          target.serverType
+        )
+        await createFile(
+          path.join(destinationPath, `${fileName}.sas`),
+          serviceContent
+        )
+      }
 
       tag.setAttribute(
         'src',
@@ -274,22 +285,30 @@ async function updateLinkHref(
   const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
-  const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
+  const fileName =
+    target.serverType === ServerType.SasViya
+      ? path.basename(linkSourcePath)
+      : `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
     const content = await readFile(
       path.join(process.projectDir, webAppSourcePath, linkSourcePath)
     )
 
-    const serviceContent = await getWebServiceContent(
-      content,
-      'CSS',
-      target.serverType
-    )
+    if (target.serverType === ServerType.SasViya) {
+      await createFile(path.join(destinationPath, fileName), content)
+    } else {
+      const serviceContent = await getWebServiceContent(
+        content,
+        'CSS',
+        target.serverType
+      )
 
-    await createFile(
-      path.join(destinationPath, `${fileName}.sas`),
-      serviceContent
-    )
+      await createFile(
+        path.join(destinationPath, `${fileName}.sas`),
+        serviceContent
+      )
+    }
+
     const linkHref = getLinkHref(
       target.appLoc,
       target.serverType,
@@ -331,7 +350,7 @@ function getScriptPath(
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=/services/${streamWebFolder}`
+      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
       : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
@@ -350,7 +369,7 @@ function getLinkHref(
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=/services/${streamWebFolder}`
+      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
       : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
@@ -488,5 +507,13 @@ async function createClickMeService(
   await createFile(
     path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent
+  )
+}
+
+async function createClickMeFile(indexHtmlContent: string, fileName: string) {
+  const { buildDestinationServicesFolder } = await getConstants()
+  await createFile(
+    path.join(buildDestinationServicesFolder, `${fileName}.html`),
+    indexHtmlContent
   )
 }

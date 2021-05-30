@@ -21,10 +21,12 @@ export async function deploy(target: Target, isLocal: boolean) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
     )
-    await deployToSasViyaWithServicePack(target, isLocal)
+    const serviceName = await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}`
+      target.serverType === ServerType.SasViya
+        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${serviceName}`
+        : `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}`
     )
   }
 
@@ -109,7 +111,7 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
 async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean
-) {
+): Promise<string> {
   const { buildDestinationFolder } = await getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -120,13 +122,18 @@ async function deployToSasViyaWithServicePack(
 
   const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
 
-  return await sasjs.deployServicePack(
+  await sasjs.deployServicePack(
     jsonObject,
     undefined,
     undefined,
     accessToken,
     true
   )
+  return jsonObject.members
+    .find(
+      (member: any) => member.name === 'services' && member.type === 'folder'
+    )
+    .members.find((member: any) => member.type === 'file').name
 }
 
 async function deployToSasViya(
