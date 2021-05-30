@@ -1,6 +1,7 @@
 import { chunk } from '../../utils/utils'
 import {
   readFile,
+  copy,
   base64EncodeFile,
   base64EncodeImageFile,
   fileExists,
@@ -127,7 +128,13 @@ export async function createWebAppServices(target: Target) {
 
     const faviconTags = getFaviconTags(indexHtml)
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateFaviconHref(faviconTag, webSourcePath)
+      await updateFaviconHref(
+        faviconTag,
+        webSourcePath,
+        destinationPath,
+        target,
+        streamConfig
+      )
     })
 
     if (target.serverType === ServerType.SasViya)
@@ -181,7 +188,7 @@ async function createAssetServices(
           destinationPath,
           target.serverType
         )
-        const assetServiceUrl = getScriptPath(
+        const assetServiceUrl = getAssetPath(
           target.appLoc,
           target.serverType,
           streamWebFolder,
@@ -264,7 +271,7 @@ async function updateTagSource(
 
       tag.setAttribute(
         'src',
-        getScriptPath(
+        getAssetPath(
           target.appLoc,
           target.serverType,
           streamConfig.streamWebFolder!,
@@ -290,13 +297,16 @@ async function updateLinkHref(
       ? path.basename(linkSourcePath)
       : `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
-    const content = await readFile(
-      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+    const sourcePath = path.join(
+      process.projectDir,
+      webAppSourcePath,
+      linkSourcePath
     )
 
     if (target.serverType === ServerType.SasViya) {
-      await createFile(path.join(destinationPath, fileName), content)
+      await copy(sourcePath, path.join(destinationPath, fileName))
     } else {
+      const content = await readFile(sourcePath)
       const serviceContent = await getWebServiceContent(
         content,
         'CSS',
@@ -309,7 +319,7 @@ async function updateLinkHref(
       )
     }
 
-    const linkHref = getLinkHref(
+    const linkHref = getAssetPath(
       target.appLoc,
       target.serverType,
       streamConfig.streamWebFolder!,
@@ -321,41 +331,39 @@ async function updateLinkHref(
 
 async function updateFaviconHref(
   linkTag: HTMLLinkElement,
-  webAppSourcePath: string
+  webAppSourcePath: string,
+  destinationPath: string,
+  target: Target,
+  streamConfig: StreamConfig
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
-    const base64string = await base64EncodeImageFile(
-      path.isAbsolute(webAppSourcePath)
-        ? path.join(webAppSourcePath, linkSourcePath)
-        : path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+    const sourcePath = path.join(
+      process.projectDir,
+      webAppSourcePath,
+      linkSourcePath
     )
-    linkTag.setAttribute('href', base64string)
+    if (target.serverType === ServerType.SasViya) {
+      const fileName = path.basename(linkSourcePath)
+      await copy(sourcePath, path.join(destinationPath, fileName))
+
+      const linkHref = getAssetPath(
+        target.appLoc,
+        target.serverType,
+        streamConfig.streamWebFolder!,
+        fileName
+      )
+      linkTag.setAttribute('href', linkHref)
+    } else {
+      const base64string = await base64EncodeImageFile(sourcePath)
+      linkTag.setAttribute('href', base64string)
+    }
   }
 }
 
-function getScriptPath(
-  appLoc: string,
-  serverType: ServerType,
-  streamWebFolder: string,
-  fileName: string
-) {
-  if (!(serverType === ServerType.SasViya || serverType === ServerType.Sas9)) {
-    throw new Error(
-      'Unsupported server type. Supported types are SAS9 and SASVIYA'
-    )
-  }
-  const storedProcessPath =
-    // the appLoc is inserted dynamically by SAS
-    serverType === ServerType.SasViya
-      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
-  return `${storedProcessPath}/${fileName}`
-}
-
-function getLinkHref(
+function getAssetPath(
   appLoc: string,
   serverType: ServerType,
   streamWebFolder: string,

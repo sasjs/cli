@@ -238,19 +238,22 @@ async function getContentFor(
 
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
-    const transformedContent = getServiceText(
-      file,
-      fileContent,
-      serverType,
-      testPath
-    )
 
-    content += `\n${transformedContent}\n`
+    if (/.sas$/.test(file)) {
+      const transformedContent = getServiceText(
+        file,
+        fileContent,
+        serverType,
+        testPath
+      )
+
+      content += `\n${transformedContent}\n`
+    }
 
     contentJSON?.members.push({
       name: file.replace(/.sas$/, ''),
       type: /.sas$/.test(file) ? 'service' : 'file',
-      code: removeComments(fileContent)
+      code: /.sas$/.test(file) ? removeComments(fileContent) : fileContent
     })
   })
 
