@@ -3,9 +3,14 @@ import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
 import { executeShellScript } from '../../utils/utils'
-import { readFile, createFile } from '@sasjs/utils/file'
+import {
+  readFile,
+  createFile,
+  ServerType,
+  Target,
+  asyncForEach
+} from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
-import { ServerType, Target, asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 

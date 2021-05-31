@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { folder, runSasCode } from '../..'
-import { copy, createFolder, deleteFolder } from '@sasjs/utils/file'
+import { copy, createFolder, deleteFolder } from '@sasjs/utils'
 import { generateTimestamp } from '../../../utils/utils'
 import { Target } from '@sasjs/utils/types'
 import { Command } from '../../../utils/command'

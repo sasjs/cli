@@ -5,9 +5,9 @@ import {
   readFile,
   listSubFoldersInFolder,
   listFilesInFolder,
-  createFile
-} from '@sasjs/utils/file'
-import { asyncForEach } from '@sasjs/utils'
+  createFile,
+  asyncForEach
+} from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
 import { getLocalConfig, getMacroCorePath } from '../../utils/config'
 import { compile } from '../compile/compile'

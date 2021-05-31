@@ -1,5 +1,5 @@
 import path from 'path'
-import { createFile, createFolder, deleteFolder } from '@sasjs/utils/file'
+import { createFile, createFolder, deleteFolder } from '@sasjs/utils'
 import { generateTimestamp } from '../../../utils/utils'
 import { compareFolders } from '../internal/compareFolders'
 

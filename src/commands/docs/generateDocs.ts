@@ -10,7 +10,7 @@ import {
   folderExists,
   fileExists,
   readFile
-} from '@sasjs/utils/file'
+} from '@sasjs/utils'
 import { getLocalConfig } from '../../utils/config'
 import { getConstants } from '../../constants'
 

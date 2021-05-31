@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { fileExists } from '@sasjs/utils/file'
+import { fileExists } from '@sasjs/utils'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
 /**

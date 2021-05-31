@@ -2,7 +2,7 @@ import path from 'path'
 import { Target, ServerType } from '@sasjs/utils/types'
 
 import { getMacroCorePath } from '../../../utils/config'
-import { createFile, readFile } from '@sasjs/utils/file'
+import { createFile, readFile } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
 

@@ -10,12 +10,17 @@ import {
   removeFromLocalConfig
 } from '../config'
 import * as authUtils from '../auth'
-import * as fileUtils from '@sasjs/utils/file'
+import * as fileUtils from '@sasjs/utils'
 import dotenv from 'dotenv'
 import { Configuration, Target } from '@sasjs/utils/types'
-import { createFile, deleteFile } from '@sasjs/utils/file'
+import {
+  createFile,
+  deleteFile,
+  Logger,
+  LogLevel,
+  SasAuthResponse
+} from '@sasjs/utils'
 import path from 'path'
-import { Logger, LogLevel, SasAuthResponse } from '@sasjs/utils'
 import { generateTimestamp } from '../utils'
 import {
   createTestMinimalApp,

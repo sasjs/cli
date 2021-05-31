@@ -1,5 +1,11 @@
 import path from 'path'
-import { Target } from '@sasjs/utils'
+import {
+  Target,
+  createFolder,
+  readFile,
+  fileExists,
+  deleteFolder
+} from '@sasjs/utils'
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
   findTargetInConfiguration,
@@ -14,12 +20,6 @@ import {
   updateConfig
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
-import {
-  createFolder,
-  readFile,
-  fileExists,
-  deleteFolder
-} from '@sasjs/utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'

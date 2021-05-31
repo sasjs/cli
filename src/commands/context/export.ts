@@ -1,6 +1,6 @@
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import path from 'path'
-import { createFile } from '@sasjs/utils/file'
+import { createFile } from '@sasjs/utils'
 import { sanitizeFileName } from '../../utils/file'
 import SASjs from '@sasjs/adapter/node'
 

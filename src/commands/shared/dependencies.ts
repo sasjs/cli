@@ -4,9 +4,8 @@ import uniqBy from 'lodash.uniqby'
 import groupBy from 'lodash.groupby'
 import { getConstants } from '../../constants'
 import { getSourcePaths } from '../../utils/config'
-import { folderExists, readFile } from '@sasjs/utils/file'
+import { folderExists, readFile, asyncForEach } from '@sasjs/utils'
 import { getList } from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils'
 import { diff, chunk } from '../../utils/utils'
 
 export async function getDependencyPaths(

@@ -13,7 +13,7 @@ import {
   verifyDotFilesNotGenerated
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
-import { folderExists, copy, deleteFolder, deleteFile } from '@sasjs/utils/file'
+import { folderExists, copy, deleteFolder, deleteFile } from '@sasjs/utils'
 import { getConstants } from '../../../constants'
 import { DocConfig } from '@sasjs/utils/types/config'
 

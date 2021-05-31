@@ -6,9 +6,11 @@ import {
   folderExists,
   createFile,
   readFile,
-  copy
-} from '@sasjs/utils/file'
-import { LogLevel, Target, padWithNumber } from '@sasjs/utils'
+  copy,
+  LogLevel,
+  Target,
+  padWithNumber
+} from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 
 export async function inExistingProject(folderPath: string) {

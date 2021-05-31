@@ -7,7 +7,7 @@ import {
   folderExists,
   createFolder,
   getRealPath
-} from '@sasjs/utils/file'
+} from '@sasjs/utils'
 import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
 import {
   generateTimestamp,

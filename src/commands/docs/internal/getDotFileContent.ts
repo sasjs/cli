@@ -1,7 +1,6 @@
 import path from 'path'
-import { listFilesInFolder, readFile } from '@sasjs/utils/file'
+import { listFilesInFolder, readFile, asyncForEach } from '@sasjs/utils'
 import { getBrief } from '../../../utils/file'
-import { asyncForEach } from '@sasjs/utils'
 import { getFileInputs } from './getFileInputs'
 import { getFileOutputs } from './getFileOutputs'
 import { populateNodeDictionary } from './populateNodeDictionary'

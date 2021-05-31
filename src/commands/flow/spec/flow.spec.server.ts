@@ -10,7 +10,7 @@ import {
   deleteFolder,
   deleteFile,
   copy
-} from '@sasjs/utils/file'
+} from '@sasjs/utils'
 import { processFlow } from '..'
 import { folder } from '../../folder'
 import { createTestApp, removeTestApp } from '../../../utils/test'

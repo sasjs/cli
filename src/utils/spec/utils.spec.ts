@@ -6,7 +6,7 @@ import {
   diff,
   setupGitIgnore
 } from '../utils'
-import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils/file'
+import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
 import path from 'path'
 
 describe('utils', () => {

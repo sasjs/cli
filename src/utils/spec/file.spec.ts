@@ -7,7 +7,7 @@ import {
   deleteFolder,
   unifyFilePath,
   getRelativePath
-} from '@sasjs/utils/file'
+} from '@sasjs/utils'
 import { generateTimestamp } from '../utils'
 
 describe('file utility', () => {

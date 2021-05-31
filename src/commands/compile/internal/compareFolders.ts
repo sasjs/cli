@@ -2,7 +2,7 @@ import {
   folderExists,
   listSubFoldersInFolder,
   listFilesInFolder
-} from '@sasjs/utils/file'
+} from '@sasjs/utils'
 import { isTestFile } from './compileTestFile'
 
 export const compareFolders = async (

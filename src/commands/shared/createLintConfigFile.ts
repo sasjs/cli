@@ -1,7 +1,7 @@
 import path from 'path'
 
 import { DefaultLintConfiguration } from '@sasjs/lint/utils/getLintConfig'
-import { createFile } from '@sasjs/utils/file'
+import { createFile } from '@sasjs/utils'
 
 /**
  * Creates a SASjs Lint configuration file.

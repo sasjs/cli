@@ -1,5 +1,5 @@
 import path from 'path'
-import { createFile, createFolder, listFilesInFolder } from '@sasjs/utils/file'
+import { createFile, createFolder, listFilesInFolder } from '@sasjs/utils'
 import { getProjectRoot } from './config'
 
 export async function createFolderStructure(folder, parentFolderName = '.') {

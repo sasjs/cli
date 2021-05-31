@@ -1,6 +1,6 @@
 import path from 'path'
 import { processContext } from '../..'
-import { readFile, createFile, deleteFolder } from '@sasjs/utils/file'
+import { readFile, createFile, deleteFolder } from '@sasjs/utils'
 import { sanitizeFileName } from '../../../utils/file'
 import SASjs from '@sasjs/adapter/node'
 import { generateTimestamp } from '../../../utils/utils'

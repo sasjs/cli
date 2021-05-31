@@ -6,12 +6,7 @@ import {
   copy,
   listFilesInFolder,
   fileExists,
-  createFolder
-} from '@sasjs/utils/file'
-import { loadDependencies } from './loadDependencies'
-import { sasFileRegExp } from '../../../utils/file'
-import chalk from 'chalk'
-import {
+  createFolder,
   Target,
   asyncForEach,
   moveFile,
@@ -20,6 +15,9 @@ import {
   listFilesAndSubFoldersInFolder,
   pathSepEscaped
 } from '@sasjs/utils'
+import { loadDependencies } from './loadDependencies'
+import { sasFileRegExp } from '../../../utils/file'
+import chalk from 'chalk'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>

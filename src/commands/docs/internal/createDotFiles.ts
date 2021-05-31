@@ -1,7 +1,7 @@
 import path from 'path'
 import { graphviz } from 'node-graphviz'
 
-import { createFolder, createFile } from '@sasjs/utils/file'
+import { createFolder, createFile } from '@sasjs/utils'
 
 import { getDotFileContent } from './getDotFileContent'
 

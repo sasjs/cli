@@ -9,7 +9,7 @@ import {
   saveToGlobalConfig,
   saveToLocalConfig
 } from '../../utils/config'
-import { createFile } from '@sasjs/utils/file'
+import { createFile } from '@sasjs/utils'
 import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
 import { TargetScope } from '../../types/targetScope'
 

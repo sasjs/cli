@@ -11,7 +11,7 @@ import {
 } from '../../../utils/test'
 import { generateTimestamp } from '../../../utils/utils'
 import { compileServiceFile } from '../internal/compileServiceFile'
-import { copy, fileExists, createFolder, readFile } from '@sasjs/utils/file'
+import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
 const fakeJobInit = `/**
   @file
