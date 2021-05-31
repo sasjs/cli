@@ -81,6 +81,7 @@ export function prioritiseDependencyOverrides(
   macroPaths: string[] = [],
   pathSeparator = path.sep
 ) {
+  dependencyPaths = [...new Set(dependencyPaths)]
   dependencyNames.forEach((depFileName) => {
     const paths = dependencyPaths.filter((p) =>
       p.includes(`${pathSeparator}${depFileName}`)
@@ -95,7 +96,7 @@ export function prioritiseDependencyOverrides(
         return pathExist ? true : false
       })
       if (foundInMacroPaths.length)
-        overriddenDependencyPaths = foundInMacroPaths
+        overriddenDependencyPaths = [foundInMacroPaths[0]]
     }
 
     if (
@@ -108,13 +109,6 @@ export function prioritiseDependencyOverrides(
       dependencyPaths = dependencyPaths.filter(
         (el) => pathsToRemove.indexOf(el) < 0
       )
-      if (overriddenDependencyPaths.length > 1) {
-        // remove duplicates
-        dependencyPaths = dependencyPaths.filter(
-          (p) => p != overriddenDependencyPaths[0]
-        )
-        dependencyPaths.push(overriddenDependencyPaths[0])
-      }
     }
   })
 
