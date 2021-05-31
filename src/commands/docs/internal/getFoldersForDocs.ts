@@ -35,30 +35,26 @@ async function extractFoldersForDocs(config: Target | Configuration) {
       ? []
       : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
 
-  const macroFolders =
-    config && config.macroFolders
-      ? config.macroFolders.map((f) =>
-          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-        )
-      : []
-  const programFolders =
-    config && config.programFolders
-      ? config.programFolders.map((f) =>
-          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-        )
-      : []
-  const serviceFolders =
-    config && config.serviceConfig && config.serviceConfig.serviceFolders
-      ? config.serviceConfig.serviceFolders.map((f) =>
-          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-        )
-      : []
-  const jobFolders =
-    config && config.jobConfig && config.jobConfig.jobFolders
-      ? config.jobConfig.jobFolders.map((f) =>
-          path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-        )
-      : []
+  const macroFolders = config?.macroFolders
+    ? config.macroFolders.map((f) =>
+        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+      )
+    : []
+  const programFolders = config?.programFolders
+    ? config.programFolders.map((f) =>
+        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+      )
+    : []
+  const serviceFolders = config?.serviceConfig?.serviceFolders
+    ? config.serviceConfig.serviceFolders.map((f) =>
+        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+      )
+    : []
+  const jobFolders = config?.jobConfig?.jobFolders
+    ? config.jobConfig.jobFolders.map((f) =>
+        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+      )
+    : []
 
   return {
     macroCore: macroCoreFolders,

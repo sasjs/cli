@@ -32,7 +32,7 @@ export async function compileTestFile(
   let dependencies = await loadDependencies(
     target,
     path.join(process.projectDir, filePath),
-    await getMacroFolders(target.name),
+    await getMacroFolders(target),
     await getProgramFolders(target),
     'test'
   )
@@ -74,8 +74,7 @@ export async function moveTestFile(filePath: string) {
   }
 }
 
-export async function copyTestMacroFiles(folderPath: string) {
-  const folderAbsolutePath = path.join(process.currentDir, folderPath)
+export async function copyTestMacroFiles(folderAbsolutePath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
 
@@ -199,7 +198,7 @@ const printTestCoverage = async (
 
   await collectCoverage(jobFolder, 'jobs')
 
-  const macroFolders = await getMacroFolders(target.name)
+  const macroFolders = await getMacroFolders(target)
 
   await asyncForEach(macroFolders, async (macroFolder) => {
     await collectCoverage(
