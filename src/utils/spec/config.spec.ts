@@ -10,7 +10,7 @@ import {
   removeFromLocalConfig
 } from '../config'
 import * as authUtils from '../auth'
-import * as fileUtils from '@sasjs/utils'
+import * as fileUtils from '@sasjs/utils/file'
 import dotenv from 'dotenv'
 import { Configuration, Target } from '@sasjs/utils/types'
 import {
