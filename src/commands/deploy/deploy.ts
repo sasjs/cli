@@ -25,7 +25,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
       target.serverType === ServerType.SasViya
-        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${serviceName}`
+        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${serviceName}&_debug=2`
         : `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}`
     )
   }

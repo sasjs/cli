@@ -15,6 +15,7 @@ import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
+import { adjustIframeScript } from './adjustIframeScript'
 import btoa from 'btoa'
 import { ServerType, Target, asyncForEach } from '@sasjs/utils'
 import { getConstants } from '../../constants'
@@ -137,12 +138,13 @@ export async function createWebAppServices(target: Target) {
       )
     })
 
-    if (target.serverType === ServerType.SasViya)
+    if (target.serverType === ServerType.SasViya) {
+      indexHtml.window.document.body.innerHTML += adjustIframeScript
       await createClickMeFile(
         indexHtml.serialize(),
         streamConfig.streamServiceName as string
       )
-    else
+    } else
       await createClickMeService(
         indexHtml.serialize(),
         streamConfig.streamServiceName as string
