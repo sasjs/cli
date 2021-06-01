@@ -23,14 +23,8 @@ export async function runSasJob(command: Command) {
     throw new Error('Target not found! Please try again with another target.')
   }
 
-  if (target.serverType !== ServerType.SasViya) {
-    throw new Error(
-      `Unable to execute request against target ${targetName}. This command is only supported for server type ${ServerType.SasViya}.`
-    )
-  }
-
-  let dataJson
-  let configJson
+  let dataJson: any = {}
+  let configJson: any = {}
 
   if (dataFilePath) {
     if (dataFilePath.split('.').slice(-1)[0] !== 'json') {
@@ -68,13 +62,26 @@ export async function runSasJob(command: Command) {
     }
   }
 
+  if (target.serverType === ServerType.Sas9) {
+    configJson.username = process.env.SAS_USERNAME
+    configJson.password = process.env.SAS_PASSWORD
+    if (!configJson.username || !configJson.password) {
+      throw new Error(
+        'A valid username and password are required for requests to SAS9 servers.' +
+          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+      )
+    }
+  }
+
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType
   })
 
-  const accessToken = await getAccessToken(target)
+  let accessToken
+  if (target.serverType === ServerType.SasViya)
+    accessToken = await getAccessToken(target)
 
   if (!dataJson) dataJson = null
 
