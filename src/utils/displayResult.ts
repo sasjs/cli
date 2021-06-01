@@ -1,3 +1,5 @@
+import { LogLevel } from '@sasjs/utils'
+
 export function displaySuccess(message: string) {
   process.logger?.success(message)
 }
@@ -21,7 +23,7 @@ export function displayError(err: any, errorMessage: string = '') {
           raw ? '\n' + raw : ''
         }`
 
-        process.logger?.error(errorMessage, failureDetails)
+        process.logger?.error(errorMessage, '\n', failureDetails)
         return `${errorMessage}\n${failureDetails}`
       }
     } else if (err.hasOwnProperty('message')) {
@@ -36,8 +38,8 @@ export function displayError(err: any, errorMessage: string = '') {
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
 
-    process.logger?.error(errorMessage, failureDetails)
-    if (err instanceof Error) {
+    process.logger?.error(errorMessage, '\n', failureDetails)
+    if (err instanceof Error && process.env.LOG_LEVEL === LogLevel.Debug) {
       process.logger?.error(err.stack || '')
     }
     return `${errorMessage}\n${failureDetails}`
