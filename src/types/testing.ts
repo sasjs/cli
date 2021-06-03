@@ -26,6 +26,7 @@ export interface Coverage {
 export interface TestResultDescription {
   TEST_DESCRIPTION: string
   TEST_RESULT: TestResultStatus.pass | TestResultStatus.fail
+  TEST_COMMENT?: string
 }
 
 export enum TestResultStatus {

@@ -47,8 +47,8 @@ describe('sasjs test', () => {
     done()
   })
 
-  it('should execute tests and create result CSV and JSON files using default source and output locations', async () => {
-    const expectedResultsJSON = {
+  it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
+    const expectedResultsJson = {
       sasjs_test_meta: [
         {
           test_target: 'testsetup',
@@ -139,7 +139,7 @@ describe('sasjs test', () => {
         }
       ]
     }
-    const expectedResultsCSV = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
+    const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
 testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477"")"
 exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/exampleprogram.test&_debug=2477"")"
 standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477"")"
@@ -154,18 +154,18 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
     await runTest(command)
 
     const resultsFolderPath = path.join(__dirname, target.name, 'sasjsresults')
-    const resultsJSONPath = path.join(resultsFolderPath, 'testResults.json')
+    const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
 
     await expect(folderExists(resultsFolderPath)).resolves.toEqual(true)
-    await expect(fileExists(resultsJSONPath)).resolves.toEqual(true)
+    await expect(fileExists(resultsJsonPath)).resolves.toEqual(true)
 
-    const resultsJSON = await readFile(resultsJSONPath)
+    const resultsJson = await readFile(resultsJsonPath)
 
-    const resultsCSVPath = path.join(resultsFolderPath, 'testResults.csv')
+    const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
 
-    await expect(fileExists(resultsCSVPath)).resolves.toEqual(true)
+    await expect(fileExists(resultsCsvPath)).resolves.toEqual(true)
 
-    let parsedResults = JSON.parse(resultsJSON)
+    let parsedResults = JSON.parse(resultsJson)
 
     parsedResults.sasjs_test_meta = parsedResults.sasjs_test_meta.flatMap(
       (res: TestDescription) => ({
@@ -177,19 +177,27 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
       })
     )
 
-    expect(parsedResults).toEqual(expectedResultsJSON)
+    expect(parsedResults).toEqual(expectedResultsJson)
 
-    let resultsCSV = await readFile(resultsCSVPath)
-    resultsCSV = resultsCSV.replace(
+    let resultsCsv = await readFile(resultsCsvPath)
+    resultsCsv = resultsCsv.replace(
       /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/g,
       'sasjs_test_id'
     )
 
-    expect(resultsCSV).toEqual(expectedResultsCSV)
+    expect(resultsCsv).toEqual(expectedResultsCsv)
+
+    const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
+
+    await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
+
+    const resultsXml = await readFile(resultsXmlPath)
+
+    // TODO: test resultsXml
   })
 
-  it('should execute filtered tests and create result CSV and JSON files using custom source and output locations', async () => {
-    const expectedResultsJSON = {
+  it('should execute filtered tests and create result CSV, XML and JSON files using custom source and output locations', async () => {
+    const expectedResultsJson = {
       sasjs_test_meta: [
         {
           test_target: 'testsetup',
@@ -242,7 +250,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
         }
       ]
     }
-    const expectedResultsCSV = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
+    const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
 testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477"")"
 standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477"")"
 dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477"")"
@@ -264,18 +272,18 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
     await runTest(command)
 
     const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
-    const resultsJSONPath = path.join(resultsFolderPath, 'testResults.json')
+    const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
 
     await expect(folderExists(resultsFolderPath)).resolves.toEqual(true)
-    await expect(fileExists(resultsJSONPath)).resolves.toEqual(true)
+    await expect(fileExists(resultsJsonPath)).resolves.toEqual(true)
 
-    const resultsJSON = await readFile(resultsJSONPath)
+    const resultsJson = await readFile(resultsJsonPath)
 
-    const resultsCSVPath = path.join(resultsFolderPath, 'testResults.csv')
+    const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
 
-    await expect(fileExists(resultsCSVPath)).resolves.toEqual(true)
+    await expect(fileExists(resultsCsvPath)).resolves.toEqual(true)
 
-    let parsedResults = JSON.parse(resultsJSON)
+    let parsedResults = JSON.parse(resultsJson)
 
     parsedResults.sasjs_test_meta = parsedResults.sasjs_test_meta.flatMap(
       (res: TestDescription) => ({
@@ -287,15 +295,15 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
       })
     )
 
-    expect(parsedResults).toEqual(expectedResultsJSON)
+    expect(parsedResults).toEqual(expectedResultsJson)
 
-    let resultsCSV = await readFile(resultsCSVPath)
-    resultsCSV = resultsCSV.replace(
+    let resultsCsv = await readFile(resultsCsvPath)
+    resultsCsv = resultsCsv.replace(
       /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/g,
       'sasjs_test_id'
     )
 
-    expect(resultsCSV).toEqual(expectedResultsCSV)
+    expect(resultsCsv).toEqual(expectedResultsCsv)
 
     const logFolder = path.join(resultsFolderPath, 'logs')
 
@@ -312,6 +320,14 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
     const log = await readFile(logPath)
 
     expect(log.length).toBeGreaterThan(0)
+
+    const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
+
+    await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
+
+    const resultsXml = await readFile(resultsXmlPath)
+
+    // TODO: test resultsXml
   })
 })
 
