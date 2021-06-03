@@ -1,5 +1,5 @@
 import path from 'path'
-import { createFile } from '@sasjs/utils'
+import { createFile, generateTimestamp } from '@sasjs/utils'
 import { sasFileRegExp } from '../../utils/file'
 import { displayError } from '../../utils/displayResult'
 import stringify from 'csv-stringify'
@@ -11,7 +11,6 @@ import {
   TestResultStatus
 } from '../../types'
 import xml from 'xml'
-import { generateTimestamp } from '../../utils/utils'
 
 const resultFileName = 'testResults'
 

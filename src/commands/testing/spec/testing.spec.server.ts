@@ -7,12 +7,12 @@ import {
   LogLevel,
   Target,
   ServerType,
-  listFilesInFolder
+  listFilesInFolder,
+  generateTimestamp
 } from '@sasjs/utils'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { copy, folderExists, fileExists, readFile } from '../../../utils/file'
 import { Command } from '../../../utils/command'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
