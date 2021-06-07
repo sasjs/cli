@@ -4,7 +4,7 @@ import { Configuration, Target, TargetJson, urlOrigin } from '@sasjs/utils'
 import { readFile, folderExists, createFile, fileExists } from './file'
 import {
   isAccessTokenExpiring,
-  isRefreshTokenExpired,
+  isRefreshTokenExpiring,
   getNewAccessToken,
   refreshTokens
 } from './auth'
@@ -597,10 +597,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
 
     let authConfig
 
-    if (refreshToken && !isRefreshTokenExpired(refreshToken)) {
-      authConfig = await refreshTokens(sasjs, client, secret, refreshToken)
-    } else {
+    if (isRefreshTokenExpiring(refreshToken)) {
       authConfig = await getNewAccessToken(sasjs, client, secret, target)
+    } else {
+      authConfig = await refreshTokens(sasjs, client, secret, refreshToken!)
     }
 
     accessToken = authConfig?.access_token

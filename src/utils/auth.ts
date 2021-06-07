@@ -46,7 +46,7 @@ export function isAccessTokenExpiring(token: string): boolean {
  * to make a request for a final Access Token.
  * @param {string} token- token string that will be evaluated
  */
-export function isRefreshTokenExpired(token: string): boolean {
+export function isRefreshTokenExpiring(token?: string): boolean {
   if (!token) {
     return true
   }
