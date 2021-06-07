@@ -11,13 +11,9 @@ import {
   saveToDefaultLocation,
   getRealPath
 } from '../../utils/file'
-import {
-  generateTimestamp,
-  parseLogLines,
-  millisecondsToDdHhMmSs
-} from '../../utils/utils'
+import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'

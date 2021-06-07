@@ -1,5 +1,4 @@
 import {
-  generateTimestamp,
   parseLogLines,
   millisecondsToDdHhMmSs,
   inExistingProject,
@@ -11,43 +10,6 @@ import path from 'path'
 
 describe('utils', () => {
   const folderPath = path.join('src', 'utils', 'spec')
-
-  describe('generateTimestamp', () => {
-    let realDate: DateConstructor
-    beforeAll(() => {
-      const currentDate = new Date('2020-10-02T10:10:10.10Z')
-      realDate = Date
-      global.Date = class extends Date {
-        constructor(date: string) {
-          if (date) {
-            return super(date) as any
-          }
-
-          return currentDate
-        }
-      } as DateConstructor
-    })
-
-    test('should generate a timestamp in the correct format', () => {
-      const expectedTimestamp = '20201002101010'
-
-      const timestamp = generateTimestamp()
-
-      expect(timestamp).toEqual(expectedTimestamp)
-    })
-
-    test('should generate a timestamp separated by _', () => {
-      const expectedTimestamp = '2020_10_02_10_10_10'
-
-      const timestamp = generateTimestamp('_')
-
-      expect(timestamp).toEqual(expectedTimestamp)
-    })
-
-    afterAll(() => {
-      global.Date = realDate
-    })
-  })
 
   describe('parseLogLines', () => {
     test('should generate plain text log from json', () => {

@@ -1,8 +1,7 @@
 import { Folder } from '../../../types'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { createTestApp, removeTestApp, verifyFolder } from '../../../utils/test'
-import { asyncForEach } from '@sasjs/utils'
-import { generateTimestamp } from '../../../utils/utils'
+import { asyncForEach, generateTimestamp } from '@sasjs/utils'
 import * as getAllServiceFoldersModule from '../internal/getAllServiceFolders'
 import * as compileModule from '../compile'
 
