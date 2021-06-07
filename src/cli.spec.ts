@@ -6,11 +6,10 @@ import {
   mockProcessExit,
   removeTestApp
 } from './utils/test'
-import { generateTimestamp } from './utils/utils'
 import * as mainModule from './main'
 import { ReturnCode } from './main'
 import { Command } from './utils/command'
-import { Target } from '@sasjs/utils'
+import { Target, generateTimestamp } from '@sasjs/utils'
 
 describe('CLI command parsing', () => {
   let target: Target

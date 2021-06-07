@@ -1,4 +1,4 @@
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { readFile } from '../../../utils/file'
@@ -7,7 +7,6 @@ import {
   createTestMinimalApp,
   removeTestApp
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides

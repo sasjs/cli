@@ -8,7 +8,7 @@ import {
   unifyFilePath,
   getRelativePath
 } from '../file'
-import { generateTimestamp } from '../utils'
+import { generateTimestamp } from '@sasjs/utils'
 
 describe('file utility', () => {
   describe('createFile', () => {

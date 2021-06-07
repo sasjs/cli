@@ -2,8 +2,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { processServicepack } from '..'
 import { folder } from '../../folder/index'
-import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig

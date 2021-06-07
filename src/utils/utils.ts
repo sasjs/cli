@@ -306,26 +306,6 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
   return logLines
 }
 
-/**
- * Returns a timestamp in YYYYMMDDSS format
- */
-export function generateTimestamp(sep = ''): string {
-  const date = new Date()
-
-  const timestamp = [
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds()
-  ]
-    .map((item) => padWithNumber(item))
-    .join(sep)
-
-  return timestamp
-}
-
 export const arrToObj = (arr: any[]): any =>
   arr.reduce((o, key) => ({ ...o, [key]: key }), {})
 
