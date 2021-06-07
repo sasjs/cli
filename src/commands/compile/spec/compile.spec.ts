@@ -1,5 +1,5 @@
 import path from 'path'
-import { Target } from '@sasjs/utils'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
   findTargetInConfiguration,
@@ -14,7 +14,6 @@ import {
   updateConfig,
   updateTarget
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   createFolder,
   readFile,

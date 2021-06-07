@@ -1,5 +1,5 @@
 import path from 'path'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import * as internalModule from '../internal/config'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
@@ -7,7 +7,6 @@ import {
   createTestMinimalApp,
   removeTestApp
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import { loadDependencies } from '../internal/loadDependencies'
 
 const fakeInit = `/**

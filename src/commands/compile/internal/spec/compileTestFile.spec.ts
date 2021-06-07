@@ -4,14 +4,13 @@ import {
   compileTestFile,
   compileTestFlow
 } from '../compileTestFile'
-import { Logger, LogLevel, Target } from '@sasjs/utils'
+import { Logger, LogLevel, Target, generateTimestamp } from '@sasjs/utils'
 import {
   removeTestApp,
   createTestMinimalApp,
   createTestGlobalTarget
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
-import { generateTimestamp } from '../../../../utils/utils'
 import {
   copy,
   readFile,
