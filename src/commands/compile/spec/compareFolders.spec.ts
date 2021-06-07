@@ -1,6 +1,6 @@
 import path from 'path'
 import { createFile, createFolder, deleteFolder } from '../../../utils/file'
-import { generateTimestamp } from '../../../utils/utils'
+import { generateTimestamp } from '@sasjs/utils'
 import { compareFolders } from '../internal/compareFolders'
 
 describe('compareFolders', () => {

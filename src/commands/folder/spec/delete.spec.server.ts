@@ -1,7 +1,6 @@
 import { folder } from '../index'
 import * as deleteFolderModule from '../delete'
-import { generateTimestamp } from '../../../utils/utils'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import {

@@ -7,9 +7,8 @@ import {
   updateTarget,
   verifyFolder
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import { Folder } from '../../../types'
-import { StreamConfig } from '@sasjs/utils/types/config'
+import { StreamConfig, generateTimestamp } from '@sasjs/utils'
 
 export const webBuiltFiles: Folder = {
   folderName: 'sasjsbuild',

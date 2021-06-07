@@ -4,8 +4,13 @@ import { processJob, processContext } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { folderExists, fileExists, readFile, copy } from '../../../utils/file'
-import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target } from '@sasjs/utils/types'
+import {
+  ServerType,
+  Target,
+  Logger,
+  LogLevel,
+  generateTimestamp
+} from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -16,7 +21,6 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 
 describe('sasjs job execute', () => {
   let target: Target

@@ -1,6 +1,6 @@
 import path from 'path'
 import { createTestApp, removeTestApp, verifyStep } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
+import { generateTimestamp } from '@sasjs/utils'
 import { buildDB } from '../db'
 
 describe(`sasjs db`, () => {
