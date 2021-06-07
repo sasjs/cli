@@ -191,9 +191,50 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
 
     await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
 
-    const resultsXml = await readFile(resultsXmlPath)
+    let resultsXml = await readFile(resultsXmlPath)
 
-    // TODO: test resultsXml
+    const expectedResultsXml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<testsuites id="" name=\"SASjs Test Meta\" tests=\"7\" failures=\"5\">
+  <testsuite id=\"testsetup\" name=\"testsetup\" tests=\"1\" failures=\"1\">
+    <testcase id="">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"exampleprogram\" name=\"exampleprogram\" tests=\"1\" failures=\"1\">
+    <testcase id="">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"standalone\" name=\"standalone\" tests=\"1\" failures=\"1\">
+    <testcase id="">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"examplemacro\" name=\"examplemacro\" tests=\"1\" failures=\"0\">
+    <testcase id=\"\">
+    </testcase>
+  </testsuite>
+  <testsuite id=\"dostuff\" name=\"dostuff\" tests=\"2\" failures=\"1\">
+    <testcase id="">
+      <failure>Description: dostuff 0 test description</failure>
+    </testcase>
+    <testcase id="">
+    </testcase>
+  </testsuite>
+  <testsuite id=\"testteardown\" name=\"testteardown\" tests=\"1\" failures=\"1\">
+    <testcase id="">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+</testsuites>`
+
+    resultsXml = resultsXml.replace(
+      /testsuites id="[^ ]*"/gm,
+      `testsuites id=""`
+    )
+    resultsXml = resultsXml.replace(/testcase id="[^ ]*"/gm, `testcase id=""`)
+
+    expect(resultsXml).toEqual(expectedResultsXml)
   })
 
   it('should execute filtered tests and create result CSV, XML and JSON files using custom source and output locations', async () => {
@@ -325,9 +366,39 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
 
     await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
 
-    const resultsXml = await readFile(resultsXmlPath)
+    let resultsXml = await readFile(resultsXmlPath)
 
-    // TODO: test resultsXml
+    const expectedResultsXml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<testsuites id=\"\" name=\"SASjs Test Meta\" tests=\"4\" failures=\"4\">
+  <testsuite id=\"testsetup\" name=\"testsetup\" tests=\"1\" failures=\"1\">
+    <testcase id=\"\">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"standalone\" name=\"standalone\" tests=\"1\" failures=\"1\">
+    <testcase id=\"\">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"dostuff\" name=\"dostuff\" tests=\"1\" failures=\"1\">
+    <testcase id=\"\">
+      <failure>Description: dostuff 0 test description</failure>
+    </testcase>
+  </testsuite>
+  <testsuite id=\"testteardown\" name=\"testteardown\" tests=\"1\" failures=\"1\">
+    <testcase id=\"\">
+      <failure>Status was not provided</failure>
+    </testcase>
+  </testsuite>
+</testsuites>`
+
+    resultsXml = resultsXml.replace(
+      /testsuites id="[^ ]*"/gm,
+      `testsuites id=""`
+    )
+    resultsXml = resultsXml.replace(/testcase id="[^ ]*"/gm, `testcase id=""`)
+
+    expect(resultsXml).toEqual(expectedResultsXml)
   })
 })
 
