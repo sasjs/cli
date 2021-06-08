@@ -46,10 +46,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "2.2.19",
+    "@sasjs/adapter": "2.6.0",
     "@sasjs/core": "2.32.3",
     "@sasjs/lint": "1.10.0",
-    "@sasjs/utils": "2.16.0",
+    "@sasjs/utils": "2.18.0",
     "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
     "chalk": "4.1.1",

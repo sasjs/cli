@@ -107,11 +107,19 @@ describe('sasjs flow', () => {
       const filesInLogFolder = await readdir(logPath)
       const logFilePath = path.join(logPath, filesInLogFolder[0])
 
-      const content = await readFile(logFilePath)
+      const logContent = await readFile(logFilePath)
       let count = 0
-      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+      for (let i = 0; i < logContent.length; i++) {
+        if (logContent[i] === '\n') count++
+      }
 
       expect(count).toBeGreaterThan(largeLogFileLines)
+      expect(/GLOBAL TEST_VAR_1 test_var_value_1/.test(logContent)).toEqual(
+        true
+      )
+      expect(/GLOBAL TEST_VAR_2 test_var_value_2/.test(logContent)).toEqual(
+        true
+      )
 
       done()
     },
