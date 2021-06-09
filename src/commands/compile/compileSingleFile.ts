@@ -77,7 +77,7 @@ export async function compileSingleFile(
   await copy(sourcePath, destinationPath)
 
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
-  const macroFolders = await getMacroFolders(target?.name)
+  const macroFolders = await getMacroFolders(target)
   const programFolders = await getProgramFolders(target)
   const psMaxOption = 'options ps=max;'
   const programVar = insertProgramVar
