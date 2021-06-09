@@ -1,8 +1,12 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { verifyFolder } from '../../../utils/test'
-import { createFolder, deleteFolder, readFile } from '../../../utils/file'
-import { generateTimestamp } from '@sasjs/utils'
+import {
+  createFolder,
+  deleteFolder,
+  readFile,
+  generateTimestamp
+} from '@sasjs/utils'
 import { initFiles } from './initFiles'
 import { create } from '../../create/create'
 import { init } from '../init'
@@ -68,6 +72,6 @@ const verifyInit = async () => {
 
   const gitIgnoreFilePath = path.join(process.projectDir, '.gitignore')
   const gitIgnoreContent = await readFile(gitIgnoreFilePath)
-  expect(gitIgnoreContent.match(/^sasjsbuild\//gm).length).toEqual(1)
-  expect(gitIgnoreContent.match(/^node_modules\//gm).length).toEqual(1)
+  expect(gitIgnoreContent.match(/^sasjsbuild\//gm)!.length).toEqual(1)
+  expect(gitIgnoreContent.match(/^node_modules\//gm)!.length).toEqual(1)
 }

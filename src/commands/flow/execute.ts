@@ -3,14 +3,12 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import {
   fileExists,
   readFile,
-  isJsonFile,
-  isCsvFile,
   createFile,
   folderExists,
   createFolder,
-  saveToDefaultLocation,
   getRealPath
-} from '../../utils/file'
+} from '@sasjs/utils'
+import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
 import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
 import { getAccessToken } from '../../utils/config'
 import { Target, generateTimestamp } from '@sasjs/utils'
@@ -53,17 +51,17 @@ export async function execute(
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
-    let sourceConfig = await readFile(source).catch((err) =>
+    let sourceConfig: any = await readFile(source).catch((err) =>
       displayError(err, 'Error while reading source file.')
     )
 
     try {
-      sourceConfig = JSON.parse(sourceConfig)
+      sourceConfig = JSON.parse(sourceConfig as string)
     } catch (_) {
       return reject(examples.source)
     }
 
-    let flows = sourceConfig.flows
+    let flows = sourceConfig?.flows
 
     if (!flows) return reject(examples.source)
 
@@ -415,7 +413,7 @@ export async function execute(
               )
             }
 
-            let csvData = await readFile(csvFileRealPath).catch((err) =>
+            let csvData: any = await readFile(csvFileRealPath).catch((err) =>
               displayError(err, 'Error while reading CSV file.')
             )
 

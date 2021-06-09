@@ -15,9 +15,10 @@ import {
   folderExists,
   copy,
   deleteFolder,
-  deleteFile
-} from '../../../utils/file'
-import { DocConfig, generateTimestamp } from '@sasjs/utils'
+  deleteFile,
+  DocConfig,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs doc', () => {
   let appName: string

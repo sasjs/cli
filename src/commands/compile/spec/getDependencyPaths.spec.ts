@@ -1,7 +1,7 @@
 import { Target, generateTimestamp } from '@sasjs/utils'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,
@@ -132,6 +132,22 @@ describe('getDependencyPaths', () => {
     const result = prioritiseDependencyOverrides(
       dependencyNames,
       dependencyPaths
+    )
+
+    expect(result).toEqual(['sas/macros/mf_abort.sas'])
+  })
+
+  test('it should prioritise overridden dependencies, if both are non-core', () => {
+    const dependencyNames = ['mf_abort.sas']
+    const dependencyPaths = [
+      'sas/macros/mf_abort.sas',
+      'sas/macros2/mf_abort.sas'
+    ]
+
+    const result = prioritiseDependencyOverrides(
+      dependencyNames,
+      dependencyPaths,
+      ['macros', 'macros2']
     )
 
     expect(result).toEqual(['sas/macros/mf_abort.sas'])

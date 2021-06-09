@@ -1,5 +1,5 @@
 import path from 'path'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 import {
   getProgramDependencies,
   getProgramList,
@@ -24,8 +24,7 @@ describe('getProgramDependencies', () => {
 
     const dependencies = await getProgramDependencies(
       fileContent,
-      ['programs'],
-      __dirname,
+      [path.join(__dirname, 'programs')],
       filePath
     )
     const actualLines = dependencies.split('\n')
@@ -41,8 +40,7 @@ describe('getProgramDependencies', () => {
 
     const dependencies = await getProgramDependencies(
       fileContent,
-      ['programs'],
-      __dirname,
+      [path.join(__dirname, 'programs')],
       filePath
     )
     const actualLines = dependencies.split('\n')
@@ -71,8 +69,7 @@ describe('getProgramDependencies', () => {
 
     const dependencies = await getProgramDependencies(
       fileContent,
-      ['programs'],
-      __dirname,
+      [path.join(__dirname, 'programs')],
       filePath
     )
     const actualLines = dependencies.split('\n')
@@ -87,7 +84,11 @@ describe('getProgramDependencies', () => {
     const fileContent = await readFile(filePath)
 
     await expect(
-      getProgramDependencies(fileContent, ['programs'], __dirname, filePath)
+      getProgramDependencies(
+        fileContent,
+        [path.join(__dirname, 'programs')],
+        filePath
+      )
     ).rejects.toThrow(
       `SAS Program test.sas is missing fileref. Please specify SAS program dependencies in the format: @li <filename> <fileref>`
     )

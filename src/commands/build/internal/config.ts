@@ -2,7 +2,7 @@ import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
 import { getConfiguration } from '../../../utils/config'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 
 export const getBuildInit = async (target: Target) => {
   const { buildSourceFolder } = await getConstants()
