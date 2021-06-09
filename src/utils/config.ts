@@ -10,7 +10,6 @@ import {
   createFile,
   fileExists
 } from '@sasjs/utils'
-import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
@@ -591,10 +590,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
 
     let authConfig
 
-    if (refreshToken) {
-      authConfig = await refreshTokens(sasjs, client, secret, refreshToken)
-    } else {
+    if (isRefreshTokenExpiring(refreshToken)) {
       authConfig = await getNewAccessToken(sasjs, client, secret, target)
+    } else {
+      authConfig = await refreshTokens(sasjs, client, secret, refreshToken!)
     }
 
     accessToken = authConfig?.access_token
