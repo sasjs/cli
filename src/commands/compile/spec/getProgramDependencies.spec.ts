@@ -1,5 +1,5 @@
 import path from 'path'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 import {
   getProgramDependencies,
   getProgramList,

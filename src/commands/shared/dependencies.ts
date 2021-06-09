@@ -2,9 +2,9 @@ import path from 'path'
 import find from 'find'
 import uniqBy from 'lodash.uniqby'
 import groupBy from 'lodash.groupby'
+import { folderExists, readFile, asyncForEach } from '@sasjs/utils'
+import { getList } from '../../utils/file'
 import { getMacroCorePath } from '../../utils/config'
-import { getList, folderExists, readFile } from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils'
 import { diff, chunk } from '../../utils/utils'
 
 export async function getDependencyPaths(

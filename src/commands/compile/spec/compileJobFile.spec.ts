@@ -9,7 +9,7 @@ import {
   verifyCompiledJob
 } from '../../../utils/test'
 import { compileJobFile } from '../internal/compileJobFile'
-import { copy, fileExists, createFolder, readFile } from '../../../utils/file'
+import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
 const fakeJobInit = `/**
   @file

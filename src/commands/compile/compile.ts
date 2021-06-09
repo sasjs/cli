@@ -6,16 +6,17 @@ import {
   getTestTearDown
 } from '../../utils/config'
 import {
-  getSubFoldersInFolder,
-  getFilesInFolder,
-  copy,
+  listSubFoldersInFolder,
+  listFilesInFolder,
   fileExists,
   deleteFolder,
   createFolder,
-  isSasFile,
-  folderExists
-} from '../../utils/file'
-import { asyncForEach, listFilesAndSubFoldersInFolder } from '@sasjs/utils'
+  folderExists,
+  copy,
+  asyncForEach,
+  listFilesAndSubFoldersInFolder
+} from '@sasjs/utils'
+import { isSasFile } from '../../utils/file'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'
@@ -173,8 +174,8 @@ const compileServiceFolder = async (
   programFolders: string[]
 ) => {
   const destinationPath = await getDestinationServicePath(serviceFolder)
-  const subFolders = await getSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await getFilesInFolder(destinationPath)
+  const subFolders = await listSubFoldersInFolder(destinationPath)
+  const filesNamesInPath = await listFilesInFolder(destinationPath)
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
@@ -187,7 +188,7 @@ const compileServiceFolder = async (
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await getFilesInFolder(
+    const fileNames = await listFilesInFolder(
       path.join(serviceFolder, subFolder)
     )
 
@@ -210,8 +211,8 @@ const compileJobFolder = async (
   programFolders: string[]
 ) => {
   const destinationPath = await getDestinationJobPath(jobFolder)
-  const subFolders = await getSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await getFilesInFolder(destinationPath)
+  const subFolders = await listSubFoldersInFolder(destinationPath)
+  const filesNamesInPath = await listFilesInFolder(destinationPath)
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
@@ -222,7 +223,7 @@ const compileJobFolder = async (
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await getFilesInFolder(path.join(jobFolder, subFolder))
+    const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
 
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)

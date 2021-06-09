@@ -1,7 +1,15 @@
 import SASjs from '@sasjs/adapter/node'
 import { getConstants } from '../constants'
-import { Configuration, Target, TargetJson, urlOrigin } from '@sasjs/utils'
-import { readFile, folderExists, createFile, fileExists } from './file'
+import {
+  Configuration,
+  Target,
+  TargetJson,
+  urlOrigin,
+  readFile,
+  folderExists,
+  createFile,
+  fileExists
+} from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
   isRefreshTokenExpiring,

@@ -1,7 +1,7 @@
 import { Target, generateTimestamp } from '@sasjs/utils'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,

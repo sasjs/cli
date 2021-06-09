@@ -1,6 +1,6 @@
 import path from 'path'
 import { getProgramFolders, getMacroFolders } from '../../utils/config'
-import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
+import { fileExists, deleteFolder, createFolder, copy } from '@sasjs/utils'
 import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'

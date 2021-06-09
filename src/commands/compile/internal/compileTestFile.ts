@@ -4,13 +4,9 @@ import { getConstants } from '../../../constants'
 import {
   createFile,
   copy,
-  getFilesInFolder,
-  fileExists
-} from '../../../utils/file'
-import { loadDependencies } from './loadDependencies'
-import { createFolder, sasFileRegExp } from '../../../utils/file'
-import chalk from 'chalk'
-import {
+  listFilesInFolder,
+  fileExists,
+  createFolder,
   Target,
   asyncForEach,
   moveFile,
@@ -19,6 +15,9 @@ import {
   listFilesAndSubFoldersInFolder,
   pathSepEscaped
 } from '@sasjs/utils'
+import { loadDependencies } from './loadDependencies'
+import { sasFileRegExp } from '../../../utils/file'
+import chalk from 'chalk'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>
@@ -69,7 +68,7 @@ export async function moveTestFile(filePath: string) {
     .slice(0, filePath.split(path.sep).length - 1)
     .join(path.sep)
 
-  if ((await getFilesInFolder(sourceFolder)).length === 0) {
+  if ((await listFilesInFolder(sourceFolder)).length === 0) {
     await deleteFolder(sourceFolder)
   }
 }

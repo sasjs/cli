@@ -1,6 +1,5 @@
-import { Target, asyncForEach } from '@sasjs/utils'
+import { Target, asyncForEach, readFile } from '@sasjs/utils'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
-import { readFile } from '../../../utils/file'
 import { chunk } from '../../../utils/utils'
 import {
   getDependencyPaths,
