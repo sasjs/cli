@@ -36,12 +36,6 @@ export async function createFolderStructure(folder, parentFolderName = '.') {
   }
 }
 
-export async function listIniFilesInFolder(folderName) {
-  return (await listFilesInFolder(folderName)).filter((name) =>
-    name.endsWith('.ini')
-  )
-}
-
 export function unifyFilePath(filePath, separator = path.sep, replace = '/') {
   const separators = { unix: '/', win: '\\' }
 

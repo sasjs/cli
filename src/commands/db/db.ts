@@ -3,13 +3,13 @@ import {
   readFile,
   listSubFoldersInFolder,
   listFilesInFolder,
+  listIniFilesInFolder,
   createFile,
   createFolder,
   deleteFolder,
   fileExists,
   asyncForEach
 } from '@sasjs/utils'
-import { listIniFilesInFolder } from '../../utils/file'
 import { getConstants } from '../../constants'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
