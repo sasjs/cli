@@ -10,6 +10,12 @@ import {
   createFile,
   fileExists
 } from '@sasjs/utils'
+import {
+  isAccessTokenExpiring,
+  isRefreshTokenExpiring,
+  getNewAccessToken,
+  refreshTokens
+} from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
