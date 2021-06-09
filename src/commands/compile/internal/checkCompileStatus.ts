@@ -52,18 +52,14 @@ export async function checkCompileStatus(
  */
 const checkServiceFolders = async (target: Target, exceptions?: string[]) => {
   const serviceFolders = await getAllServiceFolders(target)
-  const { buildSourceFolder } = await getConstants()
 
   let areServiceFoldersMatching = true
   const reasons: string[] = []
   await asyncForEach(serviceFolders, async (serviceFolder) => {
-    const sourcePath = path.isAbsolute(serviceFolder)
-      ? serviceFolder
-      : path.join(buildSourceFolder, serviceFolder)
-    const destinationPath = await getDestinationServicePath(sourcePath)
+    const destinationPath = await getDestinationServicePath(serviceFolder)
 
     const { equal, reason } = await compareFolders(
-      sourcePath,
+      serviceFolder,
       destinationPath,
       exceptions
     )
@@ -84,18 +80,14 @@ const checkServiceFolders = async (target: Target, exceptions?: string[]) => {
  */
 const checkJobFolders = async (target: Target, exceptions?: string[]) => {
   const jobFolders = await getAllJobFolders(target)
-  const { buildSourceFolder } = await getConstants()
 
   let areJobFoldersMatching = true
   const reasons: string[] = []
   await asyncForEach(jobFolders, async (jobFolder) => {
-    const sourcePath = path.isAbsolute(jobFolder)
-      ? jobFolder
-      : path.join(buildSourceFolder, jobFolder)
-    const destinationPath = await getDestinationJobPath(sourcePath)
+    const destinationPath = await getDestinationJobPath(jobFolder)
 
     const { equal, reason } = await compareFolders(
-      sourcePath,
+      jobFolder,
       destinationPath,
       exceptions
     )
