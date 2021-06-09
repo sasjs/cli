@@ -12,16 +12,17 @@ import {
 import * as authUtils from '../auth'
 import * as fileUtils from '@sasjs/utils/file'
 import dotenv from 'dotenv'
-import { Configuration, Target } from '@sasjs/utils/types'
+import path from 'path'
 import {
   createFile,
   deleteFile,
   Logger,
   LogLevel,
-  SasAuthResponse
+  SasAuthResponse,
+  Configuration,
+  Target,
+  generateTimestamp
 } from '@sasjs/utils'
-import path from 'path'
-import { generateTimestamp } from '../utils'
 import {
   createTestMinimalApp,
   generateTestTarget,

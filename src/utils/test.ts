@@ -47,6 +47,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
 
 export const createTestMinimalApp = async (

@@ -1,7 +1,6 @@
 import path from 'path'
 import dotenv from 'dotenv'
 import { compileBuildDeployServices } from '../../../main'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   fileExists,
   readFile,
@@ -20,8 +19,13 @@ import {
 } from '../../../utils/config'
 import examples from '../examples'
 import { Command } from '../../../utils/command'
-import { ServerType, Target } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import {
+  ServerType,
+  Target,
+  Logger,
+  LogLevel,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs flow', () => {
   let target: Target

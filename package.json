@@ -66,7 +66,8 @@
     "node-graphviz": "0.1.0",
     "ora": "5.4.0",
     "rimraf": "3.0.2",
-    "shelljs": "0.8.4"
+    "shelljs": "0.8.4",
+    "xml": "^1.0.1"
   },
   "devDependencies": {
     "@babel/preset-env": "7.14.1",
@@ -80,6 +81,7 @@
     "@types/lodash.uniqby": "4.7.6",
     "@types/node": "14.14.44",
     "@types/shelljs": "0.8.8",
+    "@types/xml": "^1.0.5",
     "babel-jest": "26.6.3",
     "copyfiles": "2.4.1",
     "jest": "26.6.3",

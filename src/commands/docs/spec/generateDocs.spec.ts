@@ -1,5 +1,4 @@
 import path from 'path'
-
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
 import {
@@ -12,10 +11,14 @@ import {
   verifyDotFiles,
   verifyDotFilesNotGenerated
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
-import { folderExists, copy, deleteFolder, deleteFile } from '@sasjs/utils'
-import { getConstants } from '../../../constants'
-import { DocConfig } from '@sasjs/utils/types/config'
+import {
+  folderExists,
+  copy,
+  deleteFolder,
+  deleteFile,
+  DocConfig,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs doc', () => {
   let appName: string

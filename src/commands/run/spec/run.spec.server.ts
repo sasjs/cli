@@ -1,9 +1,13 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { folder, runSasCode } from '../..'
-import { copy, createFolder, deleteFolder } from '@sasjs/utils'
-import { generateTimestamp } from '../../../utils/utils'
-import { Target } from '@sasjs/utils/types'
+import {
+  copy,
+  createFolder,
+  deleteFolder,
+  Target,
+  generateTimestamp
+} from '@sasjs/utils'
 import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {

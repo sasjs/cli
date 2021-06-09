@@ -11,7 +11,9 @@ import {
   copy,
   readFile,
   fileExists,
-  createFile
+  createFile,
+  deleteFile,
+  generateTimestamp
 } from '@sasjs/utils'
 import {
   removeTestApp,
@@ -19,7 +21,6 @@ import {
   createTestGlobalTarget
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
-import { generateTimestamp } from '../../../../utils/utils'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
@@ -39,6 +40,9 @@ describe('compileTestFile', () => {
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
+    await deleteFile(
+      path.join(__dirname, appName, 'sasjs', 'macros', '.gitkeep')
+    )
     await copyTestFiles(appName)
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
@@ -189,10 +193,10 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(18)
-      expect(process.logger.info).toHaveBeenNthCalledWith(16, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenCalledTimes(13)
+      expect(process.logger.info).toHaveBeenNthCalledWith(11, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
-        17,
+        12,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
       expect(process.logger.info).toHaveBeenLastCalledWith(

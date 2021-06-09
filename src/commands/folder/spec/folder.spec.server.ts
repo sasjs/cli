@@ -1,7 +1,6 @@
 import dotenv from 'dotenv'
 import { folder } from '../index'
-import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig

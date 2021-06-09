@@ -8,8 +8,7 @@ import {
   removeTestApp,
   verifyStep
 } from '../../../utils/test'
-import { Target, deleteFile, copy } from '@sasjs/utils'
-import { generateTimestamp } from '../../../utils/utils'
+import { Target, generateTimestamp, deleteFile, copy } from '@sasjs/utils'
 import { compile } from '../../compile/compile'
 import { build } from '../build'
 

@@ -53,7 +53,7 @@ export async function compile(target: Target, forceCompile = false) {
 
   await compileModule.compileJobsServicesTests(target)
 
-  let macroFolders: string[] = await getMacroFolders(target?.name)
+  let macroFolders: string[] = await getMacroFolders(target)
 
   if (macroFolders.length) {
     const programFolders = await getProgramFolders(target)
@@ -102,21 +102,13 @@ export async function copyFilesToBuildFolder(target: Target) {
 
     // REFACTOR
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
-      const sourcePath = path.isAbsolute(serviceFolder)
-        ? serviceFolder
-        : path.join(buildSourceFolder, serviceFolder)
-
-      const destinationPath = await getDestinationServicePath(sourcePath)
-
-      await copy(sourcePath, destinationPath)
+      const destinationPath = await getDestinationServicePath(serviceFolder)
+      await copy(serviceFolder, destinationPath)
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
-      const sourcePath = path.isAbsolute(jobFolder)
-        ? jobFolder
-        : path.join(buildSourceFolder, jobFolder)
-      const destinationPath = await getDestinationJobPath(sourcePath)
-      await copy(sourcePath, destinationPath)
+      const destinationPath = await getDestinationJobPath(jobFolder)
+      await copy(jobFolder, destinationPath)
     })
   } catch (error) {
     process.logger?.error(
@@ -130,7 +122,7 @@ export async function compileJobsServicesTests(target: Target) {
   try {
     const serviceFolders = await getAllServiceFolders(target)
     const jobFolders = await getAllJobFolders(target)
-    const macroFolders = await getMacroFolders(target.name)
+    const macroFolders = await getMacroFolders(target)
     const programFolders = await getProgramFolders(target)
     const testSetUp = await getTestSetUp(target)
     const testTearDown = await getTestTearDown(target)
@@ -181,11 +173,7 @@ const compileServiceFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder } = await getConstants()
-  const folderPath = path.isAbsolute(serviceFolder)
-    ? serviceFolder
-    : path.join(buildSourceFolder, serviceFolder)
-  const destinationPath = await getDestinationServicePath(folderPath)
+  const destinationPath = await getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
@@ -200,7 +188,9 @@ const compileServiceFolder = async (
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await listFilesInFolder(path.join(folderPath, subFolder))
+    const fileNames = await listFilesInFolder(
+      path.join(serviceFolder, subFolder)
+    )
 
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
@@ -220,11 +210,7 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const { buildSourceFolder } = await getConstants()
-  const folderPath = path.isAbsolute(jobFolder)
-    ? jobFolder
-    : path.join(buildSourceFolder, jobFolder)
-  const destinationPath = await getDestinationJobPath(folderPath)
+  const destinationPath = await getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
@@ -237,7 +223,7 @@ const compileJobFolder = async (
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await listFilesInFolder(path.join(folderPath, subFolder))
+    const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
 
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)

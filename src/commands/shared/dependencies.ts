@@ -2,27 +2,16 @@ import path from 'path'
 import find from 'find'
 import uniqBy from 'lodash.uniqby'
 import groupBy from 'lodash.groupby'
-import { getConstants } from '../../constants'
-import { getSourcePaths } from '../../utils/config'
 import { folderExists, readFile, asyncForEach } from '@sasjs/utils'
 import { getList } from '../../utils/file'
+import { getMacroCorePath } from '../../utils/config'
 import { diff, chunk } from '../../utils/utils'
 
 export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const { buildSourceFolder } = await getConstants()
-  const sourcePaths = await getSourcePaths(buildSourceFolder)
-
-  if (macroFolders.length) {
-    macroFolders.forEach((macroFolder) => {
-      const macroPath = path.isAbsolute(macroFolder)
-        ? macroFolder
-        : path.join(buildSourceFolder, macroFolder)
-      sourcePaths.push(macroPath)
-    })
-  }
+  const sourcePaths = [...macroFolders, await getMacroCorePath()]
 
   const dependenciesHeader = fileContent.includes('<h4> SAS Macros </h4>')
     ? '<h4> SAS Macros </h4>'
@@ -81,6 +70,7 @@ export function prioritiseDependencyOverrides(
   macroPaths: string[] = [],
   pathSeparator = path.sep
 ) {
+  dependencyPaths = [...new Set(dependencyPaths)]
   dependencyNames.forEach((depFileName) => {
     const paths = dependencyPaths.filter((p) =>
       p.includes(`${pathSeparator}${depFileName}`)
@@ -95,7 +85,7 @@ export function prioritiseDependencyOverrides(
         return pathExist ? true : false
       })
       if (foundInMacroPaths.length)
-        overriddenDependencyPaths = foundInMacroPaths
+        overriddenDependencyPaths = [foundInMacroPaths[0]]
     }
 
     if (
@@ -108,13 +98,6 @@ export function prioritiseDependencyOverrides(
       dependencyPaths = dependencyPaths.filter(
         (el) => pathsToRemove.indexOf(el) < 0
       )
-      if (overriddenDependencyPaths.length > 1) {
-        // remove duplicates
-        dependencyPaths = dependencyPaths.filter(
-          (p) => p != overriddenDependencyPaths[0]
-        )
-        dependencyPaths.push(overriddenDependencyPaths[0])
-      }
     }
   })
 
@@ -124,7 +107,6 @@ export function prioritiseDependencyOverrides(
 export async function getProgramDependencies(
   fileContent: string,
   programFolders: string[],
-  buildSourceFolder: string,
   filePath: string
 ) {
   programFolders = (uniqBy as any)(programFolders)
@@ -134,17 +116,14 @@ export async function getProgramDependencies(
     const foundProgramNames: string[] = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
-        const folderPath = path.isAbsolute(programFolder)
-          ? programFolder
-          : path.join(buildSourceFolder, programFolder)
-        const filePaths = find.fileSync(program.fileName, folderPath)
+        const filePaths = find.fileSync(program.fileName, programFolder)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
 
           if (!fileContent) {
             process.logger?.warn(
               `Program file ${path.join(
-                folderPath,
+                programFolder,
                 program.fileName
               )} is empty.`
             )

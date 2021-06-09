@@ -1,7 +1,6 @@
 import path from 'path'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import * as internalModule from '../internal/config'
-import * as compileModule from '../compile'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
@@ -9,7 +8,6 @@ import {
   removeTestApp,
   verifyCompiledJob
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import { compileJobFile } from '../internal/compileJobFile'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
@@ -92,8 +90,8 @@ describe('compileJobFile', () => {
       compileJobFile(
         target,
         destinationPath,
-        ['../macros'],
-        ['../', '../services']
+        [path.join(__dirname, './macros')],
+        [path.join(__dirname, './'), path.join(__dirname, './services')]
       )
     ).toResolve()
 
