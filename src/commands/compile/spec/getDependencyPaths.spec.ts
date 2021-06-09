@@ -137,6 +137,22 @@ describe('getDependencyPaths', () => {
     expect(result).toEqual(['sas/macros/mf_abort.sas'])
   })
 
+  test('it should prioritise overridden dependencies, if both are non-core', () => {
+    const dependencyNames = ['mf_abort.sas']
+    const dependencyPaths = [
+      'sas/macros/mf_abort.sas',
+      'sas/macros2/mf_abort.sas'
+    ]
+
+    const result = prioritiseDependencyOverrides(
+      dependencyNames,
+      dependencyPaths,
+      ['macros', 'macros2']
+    )
+
+    expect(result).toEqual(['sas/macros/mf_abort.sas'])
+  })
+
   test('it should prioritise overridden dependencies with windows file paths', () => {
     const dependencyNames = ['mf_abort.sas']
     const dependencyPaths = [
