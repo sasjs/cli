@@ -42,6 +42,7 @@ describe('getAccessToken', () => {
     process.env.ACCESS_TOKEN = undefined
     process.env.CLIENT = undefined
     process.env.SECRET = undefined
+    process.env.REFRESH_TOKEN = undefined
     jest.resetAllMocks()
   })
 
@@ -107,7 +108,7 @@ describe('getAccessToken', () => {
       .spyOn(authUtils, 'isAccessTokenExpiring')
       .mockImplementation(() => true)
     jest
-      .spyOn(authUtils, 'isRefreshTokenExpired')
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
       .mockImplementation(() => false)
     jest.spyOn(authUtils, 'getNewAccessToken')
     jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
@@ -128,7 +129,7 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
-    expect(authUtils.isRefreshTokenExpired).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).toHaveBeenCalledTimes(1)
     expect(authUtils.getNewAccessToken).not.toHaveBeenCalled()
     expect(token).toEqual('N3WT0K3N')
@@ -139,7 +140,7 @@ describe('getAccessToken', () => {
       .spyOn(authUtils, 'isAccessTokenExpiring')
       .mockImplementation(() => true)
     jest
-      .spyOn(authUtils, 'isRefreshTokenExpired')
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
       .mockImplementation(() => true)
     jest.spyOn(authUtils, 'refreshTokens')
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
@@ -160,7 +161,7 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
-    expect(authUtils.isRefreshTokenExpired).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).not.toHaveBeenCalled()
     expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
@@ -169,6 +170,9 @@ describe('getAccessToken', () => {
   it('should get new access token when it is expiring and refresh token is not available', async () => {
     jest
       .spyOn(authUtils, 'isAccessTokenExpiring')
+      .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
       .mockImplementation(() => true)
     jest.spyOn(authUtils, 'refreshTokens')
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
@@ -188,6 +192,7 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).not.toHaveBeenCalled()
     expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
