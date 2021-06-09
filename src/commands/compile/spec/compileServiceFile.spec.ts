@@ -9,7 +9,7 @@ import {
   verifyCompiledService
 } from '../../../utils/test'
 import { compileServiceFile } from '../internal/compileServiceFile'
-import { copy, fileExists, createFolder, readFile } from '../../../utils/file'
+import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
 const fakeJobInit = `/**
   @file
@@ -93,8 +93,8 @@ describe('compileServiceFile', () => {
       compileServiceFile(
         target,
         destinationPath,
-        ['../macros'],
-        ['../', '../services']
+        [path.join(__dirname, './macros')],
+        [path.join(__dirname, './'), path.join(__dirname, './services')]
       )
     ).toResolve()
 

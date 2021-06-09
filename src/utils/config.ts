@@ -1,8 +1,21 @@
 import SASjs from '@sasjs/adapter/node'
 import { getConstants } from '../constants'
-import { Configuration, Target, TargetJson, urlOrigin } from '@sasjs/utils'
-import { readFile, folderExists, createFile, fileExists } from './file'
-import { isAccessTokenExpiring, getNewAccessToken, refreshTokens } from './auth'
+import {
+  Configuration,
+  Target,
+  TargetJson,
+  urlOrigin,
+  readFile,
+  folderExists,
+  createFile,
+  fileExists
+} from '@sasjs/utils'
+import {
+  isAccessTokenExpiring,
+  isRefreshTokenExpiring,
+  getNewAccessToken,
+  refreshTokens
+} from './auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
@@ -384,22 +397,6 @@ export async function getFolders() {
   return Promise.reject()
 }
 
-export async function getSourcePaths(buildSourceFolder: string) {
-  const { configuration } = await getLocalOrGlobalConfig()
-
-  const sourcePaths = configuration?.macroFolders
-    ? configuration.macroFolders.map((macroPath: string) =>
-        path.isAbsolute(macroPath)
-          ? macroPath
-          : path.join(buildSourceFolder, macroPath)
-      )
-    : []
-  const macroCorePath = await getMacroCorePath()
-  sourcePaths.push(macroCorePath)
-
-  return sourcePaths
-}
-
 /**
  * Returns SAS program folders from configuration.
  * This list includes both common and target-specific folders.
@@ -407,10 +404,9 @@ export async function getSourcePaths(buildSourceFolder: string) {
  */
 export async function getProgramFolders(target: Target) {
   let programFolders: string[] = []
-  const projectRoot = await getProjectRoot()
-  const localConfig = await getConfiguration(
-    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
-  ).catch(() => null)
+
+  const localConfig = await getLocalConfig().catch(() => null)
+
   if (localConfig?.programFolders) {
     programFolders = programFolders.concat(localConfig.programFolders)
   }
@@ -419,32 +415,40 @@ export async function getProgramFolders(target: Target) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
+  const { buildSourceFolder } = await getConstants()
+  programFolders = programFolders.map((programFolder) =>
+    path.isAbsolute(programFolder)
+      ? programFolder
+      : path.join(buildSourceFolder, programFolder)
+  )
+
   return [...new Set(programFolders)]
 }
 
 /**
  * Returns SAS macro folders from configuration.
  * This list includes both common and target-specific folders.
- * @param {string} targetName - name of the configuration.
+ * @param {Target} target- the target to check macro folders for.
  */
-export async function getMacroFolders(targetName: string) {
+export async function getMacroFolders(target?: Target) {
   let macroFolders: string[] = []
 
-  if (!targetName) return macroFolders
+  const { configuration: localConfig } = await getLocalOrGlobalConfig()
 
-  const projectRoot = await getProjectRoot()
-  const localConfig = await getConfiguration(
-    path.join(projectRoot, 'sasjs', 'sasjsconfig.json')
-  ).catch(() => null)
   if (localConfig?.macroFolders) {
-    macroFolders = macroFolders.concat(localConfig.macroFolders)
+    macroFolders = localConfig.macroFolders
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
-  if (target.macroFolders) {
-    macroFolders = macroFolders.concat(target.macroFolders)
+  if (target?.macroFolders) {
+    macroFolders = target.macroFolders.concat(macroFolders)
   }
+
+  const { buildSourceFolder } = await getConstants()
+  macroFolders = macroFolders.map((macroFolder) =>
+    path.isAbsolute(macroFolder)
+      ? macroFolder
+      : path.join(buildSourceFolder, macroFolder)
+  )
 
   return [...new Set(macroFolders)]
 }
@@ -592,10 +596,10 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
 
     let authConfig
 
-    if (refreshToken) {
-      authConfig = await refreshTokens(sasjs, client, secret, refreshToken)
-    } else {
+    if (isRefreshTokenExpiring(refreshToken)) {
       authConfig = await getNewAccessToken(sasjs, client, secret, target)
+    } else {
+      authConfig = await refreshTokens(sasjs, client, secret, refreshToken!)
     }
 
     accessToken = authConfig?.access_token

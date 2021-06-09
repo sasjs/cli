@@ -1,5 +1,4 @@
 import path from 'path'
-import { Target, generateTimestamp } from '@sasjs/utils'
 import { compileBuildServices } from '../../../main'
 import { Command } from '../../../utils/command'
 import { removeFromGlobalConfig } from '../../../utils/config'
@@ -9,7 +8,7 @@ import {
   removeTestApp,
   verifyStep
 } from '../../../utils/test'
-import { copy, deleteFile } from '../../../utils/file'
+import { Target, generateTimestamp, deleteFile, copy } from '@sasjs/utils'
 import { compile } from '../../compile/compile'
 import { build } from '../build'
 

@@ -1,7 +1,7 @@
 import path from 'path'
-import { asyncForEach } from '@sasjs/utils'
+import { asyncForEach, fileExists } from '@sasjs/utils'
 import { getFolders } from '../../utils/config'
-import { createFolderStructure, fileExists } from '../../utils/file'
+import { createFolderStructure } from '../../utils/file'
 import { Folder } from '../../types'
 import { createConfigFile } from './createConfigFile'
 

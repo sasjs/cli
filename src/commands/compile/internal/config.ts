@@ -1,5 +1,5 @@
 import { Target } from '@sasjs/utils/types'
-import { readFile } from '../../../utils/file'
+import { readFile } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
