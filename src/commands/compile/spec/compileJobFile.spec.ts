@@ -90,8 +90,8 @@ describe('compileJobFile', () => {
       compileJobFile(
         target,
         destinationPath,
-        ['../macros'],
-        ['../', '../services']
+        [path.join(__dirname, './macros')],
+        [path.join(__dirname, './'), path.join(__dirname, './services')]
       )
     ).toResolve()
 

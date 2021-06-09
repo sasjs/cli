@@ -9,7 +9,11 @@ import {
 } from '../../utils/file'
 import { asyncForEach } from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
-import { getLocalConfig, getMacroCorePath } from '../../utils/config'
+import {
+  getLocalConfig,
+  getMacroCorePath,
+  getMacroFolders
+} from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
@@ -48,12 +52,12 @@ async function createFinalSasFiles(target: Target) {
         throw err
       })
   }
-
   await createFinalSasFile(target, streamConfig)
 }
 
 async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
-  const { buildConfig, serverType, macroFolders, name } = target
+  const { buildConfig, serverType, name } = target
+  const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
   const { buildDestinationFolder } = await getConstants()
@@ -106,7 +110,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 
 async function getBuildInfo(target: Target) {
   let buildConfig = ''
-  const { serverType, appLoc, macroFolders } = target
+  const { serverType, appLoc } = target
+  const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
   const dependencyFilePaths = await getDependencyPaths(

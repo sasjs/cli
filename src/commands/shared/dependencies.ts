@@ -2,8 +2,7 @@ import path from 'path'
 import find from 'find'
 import uniqBy from 'lodash.uniqby'
 import groupBy from 'lodash.groupby'
-import { getConstants } from '../../constants'
-import { getSourcePaths } from '../../utils/config'
+import { getMacroCorePath } from '../../utils/config'
 import { getList, folderExists, readFile } from '../../utils/file'
 import { asyncForEach } from '@sasjs/utils'
 import { diff, chunk } from '../../utils/utils'
@@ -12,17 +11,7 @@ export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const { buildSourceFolder } = await getConstants()
-  const sourcePaths = await getSourcePaths(buildSourceFolder)
-
-  if (macroFolders.length) {
-    macroFolders.forEach((macroFolder) => {
-      const macroPath = path.isAbsolute(macroFolder)
-        ? macroFolder
-        : path.join(buildSourceFolder, macroFolder)
-      sourcePaths.push(macroPath)
-    })
-  }
+  const sourcePaths = [...macroFolders, await getMacroCorePath()]
 
   const dependenciesHeader = fileContent.includes('<h4> SAS Macros </h4>')
     ? '<h4> SAS Macros </h4>'
@@ -124,7 +113,6 @@ export function prioritiseDependencyOverrides(
 export async function getProgramDependencies(
   fileContent: string,
   programFolders: string[],
-  buildSourceFolder: string,
   filePath: string
 ) {
   programFolders = (uniqBy as any)(programFolders)
@@ -134,17 +122,14 @@ export async function getProgramDependencies(
     const foundProgramNames: string[] = []
     await asyncForEach(programFolders, async (programFolder) => {
       await asyncForEach(programs, async (program) => {
-        const folderPath = path.isAbsolute(programFolder)
-          ? programFolder
-          : path.join(buildSourceFolder, programFolder)
-        const filePaths = find.fileSync(program.fileName, folderPath)
+        const filePaths = find.fileSync(program.fileName, programFolder)
         if (filePaths.length) {
           const fileContent = await readFile(filePaths[0])
 
           if (!fileContent) {
             process.logger?.warn(
               `Program file ${path.join(
-                folderPath,
+                programFolder,
                 program.fileName
               )} is empty.`
             )
