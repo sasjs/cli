@@ -33,7 +33,7 @@ describe('sasjs cbd with global config', () => {
     await copyJobsAndServices(target.name)
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeFromGlobalConfig(target.name)
 
     await folder(
@@ -41,10 +41,9 @@ describe('sasjs cbd with global config', () => {
     ).catch(() => {})
 
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  it('should compile, build and deploy', async (done) => {
+  it('should compile, build and deploy', async () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     const servicePath = path.join(
       __dirname,
@@ -87,7 +86,6 @@ describe('sasjs cbd with global config', () => {
     expect(/^\* Service Variables start;*/.test(serviceContent)).toEqual(false)
     expect(serviceContent.includes(`* ServiceInit start;`)).toEqual(true)
     expect(serviceContent.includes(`* ServiceTerm start;`)).toEqual(true)
-    done()
   })
 })
 
@@ -95,7 +93,7 @@ describe('sasjs cbd with local config', () => {
   let target: Target
   let appName: string
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     appName = `cli-tests-cbd-local-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
     target = await createLocalTarget()
@@ -104,10 +102,9 @@ describe('sasjs cbd with local config', () => {
       path.join(__dirname, 'testScript', 'copyscript.sh'),
       path.join(process.projectDir, 'sasjs', 'build', 'copyscript.sh')
     )
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
@@ -116,17 +113,15 @@ describe('sasjs cbd with local config', () => {
 
     jest.resetAllMocks()
 
-    done()
   })
 
-  it('should deploy service pack when deployServicePack is true', async (done) => {
+  it('should deploy service pack when deployServicePack is true', async () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     await expect(compileBuildDeployServices(command)).toResolve()
 
-    done()
   })
 
-  it('should deploy using deployScripts when deployServicePack is false', async (done) => {
+  it('should deploy using deployScripts when deployServicePack is false', async () => {
     await updateLocalTarget(target.name, {
       deployConfig: {
         deployServicePack: false,
@@ -136,10 +131,9 @@ describe('sasjs cbd with local config', () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     await expect(compileBuildDeployServices(command)).toResolve()
 
-    done()
   })
 
-  it('should error when deployServicePack is false and no deployScripts have been specified', async (done) => {
+  it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
     await updateLocalTarget(target.name, {
       deployConfig: {
         deployServicePack: false,
@@ -161,10 +155,9 @@ describe('sasjs cbd with local config', () => {
       'An error has occurred when deploying services.'
     )
 
-    done()
   })
 
-  it(`should error when an access token is not provided`, async (done) => {
+  it(`should error when an access token is not provided`, async () => {
     jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
       return Promise.reject('Token error')
     })
@@ -180,7 +173,6 @@ describe('sasjs cbd with local config', () => {
       'An error has occurred when deploying services.'
     )
 
-    done()
   })
 })
 
