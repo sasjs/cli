@@ -1,8 +1,7 @@
 import { buildServices, compileServices } from '../../../main'
 import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { Logger, LogLevel, generateTimestamp } from '@sasjs/utils'
 
 describe('sasjs build', () => {
   let appName: string

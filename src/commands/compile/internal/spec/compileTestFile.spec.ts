@@ -4,15 +4,23 @@ import {
   compileTestFile,
   compileTestFlow
 } from '../compileTestFile'
-import { Logger, LogLevel, Target } from '@sasjs/utils'
+import {
+  Logger,
+  LogLevel,
+  Target,
+  copy,
+  readFile,
+  fileExists,
+  createFile,
+  deleteFile,
+  generateTimestamp
+} from '@sasjs/utils'
 import {
   removeTestApp,
   createTestMinimalApp,
   createTestGlobalTarget
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
-import { generateTimestamp } from '../../../../utils/utils'
-import { copy, readFile, fileExists, createFile } from '../../../../utils/file'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
@@ -24,7 +32,7 @@ describe('compileTestFile', () => {
   let testBody: string
   const testFileName = 'random.test.sas'
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     testBody = await readFile(path.join(__dirname, 'testFiles', testFileName))
 
     process.logger = new Logger(LogLevel.Off)
@@ -32,19 +40,18 @@ describe('compileTestFile', () => {
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
+    await deleteFile(
+      path.join(__dirname, appName, 'sasjs', 'macros', '.gitkeep')
+    )
     await copyTestFiles(appName)
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
     const testSourceFolder = path.join(sasjsPath, 'tests')
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-
-    done()
   })
 
   describe('compileTestFile function', () => {
@@ -149,7 +156,7 @@ describe('compileTestFile', () => {
       )
     })
 
-    it('should log coverage', async (done) => {
+    it('should log coverage', async () => {
       jest.spyOn(process.logger, 'table').mockImplementation(() => '')
 
       const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
@@ -173,26 +180,22 @@ describe('compileTestFile', () => {
         expectedData,
         expectedHeader
       )
-
-      done()
     })
 
-    it('should not log 0/0 coverage', async (done) => {
+    it('should not log 0/0 coverage', async () => {
       jest.spyOn(process.logger, 'info').mockImplementation(() => '')
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(18)
-      expect(process.logger.info).toHaveBeenNthCalledWith(16, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenCalledTimes(13)
+      expect(process.logger.info).toHaveBeenNthCalledWith(11, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
-        17,
+        12,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
       expect(process.logger.info).toHaveBeenLastCalledWith(
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
-
-      done()
     })
   })
 })

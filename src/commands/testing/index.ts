@@ -1,26 +1,23 @@
 import { getConstants } from '../../constants'
 import {
+  saveLog,
+  saveResultJson,
+  saveResultCsv,
+  saveResultXml
+} from './saveOutput'
+import {
   TestFlow,
   TestResults,
   TestResultStatus,
-  TestDescription,
-  TestResult,
-  TestResultDescription
+  TestDescription
 } from '../../types'
-import {
-  readFile,
-  folderExists,
-  createFile,
-  createFolder,
-  sasFileRegExp
-} from '../../utils/file'
+import { sasFileRegExp } from '../../utils/file'
 import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config'
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { ServerType, uuidv4, asyncForEach } from '@sasjs/utils'
+import { ServerType, uuidv4, asyncForEach, readFile } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
-import stringify from 'csv-stringify'
 import path from 'path'
 import chalk from 'chalk'
 
@@ -118,25 +115,6 @@ export async function runTest(command: Command) {
     }
   }
 
-  const saveLog = async (
-    test: string,
-    log: string,
-    lineBreak: boolean = false
-  ) => {
-    const logPath = path.join(
-      outDirectory,
-      'logs',
-      test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
-        '.log'
-    )
-
-    await createFile(logPath, log)
-
-    process.logger.info(
-      `Log file is located at ${logPath}${lineBreak ? '\n' : ''}`
-    )
-  }
-
   await asyncForEach(flow, async (test) => {
     const sasJobLocation = path.join(
       target.appLoc,
@@ -206,7 +184,7 @@ export async function runTest(command: Command) {
 
         if (!res.result?.test_results) lineBreak = false
 
-        if (res.log) await saveLog(test, res.log, lineBreak)
+        if (res.log) await saveLog(outDirectory, test, res.log, lineBreak)
 
         if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
@@ -250,87 +228,30 @@ export async function runTest(command: Command) {
         )
 
         if (err?.error?.details?.result) {
-          await saveLog(test, err.error.details.result)
+          await saveLog(outDirectory, test, err.error.details.result)
         }
       })
   })
 
-  let finaleResult
+  const jsonPath = await saveResultJson(outDirectory, result)
 
-  try {
-    finaleResult = JSON.stringify(result, null, 2)
-  } catch (err) {
-    displayError(err, 'Error while converting test results into a string.')
-  }
+  if (!jsonPath) return
 
-  if (!(await folderExists(outDirectory))) {
-    await createFolder(outDirectory)
-  }
+  const xmlPath = await saveResultXml(outDirectory, result)
 
-  const csvPath = path.join(outDirectory, 'testResults.csv')
-
-  const saveCSV = async (data: {}[], options: {}) =>
-    new Promise((resolve, reject) =>
-      stringify(data, options || {}, async (err, output) => {
-        if (err) reject(err)
-
-        await createFile(csvPath, output).catch((err) =>
-          displayError(err, 'Error while creating CSV file.')
-        )
-
-        resolve(true)
-      })
-    )
-
-  const csvData: {}[] = result.sasjs_test_meta.flatMap((resTarget: any) =>
-    resTarget.results.flatMap((res: TestResult) => {
-      let item: any = {
-        test_target: resTarget.test_target,
-        test_loc: res.test_loc,
-        sasjs_test_id: res.sasjs_test_id,
-        test_url: `=HYPERLINK("${res.test_url}")`
-      }
-
-      if (Array.isArray(res.result)) {
-        item = res.result.map((r: TestResultDescription) => ({
-          test_target: resTarget.test_target,
-          test_loc: res.test_loc,
-          sasjs_test_id: res.sasjs_test_id,
-          test_suite_result: r.TEST_RESULT,
-          test_description: r.TEST_DESCRIPTION,
-          test_url: `=HYPERLINK("${res.test_url}")`
-        }))
-      } else item.test_suite_result = res.result
-
-      return item
-    })
-  )
-
-  await saveCSV(csvData, {
-    header: true,
-    columns: {
-      test_target: 'test_target',
-      test_loc: 'test_loc',
-      sasjs_test_id: 'sasjs_test_id',
-      test_suite_result: 'test_suite_result',
-      test_description: 'test_description',
-      test_url: 'test_url'
-    }
-  }).catch((err) => displayError(err, 'Error while saving CSV file'))
-
-  const jsonPath = path.join(outDirectory, 'testResults.json')
-
-  await createFile(jsonPath, finaleResult)
+  const { csvData, csvPath } = await saveResultCsv(outDirectory, result)
 
   const resultTable: any = {}
 
-  csvData.forEach(
-    (item: any) =>
-      (resultTable[item.sasjs_test_id] = {
-        test_target: item.test_target,
-        test_suite_result: item.test_suite_result
-      })
-  )
+  if (Array.isArray(csvData)) {
+    csvData.forEach(
+      (item: any) =>
+        (resultTable[item.sasjs_test_id] = {
+          test_target: item.test_target,
+          test_suite_result: item.test_suite_result
+        })
+    )
+  }
 
   process.logger?.table(
     Object.keys(resultTable).map((key) => [
@@ -370,6 +291,7 @@ export async function runTest(command: Command) {
   displaySuccess(
     `Tests execution finished. The results are stored at:
   ${jsonPath}
-  ${csvPath}`
+  ${csvPath}
+  ${xmlPath}`
   )
 }

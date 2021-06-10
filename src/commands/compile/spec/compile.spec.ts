@@ -1,5 +1,12 @@
 import path from 'path'
-import { Target } from '@sasjs/utils'
+import {
+  Target,
+  createFolder,
+  readFile,
+  fileExists,
+  deleteFolder,
+  generateTimestamp
+} from '@sasjs/utils'
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
   findTargetInConfiguration,
@@ -11,15 +18,9 @@ import {
   removeTestApp,
   removeAllTargetsFromConfigs,
   verifyCompiledService,
-  updateConfig
+  updateConfig,
+  updateTarget
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
-import {
-  createFolder,
-  readFile,
-  fileExists,
-  deleteFolder
-} from '../../../utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
@@ -27,44 +28,64 @@ import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
 
 describe('sasjs compile', () => {
+  let sharedAppName: string
   let appName: string
   let target: Target
+  let parentOutputFolder: string
+  const homedir = require('os').homedir()
 
-  beforeEach(async (done) => {
+  beforeAll(async () => {
+    sharedAppName = `cli-tests-compile-${generateTimestamp()}`
+    await createTestApp(homedir, sharedAppName)
+  })
+  beforeEach(async () => {
     appName = `cli-tests-compile-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
     target = (await findTargetInConfiguration('viya')).target
     jest.spyOn(compileModule, 'copyFilesToBuildFolder')
     jest.spyOn(compileModule, 'compileJobsServicesTests')
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, appName)
     jest.clearAllMocks()
-
-    done()
   })
 
-  it('should compile an uncompiled project', async (done) => {
+  it('should compile an uncompiled project', async () => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
-    done()
   })
 
-  it('should compile an uncompiled project having no target', async (done) => {
+  it('should compile an uncompiled project with absolute macroPaths', async () => {
+    const absolutePathToSharedApp = path.join(homedir, sharedAppName)
+    await updateConfig(
+      {
+        macroFolders: [`${absolutePathToSharedApp}/sasjs/macros`]
+      },
+      true
+    )
+    await updateTarget(
+      {
+        macroFolders: [`${absolutePathToSharedApp}/sasjs/targets/viya/macros`]
+      },
+      'viya',
+      true
+    )
+    await expect(compileModule.compile(target)).toResolve()
+    expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
+  })
+
+  it('should compile an uncompiled project having no target', async () => {
     await removeAllTargetsFromConfigs()
 
     await expect(compileModule.compile({} as Target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
-    done()
   })
 
-  it('should fail to compile for missing program file', async (done) => {
+  it('should fail to compile for missing program file', async () => {
     let newTarget = {
       ...target,
       serviceConfig: {
@@ -77,15 +98,13 @@ describe('sasjs compile', () => {
       "1. 'doesnotexist.sas' with fileRef 'SOMEREF'\n" +
       'Please check that they exist in the folder(s) listed in the `programFolders` array in your sasjsconfig.json file.\n' +
       'Program Folders:\n' +
-      '- sasjs/programs'
+      `- ${path.join(__dirname, appName, 'sasjs/programs')}`
     await expect(compileModule.compile(newTarget)).rejects.toThrow(errorMessage)
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
-    done()
   })
 
-  it('should skip compilation if a project is already compiled', async (done) => {
+  it('should skip compilation if a project is already compiled', async () => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
@@ -95,8 +114,6 @@ describe('sasjs compile', () => {
     await compileModule.compile(target)
     expect(compileModule.copyFilesToBuildFolder).not.toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).not.toHaveBeenCalled()
-
-    done()
   })
 })
 
@@ -104,22 +121,20 @@ describe('sasjs compile single file', () => {
   let appName: string
   let target: Target
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, appName)
     jest.clearAllMocks()
-
-    done()
   })
 
   describe('job', () => {
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestJobsApp(__dirname, appName)
+      target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileJobFile, 'compileJobFile')
-      done()
     })
 
-    it('should compile single file', async (done) => {
+    it('should compile single file', async () => {
       await expect(
         compileSingleFile(
           target,
@@ -128,11 +143,9 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
-
-      done()
     })
 
-    it('should compile single file with absolute path', async (done) => {
+    it('should compile single file with absolute path', async () => {
       await expect(
         compileSingleFile(
           target,
@@ -143,20 +156,18 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
-
-      done()
     })
   })
 
   describe('service', () => {
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
+      target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileServiceFile, 'compileServiceFile')
-      done()
     })
 
-    it('should compile single file', async (done) => {
+    it('should compile single file', async () => {
       await expect(
         compileSingleFile(
           target,
@@ -165,10 +176,8 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
-
-      done()
     })
-    it('should compile single file with absolute path', async (done) => {
+    it('should compile single file with absolute path', async () => {
       await expect(
         compileSingleFile(
           target,
@@ -179,8 +188,6 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
-
-      done()
     })
   })
 })
@@ -196,17 +203,15 @@ const defaultBuildConfig: BuildConfig = {
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string
-  const target: Target = undefined as unknown as Target
   let parentOutputFolder: string
   const homedir = require('os').homedir()
   describe('with global config', () => {
-    beforeAll(async (done) => {
+    beforeAll(async () => {
       sharedAppName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(homedir, sharedAppName)
-      done()
     })
 
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await updateConfig(
         {
@@ -220,10 +225,9 @@ describe('sasjs compile outside project', () => {
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await updateConfig(
         {
           macroFolders: [],
@@ -233,22 +237,20 @@ describe('sasjs compile outside project', () => {
       )
       await deleteFolder(parentOutputFolder)
       await deleteFolder(process.currentDir)
-      done()
     })
 
-    afterAll(async (done) => {
+    afterAll(async () => {
       await removeTestApp(homedir, sharedAppName)
       await deleteFolder(path.join(homedir, '.sasjs'))
-      done()
     })
 
-    it('should compile single file', async (done) => {
+    it('should compile single file', async () => {
       const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
       parentOutputFolder = buildOutputFolder
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -267,11 +269,9 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-      done()
     })
 
-    it('should compile single file with absolute macroFolder paths', async (done) => {
+    it('should compile single file with absolute macroFolder paths', async () => {
       const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
@@ -287,7 +287,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -306,11 +306,9 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-      done()
     })
 
-    it('should fail to compile single file', async (done) => {
+    it('should fail to compile single file', async () => {
       const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
       parentOutputFolder = buildOutputFolder
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
@@ -322,18 +320,16 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
-
-      done()
     })
 
-    it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async (done) => {
+    it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async () => {
       parentOutputFolder = path.join(__dirname, 'random-folder')
       const buildOutputFolder = path.join(__dirname, 'random-folder', appName)
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
@@ -348,7 +344,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -367,11 +363,9 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-      done()
     })
 
-    it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async (done) => {
+    it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async () => {
       parentOutputFolder = path.join(homedir, appName)
       const buildOutputFolder = path.join(homedir, appName, 'random-folder')
       const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
@@ -386,7 +380,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -405,40 +399,34 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-      done()
     })
   })
 
   describe('without global config', () => {
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await deleteFolder(parentOutputFolder)
       await deleteFolder(process.currentDir)
-      done()
     })
 
-    it('should fail to compile single file', async (done) => {
+    it('should fail to compile single file', async () => {
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
-
-      done()
     })
   })
 })

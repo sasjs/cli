@@ -6,9 +6,9 @@ import {
   deleteFile,
   deleteFolder,
   unifyFilePath,
-  getRelativePath
-} from '../file'
-import { generateTimestamp } from '../utils'
+  getRelativePath,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('file utility', () => {
   describe('createFile', () => {

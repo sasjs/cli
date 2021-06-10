@@ -1,13 +1,9 @@
 import path from 'path'
 import { processContext } from '../..'
-import {
-  sanitizeFileName,
-  readFile,
-  createFile,
-  deleteFolder
-} from '../../../utils/file'
+import { readFile, createFile, deleteFolder } from '@sasjs/utils'
+import { sanitizeFileName } from '../../../utils/file'
 import SASjs from '@sasjs/adapter/node'
-import { generateTimestamp } from '../../../utils/utils'
+import { generateTimestamp } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import { createTestGlobalTarget } from '../../../utils/test'
@@ -75,20 +71,18 @@ describe('sasjs context', () => {
   })
 
   describe('exportContext', () => {
-    it('should export a compute context', async (done) => {
+    it('should export a compute context', async () => {
       const contextName = contexts[0].name
       const command = new Command(
         `context export ${contextName} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
-
-      done()
     })
   })
 
   describe('create', () => {
-    it('should create a compute context', async (done) => {
+    it('should create a compute context', async () => {
       testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
       testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
 
@@ -116,11 +110,9 @@ describe('sasjs context', () => {
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
-
-      done()
     })
 
-    it('should return an error if trying to create compute context that already exists', async (done) => {
+    it('should return an error if trying to create compute context that already exists', async () => {
       testContextConfigFile = sanitizeFileName(contexts[0].name) + '.json'
       testContextConfigPath = path.join(process.cwd(), testContextConfigFile)
 
@@ -149,13 +141,11 @@ describe('sasjs context', () => {
       await expect(processContext(command)).resolves.toEqual(
         new Error(`Compute context '${testContextConfig.name}' already exists.`)
       )
-
-      done()
     })
   })
 
   describe('edit', () => {
-    it('should return an error if trying to edit default compute context', async (done) => {
+    it('should return an error if trying to edit default compute context', async () => {
       testContextConfig.description += '_updated'
 
       setDefaultContextName()
@@ -173,11 +163,9 @@ describe('sasjs context', () => {
       )
 
       restoreTestContextName()
-
-      done()
     })
 
-    it('should edit compute context', async (done) => {
+    it('should edit compute context', async () => {
       testContextConfig.description += '_updated'
 
       const contextConfig = JSON.stringify(testContextConfig, null, 2)
@@ -189,13 +177,11 @@ describe('sasjs context', () => {
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
-
-      done()
     })
   })
 
   describe('delete', () => {
-    it('should return an error if trying to delete default compute context', async (done) => {
+    it('should return an error if trying to delete default compute context', async () => {
       setDefaultContextName()
 
       const command = new Command(
@@ -207,18 +193,14 @@ describe('sasjs context', () => {
       )
 
       restoreTestContextName()
-
-      done()
     })
 
-    it('should delete compute context', async (done) => {
+    it('should delete compute context', async () => {
       const command = new Command(
         `context delete ${testContextConfig.name} -t ${targetName}`
       )
 
       await expect(processContext(command)).resolves.toEqual(true)
-
-      done()
     })
   })
 })
