@@ -410,7 +410,7 @@ const createGlobalTarget = async () => {
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.SERVER_URL as string,
+    serverUrl: process.env.VIYA_SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],

@@ -85,7 +85,7 @@ export const generateTestTarget = (
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.SERVER_URL,
+    serverUrl: process.env.VIYA_SERVER_URL,
     contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
     appLoc,
     authConfig: {

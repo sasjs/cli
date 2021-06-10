@@ -219,7 +219,7 @@ const createGlobalTarget = async () => {
     name: targetName,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serverType,
-    serverUrl: process.env.SERVER_URL as string,
+    serverUrl: process.env.VIYA_SERVER_URL as string,
     authConfig: {
       client: process.env.CLIENT as string,
       secret: process.env.SECRET as string,

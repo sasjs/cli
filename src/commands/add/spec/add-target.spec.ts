@@ -56,7 +56,7 @@ describe('addTarget', () => {
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -84,7 +84,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sas9,
       name: sas9TargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -113,7 +113,7 @@ describe('addTarget', () => {
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -149,7 +149,7 @@ describe('addTarget', () => {
       serverType: ServerType.SasViya,
       name: 'viya',
       appLoc: '/Public/app/new/location',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: target
     }
     jest
@@ -185,7 +185,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sas9,
       name: 'sas9',
       appLoc: '/Public/app/new/location/2',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: target
     }
     jest
@@ -214,7 +214,7 @@ describe('addTarget', () => {
       serverType: globalTestTarget.serverType,
       name: globalTestTarget.name,
       appLoc: '/Public/app/new/location/3',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: globalTestTarget
     }
     jest
