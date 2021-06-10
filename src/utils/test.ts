@@ -6,8 +6,9 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
-  readFile
-} from './file'
+  readFile,
+  asyncForEach
+} from '@sasjs/utils'
 import {
   ServerType,
   Target,
@@ -27,7 +28,6 @@ import { compiledFiles } from './fileStructures/compiledFiles'
 import { compiledFilesCustom1 } from './fileStructures/compiledFilesCustom1'
 import { builtFiles } from './fileStructures/builtFiles'
 import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
-import { asyncForEach } from '@sasjs/utils'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
@@ -47,6 +47,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
 
 export const createTestMinimalApp = async (

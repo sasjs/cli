@@ -4,13 +4,12 @@ import {
   createFile,
   copy,
   readFile
-} from '../../../utils/file'
+} from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
-import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig

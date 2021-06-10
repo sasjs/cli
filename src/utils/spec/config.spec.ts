@@ -10,13 +10,19 @@ import {
   removeFromLocalConfig
 } from '../config'
 import * as authUtils from '../auth'
-import * as fileUtils from '../file'
+import * as fileUtils from '@sasjs/utils/file'
 import dotenv from 'dotenv'
-import { Configuration, Target } from '@sasjs/utils/types'
-import { createFile, deleteFile } from '../file'
 import path from 'path'
-import { Logger, LogLevel, SasAuthResponse } from '@sasjs/utils'
-import { generateTimestamp } from '../utils'
+import {
+  createFile,
+  deleteFile,
+  Logger,
+  LogLevel,
+  SasAuthResponse,
+  Configuration,
+  Target,
+  generateTimestamp
+} from '@sasjs/utils'
 import {
   createTestMinimalApp,
   generateTestTarget,
@@ -37,6 +43,7 @@ describe('getAccessToken', () => {
     process.env.ACCESS_TOKEN = undefined
     process.env.CLIENT = undefined
     process.env.SECRET = undefined
+    process.env.REFRESH_TOKEN = undefined
     jest.resetAllMocks()
   })
 
@@ -97,10 +104,13 @@ describe('getAccessToken', () => {
     expect(token).toEqual('3NVT0K3N')
   })
 
-  it('should refresh access token when it is expiring and refresh token is available', async () => {
+  it('should refresh access token when it is expiring and refresh token is available & not expired', async () => {
     jest
       .spyOn(authUtils, 'isAccessTokenExpiring')
       .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
+      .mockImplementation(() => false)
     jest.spyOn(authUtils, 'getNewAccessToken')
     jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
       Promise.resolve({
@@ -120,14 +130,50 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).toHaveBeenCalledTimes(1)
     expect(authUtils.getNewAccessToken).not.toHaveBeenCalled()
+    expect(token).toEqual('N3WT0K3N')
+  })
+
+  it('should get new access token when it is expiring and refresh token is available & expired', async () => {
+    jest
+      .spyOn(authUtils, 'isAccessTokenExpiring')
+      .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
+      .mockImplementation(() => true)
+    jest.spyOn(authUtils, 'refreshTokens')
+    jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
+      Promise.resolve({
+        access_token: 'N3WT0K3N'
+      } as SasAuthResponse)
+    )
+    const target = {
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: 'R3FR35H',
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    }
+    process.env.REFRESH_TOKEN = undefined
+
+    const token = await getAccessToken(target as Target, true)
+
+    expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.refreshTokens).not.toHaveBeenCalled()
+    expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
   })
 
   it('should get new access token when it is expiring and refresh token is not available', async () => {
     jest
       .spyOn(authUtils, 'isAccessTokenExpiring')
+      .mockImplementation(() => true)
+    jest
+      .spyOn(authUtils, 'isRefreshTokenExpiring')
       .mockImplementation(() => true)
     jest.spyOn(authUtils, 'refreshTokens')
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
@@ -147,6 +193,7 @@ describe('getAccessToken', () => {
     const token = await getAccessToken(target as Target, true)
 
     expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).not.toHaveBeenCalled()
     expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')

@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { createFile, fileExists } from '../../../utils/file'
+import { createFile, fileExists } from '@sasjs/utils'
 
 const contentReadMe = `
 # SASjs Project Repo

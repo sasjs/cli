@@ -1,13 +1,9 @@
 import path from 'path'
 import { processContext } from '../..'
-import {
-  sanitizeFileName,
-  readFile,
-  createFile,
-  deleteFolder
-} from '../../../utils/file'
+import { readFile, createFile, deleteFolder } from '@sasjs/utils'
+import { sanitizeFileName } from '../../../utils/file'
 import SASjs from '@sasjs/adapter/node'
-import { generateTimestamp } from '../../../utils/utils'
+import { generateTimestamp } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import { createTestGlobalTarget } from '../../../utils/test'

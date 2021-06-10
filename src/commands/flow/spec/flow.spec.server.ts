@@ -1,16 +1,15 @@
 import path from 'path'
 import dotenv from 'dotenv'
 import { compileBuildDeployServices } from '../../../main'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   fileExists,
   readFile,
-  readdir,
+  listFilesInFolder,
   folderExists,
   deleteFolder,
   deleteFile,
   copy
-} from '../../../utils/file'
+} from '@sasjs/utils'
 import { processFlow } from '..'
 import { folder } from '../../folder'
 import { createTestApp, removeTestApp } from '../../../utils/test'
@@ -20,8 +19,13 @@ import {
 } from '../../../utils/config'
 import examples from '../examples'
 import { Command } from '../../../utils/command'
-import { ServerType, Target } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import {
+  ServerType,
+  Target,
+  Logger,
+  LogLevel,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -80,8 +84,8 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect((csvData.match(csvColumnsRegExp) || []).length).toEqual(1)
-    expect((csvData.match(csvRowRegExp) || []).length).toEqual(2)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
 
     done()
   })
@@ -100,7 +104,7 @@ describe('sasjs flow', () => {
       await processFlow(command)
 
       await expect(folderExists(logPath)).resolves.toEqual(true)
-      const filesInLogFolder = await readdir(logPath)
+      const filesInLogFolder = await listFilesInFolder(logPath)
       const logFilePath = path.join(logPath, filesInLogFolder[0])
 
       const content = await readFile(logFilePath)
@@ -204,9 +208,9 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowCompletedRegExp).length).toEqual(2)
-    expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(2)
+    expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
     done()
   })
@@ -236,9 +240,9 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowCompletedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
     expect(process.logger.error).toHaveBeenNthCalledWith(
       1,
@@ -271,9 +275,9 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowCompletedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
     done()
   })
@@ -305,10 +309,10 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFirstFlowCompletedRegExp).length).toEqual(2)
-    expect(csvData.match(csvRowSecondFlowCompletedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
+    expect(csvData.match(csvRowSecondFlowCompletedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
     done()
   })
@@ -336,9 +340,9 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFirstFlowCompletedRegExp).length).toEqual(2)
-    expect(csvData.match(csvRowFailedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
+    expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
     done()
   })
@@ -379,12 +383,12 @@ describe('sasjs flow', () => {
     )
     const csvRowFailedRegExp = new RegExp(`fifthFlow`, 'gm')
 
-    expect(csvData.match(csvColumnsRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFirstFlowCompletedRegExp).length).toEqual(2)
-    expect(csvData.match(csvRowSecondFlowCompletedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowThirdFlowCompletedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowThirdFlowFailedRegExp).length).toEqual(1)
-    expect(csvData.match(csvRowFourthFlowCompletedRegExp).length).toEqual(1)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
+    expect(csvData.match(csvRowSecondFlowCompletedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowThirdFlowCompletedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowThirdFlowFailedRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowFourthFlowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)).toEqual(null)
 
     done()
@@ -417,8 +421,8 @@ describe('sasjs flow', () => {
       'gm'
     )
 
-    expect((csvData.match(csvColumnsRegExp) || []).length).toEqual(1)
-    expect((csvData.match(csvRowRegExp) || []).length).toEqual(2)
+    expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
+    expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
 
     done()
   })

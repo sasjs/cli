@@ -1,5 +1,5 @@
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { createFile, createFolder, folderExists } from '../../utils/file'
+import { createFile, createFolder, folderExists } from '@sasjs/utils'
 import { parseLogLines } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
