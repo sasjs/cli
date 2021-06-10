@@ -62,21 +62,20 @@ describe('compileJobFile', () => {
     await createTestMinimalApp(__dirname, target.name)
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  test('it should compile and create file', async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue({
+  test('it should compile and create file', async () => {
+    jest.spyOn(internalModule, 'getJobInit').mockImplementation(() => Promise.resolve({
       content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-      filepath: ''
-    })
-    spyOn(internalModule, 'getJobTerm').and.returnValue({
+      filePath: ''
+    }))
+    jest.spyOn(internalModule, 'getJobTerm').mockImplementation(() => Promise.resolve({
       content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
-      filepath: ''
-    })
+      filePath: ''
+    }))
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
@@ -106,6 +105,5 @@ describe('compileJobFile', () => {
       expect.stringContaining(fakeProgramLines.join('\n'))
     )
 
-    done()
   })
 })
