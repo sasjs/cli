@@ -14,12 +14,11 @@ describe('sasjs create', () => {
     dotenv.config()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await deleteFolder(path.join(__dirname, 'test-app-create-*'))
-    done()
   })
 
-  it('should set up a default app in the current folder', async (done) => {
+  it('should set up a default app in the current folder', async () => {
     const appName = `test-app-create-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
@@ -29,10 +28,9 @@ describe('sasjs create', () => {
     await expect(create('.', '')).toResolve()
 
     await verifyCreate('.', '')
-    done()
   })
 
-  it(`should set up a 'sasonly' app in the current folder`, async (done) => {
+  it(`should set up a 'sasonly' app in the current folder`, async () => {
     const appName = `test-app-create-.-${generateTimestamp()}-sasonly`
 
     process.projectDir = path.join(__dirname, appName)
@@ -42,10 +40,9 @@ describe('sasjs create', () => {
     await expect(create('.', 'sasonly')).toResolve()
 
     await verifyCreate('.', 'sasonly')
-    done()
   })
 
-  it(`should set up a react app in the current folder`, async (done) => {
+  it(`should set up a react app in the current folder`, async () => {
     const timestamp = generateTimestamp()
     const appName = `test-app-create-.-${timestamp}-react`
 
@@ -56,10 +53,9 @@ describe('sasjs create', () => {
     await expect(create('.', 'react')).toResolve()
 
     await verifyCreateWeb('.', 'react')
-    done()
   })
 
-  it(`should set up a react app in a given folder`, async (done) => {
+  it(`should set up a react app in a given folder`, async () => {
     const timestamp = generateTimestamp()
     const appName = `test-app-create-.-${timestamp}-react`
 
@@ -70,10 +66,9 @@ describe('sasjs create', () => {
     await expect(create('test-react-app', 'react')).toResolve()
 
     await verifyCreateWeb('test-react-app', 'react')
-    done()
   })
 
-  it(`should set up a minimal app in a given folder`, async (done) => {
+  it(`should set up a minimal app in a given folder`, async () => {
     const timestamp = generateTimestamp()
     const appName = `test-app-create-${timestamp}-minimal`
 
@@ -84,10 +79,9 @@ describe('sasjs create', () => {
     await expect(create('test-minimal-app', 'minimal')).toResolve()
 
     await verifyCreateWeb('test-minimal-app', 'minimal')
-    done()
   })
 
-  it(`should set up an angular app in a given folder`, async (done) => {
+  it(`should set up an angular app in a given folder`, async () => {
     const timestamp = generateTimestamp()
     const appName = `test-app-create-${timestamp}-angular`
 
@@ -98,10 +92,9 @@ describe('sasjs create', () => {
     await expect(create('test-angular-app', 'angular')).toResolve()
 
     await verifyCreateWeb('test-angular-app', 'angular')
-    done()
   })
 
-  it(`should fail with an unknown app type 'xyz'`, async (done) => {
+  it(`should fail with an unknown app type 'xyz'`, async () => {
     const timestamp = generateTimestamp()
     const appName = `test-app-create-${timestamp}-xyz`
 
@@ -112,8 +105,6 @@ describe('sasjs create', () => {
     await expect(create('test-unknown-app', 'xyz')).rejects.toThrow(
       'Template "xyz" is not a SASjs template'
     )
-
-    done()
   })
 })
 

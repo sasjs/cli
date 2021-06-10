@@ -15,39 +15,34 @@ import { build } from '../build'
 describe('sasjs compile', () => {
   let target: Target
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
     await createTestApp(__dirname, appName)
     target = await createTestGlobalTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
-
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  it(`should compile newly created app`, async (done) => {
+  it(`should compile newly created app`, async () => {
     await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
-    done()
   })
 
-  it(`should compile and build`, async (done) => {
+  it(`should compile and build`, async () => {
     await expect(build(target)).toResolve()
 
     await verifyStep('compile')
     await verifyStep('build', target.name)
-    done()
   })
 
-  it(`should compile and build (special fileName case)`, async (done) => {
+  it(`should compile and build (special fileName case)`, async () => {
     const filePath = 'sasjs/services/common/'
     const sourcePath = path.join(process.projectDir, filePath, 'getdata.sas')
     const destinationPath = path.join(
@@ -63,10 +58,9 @@ describe('sasjs compile', () => {
 
     await verifyStep('compile', undefined, 'custom')
     await verifyStep('build', target.name, 'custom')
-    done()
   })
 
-  it(`should compile and build(skipping compile)`, async (done) => {
+  it(`should compile and build(skipping compile)`, async () => {
     await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
@@ -74,10 +68,9 @@ describe('sasjs compile', () => {
     await expect(build(target)).toResolve()
 
     await verifyStep('build', target.name)
-    done()
   })
 
-  it(`should compile and build(with recompile)`, async (done) => {
+  it(`should compile and build(with recompile)`, async () => {
     await expect(compile(target)).toResolve()
 
     await verifyStep('compile')
@@ -87,6 +80,5 @@ describe('sasjs compile', () => {
     ).toResolve()
 
     await verifyStep('build', target.name)
-    done()
   })
 })
