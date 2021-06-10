@@ -417,9 +417,11 @@ export async function execute(
               )
             }
 
-            let csvContent = (await readFile(csvFileRealPath).catch((err) =>
+            let csvContent = await readFile(csvFileRealPath).catch((err) => {
               displayError(err, 'Error while reading CSV file.')
-            )) as string
+
+              return ''
+            })
 
             let csvData = csvContent
               .split('\n')
