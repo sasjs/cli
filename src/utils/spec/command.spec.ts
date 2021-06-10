@@ -1,4 +1,3 @@
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Command } from '../command'
 
 describe('parseCommandLine', () => {

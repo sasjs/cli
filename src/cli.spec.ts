@@ -14,7 +14,7 @@ import { Target, generateTimestamp } from '@sasjs/utils'
 describe('CLI command parsing', () => {
   let target: Target
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     const appName = `cli-tests-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
     target = await createTestGlobalTarget(
@@ -22,17 +22,15 @@ describe('CLI command parsing', () => {
       `/Public/app/cli-tests/${appName}`
     )
     mockProcessExit()
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
     jest.clearAllMocks()
-    done()
   })
 
-  it('should call the correct function for the create command', async (done) => {
+  it('should call the correct function for the create command', async () => {
     jest
       .spyOn(mainModule, 'createFileStructure')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -48,10 +46,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.createFileStructure).toHaveBeenCalledWith(
       new Command(['create', 'testapp'])
     )
-    done()
   })
 
-  it('should call the correct function for the create command with additional arguments', async (done) => {
+  it('should call the correct function for the create command with additional arguments', async () => {
     jest
       .spyOn(mainModule, 'createFileStructure')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -69,10 +66,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.createFileStructure).toHaveBeenCalledWith(
       new Command(['create', 'testapp', '-t', 'minimal'])
     )
-    done()
   })
 
-  it('should call the correct function for the compile command', async (done) => {
+  it('should call the correct function for the compile command', async () => {
     jest
       .spyOn(mainModule, 'compileServices')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -83,10 +79,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.compileServices).toHaveBeenCalledWith(
       new Command(['compile'])
     )
-    done()
   })
 
-  it('should call the correct function for the build command', async (done) => {
+  it('should call the correct function for the build command', async () => {
     jest
       .spyOn(mainModule, 'buildServices')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -103,10 +98,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.buildServices).toHaveBeenCalledWith(
       new Command(['build', '-t', 'viya'])
     )
-    done()
   })
 
-  it('should call the correct function for the deploy command', async (done) => {
+  it('should call the correct function for the deploy command', async () => {
     jest
       .spyOn(mainModule, 'deployServices')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -123,10 +117,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.deployServices).toHaveBeenCalledWith(
       new Command(['deploy', '-t', 'viya'])
     )
-    done()
   })
 
-  it('should call the correct function for the db command', async (done) => {
+  it('should call the correct function for the db command', async () => {
     jest
       .spyOn(mainModule, 'buildDBs')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -135,10 +128,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.buildDBs).toHaveBeenCalledWith()
-    done()
   })
 
-  it('should call the correct function for the compilebuild command', async (done) => {
+  it('should call the correct function for the compilebuild command', async () => {
     jest
       .spyOn(mainModule, 'compileBuildServices')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -149,10 +141,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.compileBuildServices).toHaveBeenCalledWith(
       new Command(['cb'])
     )
-    done()
   })
 
-  it('should call the correct function for the compilebuilddeploy command', async (done) => {
+  it('should call the correct function for the compilebuilddeploy command', async () => {
     jest
       .spyOn(mainModule, 'compileBuildDeployServices')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -163,10 +154,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.compileBuildDeployServices).toHaveBeenCalledWith(
       new Command(['cbd'])
     )
-    done()
   })
 
-  it('should call the correct function for the servicepack command', async (done) => {
+  it('should call the correct function for the servicepack command', async () => {
     jest
       .spyOn(mainModule, 'servicepack')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -182,10 +172,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.servicepack).toHaveBeenCalledWith(
       new Command(['servicepack', 'deploy'])
     )
-    done()
   })
 
-  it('should call the correct function for the help command', async (done) => {
+  it('should call the correct function for the help command', async () => {
     jest
       .spyOn(mainModule, 'showHelp')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -194,10 +183,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.showHelp).toHaveBeenCalledWith()
-    done()
   })
 
-  it('should call the correct function for the version command', async (done) => {
+  it('should call the correct function for the version command', async () => {
     jest
       .spyOn(mainModule, 'showVersion')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -206,10 +194,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.showVersion).toHaveBeenCalledWith()
-    done()
   })
 
-  it('should call the correct function for the web command', async (done) => {
+  it('should call the correct function for the web command', async () => {
     jest
       .spyOn(mainModule, 'buildWebApp')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -218,10 +205,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.buildWebApp).toHaveBeenCalledWith(new Command(['web']))
-    done()
   })
 
-  it('should call the correct function for the add command', async (done) => {
+  it('should call the correct function for the add command', async () => {
     jest
       .spyOn(mainModule, 'add')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -230,10 +216,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.add).toHaveBeenCalledWith(new Command(['add']))
-    done()
   })
 
-  it('should call the correct function for the run command', async (done) => {
+  it('should call the correct function for the run command', async () => {
     jest
       .spyOn(mainModule, 'run')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -242,10 +227,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.run).toHaveBeenCalledWith(new Command(['run']))
-    done()
   })
 
-  it('should call the correct function for the request command', async (done) => {
+  it('should call the correct function for the request command', async () => {
     jest
       .spyOn(mainModule, 'runRequest')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -254,10 +238,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.runRequest).toHaveBeenCalledWith(new Command(['request']))
-    done()
   })
 
-  it('should call the correct function for the context command', async (done) => {
+  it('should call the correct function for the context command', async () => {
     jest
       .spyOn(mainModule, 'context')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -273,10 +256,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.context).toHaveBeenCalledWith(
       new Command(['context', 'create'])
     )
-    done()
   })
 
-  it('should call the correct function for the folder command', async (done) => {
+  it('should call the correct function for the folder command', async () => {
     jest
       .spyOn(mainModule, 'folderManagement')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -292,10 +274,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.folderManagement).toHaveBeenCalledWith(
       new Command(['folder', 'move'])
     )
-    done()
   })
 
-  it('should call the correct function for the job command', async (done) => {
+  it('should call the correct function for the job command', async () => {
     jest
       .spyOn(mainModule, 'jobManagement')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -311,10 +292,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.jobManagement).toHaveBeenCalledWith(
       new Command(['job', 'execute'])
     )
-    done()
   })
 
-  it('should call the correct function for the flow command', async (done) => {
+  it('should call the correct function for the flow command', async () => {
     jest
       .spyOn(mainModule, 'flowManagement')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -330,10 +310,9 @@ describe('CLI command parsing', () => {
     expect(mainModule.flowManagement).toHaveBeenCalledWith(
       new Command(['flow', 'execute'])
     )
-    done()
   })
 
-  it('should call the correct function for the lint command', async (done) => {
+  it('should call the correct function for the lint command', async () => {
     jest
       .spyOn(mainModule, 'lint')
       .mockImplementation(() => Promise.resolve(ReturnCode.Success))
@@ -342,10 +321,9 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(mainModule.lint).toHaveBeenCalledTimes(1)
-    done()
   })
 
-  it('should exit with an error when an invalid command is entered', async (done) => {
+  it('should exit with an error when an invalid command is entered', async () => {
     jest
       .spyOn(process, 'exit')
       .mockImplementation(
@@ -361,6 +339,5 @@ describe('CLI command parsing', () => {
     await cli(args)
 
     expect(process.exit).toHaveBeenCalledWith(1)
-    done()
   })
 })
