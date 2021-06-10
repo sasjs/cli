@@ -8,10 +8,13 @@ import {
   Target,
   ServerType,
   listFilesInFolder,
+  copy,
+  folderExists,
+  fileExists,
+  readFile,
   generateTimestamp
 } from '@sasjs/utils'
 import { createTestApp, removeTestApp } from '../../../utils/test'
-import { copy, folderExists, fileExists, readFile } from '../../../utils/file'
 import { Command } from '../../../utils/command'
 import {
   removeFromGlobalConfig,

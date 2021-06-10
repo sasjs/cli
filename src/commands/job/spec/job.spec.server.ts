@@ -3,14 +3,18 @@ import dotenv from 'dotenv'
 import { processJob, processContext } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
-import { folderExists, fileExists, readFile, copy } from '../../../utils/file'
 import {
+  folderExists,
+  fileExists,
+  readFile,
+  copy,
   ServerType,
   Target,
   Logger,
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
+
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig

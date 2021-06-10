@@ -4,7 +4,7 @@ import {
   createFile,
   copy,
   readFile
-} from '../../../utils/file'
+} from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../main'

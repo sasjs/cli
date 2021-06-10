@@ -1,5 +1,12 @@
 import path from 'path'
-import { Target, generateTimestamp } from '@sasjs/utils'
+import {
+  Target,
+  createFolder,
+  readFile,
+  fileExists,
+  deleteFolder,
+  generateTimestamp
+} from '@sasjs/utils'
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
   findTargetInConfiguration,
@@ -11,14 +18,9 @@ import {
   removeTestApp,
   removeAllTargetsFromConfigs,
   verifyCompiledService,
-  updateConfig
+  updateConfig,
+  updateTarget
 } from '../../../utils/test'
-import {
-  createFolder,
-  readFile,
-  fileExists,
-  deleteFolder
-} from '../../../utils/file'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
@@ -26,9 +28,17 @@ import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
 
 describe('sasjs compile', () => {
+  let sharedAppName: string
   let appName: string
   let target: Target
+  let parentOutputFolder: string
+  const homedir = require('os').homedir()
 
+  beforeAll(async (done) => {
+    sharedAppName = `cli-tests-compile-${generateTimestamp()}`
+    await createTestApp(homedir, sharedAppName)
+    done()
+  })
   beforeEach(async (done) => {
     appName = `cli-tests-compile-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
@@ -46,6 +56,28 @@ describe('sasjs compile', () => {
   })
 
   it('should compile an uncompiled project', async (done) => {
+    await expect(compileModule.compile(target)).toResolve()
+    expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
+
+    done()
+  })
+
+  it('should compile an uncompiled project with absolute macroPaths', async (done) => {
+    const absolutePathToSharedApp = path.join(homedir, sharedAppName)
+    await updateConfig(
+      {
+        macroFolders: [`${absolutePathToSharedApp}/sasjs/macros`]
+      },
+      true
+    )
+    await updateTarget(
+      {
+        macroFolders: [`${absolutePathToSharedApp}/sasjs/targets/viya/macros`]
+      },
+      'viya',
+      true
+    )
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
@@ -76,7 +108,7 @@ describe('sasjs compile', () => {
       "1. 'doesnotexist.sas' with fileRef 'SOMEREF'\n" +
       'Please check that they exist in the folder(s) listed in the `programFolders` array in your sasjsconfig.json file.\n' +
       'Program Folders:\n' +
-      '- sasjs/programs'
+      `- ${path.join(__dirname, appName, 'sasjs/programs')}`
     await expect(compileModule.compile(newTarget)).rejects.toThrow(errorMessage)
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
@@ -114,6 +146,7 @@ describe('sasjs compile single file', () => {
     beforeEach(async (done) => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestJobsApp(__dirname, appName)
+      target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileJobFile, 'compileJobFile')
       done()
     })
@@ -151,6 +184,7 @@ describe('sasjs compile single file', () => {
     beforeEach(async (done) => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
+      target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileServiceFile, 'compileServiceFile')
       done()
     })
@@ -195,7 +229,6 @@ const defaultBuildConfig: BuildConfig = {
 describe('sasjs compile outside project', () => {
   let sharedAppName: string
   let appName: string
-  const target: Target = undefined as unknown as Target
   let parentOutputFolder: string
   const homedir = require('os').homedir()
   describe('with global config', () => {
@@ -247,7 +280,7 @@ describe('sasjs compile outside project', () => {
       parentOutputFolder = buildOutputFolder
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -286,7 +319,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -321,7 +354,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -347,7 +380,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -385,7 +418,7 @@ describe('sasjs compile outside project', () => {
       )
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )
@@ -429,7 +462,7 @@ describe('sasjs compile outside project', () => {
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
       await expect(
         compileSingleFile(
-          target,
+          undefined as unknown as Target,
           new Command(`compile service -s ../services/example1.sas`),
           'service'
         )

@@ -5,7 +5,7 @@ import {
   diff,
   setupGitIgnore
 } from '../utils'
-import { createFile, deleteFile, fileExists, readFile } from '../file'
+import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
 import path from 'path'
 
 describe('utils', () => {
@@ -153,7 +153,7 @@ describe('utils', () => {
       const regExp = new RegExp(`^sasjsbuild\/`, 'gm')
 
       expect(gitIgnoreContent.match(regExp)).toBeTruthy()
-      expect(gitIgnoreContent.match(regExp).length).toEqual(1)
+      expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
     })

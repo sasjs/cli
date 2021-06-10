@@ -64,7 +64,7 @@ export async function execute(
       return reject(examples.source)
     }
 
-    let flows = sourceConfig.flows
+    let flows = sourceConfig?.flows
 
     if (!flows) return reject(examples.source)
 

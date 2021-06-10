@@ -9,7 +9,7 @@ import {
   verifyCompiledJob
 } from '../../../utils/test'
 import { compileJobFile } from '../internal/compileJobFile'
-import { copy, fileExists, createFolder, readFile } from '../../../utils/file'
+import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
 const fakeJobInit = `/**
   @file
@@ -90,8 +90,8 @@ describe('compileJobFile', () => {
       compileJobFile(
         target,
         destinationPath,
-        ['../macros'],
-        ['../', '../services']
+        [path.join(__dirname, './macros')],
+        [path.join(__dirname, './'), path.join(__dirname, './services')]
       )
     ).toResolve()
 

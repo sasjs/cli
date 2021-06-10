@@ -9,8 +9,12 @@ import {
   updateTarget,
   verifyDotFiles
 } from '../../../utils/test'
-import { folderExists, readFile } from '../../../utils/file'
-import { JobConfig, generateTimestamp } from '@sasjs/utils'
+import {
+  folderExists,
+  readFile,
+  JobConfig,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs doc lineage', () => {
   let appName: string

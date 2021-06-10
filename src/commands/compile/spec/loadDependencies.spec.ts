@@ -256,8 +256,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
 
@@ -284,8 +284,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'job'
     )
 
@@ -312,8 +312,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
@@ -339,8 +339,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'job'
     )
 
@@ -367,8 +367,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'job'
     )
 
@@ -401,8 +401,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'job'
     )
 
@@ -434,8 +434,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
@@ -467,8 +467,8 @@ describe('loadDependencies', () => {
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
-      ['../macros'],
-      ['../', '../services'],
+      [path.join(__dirname, './macros')],
+      [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)

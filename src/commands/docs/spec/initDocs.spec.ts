@@ -3,8 +3,7 @@ import path from 'path'
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
-import { generateTimestamp } from '@sasjs/utils'
-import { folderExists, deleteFolder, deleteFile } from '../../../utils/file'
+import { folderExists, deleteFolder, generateTimestamp } from '@sasjs/utils'
 
 describe('sasjs doc', () => {
   let appName: string
