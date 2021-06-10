@@ -1,4 +1,4 @@
-import { asyncForEach, chunk } from '../../utils/utils'
+import { chunk } from '../../utils/utils'
 import {
   readFile,
   base64EncodeFile,
@@ -8,14 +8,16 @@ import {
   createFolder,
   createFile,
   deleteFolder,
-  getFilesInFolder
-} from '../../utils/file'
+  listFilesInFolder,
+  ServerType,
+  Target,
+  asyncForEach
+} from '@sasjs/utils'
 import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
 import btoa from 'btoa'
-import { ServerType, Target } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 
@@ -114,6 +116,7 @@ export async function createWebAppServices(target: Target) {
         assetPathMap
       )
     })
+
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
       await updateLinkHref(
@@ -159,7 +162,7 @@ async function createAssetServices(
       )
       return
     }
-    const filePaths = await getFilesInFolder(fullAssetPath)
+    const filePaths = await listFilesInFolder(fullAssetPath)
     await asyncForEach(filePaths, async (filePath) => {
       const fullFileName = path.basename(filePath)
       const fileName = fullFileName.substring(0, fullFileName.lastIndexOf('.'))

@@ -6,8 +6,9 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
-  readFile
-} from './file'
+  readFile,
+  asyncForEach
+} from '@sasjs/utils'
 import {
   ServerType,
   Target,
@@ -18,15 +19,15 @@ import {
   getConfiguration,
   getLocalConfig,
   saveLocalConfigFile,
-  saveToLocalConfig,
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
+import { compiledFilesCustom1 } from './fileStructures/compiledFilesCustom1'
 import { builtFiles } from './fileStructures/builtFiles'
-import { asyncForEach } from './utils'
+import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
@@ -46,6 +47,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
 
 export const createTestMinimalApp = async (
@@ -96,6 +98,13 @@ export const generateTestTarget = (
       jobFolders: []
     },
     serviceConfig,
+    testConfig: {
+      initProgram: '',
+      termProgram: '',
+      macroVars: {},
+      testSetUp: '',
+      testTearDown: ''
+    },
     deployConfig: {
       deployServicePack: true
     }
@@ -123,24 +132,91 @@ export const createTestGlobalTarget = async (
 
 export const verifyStep = async (
   step: 'db' | 'compile' | 'build' = 'compile',
-  buildFileName: string = 'viya'
+  buildFileName: string = 'viya',
+  customFiles: 'custom' | 'no' = 'no'
 ) => {
   const fileStructure: Folder =
     step === 'db'
       ? dbFiles
       : step === 'compile'
-      ? compiledFiles
+      ? customFiles === 'no'
+        ? compiledFiles
+        : compiledFilesCustom1
       : step === 'build'
-      ? builtFiles(buildFileName)
+      ? customFiles === 'no'
+        ? builtFiles(buildFileName)
+        : builtFilesCustom1(buildFileName)
       : compiledFiles
 
   await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
+
+  if (step === 'build') {
+    const buildJsonFilePath = path.join(
+      process.projectDir,
+      'sasjsbuild',
+      `${buildFileName}.json`
+    )
+    const buildJson = JSON.parse(await readFile(buildJsonFilePath))
+
+    const buildSasFilePath = path.join(
+      process.projectDir,
+      'sasjsbuild',
+      `${buildFileName}.sas`
+    )
+    const buildSas = await readFile(buildSasFilePath)
+
+    expect(
+      verifyBuildJson(fileStructure.subFolders, buildJson.members, buildSas)
+    ).toEqual(true)
+  }
 }
 
 export const mockProcessExit = () =>
   jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
     return code as never
   })
+
+interface BuildJson {
+  name: string
+  type: string
+  code?: string
+  members?: BuildJson[]
+}
+
+const verifyBuildJson = (
+  folders: Folder[],
+  buildJson: BuildJson[] = [],
+  buildSas: string
+) => {
+  folders.forEach((folder) => {
+    const folderFound = buildJson
+      .filter((buildMember) => buildMember.type === 'folder')
+      .find((buildMember) => buildMember.name === folder.folderName)
+
+    expect(folderFound).toBeTruthy()
+
+    folder.files.forEach((file) => {
+      const fileFound = folderFound!
+        .members!.filter((buildMember) => buildMember.type === 'service')
+        .find(
+          (buildMember) =>
+            buildMember.name === file.fileName.replace(/.sas$/, '')
+        )
+
+      expect(fileFound).toBeTruthy()
+
+      expect(buildSas).toEqual(
+        expect.stringContaining(`%let service=${fileFound!.name};`)
+      )
+    })
+
+    expect(
+      verifyBuildJson(folder.subFolders, folderFound!.members, buildSas)
+    ).toEqual(true)
+  })
+
+  return true
+}
 
 export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {
   await expect(
@@ -283,8 +359,11 @@ export const verifyDocs = async (
     docsFolder,
     'yetanothermacro_8sas_source.html'
   )
-  const macroCoreFile = path.join(docsFolder, 'all_8sas.html')
-  const macroCoreFileSource = path.join(docsFolder, 'all_8sas_source.html')
+  const macroCoreFile = path.join(docsFolder, 'mf__existds_8sas.html')
+  const macroCoreFileSource = path.join(
+    docsFolder,
+    'mf__existds_8sas_source.html'
+  )
 
   await expect(folderExists(docsFolder)).resolves.toEqual(true)
 

@@ -1,10 +1,17 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, folderExists, createFile, readFile, copy } from './file'
-import { LogLevel, Target } from '@sasjs/utils'
+import {
+  fileExists,
+  folderExists,
+  createFile,
+  readFile,
+  copy,
+  LogLevel,
+  Target,
+  padWithNumber
+} from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
-import { padWithNumber } from '@sasjs/utils/formatter'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -212,15 +219,6 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
   await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
-export async function asyncForEach(
-  array: any[],
-  callback: (item: any, index: number, originalArray: any[]) => any
-) {
-  for (let index = 0; index < array.length; index++) {
-    await callback(array[index], index, array)
-  }
-}
-
 /**
  * Removes comments from a given block of text.
  * Preserves single line block comments and inline comments.
@@ -314,26 +312,6 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
   }
 
   return logLines
-}
-
-/**
- * Returns a timestamp in YYYYMMDDSS format
- */
-export function generateTimestamp(sep = ''): string {
-  const date = new Date()
-
-  const timestamp = [
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds()
-  ]
-    .map((item) => padWithNumber(item))
-    .join(sep)
-
-  return timestamp
 }
 
 export const arrToObj = (arr: any[]): any =>

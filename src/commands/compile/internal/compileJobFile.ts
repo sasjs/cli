@@ -1,7 +1,6 @@
-import path from 'path'
 import { Target } from '@sasjs/utils/types'
 
-import { createFile } from '../../../utils/file'
+import { createFile } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 
 export async function compileJobFile(

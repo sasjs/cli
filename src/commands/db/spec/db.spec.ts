@@ -1,31 +1,27 @@
 import path from 'path'
 import { createTestApp, removeTestApp, verifyStep } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
+import { generateTimestamp } from '@sasjs/utils'
 import { buildDB } from '../db'
 
 describe(`sasjs db`, () => {
   const timestamp = generateTimestamp()
   const appName = `test-app-DB-${timestamp}`
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     await createTestApp(__dirname, appName)
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
-    done()
   })
 
-  it(`should create db folder`, async (done) => {
+  it(`should create db folder`, async () => {
     await expect(buildDB()).toResolve()
 
     await verifyStep('db')
-
-    done()
   })
 
-  it(`should throw an error when the db folder does not exist`, async (done) => {
+  it(`should throw an error when the db folder does not exist`, async () => {
     const timestamp = generateTimestamp()
     const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
 
@@ -34,7 +30,5 @@ describe(`sasjs db`, () => {
     await expect(buildDB()).rejects.toThrow('no such file or directory')
 
     await removeTestApp(__dirname, parentFolderNameTimeStamped)
-
-    done()
   })
 })

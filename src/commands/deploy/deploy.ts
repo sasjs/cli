@@ -2,14 +2,15 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
-import { asyncForEach, executeShellScript } from '../../utils/utils'
+import { executeShellScript } from '../../utils/utils'
 import {
-  isSasFile,
-  isShellScript,
   readFile,
-  createFile
-} from '../../utils/file'
-import { ServerType, Target } from '@sasjs/utils'
+  createFile,
+  ServerType,
+  Target,
+  asyncForEach
+} from '@sasjs/utils'
+import { isSasFile, isShellScript } from '../../utils/file'
 import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 
@@ -24,7 +25,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}`
+      `${target.serverUrl}/SASJobExecution/?_folder=${target.appLoc}`
     )
   }
 

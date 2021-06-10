@@ -20,9 +20,10 @@ import {
   jobManagement,
   flowManagement,
   lint,
-  ReturnCode
+  ReturnCode,
+  test
 } from './main'
-import { fileExists } from './utils/file'
+import { fileExists } from '@sasjs/utils'
 import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'
@@ -37,6 +38,7 @@ export async function cli(args: string[]) {
 
   if (!parsedCommand) {
     handleInvalidCommand()
+
     return
   }
 
@@ -153,6 +155,10 @@ export async function cli(args: string[]) {
     }
     case 'lint': {
       result = await lint(command)
+      break
+    }
+    case 'test': {
+      result = await test(command)
       break
     }
     default:

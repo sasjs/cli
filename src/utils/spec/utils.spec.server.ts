@@ -1,5 +1,5 @@
 import { createReactApp } from '../utils'
-import { folderExists, deleteFolder, createFolder } from '../file'
+import { folderExists, deleteFolder, createFolder } from '@sasjs/utils'
 import path from 'path'
 
 describe('utils', () => {

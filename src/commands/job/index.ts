@@ -26,6 +26,7 @@ export async function processJob(command: Command) {
   const status = command.getFlagValue('status') as string
   const returnStatusOnly = command.getFlagValue('returnStatusOnly') as boolean
   const ignoreWarnings = command.getFlagValue('ignoreWarnings') as boolean
+  const source = command.getFlagValue('source') as string | undefined
 
   const { target } = await findTargetInConfiguration(targetName)
 
@@ -56,7 +57,8 @@ export async function processJob(command: Command) {
         log,
         status,
         returnStatusOnly,
-        ignoreWarnings
+        ignoreWarnings,
+        source
       )
 
       break

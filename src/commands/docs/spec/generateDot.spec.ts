@@ -1,6 +1,5 @@
 import path from 'path'
 import { graphviz } from 'node-graphviz'
-
 import { doc } from '../../../main'
 import { Command } from '../../../utils/command'
 import {
@@ -10,17 +9,12 @@ import {
   updateTarget,
   verifyDotFiles
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import {
   folderExists,
-  fileExists,
-  createFile,
-  deleteFile,
-  readFile
-} from '../../../utils/file'
-import { getConfiguration } from '../../../utils/config'
-import { getConstants } from '../../../constants'
-import { JobConfig } from '@sasjs/utils/types/config'
+  readFile,
+  JobConfig,
+  generateTimestamp
+} from '@sasjs/utils'
 
 describe('sasjs doc lineage', () => {
   let appName: string

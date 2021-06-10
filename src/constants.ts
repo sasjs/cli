@@ -12,6 +12,7 @@ interface Constants {
   buildDestinationDocsFolder: string
   buildDestinationResultsFolder: string
   buildDestinationResultsLogsFolder: string
+  buildDestinationTestFolder: string
   macroCorePath: string
 }
 
@@ -58,6 +59,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationFolder,
     'services'
   )
+  const buildDestinationTestFolder = path.join(buildDestinationFolder, 'tests')
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
@@ -82,6 +84,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationDocsFolder,
     buildDestinationResultsFolder,
     buildDestinationResultsLogsFolder,
+    buildDestinationTestFolder,
     macroCorePath
   }
 }

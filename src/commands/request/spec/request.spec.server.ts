@@ -1,10 +1,8 @@
 import path from 'path'
-import { copy, readFile } from '../../../utils/file'
-import { generateTimestamp } from '../../../utils/utils'
+import { copy, readFile, deleteFolder, createFile } from '@sasjs/utils'
 import { runRequest, compileBuildDeployServices } from '../../../main'
-import { deleteFolder, createFile } from '../../../utils/file'
 import { folder } from '../../folder/index'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   createTestApp,
   createTestGlobalTarget,
@@ -50,7 +48,7 @@ describe('sasjs request without compute API', () => {
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
     target = await createTestGlobalTarget(
@@ -72,19 +70,17 @@ describe('sasjs request without compute API', () => {
 
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     await createFile(
       path.join(process.projectDir, configPathRel),
       JSON.stringify(target.toJson(), null, 2)
@@ -93,10 +89,9 @@ describe('sasjs request without compute API', () => {
       path.join(process.projectDir, dataPathRel),
       JSON.stringify(sampleDataJson, null, 2)
     )
-    done()
   })
 
-  it(`should execute service 'sendArr' with absolute path`, async (done) => {
+  it(`should execute service 'sendArr' with absolute path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -109,10 +104,9 @@ describe('sasjs request without compute API', () => {
 
     expect(output.table1).toEqual(expectedDataArr.table1)
     expect(output.table2).toEqual(expectedDataArr.table2)
-    done()
   })
 
-  it(`should execute service 'sendObj' with absolute path`, async (done) => {
+  it(`should execute service 'sendObj' with absolute path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -125,10 +119,9 @@ describe('sasjs request without compute API', () => {
 
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
-    done()
   })
 
-  it(`should execute service 'sendArr' with relative path`, async (done) => {
+  it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -142,10 +135,9 @@ describe('sasjs request without compute API', () => {
 
     expect(output.table1).toEqual(expectedDataArr.table1)
     expect(output.table2).toEqual(expectedDataArr.table2)
-    done()
   })
 
-  it(`should execute service 'sendObj' with relative path`, async (done) => {
+  it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -159,7 +151,6 @@ describe('sasjs request without compute API', () => {
 
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
-    done()
   })
 })
 
@@ -168,7 +159,7 @@ describe(`sasjs request with compute API`, () => {
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
     target = await createTestGlobalTarget(
@@ -187,20 +178,17 @@ describe(`sasjs request with compute API`, () => {
     )
 
     await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     await createFile(
       path.join(process.projectDir, configPathRel),
       JSON.stringify(
@@ -217,10 +205,9 @@ describe(`sasjs request with compute API`, () => {
       path.join(process.projectDir, dataPathRel),
       JSON.stringify(sampleDataJson, null, 2)
     )
-    done()
   })
 
-  it(`should execute service 'sendArr' with absolute path`, async (done) => {
+  it(`should execute service 'sendArr' with absolute path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -234,10 +221,9 @@ describe(`sasjs request with compute API`, () => {
 
     expect(output.table1).toEqual(expectedDataArr.table1)
     expect(output.table2).toEqual(expectedDataArr.table2)
-    done()
   })
 
-  it(`should execute service 'sendObj' with absolute path`, async (done) => {
+  it(`should execute service 'sendObj' with absolute path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -251,10 +237,9 @@ describe(`sasjs request with compute API`, () => {
 
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
-    done()
   })
 
-  it(`should execute service 'sendArr' with relative path`, async (done) => {
+  it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -268,10 +253,9 @@ describe(`sasjs request with compute API`, () => {
 
     expect(output.table1).toEqual(expectedDataArr.table1)
     expect(output.table2).toEqual(expectedDataArr.table2)
-    done()
   })
 
-  it(`should execute service 'sendObj' with relative path`, async (done) => {
+  it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
       runRequest(
         new Command(
@@ -285,6 +269,5 @@ describe(`sasjs request with compute API`, () => {
 
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
-    done()
   })
 })

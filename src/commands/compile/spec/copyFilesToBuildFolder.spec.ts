@@ -1,33 +1,30 @@
 import { Folder } from '../../../types'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { createTestApp, removeTestApp, verifyFolder } from '../../../utils/test'
-import { generateTimestamp, asyncForEach } from '../../../utils/utils'
+import { asyncForEach, generateTimestamp } from '@sasjs/utils'
 import * as getAllServiceFoldersModule from '../internal/getAllServiceFolders'
 import * as compileModule from '../compile'
 
 describe('copyFilesToBuildFolder', () => {
   let appName: string
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     appName = `cli-tests-copyFilesToBuildFolder-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, appName)
     jest.clearAllMocks()
-    done()
   })
 
-  it('should copy files into the sasjsbuild folder', async (done) => {
+  it('should copy files into the sasjsbuild folder', async () => {
     const { target } = await findTargetInConfiguration('viya')
     await expect(compileModule.copyFilesToBuildFolder(target)).toResolve()
     await verifyBuildFolder()
-    done()
   })
 
-  it('should throw an error when one occurs during copying', async (done) => {
+  it('should throw an error when one occurs during copying', async () => {
     jest
       .spyOn(getAllServiceFoldersModule, 'getAllServiceFolders')
       .mockImplementation(() => {
@@ -38,7 +35,6 @@ describe('copyFilesToBuildFolder', () => {
     await expect(
       compileModule.copyFilesToBuildFolder(target)
     ).rejects.toThrowError('Test Error')
-    done()
   })
 })
 

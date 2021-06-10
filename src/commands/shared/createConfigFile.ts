@@ -1,7 +1,7 @@
 import path from 'path'
 
 import { getConfiguration } from '../../utils/config'
-import { createFile } from '../../utils/file'
+import { createFile } from '@sasjs/utils'
 
 /**
  * Creates a SASjs configuration file.

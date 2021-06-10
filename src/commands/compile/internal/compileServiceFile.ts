@@ -2,7 +2,7 @@ import path from 'path'
 import { Target, ServerType } from '@sasjs/utils/types'
 
 import { getMacroCorePath } from '../../../utils/config'
-import { createFile, readFile } from '../../../utils/file'
+import { createFile, readFile } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
 
@@ -63,6 +63,8 @@ async function getPreCodeForServicePack(serverType: ServerType) {
   }
   content +=
     '/* provide additional debug info */\n' +
+    '%global _program;\n' +
+    '%put &=syscc;\n' +
     '%put user=%mf_getuser();\n' +
     '%put pgm=&_program;\n' +
     '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
