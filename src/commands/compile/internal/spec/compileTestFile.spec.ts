@@ -32,7 +32,7 @@ describe('compileTestFile', () => {
   let testBody: string
   const testFileName = 'random.test.sas'
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     testBody = await readFile(path.join(__dirname, 'testFiles', testFileName))
 
     process.logger = new Logger(LogLevel.Off)
@@ -47,15 +47,11 @@ describe('compileTestFile', () => {
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
     const testSourceFolder = path.join(sasjsPath, 'tests')
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-
-    done()
   })
 
   describe('compileTestFile function', () => {
@@ -160,7 +156,7 @@ describe('compileTestFile', () => {
       )
     })
 
-    it('should log coverage', async (done) => {
+    it('should log coverage', async () => {
       jest.spyOn(process.logger, 'table').mockImplementation(() => '')
 
       const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
@@ -184,11 +180,9 @@ describe('compileTestFile', () => {
         expectedData,
         expectedHeader
       )
-
-      done()
     })
 
-    it('should not log 0/0 coverage', async (done) => {
+    it('should not log 0/0 coverage', async () => {
       jest.spyOn(process.logger, 'info').mockImplementation(() => '')
 
       await compile(target)
@@ -202,8 +196,6 @@ describe('compileTestFile', () => {
       expect(process.logger.info).toHaveBeenLastCalledWith(
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
-
-      done()
     })
   })
 })

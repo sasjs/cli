@@ -21,13 +21,12 @@ describe('getDependencyPaths', () => {
     await createTestMinimalApp(__dirname, target.name)
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  test('it should recursively get all dependency paths', async (done) => {
+  test('it should recursively get all dependency paths', async () => {
     const fileContent = await readFile(path.join(__dirname, './example.sas'))
     const dependenciesList = [
       'mv_createfolder.sas',
@@ -44,11 +43,9 @@ describe('getDependencyPaths', () => {
     dependencyPaths.forEach((dep) => {
       expect(dependenciesList.some((x) => dep.includes(x))).toBeTruthy()
     })
-
-    done()
   })
 
-  test('it should get third level dependencies', async (done) => {
+  test('it should get third level dependencies', async () => {
     const fileContent = await readFile(
       path.join(__dirname, './nested-deps.sas')
     )
@@ -77,11 +74,9 @@ describe('getDependencyPaths', () => {
         dependencyPaths.some((dep) => dep.includes(expectedDep))
       ).toBeTruthy()
     })
-
-    done()
   })
 
-  test('it should throw an error when a dependency is not found', async (done) => {
+  test('it should throw an error when a dependency is not found', async () => {
     const missingDependencies = ['foobar.sas', 'foobar2.sas']
     const missingDependencyFile = './missing-dependency.sas'
 
@@ -92,11 +87,9 @@ describe('getDependencyPaths', () => {
     await expect(getDependencyPaths(fileContent)).rejects.toEqual(
       `Unable to locate dependencies: ${missingDependencies.join(', ')}`
     )
-
-    done()
   })
 
-  test('it should ignore non-sas dependencies', async (done) => {
+  test('it should ignore non-sas dependencies', async () => {
     const fileContent = await readFile(
       path.join(__dirname, './non-sas-dependency.sas')
     )
@@ -118,8 +111,6 @@ describe('getDependencyPaths', () => {
     dependencyPaths.forEach((dep) => {
       expect(dependenciesList.some((x) => dep.includes(x))).toBeTruthy()
     })
-
-    done()
   })
 
   test('it should prioritise overridden dependencies', () => {
