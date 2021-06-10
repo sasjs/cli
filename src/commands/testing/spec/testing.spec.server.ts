@@ -26,7 +26,7 @@ import path from 'path'
 describe('sasjs test', () => {
   let target: Target
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     target = await createGlobalTarget()
 
     await createTestApp(__dirname, target.name)
@@ -35,10 +35,9 @@ describe('sasjs test', () => {
 
     process.logger = new Logger(LogLevel.Off)
 
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await folder(
       new Command(
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
@@ -47,7 +46,6 @@ describe('sasjs test', () => {
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
 
-    done()
   })
 
   it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
