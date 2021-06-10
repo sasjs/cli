@@ -41,7 +41,6 @@ describe('sasjs run', () => {
         path.join(__dirname, 'testServices'),
         path.join(process.projectDir, 'sasjs', 'testServices')
       )
-
     })
 
     afterEach(async () => {
@@ -154,7 +153,6 @@ describe('sasjs run', () => {
         },
         'viya'
       )
-
     })
 
     afterEach(async () => {
@@ -221,7 +219,6 @@ describe('sasjs run', () => {
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
-
     })
 
     afterAll(async () => {
@@ -319,7 +316,6 @@ describe('sasjs run', () => {
       await expect(
         runSasCode(new Command(`run -t someTargetName some-file.sas`))
       ).rejects.toEqual(error)
-
     })
   })
 })

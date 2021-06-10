@@ -112,13 +112,11 @@ describe('sasjs cbd with local config', () => {
     await removeTestApp(__dirname, appName)
 
     jest.resetAllMocks()
-
   })
 
   it('should deploy service pack when deployServicePack is true', async () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     await expect(compileBuildDeployServices(command)).toResolve()
-
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
@@ -130,7 +128,6 @@ describe('sasjs cbd with local config', () => {
     })
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     await expect(compileBuildDeployServices(command)).toResolve()
-
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
@@ -154,7 +151,6 @@ describe('sasjs cbd with local config', () => {
       ),
       'An error has occurred when deploying services.'
     )
-
   })
 
   it(`should error when an access token is not provided`, async () => {
@@ -172,7 +168,6 @@ describe('sasjs cbd with local config', () => {
       ),
       'An error has occurred when deploying services.'
     )
-
   })
 })
 

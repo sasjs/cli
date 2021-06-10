@@ -19,7 +19,6 @@ describe(`sasjs db`, () => {
     await expect(buildDB()).toResolve()
 
     await verifyStep('db')
-
   })
 
   it(`should throw an error when the db folder does not exist`, async () => {
@@ -31,6 +30,5 @@ describe(`sasjs db`, () => {
     await expect(buildDB()).rejects.toThrow('no such file or directory')
 
     await removeTestApp(__dirname, parentFolderNameTimeStamped)
-
   })
 })

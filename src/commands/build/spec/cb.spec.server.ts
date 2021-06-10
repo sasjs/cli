@@ -22,7 +22,6 @@ describe('sasjs compile', () => {
       appName,
       `/Public/app/cli-tests/${appName}`
     )
-
   })
 
   afterEach(async () => {

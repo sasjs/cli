@@ -178,7 +178,6 @@ describe(`sasjs request with compute API`, () => {
     )
 
     await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
-
   })
 
   afterAll(async () => {

@@ -105,7 +105,6 @@ describe('sasjs create', () => {
     await expect(create('test-unknown-app', 'xyz')).rejects.toThrow(
       'Template "xyz" is not a SASjs template'
     )
-
   })
 })
 

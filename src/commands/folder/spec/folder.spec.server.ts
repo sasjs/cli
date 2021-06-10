@@ -13,7 +13,6 @@ describe('sasjs folder operations', () => {
   beforeAll(async () => {
     target = await createGlobalTarget()
     process.projectDir = process.cwd()
-
   })
 
   afterAll(async () => {

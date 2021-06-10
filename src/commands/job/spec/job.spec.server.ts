@@ -44,7 +44,6 @@ describe('sasjs job execute', () => {
     )
 
     process.logger = new Logger(LogLevel.Off)
-
   })
 
   afterAll(async () => {
@@ -67,7 +66,6 @@ describe('sasjs job execute', () => {
     )
 
     await expect(processJob(command)).toResolve()
-
   })
 
   it('should submit a job and wait for completion', async () => {
@@ -84,7 +82,6 @@ describe('sasjs job execute', () => {
     )
 
     await expect(processJob(command)).toResolve()
-
   })
 
   it('should submit a job and create a file with job output', async () => {
@@ -99,7 +96,6 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
   })
 
   it('should submit a job and create a file with job output and wait', async () => {
@@ -114,7 +110,6 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
   })
 
   it('should submit a job and create a file with job output, log and auto-wait', async () => {
@@ -136,7 +131,6 @@ describe('sasjs job execute', () => {
     await expect(fileExists(filePathOutput)).resolves.toEqual(true)
 
     await expect(fileExists(filePathLog)).resolves.toEqual(true)
-
   })
 
   it('should submit a job and create a file with job log', async () => {
@@ -149,7 +143,6 @@ describe('sasjs job execute', () => {
     await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
   })
 
   it(
@@ -171,8 +164,6 @@ describe('sasjs job execute', () => {
       for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
 
       expect(count).toBeGreaterThan(largeLogFileLines)
-
-
     },
     30 * 60 * 1000
   )
@@ -187,7 +178,6 @@ describe('sasjs job execute', () => {
     await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
   })
 
   it('should submit a job and create a file with provided job log filename and path', async () => {
@@ -202,7 +192,6 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
   })
 
   it('should submit a job and create a file with provided job log filename and status file', async () => {
@@ -226,7 +215,6 @@ describe('sasjs job execute', () => {
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
     expect(statusContent.includes('Job Status: completed')).toEqual(true)
-
   })
 
   it("should submit a job that doesn't exist and create a status file", async () => {
@@ -259,7 +247,6 @@ describe('sasjs job execute', () => {
         'Job Status: Not Available\nDetails: Error: Job was not found.'
       )
     ).toEqual(true)
-
   })
 
   it('should submit a job that fails and create a status file', async () => {
@@ -278,7 +265,6 @@ describe('sasjs job execute', () => {
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
     expect(statusContent.includes('Job Status: error')).toEqual(true)
-
   })
 
   it(`should submit a job that completes and return it's status`, async () => {
@@ -291,7 +277,6 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(0)
-
   })
 
   it(`should submit a job that completes with a warning and return it's status`, async () => {
@@ -304,7 +289,6 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(1)
-
   })
 
   it(`should submit a job that completes with ignored warning and return it's status`, async () => {
@@ -317,7 +301,6 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(0)
-
   })
 
   it(`should submit a job that fails and return its status`, async () => {
@@ -342,7 +325,6 @@ describe('sasjs job execute', () => {
       logData.match('ERROR: The %ABORT statement is not valid in open code.')
     ).toBeTruthy()
     expect(logData.match(/\* JobTerm end;$/gm)).toBeTruthy()
-
   })
 
   it(`should submit a job that does not exist and return it's status`, async () => {
@@ -355,7 +337,6 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(2)
-
   })
 })
 

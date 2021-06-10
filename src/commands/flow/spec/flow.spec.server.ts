@@ -40,7 +40,6 @@ describe('sasjs flow', () => {
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
     process.logger = new Logger(LogLevel.Off)
-
   })
 
   afterEach(async () => {
@@ -83,7 +82,6 @@ describe('sasjs flow', () => {
 
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
-
   })
 
   it(
@@ -122,7 +120,6 @@ describe('sasjs flow', () => {
     await expect(processFlow(command)).resolves.toEqual(
       `Please provide flow source (--source) file.\n${examples.command}`
     )
-
   })
 
   it('should return an error if provided source file does not exist', async () => {
@@ -139,7 +136,6 @@ describe('sasjs flow', () => {
     await expect(processFlow(command)).resolves.toEqual(
       `Source file does not exist.\n${examples.command}`
     )
-
   })
 
   it('should return an error if provided an invalid source file', async () => {
@@ -150,7 +146,6 @@ describe('sasjs flow', () => {
     )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
-
   })
 
   it('should return an error if provided source file does not have flows property', async () => {
@@ -171,7 +166,6 @@ describe('sasjs flow', () => {
     )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
-
   })
 
   it('should execute flow with 2 successful jobs and 1 failing job', async () => {
@@ -200,7 +194,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(2)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
-
   })
 
   it('should execute flow with 1 successful job and 1 job that does not exist', async () => {
@@ -236,7 +229,6 @@ describe('sasjs flow', () => {
       1,
       "An error has occurred when executing 'firstFlow' flow's job located at: 'jobs/testJob/DOES_NOT_EXIST'. Job was not found."
     )
-
   })
 
   it(`should execute 2 chained flows with a failing job in predecessor's flow`, async () => {
@@ -265,7 +257,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
-
   })
 
   it(`should execute 2 chained flows with a failing job in successor's flow`, async () => {
@@ -299,7 +290,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
     expect(csvData.match(csvRowSecondFlowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
-
   })
 
   it(`should execute 3 chained flows with a failing job in one of the predecessor's flow`, async () => {
@@ -328,7 +318,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
-
   })
 
   it(`should execute 6 chained flows with failing and succeeding jobs`, async () => {
@@ -374,7 +363,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowThirdFlowFailedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFourthFlowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)).toEqual(null)
-
   })
 
   it('should execute flow and create csv file in default location', async () => {
@@ -406,7 +394,6 @@ describe('sasjs flow', () => {
 
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
-
   })
 })
 

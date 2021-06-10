@@ -32,7 +32,6 @@ describe('sasjs init', () => {
     await expect(init()).toResolve()
 
     await verifyInit()
-
   })
 
   it(`should initialise with 'sasonly' app in the current folder`, async () => {
@@ -47,7 +46,6 @@ describe('sasjs init', () => {
     await expect(init()).toResolve()
 
     await verifyInit()
-
   })
   it('should initialise in an empty current folder', async () => {
     const appName = `test-app-init-.-${generateTimestamp()}`
@@ -59,7 +57,6 @@ describe('sasjs init', () => {
     await expect(init()).toResolve()
 
     await verifyInit()
-
   })
 })
 

@@ -34,7 +34,6 @@ describe('sasjs test', () => {
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
     process.logger = new Logger(LogLevel.Off)
-
   })
 
   afterAll(async () => {
@@ -45,7 +44,6 @@ describe('sasjs test', () => {
     )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-
   })
 
   it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {

@@ -68,14 +68,18 @@ describe('compileJobFile', () => {
   })
 
   test('it should compile and create file', async () => {
-    jest.spyOn(internalModule, 'getJobInit').mockImplementation(() => Promise.resolve({
-      content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-      filePath: ''
-    }))
-    jest.spyOn(internalModule, 'getJobTerm').mockImplementation(() => Promise.resolve({
-      content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
-      filePath: ''
-    }))
+    jest.spyOn(internalModule, 'getJobInit').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
+        filePath: ''
+      })
+    )
+    jest.spyOn(internalModule, 'getJobTerm').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
+        filePath: ''
+      })
+    )
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
@@ -104,6 +108,5 @@ describe('compileJobFile', () => {
     expect(compiledContent).toEqual(
       expect.stringContaining(fakeProgramLines.join('\n'))
     )
-
   })
 })

@@ -49,14 +49,12 @@ describe('sasjs compile', () => {
   afterEach(async () => {
     await removeTestApp(__dirname, appName)
     jest.clearAllMocks()
-
   })
 
   it('should compile an uncompiled project', async () => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
   })
 
   it('should compile an uncompiled project with absolute macroPaths', async () => {
@@ -77,7 +75,6 @@ describe('sasjs compile', () => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
   })
 
   it('should compile an uncompiled project having no target', async () => {
@@ -86,7 +83,6 @@ describe('sasjs compile', () => {
     await expect(compileModule.compile({} as Target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
   })
 
   it('should fail to compile for missing program file', async () => {
@@ -106,7 +102,6 @@ describe('sasjs compile', () => {
     await expect(compileModule.compile(newTarget)).rejects.toThrow(errorMessage)
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
-
   })
 
   it('should skip compilation if a project is already compiled', async () => {
@@ -119,7 +114,6 @@ describe('sasjs compile', () => {
     await compileModule.compile(target)
     expect(compileModule.copyFilesToBuildFolder).not.toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).not.toHaveBeenCalled()
-
   })
 })
 
@@ -130,7 +124,6 @@ describe('sasjs compile single file', () => {
   afterEach(async () => {
     await removeTestApp(__dirname, appName)
     jest.clearAllMocks()
-
   })
 
   describe('job', () => {
@@ -139,7 +132,6 @@ describe('sasjs compile single file', () => {
       await createTestJobsApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileJobFile, 'compileJobFile')
-
     })
 
     it('should compile single file', async () => {
@@ -151,8 +143,6 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
-
-
     })
 
     it('should compile single file with absolute path', async () => {
@@ -166,8 +156,6 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
-
-
     })
   })
 
@@ -177,7 +165,6 @@ describe('sasjs compile single file', () => {
       await createTestApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileServiceFile, 'compileServiceFile')
-
     })
 
     it('should compile single file', async () => {
@@ -189,8 +176,6 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
-
-
     })
     it('should compile single file with absolute path', async () => {
       await expect(
@@ -203,8 +188,6 @@ describe('sasjs compile single file', () => {
         )
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
-
-
     })
   })
 })
@@ -226,7 +209,6 @@ describe('sasjs compile outside project', () => {
     beforeAll(async () => {
       sharedAppName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(homedir, sharedAppName)
-
     })
 
     beforeEach(async () => {
@@ -243,7 +225,6 @@ describe('sasjs compile outside project', () => {
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-
     })
 
     afterEach(async () => {
@@ -256,13 +237,11 @@ describe('sasjs compile outside project', () => {
       )
       await deleteFolder(parentOutputFolder)
       await deleteFolder(process.currentDir)
-
     })
 
     afterAll(async () => {
       await removeTestApp(homedir, sharedAppName)
       await deleteFolder(path.join(homedir, '.sasjs'))
-
     })
 
     it('should compile single file', async () => {
@@ -290,8 +269,6 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-
     })
 
     it('should compile single file with absolute macroFolder paths', async () => {
@@ -329,8 +306,6 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-
     })
 
     it('should fail to compile single file', async () => {
@@ -352,8 +327,6 @@ describe('sasjs compile outside project', () => {
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
-
-
     })
 
     it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async () => {
@@ -390,8 +363,6 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-
     })
 
     it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async () => {
@@ -428,8 +399,6 @@ describe('sasjs compile outside project', () => {
       ]
 
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
-
-
     })
   })
 
@@ -440,13 +409,11 @@ describe('sasjs compile outside project', () => {
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-
     })
 
     afterEach(async () => {
       await deleteFolder(parentOutputFolder)
       await deleteFolder(process.currentDir)
-
     })
 
     it('should fail to compile single file', async () => {
@@ -460,8 +427,6 @@ describe('sasjs compile outside project', () => {
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
-
-
     })
   })
 })
