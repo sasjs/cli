@@ -32,7 +32,7 @@ describe('sasjs flow', () => {
   const csvPath = path.join(__dirname, 'output.csv')
   const logPath = path.join(__dirname, 'logs')
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     target = await createGlobalTarget()
 
     await createTestApp(__dirname, target.name)
@@ -41,16 +41,14 @@ describe('sasjs flow', () => {
 
     process.logger = new Logger(LogLevel.Off)
 
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await deleteFolder(logPath)
     jest.resetAllMocks()
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await folder(
       new Command(
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
@@ -59,10 +57,9 @@ describe('sasjs flow', () => {
     await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-    done()
   })
 
-  it('should execute flow with 2 successful jobs', async (done) => {
+  it('should execute flow with 2 successful jobs', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
 
     const command = new Command(
@@ -87,12 +84,11 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
 
-    done()
   })
 
   it(
     'should execute flow with job log having large log',
-    async (done) => {
+    async () => {
       const largeLogFileLines = 21 * 1000
 
       const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
@@ -112,13 +108,11 @@ describe('sasjs flow', () => {
       for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
 
       expect(count).toBeGreaterThan(largeLogFileLines)
-
-      done()
     },
     30 * 60 * 1000
   )
 
-  it('should return an error if provided source file is not JSON', async (done) => {
+  it('should return an error if provided source file is not JSON', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid.txt')
 
     const command = new Command(
@@ -129,10 +123,9 @@ describe('sasjs flow', () => {
       `Please provide flow source (--source) file.\n${examples.command}`
     )
 
-    done()
   })
 
-  it('should return an error if provided source file does not exist', async (done) => {
+  it('should return an error if provided source file does not exist', async () => {
     const sourcePath = path.join(
       __dirname,
       'sourceFiles',
@@ -147,10 +140,9 @@ describe('sasjs flow', () => {
       `Source file does not exist.\n${examples.command}`
     )
 
-    done()
   })
 
-  it('should return an error if provided an invalid source file', async (done) => {
+  it('should return an error if provided an invalid source file', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_1.json')
 
     const command = new Command(
@@ -159,10 +151,9 @@ describe('sasjs flow', () => {
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
 
-    done()
   })
 
-  it('should return an error if provided source file does not have flows property', async (done) => {
+  it('should return an error if provided source file does not have flows property', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_2.json')
 
     const command = new Command(
@@ -170,10 +161,9 @@ describe('sasjs flow', () => {
     )
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
-    done()
   })
 
-  it('should return an error if provided source file does not have jobs property', async (done) => {
+  it('should return an error if provided source file does not have jobs property', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_3.json')
 
     const command = new Command(
@@ -182,10 +172,9 @@ describe('sasjs flow', () => {
 
     await expect(processFlow(command)).resolves.toEqual(examples.source)
 
-    done()
   })
 
-  it('should execute flow with 2 successful jobs and 1 failing job', async (done) => {
+  it('should execute flow with 2 successful jobs and 1 failing job', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_2.json')
 
     const command = new Command(
@@ -212,10 +201,9 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(2)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
-    done()
   })
 
-  it('should execute flow with 1 successful job and 1 job that does not exist', async (done) => {
+  it('should execute flow with 1 successful job and 1 job that does not exist', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_3.json')
 
     const command = new Command(
@@ -249,10 +237,9 @@ describe('sasjs flow', () => {
       "An error has occurred when executing 'firstFlow' flow's job located at: 'jobs/testJob/DOES_NOT_EXIST'. Job was not found."
     )
 
-    done()
   })
 
-  it(`should execute 2 chained flows with a failing job in predecessor's flow`, async (done) => {
+  it(`should execute 2 chained flows with a failing job in predecessor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_4.json')
 
     const command = new Command(
@@ -279,10 +266,9 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
-    done()
   })
 
-  it(`should execute 2 chained flows with a failing job in successor's flow`, async (done) => {
+  it(`should execute 2 chained flows with a failing job in successor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_5.json')
 
     const command = new Command(
@@ -314,10 +300,9 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowSecondFlowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
-    done()
   })
 
-  it(`should execute 3 chained flows with a failing job in one of the predecessor's flow`, async (done) => {
+  it(`should execute 3 chained flows with a failing job in one of the predecessor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_6.json')
 
     const command = new Command(
@@ -344,10 +329,9 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowFirstFlowCompletedRegExp)!.length).toEqual(2)
     expect(csvData.match(csvRowFailedRegExp)!.length).toEqual(1)
 
-    done()
   })
 
-  it(`should execute 6 chained flows with failing and succeeding jobs`, async (done) => {
+  it(`should execute 6 chained flows with failing and succeeding jobs`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_7.json')
 
     const command = new Command(
@@ -391,10 +375,9 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvRowFourthFlowCompletedRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowFailedRegExp)).toEqual(null)
 
-    done()
   })
 
-  it('should execute flow and create csv file in default location', async (done) => {
+  it('should execute flow and create csv file in default location', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
     const csvLoc = path.join(
       __dirname,
@@ -424,7 +407,6 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
 
-    done()
   })
 })
 
