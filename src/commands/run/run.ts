@@ -5,7 +5,7 @@ import { findTargetInConfiguration, getAccessToken } from '../../utils/config'
 import { readFile, createFile } from '../../utils/file'
 import { generateTimestamp } from '../../utils/utils'
 import { Command } from '../../utils/command'
-import { Target } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils'
 import { displayError } from '../../utils/displayResult'
 import { getConstants } from '../../constants'
 import { compileSingleFile } from '../'
@@ -41,7 +41,7 @@ export async function runSasCode(command: Command) {
       : path.join(process.currentDir, filePath)
   )
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
-  if (target.serverType === 'SASVIYA') {
+  if (target.serverType === ServerType.SasViya) {
     return await executeOnSasViya(filePath, target, linesToExecute)
   } else {
     return await executeOnSas9(target, linesToExecute)
@@ -126,17 +126,12 @@ async function executeOnSasViya(
 }
 
 async function executeOnSas9(target: Target, linesToExecute: string[]) {
-  const serverName = target.serverName || process.env.serverName
-  if (!serverName) {
+  const username = process.env.SAS_USERNAME
+  const password = process.env.SAS_PASSWORD
+  if (!username || !password) {
     throw new Error(
-      'SAS Server Name is required for SAS9 deployments.\n Please ensure that `serverName` is present in your build target configuration and try again.\n'
-    )
-  }
-
-  const repositoryName = target.repositoryName || process.env.repositoryName
-  if (!repositoryName) {
-    throw new Error(
-      'SAS Repository Name is required for SAS9 deployments.\n Please ensure that `repositoryName` is present in your build target configuration and try again.\n'
+      'A valid username and password are required for requests to SAS9 servers.' +
+        '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
     )
   }
 
@@ -149,7 +144,7 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
   })
   const { buildDestinationResultsFolder } = await getConstants()
   const executionResult = await sasjs
-    .executeScriptSAS9(linesToExecute, serverName, repositoryName)
+    .executeScriptSAS9(linesToExecute, username, password)
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
@@ -168,25 +163,15 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
       }
     })
 
-  let parsedLog
-  try {
-    parsedLog = JSON.parse(executionResult as string).payload.log
-  } catch (e) {
-    displayError('Error parsing execution result', e)
-    parsedLog = executionResult
-  }
-
   process.logger?.success('Job execution completed!')
 
   process.logger?.info(
     `Creating log file in ${buildDestinationResultsFolder} .`
   )
-  const createdFilePath = await createOutputFile(
-    JSON.stringify(parsedLog, null, 2)
-  )
+  const createdFilePath = await createOutputFile(executionResult || '')
   process.logger?.success(`Log file has been created at ${createdFilePath} .`)
 
-  return { parsedLog }
+  return executionResult
 }
 
 async function createOutputFile(log: string) {
