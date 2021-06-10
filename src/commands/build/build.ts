@@ -242,7 +242,8 @@ async function getContentFor(
   const files = await listFilesInFolder(folderPath)
 
   await asyncForEach(files, async (file) => {
-    const fileContent = await readFile(path.join(folderPath, file))
+    const filePath = path.join(folderPath, file)
+    const fileContent = /.sas$/.test(file) ? await readFile(filePath) : ''
 
     if (/.sas$/.test(file)) {
       const transformedContent = getServiceText(
@@ -258,7 +259,8 @@ async function getContentFor(
     contentJSON?.members.push({
       name: file.replace(/.sas$/, ''),
       type: /.sas$/.test(file) ? 'service' : 'file',
-      code: /.sas$/.test(file) ? removeComments(fileContent) : fileContent
+      code: /.sas$/.test(file) ? removeComments(fileContent) : '',
+      path: /.sas$/.test(file) ? null : filePath
     })
   })
 

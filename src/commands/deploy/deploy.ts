@@ -109,6 +109,13 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
   }
 }
 
+async function populateCodeInServicePack(json: any) {
+  await asyncForEach(json.members, async (member) => {
+    if (member.type === 'file') member.code = await readFileBinary(member.path)
+    if (member.type === 'folder') await populateCodeInServicePack(member)
+  })
+}
+
 async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean
@@ -120,6 +127,8 @@ async function deployToSasViyaWithServicePack(
   )
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
+
+  await populateCodeInServicePack(jsonObject)
 
   const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
 
