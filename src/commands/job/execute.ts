@@ -1,10 +1,19 @@
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { createFile, createFolder, folderExists } from '@sasjs/utils'
+import { isJsonFile } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
 import SASjs, { Link } from '@sasjs/adapter/node'
-import { Target } from '@sasjs/utils/types'
+import {
+  Target,
+  MacroVars,
+  isMacroVars,
+  fileExists,
+  readFile,
+  createFile,
+  createFolder,
+  folderExists
+} from '@sasjs/utils'
 
 /**
  * Triggers existing job for execution.
@@ -30,7 +39,8 @@ export async function execute(
   logFile: string,
   statusFile: string,
   returnStatusOnly: boolean,
-  ignoreWarnings: boolean
+  ignoreWarnings: boolean,
+  source: string | undefined
 ) {
   const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
 
@@ -57,6 +67,27 @@ export async function execute(
 
   const contextName = getContextName(target, returnStatusOnly)
 
+  let macroVars: MacroVars | undefined
+
+  if (source) {
+    if (!isJsonFile(source)) throw 'Source file has to be JSON.'
+
+    await fileExists(source).catch((_) => {
+      throw 'Error while checking if source file exists.'
+    })
+
+    source = await readFile(source).catch((_) => {
+      throw 'Error while reading source file.'
+    })
+
+    macroVars = JSON.parse(source as string) as MacroVars
+
+    if (!isMacroVars(macroVars)) {
+      throw `Provided source is not valid. An example of valid source:
+{ macroVars: { name1: 'value1', name2: 'value2' } }`
+    }
+  }
+
   let submittedJob = await sasjs
     .startComputeJob(
       jobPath,
@@ -65,7 +96,8 @@ export async function execute(
       accessToken,
       waitForJob || logFile !== undefined ? true : false,
       pollOptions,
-      true
+      true,
+      macroVars?.macroVars
     )
     .catch(async (err) => {
       if (err && err.log) {

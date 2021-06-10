@@ -499,7 +499,7 @@ describe('parseCommandLine', () => {
         'wait',
         'output',
         'logFile',
-        'status'
+        'source'
       ]
       const expectedFlagValues = [
         'targetName',
