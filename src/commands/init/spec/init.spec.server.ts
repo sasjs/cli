@@ -16,12 +16,11 @@ describe('sasjs init', () => {
     dotenv.config()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await deleteFolder(path.join(__dirname, 'test-app-init-*'))
-    done()
   })
 
-  it('should initialise with default app in the current folder', async (done) => {
+  it('should initialise with default app in the current folder', async () => {
     const appName = `test-app-init-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
@@ -34,10 +33,9 @@ describe('sasjs init', () => {
 
     await verifyInit()
 
-    done()
   })
 
-  it(`should initialise with 'sasonly' app in the current folder`, async (done) => {
+  it(`should initialise with 'sasonly' app in the current folder`, async () => {
     const appName = `test-app-init-sasonly-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
@@ -50,9 +48,8 @@ describe('sasjs init', () => {
 
     await verifyInit()
 
-    done()
   })
-  it('should initialise in an empty current folder', async (done) => {
+  it('should initialise in an empty current folder', async () => {
     const appName = `test-app-init-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
@@ -63,7 +60,6 @@ describe('sasjs init', () => {
 
     await verifyInit()
 
-    done()
   })
 })
 
