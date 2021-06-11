@@ -26,6 +26,6 @@ If you want to run `npm run test:server` or anything remote on Viya, you will ne
 
 All code should be written in TypeScript. See the checks in the PULL_REQUEST_TEMPLATE.md that must be completed before review.  If you can, please test in a Windows environment as 99% of our customers will use the CLI there.
 
-For support, you can contact team members in our slack channel.  Just reach out to us [here](https://sasapps.io/about-us) and we'll add you.
+For support, you can contact team members in our slack channel.  Just reach out to us [here](https://sasapps.io/contact-us) and we'll add you.
 
 
