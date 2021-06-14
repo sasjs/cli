@@ -95,7 +95,7 @@ export const compileTestFlow = async (target: Target) => {
     await getConstants()
 
   if (await folderExists(buildDestinationTestFolder)) {
-    let testFiles = await (
+    let testFiles = (
       await listFilesAndSubFoldersInFolder(buildDestinationTestFolder)
     ).map((file) => path.join('tests', file))
 
