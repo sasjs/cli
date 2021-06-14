@@ -14,7 +14,7 @@ import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
 
 describe('addCredential', () => {
-  it('prompts the user to enter the server URL if not found', async (done) => {
+  it('prompts the user to enter the server URL if not found', async () => {
     process.projectDir = '.'
     setupMocks()
     await addCredential('test-target')
@@ -33,8 +33,6 @@ describe('addCredential', () => {
 
     await fileUtils.deleteFile(path.join('.', '.env.test-target'))
     jest.clearAllMocks()
-
-    done()
   })
 })
 
@@ -99,7 +97,7 @@ describe('getTokens', () => {
     } as Target
   })
 
-  it('should throw an error when the supplied credentials are invalid', async (done) => {
+  it('should throw an error when the supplied credentials are invalid', async () => {
     const client = 'invalidClient'
     const secret = 'invalidSecret'
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() => {
@@ -109,10 +107,9 @@ describe('getTokens', () => {
     await expect(
       getTokens(testTarget as Target, client, secret)
     ).rejects.toThrow()
-    done()
   })
 
-  it('should return the auth response when the supplied credentials are valid', async (done) => {
+  it('should return the auth response when the supplied credentials are valid', async () => {
     const clientId = process.env.CLIENT as string
     const secret = process.env.SECRET as string
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
@@ -126,12 +123,11 @@ describe('getTokens', () => {
 
     expect(authResponse.access_token).toBeTruthy()
     expect(authResponse.refresh_token).toBeTruthy()
-    done()
   }, 10000)
 })
 
 describe('createEnvFile', () => {
-  it('should create a dotenv file with the supplied information', async (done) => {
+  it('should create a dotenv file with the supplied information', async () => {
     const targetName = 'testAddCredential'
     const clientId = 'cli3nt'
     const secret = 's3cr3t'
@@ -150,7 +146,6 @@ describe('createEnvFile', () => {
       expectedEnvFilePath,
       expectedEnvFileContent
     )
-    done()
   })
 })
 

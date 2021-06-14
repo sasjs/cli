@@ -59,7 +59,7 @@ describe('getAccessToken', () => {
     expect(token).toEqual('T0K3N')
   })
 
-  it('should prioritise the access token from matching env file if available', async (done) => {
+  it('should prioritise the access token from matching env file if available', async () => {
     process.env.ACCESS_TOKEN = '3NVT0K3N'
     const target = {
       name: 'ConfigTest'
@@ -74,7 +74,6 @@ describe('getAccessToken', () => {
 
     expect(token).toEqual('T4RG3TT0K3N')
     await deleteFile(path.join(__dirname, '.env.ConfigTest'))
-    done()
   })
 
   it('should throw an error when access token is unavailable', async () => {
@@ -249,7 +248,7 @@ describe('sanitizeAppLoc', () => {
 })
 
 describe('overrideEnvVariables', () => {
-  it('should do nothing when the target name is falsy', async (done) => {
+  it('should do nothing when the target name is falsy', async () => {
     jest.spyOn(fileUtils, 'readFile')
     jest.spyOn(dotenv, 'parse')
 
@@ -257,10 +256,9 @@ describe('overrideEnvVariables', () => {
 
     expect(fileUtils.readFile).not.toHaveBeenCalled()
     expect(dotenv.parse).not.toHaveBeenCalled()
-    done()
   })
 
-  it('should display a warning when the target env file is not found', async (done) => {
+  it('should display a warning when the target env file is not found', async () => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
     jest
@@ -275,10 +273,9 @@ describe('overrideEnvVariables', () => {
       'A .env.test file was not found in your project directory. Defaulting to variables from the main .env file.'
     )
     expect(dotenv.parse).not.toHaveBeenCalled()
-    done()
   })
 
-  it('should override env variables with values from the target-specific file', async (done) => {
+  it('should override env variables with values from the target-specific file', async () => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
     jest
@@ -293,7 +290,6 @@ describe('overrideEnvVariables', () => {
     expect(process.logger?.warn).not.toHaveBeenCalled()
     expect(dotenv.parse).toHaveBeenCalledWith('ACCESS_TOKEN=T4RG3TT0K3N')
     expect(process.env.ACCESS_TOKEN).toEqual('T4RG3TT0K3N')
-    done()
   })
 })
 
@@ -302,7 +298,7 @@ describe('saveToGlobalConfig', () => {
     process.projectDir = __dirname
   })
 
-  it('should set the target as default when isDefault is true', async (done) => {
+  it('should set the target as default when isDefault is true', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -316,11 +312,9 @@ describe('saveToGlobalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
     await removeFromGlobalConfig(target.name)
-
-    done()
   })
 
-  it('should not set the target as default when isDefault is false', async (done) => {
+  it('should not set the target as default when isDefault is false', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -334,8 +328,6 @@ describe('saveToGlobalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
     await removeFromGlobalConfig(target.name)
-
-    done()
   })
 })
 
@@ -344,7 +336,7 @@ describe('removeFromGlobalConfig', () => {
     process.projectDir = __dirname
   })
 
-  it('should reset the default target when that target is removed', async (done) => {
+  it('should reset the default target when that target is removed', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -361,11 +353,9 @@ describe('removeFromGlobalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeFalsy()
     expect(config.defaultTarget).toEqual('')
-
-    done()
   })
 
-  it('should not change the default target when another target is removed', async (done) => {
+  it('should not change the default target when another target is removed', async () => {
     const appName1 = 'cli-tests-config-1-' + generateTimestamp()
     const appName2 = 'cli-tests-config-2-' + generateTimestamp()
     const target1 = await generateTestTarget(
@@ -392,26 +382,22 @@ describe('removeFromGlobalConfig', () => {
     configTarget2 = config.targets?.find((t) => t.name === target2.name)
     expect(configTarget2).toBeFalsy()
     expect(config.defaultTarget).toEqual(target1.name)
-
-    done()
   })
 })
 
 describe('saveToLocalConfig', () => {
   let appName: string
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     appName = `cli-tests-config-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, appName)
-    done()
   })
 
-  it('should set the target as default when isDefault is true', async (done) => {
+  it('should set the target as default when isDefault is true', async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -425,11 +411,9 @@ describe('saveToLocalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
     await removeFromLocalConfig(target.name)
-
-    done()
   })
 
-  it('should not set the target as default when isDefault is false', async (done) => {
+  it('should not set the target as default when isDefault is false', async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -443,26 +427,22 @@ describe('saveToLocalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
     await removeFromLocalConfig(target.name)
-
-    done()
   })
 })
 
 describe('removeFromLocalConfig', () => {
   let appName: string
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     appName = `cli-tests-config-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
-    done()
   })
 
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeTestApp(__dirname, appName)
-    done()
   })
 
-  it('should reset the default target when that target is removed', async (done) => {
+  it('should reset the default target when that target is removed', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
     const target = await generateTestTarget(
       appName,
@@ -479,11 +459,9 @@ describe('removeFromLocalConfig', () => {
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeFalsy()
     expect(config.defaultTarget).toEqual('')
-
-    done()
   })
 
-  it('should not change the default target when another target is removed', async (done) => {
+  it('should not change the default target when another target is removed', async () => {
     const appName1 = 'cli-tests-config-1-' + generateTimestamp()
     const appName2 = 'cli-tests-config-2-' + generateTimestamp()
     const target1 = await generateTestTarget(
@@ -510,7 +488,5 @@ describe('removeFromLocalConfig', () => {
     configTarget2 = config.targets?.find((t) => t.name === target2.name)
     expect(configTarget2).toBeFalsy()
     expect(config.defaultTarget).toEqual(target1.name)
-
-    done()
   })
 })

@@ -85,6 +85,7 @@ export async function runTest(command: Command) {
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
     debug: true

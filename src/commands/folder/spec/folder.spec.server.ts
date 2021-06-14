@@ -10,19 +10,16 @@ import { Command } from '../../../utils/command'
 describe('sasjs folder operations', () => {
   let target: Target
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     target = await createGlobalTarget()
     process.projectDir = process.cwd()
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    done()
   })
 
-  it('list folder children', async (done) => {
+  it('list folder children', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -42,10 +39,9 @@ describe('sasjs folder operations', () => {
     expect(regex.test(list)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
-    done()
   })
 
-  it('move folders keeping the folder name', async (done) => {
+  it('move folders keeping the folder name', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -105,10 +101,9 @@ describe('sasjs folder operations', () => {
     expect(regex3.test(folderList2)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
-    done()
   })
 
-  it('move folder to the same location and rename it', async (done) => {
+  it('move folder to the same location and rename it', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -151,10 +146,9 @@ describe('sasjs folder operations', () => {
     expect(regex2.test(folderList1)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
-    done()
   })
 
-  it('move folder to different location renaming the folder', async (done) => {
+  it('move folder to different location renaming the folder', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
@@ -202,7 +196,6 @@ describe('sasjs folder operations', () => {
     expect(regex2.test(folderList1)).toBe(true)
 
     await deleteTestFolder(testFolderPath, target.name)
-    done()
   })
 })
 

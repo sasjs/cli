@@ -1,6 +1,11 @@
 import path from 'path'
 import { displayError, displaySuccess } from '../../utils/displayResult'
+import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
+import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
+import { getAccessToken } from '../../utils/config'
 import {
+  Target,
+  generateTimestamp,
   fileExists,
   readFile,
   createFile,
@@ -8,14 +13,10 @@ import {
   createFolder,
   getRealPath
 } from '@sasjs/utils'
-import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
-import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
-import { getAccessToken } from '../../utils/config'
-import { Target, generateTimestamp } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
-import { FilePath } from '../../types'
+import { FilePath, Flow } from '../../types'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 
 export async function execute(
@@ -51,12 +52,14 @@ export async function execute(
       return reject(`Source file does not exist.\n${examples.command}`)
     }
 
-    let sourceConfig: any = await readFile(source).catch((err) =>
+    const sourceContent = (await readFile(source).catch((err) =>
       displayError(err, 'Error while reading source file.')
-    )
+    )) as string
+
+    let sourceConfig: Flow
 
     try {
-      sourceConfig = JSON.parse(sourceConfig as string)
+      sourceConfig = JSON.parse(sourceContent)
     } catch (_) {
       return reject(examples.source)
     }
@@ -139,7 +142,8 @@ export async function execute(
               accessToken,
               true,
               pollOptions,
-              true
+              true,
+              job.macroVars
             )
             .catch(async (err: any) => {
               let logName = await saveLog(
@@ -291,7 +295,7 @@ export async function execute(
       const successors = Object.keys(flows).filter(
         (flow: any) =>
           flows[flow].predecessors &&
-          flows[flow].predecessors.includes(flowName)
+          flows[flow].predecessors?.includes(flowName)
       )
 
       successors.forEach((successor: any) => {
@@ -413,16 +417,16 @@ export async function execute(
               )
             }
 
-            let csvData: any = await readFile(csvFileRealPath).catch((err) =>
+            let csvContent = await readFile(csvFileRealPath).catch((err) => {
               displayError(err, 'Error while reading CSV file.')
-            )
 
-            if (typeof csvData === 'string') {
-              csvData = csvData
-                .split('\n')
-                .filter((row) => row.length)
-                .map((data) => data.split(','))
-            }
+              return ''
+            })
+
+            let csvData = csvContent
+              .split('\n')
+              .filter((row) => row.length)
+              .map((data) => data.split(','))
 
             const columns = {
               id: 'id',
@@ -475,14 +479,14 @@ export async function execute(
         .filter(
           (name) =>
             flows[name].predecessors &&
-            flows[name].predecessors.includes(flowName)
+            flows[name].predecessors?.includes(flowName)
         )
         .filter((name) => name !== flowName)
 
       successors.forEach((successor) => {
         const flowPredecessors = flows[successor].predecessors
 
-        if (flowPredecessors.length > 1) {
+        if (flowPredecessors && flowPredecessors.length > 1) {
           const successFullPredecessors = flowPredecessors.map(
             (flPred: any) =>
               flows[flPred].jobs.length ===
@@ -593,7 +597,7 @@ export async function execute(
 
                 const allJobs = Object.keys(flows)
                   .map((key) => flows[key].jobs)
-                  .reduce((acc, val) => acc.concat(val), [])
+                  .reduce((acc, val) => acc.concat(val as any), [])
                 const allJobsWithStatus = Object.keys(flows)
                   .map((key) =>
                     flows[key].jobs.filter((job: any) =>

@@ -65,21 +65,24 @@ describe('compileServiceFile', () => {
     await createTestMinimalApp(__dirname, target.name)
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  test('it should compile and create file', async (done) => {
-    spyOn(internalModule, 'getServiceInit').and.returnValue({
-      content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-      filePath: ''
-    })
-    spyOn(internalModule, 'getServiceTerm').and.returnValue({
-      content: `\n* ServiceTerm start;\n${fakeJobTerm}\n* ServiceTerm end;`,
-      filePath: ''
-    })
+  test('it should compile and create file', async () => {
+    jest.spyOn(internalModule, 'getServiceInit').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
+        filePath: ''
+      })
+    )
+    jest.spyOn(internalModule, 'getServiceTerm').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* ServiceTerm start;\n${fakeJobTerm}\n* ServiceTerm end;`,
+        filePath: ''
+      })
+    )
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
@@ -109,7 +112,5 @@ describe('compileServiceFile', () => {
       expect.stringContaining(fakeProgramLines.join('\n'))
     )
     expect(compiledContent).toEqual(expect.stringContaining(preCode))
-
-    done()
   })
 })

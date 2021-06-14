@@ -29,7 +29,7 @@ import {
 describe('sasjs job execute', () => {
   let target: Target
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     target = await createGlobalTarget()
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
@@ -44,11 +44,9 @@ describe('sasjs job execute', () => {
     )
 
     process.logger = new Logger(LogLevel.Off)
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await folder(
       new Command(
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
@@ -56,43 +54,37 @@ describe('sasjs job execute', () => {
     )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-    done()
   })
 
   afterEach(() => {
     jest.clearAllMocks()
   })
 
-  it('should submit a job for execution', async (done) => {
+  it('should submit a job for execution', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/services/testJob/job -t ${target.name}`
     )
 
     await expect(processJob(command)).toResolve()
-
-    done()
   })
 
-  it('should submit a job and wait for completion', async (done) => {
+  it('should submit a job and wait for completion', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w`
     )
 
     await expect(processJob(command)).toResolve()
-    done()
   })
 
-  it('should submit a job and wait for its output', async (done) => {
+  it('should submit a job and wait for its output', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w -o`
     )
 
     await expect(processJob(command)).toResolve()
-
-    done()
   })
 
-  it('should submit a job and create a file with job output', async (done) => {
+  it('should submit a job and create a file with job output', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput`
     )
@@ -104,11 +96,9 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
-    done()
   })
 
-  it('should submit a job and create a file with job output and wait', async (done) => {
+  it('should submit a job and create a file with job output and wait', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -w`
     )
@@ -120,11 +110,9 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
-    done()
   })
 
-  it('should submit a job and create a file with job output, log and auto-wait', async (done) => {
+  it('should submit a job and create a file with job output, log and auto-wait', async () => {
     const command = new Command(
       `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -l testLog.txt`
     )
@@ -143,11 +131,9 @@ describe('sasjs job execute', () => {
     await expect(fileExists(filePathOutput)).resolves.toEqual(true)
 
     await expect(fileExists(filePathLog)).resolves.toEqual(true)
-
-    done()
   })
 
-  it('should submit a job and create a file with job log', async (done) => {
+  it('should submit a job and create a file with job log', async () => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} -l`
     )
@@ -157,16 +143,15 @@ describe('sasjs job execute', () => {
     await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
-    done()
   })
 
   it(
     'should submit a job and create a file with job log having large log',
-    async (done) => {
+    async () => {
+      const sourcePath = path.join(__dirname, 'testSource', 'source.json')
       const largeLogFileLines = 21 * 1000
       const command = new Command(
-        `job execute jobs/testJob/largeLogJob -t ${target.name} -l`
+        `job execute jobs/testJob/largeLogJob -t ${target.name} -s ${sourcePath} -l`
       )
 
       const filePath = path.join(process.projectDir, 'largeLogJob.log')
@@ -175,18 +160,24 @@ describe('sasjs job execute', () => {
 
       await expect(fileExists(filePath)).resolves.toEqual(true)
 
-      const content = await readFile(filePath)
+      const logContent = await readFile(filePath)
       let count = 0
-      for (let i = 0; i < content.length; i++) if (content[i] === '\n') count++
+      for (let i = 0; i < logContent.length; i++)
+        if (logContent[i] === '\n') count++
 
       expect(count).toBeGreaterThan(largeLogFileLines)
 
-      done()
+      expect(/GLOBAL TEST_VAR_1 test_var_value_1/.test(logContent)).toEqual(
+        true
+      )
+      expect(/GLOBAL TEST_VAR_2 test_var_value_2/.test(logContent)).toEqual(
+        true
+      )
     },
     30 * 60 * 1000
   )
 
-  it('should submit a job and create a file with provided job log filename', async (done) => {
+  it('should submit a job and create a file with provided job log filename', async () => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} -l mycustom.log`
     )
@@ -196,11 +187,9 @@ describe('sasjs job execute', () => {
     await expect(processJob(command)).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
-    done()
   })
 
-  it('should submit a job and create a file with provided job log filename and path', async (done) => {
+  it('should submit a job and create a file with provided job log filename and path', async () => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log`
     )
@@ -212,11 +201,9 @@ describe('sasjs job execute', () => {
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
-
-    done()
   })
 
-  it('should submit a job and create a file with provided job log filename and status file', async (done) => {
+  it('should submit a job and create a file with provided job log filename and status file', async () => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
     )
@@ -237,11 +224,9 @@ describe('sasjs job execute', () => {
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
     expect(statusContent.includes('Job Status: completed')).toEqual(true)
-
-    done()
   })
 
-  it("should submit a job that doesn't exist and create a status file", async (done) => {
+  it("should submit a job that doesn't exist and create a status file", async () => {
     const command = new Command(
       `job execute job-not-present -t ${target.name} --wait --status ./my/folder/status.txt`
     )
@@ -271,11 +256,9 @@ describe('sasjs job execute', () => {
         'Job Status: Not Available\nDetails: Error: Job was not found.'
       )
     ).toEqual(true)
-
-    done()
   })
 
-  it('should submit a job that fails and create a status file', async (done) => {
+  it('should submit a job that fails and create a status file', async () => {
     const command = new Command(
       `job execute jobs/testJob/failingJob -t ${target.name} --wait --status ./my/folder/job.status`
     )
@@ -291,11 +274,9 @@ describe('sasjs job execute', () => {
     const statusContent = await readFile(filePathStatus)
     expect(statusContent).not.toEqual('')
     expect(statusContent.includes('Job Status: error')).toEqual(true)
-
-    done()
   })
 
-  it(`should submit a job that completes and return it's status`, async (done) => {
+  it(`should submit a job that completes and return it's status`, async () => {
     const command = new Command(
       `job execute jobs/testJob/job -t ${target.name} --wait --returnStatusOnly`
     )
@@ -305,11 +286,9 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(0)
-
-    done()
   })
 
-  it(`should submit a job that completes with a warning and return it's status`, async (done) => {
+  it(`should submit a job that completes with a warning and return it's status`, async () => {
     const command = new Command(
       `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly`
     )
@@ -319,11 +298,9 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(1)
-
-    done()
   })
 
-  it(`should submit a job that completes with ignored warning and return it's status`, async (done) => {
+  it(`should submit a job that completes with ignored warning and return it's status`, async () => {
     const command = new Command(
       `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly --ignoreWarnings`
     )
@@ -333,11 +310,9 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(0)
-
-    done()
   })
 
-  it(`should submit a job that fails and return its status`, async (done) => {
+  it(`should submit a job that fails and return its status`, async () => {
     const command = new Command(
       `job execute jobs/testJob/failingJob -t ${target.name} --returnStatusOnly -l`
     )
@@ -359,11 +334,9 @@ describe('sasjs job execute', () => {
       logData.match('ERROR: The %ABORT statement is not valid in open code.')
     ).toBeTruthy()
     expect(logData.match(/\* JobTerm end;$/gm)).toBeTruthy()
-
-    done()
   })
 
-  it(`should submit a job that does not exist and return it's status`, async (done) => {
+  it(`should submit a job that does not exist and return it's status`, async () => {
     const command = new Command(
       `job execute jobs/testJob/failingJob_DOES_NOT_EXIST -t ${target.name} --wait --returnStatusOnly`
     )
@@ -373,8 +346,6 @@ describe('sasjs job execute', () => {
     await processJob(command)
 
     expect(mockExit).toHaveBeenCalledWith(2)
-
-    done()
   })
 })
 

@@ -1,0 +1,6 @@
+{
+  "macroVars": {
+    "test_var_1": "test_var_value_1",
+    "test_var_2": "test_var_value_2"
+  }
+}
