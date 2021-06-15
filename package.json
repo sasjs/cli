@@ -1,6 +1,6 @@
 {
   "name": "@sasjs/cli",
-  "description": "Command line interface for SASjs test",
+  "description": "Command line interface for SASjs",
   "main": "index.js",
   "files": [
     "build/**/*"
