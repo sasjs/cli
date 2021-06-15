@@ -6,7 +6,8 @@ import {
   createFolder,
   deleteFolder,
   Target,
-  generateTimestamp
+  generateTimestamp,
+  ServerType
 } from '@sasjs/utils'
 import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
@@ -317,5 +318,77 @@ describe('sasjs run', () => {
         runSasCode(new Command(`run -t someTargetName some-file.sas`))
       ).rejects.toEqual(error)
     })
+  })
+
+  describe('sasjs run with SAS9', () => {
+    beforeEach(async () => {
+      const appName = 'cli-tests-run-sas9-' + generateTimestamp()
+      await createTestApp(__dirname, appName)
+      target = await createTestGlobalTarget(
+        appName,
+        `/Public/app/cli-tests/${appName}`,
+        {
+          serviceFolders: ['sasjs/testServices'],
+          initProgram: '',
+          termProgram: '',
+          macroVars: {}
+        },
+        ServerType.Sas9
+      )
+      await copy(
+        path.join(__dirname, 'testServices'),
+        path.join(process.projectDir, 'sasjs', 'testServices')
+      )
+    })
+
+    afterEach(async () => {
+      await removeFromGlobalConfig(target.name)
+      await folder(
+        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
+      ).catch(() => {})
+      await removeTestApp(__dirname, target.name)
+    })
+
+    it(
+      'should run a file when a relative path is provided',
+      async () => {
+        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
+
+        const result: any = await runSasCode(
+          new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+        )
+
+        logParts.forEach(logPart => {
+          expect(result.log.includes(logPart)).toBeTruthy()
+        })
+      },
+
+      60 * 1000
+    )
+
+    it(
+      'should run a file when an absolute path is provided',
+      async () => {
+        const logParts = [
+          'data;',
+          'do x=1 to 100;',
+          'output;',
+          'end;',
+          'run;'
+        ]
+
+        const result: any = await runSasCode(
+          new Command(
+            `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
+          )
+        )
+
+        logParts.forEach((logPart) => {
+          expect(result.log.includes(logPart)).toBeTruthy()
+        })
+      },
+
+      60 * 1000
+    )
   })
 })

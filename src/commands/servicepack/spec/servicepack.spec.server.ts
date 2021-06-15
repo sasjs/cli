@@ -16,10 +16,8 @@ describe('sasjs servicepack', () => {
   beforeAll(async () => {
     dotenv.config()
 
-    const serverType: ServerType =
-      process.env.SERVER_TYPE === ServerType.SasViya
-        ? ServerType.SasViya
-        : ServerType.Sas9
+    const serverType = ServerType.SasViya
+
     config = {
       name: targetName,
       serverType: serverType,

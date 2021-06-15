@@ -74,18 +74,17 @@ export const generateTestTarget = (
     initProgram: '',
     termProgram: '',
     macroVars: {}
-  }
+  },
+  serverType = ServerType.SasViya
 ) => {
   dotenv.config()
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
 
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.VIYA_SERVER_URL,
+    serverUrl: (serverType === ServerType.SasViya
+      ? process.env.VIYA_SERVER_URL
+      : process.env.SAS9_SERVER_URL) as string,
     contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
     appLoc,
     authConfig: {
@@ -121,9 +120,10 @@ export const createTestGlobalTarget = async (
     initProgram: '',
     termProgram: '',
     macroVars: {}
-  }
+  },
+  serverType = ServerType.SasViya
 ) => {
-  const target = generateTestTarget(targetName, appLoc, serviceConfig)
+  const target = generateTestTarget(targetName, appLoc, serviceConfig, serverType)
 
   await saveToGlobalConfig(target, false)
 

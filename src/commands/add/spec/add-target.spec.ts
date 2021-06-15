@@ -76,7 +76,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sas9,
       name: sas9TargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.VIYA_SERVER_URL as string,
+      serverUrl: process.env.SAS9_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
