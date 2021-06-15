@@ -70,7 +70,7 @@ export const generateTestTarget = (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
-    serviceFolders: ['sasjs/services'],
+    serviceFolders: [path.join('sasjs', 'services')],
     initProgram: '',
     termProgram: '',
     macroVars: {}
@@ -116,7 +116,7 @@ export const createTestGlobalTarget = async (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
-    serviceFolders: ['sasjs/services'],
+    serviceFolders: [path.join('sasjs', 'services')],
     initProgram: '',
     termProgram: '',
     macroVars: {}

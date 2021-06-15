@@ -33,12 +33,14 @@ export async function compileSingleFile(
   const commandExample =
     'sasjs compile <command> --source myjob.sas --target targetName -output /some/folder'
 
-  const source = command.getFlagValue('source') as string
+  let source = command.getFlagValue('source') as string
   const output = command.getFlagValue('output') as string
 
   if (!source) {
     throw new Error(`'--source' flag is missing (eg '${commandExample}')`)
   }
+
+  source = source.split('/').join(path.sep)
 
   const sourcePath = path.isAbsolute(source)
     ? source

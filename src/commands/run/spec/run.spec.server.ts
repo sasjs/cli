@@ -32,7 +32,7 @@ describe('sasjs run', () => {
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
-          serviceFolders: ['sasjs/testServices'],
+          serviceFolders: [path.join('sasjs', 'testServices')],
           initProgram: '',
           termProgram: '',
           macroVars: {}
@@ -203,7 +203,7 @@ describe('sasjs run', () => {
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
-          serviceFolders: [`${__dirname}/testServices`],
+          serviceFolders: [path.join(__dirname, 'testServices')],
           initProgram: '',
           termProgram: '',
           macroVars: {}

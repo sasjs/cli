@@ -117,12 +117,13 @@ export async function runTest(command: Command) {
   }
 
   await asyncForEach(flow, async (test) => {
-    const sasJobLocation = path.join(
+    const sasJobLocation = [
       target.appLoc,
       test.replace(sasFileRegExp, '')
-    )
+    ].join('/')
+
     const testTarget = test
-      .split(path.sep)
+      .split('/')
       .pop()
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
