@@ -1,6 +1,6 @@
 {
   "name": "@sasjs/cli",
-  "description": "Command line interface for SASjs",
+  "description": "Command line interface for SASjs test",
   "main": "index.js",
   "files": [
     "build/**/*"
@@ -46,7 +46,7 @@
   },
   "config": {
     "ghooks": {
-      "commit-msg": "./git-hooks/commit-msg"
+      "commit-msg": "validate-commit-msg"
     }
   },
   "dependencies": {
@@ -88,7 +88,7 @@
     "@types/xml": "^1.0.5",
     "babel-jest": "27.0.2",
     "copyfiles": "2.4.1",
-    "ghooks": "^2.0.4",
+    "ghooks": "2.0.4",
     "jest": "27.0.4",
     "jest-cli": "27.0.4",
     "jest-extended": "0.11.5",
@@ -98,6 +98,7 @@
     "ts-jest": "27.0.3",
     "ts-node": "10.0.0",
     "tslib": "2.2.0",
-    "typescript": "4.3.2"
+    "typescript": "4.3.2",
+    "validate-commit-msg": "2.14.0"
   }
 }
