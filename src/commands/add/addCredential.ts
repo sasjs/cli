@@ -39,6 +39,11 @@ export const addCredential = async (
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(false), serverUrl })
+    if (isLocal) {
+      await saveToLocalConfig(target, false, false)
+    } else {
+      await saveToGlobalConfig(target, false, false)
+    }
   }
 
   const { client, secret } = await getCredentialsInput(target.name)
