@@ -21,6 +21,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       `Execution error`,
+      '\n',
       `Test error\n{"status":500,"error":"Test"}`
     )
   })
@@ -41,6 +42,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       `Execution error`,
+      '\n',
       `Test error\nDetails string`
     )
   })
@@ -57,6 +59,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       `Execution error`,
+      '\n',
       `Test error\nRaw response`
     )
   })
@@ -71,6 +74,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       'Execution error',
+      '\n',
       '{"status":500,"details":"Test"}'
     )
   })
@@ -85,6 +89,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       'Execution error',
+      '\n',
       'Something went wrong'
     )
   })
@@ -99,6 +104,7 @@ describe('display error', () => {
     expect(result).toEqual(expected)
     expect(process.logger.error).toHaveBeenCalledWith(
       'Execution error',
+      '\n',
       'Something went wrong'
     )
   })
