@@ -205,6 +205,7 @@ describe('sasjs compile outside project', () => {
   let appName: string
   let parentOutputFolder: string
   const homedir = require('os').homedir()
+
   describe('with global config', () => {
     beforeAll(async () => {
       sharedAppName = `cli-tests-compile-${generateTimestamp()}`
@@ -246,8 +247,15 @@ describe('sasjs compile outside project', () => {
 
     it('should compile single file', async () => {
       const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
-      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
+      const destinationPath = path.join(
+        buildOutputFolder,
+        'services',
+        'services',
+        'example1.sas'
+      )
+
       parentOutputFolder = buildOutputFolder
+
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
@@ -273,9 +281,16 @@ describe('sasjs compile outside project', () => {
 
     it('should compile single file with absolute macroFolder paths', async () => {
       const buildOutputFolder = path.join(homedir, '.sasjs', 'sasjsbuild')
-      parentOutputFolder = buildOutputFolder
-      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
+      const destinationPath = path.join(
+        buildOutputFolder,
+        'services',
+        'services',
+        'example1.sas'
+      )
       const absolutePathToSharedApp = path.join(homedir, sharedAppName)
+
+      parentOutputFolder = buildOutputFolder
+
       await updateConfig(
         {
           macroFolders: [
@@ -330,9 +345,16 @@ describe('sasjs compile outside project', () => {
     })
 
     it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async () => {
-      parentOutputFolder = path.join(__dirname, 'random-folder')
       const buildOutputFolder = path.join(__dirname, 'random-folder', appName)
-      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
+      const destinationPath = path.join(
+        buildOutputFolder,
+        'services',
+        'services',
+        'example1.sas'
+      )
+
+      parentOutputFolder = path.join(__dirname, 'random-folder')
+
       await updateConfig(
         {
           buildConfig: {
@@ -366,9 +388,16 @@ describe('sasjs compile outside project', () => {
     })
 
     it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async () => {
-      parentOutputFolder = path.join(homedir, appName)
       const buildOutputFolder = path.join(homedir, appName, 'random-folder')
-      const destinationPath = `${buildOutputFolder}/services/services/example1.sas`
+      const destinationPath = path.join(
+        buildOutputFolder,
+        'services',
+        'services',
+        'example1.sas'
+      )
+
+      parentOutputFolder = path.join(homedir, appName)
+
       await updateConfig(
         {
           buildConfig: {

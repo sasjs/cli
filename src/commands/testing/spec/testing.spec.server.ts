@@ -444,13 +444,13 @@ const createGlobalTarget = async () => {
       deployScripts: []
     },
     testConfig: {
-      initProgram: 'sasjs/tests/testinit.sas',
-      termProgram: 'sasjs/tests/testterm.sas',
+      initProgram: path.join('sasjs', 'tests', 'testinit.sas'),
+      termProgram: path.join('sasjs', 'tests', 'testterm.sas'),
       macroVars: {
         testVar: 'testValue'
       },
-      testSetUp: 'sasjs/tests/testsetup.sas',
-      testTearDown: 'sasjs/tests/testteardown.sas'
+      testSetUp: path.join('sasjs', 'tests', 'testsetup.sas'),
+      testTearDown: path.join('sasjs', 'tests', 'testteardown.sas')
     }
   })
 
