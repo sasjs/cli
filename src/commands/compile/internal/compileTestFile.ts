@@ -110,7 +110,7 @@ export const compileTestFlow = async (target: Target) => {
         if (testFiles.find((file) => file === testSetUpPath)) {
           testFiles = testFiles.filter((file) => file !== testSetUpPath)
 
-          testFlow.testSetUp = testSetUpPath
+          testFlow.testSetUp = testSetUpPath.split(path.sep).join('/')
         }
       }
 
@@ -123,12 +123,14 @@ export const compileTestFlow = async (target: Target) => {
         if (testFiles.find((file) => file === testTearDownPath)) {
           testFiles = testFiles.filter((file) => file !== testTearDownPath)
 
-          testFlow.testTearDown = testTearDownPath
+          testFlow.testTearDown = testTearDownPath.split(path.sep).join('/')
         }
       }
     }
 
-    testFlow.tests = testFiles
+    testFlow.tests = testFiles.map((file: string) =>
+      file.split(path.sep).join('/')
+    )
 
     await printTestCoverage(testFlow, buildDestinationFolder, target)
   }
@@ -153,13 +155,13 @@ const printTestCoverage = async (
     if (await folderExists(folder)) {
       const files = (await listFilesAndSubFoldersInFolder(folder))
         .filter(filter)
-        .map((file) => path.join(type, file))
+        .map((file) => [type, file.split(path.sep).join('/')].join('/'))
 
       toCover = [...toCover, ...files]
 
       files.forEach((file) => {
-        let shouldBeCovered = path
-          .join('tests', file)
+        let shouldBeCovered = ['tests', file.split(path.sep).join('/')]
+          .join('/')
           .replace(sasFileRegExp, '')
 
         if (type === 'macros') {

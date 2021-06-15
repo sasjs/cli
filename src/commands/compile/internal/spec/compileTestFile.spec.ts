@@ -143,12 +143,12 @@ describe('compileTestFile', () => {
 
       const expectedTestFlow = {
         tests: [
-          path.join('tests', 'random.test.sas'),
-          path.join('tests', 'jobs', 'jobs', 'random.test.sas'),
-          path.join('tests', 'services', 'admin', 'random.test.sas')
+          ['tests', 'random.test.sas'].join('/'),
+          ['tests', 'jobs', 'jobs', 'random.test.sas'].join('/'),
+          ['tests', 'services', 'admin', 'random.test.sas'].join('/')
         ],
-        testSetUp: testSetUp,
-        testTearDown: testTearDown
+        testSetUp: testSetUp.split(path.sep).join('/'),
+        testTearDown: testTearDown.split(path.sep).join('/')
       }
 
       await expect(JSON.parse(await readFile(testFlowPath))).toEqual(
@@ -162,43 +162,35 @@ describe('compileTestFile', () => {
       const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
       const expectedData = [
         [
-          path.join('services', 'common', 'appinit.sas'),
+          ['services', 'common', 'appinit.sas'].join('/'),
           'service',
           'not covered'
         ],
         [
-          path.join('services', 'common', 'getdata.sas'),
+          ['services', 'common', 'getdata.sas'].join('/'),
           'service',
           'not covered'
         ],
         [
-          path.join('services', 'services', 'common', 'appinit.sas'),
+          ['services', 'services', 'common', 'appinit.sas'].join('/'),
           'service',
           'not covered'
         ],
         [
-          path.join('services', 'services', 'common', 'getdata.sas'),
+          ['services', 'services', 'common', 'getdata.sas'].join('/'),
           'service',
           'not covered'
         ],
         [
-          path.join(
-            'tests',
-            'services',
-            'services',
-            'admin',
-            'random.test.0.sas'
+          ['tests', 'services', 'services', 'admin', 'random.test.0.sas'].join(
+            '/'
           ),
           'test',
           'standalone'
         ],
         [
-          path.join(
-            'tests',
-            'services',
-            'services',
-            'admin',
-            'random.test.sas'
+          ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
+            '/'
           ),
           'test',
           'standalone'
