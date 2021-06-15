@@ -170,7 +170,7 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
   const createdFilePath = await createOutputFile(executionResult || '')
   process.logger?.success(`Log file has been created at ${createdFilePath} .`)
 
-  return executionResult
+  return { log: executionResult }
 }
 
 async function createOutputFile(log: string) {
