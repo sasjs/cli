@@ -137,6 +137,9 @@ async function getLocalTarget(targetName: string): Promise<Target> {
         `Target ${targetName} was found in your local sasjsconfig.json file.`
       )
       targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
+      if (!targetJson.hasOwnProperty('serverUrl')) {
+        targetJson.serverUrl = ''
+      }
       targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         localConfig,
@@ -168,6 +171,9 @@ async function getLocalFallbackTarget(): Promise<Target> {
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+      if (!fallBackTargetJson.hasOwnProperty('serverUrl')) {
+        fallBackTargetJson.serverUrl = ''
+      }
       fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
       fallBackTargetJson.allowInsecureRequests =
         getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
@@ -189,6 +195,9 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
         `Target ${targetName} was found in your global .sasjsrc file.`
       )
       targetJson.appLoc = sanitizeAppLoc(targetJson.appLoc)
+      if (!targetJson.hasOwnProperty('serverUrl')) {
+        targetJson.serverUrl = ''
+      }
       targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
       targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
         globalConfig,
@@ -217,6 +226,9 @@ async function getGlobalFallbackTarget(): Promise<Target> {
       `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your global .sasjsrc file.`
     )
     fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+    if (!fallBackTargetJson.hasOwnProperty('serverUrl')) {
+      fallBackTargetJson.serverUrl = ''
+    }
     fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
     fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
       globalConfig,
