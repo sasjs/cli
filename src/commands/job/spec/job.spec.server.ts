@@ -245,7 +245,6 @@ describe('sasjs job execute', () => {
 
     expect(process.logger.error).toHaveBeenNthCalledWith(
       1,
-      '\n',
       'An error has occurred when executing a job.',
       '\n',
       'Error: Job was not found.'
