@@ -358,7 +358,7 @@ describe('sasjs run', () => {
           new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
         )
 
-        logParts.forEach(logPart => {
+        logParts.forEach((logPart) => {
           expect(result.log.includes(logPart)).toBeTruthy()
         })
       },
@@ -369,13 +369,7 @@ describe('sasjs run', () => {
     it(
       'should run a file when an absolute path is provided',
       async () => {
-        const logParts = [
-          'data;',
-          'do x=1 to 100;',
-          'output;',
-          'end;',
-          'run;'
-        ]
+        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
 
         const result: any = await runSasCode(
           new Command(

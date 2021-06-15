@@ -18,8 +18,14 @@ export async function getDeployScripts(target: Target) {
     ...(target.deployConfig?.deployScripts || [])
   ]
 
-  if (!!target.deployConfig?.deployServicePack && target.serverType === ServerType.Sas9) {
-    const deployScriptPath = path.join(buildDestinationFolder, `${target.name}.sas`)
+  if (
+    !!target.deployConfig?.deployServicePack &&
+    target.serverType === ServerType.Sas9
+  ) {
+    const deployScriptPath = path.join(
+      buildDestinationFolder,
+      `${target.name}.sas`
+    )
     allDeployScripts = [...allDeployScripts, deployScriptPath]
   }
 

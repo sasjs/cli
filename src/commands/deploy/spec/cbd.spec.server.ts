@@ -1,9 +1,4 @@
-import {
-  fileExists,
-  createFile,
-  copy,
-  readFile
-} from '@sasjs/utils'
+import { fileExists, createFile, copy, readFile } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../main'
@@ -177,7 +172,9 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: (serverType === ServerType.SasViya ? process.env.VIYA_SERVER_URL : process.env.SAS9_SERVER_URL) as string,
+    serverUrl: (serverType === ServerType.SasViya
+      ? process.env.VIYA_SERVER_URL
+      : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],

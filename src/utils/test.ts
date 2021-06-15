@@ -123,7 +123,12 @@ export const createTestGlobalTarget = async (
   },
   serverType = ServerType.SasViya
 ) => {
-  const target = generateTestTarget(targetName, appLoc, serviceConfig, serverType)
+  const target = generateTestTarget(
+    targetName,
+    appLoc,
+    serviceConfig,
+    serverType
+  )
 
   await saveToGlobalConfig(target, false)
 

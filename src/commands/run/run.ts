@@ -2,7 +2,13 @@ import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
 import { findTargetInConfiguration, getAccessToken } from '../../utils/config'
-import { readFile, createFile, Target, generateTimestamp, ServerType } from '@sasjs/utils'
+import {
+  readFile,
+  createFile,
+  Target,
+  generateTimestamp,
+  ServerType
+} from '@sasjs/utils'
 import { Command } from '../../utils/command'
 import { displayError } from '../../utils/displayResult'
 import { getConstants } from '../../constants'
