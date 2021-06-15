@@ -91,7 +91,21 @@ export async function runTest(command: Command) {
     debug: true
   })
 
-  const accessToken = await getAccessToken(target)
+  let accessToken: string, username: string, password: string
+  if (target.serverType === ServerType.SasViya) {
+    accessToken = await getAccessToken(target)
+  }
+  if (target.serverType === ServerType.Sas9) {
+    username = process.env.SAS_USERNAME as string
+    password = process.env.SAS_PASSWORD as string
+
+    if (!username || !password) {
+      throw new Error(
+        'A valid username and password are required for requests to SAS9 servers.' +
+          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+      )
+    }
+  }
 
   const result: TestResults = {
     sasjs_test_meta: []
@@ -138,7 +152,7 @@ export async function runTest(command: Command) {
       .request(
         sasJobLocation,
         {},
-        {},
+        { username, password },
         () => {
           displayError(null, 'Login callback called. Request failed.')
         },
