@@ -5,6 +5,7 @@ import { getAccessToken } from '../../utils/config'
 import { executeShellScript } from '../../utils/utils'
 import {
   readFile,
+  readFileBinary,
   createFile,
   ServerType,
   Target,
