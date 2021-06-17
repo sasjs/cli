@@ -93,7 +93,7 @@ describe('getTokens', () => {
     dotenv.config()
     testTarget = {
       serverType: ServerType.SasViya,
-      serverUrl: process.env.SERVER_URL
+      serverUrl: process.env.VIYA_SERVER_URL
     } as Target
   })
 

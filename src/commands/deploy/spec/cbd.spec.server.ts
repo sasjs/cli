@@ -1,10 +1,4 @@
-import {
-  deleteFolder,
-  fileExists,
-  createFile,
-  copy,
-  readFile
-} from '@sasjs/utils'
+import { fileExists, createFile, copy, readFile } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../main'
@@ -171,19 +165,16 @@ describe('sasjs cbd with local config', () => {
   })
 })
 
-const createGlobalTarget = async () => {
+const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
-
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.SERVER_URL as string,
+    serverUrl: (serverType === ServerType.SasViya
+      ? process.env.VIYA_SERVER_URL
+      : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
@@ -212,19 +203,17 @@ const createGlobalTarget = async () => {
   return target
 }
 
-const createLocalTarget = async () => {
+const createLocalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
 
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.SERVER_URL as string,
+    serverUrl: (serverType === ServerType.SasViya
+      ? process.env.VIYA_SERVER_URL
+      : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],

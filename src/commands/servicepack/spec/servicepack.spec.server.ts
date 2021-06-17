@@ -16,14 +16,12 @@ describe('sasjs servicepack', () => {
   beforeAll(async () => {
     dotenv.config()
 
-    const serverType: ServerType =
-      process.env.SERVER_TYPE === ServerType.SasViya
-        ? ServerType.SasViya
-        : ServerType.Sas9
+    const serverType = ServerType.SasViya
+
     config = {
       name: targetName,
       serverType: serverType,
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
       authConfig: {
