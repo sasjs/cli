@@ -107,46 +107,46 @@ export async function runSasJob(command: Command) {
       },
       accessToken
     )
-    .then(
-      async (res) => {
-        if (res?.result) res = res.result
+    .then(async (res) => {
+      if (res?.result) res = res.result
 
-        let output
+      let output
 
-        try {
-          output = JSON.stringify(res, null, 2)
-        } catch (error) {
-          displayError(error, 'Result parsing failed.')
+      try {
+        output = JSON.stringify(res, null, 2)
+      } catch (error) {
+        displayError(error, 'Result parsing failed.')
 
-          return error
-        }
-
-        let outputPath = path.join(
-          process.projectDir,
-          isLocal ? '/sasjsbuild' : ''
-        )
-
-        if (!(await folderExists(outputPath))) {
-          await createFolder(outputPath)
-        }
-
-        outputPath += '/output.json'
-
-        await createFile(outputPath, output)
-        result = true
-        displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+        return error
       }
-    ).catch(err => {
+
+      let outputPath = path.join(
+        process.projectDir,
+        isLocal ? '/sasjsbuild' : ''
+      )
+
+      if (!(await folderExists(outputPath))) {
+        await createFolder(outputPath)
+      }
+
+      outputPath += '/output.json'
+
+      await createFile(outputPath, output)
+      result = true
+      displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+    })
+    .catch((err) => {
       result = err
 
       if (err && err.errorCode === 404) {
         const message = `The SASjs runner was not found in your user folder at /User Folders/${configJson.username}/My Folder/sasjs/runner.`
         displayError(message, 'An error occurred while executing the request.')
-        process.logger?.info(`Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`)
+        process.logger?.info(
+          `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
+        )
       } else {
         displayError(err, 'An error occurred while executing the request.')
       }
-
     })
   return result
 }
