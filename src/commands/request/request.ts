@@ -7,6 +7,21 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
 
+const sasjsRunnerCode = `
+filename mc url "https://raw.githubusercontent.com/sasjs/core/main/all.sas";
+%inc mc;
+filename ft15f001 temp;
+parmcards4;
+%macro sasjs_runner();
+%if %symexist(_webin_fileref) %then %do;
+%inc &_webin_fileref;
+%end;
+%mend sasjs_runner;
+%sasjs_runner()
+;;;;
+%mm_createwebservice(path=/User Folders/&sysuserid/My Folder/sasjs,name=runner)
+`
+
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
   const dataFilePath = command.getFlagValue('datafile') as string
@@ -120,12 +135,18 @@ export async function runSasJob(command: Command) {
         await createFile(outputPath, output)
         result = true
         displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
-      },
-      (err) => {
-        result = err
+      }
+    ).catch(err => {
+      result = err
 
+      if (err && err.errorCode === 404) {
+        const message = `The SASjs runner was not found in your user folder at /User Folders/${configJson.username}/My Folder/sasjs/runner.`
+        displayError(message, 'An error occurred while executing the request.')
+        process.logger?.info(`Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`)
+      } else {
         displayError(err, 'An error occurred while executing the request.')
       }
-    )
+
+    })
   return result
 }
