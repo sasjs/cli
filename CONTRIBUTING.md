@@ -6,6 +6,7 @@ The purpose of this repo is to create the `sasjs` command line utility. The buil
 
 * NPM (v7)
 * Doxygen (v1.9.1) - https://www.doxygen.nl/download.html
+* Jest (`npm i -g jest`) - not needed for build, but useful for debugging
 
 ## Build Process
 For development, the following steps are needed to build:
