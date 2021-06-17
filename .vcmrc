@@ -1,0 +1,15 @@
+{
+  "types": ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"],
+  "scope": {
+    "required": false,
+    "allowed": ["*"],
+    "validate": false,
+    "multiple": false
+  },
+  "warnOnFail": false,
+  "maxSubjectLength": 100,
+  "subjectPattern": ".+",
+  "subjectPatternErrorMsg": "❌ Subject does not meet the Conventional Commit standard!",
+  "helpMessage": "❌ Commit message does not meet the Conventional Commit standard!\nAn example of a valid message is:\nfeat(login): add the 'remember me' button\nℹ More details at: https://www.conventionalcommits.org/en/v1.0.0/#summary",
+  "autoFix": false
+}

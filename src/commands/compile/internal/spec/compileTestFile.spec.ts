@@ -39,6 +39,7 @@ describe('compileTestFile', () => {
 
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
+
     await createTestMinimalApp(__dirname, target.name)
     await deleteFile(
       path.join(__dirname, appName, 'sasjs', 'macros', '.gitkeep')
@@ -46,7 +47,6 @@ describe('compileTestFile', () => {
     await copyTestFiles(appName)
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
-    const testSourceFolder = path.join(sasjsPath, 'tests')
   })
 
   afterAll(async () => {
@@ -121,12 +121,12 @@ describe('compileTestFile', () => {
 
   describe('compileTestFlow', () => {
     it('should compile test flow', async () => {
-      const testSetUp = 'tests/testsetup.sas'
-      const testTearDown = 'tests/testteardown.sas'
+      const testSetUp = path.join('tests', 'testsetup.sas')
+      const testTearDown = path.join('tests', 'testteardown.sas')
 
       if (target.testConfig) {
-        target.testConfig.testSetUp = `sasjs/${testSetUp}`
-        target.testConfig.testTearDown = `sasjs/${testTearDown}`
+        target.testConfig.testSetUp = path.join('sasjs', testSetUp)
+        target.testConfig.testTearDown = path.join('sasjs', testTearDown)
       }
 
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
@@ -143,12 +143,12 @@ describe('compileTestFile', () => {
 
       const expectedTestFlow = {
         tests: [
-          'tests/random.test.sas',
-          'tests/jobs/jobs/random.test.sas',
-          'tests/services/admin/random.test.sas'
+          ['tests', 'random.test.sas'].join('/'),
+          ['tests', 'jobs', 'jobs', 'random.test.sas'].join('/'),
+          ['tests', 'services', 'admin', 'random.test.sas'].join('/')
         ],
-        testSetUp: testSetUp,
-        testTearDown: testTearDown
+        testSetUp: testSetUp.split(path.sep).join('/'),
+        testTearDown: testTearDown.split(path.sep).join('/')
       }
 
       await expect(JSON.parse(await readFile(testFlowPath))).toEqual(
@@ -161,16 +161,40 @@ describe('compileTestFile', () => {
 
       const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
       const expectedData = [
-        ['services/common/appinit.sas', 'service', 'not covered'],
-        ['services/common/getdata.sas', 'service', 'not covered'],
-        ['services/services/common/appinit.sas', 'service', 'not covered'],
-        ['services/services/common/getdata.sas', 'service', 'not covered'],
         [
-          'tests/services/services/admin/random.test.0.sas',
+          ['services', 'common', 'appinit.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'common', 'getdata.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'services', 'common', 'appinit.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'services', 'common', 'getdata.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['tests', 'services', 'services', 'admin', 'random.test.0.sas'].join(
+            '/'
+          ),
           'test',
           'standalone'
         ],
-        ['tests/services/services/admin/random.test.sas', 'test', 'standalone']
+        [
+          ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
+            '/'
+          ),
+          'test',
+          'standalone'
+        ]
       ]
 
       await compile(target)

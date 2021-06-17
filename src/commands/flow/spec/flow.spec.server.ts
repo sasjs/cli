@@ -405,19 +405,16 @@ describe('sasjs flow', () => {
   })
 })
 
-const createGlobalTarget = async () => {
+const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-flow-${timestamp}`
-
-  const serverType: ServerType =
-    process.env.SERVER_TYPE === ServerType.SasViya
-      ? ServerType.SasViya
-      : ServerType.Sas9
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: process.env.SERVER_URL as string,
+    serverUrl: (serverType === ServerType.SasViya
+      ? process.env.VIYA_SERVER_URL
+      : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
