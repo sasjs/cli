@@ -15,6 +15,7 @@ For development, the following steps are needed to build:
 git clone git@github.com:sasjs/cli.git
 cd cli
 npm install
+npm run build
 npm link
 npm start
 ```
