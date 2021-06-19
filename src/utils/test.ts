@@ -104,6 +104,9 @@ export const generateTestTarget = (
       testSetUp: '',
       testTearDown: ''
     },
+    buildConfig: {
+      buildOutputFileName: `${targetName}.sas`
+    },
     deployConfig: {
       deployServicePack: true
     }
