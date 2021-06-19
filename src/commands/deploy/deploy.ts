@@ -23,11 +23,14 @@ export async function deploy(target: Target, isLocal: boolean) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
     )
-    const serviceName = await deployToSasViyaWithServicePack(target, isLocal)
+    const webIndexFileName = await deployToSasViyaWithServicePack(
+      target,
+      isLocal
+    )
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      target.serverType === ServerType.SasViya && serviceName
-        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${serviceName}&_debug=2`
+      target.serverType === ServerType.SasViya && webIndexFileName
+        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${webIndexFileName}&_debug=2`
         : `${target.serverUrl}/SASJobExecution?_folder=${target.appLoc}`
     )
   }
