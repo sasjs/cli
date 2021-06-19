@@ -26,7 +26,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     const serviceName = await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      target.serverType === ServerType.SasViya
+      target.serverType === ServerType.SasViya && serviceName
         ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${serviceName}&_debug=2`
         : `${target.serverUrl}/SASJobExecution?_folder=${target.appLoc}`
     )
@@ -140,11 +140,14 @@ async function deployToSasViyaWithServicePack(
     accessToken,
     true
   )
-  return jsonObject.members
+
+  const webIndexFileName = jsonObject?.members
     .find(
-      (member: any) => member.name === 'services' && member.type === 'folder'
+      (member: any) => member?.name === 'services' && member?.type === 'folder'
     )
-    .members.find((member: any) => member.type === 'file').name
+    ?.members?.find((member: any) => member?.type === 'file')?.name
+
+  return webIndexFileName ?? ''
 }
 
 async function deployToSasViya(

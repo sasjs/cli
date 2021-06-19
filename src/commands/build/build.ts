@@ -56,6 +56,7 @@ async function createFinalSasFiles(target: Target) {
 }
 
 async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
+  const streamWeb = streamConfig.streamWeb ?? false
   const { buildConfig, serverType, name } = target
   const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
@@ -65,7 +66,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
-  const buildInfo = await getBuildInfo(target).catch((_) => {})
+  const buildInfo = await getBuildInfo(target, streamWeb).catch((_) => {})
 
   finalSasFileContent += `\n${buildInfo}`
 
@@ -87,7 +88,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 
   finalSasFileContent += `\n${buildTerm}`
 
-  if (streamConfig.streamWeb) {
+  if (streamWeb) {
     finalSasFileContent += getLaunchPageCode(
       target.serverType,
       streamConfig.streamServiceName
@@ -108,14 +109,14 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   process.logger?.success(`File ${finalFilePathJSON} has been created.`)
 }
 
-async function getBuildInfo(target: Target) {
+async function getBuildInfo(target: Target, streamWeb: boolean) {
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
 
-  if (target.serverType === ServerType.SasViya) {
+  if (target.serverType === ServerType.SasViya && streamWeb) {
     const createFileScript = await getCreateFileScript(serverType)
     buildConfig += `${createFileScript}\n`
   }
@@ -164,10 +165,13 @@ async function getCreateFileScript(serverType: ServerType) {
 
 function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
   const loc = filePath === '' ? 'services' : 'tests'
+  const isSASFile = /.sas$/.test(filePath)
 
   switch (serverType) {
     case ServerType.SasViya:
-      return `%mv_createfile(path=&appLoc/${loc}/&path, name=&service, inref=sasjs)`
+      return isSASFile
+        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&service, inref=sasjs)`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
@@ -256,12 +260,19 @@ async function getContentFor(
       content += `\n${transformedContent}\n`
     }
 
-    contentJSON?.members.push({
-      name: file.replace(/.sas$/, ''),
-      type: /.sas$/.test(file) ? 'service' : 'file',
-      code: /.sas$/.test(file) ? removeComments(fileContent) : '',
-      path: /.sas$/.test(file) ? null : filePath
-    })
+    const member = /.sas$/.test(file)
+      ? {
+          name: file.replace(/.sas$/, ''),
+          type: 'service',
+          code: removeComments(fileContent)
+        }
+      : {
+          name: file.replace(/.sas$/, ''),
+          type: 'file',
+          path: filePath
+        }
+
+    contentJSON?.members.push(member)
   })
 
   const subFolders = await listSubFoldersInFolder(folderPath)
