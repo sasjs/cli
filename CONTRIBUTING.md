@@ -1,6 +1,6 @@
 # Contributing
 
-The purpose of this repo is to create the `sasjs` command line utility. The build and release happens automatically when merging with master. 
+The purpose of this repo is to create the `sasjs` command line utility. The build and release happens automatically when merging with master.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ For development, the following steps are needed to build:
 ```
 git clone git@github.com:sasjs/cli.git
 cd cli
-npm run build
+npm install
 npm link
 npm start
 ```
