@@ -4,7 +4,7 @@ import { fileExists } from '@sasjs/utils'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
 /**
- * Initialises Lint Confiugartion in current sasjs application
+ * Creates a .sasjslint configuration file in the current SASjs project if one doesn't already exist
  */
 export async function initLint() {
   const lintConfigPath = path.join(process.projectDir, '.sasjslint')
