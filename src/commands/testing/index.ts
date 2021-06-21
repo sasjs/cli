@@ -157,7 +157,8 @@ export async function runTest(command: Command) {
         () => {
           displayError(null, 'Login callback called. Request failed.')
         },
-        accessToken
+        accessToken,
+        ['log']
       )
       .then(async (res) => {
         let lineBreak = true
