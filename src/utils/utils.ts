@@ -1,10 +1,17 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
-import { fileExists, folderExists, createFile, readFile, copy } from './file'
-import { LogLevel, Target } from '@sasjs/utils'
+import {
+  fileExists,
+  folderExists,
+  createFile,
+  readFile,
+  copy,
+  LogLevel,
+  Target,
+  padWithNumber
+} from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
-import { padWithNumber } from '@sasjs/utils/formatter'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -305,26 +312,6 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
   }
 
   return logLines
-}
-
-/**
- * Returns a timestamp in YYYYMMDDSS format
- */
-export function generateTimestamp(sep = ''): string {
-  const date = new Date()
-
-  const timestamp = [
-    date.getUTCFullYear(),
-    date.getUTCMonth() + 1,
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds()
-  ]
-    .map((item) => padWithNumber(item))
-    .join(sep)
-
-  return timestamp
 }
 
 export const arrToObj = (arr: any[]): any =>

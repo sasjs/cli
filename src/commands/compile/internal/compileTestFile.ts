@@ -1,14 +1,24 @@
-import { Target } from '@sasjs/utils/types'
 import { TestFlow, Coverage, CoverageType, CoverageState } from '../../../types'
 import path from 'path'
 import { getConstants } from '../../../constants'
-import { createFile, copy, getFilesInFolder } from '../../../utils/file'
+import {
+  createFile,
+  copy,
+  listFilesInFolder,
+  fileExists,
+  createFolder,
+  Target,
+  asyncForEach,
+  moveFile,
+  folderExists,
+  deleteFolder,
+  listFilesAndSubFoldersInFolder,
+  pathSepEscaped
+} from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
-import { createFolder, sasFileRegExp } from '../../../utils/file'
-import { moveFile, folderExists, deleteFolder } from '@sasjs/utils/file'
-import { listFilesAndSubFoldersInFolder } from '@sasjs/utils'
+import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
-import { asyncForEach } from '@sasjs/utils'
+import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
@@ -21,10 +31,9 @@ export async function compileTestFile(
   let dependencies = await loadDependencies(
     target,
     path.join(process.projectDir, filePath),
-    target.macroFolders,
-    [],
-    'test',
-    true
+    await getMacroFolders(target),
+    await getProgramFolders(target),
+    'test'
   )
   dependencies = `${testVar ? testVar + '\n' : ''}${dependencies}`
 
@@ -59,24 +68,22 @@ export async function moveTestFile(filePath: string) {
     .slice(0, filePath.split(path.sep).length - 1)
     .join(path.sep)
 
-  if ((await getFilesInFolder(sourceFolder)).length === 0) {
+  if ((await listFilesInFolder(sourceFolder)).length === 0) {
     await deleteFolder(sourceFolder)
   }
 }
 
-export async function copyTestMacroFiles(folderPath: string) {
-  const folderAbsolutePath = path.join(process.currentDir, folderPath)
+export async function copyTestMacroFiles(folderAbsolutePath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
 
-  await asyncForEach(
-    macroTestFiles,
-    async (file) =>
-      await copy(
-        path.join(folderAbsolutePath, file),
-        path.join(testsBuildFolder(), 'macros', file)
-      )
-  )
+  await asyncForEach(macroTestFiles, async (file) => {
+    const destinationFile = path.join(testsBuildFolder(), 'macros', file)
+
+    if (!(await fileExists(destinationFile))) {
+      await copy(path.join(folderAbsolutePath, file), destinationFile)
+    }
+  })
 }
 
 export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
@@ -84,13 +91,11 @@ export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
 export const isTestFile = (fileName: string) => testFileRegExp.test(fileName)
 
 export const compileTestFlow = async (target: Target) => {
-  const {
-    buildDestinationFolder,
-    buildDestinationTestFolder
-  } = await getConstants()
+  const { buildDestinationFolder, buildDestinationTestFolder } =
+    await getConstants()
 
   if (await folderExists(buildDestinationTestFolder)) {
-    let testFiles = await (
+    let testFiles = (
       await listFilesAndSubFoldersInFolder(buildDestinationTestFolder)
     ).map((file) => path.join('tests', file))
 
@@ -105,7 +110,7 @@ export const compileTestFlow = async (target: Target) => {
         if (testFiles.find((file) => file === testSetUpPath)) {
           testFiles = testFiles.filter((file) => file !== testSetUpPath)
 
-          testFlow.testSetUp = testSetUpPath
+          testFlow.testSetUp = testSetUpPath.split(path.sep).join('/')
         }
       }
 
@@ -118,12 +123,14 @@ export const compileTestFlow = async (target: Target) => {
         if (testFiles.find((file) => file === testTearDownPath)) {
           testFiles = testFiles.filter((file) => file !== testTearDownPath)
 
-          testFlow.testTearDown = testTearDownPath
+          testFlow.testTearDown = testTearDownPath.split(path.sep).join('/')
         }
       }
     }
 
-    testFlow.tests = testFiles
+    testFlow.tests = testFiles.map((file: string) =>
+      file.split(path.sep).join('/')
+    )
 
     await printTestCoverage(testFlow, buildDestinationFolder, target)
   }
@@ -148,21 +155,33 @@ const printTestCoverage = async (
     if (await folderExists(folder)) {
       const files = (await listFilesAndSubFoldersInFolder(folder))
         .filter(filter)
-        .map((file) => path.join(type, file))
+        .map((file) => [type, file.split(path.sep).join('/')].join('/'))
 
       toCover = [...toCover, ...files]
 
       files.forEach((file) => {
-        const shouldBeCovered = path
-          .join('tests', file)
+        let shouldBeCovered = ['tests', file.split(path.sep).join('/')]
+          .join('/')
           .replace(sasFileRegExp, '')
+
+        if (type === 'macros') {
+          shouldBeCovered = shouldBeCovered.split(path.sep).pop() || ''
+        }
 
         if (
           testFlow.tests.find((testFile: string) => {
-            const testCovering = testFile.replace(testFileRegExp, '')
+            let testCovering = testFile.replace(testFileRegExp, '')
+
+            if (type === 'macros') {
+              testCovering = testCovering.split(path.sep).pop() || ''
+            }
 
             if (testCovering === shouldBeCovered) {
-              extraTests = extraTests.filter((test) => test !== testFile)
+              extraTests = extraTests.filter(
+                (test) =>
+                  test.replace(testFileRegExp, '') !==
+                  testFile.replace(testFileRegExp, '')
+              )
             }
 
             return testCovering === shouldBeCovered
@@ -180,7 +199,7 @@ const printTestCoverage = async (
 
   await collectCoverage(jobFolder, 'jobs')
 
-  const macroFolders = target.macroFolders
+  const macroFolders = await getMacroFolders(target)
 
   await asyncForEach(macroFolders, async (macroFolder) => {
     await collectCoverage(
@@ -220,7 +239,23 @@ const printTestCoverage = async (
 
   const coveredMacros = filter(covered, CoverageType.macro)
   const macrosToCover = filter(toCover, CoverageType.macro)
-  const notCoveredMacros = filter(notCovered, CoverageType.macro)
+  let notCoveredMacros = filter(notCovered, CoverageType.macro)
+
+  if (notCoveredMacros.length) {
+    await asyncForEach(macroFolders, async (macroFolder: string) => {
+      const macros = await (
+        await listFilesAndSubFoldersInFolder(macroFolder)
+      ).filter((file: string) => !isTestFile(file))
+
+      const macroTypeRegExp = new RegExp(`^macros${pathSepEscaped}`)
+
+      notCoveredMacros = notCoveredMacros.map((macro: string) =>
+        macros.includes(macro.replace(macroTypeRegExp, ''))
+          ? macro.replace(macroTypeRegExp, macroFolder + path.sep)
+          : macro
+      )
+    })
+  }
 
   notCoveredMacros.forEach((file, i) => {
     coverage[file] = {
@@ -239,10 +274,16 @@ const printTestCoverage = async (
   const calculateCoverage = (covered: number, from: number) =>
     (Math.round((covered / from) * 100) || 0) + '%'
 
-  const printCoverage = (type: string, covered: string[], toCover: string[]) =>
-    `${type} coverage: ${covered.length}/${toCover.length} (${chalk.greenBright(
-      calculateCoverage(covered.length, toCover.length)
-    )})`
+  const formatCoverage = (type: string, covered: string[], toCover: string[]) =>
+    toCover.length
+      ? process.logger?.info(
+          `${type} coverage: ${covered.length}/${
+            toCover.length
+          } (${chalk.greenBright(
+            calculateCoverage(covered.length, toCover.length)
+          )})`
+        )
+      : null
 
   process.logger?.info('Test coverage:')
 
@@ -257,15 +298,11 @@ const printTestCoverage = async (
     }
   )
 
-  process.logger?.info(`${printCoverage(
-    'Services',
-    coveredServices,
-    servicesToCover
-  )}
-  ${printCoverage('Jobs', coveredJobs, jobsToCover)}
-  ${printCoverage('Macros', coveredMacros, macrosToCover)}
-  ${printCoverage('Overall', covered, toCover)}
-`)
+  formatCoverage('Services', coveredServices, servicesToCover)
+  formatCoverage('Jobs', coveredJobs, jobsToCover)
+  formatCoverage('Macros', coveredMacros, macrosToCover)
+  formatCoverage('Overall', covered, toCover)
+  process.logger?.log('')
 
   await createFile(
     path.join(buildDestinationFolder, 'testFlow.json'),

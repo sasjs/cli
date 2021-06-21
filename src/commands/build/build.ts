@@ -3,19 +3,24 @@ import { Target, ServerType } from '@sasjs/utils/types'
 import { createWebAppServices } from '../web'
 import {
   readFile,
-  getSubFoldersInFolder,
-  getFilesInFolder,
-  createFile
-} from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils'
+  listSubFoldersInFolder,
+  listFilesInFolder,
+  createFile,
+  asyncForEach
+} from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
-import { getLocalConfig, getMacroCorePath } from '../../utils/config'
+import {
+  getLocalConfig,
+  getMacroCorePath,
+  getMacroFolders
+} from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
 import { StreamConfig } from '@sasjs/utils/types/config'
+import { isTestFile } from '../compile/internal/compileTestFile'
 
 export async function build(target: Target) {
   await compile(target)
@@ -47,12 +52,12 @@ async function createFinalSasFiles(target: Target) {
         throw err
       })
   }
-
   await createFinalSasFile(target, streamConfig)
 }
 
 async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
-  const { buildConfig, serverType, macroFolders, name } = target
+  const { buildConfig, serverType, name } = target
+  const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
   const { buildDestinationFolder } = await getConstants()
@@ -105,7 +110,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 
 async function getBuildInfo(target: Target) {
   let buildConfig = ''
-  const { serverType, appLoc, macroFolders } = target
+  const { serverType, appLoc } = target
+  const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
   const dependencyFilePaths = await getDependencyPaths(
@@ -136,12 +142,14 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   }
 }
 
-function getWebServiceScriptInvocation(serverType: ServerType) {
+function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
+  const loc = filePath === '' ? 'services' : 'tests'
+
   switch (serverType) {
     case ServerType.SasViya:
-      return '%mv_createwebservice(path=&appLoc/services/&path, name=&service, code=sascode ,replace=yes)'
+      return `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     case ServerType.Sas9:
-      return '%mm_createwebservice(path=&appLoc/services/&path, name=&service, code=sascode ,replace=yes)'
+      return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
       throw new Error(
         `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
@@ -158,7 +166,7 @@ function getWebServiceScriptInvocation(serverType: ServerType) {
  */
 async function getFolderContent(serverType: ServerType) {
   const { buildDestinationFolder } = await getConstants()
-  const buildSubFolders = await getSubFoldersInFolder(buildDestinationFolder)
+  const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
   let folderContentJSON: any = { members: [] }
@@ -190,9 +198,20 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 async function getContentFor(
   folderPath: string,
   folderName: string,
-  serverType: ServerType
+  serverType: ServerType,
+  testPath: string | undefined = undefined
 ) {
-  let content = `\n%let path=${folderName === 'services' ? '' : folderName};\n`
+  if (!testPath && folderName === 'tests') {
+    testPath = ''
+  }
+
+  let content = `\n%let path=${
+    folderName === 'services'
+      ? ''
+      : testPath !== undefined
+      ? testPath
+      : folderName
+  };\n`
 
   const contentJSON: any = {
     name: folderName,
@@ -200,32 +219,41 @@ async function getContentFor(
     members: []
   }
 
-  const files = await getFilesInFolder(folderPath)
+  const files = await listFilesInFolder(folderPath)
 
   await asyncForEach(files, async (file) => {
     const fileContent = await readFile(path.join(folderPath, file))
-    const transformedContent = getServiceText(file, fileContent, serverType)
+    const transformedContent = getServiceText(
+      file,
+      fileContent,
+      serverType,
+      testPath
+    )
 
     content += `\n${transformedContent}\n`
 
     contentJSON?.members.push({
-      name: file.replace('.sas', ''),
+      name: file.replace(/.sas$/, ''),
       type: 'service',
       code: removeComments(fileContent)
     })
   })
 
-  const subFolders = await getSubFoldersInFolder(folderPath)
+  const subFolders = await listSubFoldersInFolder(folderPath)
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const {
-      content: childContent,
-      contentJSON: childContentJSON
-    } = await getContentFor(
-      path.join(folderPath, subFolder),
-      subFolder,
-      serverType
-    )
+    const { content: childContent, contentJSON: childContentJSON } =
+      await getContentFor(
+        path.join(folderPath, subFolder),
+        subFolder,
+        serverType,
+        testPath !== undefined
+          ? testPath === ''
+            ? subFolder
+            : `${testPath}/${subFolder}`
+          : undefined
+      )
+
     contentJSON?.members.push(childContentJSON)
     content += childContent
   })
@@ -236,9 +264,10 @@ async function getContentFor(
 function getServiceText(
   serviceFileName: string,
   fileContent: string,
-  serverType: ServerType
+  serverType: ServerType,
+  testPath: string | undefined
 ) {
-  const serviceName = serviceFileName.replace('.sas', '')
+  const serviceName = serviceFileName.replace(/.sas$/, '')
   const sourceCodeLines = getLines(removeComments(fileContent))
   let content = ``
   sourceCodeLines.forEach((line) => {
@@ -253,7 +282,10 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType)}
+${getWebServiceScriptInvocation(
+  serverType,
+  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
+)}
 filename sascode clear;
 `
 }

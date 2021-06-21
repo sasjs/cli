@@ -1,0 +1,8 @@
+tasks:
+  - init: nvm install --latest-npm && npm i -g @sasjs/cli
+
+image:
+  file: .gitpod.dockerfile
+vscode:
+  extensions:
+    - sasjs.sasjs-for-vscode

@@ -12,3 +12,4 @@ export {
   TestResult,
   TestResultDescription
 } from './testing'
+export { Flow, FlowWave } from './flow'

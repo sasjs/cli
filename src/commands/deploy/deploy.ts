@@ -4,12 +4,13 @@ import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
 import { executeShellScript } from '../../utils/utils'
 import {
-  isSasFile,
-  isShellScript,
   readFile,
-  createFile
-} from '../../utils/file'
-import { ServerType, Target, asyncForEach } from '@sasjs/utils'
+  createFile,
+  ServerType,
+  Target,
+  asyncForEach
+} from '@sasjs/utils'
+import { isSasFile, isShellScript } from '../../utils/file'
 import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 
@@ -24,7 +25,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     await deployToSasViyaWithServicePack(target, isLocal)
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      `${target.serverUrl}/SASJobExecution?_path=${target.appLoc}`
+      `${target.serverUrl}/SASJobExecution/?_folder=${target.appLoc}`
     )
   }
 
@@ -202,18 +203,15 @@ async function deployToSas9(
   linesToExecute: string[],
   logFilePath: string | null
 ) {
-  const serverName = target.serverName || process.env.serverName
-  const repositoryName = target.repositoryName || process.env.repositoryName
-  if (!serverName) {
+  const username = process.env.SAS_USERNAME
+  const password = process.env.SAS_PASSWORD
+  if (!username || !password) {
     throw new Error(
-      'SAS Server Name is required for SAS9 deployments.\n Please ensure that `serverName` is present in your build target configuration and try again.\n'
+      'A valid username and password are required for requests to SAS9 servers.' +
+        '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
     )
   }
-  if (!repositoryName) {
-    throw new Error(
-      'SAS Repository Name is required for SAS9 deployments.\n Please ensure that `repositoryName` is present in your build target configuration and try again.\n'
-    )
-  }
+
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     allowInsecureRequests: target.allowInsecureRequests,
@@ -222,8 +220,8 @@ async function deployToSas9(
   })
   const executionResult = await sasjs.executeScriptSAS9(
     linesToExecute,
-    serverName,
-    repositoryName
+    username,
+    password
   )
 
   let parsedLog

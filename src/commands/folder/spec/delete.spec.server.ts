@@ -1,7 +1,6 @@
 import { folder } from '../index'
 import * as deleteFolderModule from '../delete'
-import { generateTimestamp } from '../../../utils/utils'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import {
@@ -16,7 +15,7 @@ describe('sasjs folder delete', () => {
   const targetName = `cli-tests-folder-delete-${generateTimestamp()}`
   let target: Target
 
-  beforeAll(async (done) => {
+  beforeAll(async () => {
     target = await createTestGlobalTarget(
       targetName,
       `/Public/app/cli-tests/${targetName}`
@@ -27,16 +26,14 @@ describe('sasjs folder delete', () => {
       .mockImplementation((folderPath, adapter, _) =>
         Promise.resolve(folderPath as any)
       )
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(targetName)
     await removeTestApp(__dirname, targetName)
-    done()
   })
 
-  it('should append appLoc to relative folder paths', async (done) => {
+  it('should append appLoc to relative folder paths', async () => {
     const timestamp = generateTimestamp()
     const relativeFolderPath = `test-${timestamp}`
 
@@ -45,10 +42,9 @@ describe('sasjs folder delete', () => {
         new Command(['folder', 'delete', relativeFolderPath, '-t', targetName])
       )
     ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
-    done()
   })
 
-  it('should leave absolute file paths unaltered', async (done) => {
+  it('should leave absolute file paths unaltered', async () => {
     const timestamp = generateTimestamp()
     const absoluteFolderPath = `${target.appLoc}/test-${timestamp}`
 
@@ -57,6 +53,5 @@ describe('sasjs folder delete', () => {
         new Command(['folder', 'delete', absoluteFolderPath, '-t', targetName])
       )
     ).resolves.toEqual(`${target.appLoc}/test-${timestamp}`)
-    done()
   })
 })

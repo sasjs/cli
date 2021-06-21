@@ -1,26 +1,23 @@
 import { getConstants } from '../../constants'
 import {
+  saveLog,
+  saveResultJson,
+  saveResultCsv,
+  saveResultXml
+} from './saveOutput'
+import {
   TestFlow,
   TestResults,
   TestResultStatus,
-  TestDescription,
-  TestResult,
-  TestResultDescription
+  TestDescription
 } from '../../types'
-import {
-  readFile,
-  folderExists,
-  createFile,
-  createFolder,
-  sasFileRegExp
-} from '../../utils/file'
+import { sasFileRegExp } from '../../utils/file'
 import { Command } from '../../utils/command'
 import { findTargetInConfiguration } from '../../utils/config'
 import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { uuidv4, asyncForEach } from '@sasjs/utils'
+import { ServerType, uuidv4, asyncForEach, readFile } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
-import stringify from 'csv-stringify'
 import path from 'path'
 import chalk from 'chalk'
 
@@ -88,12 +85,27 @@ export async function runTest(command: Command) {
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
     debug: true
   })
 
-  const accessToken = await getAccessToken(target)
+  let accessToken: string, username: string, password: string
+  if (target.serverType === ServerType.SasViya) {
+    accessToken = await getAccessToken(target)
+  }
+  if (target.serverType === ServerType.Sas9) {
+    username = process.env.SAS_USERNAME as string
+    password = process.env.SAS_PASSWORD as string
+
+    if (!username || !password) {
+      throw new Error(
+        'A valid username and password are required for requests to SAS9 servers.' +
+          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+      )
+    }
+  }
 
   const result: TestResults = {
     sasjs_test_meta: []
@@ -119,35 +131,46 @@ export async function runTest(command: Command) {
   }
 
   await asyncForEach(flow, async (test) => {
-    const sasJobLocation = path.join(
+    const sasJobLocation = [
       target.appLoc,
       test.replace(sasFileRegExp, '')
-    )
+    ].join('/')
+
     const testTarget = test
-      .split(path.sep)
+      .split('/')
       .pop()
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
+
+    let testUrl = `${target.serverUrl}/${
+      target.serverType === ServerType.SasViya
+        ? 'SASJobExecution'
+        : 'SASStoredProcess'
+    }/?_program=${sasJobLocation}&_debug=2477`
 
     await sasjs
       .request(
         sasJobLocation,
         {},
-        {},
+        { username, password },
         () => {
           displayError(null, 'Login callback called. Request failed.')
         },
         accessToken
       )
       .then(async (res) => {
-        if (!res) {
+        let lineBreak = true
+
+        if (!res.result) {
           displayError(
             {},
-            `Job located at ${sasJobLocation} did not return a response.`
+            `Job did not return a response, to debug click ${testUrl}`
           )
 
           printCodeExample()
 
+          lineBreak = false
+
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -157,7 +180,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: TestResultStatus.notProvided
+              result: TestResultStatus.notProvided,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -166,16 +190,19 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: TestResultStatus.notProvided
+                  result: TestResultStatus.notProvided,
+                  test_url: testUrl
                 }
               ]
             })
           }
-
-          return
         }
 
-        if (res.test_results) {
+        if (!res.result?.test_results) lineBreak = false
+
+        if (res.log) await saveLog(outDirectory, test, res.log, lineBreak)
+
+        if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -185,7 +212,8 @@ export async function runTest(command: Command) {
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: res.test_results
+              result: res.result.test_results,
+              test_url: testUrl
             })
           } else {
             result.sasjs_test_meta.push({
@@ -194,13 +222,17 @@ export async function runTest(command: Command) {
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: res.test_results
+                  result: res.result.test_results,
+                  test_url: testUrl
                 }
               ]
             })
           }
         } else {
-          displayError({}, `'test_results' not found in server response.`)
+          displayError(
+            {},
+            `'test_results' not found in server response, to debug click ${testUrl}`
+          )
 
           printCodeExample()
         }
@@ -212,93 +244,30 @@ export async function runTest(command: Command) {
         )
 
         if (err?.error?.details?.result) {
-          const logPath = path.join(
-            outDirectory,
-            'logs',
-            test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') +
-              '.log'
-          )
-
-          await createFile(logPath, err.error.details.result)
-
-          process.logger.info(`Log file is located at ${logPath}\n`)
+          await saveLog(outDirectory, test, err.error.details.result)
         }
       })
   })
 
-  let finaleResult
+  const jsonPath = await saveResultJson(outDirectory, result)
 
-  try {
-    finaleResult = JSON.stringify(result, null, 2)
-  } catch (err) {
-    displayError(err, 'Error while converting test results into a string.')
-  }
+  if (!jsonPath) return
 
-  if (!(await folderExists(outDirectory))) {
-    await createFolder(outDirectory)
-  }
+  const xmlPath = await saveResultXml(outDirectory, result)
 
-  const csvPath = path.join(outDirectory, 'testResults.csv')
-
-  const saveCSV = async (data: {}[], options: {}) =>
-    new Promise((resolve, reject) =>
-      stringify(data, options || {}, async (err, output) => {
-        if (err) reject(err)
-
-        await createFile(csvPath, output).catch((err) =>
-          displayError(err, 'Error while creating CSV file.')
-        )
-
-        resolve(true)
-      })
-    )
-
-  const csvData: {}[] = result.sasjs_test_meta.flatMap((resTarget: any) =>
-    resTarget.results.flatMap((res: TestResult) => {
-      let item: any = {
-        test_target: resTarget.test_target,
-        test_loc: res.test_loc,
-        sasjs_test_id: res.sasjs_test_id
-      }
-
-      if (Array.isArray(res.result)) {
-        item = res.result.map((r: TestResultDescription) => ({
-          test_target: resTarget.test_target,
-          test_loc: res.test_loc,
-          sasjs_test_id: res.sasjs_test_id,
-          test_suite_result: r.TEST_RESULT,
-          test_description: r.TEST_DESCRIPTION
-        }))
-      } else item.test_suite_result = res.result
-
-      return item
-    })
-  )
-
-  await saveCSV(csvData, {
-    header: true,
-    columns: {
-      test_target: 'test_target',
-      test_loc: 'test_loc',
-      sasjs_test_id: 'sasjs_test_id',
-      test_suite_result: 'test_suite_result',
-      test_description: 'test_description'
-    }
-  }).catch((err) => displayError(err, 'Error while saving CSV file'))
-
-  const jsonPath = path.join(outDirectory, 'testResults.json')
-
-  await createFile(jsonPath, finaleResult)
+  const { csvData, csvPath } = await saveResultCsv(outDirectory, result)
 
   const resultTable: any = {}
 
-  csvData.forEach(
-    (item: any) =>
-      (resultTable[item.sasjs_test_id] = {
-        test_target: item.test_target,
-        test_suite_result: item.test_suite_result
-      })
-  )
+  if (Array.isArray(csvData)) {
+    csvData.forEach(
+      (item: any) =>
+        (resultTable[item.sasjs_test_id] = {
+          test_target: item.test_target,
+          test_suite_result: item.test_suite_result
+        })
+    )
+  }
 
   process.logger?.table(
     Object.keys(resultTable).map((key) => [
@@ -338,6 +307,7 @@ export async function runTest(command: Command) {
   displaySuccess(
     `Tests execution finished. The results are stored at:
   ${jsonPath}
-  ${csvPath}`
+  ${csvPath}
+  ${xmlPath}`
   )
 }

@@ -137,7 +137,8 @@ const commandFlags = [
       initialFlags.logFile,
       initialFlags.status,
       initialFlags.returnStatusOnly,
-      initialFlags.ignoreWarnings
+      initialFlags.ignoreWarnings,
+      initialFlags.source
     ]
   },
   {

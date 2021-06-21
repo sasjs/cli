@@ -11,7 +11,7 @@ describe('getContextName', () => {
   it('should return the default context if context name is not specified', () => {
     const target = { contextName: undefined }
 
-    expect(getContextName((target as unknown) as Target)).toEqual(
+    expect(getContextName(target as unknown as Target)).toEqual(
       'SAS Job Execution compute context'
     )
   })

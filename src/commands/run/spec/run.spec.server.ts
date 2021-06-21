@@ -1,9 +1,14 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { folder, runSasCode } from '../..'
-import { copy, createFolder, deleteFolder } from '../../../utils/file'
-import { generateTimestamp } from '../../../utils/utils'
-import { Target } from '@sasjs/utils/types'
+import {
+  copy,
+  createFolder,
+  deleteFolder,
+  Target,
+  generateTimestamp,
+  ServerType
+} from '@sasjs/utils'
 import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {
@@ -20,14 +25,14 @@ describe('sasjs run', () => {
   let target: Target
 
   describe('runSasCode within project', () => {
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       const appName = 'cli-tests-run-' + generateTimestamp()
       await createTestApp(__dirname, appName)
       target = await createTestGlobalTarget(
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
-          serviceFolders: ['sasjs/testServices'],
+          serviceFolders: [path.join('sasjs', 'testServices')],
           initProgram: '',
           termProgram: '',
           macroVars: {}
@@ -37,17 +42,14 @@ describe('sasjs run', () => {
         path.join(__dirname, 'testServices'),
         path.join(process.projectDir, 'sasjs', 'testServices')
       )
-
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await removeFromGlobalConfig(target.name)
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
       await removeTestApp(__dirname, target.name)
-      done()
     })
     it('should throw an error if file type is not *.sas', async () => {
       const file = 'test.sas.txt'
@@ -93,7 +95,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -110,7 +113,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -127,7 +131,7 @@ describe('sasjs run', () => {
 
   describe('runSasCode within vanilla js project', () => {
     let appName: string
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       dotenv.config()
       appName = 'cli-tests-run-' + generateTimestamp()
       await createTestMinimalApp(__dirname, appName)
@@ -150,16 +154,13 @@ describe('sasjs run', () => {
         },
         'viya'
       )
-
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
       await removeTestApp(__dirname, appName)
-      done()
     })
 
     it(
@@ -182,7 +183,7 @@ describe('sasjs run', () => {
     let sharedAppName: string
     const homedir = require('os').homedir()
 
-    beforeAll(async (done) => {
+    beforeAll(async () => {
       sharedAppName = `cli-tests-run-${generateTimestamp()}`
       await createTestApp(homedir, sharedAppName)
       await updateConfig(
@@ -194,16 +195,15 @@ describe('sasjs run', () => {
         },
         false
       )
-      done()
     })
 
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       const appName = `cli-tests-run-${generateTimestamp()}`
       target = await createTestGlobalTarget(
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
-          serviceFolders: [`${__dirname}/testServices`],
+          serviceFolders: [path.join(__dirname, 'testServices')],
           initProgram: '',
           termProgram: '',
           macroVars: {}
@@ -212,22 +212,20 @@ describe('sasjs run', () => {
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await removeFromGlobalConfig(target.name)
+      await deleteFolder(process.currentDir)
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
-      done()
     })
 
-    afterAll(async (done) => {
+    afterAll(async () => {
       await removeTestApp(homedir, sharedAppName)
       await deleteFolder(path.join(homedir, 'sasjsbuild'))
       await deleteFolder(path.join(homedir, 'sasjsresults'))
-      done()
     })
 
     it(
@@ -265,7 +263,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having relative path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -282,7 +281,8 @@ describe('sasjs run', () => {
     it(
       'should get the log on successfull execution having absolute path but compile it first',
       async () => {
-        const logPartRegex = /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
+        const logPartRegex =
+          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
         const result: any = await runSasCode(
           new Command(
@@ -298,29 +298,91 @@ describe('sasjs run', () => {
   })
 
   describe('without global config', () => {
-    beforeEach(async (done) => {
+    beforeEach(async () => {
       const appName = `cli-tests-run-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
-      done()
     })
 
-    afterEach(async (done) => {
+    afterEach(async () => {
       await deleteFolder(process.currentDir)
-      done()
     })
 
-    it('should throw an error for no target found', async (done) => {
+    it('should throw an error for no target found', async () => {
       const error = new Error(
         'Target `someTargetName` was not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
       )
       await expect(
         runSasCode(new Command(`run -t someTargetName some-file.sas`))
       ).rejects.toEqual(error)
-
-      done()
     })
+  })
+
+  describe('sasjs run with SAS9', () => {
+    beforeEach(async () => {
+      const appName = 'cli-tests-run-sas9-' + generateTimestamp()
+      await createTestApp(__dirname, appName)
+      target = await createTestGlobalTarget(
+        appName,
+        `/Public/app/cli-tests/${appName}`,
+        {
+          serviceFolders: ['sasjs/testServices'],
+          initProgram: '',
+          termProgram: '',
+          macroVars: {}
+        },
+        ServerType.Sas9
+      )
+      await copy(
+        path.join(__dirname, 'testServices'),
+        path.join(process.projectDir, 'sasjs', 'testServices')
+      )
+    })
+
+    afterEach(async () => {
+      await removeFromGlobalConfig(target.name)
+      await folder(
+        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
+      ).catch(() => {})
+      await removeTestApp(__dirname, target.name)
+    })
+
+    it(
+      'should run a file when a relative path is provided',
+      async () => {
+        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
+
+        const result: any = await runSasCode(
+          new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+        )
+
+        logParts.forEach((logPart) => {
+          expect(result.log.includes(logPart)).toBeTruthy()
+        })
+      },
+
+      60 * 1000
+    )
+
+    it(
+      'should run a file when an absolute path is provided',
+      async () => {
+        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
+
+        const result: any = await runSasCode(
+          new Command(
+            `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
+          )
+        )
+
+        logParts.forEach((logPart) => {
+          expect(result.log.includes(logPart)).toBeTruthy()
+        })
+      },
+
+      60 * 1000
+    )
   })
 })

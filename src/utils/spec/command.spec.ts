@@ -1,4 +1,3 @@
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Command } from '../command'
 
 describe('parseCommandLine', () => {
@@ -500,7 +499,7 @@ describe('parseCommandLine', () => {
         'wait',
         'output',
         'logFile',
-        'status'
+        'source'
       ]
       const expectedFlagValues = [
         'targetName',

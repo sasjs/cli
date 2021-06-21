@@ -1,7 +1,6 @@
 import path from 'path'
-import { Target } from '@sasjs/utils/types'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import * as internalModule from '../internal/config'
-import * as compileModule from '../compile'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
@@ -9,9 +8,8 @@ import {
   removeTestApp,
   verifyCompiledJob
 } from '../../../utils/test'
-import { generateTimestamp } from '../../../utils/utils'
 import { compileJobFile } from '../internal/compileJobFile'
-import { copy, fileExists, createFolder, readFile } from '../../../utils/file'
+import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
 
 const fakeJobInit = `/**
   @file
@@ -64,21 +62,24 @@ describe('compileJobFile', () => {
     await createTestMinimalApp(__dirname, target.name)
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-    done()
   })
 
-  test('it should compile and create file', async (done) => {
-    spyOn(internalModule, 'getJobInit').and.returnValue({
-      content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-      filepath: ''
-    })
-    spyOn(internalModule, 'getJobTerm').and.returnValue({
-      content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
-      filepath: ''
-    })
+  test('it should compile and create file', async () => {
+    jest.spyOn(internalModule, 'getJobInit').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
+        filePath: ''
+      })
+    )
+    jest.spyOn(internalModule, 'getJobTerm').mockImplementation(() =>
+      Promise.resolve({
+        content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
+        filePath: ''
+      })
+    )
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
@@ -92,8 +93,8 @@ describe('compileJobFile', () => {
       compileJobFile(
         target,
         destinationPath,
-        ['../macros'],
-        ['../', '../services']
+        [path.join(__dirname, './macros')],
+        [path.join(__dirname, './'), path.join(__dirname, './services')]
       )
     ).toResolve()
 
@@ -107,7 +108,5 @@ describe('compileJobFile', () => {
     expect(compiledContent).toEqual(
       expect.stringContaining(fakeProgramLines.join('\n'))
     )
-
-    done()
   })
 })

@@ -1,15 +1,15 @@
 import path from 'path'
 import {
   readFile,
-  getSubFoldersInFolder,
-  getFilesInFolder,
-  getIniFilesInFolder,
+  listSubFoldersInFolder,
+  listFilesInFolder,
+  listIniFilesInFolder,
   createFile,
   createFolder,
   deleteFolder,
-  fileExists
-} from '../../utils/file'
-import { asyncForEach } from '@sasjs/utils'
+  fileExists,
+  asyncForEach
+} from '@sasjs/utils'
 import { getConstants } from '../../constants'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
@@ -18,8 +18,8 @@ export async function buildDB() {
   const { buildSourceDbFolder, buildDestinationDbFolder } = await getConstants()
   await recreateBuildFolder()
 
-  const buildDBFolders = await getSubFoldersInFolder(buildSourceDbFolder)
-  const buildDBIniFiles = await getIniFilesInFolder(buildSourceDbFolder)
+  const buildDBFolders = await listSubFoldersInFolder(buildSourceDbFolder)
+  const buildDBIniFiles = await listIniFilesInFolder(buildSourceDbFolder)
 
   let iniFilesContent: { [key: string]: string } = {}
   await asyncForEach(buildDBIniFiles, async (buildDBIniFile) => {
@@ -31,7 +31,7 @@ export async function buildDB() {
     process.logger?.info(`Loading DB: ${buildDBFolder}`)
 
     const folderPath = path.join(buildSourceDbFolder, buildDBFolder)
-    const filesNamesInPath = await getFilesInFolder(folderPath)
+    const filesNamesInPath = await listFilesInFolder(folderPath)
     const fileExtsInPath = await getFileExts(filesNamesInPath)
 
     await asyncForEach(fileExtsInPath, async (fileExt) => {
@@ -60,10 +60,8 @@ export async function buildDB() {
 }
 
 async function recreateBuildFolder() {
-  const {
-    buildDestinationFolder,
-    buildDestinationDbFolder
-  } = await getConstants()
+  const { buildDestinationFolder, buildDestinationDbFolder } =
+    await getConstants()
   process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)

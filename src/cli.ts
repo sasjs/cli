@@ -23,7 +23,7 @@ import {
   ReturnCode,
   test
 } from './main'
-import { fileExists } from './utils/file'
+import { fileExists } from '@sasjs/utils'
 import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'
@@ -31,7 +31,7 @@ import { getProjectRoot } from './utils/config'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export async function cli(args: string[]) {
-  await loadEnvironmentVariables()
+  await loadProjectEnvVariables()
   await instantiateLogger()
 
   const parsedCommand = parseCommand(args)
@@ -43,6 +43,9 @@ export async function cli(args: string[]) {
   }
 
   const command = new Command(parsedCommand.parameters)
+
+  const targetName = command.getFlagValue('target') as string
+  await loadTargetEnvVariables(targetName)
 
   switch (parsedCommand.name) {
     case 'create':
@@ -183,17 +186,25 @@ export async function instantiateLogger() {
   process.logger = logger
 }
 
-async function loadEnvironmentVariables() {
+async function loadProjectEnvVariables() {
+  await loadEnvVariables('.env')
+}
+
+async function loadTargetEnvVariables(targetName: string) {
+  await loadEnvVariables(`.env.${targetName}`)
+}
+
+async function loadEnvVariables(fileName: string) {
   const envFileExistsInCurrentPath = await fileExists(
-    path.join(process.cwd(), '.env')
+    path.join(process.cwd(), fileName)
   )
   const envFileExistsInParentPath = await fileExists(
-    path.join(process.cwd(), '..', '.env')
+    path.join(process.cwd(), '..', fileName)
   )
   const envFilePath = envFileExistsInCurrentPath
-    ? path.join(process.cwd(), '.env')
+    ? path.join(process.cwd(), fileName)
     : envFileExistsInParentPath
-    ? path.join(process.cwd(), '..', '.env')
+    ? path.join(process.cwd(), '..', fileName)
     : null
   if (envFilePath) {
     dotenv.config({ path: envFilePath })

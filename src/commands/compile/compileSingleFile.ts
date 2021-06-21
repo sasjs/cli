@@ -1,6 +1,6 @@
 import path from 'path'
-import { getProgramFolders } from '../../utils/config'
-import { copy, fileExists, deleteFolder, createFolder } from '../../utils/file'
+import { getProgramFolders, getMacroFolders } from '../../utils/config'
+import { fileExists, deleteFolder, createFolder, copy } from '@sasjs/utils'
 import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
@@ -33,12 +33,14 @@ export async function compileSingleFile(
   const commandExample =
     'sasjs compile <command> --source myjob.sas --target targetName -output /some/folder'
 
-  const source = command.getFlagValue('source') as string
+  let source = command.getFlagValue('source') as string
   const output = command.getFlagValue('output') as string
 
   if (!source) {
     throw new Error(`'--source' flag is missing (eg '${commandExample}')`)
   }
+
+  source = source.split('/').join(path.sep)
 
   const sourcePath = path.isAbsolute(source)
     ? source
@@ -77,11 +79,12 @@ export async function compileSingleFile(
   await copy(sourcePath, destinationPath)
 
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
-  const macroFolders = target ? target.macroFolders : []
+  const macroFolders = await getMacroFolders(target)
   const programFolders = await getProgramFolders(target)
+  const psMaxOption = 'options ps=max;'
   const programVar = insertProgramVar
-    ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};`
-    : ''
+    ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};\n${psMaxOption}`
+    : `${psMaxOption}`
 
   switch (subCommand) {
     case subCommands.service:

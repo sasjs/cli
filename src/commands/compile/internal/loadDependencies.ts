@@ -1,7 +1,5 @@
-import { Target, asyncForEach } from '@sasjs/utils'
-import { getConstants } from '../../../constants'
+import { Target, asyncForEach, readFile } from '@sasjs/utils'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
-import { readFile } from '../../../utils/file'
 import { chunk } from '../../../utils/utils'
 import {
   getDependencyPaths,
@@ -22,12 +20,10 @@ export async function loadDependencies(
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  type = 'service',
-  noInitAndTerm = false
+  type = 'service'
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
-  const { buildSourceFolder } = await getConstants()
   let fileContent = await readFile(filePath)
 
   if (fileContent.includes('<h4> Dependencies </h4>')) {
@@ -79,10 +75,8 @@ export async function loadDependencies(
       ? `\n* Job start;\n${fileContent}\n* Job end;`
       : ''
   } else {
-    if (!noInitAndTerm) {
-      ;({ content: init, filePath: initPath } = await getTestInit(target))
-      ;({ content: term, filePath: termPath } = await getTestTerm(target))
-    }
+    ;({ content: init, filePath: initPath } = await getTestInit(target))
+    ;({ content: term, filePath: termPath } = await getTestTerm(target))
 
     fileContent = fileContent
       ? `\n* Test start;\n${fileContent}\n* Test end;`
@@ -109,20 +103,17 @@ export async function loadDependencies(
   const initProgramDependencies = await getProgramDependencies(
     init,
     programFolders,
-    buildSourceFolder,
     initPath
   )
   const termProgramDependencies = await getProgramDependencies(
     term,
     programFolders,
-    buildSourceFolder,
     termPath
   )
 
   const programDependencies = await getProgramDependencies(
     fileContent,
     programFolders,
-    buildSourceFolder,
     filePath
   )
 

@@ -1,69 +1,57 @@
 import {
-  compileTestFile,
-  moveTestFile,
   isTestFile,
+  moveTestFile,
+  compileTestFile,
   compileTestFlow
 } from '../compileTestFile'
-import { Target } from '@sasjs/utils/types'
-import { Logger, LogLevel } from '@sasjs/utils/logger'
 import {
-  createTestGlobalTarget,
+  Logger,
+  LogLevel,
+  Target,
+  copy,
+  readFile,
+  fileExists,
+  createFile,
+  deleteFile,
+  generateTimestamp
+} from '@sasjs/utils'
+import {
+  removeTestApp,
   createTestMinimalApp,
-  removeTestApp
+  createTestGlobalTarget
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
-import { generateTimestamp } from '../../../../utils/utils'
-import {
-  createFolder,
-  createFile,
-  fileExists,
-  readFile
-} from '../../../../utils/file'
 import path from 'path'
+import { compile } from '../../compile'
+import chalk from 'chalk'
 
 describe('compileTestFile', () => {
   let appName: string
   let target: Target
-  let testPath: string
   let sasjsPath: string
+  let testBody: string
   const testFileName = 'random.test.sas'
-  const testBody = `/**
-@file random.test.sas
-@brief brief desc
-@details detailed desc.
 
-<h4> SAS Macros </h4>
-@li mf_abort.sas
+  beforeAll(async () => {
+    testBody = await readFile(path.join(__dirname, 'testFiles', testFileName))
 
-**/
-
-options
-DATASTMTCHK=ALLKEYWORDS /* some sites have this enabled */
-PS=MAX /* reduce log size slightly */
-;`
-
-  beforeAll(async (done) => {
     process.logger = new Logger(LogLevel.Off)
 
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
+
     await createTestMinimalApp(__dirname, target.name)
+    await deleteFile(
+      path.join(__dirname, appName, 'sasjs', 'macros', '.gitkeep')
+    )
+    await copyTestFiles(appName)
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
-    const testSourceFolder = path.join(sasjsPath, 'tests')
-    testPath = path.join(sasjsPath, 'services', 'admin', testFileName)
-
-    await createFolder(testSourceFolder)
-    await createFile(testPath, testBody)
-
-    done()
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
-
-    done()
   })
 
   describe('compileTestFile function', () => {
@@ -82,12 +70,16 @@ PS=MAX /* reduce log size slightly */
         testFileName
       )
       await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
+
       const testFileContent = await readFile(compiledTestFilePath)
+
       expect(new RegExp(`^${testVar}`).test(testFileContent)).toEqual(true)
+
       const dependencyStart = '* Dependencies start;'
       const dependency =
         '%macro mf_abort(mac=mf_abort.sas, type=, msg=, iftrue=%str(1=1)'
       const dependencyEnd = '* Dependencies end;'
+
       expect(testFileContent.indexOf(dependencyStart)).toBeGreaterThan(-1)
       expect(testFileContent.indexOf(dependency)).toBeGreaterThan(-1)
       expect(testFileContent.indexOf(dependencyEnd)).toBeGreaterThan(-1)
@@ -97,7 +89,7 @@ PS=MAX /* reduce log size slightly */
 
   describe('moveTestFile', () => {
     it('should move service test', async () => {
-      const relativePath = path.join('services', 'admin', 'random.test.sas')
+      const relativePath = path.join('services', 'admin', testFileName)
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
@@ -112,7 +104,7 @@ PS=MAX /* reduce log size slightly */
     })
 
     it('should move job test', async () => {
-      const relativePath = path.join('jobs', 'jobs', 'random.test.sas')
+      const relativePath = path.join('jobs', 'jobs', testFileName)
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
@@ -129,12 +121,12 @@ PS=MAX /* reduce log size slightly */
 
   describe('compileTestFlow', () => {
     it('should compile test flow', async () => {
-      const testSetUp = 'tests/testsetup.sas'
-      const testTearDown = 'tests/testteardown.sas'
+      const testSetUp = path.join('tests', 'testsetup.sas')
+      const testTearDown = path.join('tests', 'testteardown.sas')
 
       if (target.testConfig) {
-        target.testConfig.testSetUp = `sasjs/${testSetUp}`
-        target.testConfig.testTearDown = `sasjs/${testTearDown}`
+        target.testConfig.testSetUp = path.join('sasjs', testSetUp)
+        target.testConfig.testTearDown = path.join('sasjs', testTearDown)
       }
 
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
@@ -151,16 +143,82 @@ PS=MAX /* reduce log size slightly */
 
       const expectedTestFlow = {
         tests: [
-          'tests/random.test.sas',
-          'tests/jobs/jobs/random.test.sas',
-          'tests/services/admin/random.test.sas'
+          ['tests', 'random.test.sas'].join('/'),
+          ['tests', 'jobs', 'jobs', 'random.test.sas'].join('/'),
+          ['tests', 'services', 'admin', 'random.test.sas'].join('/')
         ],
-        testSetUp: testSetUp,
-        testTearDown: testTearDown
+        testSetUp: testSetUp.split(path.sep).join('/'),
+        testTearDown: testTearDown.split(path.sep).join('/')
       }
 
       await expect(JSON.parse(await readFile(testFlowPath))).toEqual(
         expectedTestFlow
+      )
+    })
+
+    it('should log coverage', async () => {
+      jest.spyOn(process.logger, 'table').mockImplementation(() => '')
+
+      const expectedHeader = { head: ['File', 'Type', 'Coverage'] }
+      const expectedData = [
+        [
+          ['services', 'common', 'appinit.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'common', 'getdata.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'services', 'common', 'appinit.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['services', 'services', 'common', 'getdata.sas'].join('/'),
+          'service',
+          'not covered'
+        ],
+        [
+          ['tests', 'services', 'services', 'admin', 'random.test.0.sas'].join(
+            '/'
+          ),
+          'test',
+          'standalone'
+        ],
+        [
+          ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
+            '/'
+          ),
+          'test',
+          'standalone'
+        ]
+      ]
+
+      await compile(target)
+
+      expect(process.logger.table).toHaveBeenCalledTimes(1)
+      expect(process.logger.table).toHaveBeenCalledWith(
+        expectedData,
+        expectedHeader
+      )
+    })
+
+    it('should not log 0/0 coverage', async () => {
+      jest.spyOn(process.logger, 'info').mockImplementation(() => '')
+
+      await compile(target)
+
+      expect(process.logger.info).toHaveBeenCalledTimes(13)
+      expect(process.logger.info).toHaveBeenNthCalledWith(11, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenNthCalledWith(
+        12,
+        `Services coverage: 0/4 (${chalk.greenBright('0%')})`
+      )
+      expect(process.logger.info).toHaveBeenLastCalledWith(
+        `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
     })
   })
@@ -181,3 +239,10 @@ describe('isTestFile', () => {
     expect(isTestFile('random.tests.sas')).toEqual(false)
   })
 })
+
+const copyTestFiles = async (appName: string) => {
+  await copy(
+    path.join(__dirname, 'testFiles'),
+    path.join(__dirname, appName, 'sasjs', 'services', 'admin')
+  )
+}

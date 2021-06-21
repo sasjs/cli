@@ -1,4 +1,4 @@
-import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
@@ -8,7 +8,6 @@ import {
   getGlobalRcFile,
   removeFromGlobalConfig
 } from '../../../utils/config'
-import { generateTimestamp } from '../../../utils/utils'
 import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
@@ -29,35 +28,29 @@ describe('addTarget', () => {
     await createTestMinimalApp(__dirname, appName)
   })
 
-  afterAll(async (done) => {
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
     await removeFromGlobalConfig(viyaTargetName)
-
-    done()
   })
 
-  beforeEach(async (done) => {
+  beforeEach(async () => {
     globalTestTarget = await createTestGlobalTarget(
       `test-target-global-${generateTimestamp()}`,
       `/Public/app/cli-tests/${appName}`
     )
-
-    done()
   })
-  afterEach(async (done) => {
+  afterEach(async () => {
     await removeFromGlobalConfig(globalTestTarget.name)
     jest.clearAllMocks()
-
-    done()
   })
 
-  it('should create a Viya target in the local sasjsconfig.json file', async (done) => {
+  it('should create a Viya target in the local sasjsconfig.json file', async () => {
     const commonFields: CommonFields = {
       scope: TargetScope.Local,
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -75,17 +68,15 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
-
-    done()
   })
 
-  it('should create a SAS9 target in the local sasjsconfig.json file', async (done) => {
+  it('should create a SAS9 target in the local sasjsconfig.json file', async () => {
     const commonFields: CommonFields = {
       scope: TargetScope.Local,
       serverType: ServerType.Sas9,
       name: sas9TargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.SAS9_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -104,17 +95,15 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
-
-    done()
   })
 
-  it('should create a target in the global .sasjsrc file', async (done) => {
+  it('should create a target in the global .sasjsrc file', async () => {
     const commonFields: CommonFields = {
       scope: TargetScope.Global,
       serverType: ServerType.SasViya,
       name: viyaTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -132,11 +121,9 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, false)
-
-    done()
   })
 
-  it('should update a Viya target in the local sasjsconfig.json file', async (done) => {
+  it('should update a Viya target in the local sasjsconfig.json file', async () => {
     const { buildSourceFolder } = await getConstants()
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
@@ -150,7 +137,7 @@ describe('addTarget', () => {
       serverType: ServerType.SasViya,
       name: 'viya',
       appLoc: '/Public/app/new/location',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: target
     }
     jest
@@ -168,11 +155,9 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
-
-    done()
   })
 
-  it('should update a SAS9 target in the local sasjsconfig.json file', async (done) => {
+  it('should update a SAS9 target in the local sasjsconfig.json file', async () => {
     const { buildSourceFolder } = await getConstants()
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
@@ -186,7 +171,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sas9,
       name: 'sas9',
       appLoc: '/Public/app/new/location/2',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: target
     }
     jest
@@ -205,17 +190,15 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
-
-    done()
   })
 
-  it('should update a target in the global .sasjsrc file', async (done) => {
+  it('should update a target in the global .sasjsrc file', async () => {
     const commonFields: CommonFields = {
       scope: TargetScope.Global,
       serverType: globalTestTarget.serverType,
       name: globalTestTarget.name,
       appLoc: '/Public/app/new/location/3',
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: globalTestTarget
     }
     jest
@@ -233,8 +216,6 @@ describe('addTarget', () => {
     await expect(addTarget()).resolves.toEqual(true)
 
     await verifyTarget(commonFields, false)
-
-    done()
   })
 })
 

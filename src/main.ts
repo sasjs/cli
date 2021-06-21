@@ -367,7 +367,7 @@ export async function runRequest(command: Command) {
       return ReturnCode.Success
     })
     .catch((err) => {
-      displayError(err, 'An error has occurred when running your SAS job')
+      displayError(err, 'An error has occurred when running your SAS job.')
       return ReturnCode.InternalError
     })
 }

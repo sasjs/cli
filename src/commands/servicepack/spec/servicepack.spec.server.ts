@@ -2,8 +2,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { processServicepack } from '..'
 import { folder } from '../../folder/index'
-import { generateTimestamp } from '../../../utils/utils'
-import { ServerType, Target, TargetJson } from '@sasjs/utils/types'
+import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -17,14 +16,12 @@ describe('sasjs servicepack', () => {
   beforeAll(async () => {
     dotenv.config()
 
-    const serverType: ServerType =
-      process.env.SERVER_TYPE === ServerType.SasViya
-        ? ServerType.SasViya
-        : ServerType.Sas9
+    const serverType = ServerType.SasViya
+
     config = {
       name: targetName,
       serverType: serverType,
-      serverUrl: process.env.SERVER_URL as string,
+      serverUrl: process.env.VIYA_SERVER_URL as string,
       allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
       authConfig: {
