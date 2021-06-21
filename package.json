@@ -51,9 +51,9 @@
   },
   "dependencies": {
     "@sasjs/adapter": "2.6.3",
-    "@sasjs/core": "2.34.4",
-    "@sasjs/lint": "1.11.0",
-    "@sasjs/utils": "2.20.1",
+    "@sasjs/core": "2.34.5",
+    "@sasjs/lint": "1.11.1",
+    "@sasjs/utils": "2.21.0",
     "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
     "chalk": "4.1.1",
@@ -83,7 +83,7 @@
     "@types/jsdom": "16.2.11",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
-    "@types/node": "15.12.2",
+    "@types/node": "15.12.4",
     "@types/shelljs": "0.8.8",
     "@types/xml": "1.0.5",
     "babel-jest": "27.0.2",
@@ -94,11 +94,11 @@
     "jest-extended": "0.11.5",
     "mock-stdin": "1.0.0",
     "nodemon": "2.0.7",
-    "semantic-release": "17.4.3",
+    "semantic-release": "17.4.4",
     "ts-jest": "27.0.3",
     "ts-node": "10.0.0",
     "tslib": "2.3.0",
-    "typescript": "4.3.2",
+    "typescript": "4.3.4",
     "validate-commit-msg": "2.14.0"
   }
 }
