@@ -20,6 +20,7 @@ import { ServerType, uuidv4, asyncForEach, readFile } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
+import { displaySasjsRunnerError } from '../../utils/utils'
 
 export async function runTest(command: Command) {
   const targetName = command.getFlagValue('target') as string
@@ -238,10 +239,14 @@ export async function runTest(command: Command) {
         }
       })
       .catch(async (err) => {
-        displayError(
-          {},
-          `An error occurred while executing the request. Job location: ${sasJobLocation}`
-        )
+        if (err && err.errorCode === 404) {
+          displaySasjsRunnerError(username)
+        } else {
+          displayError(
+            {},
+            `An error occurred while executing the request. Job location: ${sasJobLocation}`
+          )
+        }
 
         if (err?.error?.details?.result) {
           await saveLog(outDirectory, test, err.error.details.result)
