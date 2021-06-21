@@ -13,6 +13,7 @@ import { Command } from '../../utils/command'
 import { displayError } from '../../utils/displayResult'
 import { getConstants } from '../../constants'
 import { compileSingleFile } from '../'
+import { displaySasjsRunnerError } from '../../utils/utils'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -164,6 +165,9 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
         throw new ErrorResponse('Find more error details in the log file.')
       } else {
+        if (err && err.errorCode === 404) {
+          displaySasjsRunnerError(username)
+        }
         throw err
       }
     })
