@@ -2,7 +2,7 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAccessToken } from '../../utils/config'
-import { executeShellScript } from '../../utils/utils'
+import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
   readFile,
   readFileBinary,
@@ -241,11 +241,13 @@ async function deployToSas9(
     appLoc: target.appLoc,
     serverType: target.serverType
   })
-  const executionResult = await sasjs.executeScriptSAS9(
-    linesToExecute,
-    username,
-    password
-  )
+  const executionResult = await sasjs
+    .executeScriptSAS9(linesToExecute, username, password)
+    .catch((err) => {
+      if (err && err.errorCode === 404) {
+        displaySasjsRunnerError(username)
+      }
+    })
 
   let parsedLog
   try {

@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { lintProject, Diagnostic, Severity } from '@sasjs/lint'
+import { lintProject, Diagnostic, Severity, formatProject } from '@sasjs/lint'
 
 interface LintResult {
   warnings: boolean
@@ -7,7 +7,29 @@ interface LintResult {
 }
 
 /**
- * Linting all .sas files in project
+ * Fixes lint violations in all .sas files in the current project
+ * @returns {Promise<void>} resolves successfully when formatting has completed
+ */
+export async function lintFix() {
+  await formatProject().then((result) => {
+    process.logger?.success(
+      `Resolved ${result.fixedDiagnosticsCount} violations.`
+    )
+    process.logger?.info('Updated files:')
+    result.updatedFilePaths.forEach((filePath: string) => {
+      process.logger?.info(filePath)
+    })
+    process.logger?.warn('Unresolved violations: ')
+    ;(<Map<string, Diagnostic[]>>result.unfixedDiagnostics).forEach(
+      (diagnostics: Diagnostic[], filePath: string) => {
+        displayDiagnostics(filePath, diagnostics)
+      }
+    )
+  })
+}
+
+/**
+ * Lints all .sas files in the current project
  * @returns an object containing booleans `warnings` and `errors`
  */
 export async function processLint(): Promise<LintResult> {
@@ -37,8 +59,8 @@ export async function processLint(): Promise<LintResult> {
 
 /**
  * Prints Lint Diagnostics as table
- * @param {string} filePath- the path to file having offences
- * @param {Diagnostic[]} sasjsDiagnostics- list of offences in particular file
+ * @param {string} filePath- the path to file having lint violations
+ * @param {Diagnostic[]} sasjsDiagnostics- list of lint violations in particular file
  */
 const displayDiagnostics = (
   filePath: string,
