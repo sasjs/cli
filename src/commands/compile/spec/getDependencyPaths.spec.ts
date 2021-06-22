@@ -29,14 +29,16 @@ describe('getDependencyPaths', () => {
   test('it should recursively get all dependency paths', async () => {
     const fileContent = await readFile(path.join(__dirname, './example.sas'))
     const dependenciesList = [
-      'mv_createfolder.sas',
       'mp_abort.sas',
       'mf_getuniquefileref.sas',
       'mf_getuniquelibref.sas',
       'mf_isblank.sas',
       'mf_mval.sas',
+      'mf_trimstr.sas',
       'mf_getplatform.sas',
-      'mf_trimstr.sas'
+      'mf_abort.sas',
+      'mfv_existfolder.sas',
+      'mv_createfolder.sas'
     ]
     const dependencyPaths = await getDependencyPaths(fileContent)
 
@@ -94,14 +96,16 @@ describe('getDependencyPaths', () => {
       path.join(__dirname, './non-sas-dependency.sas')
     )
     const dependenciesList = [
-      'mv_createfolder.sas',
       'mp_abort.sas',
       'mf_getuniquefileref.sas',
       'mf_getuniquelibref.sas',
       'mf_isblank.sas',
       'mf_mval.sas',
+      'mf_trimstr.sas',
       'mf_getplatform.sas',
-      'mf_trimstr.sas'
+      'mf_abort.sas',
+      'mfv_existfolder.sas',
+      'mv_createfolder.sas'
     ]
 
     await expect(getDependencyPaths(fileContent)).resolves.not.toThrow()

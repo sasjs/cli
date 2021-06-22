@@ -77,7 +77,7 @@ describe('compileTestFile', () => {
 
       const dependencyStart = '* Dependencies start;'
       const dependency =
-        '%macro mf_abort(mac=mf_abort.sas, type=, msg=, iftrue=%str(1=1)'
+        '%macro mf_abort(mac=mf_abort.sas, type=deprecated, msg=, iftrue=%str(1=1)'
       const dependencyEnd = '* Dependencies end;'
 
       expect(testFileContent.indexOf(dependencyStart)).toBeGreaterThan(-1)
