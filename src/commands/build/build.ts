@@ -21,6 +21,7 @@ import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import { isTestFile } from '../compile/internal/compileTestFile'
+import btoa from 'btoa'
 
 export async function build(target: Target) {
   await compile(target)
@@ -152,9 +153,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(
+      const fileContent = await readFile(
         `${await getMacroCorePath()}/viya/mv_createfile.sas`
       )
+      const depPaths = await getDependencyPaths(fileContent)
+      const dependenciesContent = await getDependencies(depPaths)
+      return `* Dependencies start for mv_createfile;\n${dependenciesContent}\n* Dependencies end for mv_createfile;\n${fileContent}`
 
     default:
       throw new Error(
@@ -163,15 +167,18 @@ async function getCreateFileScript(serverType: ServerType) {
   }
 }
 
-function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
+function getWebServiceScriptInvocation(
+  serverType: ServerType,
+  filePath = '',
+  isSASFile: boolean = false
+) {
   const loc = filePath === '' ? 'services' : 'tests'
-  const isSASFile = /.sas$/.test(filePath)
 
   switch (serverType) {
     case ServerType.SasViya:
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&service, inref=sasjs)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode)`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
@@ -248,7 +255,7 @@ async function getContentFor(
   await asyncForEach(files, async (file) => {
     const filePath = path.join(folderPath, file)
     const isSASFile = /.sas$/.test(file)
-    const fileContent = isSASFile ? await readFile(filePath) : ''
+    const fileContent = await readFile(filePath)
 
     if (isSASFile) {
       const transformedContent = getServiceText(
@@ -258,6 +265,9 @@ async function getContentFor(
         testPath
       )
 
+      content += `\n${transformedContent}\n`
+    } else {
+      const transformedContent = getFileText(file, fileContent, serverType)
       content += `\n${transformedContent}\n`
     }
 
@@ -321,10 +331,78 @@ ${content}\n
 run;
 ${getWebServiceScriptInvocation(
   serverType,
-  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
+  isTestFile(serviceFileName) && testPath ? `${testPath}` : '',
+  true
 )}
 filename sascode clear;
 `
+}
+
+function getFileText(
+  fileName: string,
+  fileContent: string,
+  serverType: ServerType
+) {
+  const fileExtension = fileName
+    .substring(fileName.lastIndexOf('.') + 1, fileName.length)
+    .toUpperCase()
+  const content = getWebFileContent(fileContent, fileExtension, serverType)
+
+  return `%let filename=${fileName};
+filename filecode temp lrecl=32767;
+data _null_;
+file filecode;
+${content}\n
+run;
+${getWebServiceScriptInvocation(serverType)}
+filename filecode clear;
+`
+}
+
+function getWebFileContent(
+  content: string,
+  type = 'JS',
+  serverType: ServerType
+) {
+  let lines
+
+  // Encode to base64 *.js and *.css files if target server type is SAS 9.
+  const typesToEncode: { [key: string]: string } = {
+    JS: 'JS64',
+    CSS: 'CSS64'
+  }
+
+  if (serverType === ServerType.Sas9 && typesToEncode.hasOwnProperty(type)) {
+    lines = [btoa(content)]
+  } else {
+    lines = content
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .filter((l) => !!l)
+  }
+
+  let serviceContent = ``
+
+  lines.forEach((line) => {
+    const chunkedLines = chunk(line)
+    if (chunkedLines.length === 1) {
+      serviceContent += `put '${chunkedLines[0].split("'").join("''")}';\n`
+    } else {
+      let combinedLines = ''
+      chunkedLines.forEach((chunkedLine, index) => {
+        let text = `put '${chunkedLine.split("'").join("''")}'`
+        if (index !== chunkedLines.length - 1) {
+          text += '@;\n'
+        } else {
+          text += ';\n'
+        }
+        combinedLines += text
+      })
+      serviceContent += combinedLines
+    }
+  })
+
+  return serviceContent
 }
 
 function getLines(text: string): string[] {
