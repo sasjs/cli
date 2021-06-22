@@ -7,7 +7,7 @@ export const adjustIframeScript = `
       in full screen.
     -->
     <script>
-      window.frameElement.style="height:100%;width:100%;";
+      window.frameElement.style="height:100%;width:100%;position:absolute";
       window.frameElement.setAttribute("allowfullscreen","")
       window.frameElement.setAttribute("frameborder","0")
       window.frameElement.setAttribute("marginheight","0")
