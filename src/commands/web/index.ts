@@ -184,25 +184,38 @@ async function createAssetServices(
         .basename(filePath)
         .substring(fullFileName.lastIndexOf('.') + 1, fullFileName.length)
       if (fileName && fileExtension) {
-        const base64string = await base64EncodeFile(
-          path.join(fullAssetPath, filePath)
-        )
-        const fileName = await generateAssetService(
-          base64string,
-          filePath,
-          destinationPath,
-          target.serverType
-        )
-        const assetServiceUrl = getAssetPath(
-          target.appLoc,
-          target.serverType,
-          streamWebFolder,
-          fileName.replace('.sas', '')
-        )
-        assetPathMap.push({
-          source: path.join(fullAssetPath, filePath),
-          target: assetServiceUrl
-        })
+        const sourcePath = path.join(fullAssetPath, filePath)
+        if (target.serverType === ServerType.SasViya) {
+          await copy(sourcePath, path.join(destinationPath, fullFileName))
+          const assetServiceUrl = getAssetPath(
+            target.appLoc,
+            target.serverType,
+            streamWebFolder,
+            fullFileName
+          )
+          assetPathMap.push({
+            source: fullFileName,
+            target: assetServiceUrl
+          })
+        } else {
+          const base64string = await base64EncodeFile(sourcePath)
+          const fileName = await generateAssetService(
+            base64string,
+            filePath,
+            destinationPath,
+            target.serverType
+          )
+          const assetServiceUrl = getAssetPath(
+            target.appLoc,
+            target.serverType,
+            streamWebFolder,
+            fileName.replace('.sas', '')
+          )
+          assetPathMap.push({
+            source: path.join(fullAssetPath, filePath),
+            target: assetServiceUrl
+          })
+        }
       }
     })
   })
