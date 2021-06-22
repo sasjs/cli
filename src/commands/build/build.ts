@@ -247,9 +247,10 @@ async function getContentFor(
 
   await asyncForEach(files, async (file) => {
     const filePath = path.join(folderPath, file)
-    const fileContent = /.sas$/.test(file) ? await readFile(filePath) : ''
+    const isSASFile = /.sas$/.test(file)
+    const fileContent = isSASFile ? await readFile(filePath) : ''
 
-    if (/.sas$/.test(file)) {
+    if (isSASFile) {
       const transformedContent = getServiceText(
         file,
         fileContent,
@@ -260,7 +261,7 @@ async function getContentFor(
       content += `\n${transformedContent}\n`
     }
 
-    const member = /.sas$/.test(file)
+    const member = isSASFile
       ? {
           name: file.replace(/.sas$/, ''),
           type: 'service',
