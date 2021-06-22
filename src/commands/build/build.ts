@@ -66,7 +66,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
-  const buildInfo = await getBuildInfo(target, streamWeb).catch((_) => {})
+  const buildInfo = await getBuildInfo(target, streamWeb)
 
   finalSasFileContent += `\n${buildInfo}`
 
