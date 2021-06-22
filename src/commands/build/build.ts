@@ -117,15 +117,22 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
 
+  let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
+
   if (target.serverType === ServerType.SasViya && streamWeb) {
     const createFileScript = await getCreateFileScript(serverType)
     buildConfig += `${createFileScript}\n`
+
+    const dependencyFilePathsForCreateFile = await getDependencyPaths(
+      createFileScript,
+      macroFolders
+    )
+
+    dependencyFilePaths = [
+      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
+    ]
   }
 
-  const dependencyFilePaths = await getDependencyPaths(
-    buildConfig,
-    macroFolders
-  )
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
   return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
@@ -153,12 +160,9 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
-      const fileContent = await readFile(
+      return await readFile(
         `${await getMacroCorePath()}/viya/mv_createfile.sas`
       )
-      const depPaths = await getDependencyPaths(fileContent)
-      const dependenciesContent = await getDependencies(depPaths)
-      return `* Dependencies start for mv_createfile;\n${dependenciesContent}\n* Dependencies end for mv_createfile;\n${fileContent}`
 
     default:
       throw new Error(
