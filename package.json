@@ -86,7 +86,7 @@
     "@types/node": "15.12.4",
     "@types/shelljs": "0.8.8",
     "@types/xml": "1.0.5",
-    "babel-jest": "27.0.2",
+    "babel-jest": "27.0.5",
     "copyfiles": "2.4.1",
     "ghooks": "2.0.4",
     "jest": "27.0.4",
