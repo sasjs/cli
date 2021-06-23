@@ -45,16 +45,16 @@ describe('compileTestFile', () => {
       ...target.toJson(false),
       testConfig: {
         testFolders: ['tests'],
-        initProgram: 'tests/testinit.sas',
-        termProgram: 'tests/testterm.sas',
+        initProgram: path.join('tests', 'testinit.sas'),
+        termProgram: path.join('tests', 'testterm.sas'),
         macroVars: {
           testsuite: 'SASjs Test Template'
         },
-        testSetUp: 'tests/testsetup.sas',
-        testTearDown: 'tests/sub/testteardown.sas'
+        testSetUp: path.join('tests', 'testsetup.sas'),
+        testTearDown: path.join('tests', 'sub', 'testteardown.sas')
       },
       jobConfig: {
-        jobFolders: ['sasjs/jobs'],
+        jobFolders: [path.join('sasjs', 'jobs')],
         initProgram: '',
         termProgram: '',
         macroVars: {}
@@ -92,15 +92,17 @@ describe('compileTestFile', () => {
         )
         await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
 
-        const testFileContent = await readFile(compiledTestFilePath)
-        const testVar = `* Test Variables start;
+        const testFileContent = replaceLineBreaks(
+          await readFile(compiledTestFilePath)
+        )
+        const testVar = replaceLineBreaks(`* Test Variables start;
 
 %let ${Object.keys(target.testConfig!.macroVars)[0]}=${
           Object.values(target.testConfig!.macroVars)[0]
         };
 
-*Test Variables end;`
-        const testInit = `* TestInit start;
+*Test Variables end;`)
+        const testInit = replaceLineBreaks(`* TestInit start;
 /**
   @file
   @brief setting up the test
@@ -109,8 +111,8 @@ describe('compileTestFile', () => {
 **/
 
 %put testing, init;
-* TestInit end;`
-        const testTerm = `* TestTerm start;
+* TestInit end;`)
+        const testTerm = replaceLineBreaks(`* TestTerm start;
 /**
   @file
   @brief ending the test
@@ -119,7 +121,8 @@ describe('compileTestFile', () => {
 **/
 
 %put testing, termed;
-* TestTerm end;`
+* TestTerm end;`)
+
         const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y);`
 
         expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
@@ -309,3 +312,6 @@ const copyTestFiles = async (appName: string) => {
     path.join(__dirname, appName, 'sasjs', 'jobs')
   )
 }
+
+const replaceLineBreaks = (str: string) =>
+  str.replace(/(?:\r\n|\r|\n)/g, '<br>')
