@@ -6,6 +6,7 @@ import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
+import { displaySasjsRunnerError } from '../../utils/utils'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -92,40 +93,42 @@ export async function runSasJob(command: Command) {
       },
       accessToken
     )
-    .then(
-      async (res) => {
-        if (res?.result) res = res.result
+    .then(async (res) => {
+      if (res?.result) res = res.result
 
-        let output
+      let output
 
-        try {
-          output = JSON.stringify(res, null, 2)
-        } catch (error) {
-          displayError(error, 'Result parsing failed.')
+      try {
+        output = JSON.stringify(res, null, 2)
+      } catch (error) {
+        displayError(error, 'Result parsing failed.')
 
-          return error
-        }
+        return error
+      }
 
-        let outputPath = path.join(
-          process.projectDir,
-          isLocal ? '/sasjsbuild' : ''
-        )
+      let outputPath = path.join(
+        process.projectDir,
+        isLocal ? '/sasjsbuild' : ''
+      )
 
-        if (!(await folderExists(outputPath))) {
-          await createFolder(outputPath)
-        }
+      if (!(await folderExists(outputPath))) {
+        await createFolder(outputPath)
+      }
 
-        outputPath += '/output.json'
+      outputPath += '/output.json'
 
-        await createFile(outputPath, output)
-        result = true
-        displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
-      },
-      (err) => {
-        result = err
+      await createFile(outputPath, output)
+      result = true
+      displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+    })
+    .catch((err) => {
+      result = err
 
+      if (err && err.errorCode === 404) {
+        displaySasjsRunnerError(configJson.username)
+      } else {
         displayError(err, 'An error occurred while executing the request.')
       }
-    )
+    })
   return result
 }

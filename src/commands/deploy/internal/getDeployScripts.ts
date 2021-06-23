@@ -22,9 +22,11 @@ export async function getDeployScripts(target: Target) {
     !!target.deployConfig?.deployServicePack &&
     target.serverType === ServerType.Sas9
   ) {
+    const buildOutputFileName =
+      target.buildConfig?.buildOutputFileName || `${target.name}.sas`
     const deployScriptPath = path.join(
       buildDestinationFolder,
-      `${target.name}.sas`
+      buildOutputFileName
     )
     allDeployScripts = [...allDeployScripts, deployScriptPath]
   }

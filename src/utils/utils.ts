@@ -12,6 +12,7 @@ import {
   padWithNumber
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
+import { displayError } from './displayResult'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -368,4 +369,27 @@ export function getAdapterInstance(target: Target): SASjs {
   })
 
   return sasjs
+}
+
+export function displaySasjsRunnerError(username: string) {
+  const sasjsRunnerCode = `
+filename mc url "https://raw.githubusercontent.com/sasjs/core/main/all.sas";
+%inc mc;
+filename ft15f001 temp;
+parmcards4;
+%macro sasjs_runner();
+%if %symexist(_webin_fileref) %then %do;
+%inc &_webin_fileref;
+%end;
+%mend sasjs_runner;
+%sasjs_runner()
+;;;;
+%mm_createwebservice(path=/User Folders/&sysuserid/My Folder/sasjs,name=runner)
+`
+
+  const message = `The SASjs runner was not found in your user folder at /User Folders/${username}/My Folder/sasjs/runner.`
+  displayError(message, 'An error occurred while executing the request.')
+  process.logger?.info(
+    `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
+  )
 }
