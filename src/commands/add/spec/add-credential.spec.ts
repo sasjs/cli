@@ -61,14 +61,6 @@ describe('validateTargetName', () => {
     expect(validateTargetName(targetName)).toEqual(targetName)
   })
 
-  it('should throw an error if the target name is falsy', () => {
-    const targetName = ''
-
-    expect(() => validateTargetName(targetName)).toThrow(
-      'Target name is required.\nPlease specify a valid target name using the `-t` or `--target` argument.'
-    )
-  })
-
   it('should throw an error if the target name includes spaces', () => {
     const targetName = 'test target name'
 
