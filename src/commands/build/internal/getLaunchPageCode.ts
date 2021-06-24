@@ -25,7 +25,7 @@ data _null_;
  url=cats(url,"/SASJobExecution?_FILE=&appLoc/services/");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " url +(-1) "${streamServiceName}.html&_debug=2" ;
+ putlog "NOTE- " url +(-1) '${streamServiceName}.html&_debug=2' ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `
