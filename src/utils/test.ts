@@ -94,15 +94,18 @@ export const generateTestTarget = (
       refresh_token: process.env.REFRESH_TOKEN
     },
     jobConfig: {
-      jobFolders: []
+      jobFolders: [path.join('sasjs', 'jobs')]
     },
     serviceConfig,
     testConfig: {
-      initProgram: '',
-      termProgram: '',
-      macroVars: {},
-      testSetUp: '',
-      testTearDown: ''
+      testFolders: ['tests'],
+      initProgram: path.join('tests', 'testinit.sas'),
+      termProgram: path.join('tests', 'testterm.sas'),
+      macroVars: {
+        testsuite: 'SASjs Test Template'
+      },
+      testSetUp: path.join('tests', 'testsetup.sas'),
+      testTearDown: path.join('tests', 'sub', 'testteardown.sas')
     },
     buildConfig: {
       buildOutputFileName: `${targetName}.sas`

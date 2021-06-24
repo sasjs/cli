@@ -41,25 +41,6 @@ describe('compileTestFile', () => {
     buildPath = path.join(__dirname, appName, 'sasjsbuild')
 
     target = await createTestGlobalTarget(appName, '/Public/app')
-    target = new Target({
-      ...target.toJson(false),
-      testConfig: {
-        testFolders: ['tests'],
-        initProgram: path.join('tests', 'testinit.sas'),
-        termProgram: path.join('tests', 'testterm.sas'),
-        macroVars: {
-          testsuite: 'SASjs Test Template'
-        },
-        testSetUp: path.join('tests', 'testsetup.sas'),
-        testTearDown: path.join('tests', 'sub', 'testteardown.sas')
-      },
-      jobConfig: {
-        jobFolders: [path.join('sasjs', 'jobs')],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      }
-    })
 
     await createTestMinimalApp(__dirname, target.name)
     await copyTestFiles(appName)
