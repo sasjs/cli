@@ -12,8 +12,8 @@ import {
   readFile,
   fileExists,
   createFile,
-  deleteFile,
-  generateTimestamp
+  generateTimestamp,
+  deleteFolder
 } from '@sasjs/utils'
 import {
   removeTestApp,
@@ -30,21 +30,30 @@ describe('compileTestFile', () => {
   let target: Target
   let sasjsPath: string
   let testBody: string
+  let buildPath: string
   const testFileName = 'random.test.sas'
 
   beforeAll(async () => {
-    testBody = await readFile(path.join(__dirname, 'testFiles', testFileName))
-
     process.logger = new Logger(LogLevel.Off)
 
     appName = `cli-tests-compile-test-file-${generateTimestamp()}`
+
+    buildPath = path.join(__dirname, appName, 'sasjsbuild')
+
     target = await createTestGlobalTarget(appName, '/Public/app')
+    target = new Target({
+      ...target.toJson(false),
+      jobConfig: {
+        jobFolders: [path.join('sasjs', 'jobs')]
+      }
+    })
 
     await createTestMinimalApp(__dirname, target.name)
-    await deleteFile(
-      path.join(__dirname, appName, 'sasjs', 'macros', '.gitkeep')
-    )
     await copyTestFiles(appName)
+
+    testBody = await readFile(
+      path.join(__dirname, 'testFiles', 'services', testFileName)
+    )
 
     sasjsPath = path.join(__dirname, appName, 'sasjs')
   })
@@ -54,42 +63,78 @@ describe('compileTestFile', () => {
     await removeTestApp(__dirname, target.name)
   })
 
+  afterEach(async () => await deleteFolder(buildPath))
+
   describe('compileTestFile function', () => {
     it('should compile test file', async () => {
-      const testVar = 'testVar'
-      await compileTestFile(
-        target,
-        path.join('sasjs', 'services', 'admin', testFileName),
-        testVar
+      await compile(target)
+
+      const testContent = async (filePath: string) => {
+        const compiledTestFilePath = path.join(
+          __dirname,
+          appName,
+          'sasjsbuild',
+          'tests',
+          filePath
+        )
+        await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
+
+        const testFileContent = replaceLineBreaks(
+          await readFile(compiledTestFilePath)
+        )
+        const testVar = replaceLineBreaks(`* Test Variables start;
+
+%let ${Object.keys(target.testConfig!.macroVars)[0]}=${
+          Object.values(target.testConfig!.macroVars)[0]
+        };
+
+*Test Variables end;`)
+        const testInit = replaceLineBreaks(`* TestInit start;
+/**
+  @file
+  @brief setting up the test
+
+  <h4> SAS Macros </h4>
+**/
+
+%put testing, init;
+* TestInit end;`)
+        const testTerm = replaceLineBreaks(`* TestTerm start;
+/**
+  @file
+  @brief ending the test
+
+  <h4> SAS Macros </h4>
+**/
+
+%put testing, termed;
+* TestTerm end;`)
+
+        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y);`
+
+        expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
+        expect(testFileContent.indexOf(testInit)).toBeGreaterThan(-1)
+        expect(testFileContent.indexOf(testTerm)).toBeGreaterThan(-1)
+        expect(testFileContent.indexOf(mvWebout)).toBeGreaterThan(-1)
+      }
+
+      await testContent(
+        path.join('services', 'services', 'admin', testFileName)
       )
-      const compiledTestFilePath = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'tests',
-        testFileName
-      )
-      await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
-
-      const testFileContent = await readFile(compiledTestFilePath)
-
-      expect(new RegExp(`^${testVar}`).test(testFileContent)).toEqual(true)
-
-      const dependencyStart = '* Dependencies start;'
-      const dependency =
-        '%macro mf_abort(mac=mf_abort.sas, type=deprecated, msg=, iftrue=%str(1=1)'
-      const dependencyEnd = '* Dependencies end;'
-
-      expect(testFileContent.indexOf(dependencyStart)).toBeGreaterThan(-1)
-      expect(testFileContent.indexOf(dependency)).toBeGreaterThan(-1)
-      expect(testFileContent.indexOf(dependencyEnd)).toBeGreaterThan(-1)
-      expect(testFileContent.indexOf(testBody)).toBeGreaterThan(-1)
+      await testContent(path.join('jobs', 'jobs', 'testJob.test.sas'))
+      await testContent(path.join('testsetup.sas'))
+      await testContent(path.join('testteardown.sas'))
     })
   })
 
   describe('moveTestFile', () => {
     it('should move service test', async () => {
-      const relativePath = path.join('services', 'admin', testFileName)
+      const relativePath = path.join(
+        'services',
+        'services',
+        'admin',
+        testFileName
+      )
       const buildPath = path.join(__dirname, appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
@@ -124,16 +169,7 @@ describe('compileTestFile', () => {
       const testSetUp = path.join('tests', 'testsetup.sas')
       const testTearDown = path.join('tests', 'testteardown.sas')
 
-      if (target.testConfig) {
-        target.testConfig.testSetUp = path.join('sasjs', testSetUp)
-        target.testConfig.testTearDown = path.join('sasjs', testTearDown)
-      }
-
-      const buildPath = path.join(__dirname, appName, 'sasjsbuild')
-      const testsPath = path.join(buildPath, 'tests')
-
-      await createFile(path.join(testsPath, 'testsetup.sas'), '')
-      await createFile(path.join(testsPath, 'testteardown.sas'), '')
+      await compile(target)
 
       await compileTestFlow(target)
 
@@ -143,10 +179,14 @@ describe('compileTestFile', () => {
 
       const expectedTestFlow = {
         tests: [
-          ['tests', 'random.test.sas'].join('/'),
-          ['tests', 'jobs', 'jobs', 'random.test.sas'].join('/'),
-          ['tests', 'services', 'admin', 'random.test.sas'].join('/')
-        ],
+          ['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/'),
+          ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
+            '/'
+          ),
+          ['tests', 'services', 'services', 'admin', 'random.test.0.sas'].join(
+            '/'
+          )
+        ].sort(),
         testSetUp: testSetUp.split(path.sep).join('/'),
         testTearDown: testTearDown.split(path.sep).join('/')
       }
@@ -189,13 +229,18 @@ describe('compileTestFile', () => {
           'standalone'
         ],
         [
+          ['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/'),
+          'test',
+          'standalone'
+        ],
+        [
           ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
             '/'
           ),
           'test',
           'standalone'
         ]
-      ]
+      ].sort()
 
       await compile(target)
 
@@ -211,10 +256,10 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(13)
-      expect(process.logger.info).toHaveBeenNthCalledWith(11, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenCalledTimes(14)
+      expect(process.logger.info).toHaveBeenNthCalledWith(12, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
-        12,
+        13,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
       expect(process.logger.info).toHaveBeenLastCalledWith(
@@ -242,7 +287,18 @@ describe('isTestFile', () => {
 
 const copyTestFiles = async (appName: string) => {
   await copy(
-    path.join(__dirname, 'testFiles'),
+    path.join(__dirname, 'testFiles', 'tests'),
+    path.join(__dirname, appName, 'tests')
+  )
+  await copy(
+    path.join(__dirname, 'testFiles', 'services'),
     path.join(__dirname, appName, 'sasjs', 'services', 'admin')
   )
+  await copy(
+    path.join(__dirname, 'testFiles', 'jobs'),
+    path.join(__dirname, appName, 'sasjs', 'jobs')
+  )
 }
+
+const replaceLineBreaks = (str: string) =>
+  str.replace(/(?:\r\n|\r|\n)/g, '<br>')
