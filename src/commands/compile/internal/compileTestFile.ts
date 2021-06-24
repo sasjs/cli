@@ -10,6 +10,7 @@ import {
   Target,
   asyncForEach,
   moveFile,
+  deleteFile,
   folderExists,
   deleteFolder,
   listFilesAndSubFoldersInFolder,
@@ -19,30 +20,55 @@ import { loadDependencies } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
+import { getPreCodeForServicePack } from './compileServiceFile'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
 
+const getFileName = (filePath: string) => path.parse(filePath).base
+
 export async function compileTestFile(
   target: Target,
   filePath: string,
-  testVar: string = ''
+  testVar: string = '',
+  saveToRoot: boolean = true,
+  removeOriginalFile = true
 ) {
   let dependencies = await loadDependencies(
     target,
-    path.join(process.projectDir, filePath),
+    path.isAbsolute(filePath)
+      ? filePath
+      : path.join(process.projectDir, filePath),
     await getMacroFolders(target),
     await getProgramFolders(target),
     'test'
   )
-  dependencies = `${testVar ? testVar + '\n' : ''}${dependencies}`
+
+  const preCode = await getPreCodeForServicePack(target.serverType)
+
+  dependencies = `${testVar ? testVar + '\n' : ''}\n${preCode}\n${dependencies}`
 
   const destinationPath = path.join(
     testsBuildFolder(),
-    filePath.split(path.sep).pop() || ''
+    saveToRoot
+      ? filePath.split(path.sep).pop() || ''
+      : filePath
+          .split(path.sep)
+          .reduce(
+            (acc: any, item: any, i: any, arr: any) =>
+              acc.length
+                ? [...acc, item]
+                : arr[i - 1] === 'sasjsbuild'
+                ? [...acc, item]
+                : acc,
+            []
+          )
+          .join(path.sep)
   )
 
   await createFile(destinationPath, dependencies)
+
+  if (removeOriginalFile) await deleteFile(filePath)
 }
 
 export async function moveTestFile(filePath: string) {
@@ -105,25 +131,28 @@ export const compileTestFlow = async (target: Target) => {
 
     if (testFiles.length) {
       if (testSetUp) {
-        const testSetUpPath = testSetUp.split(path.sep).slice(1).join(path.sep)
+        const testSetUpFileName = getFileName(testSetUp)
 
-        if (testFiles.find((file) => file === testSetUpPath)) {
-          testFiles = testFiles.filter((file) => file !== testSetUpPath)
+        if (testFiles.find((file) => getFileName(file) === testSetUpFileName)) {
+          testFiles = testFiles.filter(
+            (file) => getFileName(file) !== testSetUpFileName
+          )
 
-          testFlow.testSetUp = testSetUpPath.split(path.sep).join('/')
+          testFlow.testSetUp = ['tests', testSetUpFileName].join('/')
         }
       }
 
       if (testTearDown) {
-        const testTearDownPath = testTearDown
-          .split(path.sep)
-          .slice(1)
-          .join(path.sep)
+        const testTearDownFileName = getFileName(testTearDown)
 
-        if (testFiles.find((file) => file === testTearDownPath)) {
-          testFiles = testFiles.filter((file) => file !== testTearDownPath)
+        if (
+          testFiles.find((file) => getFileName(file) === testTearDownFileName)
+        ) {
+          testFiles = testFiles.filter(
+            (file) => getFileName(file) !== testTearDownFileName
+          )
 
-          testFlow.testTearDown = testTearDownPath.split(path.sep).join('/')
+          testFlow.testTearDown = ['tests', testTearDownFileName].join('/')
         }
       }
     }
@@ -154,6 +183,7 @@ const printTestCoverage = async (
   ) => {
     if (await folderExists(folder)) {
       const files = (await listFilesAndSubFoldersInFolder(folder))
+        .filter((file: string) => sasFileRegExp.test(file))
         .filter(filter)
         .map((file) => [type, file.split(path.sep).join('/')].join('/'))
 

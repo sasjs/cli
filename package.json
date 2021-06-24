@@ -50,8 +50,8 @@
     }
   },
   "dependencies": {
+    "@sasjs/core": "2.34.6",
     "@sasjs/adapter": "2.8.4",
-    "@sasjs/core": "2.34.5",
     "@sasjs/lint": "1.11.1",
     "@sasjs/utils": "2.21.0",
     "@types/url-parse": "1.4.3",
