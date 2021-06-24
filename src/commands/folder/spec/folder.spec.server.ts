@@ -6,6 +6,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
+import { getConstants } from '../../../constants'
 
 describe('sasjs folder operations', () => {
   let target: Target
@@ -207,6 +208,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
     name: targetName,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serverType,
+    contextName: (await getConstants()).contextName,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,

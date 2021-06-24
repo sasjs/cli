@@ -66,7 +66,7 @@ export const removeTestApp = async (parentFolder: string, appName: string) => {
   process.currentDir = ''
 }
 
-export const generateTestTarget = (
+export const generateTestTarget = async (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
@@ -85,7 +85,7 @@ export const generateTestTarget = (
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
-    contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
+    contextName: (await getConstants()).contextName,
     appLoc,
     authConfig: {
       client: process.env.CLIENT,
@@ -98,11 +98,14 @@ export const generateTestTarget = (
     },
     serviceConfig,
     testConfig: {
-      initProgram: '',
-      termProgram: '',
-      macroVars: {},
-      testSetUp: '',
-      testTearDown: ''
+      testFolders: ['tests'],
+      initProgram: path.join('tests', 'testinit.sas'),
+      termProgram: path.join('tests', 'testterm.sas'),
+      macroVars: {
+        testsuite: 'SASjs Test Template'
+      },
+      testSetUp: path.join('tests', 'testsetup.sas'),
+      testTearDown: path.join('tests', 'sub', 'testteardown.sas')
     },
     buildConfig: {
       buildOutputFileName: `${targetName}.sas`
@@ -126,7 +129,7 @@ export const createTestGlobalTarget = async (
   },
   serverType = ServerType.SasViya
 ) => {
-  const target = generateTestTarget(
+  const target = await generateTestTarget(
     targetName,
     appLoc,
     serviceConfig,
