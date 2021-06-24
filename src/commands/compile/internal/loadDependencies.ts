@@ -1,4 +1,4 @@
-import { Target, asyncForEach, readFile } from '@sasjs/utils'
+import { Target, asyncForEach, readFile, MacroVar } from '@sasjs/utils'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { chunk } from '../../../utils/utils'
 import {
@@ -58,9 +58,10 @@ export async function loadDependencies(
   let init, initPath
   let term, termPath
   let serviceVars = ''
+  let testVars = ''
 
   if (type === 'service' && !isTestFile(filePath)) {
-    serviceVars = await getServiceVars(target)
+    serviceVars = await getVars(target?.serviceConfig?.macroVars)
     ;({ content: init, filePath: initPath } = await getServiceInit(target))
     ;({ content: term, filePath: termPath } = await getServiceTerm(target))
 
@@ -75,6 +76,7 @@ export async function loadDependencies(
       ? `\n* Job start;\n${fileContent}\n* Job end;`
       : ''
   } else {
+    testVars = await getVars(target.testConfig?.macroVars)
     ;({ content: init, filePath: initPath } = await getTestInit(target))
     ;({ content: term, filePath: termPath } = await getTestTerm(target))
 
@@ -121,8 +123,15 @@ export async function loadDependencies(
 
   fileContent = `* Dependencies start;\n${initProgramDependencies}\n${termProgramDependencies}\n${dependenciesContent}\n* Dependencies end;\n* Programs start;\n${programDependencies}\n*Programs end;${init}${fileContent}${term}`
 
-  if (type === 'service') {
-    fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
+  switch (type) {
+    case 'service':
+      fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
+      break
+    case 'test':
+      fileContent = `* Test Variables start;\n${testVars}\n*Test Variables end;\n${fileContent}`
+      break
+    default:
+      break
   }
 
   return fileContent
@@ -138,12 +147,12 @@ async function getDependencies(filePaths: string[]): Promise<string> {
   return dependenciesContent.join('\n')
 }
 
-export async function getServiceVars(target: Target) {
-  const targetServiceVars = target?.serviceConfig?.macroVars ?? {}
+export const getVars = async (macroVars: MacroVar | undefined) => {
+  const targetVars = macroVars ?? {}
   const { configuration } = await getLocalOrGlobalConfig()
   const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
 
-  return convertVarsToSasFormat({ ...commonServiceVars, ...targetServiceVars })
+  return convertVarsToSasFormat({ ...commonServiceVars, ...targetVars })
 }
 
 const convertVarsToSasFormat = (vars: { [key: string]: string }): string => {

@@ -28,13 +28,13 @@ import { compileJobFile } from './internal/compileJobFile'
 import {
   compileTestFile,
   compileTestFlow,
-  copyTestMacroFiles
+  copyTestMacroFiles,
+  isTestFile
 } from './internal/compileTestFile'
 import {
   getDestinationServicePath,
   getDestinationJobPath
 } from './internal/getDestinationPath'
-import { moveTestFile } from './internal/compileTestFile'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])
@@ -90,7 +90,7 @@ export async function compile(target: Target, forceCompile = false) {
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
-  const { buildSourceFolder, buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = await getConstants()
 
   await recreateBuildFolder()
 
@@ -128,12 +128,12 @@ export async function compileJobsServicesTests(target: Target) {
     const testTearDown = await getTestTearDown(target)
 
     if (testSetUp)
-      await compileTestFile(target, testSetUp).catch((err) =>
+      await compileTestFile(target, testSetUp, '', true, false).catch((err) =>
         process.logger?.error('Test set up compilation has failed.')
       )
     if (testTearDown)
-      await compileTestFile(target, testTearDown).catch((err) =>
-        process.logger?.error('Test tear down compilation has failed.')
+      await compileTestFile(target, testTearDown, '', true, false).catch(
+        (err) => process.logger?.error('Test tear down compilation has failed.')
       )
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
@@ -180,11 +180,10 @@ const compileServiceFolder = async (
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
-    await compileServiceFile(target, filePath, macroFolders, programFolders)
-
-    await moveTestFile(filePath).catch((err) =>
-      process.logger?.error('Failed to move test file.')
-    )
+    if (isTestFile(filePath)) await compileTestFile(target, filePath, '', false)
+    else {
+      await compileServiceFile(target, filePath, macroFolders, programFolders)
+    }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
@@ -195,11 +194,11 @@ const compileServiceFolder = async (
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
-      await compileServiceFile(target, filePath, macroFolders, programFolders)
-
-      await moveTestFile(filePath).catch((err) =>
-        process.logger?.error('Failed to move test file.')
-      )
+      if (isTestFile(filePath)) {
+        await compileTestFile(target, filePath, '', false)
+      } else {
+        await compileServiceFile(target, filePath, macroFolders, programFolders)
+      }
     })
   })
 }
@@ -217,9 +216,11 @@ const compileJobFolder = async (
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
-    await compileJobFile(target, filePath, macroFolders, programFolders)
-
-    await moveTestFile(filePath)
+    if (isTestFile(fileName)) {
+      await compileTestFile(target, filePath, '', false)
+    } else {
+      await compileJobFile(target, filePath, macroFolders, programFolders)
+    }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
@@ -228,9 +229,11 @@ const compileJobFolder = async (
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
-      await compileJobFile(target, filePath, macroFolders, programFolders)
-
-      await moveTestFile(filePath)
+      if (isTestFile(filePath))
+        await compileTestFile(target, filePath, '', false)
+      else {
+        await compileJobFile(target, filePath, macroFolders, programFolders)
+      }
     })
   })
 }
