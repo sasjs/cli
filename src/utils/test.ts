@@ -94,7 +94,7 @@ export const generateTestTarget = (
       refresh_token: process.env.REFRESH_TOKEN
     },
     jobConfig: {
-      jobFolders: [path.join('sasjs', 'jobs')]
+      jobFolders: []
     },
     serviceConfig,
     testConfig: {
