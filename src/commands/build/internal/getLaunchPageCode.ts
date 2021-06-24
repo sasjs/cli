@@ -22,10 +22,10 @@ data _null_;
    else url="&systcpiphostname";
  end;
  else url="&systcpiphostname";
- url=cats(url,"/SASJobExecution?_PROGRAM=&appLoc/services/");
+ url=cats(url,"/SASJobExecution?_FILE=&appLoc/services/");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " url +(-1) "${streamServiceName}" ;
+ putlog "NOTE- " url +(-1) "${streamServiceName}.html&_debug=2" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `
