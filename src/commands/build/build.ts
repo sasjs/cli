@@ -22,7 +22,6 @@ import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import { isTestFile } from '../compile/internal/compileTestFile'
-import btoa from 'btoa'
 
 export async function build(target: Target) {
   await compile(target)
@@ -175,7 +174,7 @@ async function getCreateFileScript(serverType: ServerType) {
 function getWebServiceScriptInvocation(
   serverType: ServerType,
   filePath = '',
-  isSASFile: boolean = false,
+  isSASFile: boolean = true,
   encoded: boolean = false
 ) {
   const loc = filePath === '' ? 'services' : 'tests'
@@ -335,8 +334,7 @@ ${content}\n
 run;
 ${getWebServiceScriptInvocation(
   serverType,
-  isTestFile(serviceFileName) && testPath ? `${testPath}` : '',
-  true
+  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
 )}
 filename sascode clear;
 `
