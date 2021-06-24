@@ -26,6 +26,7 @@ import {
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
+import { getConstants } from '../../../constants'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -416,6 +417,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName: (await getConstants()).contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

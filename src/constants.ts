@@ -14,6 +14,7 @@ interface Constants {
   buildDestinationResultsLogsFolder: string
   buildDestinationTestFolder: string
   macroCorePath: string
+  contextName: string
 }
 
 // process.projectDir sets in cli.js
@@ -73,6 +74,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationResultsFolder,
     'logs'
   )
+  const contextName = 'sasjs cli compute context'
 
   return {
     buildSourceFolder,
@@ -85,6 +87,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationResultsFolder,
     buildDestinationResultsLogsFolder,
     buildDestinationTestFolder,
-    macroCorePath
+    macroCorePath,
+    contextName
   }
 }
