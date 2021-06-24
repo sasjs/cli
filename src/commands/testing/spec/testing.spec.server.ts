@@ -22,6 +22,7 @@ import {
 } from '../../../utils/config'
 import dotenv from 'dotenv'
 import path from 'path'
+import { getConstants } from '../../../constants'
 
 describe('sasjs test', () => {
   let target: Target
@@ -414,6 +415,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName: (await getConstants()).contextName,
     macroFolders: ['sasjs/macros'],
     serviceConfig: {
       serviceFolders: [],
