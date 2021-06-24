@@ -239,9 +239,8 @@ export async function getContextName(
   returnStatusOnly: boolean = false
 ) {
   const defaultContextName = (await getConstants()).contextName
-  if (target && target.contextName) {
-    return target.contextName
-  }
+
+  if (target && target.contextName) return target.contextName
 
   if (!returnStatusOnly) {
     process.logger?.warn(
