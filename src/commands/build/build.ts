@@ -3,6 +3,7 @@ import { Target, ServerType } from '@sasjs/utils/types'
 import { createWebAppServices } from '../web'
 import {
   readFile,
+  base64EncodeFile,
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
@@ -174,15 +175,17 @@ async function getCreateFileScript(serverType: ServerType) {
 function getWebServiceScriptInvocation(
   serverType: ServerType,
   filePath = '',
-  isSASFile: boolean = false
+  isSASFile: boolean = false,
+  encoded: boolean = false
 ) {
   const loc = filePath === '' ? 'services' : 'tests'
 
   switch (serverType) {
     case ServerType.SasViya:
+      const encodedParam = encoded ? ', intype=BASE64' : ''
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
@@ -259,35 +262,32 @@ async function getContentFor(
   await asyncForEach(files, async (file) => {
     const filePath = path.join(folderPath, file)
     const isSASFile = /.sas$/.test(file)
-    const fileContent = await readFile(filePath)
 
     if (isSASFile) {
+      const fileContent = await readFile(filePath)
       const transformedContent = getServiceText(
         file,
         fileContent,
         serverType,
         testPath
       )
-
       content += `\n${transformedContent}\n`
+
+      contentJSON?.members.push({
+        name: file.replace(/.sas$/, ''),
+        type: 'service',
+        code: removeComments(fileContent)
+      })
     } else {
-      const transformedContent = getFileText(file, fileContent, serverType)
+      const transformedContent = await getFileText(file, filePath, serverType)
       content += `\n${transformedContent}\n`
+
+      contentJSON?.members.push({
+        name: file.replace(/.sas$/, ''),
+        type: 'file',
+        path: filePath
+      })
     }
-
-    const member = isSASFile
-      ? {
-          name: file.replace(/.sas$/, ''),
-          type: 'service',
-          code: removeComments(fileContent)
-        }
-      : {
-          name: file.replace(/.sas$/, ''),
-          type: 'file',
-          path: filePath
-        }
-
-    contentJSON?.members.push(member)
   })
 
   const subFolders = await listSubFoldersInFolder(folderPath)
@@ -342,59 +342,57 @@ filename sascode clear;
 `
 }
 
-function getFileText(
+async function getFileText(
   fileName: string,
-  fileContent: string,
+  filePath: string,
   serverType: ServerType
 ) {
   const fileExtension = fileName
     .substring(fileName.lastIndexOf('.') + 1, fileName.length)
     .toUpperCase()
-  const content = getWebFileContent(fileContent, fileExtension, serverType)
+  const { content, encoded, maxLineLength } = await getWebFileContent(
+    filePath,
+    fileExtension
+  )
 
   return `%let filename=${fileName};
-filename filecode temp lrecl=32767;
+filename filecode temp lrecl=${maxLineLength};
 data _null_;
 file filecode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType)}
+${getWebServiceScriptInvocation(serverType, undefined, false, encoded)}
 filename filecode clear;
 `
 }
 
-function getWebFileContent(
-  content: string,
-  type = 'JS',
-  serverType: ServerType
-) {
-  let lines
+async function getWebFileContent(filePath: string, type: string) {
+  let lines,
+    encoded = false
 
-  // Encode to base64 *.js and *.css files if target server type is SAS 9.
-  const typesToEncode: { [key: string]: string } = {
-    JS: 'JS64',
-    CSS: 'CSS64'
-  }
+  const typesToEncode: string[] = ['ICO', 'PNG', 'JPG', 'JPEG', 'SVG', 'MP3']
 
-  if (serverType === ServerType.Sas9 && typesToEncode.hasOwnProperty(type)) {
-    lines = [btoa(content)]
+  if (typesToEncode.includes(type)) {
+    encoded = true
+    lines = [await base64EncodeFile(filePath)]
   } else {
-    lines = content
+    lines = (await readFile(filePath))
       .replace(/\r\n/g, '\n')
       .split('\n')
       .filter((l) => !!l)
   }
 
-  let serviceContent = ``
+  let parsedContent = '',
+    maxLineLength = 32767
 
   lines.forEach((line) => {
     const chunkedLines = chunk(line)
     if (chunkedLines.length === 1) {
-      serviceContent += `put '${chunkedLines[0].split("'").join("''")}';\n`
+      parsedContent += ` put '${chunkedLines[0].split("'").join("''")}';\n`
     } else {
       let combinedLines = ''
       chunkedLines.forEach((chunkedLine, index) => {
-        let text = `put '${chunkedLine.split("'").join("''")}'`
+        let text = ` put '${chunkedLine.split("'").join("''")}'`
         if (index !== chunkedLines.length - 1) {
           text += '@;\n'
         } else {
@@ -402,11 +400,12 @@ function getWebFileContent(
         }
         combinedLines += text
       })
-      serviceContent += combinedLines
+      parsedContent += combinedLines
     }
+    maxLineLength = maxLineLength < line.length ? line.length : maxLineLength
   })
 
-  return serviceContent
+  return { content: parsedContent, encoded, maxLineLength }
 }
 
 function getLines(text: string): string[] {
