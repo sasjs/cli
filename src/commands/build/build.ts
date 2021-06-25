@@ -10,6 +10,7 @@ import {
   asyncForEach
 } from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
+import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
   getMacroCorePath,
@@ -260,9 +261,8 @@ async function getContentFor(
 
   await asyncForEach(files, async (file) => {
     const filePath = path.join(folderPath, file)
-    const isSASFile = /.sas$/.test(file)
 
-    if (isSASFile) {
+    if (isSasFile(file)) {
       const fileContent = await readFile(filePath)
       const transformedContent = getServiceText(
         file,
@@ -345,9 +345,8 @@ async function getFileText(
   filePath: string,
   serverType: ServerType
 ) {
-  const fileExtension = fileName
-    .substring(fileName.lastIndexOf('.') + 1, fileName.length)
-    .toUpperCase()
+  const fileExtension = path.extname(fileName).substring(1).toUpperCase()
+
   const { content, encoded, maxLineLength } = await getWebFileContent(
     filePath,
     fileExtension
@@ -368,7 +367,7 @@ async function getWebFileContent(filePath: string, type: string) {
   let lines,
     encoded = false
 
-  const typesToEncode: string[] = ['ICO', 'PNG', 'JPG', 'JPEG', 'SVG', 'MP3']
+  const typesToEncode: string[] = ['ICO', 'PNG', 'JPG', 'JPEG', 'MP3']
 
   if (typesToEncode.includes(type)) {
     encoded = true

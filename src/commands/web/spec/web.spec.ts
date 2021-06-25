@@ -8,7 +8,7 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { StreamConfig, generateTimestamp } from '@sasjs/utils'
+import { generateTimestamp } from '@sasjs/utils'
 
 export const webBuiltFilesSASVIYA: Folder = {
   folderName: 'sasjsbuild',
@@ -49,27 +49,34 @@ export const webBuiltFilesSAS9: Folder = {
 describe('sasjs web', () => {
   let appName: string
 
-  afterEach(async () => {
+  beforeAll(async () => {
+    appName = `cli-test-web-minimal-${generateTimestamp()}`
+    await createTestMinimalApp(__dirname, appName)
+
+    await updateConfig({
+      streamConfig: {
+        assetPaths: [],
+        streamWeb: true,
+        streamWebFolder: 'webv',
+        webSourcePath: 'src',
+        streamServiceName: 'clickme'
+      }
+    })
+
+    await updateTarget({ streamConfig: undefined }, 'viya')
+    await updateTarget(
+      { serverUrl: undefined, streamConfig: undefined },
+      'sas9'
+    )
+  })
+
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
   })
 
   it(
     `should create web app with minimal template for target SASVIYA`,
     async () => {
-      appName = `cli-test-web-minimal-${generateTimestamp()}`
-      await createTestMinimalApp(__dirname, appName)
-
-      await updateConfig({
-        streamConfig: {
-          assetPaths: [],
-          streamWeb: true,
-          streamWebFolder: 'webv',
-          webSourcePath: 'src',
-          streamServiceName: 'clickme'
-        }
-      })
-      await updateTarget({ streamConfig: undefined }, 'viya')
-
       await expect(buildWebApp(new Command(`web -t viya`))).resolves.toEqual(0)
 
       await expect(verifyFolder(webBuiltFilesSASVIYA)).resolves.toEqual(true)
@@ -80,23 +87,6 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SAS9`,
     async () => {
-      appName = `cli-test-web-minimal-${generateTimestamp()}`
-      await createTestMinimalApp(__dirname, appName)
-
-      await updateConfig({
-        streamConfig: {
-          assetPaths: [],
-          streamWeb: true,
-          streamWebFolder: 'webv',
-          webSourcePath: 'src',
-          streamServiceName: 'clickme'
-        }
-      })
-      await updateTarget(
-        { serverUrl: undefined, streamConfig: undefined },
-        'sas9'
-      )
-
       await expect(buildWebApp(new Command(`web -t sas9`))).resolves.toEqual(0)
 
       await expect(verifyFolder(webBuiltFilesSAS9)).resolves.toEqual(true)
