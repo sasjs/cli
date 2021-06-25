@@ -38,8 +38,7 @@ describe('sasjs job execute', () => {
     const context = await getAvailableContext(target)
     await saveToGlobalConfig(
       new Target({
-        ...target.toJson(),
-        contextName: context.name
+        ...target.toJson()
       })
     )
 
@@ -382,6 +381,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName: 'sasjs cli compute context',
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

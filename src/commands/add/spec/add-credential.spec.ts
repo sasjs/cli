@@ -12,6 +12,7 @@ import * as fileUtils from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
+import { getConstants } from '../../../constants'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async () => {
@@ -193,15 +194,18 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'saveToLocalConfig')
     .mockImplementation(() => Promise.resolve('.'))
-  jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
-    Promise.resolve({
-      target: new Target({
-        name: 'test-target',
-        serverUrl: '',
-        serverType: ServerType.SasViya,
-        appLoc: '/test'
-      }),
-      isLocal: true
-    })
-  )
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(async () =>
+      Promise.resolve({
+        target: new Target({
+          name: 'test-target',
+          serverUrl: '',
+          serverType: ServerType.SasViya,
+          appLoc: '/test',
+          contextName: (await getConstants()).contextName
+        }),
+        isLocal: true
+      })
+    )
 }

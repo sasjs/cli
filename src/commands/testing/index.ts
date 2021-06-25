@@ -94,7 +94,8 @@ export async function runTest(command: Command) {
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    debug: true
+    debug: true,
+    contextName: target.contextName
   })
 
   let authConfig: AuthConfig, username: string, password: string

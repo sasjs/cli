@@ -15,6 +15,7 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
+import { getConstants } from '../../constants'
 
 /**
  * Triggers existing job for execution.
@@ -234,14 +235,13 @@ export async function execute(
 }
 
 // REFACTOR: should be a utility
-export function getContextName(
+export async function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
 ) {
-  const defaultContextName = 'SAS Job Execution compute context'
-  if (target && target.contextName) {
-    return target.contextName
-  }
+  const defaultContextName = (await getConstants()).contextName
+
+  if (target && target.contextName) return target.contextName
 
   if (!returnStatusOnly) {
     process.logger?.warn(
