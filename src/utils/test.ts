@@ -85,7 +85,7 @@ export const generateTestTarget = (
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
-    contextName: 'SAS Studio compute context', // FIXME: should not be hard coded
+    contextName: 'sasjs cli compute context', // FIXME: should not be hard coded
     appLoc,
     authConfig: {
       client: process.env.CLIENT,

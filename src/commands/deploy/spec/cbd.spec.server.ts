@@ -148,7 +148,7 @@ describe('sasjs cbd with local config', () => {
   })
 
   it(`should error when an access token is not provided`, async () => {
-    jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
+    jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
       return Promise.reject('Token error')
     })
     jest.spyOn(displayResultModule, 'displayError')

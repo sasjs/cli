@@ -2,7 +2,7 @@ import path from 'path'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
 import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
-import { getAccessToken } from '../../utils/config'
+import { getAccessToken, getAuthConfig } from '../../utils/config'
 import {
   Target,
   generateTimestamp,
@@ -74,7 +74,7 @@ export async function execute(
       appLoc: target.appLoc,
       serverType: target.serverType
     })
-    const accessToken = await getAccessToken(target).catch((err) => {
+    const authConfig = await getAuthConfig(target).catch((err) => {
       displayError(err, 'Error while getting access token.')
       throw err
     })
@@ -139,7 +139,7 @@ export async function execute(
               {
                 contextName: contextName
               },
-              accessToken,
+              authConfig,
               true,
               pollOptions,
               true,
@@ -352,7 +352,7 @@ export async function execute(
 
           const logJson = await fetchLogFileContent(
             sasjs,
-            accessToken,
+            authConfig.access_token,
             logUrl,
             lineCount
           ).catch((err) => Promise.reject(err))
@@ -511,7 +511,7 @@ export async function execute(
               {
                 contextName: contextName
               },
-              accessToken,
+              authConfig,
               true,
               pollOptions,
               true

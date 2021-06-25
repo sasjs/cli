@@ -1,8 +1,9 @@
-import { findTargetInConfiguration, getAccessToken } from '../../utils/config'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
 import { Command } from '../../utils/command'
+import { AuthConfig } from '@sasjs/utils'
 
 export async function processJob(command: Command) {
   const subCommand = command.getSubCommand()
@@ -40,7 +41,7 @@ export async function processJob(command: Command) {
     debug: true
   })
 
-  const accessToken = await getAccessToken(target).catch((err) => {
+  const authConfig = await getAuthConfig(target).catch((err) => {
     displayError(err, 'Error obtaining access token.')
   })
 
@@ -50,7 +51,7 @@ export async function processJob(command: Command) {
     case subCommands.execute:
       result = await execute(
         sasjs,
-        accessToken as string,
+        authConfig as AuthConfig,
         jobPath as string,
         target,
         waitForJob,

@@ -1,14 +1,15 @@
 import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
-import { getAccessToken } from '../../utils/config'
+import { getAuthConfig } from '../../utils/config'
 import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
   readFile,
   createFile,
   ServerType,
   Target,
-  asyncForEach
+  asyncForEach,
+  AuthConfig
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getConstants } from '../../constants'
@@ -82,7 +83,7 @@ export async function deploy(target: Target, isLocal: boolean) {
   })
 }
 
-async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
+async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
@@ -91,9 +92,9 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
     debug: true
   })
 
-  let accessToken = null
+  let authConfig: AuthConfig
   try {
-    accessToken = await getAccessToken(target)
+    authConfig = await getAuthConfig(target)
   } catch (e) {
     throw new Error(
       `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env${
@@ -103,7 +104,7 @@ async function getSASjsAndAccessToken(target: Target, isLocal: boolean) {
   }
   return {
     sasjs,
-    accessToken
+    authConfig
   }
 }
 
@@ -119,13 +120,14 @@ async function deployToSasViyaWithServicePack(
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
+  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
+  const { access_token } = authConfig
 
   return await sasjs.deployServicePack(
     jsonObject,
     undefined,
     undefined,
-    accessToken,
+    access_token,
     true
   )
 }
@@ -149,13 +151,13 @@ async function deployToSasViya(
     )
   }
 
-  const { sasjs, accessToken } = await getSASjsAndAccessToken(target, isLocal)
+  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
 
   const executionResult = await sasjs.executeScriptSASViya(
     path.basename(deployScript),
     linesToExecute,
     contextName,
-    accessToken
+    authConfig
   )
 
   let log

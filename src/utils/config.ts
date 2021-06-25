@@ -8,7 +8,9 @@ import {
   readFile,
   folderExists,
   createFile,
-  fileExists
+  fileExists,
+  AuthConfig,
+  SasAuthResponse
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -516,6 +518,95 @@ export async function getProjectRoot() {
   }
 
   return root
+}
+
+/**
+ * Gets the auth config for the specified target.
+ * @param {Target} target - the target to get an access token for.
+ * @returns {AuthConfig} - an object containing an access token, refresh token, client ID and secret.
+ */
+export async function getAuthConfig(target: Target): Promise<AuthConfig> {
+  let access_token =
+    target && target.authConfig && target.authConfig.access_token
+      ? target.authConfig.access_token
+      : ''
+
+  if (
+    !access_token ||
+    access_token.trim() === 'null' ||
+    access_token.trim() === 'undefined'
+  ) {
+    await overrideEnvVariables(target?.name)
+    access_token = process.env.ACCESS_TOKEN as string
+  }
+
+  let refresh_token =
+    target.authConfig && target.authConfig.refresh_token
+      ? target.authConfig.refresh_token
+      : process.env.REFRESH_TOKEN
+  refresh_token =
+    refresh_token &&
+    (refresh_token.trim() === 'null' || refresh_token.trim() === 'undefined')
+      ? undefined
+      : refresh_token
+
+  let client =
+    target.authConfig && target.authConfig.client
+      ? target.authConfig.client
+      : process.env.CLIENT
+  client =
+    client && (client.trim() === 'null' || client.trim() === 'undefined')
+      ? undefined
+      : client
+
+  if (!client) {
+    throw new Error(
+      `Client ID was not found.
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+    )
+  }
+
+  let secret =
+    target.authConfig && target.authConfig.secret
+      ? target.authConfig.secret
+      : process.env.SECRET
+  secret =
+    secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
+      ? undefined
+      : secret
+
+  if (!secret) {
+    throw new Error(
+      `Client secret was not found.
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+    )
+  }
+
+  let authConfig: SasAuthResponse
+
+  if (isAccessTokenExpiring(access_token)) {
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      serverType: target.serverType
+    })
+
+    if (isRefreshTokenExpiring(refresh_token)) {
+      authConfig = await getNewAccessToken(sasjs, client, secret, target)
+    } else {
+      authConfig = await refreshTokens(sasjs, client, secret, refresh_token!)
+    }
+
+    access_token = authConfig?.access_token || access_token
+    refresh_token = authConfig?.refresh_token || refresh_token
+  }
+
+  return {
+    access_token,
+    refresh_token: refresh_token!,
+    client,
+    secret
+  }
 }
 
 /**
