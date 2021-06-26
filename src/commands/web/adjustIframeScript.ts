@@ -14,6 +14,7 @@ export const adjustIframeScript = `
       window.frameElement.setAttribute("marginheight","0")
       window.frameElement.setAttribute("marginwidth","0")
       window.frameElement.setAttribute("scrolling","auto")
+      window.focus()
     }
     </script>
 `
