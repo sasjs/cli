@@ -250,7 +250,7 @@ async function getAndValidateAppLoc(
   return appLoc
 }
 
-export const getCredentialsInput = async (targetName: string) => {
+export const getCredentialsInputForViya = async (targetName: string) => {
   const defaultValues = getDefaultValues(targetName)
 
   const client = await getString(
@@ -265,6 +265,31 @@ export const getCredentialsInput = async (targetName: string) => {
   )
 
   return { client, secret }
+}
+
+export const getCredentialsInputForSas9 = async () => {
+  const userName = await getString(
+    'Please enter your SAS username',
+    (v) => !!v || 'username is required.'
+  )
+
+  let password = await getString(
+    'Please enter your SAS password',
+    (v) => !!v || 'password is required.'
+  )
+
+  if (!/{sas00/i.test(password)) {
+    process.logger?.warn(
+      'cleartext passwords are a security risk.  Please consider SAS encoded passwords.  For this a server config change is required (AllowEncodedPassword).  More info here: https://support.sas.com/kb/36/831.html'
+    )
+  }
+  if (!/^({sas00)[3-9]/i.test(password)) {
+    process.logger?.warn(
+      'This password type can be easily decrypted.  Please consider {sas003} or above.'
+    )
+  }
+
+  return { userName, password: btoa('encoded' + password) }
 }
 
 export const getDefaultValues = (targetName: string) => {
