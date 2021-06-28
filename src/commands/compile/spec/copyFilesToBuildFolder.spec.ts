@@ -15,7 +15,6 @@ describe('copyFilesToBuildFolder', () => {
 
   afterEach(async () => {
     await removeTestApp(__dirname, appName)
-    jest.clearAllMocks()
   })
 
   it('should copy files into the sasjsbuild folder', async () => {

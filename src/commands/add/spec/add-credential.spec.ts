@@ -33,7 +33,6 @@ describe('addCredential', () => {
     )
 
     await fileUtils.deleteFile(path.join('.', '.env.test-target'))
-    jest.clearAllMocks()
   })
 })
 
