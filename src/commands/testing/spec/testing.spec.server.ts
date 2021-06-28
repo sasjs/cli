@@ -27,7 +27,11 @@ import { getConstants } from '../../../constants'
 describe('sasjs test', () => {
   let target: Target
   const testUrl = (test: string) =>
-    `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${
+    `${target.serverUrl}/${
+      target.serverType === ServerType.SasViya
+        ? 'SASJobExecution'
+        : 'SASStoredProcess'
+    }/?_program=/Public/app/cli-tests/${
       target.name
     }/tests/${test}&_debug=2477&_contextName=${encodeURI(target.contextName)}`
   const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
