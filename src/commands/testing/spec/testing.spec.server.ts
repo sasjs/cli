@@ -26,6 +26,15 @@ import { getConstants } from '../../../constants'
 
 describe('sasjs test', () => {
   let target: Target
+  const testUrl = (test: string) =>
+    `${target.serverUrl}/${
+      target.serverType === ServerType.SasViya
+        ? 'SASJobExecution'
+        : 'SASStoredProcess'
+    }/?_program=/Public/app/cli-tests/${
+      target.name
+    }/tests/${test}&_debug=2477&_contextName=${encodeURI(target.contextName)}`
+  const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
 
   beforeAll(async () => {
     target = await createGlobalTarget()
@@ -57,7 +66,7 @@ describe('sasjs test', () => {
               test_loc: 'tests/testsetup.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477`
+              test_url: testUrl('testsetup')
             }
           ]
         },
@@ -68,7 +77,7 @@ describe('sasjs test', () => {
               test_loc: 'tests/jobs/jobs/exampleprogram.test.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/exampleprogram.test&_debug=2477`
+              test_url: testUrl('jobs/jobs/exampleprogram.test')
             }
           ]
         },
@@ -79,7 +88,7 @@ describe('sasjs test', () => {
               test_loc: 'tests/jobs/jobs/standalone.test.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477`
+              test_url: testUrl('jobs/jobs/standalone.test')
             }
           ]
         },
@@ -95,7 +104,7 @@ describe('sasjs test', () => {
                   TEST_RESULT: 'PASS'
                 }
               ],
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/examplemacro.test&_debug=2477`
+              test_url: testUrl('macros/examplemacro.test')
             }
           ]
         },
@@ -111,7 +120,7 @@ describe('sasjs test', () => {
                   TEST_RESULT: 'FAIL'
                 }
               ],
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477`
+              test_url: testUrl('services/admin/dostuff.test.0')
             },
             {
               test_loc: 'tests/services/admin/dostuff.test.1.sas',
@@ -122,7 +131,7 @@ describe('sasjs test', () => {
                   TEST_RESULT: 'PASS'
                 }
               ],
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.1&_debug=2477`
+              test_url: testUrl('services/admin/dostuff.test.1')
             }
           ]
         },
@@ -133,20 +142,34 @@ describe('sasjs test', () => {
               test_loc: 'tests/testteardown.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testteardown&_debug=2477`
+              test_url: testUrl('testteardown')
             }
           ]
         }
       ]
     }
     const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
-testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477"")"
-exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/exampleprogram.test&_debug=2477"")"
-standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477"")"
-examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/macros/examplemacro.test&_debug=2477"")"
-dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477"")"
-dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.1&_debug=2477"")"
-testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testteardown&_debug=2477"")"
+testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'testsetup'
+    )}
+exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'jobs/jobs/exampleprogram.test'
+    )}
+standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'jobs/jobs/standalone.test'
+    )}
+examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description,${testUrlLink(
+      'macros/examplemacro.test'
+    )}
+dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,${testUrlLink(
+      'services/admin/dostuff.test.0'
+    )}
+dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 test description,${testUrlLink(
+      'services/admin/dostuff.test.1'
+    )}
+testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'testteardown'
+    )}
 `
 
     const command = new Command(`test -t ${target.name}`)
@@ -247,7 +270,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
               test_loc: 'tests/testsetup.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477`
+              test_url: testUrl('testsetup')
             }
           ]
         },
@@ -258,7 +281,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
               test_loc: 'tests/jobs/jobs/standalone.test.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477`
+              test_url: testUrl('jobs/jobs/standalone.test')
             }
           ]
         },
@@ -274,7 +297,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
                   TEST_RESULT: 'FAIL'
                 }
               ],
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477`
+              test_url: testUrl('services/admin/dostuff.test.0')
             }
           ]
         },
@@ -285,17 +308,25 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""ht
               test_loc: 'tests/testteardown.sas',
               sasjs_test_id: '',
               result: 'not provided',
-              test_url: `https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testteardown&_debug=2477`
+              test_url: testUrl('testteardown')
             }
           ]
         }
       ]
     }
     const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
-testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testsetup&_debug=2477"")"
-standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/jobs/jobs/standalone.test&_debug=2477"")"
-dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/services/admin/dostuff.test.0&_debug=2477"")"
-testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,"=HYPERLINK(""https://sas.analytium.co.uk/SASJobExecution/?_program=/Public/app/cli-tests/${target.name}/tests/testteardown&_debug=2477"")"
+testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'testsetup'
+    )}
+standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'jobs/jobs/standalone.test'
+    )}
+dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,${testUrlLink(
+      'services/admin/dostuff.test.0'
+    )}
+testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
+      'testteardown'
+    )}
 `
 
     const outputFolder = 'customOutPut'

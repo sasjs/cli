@@ -14,7 +14,6 @@ import {
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
-
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -25,6 +24,7 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
+import { getConstants } from '../../../constants'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -53,10 +53,6 @@ describe('sasjs job execute', () => {
     )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-  })
-
-  afterEach(() => {
-    jest.clearAllMocks()
   })
 
   it('should submit a job for execution', async () => {
@@ -381,7 +377,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: 'sasjs cli compute context',
+    contextName: (await getConstants()).contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

@@ -39,9 +39,9 @@ describe('addTarget', () => {
       `/Public/app/cli-tests/${appName}`
     )
   })
+
   afterEach(async () => {
     await removeFromGlobalConfig(globalTestTarget.name)
-    jest.clearAllMocks()
   })
 
   it('should create a Viya target in the local sasjsconfig.json file', async () => {

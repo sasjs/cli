@@ -27,7 +27,6 @@ describe('CLI command parsing', () => {
   afterEach(async () => {
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-    jest.clearAllMocks()
   })
 
   it('should call the correct function for the create command', async () => {

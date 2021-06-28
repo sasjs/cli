@@ -1,19 +1,25 @@
 import path from 'path'
 import { processContext } from '../..'
-import { readFile, createFile, deleteFolder } from '@sasjs/utils'
+import {
+  Target,
+  readFile,
+  createFile,
+  deleteFolder,
+  generateTimestamp
+} from '@sasjs/utils'
 import { sanitizeFileName } from '../../../utils/file'
 import SASjs from '@sasjs/adapter/node'
-import { generateTimestamp } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import { createTestGlobalTarget } from '../../../utils/test'
+import { getConstants } from '../../../constants'
 
 let contexts: any[]
 let testContextConfig: any
 let testContextConfigFile: string
 let testContextConfigPath: string
 let originalTestContextConfigName: string
-const sasjs = new SASjs()
+let sasjs = new SASjs()
 const defaultComputeContexts = sasjs.getDefaultComputeContexts()
 const setDefaultContextName = () => {
   originalTestContextConfigName = testContextConfig.name
@@ -32,16 +38,34 @@ const defaultContextError = (action: string) =>
       (context, i) => `\n${i + 1}. ${context}`
     )}`
   )
+const mockedAdapterResponse = {
+  result: {
+    name: 'Edited mock context',
+    id: 'id',
+    createdBy: 'CLI mock',
+    version: 1
+  },
+  etag: 'etag'
+}
 
 describe('sasjs context', () => {
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-context-${timestamp}`
+  let target: Target
 
   beforeAll(async () => {
-    await createTestGlobalTarget(
+    target = await createTestGlobalTarget(
       targetName,
       `/Public/app/cli-tests/${targetName}`
     )
+
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+
     process.projectDir = process.cwd()
   })
 
@@ -92,7 +116,7 @@ describe('sasjs context', () => {
       testContextConfig = {
         ...testContextConfig,
         launchContext: {
-          contextName: 'CLI Unit Tests launcher context'
+          contextName: (await getConstants()).contextName
         }
       }
       testContextConfig.name += '_' + Date.now()
@@ -109,6 +133,10 @@ describe('sasjs context', () => {
         `context create -s ${testContextConfigFile} -t ${targetName}`
       )
 
+      jest
+        .spyOn(sasjs, 'createComputeContext')
+        .mockImplementation(() => Promise.resolve(mockedAdapterResponse.result))
+
       await expect(processContext(command)).resolves.toEqual(true)
     })
 
@@ -122,7 +150,7 @@ describe('sasjs context', () => {
       testContextConfig = {
         ...testContextConfig,
         launchContext: {
-          contextName: 'CLI Unit Tests launcher context'
+          contextName: (await getConstants()).contextName
         }
       }
 
@@ -138,9 +166,15 @@ describe('sasjs context', () => {
         `context create -s ${testContextConfigFile} -t ${targetName}`
       )
 
-      await expect(processContext(command)).resolves.toEqual(
-        new Error(`Compute context '${testContextConfig.name}' already exists.`)
+      const error = new Error(
+        `Compute context '${testContextConfig.name}' already exists.`
       )
+
+      jest
+        .spyOn(sasjs, 'createComputeContext')
+        .mockImplementation(() => Promise.reject(error))
+
+      await expect(processContext(command, sasjs)).resolves.toEqual(error)
     })
   })
 
@@ -158,7 +192,13 @@ describe('sasjs context', () => {
         `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
       )
 
-      await expect(processContext(command)).resolves.toEqual(
+      jest
+        .spyOn(sasjs, 'editComputeContext')
+        .mockImplementation(() =>
+          Promise.reject(defaultContextError('Editing'))
+        )
+
+      await expect(processContext(command, sasjs)).resolves.toEqual(
         defaultContextError('Editing')
       )
 
@@ -176,7 +216,11 @@ describe('sasjs context', () => {
         `context edit ${testContextConfig.name} -s ${testContextConfigFile} -t ${targetName}`
       )
 
-      await expect(processContext(command)).resolves.toEqual(true)
+      jest
+        .spyOn(sasjs, 'editComputeContext')
+        .mockImplementation(() => Promise.resolve(mockedAdapterResponse))
+
+      await expect(processContext(command, sasjs)).resolves.toEqual(true)
     })
   })
 
@@ -188,7 +232,13 @@ describe('sasjs context', () => {
         `context delete ${testContextConfig.name} -t ${targetName}`
       )
 
-      await expect(processContext(command)).resolves.toEqual(
+      jest
+        .spyOn(sasjs, 'deleteComputeContext')
+        .mockImplementation(() =>
+          Promise.reject(defaultContextError('Deleting'))
+        )
+
+      await expect(processContext(command, sasjs)).resolves.toEqual(
         defaultContextError('Deleting')
       )
 
@@ -200,7 +250,11 @@ describe('sasjs context', () => {
         `context delete ${testContextConfig.name} -t ${targetName}`
       )
 
-      await expect(processContext(command)).resolves.toEqual(true)
+      jest
+        .spyOn(sasjs, 'deleteComputeContext')
+        .mockImplementation(() => Promise.resolve(mockedAdapterResponse))
+
+      await expect(processContext(command, sasjs)).resolves.toEqual(true)
     })
   })
 })
