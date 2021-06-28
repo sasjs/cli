@@ -150,6 +150,12 @@ export async function runTest(command: Command) {
         : 'SASStoredProcess'
     }/?_program=${sasJobLocation}&_debug=2477`
 
+    if (target.contextName) {
+      testUrl = `${testUrl}&_contextName=${encodeURI(target.contextName)}`
+    }
+
+    const printTestUrl = () => process.logger.info(`Test URL: ${testUrl}`)
+
     await sasjs
       .request(
         sasJobLocation,
@@ -203,6 +209,8 @@ export async function runTest(command: Command) {
 
         if (!res.result?.test_results) lineBreak = false
 
+        printTestUrl()
+
         if (res.log) await saveLog(outDirectory, test, res.log, lineBreak)
 
         if (res.result?.test_results) {
@@ -241,6 +249,8 @@ export async function runTest(command: Command) {
         }
       })
       .catch(async (err) => {
+        printTestUrl()
+
         if (err && err.errorCode === 404) {
           displaySasjsRunnerError(username)
         } else {
