@@ -67,7 +67,8 @@ async function executeOnSasViya(
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    debug: true
+    debug: true,
+    useComputeApi: true
   })
 
   let contextName = target.contextName

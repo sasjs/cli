@@ -53,7 +53,8 @@ async function deployToSasViyaWithServicePack(
     serverUrl: buildTarget.serverUrl,
     allowInsecureRequests: buildTarget.allowInsecureRequests,
     appLoc: buildTarget.appLoc,
-    serverType: buildTarget.serverType
+    serverType: buildTarget.serverType,
+    useComputeApi: true
   })
   const { buildDestinationFolder } = await getConstants()
 

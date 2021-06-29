@@ -95,7 +95,8 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
     appLoc: target.appLoc,
     serverType: target.serverType,
     allowInsecureRequests: target.allowInsecureRequests,
-    debug: true
+    debug: true,
+    useComputeApi: true
   })
 
   let authConfig: AuthConfig
