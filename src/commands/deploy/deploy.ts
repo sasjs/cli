@@ -5,6 +5,7 @@ import { getAuthConfig } from '../../utils/config'
 import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
   readFile,
+  readFileBinary,
   createFile,
   ServerType,
   Target,
@@ -23,10 +24,15 @@ export async function deploy(target: Target, isLocal: boolean) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
     )
-    await deployToSasViyaWithServicePack(target, isLocal)
+    const webIndexFileName = await deployToSasViyaWithServicePack(
+      target,
+      isLocal
+    )
     process.logger?.success('Build pack has been successfully deployed.')
     process.logger?.success(
-      `${target.serverUrl}/SASJobExecution/?_folder=${target.appLoc}`
+      target.serverType === ServerType.SasViya && webIndexFileName
+        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${webIndexFileName}&_debug=2`
+        : `${target.serverUrl}/SASJobExecution?_folder=${target.appLoc}`
     )
   }
 
@@ -108,10 +114,17 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
   }
 }
 
+async function populateCodeInServicePack(json: any) {
+  await asyncForEach(json.members, async (member) => {
+    if (member.type === 'file') member.code = await readFileBinary(member.path)
+    if (member.type === 'folder') await populateCodeInServicePack(member)
+  })
+}
+
 async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean
-) {
+): Promise<string> {
   const { buildDestinationFolder } = await getConstants()
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -123,13 +136,21 @@ async function deployToSasViyaWithServicePack(
   const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
   const { access_token } = authConfig
 
-  return await sasjs.deployServicePack(
+  await sasjs.deployServicePack(
     jsonObject,
     undefined,
     undefined,
     access_token,
     true
   )
+
+  const webIndexFileName = jsonObject?.members
+    .find(
+      (member: any) => member?.name === 'services' && member?.type === 'folder'
+    )
+    ?.members?.find((member: any) => member?.type === 'file')?.name
+
+  return webIndexFileName ?? ''
 }
 
 async function deployToSasViya(
@@ -191,7 +212,7 @@ async function deployToSasViya(
     )
 
     if (!!target.streamConfig?.streamWeb) {
-      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_PROGRAM=${target.appLoc}/services/${target.streamConfig.streamServiceName}`
+      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${target.appLoc}/services/${target.streamConfig.streamServiceName}.html&_debug=2`
       process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
     }
   } else {

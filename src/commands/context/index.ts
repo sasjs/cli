@@ -9,7 +9,7 @@ import { displayError } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'
 
-export async function processContext(command: Command) {
+export async function processContext(command: Command, sasjs?: SASjs) {
   const subCommand = command.getSubCommand()
   const subCommands = {
     create: 'create',
@@ -67,12 +67,14 @@ export async function processContext(command: Command) {
     return contextName
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
+  if (!sasjs) {
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+  }
 
   const authConfig = await getAuthConfig(target).catch((err) => {
     displayError(err, 'Error obtaining auth config.')

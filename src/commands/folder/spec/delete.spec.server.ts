@@ -11,6 +11,14 @@ import {
 
 jest.mock('../delete')
 
+const mockDeleteFolder = () => {
+  jest
+    .spyOn(deleteFolderModule, 'deleteFolder')
+    .mockImplementation((folderPath, adapter, _) =>
+      Promise.resolve(folderPath as any)
+    )
+}
+
 describe('sasjs folder delete', () => {
   const targetName = `cli-tests-folder-delete-${generateTimestamp()}`
   let target: Target
@@ -21,11 +29,6 @@ describe('sasjs folder delete', () => {
       `/Public/app/cli-tests/${targetName}`
     )
     await createTestMinimalApp(__dirname, targetName)
-    jest
-      .spyOn(deleteFolderModule, 'deleteFolder')
-      .mockImplementation((folderPath, adapter, _) =>
-        Promise.resolve(folderPath as any)
-      )
   })
 
   afterAll(async () => {
@@ -37,6 +40,8 @@ describe('sasjs folder delete', () => {
     const timestamp = generateTimestamp()
     const relativeFolderPath = `test-${timestamp}`
 
+    mockDeleteFolder()
+
     await expect(
       folder(
         new Command(['folder', 'delete', relativeFolderPath, '-t', targetName])
@@ -47,6 +52,8 @@ describe('sasjs folder delete', () => {
   it('should leave absolute file paths unaltered', async () => {
     const timestamp = generateTimestamp()
     const absoluteFolderPath = `${target.appLoc}/test-${timestamp}`
+
+    mockDeleteFolder()
 
     await expect(
       folder(
