@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@sasjs/core": "2.35.0",
-    "@sasjs/adapter": "2.8.4",
+    "@sasjs/adapter": "2.8.6",
     "@sasjs/lint": "1.11.1",
     "@sasjs/utils": "2.21.0",
     "@types/url-parse": "1.4.3",

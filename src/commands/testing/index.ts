@@ -90,7 +90,8 @@ export async function runTest(command: Command) {
     appLoc: target.appLoc,
     serverType: target.serverType,
     debug: true,
-    contextName: target.contextName
+    contextName: target.contextName,
+    useComputeApi: false
   })
 
   let accessToken: string, username: string, password: string
