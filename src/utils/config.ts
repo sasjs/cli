@@ -562,7 +562,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   if (!client) {
     throw new Error(
       `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
     )
   }
 
@@ -578,7 +578,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   if (!secret) {
     throw new Error(
       `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
     )
   }
 
@@ -667,7 +667,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
     if (!client) {
       throw new Error(
         `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
       )
     }
 
@@ -683,7 +683,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
     if (!secret) {
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~/.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
       )
     }
 
