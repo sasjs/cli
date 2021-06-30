@@ -134,6 +134,8 @@ async function deployToSasViyaWithServicePack(
   const jsonContent = await readFile(finalFilePathJSON)
   const jsonObject = JSON.parse(jsonContent)
 
+  await populateCodeInServicePack(jsonObject)
+
   const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
   const { access_token } = authConfig
 
