@@ -12,7 +12,8 @@ import {
   readFile,
   createFile,
   createFolder,
-  folderExists
+  folderExists,
+  AuthConfig
 } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 
@@ -32,7 +33,7 @@ import { getConstants } from '../../constants'
  */
 export async function execute(
   sasjs: SASjs,
-  accessToken: string,
+  authConfig: AuthConfig,
   jobPath: string,
   target: Target,
   waitForJob: boolean,
@@ -94,7 +95,7 @@ export async function execute(
       jobPath,
       null,
       { contextName },
-      accessToken,
+      authConfig,
       waitForJob || logFile !== undefined ? true : false,
       pollOptions,
       true,
@@ -186,7 +187,7 @@ export async function execute(
 
             const logData = await fetchLogFileContent(
               sasjs,
-              accessToken,
+              authConfig.access_token,
               logUrl,
               logCount
             )

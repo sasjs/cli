@@ -1,7 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
-import { findTargetInConfiguration, getAccessToken } from '../../utils/config'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import {
   readFile,
   createFile,
@@ -67,7 +67,8 @@ async function executeOnSasViya(
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    debug: true
+    debug: true,
+    useComputeApi: true
   })
 
   let contextName = target.contextName
@@ -76,14 +77,14 @@ async function executeOnSasViya(
     contextName = sasjs.getSasjsConfig().contextName
   }
 
-  const accessToken = await getAccessToken(target)
+  const authConfig = await getAuthConfig(target)
 
   const executionResult = await sasjs
     .executeScriptSASViya(
       path.basename(filePath),
       linesToExecute,
       contextName,
-      accessToken
+      authConfig
     )
     .catch(async (err) => {
       let log = err.log

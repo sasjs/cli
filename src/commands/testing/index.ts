@@ -13,10 +13,15 @@ import {
 } from '../../types'
 import { sasFileRegExp } from '../../utils/file'
 import { Command } from '../../utils/command'
-import { findTargetInConfiguration } from '../../utils/config'
-import { getAccessToken } from '../../utils/config'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { ServerType, uuidv4, asyncForEach, readFile } from '@sasjs/utils'
+import {
+  ServerType,
+  uuidv4,
+  asyncForEach,
+  readFile,
+  AuthConfig
+} from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
@@ -94,9 +99,9 @@ export async function runTest(command: Command) {
     useComputeApi: false
   })
 
-  let accessToken: string, username: string, password: string
+  let authConfig: AuthConfig, username: string, password: string
   if (target.serverType === ServerType.SasViya) {
-    accessToken = await getAccessToken(target)
+    authConfig = await getAuthConfig(target)
   }
   if (target.serverType === ServerType.Sas9) {
     username = process.env.SAS_USERNAME as string
@@ -165,7 +170,7 @@ export async function runTest(command: Command) {
         () => {
           displayError(null, 'Login callback called. Request failed.')
         },
-        accessToken,
+        authConfig,
         ['log']
       )
       .then(async (res) => {
