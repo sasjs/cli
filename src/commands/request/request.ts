@@ -73,7 +73,7 @@ export async function runSasJob(command: Command) {
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    useComputeApi: true
+    useComputeApi: false
   })
 
   let authConfig
