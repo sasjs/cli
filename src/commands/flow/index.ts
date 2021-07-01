@@ -4,8 +4,9 @@ import { execute } from './execute'
 import { displayError } from '../../utils/displayResult'
 import { getProjectRoot } from '../../utils/config'
 import path from 'path'
+import SASjs from '@sasjs/adapter/node'
 
-export async function processFlow(command: Command) {
+export async function processFlow(command: Command, sasjs?: SASjs) {
   const subCommand = command.getSubCommand()
   const source = command.getFlagValue('source') as string
   const csvFile = command.getFlagValue('csvFile') as string
@@ -17,6 +18,15 @@ export async function processFlow(command: Command) {
 
   let result
 
+  if (!sasjs) {
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+  }
+
   switch (subCommand) {
     case 'execute':
       const csvFilePath = await execute(
@@ -24,7 +34,8 @@ export async function processFlow(command: Command) {
         logFolder,
         csvFile,
         target,
-        command.prefixAppLoc
+        command.prefixAppLoc,
+        sasjs
       ).catch((err) => {
         displayError(err, 'An error has occurred when executing this flow.')
 
