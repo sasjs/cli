@@ -25,6 +25,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { getConstants } from '../../../constants'
+import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -35,7 +36,6 @@ describe('sasjs job execute', () => {
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
-    const context = await getAvailableContext(target)
     await saveToGlobalConfig(
       new Target({
         ...target.toJson()
@@ -340,6 +340,29 @@ describe('sasjs job execute', () => {
     const mockExit = mockProcessExit()
 
     await processJob(command)
+
+    expect(mockExit).toHaveBeenCalledWith(2)
+  })
+
+  it('should terminate the process if server could not get session status', async () => {
+    const command = new Command(
+      `job execute jobs/testJob/jobWithWarning -t ${target.name}`
+    )
+
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+
+    const mockExit = mockProcessExit()
+
+    jest
+      .spyOn(sasjs, 'startComputeJob')
+      .mockImplementation(() => Promise.reject('Could not get session state.'))
+
+    await processJob(command, sasjs)
 
     expect(mockExit).toHaveBeenCalledWith(2)
   })

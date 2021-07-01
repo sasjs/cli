@@ -12,7 +12,11 @@ import {
 } from '@sasjs/utils'
 import { processFlow } from '..'
 import { folder } from '../../folder'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  mockProcessExit
+} from '../../../utils/test'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -27,6 +31,7 @@ import {
   generateTimestamp
 } from '@sasjs/utils'
 import { getConstants } from '../../../constants'
+import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -54,7 +59,7 @@ describe('sasjs flow', () => {
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
       )
     )
-    await deleteFile(csvPath)
+    if (await fileExists(csvPath)) await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
@@ -403,6 +408,33 @@ describe('sasjs flow', () => {
 
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
+  })
+
+  it('should terminate the process if server could not get session status', async () => {
+    const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${target.name}`
+    )
+
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+
+    const mockExit = mockProcessExit()
+
+    jest
+      .spyOn(sasjs, 'fetchLogFileContent')
+      .mockImplementation(() => Promise.resolve(''))
+    jest
+      .spyOn(sasjs, 'startComputeJob')
+      .mockImplementation(() => Promise.reject('Could not get session state.'))
+
+    await processFlow(command, sasjs)
+
+    expect(mockExit).toHaveBeenCalledWith(2)
   })
 })
 

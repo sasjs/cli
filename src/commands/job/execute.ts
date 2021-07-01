@@ -124,8 +124,16 @@ export async function execute(
 
   const endTime = new Date().getTime()
 
-  if (result && !returnStatusOnly)
+  if (result && !returnStatusOnly) {
     displayError(result, 'An error has occurred when executing a job.')
+
+    if (
+      typeof result === 'string' &&
+      (result as string).includes('Could not get session state')
+    ) {
+      process.exit(2)
+    }
+  }
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)

@@ -137,7 +137,7 @@ describe('sasjs context', () => {
         .spyOn(sasjs, 'createComputeContext')
         .mockImplementation(() => Promise.resolve(mockedAdapterResponse.result))
 
-      await expect(processContext(command)).resolves.toEqual(true)
+      await expect(processContext(command, sasjs)).resolves.toEqual(true)
     })
 
     it('should return an error if trying to create compute context that already exists', async () => {
