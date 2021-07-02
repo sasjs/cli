@@ -1,7 +1,7 @@
 import {
   validateTargetName,
   getTokens,
-  createEnvFile,
+  createEnvFileForViya,
   addCredential
 } from '../addCredential'
 import { ServerType, Target, SasAuthResponse } from '@sasjs/utils'
@@ -140,7 +140,13 @@ describe('createEnvFile', () => {
       .spyOn(fileUtils, 'createFile')
       .mockImplementation(() => Promise.resolve())
 
-    await createEnvFile(targetName, clientId, secret, accessToken, refreshToken)
+    await createEnvFileForViya(
+      targetName,
+      clientId,
+      secret,
+      accessToken,
+      refreshToken
+    )
 
     expect(createSpy).toHaveBeenCalledWith(
       expectedEnvFilePath,
@@ -180,7 +186,7 @@ const setupMocks = () => {
     .spyOn(inputModule, 'getAndValidateServerUrl')
     .mockImplementation(() => Promise.resolve('http://server.com'))
   jest
-    .spyOn(inputModule, 'getCredentialsInput')
+    .spyOn(inputModule, 'getCredentialsInputForViya')
     .mockImplementation(() =>
       Promise.resolve({ client: 'client', secret: 'secret' })
     )
