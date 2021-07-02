@@ -332,7 +332,10 @@ async function updateTagSource(
 
       tag.setAttribute(
         'src',
-        assetPathMap.find((entry) => entry.source === scriptPath)!.target
+        assetPathMap.find(
+          (entry) =>
+            entry.source === scriptPath || `./${entry.source}` === scriptPath
+        )!.target
       )
     }
   }
@@ -352,7 +355,11 @@ async function updateLinkHref(
   if (!isUrl) {
     linkTag.setAttribute(
       'href',
-      assetPathMap.find((entry) => entry.source === linkSourcePath)!.target
+      assetPathMap.find(
+        (entry) =>
+          entry.source === linkSourcePath ||
+          `./${entry.source}` === linkSourcePath
+      )!.target
     )
   }
 }
@@ -372,7 +379,11 @@ async function updateFaviconHref(
     if (target.serverType === ServerType.SasViya) {
       linkTag.setAttribute(
         'href',
-        assetPathMap.find((entry) => entry.source === linkSourcePath)!.target
+        assetPathMap.find(
+          (entry) =>
+            entry.source === linkSourcePath ||
+            `./${entry.source}` === linkSourcePath
+        )!.target
       )
     } else {
       const base64string = await base64EncodeImageFile(

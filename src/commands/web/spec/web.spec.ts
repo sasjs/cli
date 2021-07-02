@@ -38,7 +38,12 @@ export const webBuiltFilesSAS9: Folder = {
       subFolders: [
         {
           folderName: 'webv',
-          files: [{ fileName: 'scriptsjs.sas' }, { fileName: 'stylecss.sas' }],
+          files: [
+            { fileName: 'favicon-ico.sas' },
+            { fileName: 'sasjs-js.sas' },
+            { fileName: 'scripts-js.sas' },
+            { fileName: 'style-css.sas' }
+          ],
           subFolders: []
         }
       ]
