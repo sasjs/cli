@@ -13,7 +13,7 @@ import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
   getCredentialsInputForViya,
-  getCredentialsInputForSas9
+  getCredentialsInputSas9
 } from './internal/input'
 import { TargetScope } from '../../types/targetScope'
 
@@ -31,12 +31,16 @@ export const addCredential = async (
   targetScope?: TargetScope
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
-
+  let scope = ''
   let { target, isLocal } = await findTargetInConfiguration(
     targetName,
     targetScope
   )
-
+  if (isLocal) {
+    scope = TargetScope.Local
+  } else {
+    scope = TargetScope.Global
+  }
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
@@ -78,15 +82,18 @@ export const addCredential = async (
       await saveToGlobalConfig(target, false, false)
     }
   } else if (target.serverType === 'SAS9') {
-    const { userName, password } = await getCredentialsInputForSas9()
+    const { userName, password } = await getCredentialsInputSas9(
+      targetName,
+      scope
+    )
 
     if (isLocal) {
-      await createEnvFileForSas9(target.name, userName, password, isLocal)
+      await createEnvFileForSas9(target.name, userName, password)
       await saveToLocalConfig(target, false, false)
     } else {
       target = new Target({
         ...target.toJson(false),
-        authConfigForSas9: { userName, password }
+        authConfigSas9: { userName, password }
       })
       await saveToGlobalConfig(target, false, false)
     }
@@ -160,10 +167,9 @@ export const createEnvFileForViya = async (
 export const createEnvFileForSas9 = async (
   targetName: string,
   userName: string,
-  password: string,
-  isLocal: boolean
+  password: string
 ): Promise<void> => {
-  const envFileContent = `SAS_USERNAME=${userName}\SAS_PASSWORD=${password}\n`
+  const envFileContent = `SAS_USERNAME=${userName}\nSAS_PASSWORD=${password}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
   await createFile(envFilePath, envFileContent)
   process.logger?.success(`Environment file saved at ${envFilePath}`)
