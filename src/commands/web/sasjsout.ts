@@ -26,6 +26,10 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.mp3'
       contenttype='audio/mpeg' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=WAV %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.wav'
+      contenttype='audio/x-wav' lrecl=2000000 recfm=n;
+  %end;
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
@@ -42,6 +46,9 @@ export const sasjsout = `
   %end;
   %else %if &type=MP3 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/mpeg));
+  %end;
+  %else %if &type=WAV %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,audio/x-wav));
   %end;
 %end;
 %if &type=HTML %then %do;
