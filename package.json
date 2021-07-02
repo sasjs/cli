@@ -83,7 +83,7 @@
     "@types/jsdom": "16.2.12",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
-    "@types/node": "15.12.5",
+    "@types/node": "15.14.0",
     "@types/shelljs": "0.8.8",
     "@types/xml": "1.0.5",
     "babel-jest": "27.0.6",
