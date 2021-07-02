@@ -1,4 +1,5 @@
-export const sasjsout = `%macro sasjsout(type,fref=sasjs);
+export const sasjsout = `
+%macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
 %if "&sysprocessmode"="SAS Compute Server" %then %do;
   %if &type=HTML %then %do;
@@ -82,7 +83,7 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
 
 /* stream byte by byte */
 /* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 %then %do;
+%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV %then %do;
   data _null_;
     length filein 8 fileout 8;
     filein = fopen("&fref",'I',4,'B');
