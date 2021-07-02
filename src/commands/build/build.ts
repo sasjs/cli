@@ -211,7 +211,7 @@ async function getFolderContent(serverType: ServerType) {
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
       path.join(buildDestinationFolder, subFolder),
-      subFolder,
+      path.join(buildDestinationFolder, subFolder),
       serverType
     )
 
@@ -234,21 +234,23 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 }
 
 async function getContentFor(
+  rootDirectory: string,
   folderPath: string,
-  folderName: string,
   serverType: ServerType,
   testPath: string | undefined = undefined
 ) {
+  const folderName = path.basename(folderPath)
   if (!testPath && folderName === 'tests') {
     testPath = ''
   }
 
+  const isRootDir = folderPath === rootDirectory
   let content = `\n%let path=${
-    folderName === 'services'
+    isRootDir
       ? ''
       : testPath !== undefined
       ? testPath
-      : folderName
+      : folderPath.replace(rootDirectory, '').substr(1)
   };\n`
 
   const contentJSON: any = {
@@ -294,8 +296,8 @@ async function getContentFor(
   await asyncForEach(subFolders, async (subFolder) => {
     const { content: childContent, contentJSON: childContentJSON } =
       await getContentFor(
+        rootDirectory,
         path.join(folderPath, subFolder),
-        subFolder,
         serverType,
         testPath !== undefined
           ? testPath === ''
@@ -367,7 +369,15 @@ async function getWebFileContent(filePath: string, type: string) {
   let lines,
     encoded = false
 
-  const typesToEncode: string[] = ['ICO', 'PNG', 'JPG', 'JPEG', 'MP3']
+  const typesToEncode: string[] = [
+    'ICO',
+    'PNG',
+    'JPG',
+    'JPEG',
+    'MP3',
+    'OGG',
+    'WAV'
+  ]
 
   if (typesToEncode.includes(type)) {
     encoded = true
