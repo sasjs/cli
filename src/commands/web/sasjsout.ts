@@ -1,4 +1,5 @@
-export const sasjsout = `%macro sasjsout(type,fref=sasjs);
+export const sasjsout = `
+%macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
 %if "&sysprocessmode"="SAS Compute Server" %then %do;
   %if &type=HTML %then %do;
@@ -25,6 +26,10 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.mp3'
       contenttype='audio/mpeg' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=WAV %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.wav'
+      contenttype='audio/x-wav' lrecl=2000000 recfm=n;
+  %end;
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
@@ -41,6 +46,9 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
   %end;
   %else %if &type=MP3 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/mpeg));
+  %end;
+  %else %if &type=WAV %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,audio/x-wav));
   %end;
 %end;
 %if &type=HTML %then %do;
@@ -82,7 +90,7 @@ export const sasjsout = `%macro sasjsout(type,fref=sasjs);
 
 /* stream byte by byte */
 /* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 %then %do;
+%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV %then %do;
   data _null_;
     length filein 8 fileout 8;
     filein = fopen("&fref",'I',4,'B');
