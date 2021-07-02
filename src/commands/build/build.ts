@@ -3,12 +3,14 @@ import { Target, ServerType } from '@sasjs/utils/types'
 import { createWebAppServices } from '../web'
 import {
   readFile,
+  base64EncodeFile,
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
   asyncForEach
 } from '@sasjs/utils'
 import { removeComments, chunk } from '../../utils/utils'
+import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
   getMacroCorePath,
@@ -56,6 +58,7 @@ async function createFinalSasFiles(target: Target) {
 }
 
 async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
+  const streamWeb = streamConfig.streamWeb ?? false
   const { buildConfig, serverType, name } = target
   const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
@@ -65,7 +68,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
-  const buildInfo = await getBuildInfo(target).catch((_) => {})
+  const buildInfo = await getBuildInfo(target, streamWeb)
 
   finalSasFileContent += `\n${buildInfo}`
 
@@ -87,7 +90,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 
   finalSasFileContent += `\n${buildTerm}`
 
-  if (streamConfig.streamWeb) {
+  if (streamWeb) {
     finalSasFileContent += getLaunchPageCode(
       target.serverType,
       streamConfig.streamServiceName
@@ -108,16 +111,29 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   process.logger?.success(`File ${finalFilePathJSON} has been created.`)
 }
 
-async function getBuildInfo(target: Target) {
+async function getBuildInfo(target: Target, streamWeb: boolean) {
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
-  const dependencyFilePaths = await getDependencyPaths(
-    buildConfig,
-    macroFolders
-  )
+
+  let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
+
+  if (target.serverType === ServerType.SasViya && streamWeb) {
+    const createFileScript = await getCreateFileScript(serverType)
+    buildConfig += `${createFileScript}\n`
+
+    const dependencyFilePathsForCreateFile = await getDependencyPaths(
+      createFileScript,
+      macroFolders
+    )
+
+    dependencyFilePaths = [
+      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
+    ]
+  }
+
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
   return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
@@ -142,12 +158,34 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   }
 }
 
-function getWebServiceScriptInvocation(serverType: ServerType, filePath = '') {
+async function getCreateFileScript(serverType: ServerType) {
+  switch (serverType) {
+    case ServerType.SasViya:
+      return await readFile(
+        `${await getMacroCorePath()}/viya/mv_createfile.sas`
+      )
+
+    default:
+      throw new Error(
+        `Invalid server type: valid option is ${ServerType.SasViya}`
+      )
+  }
+}
+
+function getWebServiceScriptInvocation(
+  serverType: ServerType,
+  filePath = '',
+  isSASFile: boolean = true,
+  encoded: boolean = false
+) {
   const loc = filePath === '' ? 'services' : 'tests'
 
   switch (serverType) {
     case ServerType.SasViya:
-      return `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+      const encodedParam = encoded ? ', intype=BASE64' : ''
+      return isSASFile
+        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
@@ -173,7 +211,7 @@ async function getFolderContent(serverType: ServerType) {
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
       path.join(buildDestinationFolder, subFolder),
-      subFolder,
+      path.join(buildDestinationFolder, subFolder),
       serverType
     )
 
@@ -196,21 +234,23 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 }
 
 async function getContentFor(
+  rootDirectory: string,
   folderPath: string,
-  folderName: string,
   serverType: ServerType,
   testPath: string | undefined = undefined
 ) {
+  const folderName = path.basename(folderPath)
   if (!testPath && folderName === 'tests') {
     testPath = ''
   }
 
+  const isRootDir = folderPath === rootDirectory
   let content = `\n%let path=${
-    folderName === 'services'
+    isRootDir
       ? ''
       : testPath !== undefined
       ? testPath
-      : folderName
+      : folderPath.replace(rootDirectory, '').substr(1)
   };\n`
 
   const contentJSON: any = {
@@ -222,21 +262,33 @@ async function getContentFor(
   const files = await listFilesInFolder(folderPath)
 
   await asyncForEach(files, async (file) => {
-    const fileContent = await readFile(path.join(folderPath, file))
-    const transformedContent = getServiceText(
-      file,
-      fileContent,
-      serverType,
-      testPath
-    )
+    const filePath = path.join(folderPath, file)
 
-    content += `\n${transformedContent}\n`
+    if (isSasFile(file)) {
+      const fileContent = await readFile(filePath)
+      const transformedContent = getServiceText(
+        file,
+        fileContent,
+        serverType,
+        testPath
+      )
+      content += `\n${transformedContent}\n`
 
-    contentJSON?.members.push({
-      name: file.replace(/.sas$/, ''),
-      type: 'service',
-      code: removeComments(fileContent)
-    })
+      contentJSON?.members.push({
+        name: file.replace(/.sas$/, ''),
+        type: 'service',
+        code: removeComments(fileContent)
+      })
+    } else {
+      const transformedContent = await getFileText(file, filePath, serverType)
+      content += `\n${transformedContent}\n`
+
+      contentJSON?.members.push({
+        name: file.replace(/.sas$/, ''),
+        type: 'file',
+        path: filePath
+      })
+    }
   })
 
   const subFolders = await listSubFoldersInFolder(folderPath)
@@ -244,8 +296,8 @@ async function getContentFor(
   await asyncForEach(subFolders, async (subFolder) => {
     const { content: childContent, contentJSON: childContentJSON } =
       await getContentFor(
+        rootDirectory,
         path.join(folderPath, subFolder),
-        subFolder,
         serverType,
         testPath !== undefined
           ? testPath === ''
@@ -288,6 +340,79 @@ ${getWebServiceScriptInvocation(
 )}
 filename sascode clear;
 `
+}
+
+async function getFileText(
+  fileName: string,
+  filePath: string,
+  serverType: ServerType
+) {
+  const fileExtension = path.extname(fileName).substring(1).toUpperCase()
+
+  const { content, encoded, maxLineLength } = await getWebFileContent(
+    filePath,
+    fileExtension
+  )
+
+  return `%let filename=${fileName};
+filename filecode temp lrecl=${maxLineLength};
+data _null_;
+file filecode;
+${content}\n
+run;
+${getWebServiceScriptInvocation(serverType, undefined, false, encoded)}
+filename filecode clear;
+`
+}
+
+async function getWebFileContent(filePath: string, type: string) {
+  let lines,
+    encoded = false
+
+  const typesToEncode: string[] = [
+    'ICO',
+    'PNG',
+    'JPG',
+    'JPEG',
+    'MP3',
+    'OGG',
+    'WAV'
+  ]
+
+  if (typesToEncode.includes(type)) {
+    encoded = true
+    lines = [await base64EncodeFile(filePath)]
+  } else {
+    lines = (await readFile(filePath))
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .filter((l) => !!l)
+  }
+
+  let parsedContent = '',
+    maxLineLength = 32767
+
+  lines.forEach((line) => {
+    const chunkedLines = chunk(line)
+    if (chunkedLines.length === 1) {
+      parsedContent += ` put '${chunkedLines[0].split("'").join("''")}';\n`
+    } else {
+      let combinedLines = ''
+      chunkedLines.forEach((chunkedLine, index) => {
+        let text = ` put '${chunkedLine.split("'").join("''")}'`
+        if (index !== chunkedLines.length - 1) {
+          text += '@;\n'
+        } else {
+          text += ';\n'
+        }
+        combinedLines += text
+      })
+      parsedContent += combinedLines
+    }
+    maxLineLength = maxLineLength < line.length ? line.length : maxLineLength
+  })
+
+  return { content: parsedContent, encoded, maxLineLength }
 }
 
 function getLines(text: string): string[] {

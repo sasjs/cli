@@ -105,10 +105,8 @@ export const addCredential = async (
 }
 
 export const validateTargetName = (targetName: string): string => {
-  if (!targetName)
-    throw new Error(
-      'Target name is required.\nPlease specify a valid target name using the `-t` or `--target` argument.'
-    )
+  // if targetName contain falsy Value just return that value
+  if (!targetName) return targetName
 
   targetName = targetName.trim()
   if (targetName.includes(' '))

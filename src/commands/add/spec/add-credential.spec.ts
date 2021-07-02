@@ -12,6 +12,7 @@ import * as fileUtils from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
+import { getConstants } from '../../../constants'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async () => {
@@ -32,7 +33,6 @@ describe('addCredential', () => {
     )
 
     await fileUtils.deleteFile(path.join('.', '.env.test-target'))
-    jest.clearAllMocks()
   })
 })
 
@@ -59,14 +59,6 @@ describe('validateTargetName', () => {
     const targetName = 'valid-target-123'
 
     expect(validateTargetName(targetName)).toEqual(targetName)
-  })
-
-  it('should throw an error if the target name is falsy', () => {
-    const targetName = ''
-
-    expect(() => validateTargetName(targetName)).toThrow(
-      'Target name is required.\nPlease specify a valid target name using the `-t` or `--target` argument.'
-    )
   })
 
   it('should throw an error if the target name includes spaces', () => {
@@ -199,15 +191,18 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'saveToLocalConfig')
     .mockImplementation(() => Promise.resolve('.'))
-  jest.spyOn(configUtils, 'findTargetInConfiguration').mockImplementation(() =>
-    Promise.resolve({
-      target: new Target({
-        name: 'test-target',
-        serverUrl: '',
-        serverType: ServerType.SasViya,
-        appLoc: '/test'
-      }),
-      isLocal: true
-    })
-  )
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(async () =>
+      Promise.resolve({
+        target: new Target({
+          name: 'test-target',
+          serverUrl: '',
+          serverType: ServerType.SasViya,
+          appLoc: '/test',
+          contextName: (await getConstants()).contextName
+        }),
+        isLocal: true
+      })
+    )
 }

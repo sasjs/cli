@@ -16,7 +16,6 @@
   "exclude": [
     "test/**/*",
     "node_modules",
-    "**/*.spec.*",
     "src/utils/test.ts",
     "src/utils/fileStructures",
     "PULL_REQUEST_TEMPLATE.md",

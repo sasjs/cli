@@ -1,8 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration } from '../../utils/config'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import { readFile, folderExists, createFile, createFolder } from '@sasjs/utils'
-import { getAccessToken } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
@@ -73,12 +72,13 @@ export async function runSasJob(command: Command) {
     serverUrl: target.serverUrl,
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
-    serverType: target.serverType
+    serverType: target.serverType,
+    useComputeApi: false
   })
 
-  let accessToken
+  let authConfig
   if (target.serverType === ServerType.SasViya)
-    accessToken = await getAccessToken(target)
+    authConfig = await getAuthConfig(target)
 
   if (!dataJson) dataJson = null
 
@@ -91,7 +91,7 @@ export async function runSasJob(command: Command) {
       () => {
         displayError(null, 'Login callback called. Request failed.')
       },
-      accessToken
+      authConfig
     )
     .then(async (res) => {
       if (res?.result) res = res.result

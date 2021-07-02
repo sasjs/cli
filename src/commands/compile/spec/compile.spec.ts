@@ -48,7 +48,6 @@ describe('sasjs compile', () => {
 
   afterEach(async () => {
     await removeTestApp(__dirname, appName)
-    jest.clearAllMocks()
   })
 
   it('should compile an uncompiled project', async () => {
@@ -123,7 +122,6 @@ describe('sasjs compile single file', () => {
 
   afterEach(async () => {
     await removeTestApp(__dirname, appName)
-    jest.clearAllMocks()
   })
 
   describe('job', () => {

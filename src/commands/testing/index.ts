@@ -13,10 +13,15 @@ import {
 } from '../../types'
 import { sasFileRegExp } from '../../utils/file'
 import { Command } from '../../utils/command'
-import { findTargetInConfiguration } from '../../utils/config'
-import { getAccessToken } from '../../utils/config'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { ServerType, uuidv4, asyncForEach, readFile } from '@sasjs/utils'
+import {
+  ServerType,
+  uuidv4,
+  asyncForEach,
+  readFile,
+  AuthConfig
+} from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
@@ -89,12 +94,14 @@ export async function runTest(command: Command) {
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    debug: true
+    debug: true,
+    contextName: target.contextName,
+    useComputeApi: false
   })
 
-  let accessToken: string, username: string, password: string
+  let authConfig: AuthConfig, username: string, password: string
   if (target.serverType === ServerType.SasViya) {
-    accessToken = await getAccessToken(target)
+    authConfig = await getAuthConfig(target)
   }
   if (target.serverType === ServerType.Sas9) {
     username = process.env.SAS_USERNAME as string
@@ -149,6 +156,12 @@ export async function runTest(command: Command) {
         : 'SASStoredProcess'
     }/?_program=${sasJobLocation}&_debug=2477`
 
+    if (target.contextName) {
+      testUrl = `${testUrl}&_contextName=${encodeURI(target.contextName)}`
+    }
+
+    const printTestUrl = () => process.logger.info(`Test URL: ${testUrl}`)
+
     await sasjs
       .request(
         sasJobLocation,
@@ -157,7 +170,7 @@ export async function runTest(command: Command) {
         () => {
           displayError(null, 'Login callback called. Request failed.')
         },
-        accessToken,
+        authConfig,
         ['log']
       )
       .then(async (res) => {
@@ -202,6 +215,8 @@ export async function runTest(command: Command) {
 
         if (!res.result?.test_results) lineBreak = false
 
+        printTestUrl()
+
         if (res.log) await saveLog(outDirectory, test, res.log, lineBreak)
 
         if (res.result?.test_results) {
@@ -240,6 +255,8 @@ export async function runTest(command: Command) {
         }
       })
       .catch(async (err) => {
+        printTestUrl()
+
         if (err && err.errorCode === 404) {
           displaySasjsRunnerError(username)
         } else {

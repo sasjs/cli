@@ -14,7 +14,6 @@ import {
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
-
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -25,6 +24,8 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
+import { getConstants } from '../../../constants'
+import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -35,11 +36,9 @@ describe('sasjs job execute', () => {
     await copyJobsAndServices(target.name)
     await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
 
-    const context = await getAvailableContext(target)
     await saveToGlobalConfig(
       new Target({
-        ...target.toJson(),
-        contextName: context.name
+        ...target.toJson()
       })
     )
 
@@ -54,10 +53,6 @@ describe('sasjs job execute', () => {
     )
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
-  })
-
-  afterEach(() => {
-    jest.clearAllMocks()
   })
 
   it('should submit a job for execution', async () => {
@@ -348,6 +343,29 @@ describe('sasjs job execute', () => {
 
     expect(mockExit).toHaveBeenCalledWith(2)
   })
+
+  it('should terminate the process if server could not get session status', async () => {
+    const command = new Command(
+      `job execute jobs/testJob/jobWithWarning -t ${target.name}`
+    )
+
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+
+    const mockExit = mockProcessExit()
+
+    jest
+      .spyOn(sasjs, 'startComputeJob')
+      .mockImplementation(() => Promise.reject('Could not get session state.'))
+
+    await processJob(command, sasjs)
+
+    expect(mockExit).toHaveBeenCalledWith(2)
+  })
 })
 
 async function getAvailableContext(target: Target) {
@@ -382,6 +400,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName: (await getConstants()).contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

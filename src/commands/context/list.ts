@@ -1,5 +1,5 @@
 import ora from 'ora'
-import { ServerType, Target } from '@sasjs/utils/types'
+import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 
@@ -7,9 +7,13 @@ import SASjs from '@sasjs/adapter/node'
  * Lists all accessible and inaccessible compute contexts.
  * @param {object} target - SAS server configuration.
  * @param {object} sasjs - configuration object of SAS adapter.
- * @param {string} accessToken - an access token for an authorized user.
+ * @param {string} authConfig - an access token, refresh token, client and secret for an authorized user.
  */
-export async function list(target: Target, sasjs: SASjs, accessToken: string) {
+export async function list(
+  target: Target,
+  sasjs: SASjs,
+  authConfig: AuthConfig
+) {
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
       `'context list' command is only supported for SAS Viya build targets.\nPlease check the target name and try again.`
@@ -25,7 +29,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
   spinner.start()
 
   const contexts = await sasjs
-    .getExecutableContexts(accessToken)
+    .getExecutableContexts(authConfig)
     .catch((err) => {
       displayError(err, 'An error has occurred when fetching contexts list.')
     })
@@ -43,7 +47,7 @@ export async function list(target: Target, sasjs: SASjs, accessToken: string) {
     const accessibleContextIds = contexts.map((context) => context.id)
 
     const allContexts = await sasjs
-      .getComputeContexts(accessToken)
+      .getComputeContexts(authConfig.access_token)
       .catch((err) => {
         displayError(err, 'An error has occurred when fetching contexts list.')
         throw err

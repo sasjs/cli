@@ -28,9 +28,10 @@ export async function compileServiceFile(
   await createFile(filePath, dependencies)
 }
 
-async function getPreCodeForServicePack(serverType: ServerType) {
+export async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
   const macroCorePath = await getMacroCorePath()
+
   switch (serverType) {
     case ServerType.SasViya:
       content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)
@@ -61,6 +62,7 @@ async function getPreCodeForServicePack(serverType: ServerType) {
         `Invalid server type: valid options are 'SASVIYA' and 'SAS9'.`
       )
   }
+
   content +=
     '/* provide additional debug info */\n' +
     '%global _program;\n' +
@@ -68,5 +70,6 @@ async function getPreCodeForServicePack(serverType: ServerType) {
     '%put user=%mf_getuser();\n' +
     '%put pgm=&_program;\n' +
     '%put timestamp=%sysfunc(datetime(),datetime19.);\n'
+
   return content
 }

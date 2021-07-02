@@ -3,13 +3,13 @@ import { edit } from './edit'
 import { remove } from './remove'
 import { list } from './list'
 import { exportContext } from './export'
-import { fileExists, readFile } from '@sasjs/utils'
-import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
+import { AuthConfig, fileExists, readFile } from '@sasjs/utils'
+import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import { displayError } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import SASjs from '@sasjs/adapter/node'
 
-export async function processContext(command: Command) {
+export async function processContext(command: Command, sasjs?: SASjs) {
   const subCommand = command.getSubCommand()
   const subCommands = {
     create: 'create',
@@ -67,15 +67,17 @@ export async function processContext(command: Command) {
     return contextName
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
+  if (!sasjs) {
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+  }
 
-  const accessToken = await getAccessToken(target).catch((err) => {
-    displayError(err, 'Error obtaining access token.')
+  const authConfig = await getAuthConfig(target).catch((err) => {
+    displayError(err, 'Error obtaining auth config.')
   })
 
   let config
@@ -90,7 +92,11 @@ export async function processContext(command: Command) {
 
       parsedConfig = parseConfig(config)
 
-      output = await create(parsedConfig, sasjs, accessToken as string)
+      output = await create(
+        parsedConfig,
+        sasjs,
+        (authConfig as AuthConfig).access_token as string
+      )
 
       break
     case subCommands.edit: {
@@ -104,7 +110,7 @@ export async function processContext(command: Command) {
         contextName,
         parsedConfig,
         sasjs,
-        accessToken as string
+        (authConfig as AuthConfig).access_token
       )
 
       break
@@ -113,20 +119,28 @@ export async function processContext(command: Command) {
       const contextName = getContextName()
 
       if (contextName) {
-        output = remove(contextName, sasjs, accessToken as string)
+        output = remove(
+          contextName,
+          sasjs,
+          (authConfig as AuthConfig).access_token
+        )
       }
 
       break
     }
     case subCommands.list:
-      output = list(target, sasjs, accessToken as string)
+      output = list(target, sasjs, authConfig as AuthConfig)
 
       break
     case subCommands.export: {
       const contextName = getContextName()
 
       if (contextName) {
-        output = await exportContext(contextName, sasjs, accessToken as string)
+        output = await exportContext(
+          contextName,
+          sasjs,
+          (authConfig as AuthConfig).access_token
+        )
       }
 
       break

@@ -12,8 +12,10 @@ import {
   readFile,
   createFile,
   createFolder,
-  folderExists
+  folderExists,
+  AuthConfig
 } from '@sasjs/utils'
+import { getConstants } from '../../constants'
 
 /**
  * Triggers existing job for execution.
@@ -31,7 +33,7 @@ import {
  */
 export async function execute(
   sasjs: SASjs,
-  accessToken: string,
+  authConfig: AuthConfig,
   jobPath: string,
   target: Target,
   waitForJob: boolean,
@@ -93,7 +95,7 @@ export async function execute(
       jobPath,
       null,
       { contextName },
-      accessToken,
+      authConfig,
       waitForJob || logFile !== undefined ? true : false,
       pollOptions,
       true,
@@ -122,8 +124,16 @@ export async function execute(
 
   const endTime = new Date().getTime()
 
-  if (result && !returnStatusOnly)
+  if (result && !returnStatusOnly) {
     displayError(result, 'An error has occurred when executing a job.')
+
+    if (
+      typeof result === 'string' &&
+      (result as string).includes('Could not get session state')
+    ) {
+      process.exit(2)
+    }
+  }
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
@@ -185,7 +195,7 @@ export async function execute(
 
             const logData = await fetchLogFileContent(
               sasjs,
-              accessToken,
+              authConfig.access_token,
               logUrl,
               logCount
             )
@@ -233,14 +243,13 @@ export async function execute(
 }
 
 // REFACTOR: should be a utility
-export function getContextName(
+export async function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
 ) {
-  const defaultContextName = 'SAS Job Execution compute context'
-  if (target && target.contextName) {
-    return target.contextName
-  }
+  const defaultContextName = (await getConstants()).contextName
+
+  if (target && target.contextName) return target.contextName
 
   if (!returnStatusOnly) {
     process.logger?.warn(

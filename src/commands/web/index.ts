@@ -1,6 +1,7 @@
 import { chunk } from '../../utils/utils'
 import {
   readFile,
+  copy,
   base64EncodeFile,
   base64EncodeImageFile,
   fileExists,
@@ -11,15 +12,18 @@ import {
   listFilesInFolder,
   ServerType,
   Target,
-  asyncForEach
+  asyncForEach,
+  listSubFoldersInFolder
 } from '@sasjs/utils'
 import { getLocalConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
+import { adjustIframeScript } from './adjustIframeScript'
 import btoa from 'btoa'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
+import uniqBy from 'lodash.uniqby'
 
 const permittedServerTypes = {
   SAS9: 'SAS9',
@@ -124,20 +128,34 @@ export async function createWebAppServices(target: Target) {
         webSourcePath,
         destinationPath,
         target,
-        streamConfig
+        streamConfig,
+        assetPathMap
       )
     })
 
     const faviconTags = getFaviconTags(indexHtml)
-
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateFaviconHref(faviconTag, webSourcePath)
+      await updateFaviconHref(
+        faviconTag,
+        webSourcePath,
+        destinationPath,
+        target,
+        streamConfig,
+        assetPathMap
+      )
     })
 
-    await createClickMeService(
-      indexHtml.serialize(),
-      streamConfig.streamServiceName as string
-    )
+    if (target.serverType === ServerType.SasViya) {
+      indexHtml.window.document.body.innerHTML += adjustIframeScript
+      await createClickMeFile(
+        indexHtml.serialize(),
+        streamConfig.streamServiceName as string
+      )
+    } else
+      await createClickMeService(
+        indexHtml.serialize(),
+        streamConfig.streamServiceName as string
+      )
   }
 }
 
@@ -145,51 +163,107 @@ async function createAssetServices(
   target: Target,
   destinationPath: string,
   streamConfig: StreamConfig
-) {
+): Promise<{ source: string; target: string }[]> {
   const { webSourcePath, streamWebFolder, assetPaths } = streamConfig
   const assetPathMap: { source: string; target: string }[] = []
-  await asyncForEach(assetPaths, async (assetPath) => {
-    const fullAssetPath = path.isAbsolute(assetPath)
-      ? assetPath
-      : path.isAbsolute(webSourcePath)
-      ? path.join(webSourcePath, assetPath)
-      : path.join(process.projectDir, webSourcePath, assetPath)
-    const assetPathExists = await folderExists(fullAssetPath)
 
-    if (!assetPathExists) {
-      process.logger?.warn(
-        `Assets path '${fullAssetPath}' present in 'streamConfig' doesn't exist.`
-      )
-      return
-    }
-    const filePaths = await listFilesInFolder(fullAssetPath)
-    await asyncForEach(filePaths, async (filePath) => {
-      const fullFileName = path.basename(filePath)
-      const fileName = fullFileName.substring(0, fullFileName.lastIndexOf('.'))
-      const fileExtension = path
-        .basename(filePath)
-        .substring(fullFileName.lastIndexOf('.') + 1, fullFileName.length)
-      if (fileName && fileExtension) {
-        const base64string = await base64EncodeFile(
-          path.join(fullAssetPath, filePath)
+  await asyncForEach(
+    [path.join(process.projectDir, webSourcePath), ...(assetPaths ?? [])],
+    async (assetPath) => {
+      const fullAssetPath = path.isAbsolute(assetPath)
+        ? assetPath
+        : path.isAbsolute(webSourcePath)
+        ? path.join(webSourcePath, assetPath)
+        : path.join(process.projectDir, webSourcePath, assetPath)
+      const assetPathExists = await folderExists(fullAssetPath)
+
+      if (!assetPathExists) {
+        process.logger?.warn(
+          `Assets path '${fullAssetPath}' present in 'streamConfig' doesn't exist.`
         )
+        return
+      }
+      const assetPathMapNested = await createAssetsServicesNested(
+        target,
+        streamWebFolder,
+        fullAssetPath,
+        destinationPath
+      )
+      assetPathMap.push(...assetPathMapNested)
+    }
+  )
+  return uniqBy(assetPathMap, 'source')
+}
+
+async function createAssetsServicesNested(
+  target: Target,
+  streamWebFolder: string,
+  fullAssetPath: string,
+  destinationPath: string
+) {
+  const assetPathMap: { source: string; target: string }[] = []
+  const filePaths = await listFilesInFolder(fullAssetPath)
+  await asyncForEach(filePaths, async (filePath) => {
+    const fullFileName = path.basename(filePath)
+    const fileName = fullFileName.substring(0, fullFileName.lastIndexOf('.'))
+    const fileExtension = path
+      .basename(filePath)
+      .substring(fullFileName.lastIndexOf('.') + 1, fullFileName.length)
+    if (fileName && fileExtension) {
+      const sourcePath = path.join(fullAssetPath, filePath)
+      if (target.serverType === ServerType.SasViya) {
+        await copy(sourcePath, path.join(destinationPath, fullFileName))
+        const assetServiceUrl = getAssetPath(
+          target.appLoc,
+          target.serverType,
+          streamWebFolder,
+          fullFileName
+        )
+        assetPathMap.push({
+          source: fullFileName,
+          target: assetServiceUrl
+        })
+      } else {
+        const base64string = await base64EncodeFile(sourcePath)
         const fileName = await generateAssetService(
           base64string,
           filePath,
           destinationPath,
           target.serverType
         )
-        const assetServiceUrl = getScriptPath(
+        const assetServiceUrl = getAssetPath(
           target.appLoc,
           target.serverType,
           streamWebFolder,
           fileName.replace('.sas', '')
         )
         assetPathMap.push({
-          source: path.join(fullAssetPath, filePath),
+          source: fullFileName,
           target: assetServiceUrl
         })
       }
+    }
+  })
+
+  const folderNames = await listSubFoldersInFolder(fullAssetPath)
+  await asyncForEach(folderNames, async (folderName) => {
+    const destinationPathNested = path.join(destinationPath, folderName)
+    const fullAssetPathNested = path.join(fullAssetPath, folderName)
+
+    await createFolder(destinationPathNested)
+
+    const assetFolderMap: { source: string; target: string }[] =
+      await createAssetsServicesNested(
+        target,
+        `${streamWebFolder}/${folderName}`,
+        fullAssetPathNested,
+        destinationPathNested
+      )
+    assetFolderMap.forEach((entry) => {
+      assetPathMap.push({
+        source: `${folderName}/${entry.source}`,
+        target: entry.target
+      })
     })
   })
   return assetPathMap
@@ -230,7 +304,6 @@ async function updateTagSource(
     scriptPath && (scriptPath.startsWith('http') || scriptPath.startsWith('//'))
 
   if (scriptPath) {
-    const fileName = `${path.basename(scriptPath).replace(/\./g, '')}`
     if (!isUrl) {
       let content = await readFile(
         path.join(process.projectDir, webAppSourcePath, scriptPath)
@@ -243,25 +316,26 @@ async function updateTagSource(
         )
       })
 
-      const serviceContent = await getWebServiceContent(
-        content,
-        'JS',
-        target.serverType
-      )
-
-      await createFile(
-        path.join(destinationPath, `${fileName}.sas`),
-        serviceContent
-      )
+      if (target.serverType === ServerType.SasViya) {
+        await createFile(path.join(destinationPath, scriptPath), content)
+      } else {
+        const serviceContent = await getWebServiceContent(
+          content,
+          'JS',
+          target.serverType
+        )
+        await createFile(
+          path.join(destinationPath, `${scriptPath.replace('.', '-')}.sas`),
+          serviceContent
+        )
+      }
 
       tag.setAttribute(
         'src',
-        getScriptPath(
-          target.appLoc,
-          target.serverType,
-          streamConfig.streamWebFolder!,
-          fileName
-        )
+        assetPathMap.find(
+          (entry) =>
+            entry.source === scriptPath || `./${entry.source}` === scriptPath
+        )!.target
       )
     }
   }
@@ -272,74 +346,55 @@ async function updateLinkHref(
   webAppSourcePath: string,
   destinationPath: string,
   target: Target,
-  streamConfig: StreamConfig
+  streamConfig: StreamConfig,
+  assetPathMap: { source: string; target: string }[]
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
-  const fileName = `${path.basename(linkSourcePath).replace(/\./g, '')}`
   if (!isUrl) {
-    const content = await readFile(
-      path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+    linkTag.setAttribute(
+      'href',
+      assetPathMap.find(
+        (entry) =>
+          entry.source === linkSourcePath ||
+          `./${entry.source}` === linkSourcePath
+      )!.target
     )
-
-    const serviceContent = await getWebServiceContent(
-      content,
-      'CSS',
-      target.serverType
-    )
-
-    await createFile(
-      path.join(destinationPath, `${fileName}.sas`),
-      serviceContent
-    )
-    const linkHref = getLinkHref(
-      target.appLoc,
-      target.serverType,
-      streamConfig.streamWebFolder!,
-      fileName
-    )
-    linkTag.setAttribute('href', linkHref)
   }
 }
 
 async function updateFaviconHref(
   linkTag: HTMLLinkElement,
-  webAppSourcePath: string
+  webAppSourcePath: string,
+  destinationPath: string,
+  target: Target,
+  streamConfig: StreamConfig,
+  assetPathMap: { source: string; target: string }[]
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
-    const base64string = await base64EncodeImageFile(
-      path.isAbsolute(webAppSourcePath)
-        ? path.join(webAppSourcePath, linkSourcePath)
-        : path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-    )
-    linkTag.setAttribute('href', base64string)
+    if (target.serverType === ServerType.SasViya) {
+      linkTag.setAttribute(
+        'href',
+        assetPathMap.find(
+          (entry) =>
+            entry.source === linkSourcePath ||
+            `./${entry.source}` === linkSourcePath
+        )!.target
+      )
+    } else {
+      const base64string = await base64EncodeImageFile(
+        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
+      )
+      linkTag.setAttribute('href', base64string)
+    }
   }
 }
 
-function getScriptPath(
-  appLoc: string,
-  serverType: ServerType,
-  streamWebFolder: string,
-  fileName: string
-) {
-  if (!(serverType === ServerType.SasViya || serverType === ServerType.Sas9)) {
-    throw new Error(
-      'Unsupported server type. Supported types are SAS9 and SASVIYA'
-    )
-  }
-  const storedProcessPath =
-    // the appLoc is inserted dynamically by SAS
-    serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
-  return `${storedProcessPath}/${fileName}`
-}
-
-function getLinkHref(
+function getAssetPath(
   appLoc: string,
   serverType: ServerType,
   streamWebFolder: string,
@@ -353,8 +408,8 @@ function getLinkHref(
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_PROGRAM=/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=/services/${streamWebFolder}`
+      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
@@ -491,5 +546,13 @@ async function createClickMeService(
   await createFile(
     path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent
+  )
+}
+
+async function createClickMeFile(indexHtmlContent: string, fileName: string) {
+  const { buildDestinationServicesFolder } = await getConstants()
+  await createFile(
+    path.join(buildDestinationServicesFolder, `${fileName}.html`),
+    indexHtmlContent
   )
 }

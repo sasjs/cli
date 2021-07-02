@@ -2,7 +2,7 @@ import path from 'path'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { isJsonFile, isCsvFile, saveToDefaultLocation } from '../../utils/file'
 import { parseLogLines, millisecondsToDdHhMmSs } from '../../utils/utils'
-import { getAccessToken } from '../../utils/config'
+import { getAuthConfig } from '../../utils/config'
 import {
   Target,
   generateTimestamp,
@@ -24,7 +24,8 @@ export async function execute(
   logFolder: string,
   csvFile: string,
   target: Target,
-  prefixAppLoc: Function
+  prefixAppLoc: Function,
+  sasjs: SASjs
 ) {
   return new Promise(async (resolve, reject) => {
     const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
@@ -37,6 +38,31 @@ export async function execute(
     let defaultCsvLoc: FilePath
 
     const logger = process.logger
+
+    const isSessionStateError = (err: string) =>
+      err.includes('Could not get session state')
+
+    const printError = (
+      job: { location: string },
+      flowName: string,
+      err: { name?: string; message?: string } | string
+    ) => {
+      logger?.error(
+        `An error has occurred when executing '${flowName}' flow's job located at: '${
+          job.location
+        }'. ${
+          typeof err === 'object'
+            ? err?.name === 'NotFoundError'
+              ? 'Job was not found.'
+              : err?.message || ''
+            : '\n' + err
+        }`
+      )
+
+      if (typeof err === 'string' && isSessionStateError(err)) {
+        process.exit(2)
+      }
+    }
 
     if (!source || !isJsonFile(source)) {
       return reject(
@@ -68,13 +94,7 @@ export async function execute(
 
     if (!flows) return reject(examples.source)
 
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
-    const accessToken = await getAccessToken(target).catch((err) => {
+    const authConfig = await getAuthConfig(target).catch((err) => {
       displayError(err, 'Error while getting access token.')
       throw err
     })
@@ -139,13 +159,19 @@ export async function execute(
               {
                 contextName: contextName
               },
-              accessToken,
+              authConfig,
               true,
               pollOptions,
               true,
               job.macroVars
             )
             .catch(async (err: any) => {
+              printError(job, flowName, err)
+
+              if (typeof err === 'string' && isSessionStateError(err)) {
+                return reject('Flow has been terminated.')
+              }
+
               let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 flowName,
@@ -169,16 +195,6 @@ export async function execute(
               )
 
               job.status = 'failure'
-
-              logger?.error(
-                `An error has occurred when executing '${flowName}' flow's job located at: '${
-                  job.location
-                }'.${
-                  err?.name === 'NotFoundError'
-                    ? ' Job was not found.'
-                    : ' ' + err?.message || ''
-                }`
-              )
 
               if (logName) {
                 logger?.info(
@@ -352,7 +368,7 @@ export async function execute(
 
           const logJson = await fetchLogFileContent(
             sasjs,
-            accessToken,
+            authConfig.access_token,
             logUrl,
             lineCount
           ).catch((err) => Promise.reject(err))
@@ -511,7 +527,7 @@ export async function execute(
               {
                 contextName: contextName
               },
-              accessToken,
+              authConfig,
               true,
               pollOptions,
               true
@@ -619,6 +635,12 @@ export async function execute(
               }
             })
             .catch(async (err: any) => {
+              printError(job, flowName, err)
+
+              if (typeof err === 'string' && isSessionStateError(err)) {
+                return reject('Flow has been terminated.')
+              }
+
               let logName = await saveLog(
                 err.job ? (err.job.links ? err.job.links : []) : [],
                 successor,
@@ -642,16 +664,6 @@ export async function execute(
               )
 
               job.status = 'failure'
-
-              logger?.error(
-                `An error has occurred when executing '${flowName}' flow's job located at: '${
-                  job.location
-                }'.${
-                  err?.name === 'NotFoundError'
-                    ? ' Job was not found.'
-                    : ' ' + err?.message || ''
-                }`
-              )
 
               if (logName) {
                 logger?.info(

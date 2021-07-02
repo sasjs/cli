@@ -12,7 +12,11 @@ import {
 } from '@sasjs/utils'
 import { processFlow } from '..'
 import { folder } from '../../folder'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  mockProcessExit
+} from '../../../utils/test'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
@@ -26,6 +30,8 @@ import {
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
+import { getConstants } from '../../../constants'
+import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -53,7 +59,7 @@ describe('sasjs flow', () => {
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
       )
     )
-    await deleteFile(csvPath)
+    if (await fileExists(csvPath)) await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
@@ -403,6 +409,33 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
   })
+
+  it('should terminate the process if server could not get session status', async () => {
+    const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
+    const command = new Command(
+      `flow execute -s ${sourcePath} -t ${target.name}`
+    )
+
+    const sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+
+    const mockExit = mockProcessExit()
+
+    jest
+      .spyOn(sasjs, 'fetchLogFileContent')
+      .mockImplementation(() => Promise.resolve(''))
+    jest
+      .spyOn(sasjs, 'startComputeJob')
+      .mockImplementation(() => Promise.reject('Could not get session state.'))
+
+    await processFlow(command, sasjs)
+
+    expect(mockExit).toHaveBeenCalledWith(2)
+  })
 })
 
 const createGlobalTarget = async (serverType = ServerType.SasViya) => {
@@ -416,6 +449,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName: (await getConstants()).contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',
