@@ -88,7 +88,9 @@ describe('addTarget', () => {
     jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
       Promise.resolve({
         serverName: 'testServer',
-        repositoryName: 'testRepo'
+        repositoryName: 'testRepo',
+        userName: 'tstusr',
+        password: 'Some_Random_Password'
       })
     )
 
@@ -183,7 +185,9 @@ describe('addTarget', () => {
     jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
       Promise.resolve({
         serverName: 'testServer',
-        repositoryName: 'testRepo'
+        repositoryName: 'testRepo',
+        userName: 'tstusr',
+        password: 'Some_Random_Password'
       })
     )
 
