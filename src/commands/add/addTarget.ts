@@ -11,7 +11,7 @@ import {
   getAndValidateSas9Fields,
   getIsDefault
 } from './internal/input'
-import { addCredential } from './addCredential'
+import { addCredential, createEnvFileForSas9 } from './addCredential'
 
 /**
  * Creates new target/ updates current target(if found) for either local config or global config file.
@@ -43,11 +43,20 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
   if (serverType === ServerType.Sas9) {
-    const { serverName, repositoryName } = await getAndValidateSas9Fields()
+    const { serverName, repositoryName, userName, password } =
+      await getAndValidateSas9Fields(name, scope)
     targetJson = {
       ...targetJson,
       serverName,
       repositoryName
+    }
+    if (scope === TargetScope.Local) {
+      createEnvFileForSas9(name, userName, password)
+    } else {
+      targetJson = {
+        ...targetJson,
+        authConfigSas9: { userName, password }
+      }
     }
   } else {
     const { contextName } = await getAndValidateSasViyaFields(
