@@ -1,6 +1,5 @@
 import path from 'path'
 import { Target, ServerType } from '@sasjs/utils/types'
-import { createWebAppServices } from '../web'
 import {
   readFile,
   base64EncodeFile,
@@ -39,21 +38,7 @@ async function createFinalSasFiles(target: Target) {
     ...localConfig?.streamConfig,
     ...target.streamConfig
   } as StreamConfig
-  const streamWeb = streamConfig.streamWeb ?? false
 
-  if (streamWeb) {
-    process.logger?.info(
-      'Building web app services since `streamWeb` is enabled.'
-    )
-    await createWebAppServices(target)
-      .then(() => process.logger?.success(`Web app services have been built.`))
-      .catch((err) => {
-        process.logger?.error(
-          'An error has occurred when building web app services.'
-        )
-        throw err
-      })
-  }
   await createFinalSasFile(target, streamConfig)
 }
 

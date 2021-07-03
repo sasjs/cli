@@ -79,7 +79,9 @@ export async function createWebAppServices(target: Target) {
     )
   }
 
-  process.logger?.info(`Building web app services for target ${target.name}...`)
+  process.logger?.info(
+    `Compiling web app services for target ${target.name}...`
+  )
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(

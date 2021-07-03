@@ -1,5 +1,6 @@
 import path from 'path'
 import {
+  getLocalOrGlobalConfig,
   getProgramFolders,
   getMacroFolders,
   getTestSetUp,
@@ -16,8 +17,9 @@ import {
   asyncForEach,
   listFilesAndSubFoldersInFolder
 } from '@sasjs/utils'
+import { createWebAppServices } from '../web'
 import { isSasFile } from '../../utils/file'
-import { Target } from '@sasjs/utils/types'
+import { Target, StreamConfig } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
@@ -43,6 +45,7 @@ export async function compile(target: Target, forceCompile = false) {
   if (result.compiled && !forceCompile) {
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
+    await compileWeb(target)
     return
   }
 
@@ -87,6 +90,8 @@ export async function compile(target: Target, forceCompile = false) {
   await compileTestFlow(target).catch((err) =>
     process.logger?.error('Test flow compilation has failed.')
   )
+
+  await compileWeb(target)
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
@@ -236,4 +241,30 @@ const compileJobFolder = async (
       }
     })
   })
+}
+
+async function compileWeb(target: Target) {
+  const { configuration } = await getLocalOrGlobalConfig()
+
+  const streamConfig = {
+    ...configuration?.streamConfig,
+    ...target.streamConfig
+  } as StreamConfig
+  const streamWeb = streamConfig.streamWeb ?? false
+
+  if (streamWeb) {
+    process.logger?.info(
+      'Compiling web app services since `streamWeb` is enabled.'
+    )
+    await createWebAppServices(target)
+      .then(() =>
+        process.logger?.success(`Web app services have been compiled.`)
+      )
+      .catch((err) => {
+        process.logger?.error(
+          'An error has occurred when compiling web app services.'
+        )
+        throw err
+      })
+  }
 }
