@@ -1,7 +1,7 @@
 import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
-import { getAuthConfig } from '../../utils/config'
+import { getLocalConfig, getAuthConfig } from '../../utils/config'
 import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
   readFile,
@@ -9,6 +9,7 @@ import {
   createFile,
   ServerType,
   Target,
+  StreamConfig,
   asyncForEach,
   AuthConfig
 } from '@sasjs/utils'
@@ -60,16 +61,31 @@ export async function deploy(target: Target, isLocal: boolean) {
       const deployScriptFile = await readFile(deployScriptPath)
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
+
+      const localConfig = await getLocalConfig()
+
+      const streamConfig = {
+        ...localConfig?.streamConfig,
+        ...target.streamConfig
+      } as StreamConfig
+
       if (target.serverType === ServerType.SasViya) {
         await deployToSasViya(
           deployScript,
           target,
           isLocal,
           linesToExecute,
-          logFilePath
+          logFilePath,
+          streamConfig
         )
       } else {
-        await deployToSas9(deployScript, target, linesToExecute, logFilePath)
+        await deployToSas9(
+          deployScript,
+          target,
+          linesToExecute,
+          logFilePath,
+          streamConfig
+        )
       }
     } else if (isShellScript(deployScript)) {
       process.logger?.info(`Executing shell script ${deployScript} ...`)
@@ -161,7 +177,8 @@ async function deployToSasViya(
   target: Target,
   isLocal: boolean,
   linesToExecute: string[],
-  logFilePath: string | null
+  logFilePath: string | null,
+  streamConfig?: StreamConfig
 ) {
   process.logger?.info(
     `Sending ${path.basename(deployScript)} to SAS server for execution.`
@@ -214,8 +231,8 @@ async function deployToSasViya(
       )}`
     )
 
-    if (!!target.streamConfig?.streamWeb) {
-      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${target.appLoc}/services/${target.streamConfig.streamServiceName}.html&_debug=2`
+    if (streamConfig?.streamWeb) {
+      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${target.appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
       process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
     }
   } else {
@@ -227,7 +244,8 @@ async function deployToSas9(
   deployScript: string,
   target: Target,
   linesToExecute: string[],
-  logFilePath: string | null
+  logFilePath: string | null,
+  streamConfig?: StreamConfig
 ) {
   const username = process.env.SAS_USERNAME
   const password = process.env.SAS_PASSWORD
@@ -252,7 +270,9 @@ async function deployToSas9(
       }
     })
 
-  if (logFilePath) {
+  if (!executionResult) {
+    process.logger?.error('Error getting execution log')
+  } else if (logFilePath) {
     await createFile(
       path.join(
         logFilePath,
@@ -266,8 +286,8 @@ async function deployToSas9(
         `${path.basename(deployScript).replace('.sas', '')}.log`
       )}`
     )
-    if (!!target.streamConfig?.streamWeb) {
-      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${target.appLoc}/services/${target.streamConfig.streamServiceName}`
+    if (streamConfig?.streamWeb) {
+      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${target.appLoc}/services/${streamConfig.streamServiceName}`
       process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
     }
   } else {

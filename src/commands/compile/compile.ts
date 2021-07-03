@@ -45,7 +45,6 @@ export async function compile(target: Target, forceCompile = false) {
   if (result.compiled && !forceCompile) {
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
-    await compileWeb(target)
     return
   }
 
