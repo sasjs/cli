@@ -20,7 +20,8 @@ import {
   uuidv4,
   asyncForEach,
   readFile,
-  AuthConfig
+  AuthConfig,
+  decodeFromBase64
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
@@ -105,7 +106,7 @@ export async function runTest(command: Command) {
   }
   if (target.serverType === ServerType.Sas9) {
     username = process.env.SAS_USERNAME as string
-    password = process.env.SAS_PASSWORD as string
+    password = decodeFromBase64(process.env.SAS_PASSWORD as string)
 
     if (!username || !password) {
       throw new Error(

@@ -1,7 +1,13 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
-import { readFile, folderExists, createFile, createFolder } from '@sasjs/utils'
+import {
+  readFile,
+  folderExists,
+  createFile,
+  createFolder,
+  decodeFromBase64
+} from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
@@ -59,7 +65,7 @@ export async function runSasJob(command: Command) {
 
   if (target.serverType === ServerType.Sas9) {
     configJson.username = process.env.SAS_USERNAME
-    configJson.password = process.env.SAS_PASSWORD
+    configJson.password = decodeFromBase64(process.env.SAS_PASSWORD as string)
     if (!configJson.username || !configJson.password) {
       throw new Error(
         'A valid username and password are required for requests to SAS9 servers.' +
