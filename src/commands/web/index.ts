@@ -224,9 +224,8 @@ async function createAssetsServicesNested(
           target: assetServiceUrl
         })
       } else {
-        const base64string = await base64EncodeFile(sourcePath)
         const fileName = await generateAssetService(
-          base64string,
+          sourcePath,
           filePath,
           destinationPath,
           target.serverType
@@ -270,15 +269,21 @@ async function createAssetsServicesNested(
 }
 
 async function generateAssetService(
-  content: string,
+  sourcePath: string,
   filePath: string,
   destinationPath: string,
   serverType: ServerType
 ) {
+  const nonBinaryFileTypes = ['html', 'CSS', 'JS']
+
   const fileType = path.extname(filePath).replace('.', '').toUpperCase()
   const fileName = path.basename(filePath).replace('.', '-')
-  const serviceContent = await getWebServiceContent(
-    content,
+  const base64string = nonBinaryFileTypes.includes(fileType)
+    ? btoa(await readFile(sourcePath))
+    : await base64EncodeFile(sourcePath)
+
+  const serviceContent = await getWebServiceContentSAS9(
+    base64string,
     fileType,
     serverType
   )
@@ -319,8 +324,8 @@ async function updateTagSource(
       if (target.serverType === ServerType.SasViya) {
         await createFile(path.join(destinationPath, scriptPath), content)
       } else {
-        const serviceContent = await getWebServiceContent(
-          content,
+        const serviceContent = await getWebServiceContentSAS9(
+          btoa(content),
           'JS',
           target.serverType
         )
@@ -454,26 +459,17 @@ async function createTargetDestinationFolder(destinationPath: string) {
   await createFolder(destinationPath)
 }
 
-async function getWebServiceContent(
-  content: string,
+async function getWebServiceContentSAS9(
+  contentBase64: string,
   type = 'JS',
   serverType: ServerType
 ) {
-  let lines
+  let lines = [contentBase64]
 
   // Encode to base64 *.js and *.css files if target server type is SAS 9.
   const typesToEncode: { [key: string]: string } = {
     JS: 'JS64',
     CSS: 'CSS64'
-  }
-
-  if (serverType === ServerType.Sas9 && typesToEncode.hasOwnProperty(type)) {
-    lines = [btoa(content)]
-  } else {
-    lines = content
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .filter((l) => !!l)
   }
 
   let serviceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;
