@@ -315,7 +315,7 @@ export const getCredentialsInputSas9 = async (
       'This password type can be easily decrypted.  Please consider {sas003} or above.'
     )
   }
-  password = '{sasjs_encoded}' + encodeToBase64(password)
+  password = encodeToBase64(password)
   return { userName, password }
 }
 
