@@ -252,20 +252,13 @@ async function deployToSas9(
       }
     })
 
-  let parsedLog
-  try {
-    parsedLog = JSON.parse(executionResult || '{}').payload.log
-  } catch (e) {
-    process.logger?.error('Error parsing execution log', e)
-    parsedLog = executionResult
-  }
   if (logFilePath) {
     await createFile(
       path.join(
         logFilePath,
         `${path.basename(deployScript).replace('.sas', '')}.log`
       ),
-      parsedLog
+      executionResult ?? ''
     )
     process.logger?.success(
       `Deployment completed! Log is available at ${path.join(
