@@ -284,7 +284,9 @@ export const getCredentialsInputSas9 = async (
       path: path.join(process.projectDir, `.env.${targetName}`)
     })
     if (result.error) {
-      process.logger.info(`A .env.${targetName} file does not exist. It will be created.`)
+      process.logger.info(
+        `A .env.${targetName} file does not exist. It will be created.`
+      )
     } else {
       name = process.env.SAS_USERNAME as string
     }
