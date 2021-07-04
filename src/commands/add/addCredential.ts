@@ -10,12 +10,17 @@ import {
   saveToLocalConfig
 } from '../../utils/config'
 import { createFile } from '@sasjs/utils'
-import { getAndValidateServerUrl, getCredentialsInput } from './internal/input'
+import {
+  getAndValidateServerUrl,
+  getCredentialsInputForViya,
+  getCredentialsInputSas9
+} from './internal/input'
 import { TargetScope } from '../../types/targetScope'
 
 /**
  * Creates a .env file for the specified target.
- * The file will contain the client ID, secret, access token and refresh token.
+ * The file will contain the client ID, secret, access token and refresh token if the server type of target is viya.
+ * The file will contain the username and password if the server type of target is sas9
  * Its name will be of the form `.env.{targetName}`
  * @param {string} targetName- the name of the target to create the env file for.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
@@ -26,12 +31,16 @@ export const addCredential = async (
   targetScope?: TargetScope
 ): Promise<void> => {
   targetName = validateTargetName(targetName)
-
+  let scope = ''
   let { target, isLocal } = await findTargetInConfiguration(
     targetName,
     targetScope
   )
-
+  if (isLocal) {
+    scope = TargetScope.Local
+  } else {
+    scope = TargetScope.Global
+  }
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
@@ -46,30 +55,52 @@ export const addCredential = async (
     }
   }
 
-  const { client, secret } = await getCredentialsInput(target.name)
+  if (target.serverType === 'SASVIYA') {
+    const { client, secret } = await getCredentialsInputForViya(target.name)
 
-  const { access_token, refresh_token } = await getTokens(
-    target,
-    client,
-    secret,
-    insecure
-  )
-
-  if (isLocal) {
-    await createEnvFile(
-      target.name,
+    const { access_token, refresh_token } = await getTokens(
+      target,
       client,
       secret,
-      access_token,
-      refresh_token
+      insecure
     )
-    await saveToLocalConfig(target, false, false)
+
+    if (isLocal) {
+      await createEnvFileForViya(
+        target.name,
+        client,
+        secret,
+        access_token,
+        refresh_token
+      )
+      await saveToLocalConfig(target, false, false)
+    } else {
+      target = new Target({
+        ...target.toJson(false),
+        authConfig: { client, secret, access_token, refresh_token }
+      })
+      await saveToGlobalConfig(target, false, false)
+    }
+  } else if (target.serverType === 'SAS9') {
+    const { userName, password } = await getCredentialsInputSas9(
+      targetName,
+      scope
+    )
+
+    if (isLocal) {
+      await createEnvFileForSas9(target.name, userName, password)
+      await saveToLocalConfig(target, false, false)
+    } else {
+      target = new Target({
+        ...target.toJson(false),
+        authConfigSas9: { userName, password }
+      })
+      await saveToGlobalConfig(target, false, false)
+    }
   } else {
-    target = new Target({
-      ...target.toJson(false),
-      authConfig: { client, secret, access_token, refresh_token }
-    })
-    await saveToGlobalConfig(target, false, false)
+    throw new Error(
+      'Target contains invalid serverType. Possible types could be SASVIYA and SAS9.'
+    )
   }
 }
 
@@ -118,7 +149,7 @@ export const getTokens = async (
   return authResponse
 }
 
-export const createEnvFile = async (
+export const createEnvFileForViya = async (
   targetName: string,
   client: string,
   secret: string,
@@ -126,6 +157,17 @@ export const createEnvFile = async (
   refreshToken: string
 ): Promise<void> => {
   const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
+  const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+  await createFile(envFilePath, envFileContent)
+  process.logger?.success(`Environment file saved at ${envFilePath}`)
+}
+
+export const createEnvFileForSas9 = async (
+  targetName: string,
+  userName: string,
+  password: string
+): Promise<void> => {
+  const envFileContent = `SAS_USERNAME=${userName}\nSAS_PASSWORD=${password}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
   await createFile(envFilePath, envFileContent)
   process.logger?.success(`Environment file saved at ${envFilePath}`)

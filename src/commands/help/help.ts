@@ -211,6 +211,17 @@ export async function printHelpText() {
       ]
     },
     {
+      name: 'auth',
+      title: 'auth',
+      description: [
+        `lets the user add credentials for target to either the local project configuration, or to the global .sasjsrc file.`,
+        ``,
+        `NOTE: This command requires the user to input all the required parameters. More information available in the online documentation: ${chalk.cyanBright(
+          'https://cli.sasjs.io/auth/'
+        )}`
+      ]
+    },
+    {
       name: 'run',
       title: 'run <sasFilePath> -t <targetName>',
       description: [

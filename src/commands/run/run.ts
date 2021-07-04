@@ -7,7 +7,8 @@ import {
   createFile,
   Target,
   generateTimestamp,
-  ServerType
+  ServerType,
+  decodeFromBase64
 } from '@sasjs/utils'
 import { Command } from '../../utils/command'
 import { displayError } from '../../utils/displayResult'
@@ -134,7 +135,7 @@ async function executeOnSasViya(
 
 async function executeOnSas9(target: Target, linesToExecute: string[]) {
   const username = process.env.SAS_USERNAME
-  const password = process.env.SAS_PASSWORD
+  const password = decodeFromBase64(process.env.SAS_PASSWORD as string)
   if (!username || !password) {
     throw new Error(
       'A valid username and password are required for requests to SAS9 servers.' +

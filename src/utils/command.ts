@@ -25,6 +25,7 @@ const showInvalidFlagMessage = (
 const initialCommands = arrToObj([
   ...new Set([
     'add',
+    'auth',
     'build',
     'build-DB',
     'compile',
@@ -96,6 +97,10 @@ const commandFlags = [
   },
   {
     command: initialCommands.add,
+    flags: [initialFlags.target, initialFlags.insecure]
+  },
+  {
+    command: initialCommands.auth,
     flags: [initialFlags.target, initialFlags.insecure]
   },
   { command: initialCommands.create, flags: [initialFlags.template] },
@@ -430,6 +435,8 @@ function getUnaliasedCommand(command: string) {
   if (command === 'context') return 'context'
 
   if (command === 'folder') return 'folder'
+
+  if (command === 'auth') return 'auth'
 
   return command
 }
