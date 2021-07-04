@@ -73,6 +73,7 @@ export async function runSasJob(command: Command) {
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
+    contextName: target.contextName,
     useComputeApi: false
   })
 
