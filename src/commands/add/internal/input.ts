@@ -284,7 +284,7 @@ export const getCredentialsInputSas9 = async (
       path: path.join(process.projectDir, `.env.${targetName}`)
     })
     if (result.error) {
-      process.logger.info(`.env.${targetName} file does not exists previously.`)
+      process.logger.info(`A .env.${targetName} file does not exist. It will be created.`)
     } else {
       name = process.env.SAS_USERNAME as string
     }
@@ -308,7 +308,7 @@ export const getCredentialsInputSas9 = async (
 
   if (!/{sas00/i.test(password)) {
     process.logger?.warn(
-      'cleartext passwords are a security risk.  Please consider SAS encoded passwords.  For this a server config change is required (AllowEncodedPassword).  More info here: https://support.sas.com/kb/36/831.html'
+      'Cleartext passwords pose a security risk.  Please consider SAS encoded passwords.  For this a server config change is required (AllowEncodedPassword).  More info here: https://support.sas.com/kb/36/831.html'
     )
   } else if (!/^({sas00)[3-9]/i.test(password)) {
     process.logger?.warn(
