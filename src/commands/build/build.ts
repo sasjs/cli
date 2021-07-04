@@ -235,7 +235,7 @@ async function getContentFor(
       ? ''
       : testPath !== undefined
       ? testPath
-      : folderPath.replace(rootDirectory, '').substr(1)
+      : folderPath.replace(rootDirectory, '').split('\\').splice(1).join('/')
   };\n`
 
   const contentJSON: any = {
