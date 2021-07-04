@@ -11,7 +11,8 @@ import {
   Target,
   StreamConfig,
   asyncForEach,
-  AuthConfig
+  AuthConfig,
+  decodeFromBase64
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getConstants } from '../../constants'
@@ -248,7 +249,7 @@ async function deployToSas9(
   streamConfig?: StreamConfig
 ) {
   const username = process.env.SAS_USERNAME
-  const password = process.env.SAS_PASSWORD
+  const password = decodeFromBase64(process.env.SAS_PASSWORD as string)
   if (!username || !password) {
     throw new Error(
       'A valid username and password are required for requests to SAS9 servers.' +

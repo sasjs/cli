@@ -12,6 +12,7 @@ import {
   showVersion,
   buildWebApp,
   add,
+  auth,
   run,
   runRequest,
   context,
@@ -130,6 +131,10 @@ export async function cli(args: string[]) {
     }
     case 'add': {
       result = await add(command)
+      break
+    }
+    case 'auth': {
+      result = await auth(command)
       break
     }
     case 'run': {

@@ -350,6 +350,30 @@ export async function add(command: Command) {
   }
 }
 
+export async function auth(command: Command) {
+  let targetName = command.getFlagValue('target') as string
+  const insecure = !!command.getFlag('insecure')
+
+  if (!targetName) {
+    targetName = command.getTargetWithoutFlag() as string
+  }
+
+  if (command && command.name === 'auth') {
+    return await addCredential(targetName, insecure)
+      .then(() => {
+        displaySuccess('Credential has been successfully added!')
+        return ReturnCode.Success
+      })
+      .catch((err) => {
+        displayError(err, 'An error has occurred when adding the credential.')
+        return ReturnCode.InternalError
+      })
+  } else {
+    displayError(null, 'Invalid command: supported commands is - sasjs auth.')
+    return ReturnCode.InvalidCommand
+  }
+}
+
 export async function run(command: Command) {
   return await runSasCode(command)
     .then(() => {
