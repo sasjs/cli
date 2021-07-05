@@ -52,7 +52,7 @@
   "dependencies": {
     "@sasjs/adapter": "2.8.9",
     "@sasjs/core": "2.35.3",
-    "@sasjs/lint": "1.11.1",
+    "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.23.1",
     "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
