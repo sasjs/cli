@@ -276,7 +276,7 @@ async function generateAssetService(
   destinationPath: string,
   serverType: ServerType
 ) {
-  const nonBinaryFileTypes = ['html', 'CSS', 'JS']
+  const nonBinaryFileTypes = ['HTML', 'CSS', 'JS']
 
   const fileType = path.extname(filePath).replace('.', '').toUpperCase()
   const fileName = path.basename(filePath).replace('.', '-')
