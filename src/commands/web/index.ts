@@ -107,6 +107,11 @@ export async function createWebAppServices(target: Target) {
   const indexHtmlPath = path.join(webSourcePathFull, 'index.html')
 
   if (await fileExists(indexHtmlPath)) {
+    const indexHtmlIndex = assetPathMap.findIndex(
+      (assetPath) => assetPath.source === 'index.html'
+    )
+    assetPathMap.splice(indexHtmlIndex, 1)
+
     const indexHtml = await readFile(indexHtmlPath).then(
       (content) => new jsdom.JSDOM(content)
     )
