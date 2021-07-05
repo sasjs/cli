@@ -68,8 +68,10 @@ export async function runSasJob(command: Command) {
     configJson.password = process.env.SAS_PASSWORD
     if (!configJson.username || !configJson.password) {
       throw new Error(
-        'A valid username and password are required for requests to SAS9 servers.' +
-          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+        'The following attributes were not found:' +
+          '\n* SAS_USERNAME' +
+          '\n* SAS_PASSWORD' +
+          '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
       )
     }
     configJson.password = decodeFromBase64(configJson.password)
