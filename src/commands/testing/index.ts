@@ -106,14 +106,18 @@ export async function runTest(command: Command) {
   }
   if (target.serverType === ServerType.Sas9) {
     username = process.env.SAS_USERNAME as string
-    password = decodeFromBase64(process.env.SAS_PASSWORD as string)
+    password = process.env.SAS_PASSWORD as string
 
     if (!username || !password) {
       throw new Error(
-        'A valid username and password are required for requests to SAS9 servers.' +
-          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+        'The following attributes were not found:' +
+          '\n* SAS_USERNAME' +
+          '\n* SAS_PASSWORD' +
+          '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
       )
     }
+
+    password = decodeFromBase64(password)
   }
 
   const result: TestResults = {

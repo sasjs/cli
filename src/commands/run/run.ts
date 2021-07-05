@@ -135,13 +135,17 @@ async function executeOnSasViya(
 
 async function executeOnSas9(target: Target, linesToExecute: string[]) {
   const username = process.env.SAS_USERNAME
-  const password = decodeFromBase64(process.env.SAS_PASSWORD as string)
+  let password = process.env.SAS_PASSWORD
   if (!username || !password) {
     throw new Error(
-      'A valid username and password are required for requests to SAS9 servers.' +
-        '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
+      'The following attributes were not found:' +
+        '\n* SAS_USERNAME' +
+        '\n* SAS_PASSWORD' +
+        '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
     )
   }
+
+  password = decodeFromBase64(password)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
