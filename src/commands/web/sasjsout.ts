@@ -30,6 +30,10 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.wav'
       contenttype='audio/x-wav' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=OGG %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ogg'
+      contenttype='audio/ogg' lrecl=2000000 recfm=n;
+  %end;
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
@@ -49,6 +53,9 @@ export const sasjsout = `
   %end;
   %else %if &type=WAV %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/x-wav));
+  %end;
+  %else %if &type=OGG %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
   %end;
 %end;
 %if &type=HTML %then %do;
@@ -90,7 +97,8 @@ export const sasjsout = `
 
 /* stream byte by byte */
 /* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV %then %do;
+%if &type=PNG or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG
+%then %do;
   data _null_;
     length filein 8 fileout 8;
     filein = fopen("&fref",'I',4,'B');
