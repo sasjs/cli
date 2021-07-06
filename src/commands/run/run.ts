@@ -38,7 +38,7 @@ export async function runSasCode(command: Command) {
     await axios
       .get(filePath)
       .then(async (res) => {
-        const content: string = res.data
+        const content: string = res.data.trim()
         if (content && content.startsWith('<')) {
           throw new Error(
             'Url specified does not contain a valid sas program. Please provide valid url.'

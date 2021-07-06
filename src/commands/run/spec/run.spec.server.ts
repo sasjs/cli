@@ -60,6 +60,23 @@ describe('sasjs run', () => {
       ).rejects.toEqual(error)
     })
 
+    it('should throw an error if url does not point to a webpage', async () => {
+      const url = 'https://raw.githubusercontent.com/sasjs/cli/issues/808'
+      await expect(
+        runSasCode(new Command(`run -t ${target.name} ${url}`))
+      ).rejects.toThrow()
+    })
+
+    it('should throw an error if url response starts with angular bracket(<)', async () => {
+      const url = 'https://github.com/sasjs/cli/issues/808'
+      const error = new Error(
+        'Error: Url specified does not contain a valid sas program. Please provide valid url.'
+      )
+      await expect(
+        runSasCode(new Command(`run -t ${target.name} ${url}`))
+      ).rejects.toThrowError(error)
+    })
+
     it(
       'should get the log on successfull execution having relative path',
       async () => {
