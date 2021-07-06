@@ -13,7 +13,8 @@ import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
   getMacroCorePath,
-  getMacroFolders
+  getMacroFolders,
+  getStreamConfig
 } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getConstants } from '../../constants'
@@ -32,12 +33,7 @@ export async function build(target: Target) {
 async function createFinalSasFiles(target: Target) {
   process.logger?.info('Creating output SAS and JSON files.')
 
-  const localConfig = await getLocalConfig()
-
-  const streamConfig = {
-    ...localConfig?.streamConfig,
-    ...target.streamConfig
-  } as StreamConfig
+  const streamConfig = await getStreamConfig(target)
 
   await createFinalSasFile(target, streamConfig)
 }
@@ -78,7 +74,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   if (streamWeb) {
     finalSasFileContent += getLaunchPageCode(
       target.serverType,
-      streamConfig.streamServiceName
+      streamConfig.streamServiceName,
+      target.appLoc
     )
   }
 
