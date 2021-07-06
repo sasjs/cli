@@ -233,12 +233,8 @@ async function deployToSas9(
   const username = process.env.SAS_USERNAME
   let password = process.env.SAS_PASSWORD
   if (!username || !password) {
-    throw new Error(
-      'The following attributes were not found:' +
-        '\n* SAS_USERNAME' +
-        '\n* SAS_PASSWORD' +
-        '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
-    )
+    const { sas9CredentialsError } = await getConstants()
+    throw new Error(sas9CredentialsError)
   }
   password = decodeFromBase64(password)
 

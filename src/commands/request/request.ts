@@ -12,6 +12,7 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import { getConstants } from '../../constants'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -67,12 +68,8 @@ export async function runSasJob(command: Command) {
     configJson.username = process.env.SAS_USERNAME
     configJson.password = process.env.SAS_PASSWORD
     if (!configJson.username || !configJson.password) {
-      throw new Error(
-        'The following attributes were not found:' +
-          '\n* SAS_USERNAME' +
-          '\n* SAS_PASSWORD' +
-          '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
-      )
+      const { sas9CredentialsError } = await getConstants()
+      throw new Error(sas9CredentialsError)
     }
     configJson.password = decodeFromBase64(configJson.password)
   }
