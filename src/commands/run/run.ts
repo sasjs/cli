@@ -5,6 +5,7 @@ import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
 import {
   readFile,
   createFile,
+  deleteFile,
   Target,
   generateTimestamp,
   ServerType,
@@ -15,6 +16,7 @@ import { displayError } from '../../utils/displayResult'
 import { getConstants } from '../../constants'
 import { compileSingleFile } from '../'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import axios from 'axios'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -25,6 +27,34 @@ export async function runSasCode(command: Command) {
   let filePath = command.values.shift() || ''
   const targetName = command.getFlagValue('target') as string
   const compile = !!command.getFlag('compile')
+  let url: URL | null
+  let isFileCreated: boolean = false
+  try {
+    url = new URL(filePath)
+  } catch (error) {
+    url = null
+  }
+  if (url) {
+    await axios
+      .get(filePath)
+      .then(async (res) => {
+        const content: string = res.data
+        if (content && content.startsWith('<')) {
+          throw new Error(
+            'Url specified does not contain a valid sas program. Please provide valid url.'
+          )
+        }
+        const tempFilePath = path.join(process.projectDir, 'temp.sas')
+        await createFile(tempFilePath, content)
+        isFileCreated = true
+      })
+      .catch((err) => {
+        throw new Error(err)
+      })
+  }
+  if (url && isFileCreated) {
+    filePath = 'temp.sas'
+  }
 
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
@@ -48,14 +78,15 @@ export async function runSasCode(command: Command) {
   )
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === ServerType.SasViya) {
-    return await executeOnSasViya(filePath, target, linesToExecute)
+    return await executeOnSasViya(filePath, url, target, linesToExecute)
   } else {
-    return await executeOnSas9(target, linesToExecute)
+    return await executeOnSas9(filePath, url, target, linesToExecute)
   }
 }
 
 async function executeOnSasViya(
   filePath: string,
+  url: URL | null,
   target: Target,
   linesToExecute: string[]
 ) {
@@ -129,11 +160,18 @@ async function executeOnSasViya(
       isOutput ? 'Output' : 'Log'
     } file has been created at ${createdFilePath} .`
   )
-
+  if (url) {
+    await deleteFile(filePath)
+  }
   return { log }
 }
 
-async function executeOnSas9(target: Target, linesToExecute: string[]) {
+async function executeOnSas9(
+  filePath: string,
+  url: URL | null,
+  target: Target,
+  linesToExecute: string[]
+) {
   const username = process.env.SAS_USERNAME
   const password = decodeFromBase64(process.env.SAS_PASSWORD as string)
   if (!username || !password) {
@@ -181,7 +219,9 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
   )
   const createdFilePath = await createOutputFile(executionResult || '')
   process.logger?.success(`Log file has been created at ${createdFilePath} .`)
-
+  if (url) {
+    await deleteFile(filePath)
+  }
   return { log: executionResult }
 }
 
