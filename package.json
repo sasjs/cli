@@ -80,7 +80,7 @@
     "@types/find": "0.2.1",
     "@types/get-installed-path": "4.0.0",
     "@types/jest": "26.0.23",
-    "@types/jsdom": "16.2.12",
+    "@types/jsdom": "16.2.13",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
     "@types/node": "15.14.1",
