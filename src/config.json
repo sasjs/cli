@@ -240,7 +240,7 @@
       {
         "name": "viya",
         "serverType": "SASVIYA",
-        "serverUrl": "http://sas.analytium.co.uk",
+        "serverUrl": "https://sas.analytium.co.uk",
         "allowInsecureRequests": false,
         "appLoc": "/Public/app",
         "contextName": "SAS Job Execution compute context",
@@ -284,7 +284,7 @@
       {
         "name": "sas9",
         "serverType": "SAS9",
-        "serverUrl": "http://sas.analytium.co.uk:7980",
+        "serverUrl": "https://sas.analytium.co.uk:8343",
         "appLoc": "/User Folders/&sysuserid/My Folder",
         "serverName": "Foundation",
         "repositoryName": "SASApp",
