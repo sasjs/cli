@@ -12,6 +12,7 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import { getConstants } from '../../constants'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -65,13 +66,12 @@ export async function runSasJob(command: Command) {
 
   if (target.serverType === ServerType.Sas9) {
     configJson.username = process.env.SAS_USERNAME
-    configJson.password = decodeFromBase64(process.env.SAS_PASSWORD as string)
+    configJson.password = process.env.SAS_PASSWORD
     if (!configJson.username || !configJson.password) {
-      throw new Error(
-        'A valid username and password are required for requests to SAS9 servers.' +
-          '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
-      )
+      const { sas9CredentialsError } = await getConstants()
+      throw new Error(sas9CredentialsError)
     }
+    configJson.password = decodeFromBase64(configJson.password)
   }
 
   const sasjs = new SASjs({

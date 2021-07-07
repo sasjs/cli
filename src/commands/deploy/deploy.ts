@@ -247,13 +247,12 @@ async function deployToSas9(
   streamConfig?: StreamConfig
 ) {
   const username = process.env.SAS_USERNAME
-  const password = decodeFromBase64(process.env.SAS_PASSWORD as string)
+  let password = process.env.SAS_PASSWORD
   if (!username || !password) {
-    throw new Error(
-      'A valid username and password are required for requests to SAS9 servers.' +
-        '\nPlease set the SAS_USERNAME and SAS_PASSWORD variables in your target-specific or project-level .env file.'
-    )
+    const { sas9CredentialsError } = await getConstants()
+    throw new Error(sas9CredentialsError)
   }
+  password = decodeFromBase64(password)
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
