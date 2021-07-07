@@ -15,6 +15,7 @@ interface Constants {
   buildDestinationTestFolder: string
   macroCorePath: string
   contextName: string
+  sas9CredentialsError: string
 }
 
 // process.projectDir sets in cli.js
@@ -75,6 +76,11 @@ export const getConstants = async (): Promise<Constants> => {
     'logs'
   )
   const contextName = 'sasjs cli compute context'
+  const sas9CredentialsError =
+    'The following attributes were not found:' +
+    '\n* SAS_USERNAME' +
+    '\n* SAS_PASSWORD' +
+    '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
 
   return {
     buildSourceFolder,
@@ -88,6 +94,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationResultsLogsFolder,
     buildDestinationTestFolder,
     macroCorePath,
-    contextName
+    contextName,
+    sas9CredentialsError
   }
 }
