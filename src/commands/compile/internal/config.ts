@@ -3,6 +3,7 @@ import { readFile } from '@sasjs/utils'
 import path from 'path'
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
+import { getAbsolutePath } from '../../../utils/utils'
 
 // TODO: REFACTOR
 
@@ -13,17 +14,19 @@ export const getServiceInit = async (
   let serviceInitContent = '',
     filePath = ''
   if (target?.serviceConfig?.initProgram) {
-    filePath = path.isAbsolute(target.serviceConfig.initProgram)
-      ? target.serviceConfig.initProgram
-      : path.join(buildSourceFolder, target.serviceConfig.initProgram)
+    filePath = getAbsolutePath(
+      target.serviceConfig.initProgram,
+      buildSourceFolder
+    )
     serviceInitContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.serviceConfig?.initProgram) {
-      filePath = path.isAbsolute(configuration.serviceConfig.initProgram)
-        ? configuration.serviceConfig.initProgram
-        : path.join(buildSourceFolder, configuration.serviceConfig.initProgram)
+      filePath = getAbsolutePath(
+        configuration.serviceConfig.initProgram,
+        buildSourceFolder
+      )
       serviceInitContent = await readFile(filePath)
     }
   }
@@ -47,17 +50,19 @@ export const getServiceTerm = async (
     filePath = ''
   if (target?.serviceConfig?.termProgram) {
     filePath = path.join(buildSourceFolder, target.serviceConfig.termProgram)
-    filePath = path.isAbsolute(target.serviceConfig.termProgram)
-      ? target.serviceConfig.termProgram
-      : path.join(buildSourceFolder, target.serviceConfig.termProgram)
+    filePath = getAbsolutePath(
+      target.serviceConfig.termProgram,
+      buildSourceFolder
+    )
     serviceTermContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.serviceConfig?.termProgram) {
-      filePath = path.isAbsolute(configuration.serviceConfig.termProgram)
-        ? configuration.serviceConfig.termProgram
-        : path.join(buildSourceFolder, configuration.serviceConfig.termProgram)
+      filePath = getAbsolutePath(
+        configuration.serviceConfig.termProgram,
+        buildSourceFolder
+      )
       serviceTermContent = await readFile(filePath)
     }
   }
@@ -81,17 +86,16 @@ export const getJobInit = async (
     filePath = ''
   if (target?.jobConfig?.initProgram) {
     filePath = path.join(buildSourceFolder, target.jobConfig.initProgram)
-    filePath = path.isAbsolute(target.jobConfig.initProgram)
-      ? target.jobConfig.initProgram
-      : path.join(buildSourceFolder, target.jobConfig.initProgram)
+    filePath = getAbsolutePath(target.jobConfig.initProgram, buildSourceFolder)
     jobInitContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.jobConfig?.initProgram) {
-      filePath = path.isAbsolute(configuration.jobConfig.initProgram)
-        ? configuration.jobConfig.initProgram
-        : path.join(buildSourceFolder, configuration.jobConfig.initProgram)
+      filePath = getAbsolutePath(
+        configuration.jobConfig.initProgram,
+        buildSourceFolder
+      )
       jobInitContent = await readFile(filePath)
     }
   }
@@ -114,17 +118,16 @@ export const getJobTerm = async (
   let jobTermContent = '',
     filePath = ''
   if (target?.jobConfig?.termProgram) {
-    filePath = path.isAbsolute(target.jobConfig.termProgram)
-      ? target.jobConfig.termProgram
-      : path.join(buildSourceFolder, target.jobConfig.termProgram)
+    filePath = getAbsolutePath(target.jobConfig.termProgram, buildSourceFolder)
     jobTermContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.jobConfig?.termProgram) {
-      filePath = path.isAbsolute(configuration.jobConfig.termProgram)
-        ? configuration.jobConfig.termProgram
-        : path.join(buildSourceFolder, configuration.jobConfig.termProgram)
+      filePath = getAbsolutePath(
+        configuration.jobConfig.termProgram,
+        buildSourceFolder
+      )
       jobTermContent = await readFile(filePath)
     }
   }
@@ -148,18 +151,17 @@ export const getTestInit = async (
     filePath = ''
 
   if (target?.testConfig?.initProgram) {
-    filePath = path.isAbsolute(target.testConfig.initProgram)
-      ? target.testConfig.initProgram
-      : path.join(buildSourceFolder, target.testConfig.initProgram)
+    filePath = getAbsolutePath(target.testConfig.initProgram, buildSourceFolder)
 
     testInitContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.testConfig?.initProgram) {
-      filePath = path.isAbsolute(configuration.testConfig.initProgram)
-        ? configuration.testConfig.initProgram
-        : path.join(buildSourceFolder, configuration.testConfig.initProgram)
+      filePath = getAbsolutePath(
+        configuration.testConfig.initProgram,
+        buildSourceFolder
+      )
 
       testInitContent = await readFile(filePath)
     }
@@ -185,18 +187,17 @@ export const getTestTerm = async (
 
   if (target?.testConfig?.termProgram) {
     filePath = path.join(buildSourceFolder, target.testConfig.termProgram)
-    filePath = path.isAbsolute(target.testConfig.termProgram)
-      ? target.testConfig.termProgram
-      : path.join(buildSourceFolder, target.testConfig.termProgram)
+    filePath = getAbsolutePath(target.testConfig.termProgram, buildSourceFolder)
 
     testTermContent = await readFile(filePath)
   } else {
     const { configuration } = await getLocalOrGlobalConfig()
 
     if (configuration?.testConfig?.termProgram) {
-      filePath = path.isAbsolute(configuration.testConfig.termProgram)
-        ? configuration.testConfig.termProgram
-        : path.join(buildSourceFolder, configuration.testConfig.termProgram)
+      filePath = getAbsolutePath(
+        configuration.testConfig.termProgram,
+        buildSourceFolder
+      )
 
       testTermContent = await readFile(filePath)
     }

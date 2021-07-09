@@ -21,6 +21,7 @@ import {
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
+import { getAbsolutePath } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
@@ -431,9 +432,7 @@ export async function getProgramFolders(target: Target) {
 
   const { buildSourceFolder } = await getConstants()
   programFolders = programFolders.map((programFolder) =>
-    path.isAbsolute(programFolder)
-      ? programFolder
-      : path.join(buildSourceFolder, programFolder)
+    getAbsolutePath(programFolder, buildSourceFolder)
   )
 
   return [...new Set(programFolders)]
@@ -459,9 +458,7 @@ export async function getMacroFolders(target?: Target) {
 
   const { buildSourceFolder } = await getConstants()
   macroFolders = macroFolders.map((macroFolder) =>
-    path.isAbsolute(macroFolder)
-      ? macroFolder
-      : path.join(buildSourceFolder, macroFolder)
+    getAbsolutePath(macroFolder, buildSourceFolder)
   )
 
   return [...new Set(macroFolders)]

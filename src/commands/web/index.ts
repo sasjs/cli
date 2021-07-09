@@ -1,4 +1,4 @@
-import { chunk } from '../../utils/utils'
+import { chunk, getAbsolutePath } from '../../utils/utils'
 import {
   readFile,
   copy,
@@ -90,9 +90,7 @@ export async function createWebAppServices(target: Target) {
   )
   await createTargetDestinationFolder(destinationPath)
 
-  const webSourcePathFull = path.isAbsolute(webSourcePath)
-    ? webSourcePath
-    : path.join(process.projectDir, webSourcePath)
+  const webSourcePathFull = getAbsolutePath(webSourcePath, process.projectDir)
 
   if (!(await folderExists(webSourcePathFull)))
     process.logger?.warn(

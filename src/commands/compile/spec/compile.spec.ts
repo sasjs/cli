@@ -50,6 +50,10 @@ describe('sasjs compile', () => {
     await removeTestApp(__dirname, appName)
   })
 
+  afterAll(async () => {
+    await removeTestApp(homedir, sharedAppName)
+  })
+
   it('should compile an uncompiled project', async () => {
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
@@ -71,6 +75,17 @@ describe('sasjs compile', () => {
       'viya',
       true
     )
+    await expect(compileModule.compile(target)).toResolve()
+    expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
+    expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
+  })
+
+  it('should compile project with having tilda in paths', async () => {
+    const tildaPathToApp = path.join(__dirname, appName).replace(homedir, '~')
+
+    await updateConfig(prefixConfigWithPath(tildaPathToApp), true)
+    await updateTarget(prefixTargetConfigWithPath(tildaPathToApp), 'viya', true)
+
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
@@ -456,4 +471,63 @@ describe('sasjs compile outside project', () => {
       )
     })
   })
+})
+
+const prefixConfigWithPath = (prefixPath: string) => ({
+  buildConfig: {
+    initProgram: `${prefixPath}/sasjs/build/buildinit.sas`,
+    termProgram: `${prefixPath}/sasjs/build/buildterm.sas`,
+    buildOutputFolder: `${prefixPath}/sasjsbuild`,
+    buildResultsFolder: `${prefixPath}/sasjsresults`,
+    macroVars: {
+      name: 'value',
+      numvar: '42'
+    },
+    buildOutputFileName: 'undefined'
+  },
+  deployConfig: {
+    deployServicePack: false,
+    deployScripts: [`${prefixPath}/sasjs/build/deployscript.sh`]
+  },
+  serviceConfig: {
+    serviceFolders: [
+      `${prefixPath}/sasjs/services/common`,
+      `${prefixPath}/sasjs/services/admin`
+    ],
+    initProgram: `${prefixPath}/sasjs/build/serviceinit.sas`,
+    termProgram: `${prefixPath}/sasjs/build/serviceterm.sas`,
+    macroVars: {
+      name: 'value',
+      numvar: '42'
+    }
+  },
+  macroFolders: [`${prefixPath}/sasjs/macros`],
+  programFolders: [`${prefixPath}/sasjs/programs`]
+})
+
+const prefixTargetConfigWithPath = (prefixPath: string) => ({
+  buildConfig: {
+    buildOutputFileName: 'myviyadeploy.sas',
+    initProgram: `${prefixPath}/sasjs/build/buildinitviya.sas`,
+    termProgram: `${prefixPath}/sasjs/targets/viya/viyabuildterm.sas`,
+    macroVars: {
+      name: 'viyavalue',
+      extravar: 'this too'
+    }
+  },
+  deployConfig: {
+    deployServicePack: true,
+    deployScripts: [`${prefixPath}/sasjsbuild/myviyadeploy.sas`]
+  },
+  serviceConfig: {
+    serviceFolders: [`${prefixPath}/sasjs/targets/viya/services/admin`],
+    initProgram: `${prefixPath}/sasjs/build/serviceinit.sas`,
+    termProgram: `${prefixPath}/sasjs/build/serviceinit.sas`,
+    macroVars: {
+      name: 'viyavalue',
+      extravar: 'this too'
+    }
+  },
+
+  macroFolders: [`${prefixPath}/sasjs/targets/viya/macros`]
 })

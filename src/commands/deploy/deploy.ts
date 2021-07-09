@@ -2,7 +2,11 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getLocalConfig, getAuthConfig } from '../../utils/config'
-import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
+import {
+  displaySasjsRunnerError,
+  executeShellScript,
+  getAbsolutePath
+} from '../../utils/utils'
 import {
   readFile,
   readFileBinary,
@@ -50,9 +54,7 @@ export async function deploy(target: Target, isLocal: boolean) {
 
   const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
-    const deployScriptPath = path.isAbsolute(deployScript)
-      ? deployScript
-      : path.join(process.projectDir, deployScript)
+    const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
 
     if (isSasFile(deployScript)) {
       process.logger?.info(
