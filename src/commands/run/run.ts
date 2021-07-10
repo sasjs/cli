@@ -38,11 +38,14 @@ export async function runSasCode(command: Command) {
     await axios
       .get(filePath)
       .then(async (res) => {
+        const { invalidSasError } = await getConstants()
+        if (typeof res.data !== 'string') {
+          throw new Error(invalidSasError)
+        }
         const content: string = res.data.trim()
+
         if (content && content.startsWith('<')) {
-          throw new Error(
-            'Url specified does not contain a valid sas program. Please provide valid url.'
-          )
+          throw new Error(invalidSasError)
         }
         const tempFilePath = path.join(process.projectDir, 'temp.sas')
         await createFile(tempFilePath, content)
