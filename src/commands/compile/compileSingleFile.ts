@@ -70,7 +70,10 @@ export async function compileSingleFile(
   let outputPathParts = outputPath.split(path.sep)
   outputPathParts.pop(), outputPathParts.pop()
   const parentOutputFolder = outputPathParts.join(path.sep)
-  await deleteFolder(parentOutputFolder)
+
+  const pathExists = await fileExists(parentOutputFolder)
+  if (pathExists) await deleteFolder(parentOutputFolder)
+
   await createFolder(outputPath)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string
