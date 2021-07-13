@@ -27,14 +27,14 @@ export async function runSasCode(command: Command) {
   let filePath = command.values.shift() || ''
   const targetName = command.getFlagValue('target') as string
   const compile = !!command.getFlag('compile')
-  let url: URL | null
   let isFileCreated: boolean = false
-  try {
-    url = new URL(filePath)
-  } catch (error) {
-    url = null
-  }
-  if (url) {
+
+  const tempFilePath = path.join(
+    process.projectDir,
+    'temp-' + Date.now() + '.sas'
+  )
+
+  if (filePath.startsWith('https://') || filePath.startsWith('http://')) {
     await axios
       .get(filePath)
       .then(async (res) => {
@@ -43,11 +43,9 @@ export async function runSasCode(command: Command) {
           throw new Error(invalidSasError)
         }
         const content: string = res.data.trim()
-
         if (content && content.startsWith('<')) {
           throw new Error(invalidSasError)
         }
-        const tempFilePath = path.join(process.projectDir, 'temp.sas')
         await createFile(tempFilePath, content)
         isFileCreated = true
       })
@@ -55,8 +53,8 @@ export async function runSasCode(command: Command) {
         throw new Error(err)
       })
   }
-  if (url && isFileCreated) {
-    filePath = 'temp.sas'
+  if (isFileCreated) {
+    filePath = tempFilePath
   }
 
   if (!/\.sas$/i.test(filePath)) {
@@ -81,15 +79,20 @@ export async function runSasCode(command: Command) {
   )
   const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === ServerType.SasViya) {
-    return await executeOnSasViya(filePath, url, target, linesToExecute)
+    return await executeOnSasViya(
+      filePath,
+      isFileCreated,
+      target,
+      linesToExecute
+    )
   } else {
-    return await executeOnSas9(filePath, url, target, linesToExecute)
+    return await executeOnSas9(filePath, isFileCreated, target, linesToExecute)
   }
 }
 
 async function executeOnSasViya(
   filePath: string,
-  url: URL | null,
+  isTempFile: boolean,
   target: Target,
   linesToExecute: string[]
 ) {
@@ -163,7 +166,7 @@ async function executeOnSasViya(
       isOutput ? 'Output' : 'Log'
     } file has been created at ${createdFilePath} .`
   )
-  if (url) {
+  if (isTempFile) {
     await deleteFile(filePath)
   }
   return { log }
@@ -171,7 +174,7 @@ async function executeOnSasViya(
 
 async function executeOnSas9(
   filePath: string,
-  url: URL | null,
+  isTempFile: boolean,
   target: Target,
   linesToExecute: string[]
 ) {
@@ -230,7 +233,7 @@ async function executeOnSas9(
   )
   const createdFilePath = await createOutputFile(executionResult || '')
   process.logger?.success(`Log file has been created at ${createdFilePath} .`)
-  if (url) {
+  if (isTempFile) {
     await deleteFile(filePath)
   }
   return { log: executionResult }
