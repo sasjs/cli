@@ -31,7 +31,6 @@ describe('sasjs compile', () => {
   let sharedAppName: string
   let appName: string
   let target: Target
-  let parentOutputFolder: string
   const homedir = require('os').homedir()
 
   beforeAll(async () => {
@@ -80,11 +79,11 @@ describe('sasjs compile', () => {
     expect(compileModule.compileJobsServicesTests).toHaveBeenCalled()
   })
 
-  it('should compile project with having tilda in paths', async () => {
-    const tildaPathToApp = path.join(__dirname, appName).replace(homedir, '~')
+  it('should compile project with having tilde in paths', async () => {
+    const tildePathToApp = path.join(__dirname, appName).replace(homedir, '~')
 
-    await updateConfig(prefixConfigWithPath(tildaPathToApp), true)
-    await updateTarget(prefixTargetConfigWithPath(tildaPathToApp), 'viya', true)
+    await updateConfig(prefixConfigWithPath(tildePathToApp), true)
+    await updateTarget(prefixTargetConfigWithPath(tildePathToApp), 'viya', true)
 
     await expect(compileModule.compile(target)).toResolve()
     expect(compileModule.copyFilesToBuildFolder).toHaveBeenCalled()
