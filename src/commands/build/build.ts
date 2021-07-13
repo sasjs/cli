@@ -74,8 +74,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   if (streamWeb) {
     finalSasFileContent += getLaunchPageCode(
       target.serverType,
-      streamConfig.streamServiceName,
-      target.appLoc
+      streamConfig.streamServiceName
     )
   }
 
