@@ -102,11 +102,28 @@ export async function execute(
       macroVars?.macroVars
     )
     .catch(async (err) => {
+      if (err?.name === 'NoSessionStatus') {
+        if (err?.logUrl) {
+          const logData = await fetchLogFileContent(
+            sasjs,
+            authConfig.access_token,
+            err.logUrl,
+            100000
+          )
+
+          await saveLog(logData, logFile, jobPath, returnStatusOnly)
+        }
+
+        displayError(err)
+
+        terminateProcess(2)
+      }
+
       if (err && err.log) {
         await saveLog(err.log, logFile, jobPath, returnStatusOnly)
       }
 
-      if (returnStatusOnly) process.exit(2)
+      if (returnStatusOnly) terminateProcess(2)
 
       if (err?.name === 'NotFoundError') {
         throw `Job located at '${jobPath}' was not found.`
@@ -126,14 +143,8 @@ export async function execute(
 
   if (result && !returnStatusOnly) {
     displayError(result, 'An error has occurred when executing a job.')
-
-    if (
-      typeof result === 'string' &&
-      (result as string).includes('Could not get session state')
-    ) {
-      process.exit(2)
-    }
   }
+
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
   if (statusFile !== undefined && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
@@ -220,17 +231,17 @@ export async function execute(
     if (waitForJob && returnStatusOnly && submittedJob.state) {
       switch (submittedJob.state) {
         case 'completed':
-          process.exit(0)
+          terminateProcess(0)
         case 'warning':
-          process.exit(ignoreWarnings ? 0 : 1)
+          terminateProcess(ignoreWarnings ? 0 : 1)
         case 'error':
-          process.exit(2)
+          terminateProcess(2)
         default:
           break
       }
     }
   } else if (returnStatusOnly && result === 2) {
-    process.exit(2)
+    terminateProcess(2)
   }
 
   if (!returnStatusOnly) {
@@ -314,10 +325,10 @@ const saveLog = async (
 
   let folderPath = logPath.split(path.sep)
   folderPath.pop()
-  const parentfolderPath = folderPath.join(path.sep)
+  const parentFolderPath = folderPath.join(path.sep)
 
-  if (!(await folderExists(parentfolderPath))) {
-    await createFolder(parentfolderPath)
+  if (!(await folderExists(parentFolderPath))) {
+    await createFolder(parentFolderPath)
   }
 
   let logLines = typeof logData === 'object' ? parseLogLines(logData) : logData
@@ -326,4 +337,12 @@ const saveLog = async (
   await createFile(logPath, logLines)
 
   if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
+}
+
+const terminateProcess = (status: number) => {
+  process.logger?.info(
+    `Process will be terminated with the status code ${status}.`
+  )
+
+  process.exit(status)
 }
