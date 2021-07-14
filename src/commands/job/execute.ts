@@ -3,7 +3,7 @@ import { isJsonFile } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
-import SASjs, { Link } from '@sasjs/adapter/node'
+import SASjs, { Link, PollOptions } from '@sasjs/adapter/node'
 import {
   Target,
   MacroVars,
@@ -44,7 +44,21 @@ export async function execute(
   ignoreWarnings: boolean,
   source: string | undefined
 ) {
-  const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+  let logFolderPath
+
+  if (typeof logFile === 'string') {
+    const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
+    logFolderPath = path.join(currentDirPath, logFile)
+  } else {
+    logFolderPath = process.projectDir
+  }
+
+  const pollOptions: PollOptions = {
+    maxPollCount: 24 * 60 * 60,
+    pollInterval: 1000,
+    streamLog: true,
+    logFolderPath
+  }
 
   if (returnStatusOnly && !waitForJob) waitForJob = true
 

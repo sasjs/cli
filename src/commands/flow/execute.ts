@@ -13,7 +13,7 @@ import {
   createFolder,
   getRealPath
 } from '@sasjs/utils'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
 import { FilePath, Flow } from '../../types'
@@ -28,7 +28,12 @@ export async function execute(
   sasjs: SASjs
 ) {
   return new Promise(async (resolve, reject) => {
-    const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+    const pollOptions: PollOptions = {
+      maxPollCount: 24 * 60 * 60,
+      pollInterval: 1000,
+      streamLog: true,
+      logFolderPath: logFolder
+    }
 
     const normalizeFilePath = (filePath: string) => {
       const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
@@ -256,7 +261,7 @@ export async function execute(
                 }' failed with the status '${job.status}'.${
                   job.status === 'running'
                     ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                        pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
+                        pollOptions.maxPollCount * pollOptions.pollInterval
                       )}).`
                     : ''
                 }`
@@ -575,8 +580,7 @@ export async function execute(
                     }' failed with the status '${job.status}'.${
                       job.status === 'running'
                         ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                            pollOptions.MAX_POLL_COUNT *
-                              pollOptions.POLL_INTERVAL
+                            pollOptions.maxPollCount * pollOptions.pollInterval
                           )}).`
                         : ''
                     }`
