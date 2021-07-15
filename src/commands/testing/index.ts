@@ -105,9 +105,13 @@ export async function runTest(command: Command) {
     authConfig = await getAuthConfig(target)
   }
   if (target.serverType === ServerType.Sas9) {
-    username = process.env.SAS_USERNAME as string
-    password = process.env.SAS_PASSWORD as string
-
+    if (target.authConfigSas9) {
+      username = target.authConfigSas9.userName
+      password = target.authConfigSas9.password
+    } else {
+      username = process.env.SAS_USERNAME as string
+      password = process.env.SAS_PASSWORD as string
+    }
     if (!username || !password) {
       const { sas9CredentialsError } = await getConstants()
       throw new Error(sas9CredentialsError)
