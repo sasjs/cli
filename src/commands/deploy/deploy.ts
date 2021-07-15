@@ -246,8 +246,15 @@ async function deployToSas9(
   logFilePath: string | null,
   streamConfig?: StreamConfig
 ) {
-  const username = process.env.SAS_USERNAME
-  let password = process.env.SAS_PASSWORD
+  let username: any
+  let password: any
+  if (target.authConfigSas9) {
+    username = target.authConfigSas9.userName
+    password = target.authConfigSas9.password
+  } else {
+    username = process.env.SAS_USERNAME
+    password = process.env.SAS_PASSWORD
+  }
   if (!username || !password) {
     const { sas9CredentialsError } = await getConstants()
     throw new Error(sas9CredentialsError)
