@@ -17,6 +17,7 @@ interface Constants {
   macroCorePath: string
   contextName: string
   sas9CredentialsError: string
+  invalidSasError: string
 }
 
 // process.projectDir sets in cli.js
@@ -85,6 +86,9 @@ export const getConstants = async (): Promise<Constants> => {
     '\n* SAS_PASSWORD' +
     '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
 
+  const invalidSasError =
+    'Url specified does not contain a valid sas program. Please provide valid url.'
+
   return {
     buildSourceFolder,
     buildSourceDbFolder,
@@ -98,6 +102,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationTestFolder,
     macroCorePath,
     contextName,
-    sas9CredentialsError
+    sas9CredentialsError,
+    invalidSasError
   }
 }

@@ -5,6 +5,8 @@ export function displaySuccess(message: string) {
 }
 
 export function displayError(err: any, errorMessage: string = '') {
+  if (errorMessage) errorMessage = `${errorMessage}\n`
+
   if (err) {
     let failureDetails = ''
 
@@ -23,8 +25,8 @@ export function displayError(err: any, errorMessage: string = '') {
           raw ? '\n' + raw : ''
         }`
 
-        process.logger?.error(errorMessage, '\n', failureDetails)
-        return `${errorMessage}\n${failureDetails}`
+        process.logger?.error(errorMessage, failureDetails)
+        return `${errorMessage}${failureDetails}`
       }
     } else if (err.hasOwnProperty('message')) {
       failureDetails = err.message
@@ -38,10 +40,10 @@ export function displayError(err: any, errorMessage: string = '') {
       failureDetails = failureDetails !== '{}' ? failureDetails : ''
     }
 
-    process.logger?.error(errorMessage, '\n', failureDetails)
+    process.logger?.error(errorMessage, failureDetails)
     if (err instanceof Error && process.env.LOG_LEVEL === LogLevel.Debug) {
       process.logger?.error(err.stack || '')
     }
-    return `${errorMessage}\n${failureDetails}`
+    return `${errorMessage}${failureDetails}`
   }
 }
