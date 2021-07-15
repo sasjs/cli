@@ -25,7 +25,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { getConstants } from '../../../constants'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -360,8 +360,7 @@ describe('sasjs job execute', () => {
 
     const errorMessage = `Could not get session state. Server responded with 304 whilst checking state: <sessionStateUrl>`
 
-    const err = new Error(errorMessage)
-    err.name = 'NoSessionStatus'
+    const err = new NoSessionStateError(304, '<sessionStateUrl>', '')
 
     jest.spyOn(process.logger, 'error')
     jest.spyOn(process.logger, 'info')

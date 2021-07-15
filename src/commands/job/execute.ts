@@ -3,7 +3,7 @@ import { isJsonFile } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
-import SASjs, { Link } from '@sasjs/adapter/node'
+import SASjs, { Link, NoSessionStateError } from '@sasjs/adapter/node'
 import {
   Target,
   MacroVars,
@@ -16,6 +16,7 @@ import {
   AuthConfig
 } from '@sasjs/utils'
 import { getConstants } from '../../constants'
+import { terminateProcess } from '../../main'
 
 /**
  * Triggers existing job for execution.
@@ -102,7 +103,7 @@ export async function execute(
       macroVars?.macroVars
     )
     .catch(async (err) => {
-      if (err?.name === 'NoSessionStatus') {
+      if (err instanceof NoSessionStateError) {
         if (err?.logUrl) {
           const logData = await fetchLogFileContent(
             sasjs,
@@ -337,12 +338,4 @@ const saveLog = async (
   await createFile(logPath, logLines)
 
   if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
-}
-
-const terminateProcess = (status: number) => {
-  process.logger?.info(
-    `Process will be terminated with the status code ${status}.`
-  )
-
-  process.exit(status)
 }
