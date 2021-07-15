@@ -344,7 +344,7 @@ describe('sasjs job execute', () => {
     expect(mockExit).toHaveBeenCalledWith(2)
   })
 
-  it.only('should terminate the process if server could not get session status', async () => {
+  it('should terminate the process if server could not get session status', async () => {
     const command = new Command(
       `job execute jobs/testJob/jobWithWarning -t ${target.name}`
     )
