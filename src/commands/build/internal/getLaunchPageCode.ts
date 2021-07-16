@@ -6,9 +6,10 @@ data _null_;
  format url $256.; 
  rc=METADATA_GETURI("Stored Process Web App",url);
  url=coalescec(url,"localhost/SASStoredProcess");
+ urlEscaped = tranwrd(trim(url)," ","%20");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " url +(-1) "?_program=&appLoc/services/${streamServiceName}" ;
+ putlog "NOTE- " urlEscaped +(-1) "?_program=&appLoc/services/${streamServiceName}" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `
@@ -23,9 +24,10 @@ data _null_;
  end;
  else url="&systcpiphostname";
  url=cats(url,"/SASJobExecution?_FILE=&appLoc/services/");
+ urlEscaped = tranwrd(trim(url)," ","%20");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " url +(-1) '${streamServiceName}.html&_debug=2' ;
+ putlog "NOTE- " urlEscaped +(-1) '${streamServiceName}.html&_debug=2' ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `

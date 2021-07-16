@@ -1,3 +1,4 @@
+import path from 'path'
 import { buildWebApp } from '../../../main'
 import { Command } from '../../../utils/command'
 import {
@@ -8,33 +9,39 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { generateTimestamp } from '@sasjs/utils'
+import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
 
-export const webBuiltFilesSASVIYA: Folder = {
+const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
   files: [],
   subFolders: [
     {
       folderName: 'services',
-      files: [{ fileName: 'clickme.html' }],
+      files: [{ fileName: `${indexHtml}.html` }],
       subFolders: [
         {
           folderName: 'webv',
-          files: [{ fileName: 'scripts.js' }, { fileName: 'style.css' }],
+          files: [
+            { fileName: 'favicon.ico' },
+            { fileName: 'sasjs.js' },
+            { fileName: 'scripts.js' },
+            { fileName: 'style.css' },
+            { fileName: 'testing.js.map' }
+          ],
           subFolders: []
         }
       ]
     }
   ]
-}
+})
 
-export const webBuiltFilesSAS9: Folder = {
+const webBuiltFilesSAS9 = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
   files: [],
   subFolders: [
     {
       folderName: 'services',
-      files: [{ fileName: 'clickme.sas' }],
+      files: [{ fileName: `${indexHtml}.sas` }],
       subFolders: [
         {
           folderName: 'webv',
@@ -42,13 +49,22 @@ export const webBuiltFilesSAS9: Folder = {
             { fileName: 'favicon-ico.sas' },
             { fileName: 'sasjs-js.sas' },
             { fileName: 'scripts-js.sas' },
-            { fileName: 'style-css.sas' }
+            { fileName: 'style-css.sas' },
+            { fileName: 'testing.js-map.sas' }
           ],
           subFolders: []
         }
       ]
     }
   ]
+})
+
+const streamConfig: StreamConfig = {
+  assetPaths: [],
+  streamWeb: true,
+  streamWebFolder: 'webv',
+  webSourcePath: 'src',
+  streamServiceName: 'clickme'
 }
 
 describe('sasjs web', () => {
@@ -60,13 +76,20 @@ describe('sasjs web', () => {
 
     await updateConfig({
       streamConfig: {
-        assetPaths: [],
-        streamWeb: true,
-        streamWebFolder: 'webv',
-        webSourcePath: 'src',
-        streamServiceName: 'clickme'
-      }
+        ...streamConfig,
+        streamServiceName: undefined
+      } as any as StreamConfig
     })
+
+    await createFile(
+      path.join(
+        __dirname,
+        appName,
+        streamConfig.webSourcePath,
+        'testing.js.map'
+      ),
+      ''
+    )
 
     await updateTarget({ streamConfig: undefined }, 'viya')
     await updateTarget(
@@ -84,7 +107,7 @@ describe('sasjs web', () => {
     async () => {
       await expect(buildWebApp(new Command(`web -t viya`))).resolves.toEqual(0)
 
-      await expect(verifyFolder(webBuiltFilesSASVIYA)).resolves.toEqual(true)
+      await expect(verifyFolder(webBuiltFilesSASVIYA())).resolves.toEqual(true)
     },
     2 * 60 * 1000
   )
@@ -94,7 +117,45 @@ describe('sasjs web', () => {
     async () => {
       await expect(buildWebApp(new Command(`web -t sas9`))).resolves.toEqual(0)
 
-      await expect(verifyFolder(webBuiltFilesSAS9)).resolves.toEqual(true)
+      await expect(verifyFolder(webBuiltFilesSAS9())).resolves.toEqual(true)
+    },
+    2 * 60 * 1000
+  )
+
+  it(
+    `should create web app with minimal template for target SASVIYA with custom streamServiceName`,
+    async () => {
+      const streamServiceName = 'clickme_VIYA'
+      await updateTarget(
+        {
+          streamConfig: { ...streamConfig, streamServiceName }
+        },
+        'viya'
+      )
+      await expect(buildWebApp(new Command(`web -t viya`))).resolves.toEqual(0)
+
+      await expect(
+        verifyFolder(webBuiltFilesSASVIYA(streamServiceName))
+      ).resolves.toEqual(true)
+    },
+    2 * 60 * 1000
+  )
+
+  it(
+    `should create web app with minimal template for target SAS9 with custom streamServiceName`,
+    async () => {
+      const streamServiceName = 'clickme_SAS9'
+      await updateTarget(
+        {
+          streamConfig: { ...streamConfig, streamServiceName }
+        },
+        'sas9'
+      )
+      await expect(buildWebApp(new Command(`web -t sas9`))).resolves.toEqual(0)
+
+      await expect(
+        verifyFolder(webBuiltFilesSAS9(streamServiceName))
+      ).resolves.toEqual(true)
     },
     2 * 60 * 1000
   )

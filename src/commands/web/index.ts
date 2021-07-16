@@ -3,7 +3,6 @@ import {
   readFile,
   copy,
   base64EncodeFile,
-  base64EncodeImageFile,
   fileExists,
   folderExists,
   createFolder,
@@ -15,7 +14,7 @@ import {
   asyncForEach,
   listSubFoldersInFolder
 } from '@sasjs/utils'
-import { getLocalConfig } from '../../utils/config'
+import { getStreamConfig } from '../../utils/config'
 import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
@@ -41,12 +40,7 @@ const exampleStreamConfig: StreamConfig = {
 export async function createWebAppServices(target: Target) {
   const { buildDestinationServicesFolder } = await getConstants()
 
-  const localConfig = await getLocalConfig()
-
-  const streamConfig = {
-    ...localConfig?.streamConfig,
-    ...target.streamConfig
-  } as StreamConfig
+  const streamConfig = await getStreamConfig(target)
 
   if (!streamConfig) {
     throw new Error(
@@ -142,7 +136,7 @@ export async function createWebAppServices(target: Target) {
 
     const faviconTags = getFaviconTags(indexHtml)
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateFaviconHref(
+      await updateLinkHref(
         faviconTag,
         webSourcePath,
         destinationPath,
@@ -283,8 +277,11 @@ async function generateAssetService(
 ) {
   const nonBinaryFileTypes = ['HTML', 'CSS', 'JS']
 
-  const fileType = path.extname(filePath).replace('.', '').toUpperCase()
-  const fileName = path.basename(filePath).replace('.', '-')
+  const fileExtension = path.extname(filePath)
+  const fileType = fileExtension.replace('.', '').toUpperCase()
+  const fileName = path
+    .basename(filePath)
+    .replace(new RegExp(fileExtension + '$'), fileExtension.replace('.', '-'))
   const base64string = nonBinaryFileTypes.includes(fileType)
     ? btoa(await readFile(sourcePath))
     : await base64EncodeFile(sourcePath)
@@ -337,7 +334,10 @@ async function updateTagSource(
           target.serverType
         )
         await createFile(
-          path.join(destinationPath, `${scriptPath.replace('.', '-')}.sas`),
+          path.join(
+            destinationPath,
+            `${scriptPath.replace(/\.js$/, '-js')}.sas`
+          ),
           serviceContent
         )
       }
@@ -373,36 +373,6 @@ async function updateLinkHref(
           `./${entry.source}` === linkSourcePath
       )!.target
     )
-  }
-}
-
-async function updateFaviconHref(
-  linkTag: HTMLLinkElement,
-  webAppSourcePath: string,
-  destinationPath: string,
-  target: Target,
-  streamConfig: StreamConfig,
-  assetPathMap: { source: string; target: string }[]
-) {
-  const linkSourcePath = linkTag.getAttribute('href') || ''
-  const isUrl =
-    linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
-  if (!isUrl) {
-    if (target.serverType === ServerType.SasViya) {
-      linkTag.setAttribute(
-        'href',
-        assetPathMap.find(
-          (entry) =>
-            entry.source === linkSourcePath ||
-            `./${entry.source}` === linkSourcePath
-        )!.target
-      )
-    } else {
-      const base64string = await base64EncodeImageFile(
-        path.join(process.projectDir, webAppSourcePath, linkSourcePath)
-      )
-      linkTag.setAttribute('href', base64string)
-    }
   }
 }
 
