@@ -19,7 +19,7 @@ import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
 import { adjustIframeScript } from './adjustIframeScript'
-import btoa from 'btoa'
+import { encode } from 'js-base64'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import uniqBy from 'lodash.uniqby'
@@ -275,16 +275,12 @@ async function generateAssetService(
   destinationPath: string,
   serverType: ServerType
 ) {
-  const nonBinaryFileTypes = ['HTML', 'CSS', 'JS']
-
   const fileExtension = path.extname(filePath)
   const fileType = fileExtension.replace('.', '').toUpperCase()
   const fileName = path
     .basename(filePath)
     .replace(new RegExp(fileExtension + '$'), fileExtension.replace('.', '-'))
-  const base64string = nonBinaryFileTypes.includes(fileType)
-    ? btoa(await readFile(sourcePath))
-    : await base64EncodeFile(sourcePath)
+  const base64string = await base64EncodeFile(sourcePath)
 
   const serviceContent = await getWebServiceContentSAS9(
     base64string,
@@ -329,7 +325,7 @@ async function updateTagSource(
         await createFile(path.join(destinationPath, scriptPath), content)
       } else {
         const serviceContent = await getWebServiceContentSAS9(
-          btoa(content),
+          encode(content),
           'JS',
           target.serverType
         )
