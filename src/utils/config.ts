@@ -12,6 +12,7 @@ import {
   AuthConfig,
   SasAuthResponse
 } from '@sasjs/utils'
+import { StreamConfig } from '@sasjs/utils/types/config'
 import {
   isAccessTokenExpiring,
   isRefreshTokenExpiring,
@@ -462,6 +463,21 @@ export async function getMacroFolders(target?: Target) {
   )
 
   return [...new Set(macroFolders)]
+}
+
+/**
+ * Returns StreamConfig from configuration.
+ * This configuration includes both common and target-specific configuration.
+ * @param {Target} target- the target to check stream configuration for.
+ */
+export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
+  const localConfig = await getLocalConfig()
+
+  return {
+    streamServiceName: 'clickme',
+    ...localConfig?.streamConfig,
+    ...target?.streamConfig
+  } as StreamConfig
 }
 
 export async function getMacroCorePath() {
