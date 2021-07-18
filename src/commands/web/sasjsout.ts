@@ -120,9 +120,9 @@ export const sasjsout = `
       val="123";
       val=input(raw,$base64X4.);
       do i=1 to 3;
-        length byte $1;
+        length byte $2;
         byte=byte(rank(substr(val,i,1)));
-        rc = fput(fileout, byte);
+        rc = fput(fileout, trim(byte));
       end;
       rc =fwrite(fileout);
     end;
