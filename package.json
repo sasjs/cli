@@ -62,7 +62,7 @@
     "find": "0.3.0",
     "fs-extra": "10.0.0",
     "get-installed-path": "4.0.8",
-    "js-base64": "^3.6.1",
+    "js-base64": "3.6.1",
     "jsdom": "16.6.0",
     "jwt-decode": "3.1.2",
     "lodash.groupby": "4.6.0",
