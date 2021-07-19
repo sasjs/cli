@@ -41,7 +41,9 @@ export const sasjsout = `
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,application/javascript));
+    %let rc=%sysfunc(stpsrv_header(
+      Content-type,application/javascript%str(;)charset=UTF-8
+    ));
   %end;
   %else %if &type=CSS or &type=CSS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
