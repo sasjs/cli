@@ -25,7 +25,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { getConstants } from '../../../constants'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -240,8 +240,8 @@ describe('sasjs job execute', () => {
 
     expect(process.logger.error).toHaveBeenNthCalledWith(
       1,
-      'An error has occurred when executing a job.',
-      '\n',
+      `An error has occurred when executing a job.
+`,
       'Error: Job was not found.'
     )
 
@@ -358,13 +358,25 @@ describe('sasjs job execute', () => {
 
     const mockExit = mockProcessExit()
 
+    const errorMessage = `Could not get session state. Server responded with 304 whilst checking state: <sessionStateUrl>`
+
+    const err = new NoSessionStateError(304, '<sessionStateUrl>', '')
+
+    jest.spyOn(process.logger, 'error')
+    jest.spyOn(process.logger, 'info')
     jest
       .spyOn(sasjs, 'startComputeJob')
-      .mockImplementation(() => Promise.reject('Could not get session state.'))
+      .mockImplementation(() => Promise.reject(err))
 
     await processJob(command, sasjs)
 
-    expect(mockExit).toHaveBeenCalledWith(2)
+    const terminationCode = 2
+
+    expect(process.logger.info).toHaveBeenCalledWith(
+      `Process will be terminated with the status code ${terminationCode}.`
+    )
+    expect(process.logger.error).toHaveBeenNthCalledWith(1, '', errorMessage)
+    expect(mockExit).toHaveBeenCalledWith(terminationCode)
   })
 })
 
