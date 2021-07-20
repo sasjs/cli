@@ -50,7 +50,7 @@
     }
   },
   "dependencies": {
-    "@sasjs/adapter": "2.8.13",
+    "@sasjs/adapter": "2.8.14",
     "@sasjs/core": "2.35.4",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.23.3",
