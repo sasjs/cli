@@ -21,6 +21,7 @@ import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 import { getPreCodeForServicePack } from './compileServiceFile'
+import { getAbsolutePath } from '../../../utils/utils'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
@@ -36,9 +37,7 @@ export async function compileTestFile(
 ) {
   let dependencies = await loadDependencies(
     target,
-    path.isAbsolute(filePath)
-      ? filePath
-      : path.join(process.projectDir, filePath),
+    getAbsolutePath(filePath, process.projectDir),
     await getMacroFolders(target),
     await getProgramFolders(target),
     'test'

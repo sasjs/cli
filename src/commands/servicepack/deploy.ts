@@ -5,6 +5,7 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { ServerType, Target } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
+import { getAbsolutePath } from '../../utils/utils'
 
 export async function servicePackDeploy(
   jsonFilePath: string,
@@ -66,11 +67,7 @@ async function deployToSasViyaWithServicePack(
   let jsonContent
 
   if (jsonFilePath) {
-    jsonContent = await readFile(
-      path.isAbsolute(jsonFilePath)
-        ? jsonFilePath
-        : path.join(process.cwd(), jsonFilePath)
-    )
+    jsonContent = await readFile(getAbsolutePath(jsonFilePath, process.cwd()))
   } else {
     jsonContent = await readFile(finalFilePathJSON)
   }
