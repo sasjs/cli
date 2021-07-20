@@ -59,6 +59,7 @@ jobs:
         run: npm run build
 
       - name: Run smoke tests
+        run: npm cache clean --force
         run: sh ./test.sh
 
       - name: Run mocked tests
