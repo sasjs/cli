@@ -19,6 +19,7 @@ import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
 
 import { LogLevel } from '@sasjs/utils/logger'
+import { getAbsolutePath } from '../../utils/utils'
 
 /**
  * Generates documentation(Doxygen)
@@ -97,9 +98,10 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   }
 
   if (doxyContentFromConfig?.path)
-    doxyContent.path = path.isAbsolute(doxyContentFromConfig.path)
-      ? doxyContentFromConfig.path
-      : path.join(process.projectDir, doxyContentFromConfig.path)
+    doxyContent.path = getAbsolutePath(
+      doxyContentFromConfig.path,
+      process.projectDir
+    )
 
   const doxyParams = setVariableCmd({
     DOXY_HTML_OUTPUT: newOutDirectory,
@@ -128,7 +130,8 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   )
   if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.start()
 
-  await deleteFolder(newOutDirectory)
+  const pathExists = await fileExists(newOutDirectory)
+  if (pathExists) await deleteFolder(newOutDirectory)
   await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(

@@ -1,5 +1,6 @@
 import shelljs from 'shelljs'
 import path from 'path'
+import os from 'os'
 import ora from 'ora'
 import {
   fileExists,
@@ -393,3 +394,8 @@ parmcards4;
     `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
   )
 }
+
+export const getAbsolutePath = (providedPath: string, relativePath: string) =>
+  path.isAbsolute(providedPath) || /^~/.exec(providedPath)
+    ? providedPath.replace(/^~/, os.homedir())
+    : path.join(relativePath, providedPath)
