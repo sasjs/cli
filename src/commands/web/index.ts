@@ -115,33 +115,18 @@ export async function createWebAppServices(target: Target) {
         webSourcePath,
         destinationPath,
         target,
-        streamConfig,
         assetPathMap
       )
     })
 
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
-      await updateLinkHref(
-        linkTag,
-        webSourcePath,
-        destinationPath,
-        target,
-        streamConfig,
-        assetPathMap
-      )
+      await updateLinkHref(linkTag, assetPathMap)
     })
 
     const faviconTags = getFaviconTags(indexHtml)
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateLinkHref(
-        faviconTag,
-        webSourcePath,
-        destinationPath,
-        target,
-        streamConfig,
-        assetPathMap
-      )
+      await updateLinkHref(faviconTag, assetPathMap)
     })
 
     if (target.serverType === ServerType.SasViya) {
@@ -294,12 +279,11 @@ async function generateAssetService(
   return `${fileName}.sas`
 }
 
-async function updateTagSource(
+export async function updateTagSource(
   tag: HTMLLinkElement,
   webAppSourcePath: string,
   destinationPath: string,
   target: Target,
-  streamConfig: StreamConfig,
   assetPathMap: { source: string; target: string }[]
 ) {
   const scriptPath = tag.getAttribute('src')
@@ -349,10 +333,6 @@ async function updateTagSource(
 
 async function updateLinkHref(
   linkTag: HTMLLinkElement,
-  webAppSourcePath: string,
-  destinationPath: string,
-  target: Target,
-  streamConfig: StreamConfig,
   assetPathMap: { source: string; target: string }[]
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
