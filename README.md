@@ -2,7 +2,6 @@
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
-
 [![npm package][npm-image]][npm-url]
 [![Github Workflow][githubworkflow-image]][githubworkflow-url]
 [![Dependency Status][dependency-image]][dependency-url]
