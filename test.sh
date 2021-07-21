@@ -15,6 +15,8 @@ process_result() {
 }
 
 echo $'\e[34mLinking SASjs CLI...'
+npm unlink
+npm cache clean --force
 npm link
 if [ $? -eq 0 ]
 then
