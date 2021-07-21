@@ -53,7 +53,7 @@
     "@sasjs/adapter": "2.8.14",
     "@sasjs/core": "2.35.4",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.24.0",
+    "@sasjs/utils": "2.26.0",
     "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
     "chalk": "4.1.1",
