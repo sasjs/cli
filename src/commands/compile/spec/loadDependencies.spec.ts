@@ -1,11 +1,18 @@
 import path from 'path'
-import { Target, generateTimestamp } from '@sasjs/utils'
+import {
+  Target,
+  generateTimestamp,
+  JobConfig,
+  ServiceConfig
+} from '@sasjs/utils'
 import * as internalModule from '../internal/config'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
   createTestMinimalApp,
-  removeTestApp
+  removeTestApp,
+  updateConfig,
+  updateTarget
 } from '../../../utils/test'
 import { loadDependencies } from '../internal/loadDependencies'
 
@@ -117,6 +124,44 @@ const fakeProgramLines = [
   'run;'
 ]
 
+const jobConfig = (root: boolean = true): JobConfig => ({
+  initProgram: '',
+  termProgram: '',
+  jobFolders: [],
+  macroVars: root
+    ? {
+        macrovar1: 'macro job value configuration 1',
+        macrovar2: 'macro job value configuration 2'
+      }
+    : {
+        macrovar2: 'macro job value target 2',
+        macrovar3: 'macro job value target 3'
+      }
+})
+
+const serviceConfig = (root: boolean = true): ServiceConfig => ({
+  initProgram: '',
+  termProgram: '',
+  serviceFolders: [],
+  macroVars: root
+    ? {
+        macrovar1: 'macro service value configuration 1',
+        macrovar2: 'macro service value configuration 2'
+      }
+    : {
+        macrovar2: 'macro service value target 2',
+        macrovar3: 'macro service value target 3'
+      }
+})
+
+const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
+
+%let macrovar1=macro ${type.toLowerCase()} value configuration 1;
+%let macrovar2=macro ${type.toLowerCase()} value target 2;
+%let macrovar3=macro ${type.toLowerCase()} value target 3;
+
+*${type} Variables end;`
+
 describe('loadDependencies', () => {
   let target: Target
 
@@ -124,6 +169,16 @@ describe('loadDependencies', () => {
     const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
+
+    await updateConfig({
+      jobConfig: jobConfig(),
+      serviceConfig: serviceConfig()
+    })
+    target = await updateTarget(
+      { jobConfig: jobConfig(false), serviceConfig: serviceConfig(false) },
+      target.name,
+      false
+    )
   })
 
   afterAll(async () => {
@@ -153,6 +208,7 @@ describe('loadDependencies', () => {
       'service'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -183,6 +239,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -212,6 +269,8 @@ describe('loadDependencies', () => {
       [],
       'service'
     )
+
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -242,6 +301,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -272,6 +332,7 @@ describe('loadDependencies', () => {
       'service'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -302,6 +363,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -331,6 +393,8 @@ describe('loadDependencies', () => {
       [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
+
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -361,6 +425,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -391,6 +456,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -427,6 +493,7 @@ describe('loadDependencies', () => {
       'job'
     )
 
+    expect(dependencies).toStartWith(compiledVars('Job'))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -461,6 +528,8 @@ describe('loadDependencies', () => {
       [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
+
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -496,6 +565,8 @@ describe('loadDependencies', () => {
       [path.join(__dirname, './'), path.join(__dirname, './services')],
       'service'
     )
+
+    expect(dependencies).toStartWith(compiledVars('Service'))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
