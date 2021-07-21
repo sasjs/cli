@@ -11,8 +11,9 @@ import {
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
-import { displaySasjsRunnerError } from '../../utils/utils'
+import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
 import { getConstants } from '../../constants'
+import { config } from 'dotenv'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -34,9 +35,7 @@ export async function runSasJob(command: Command) {
     }
 
     const dataFile = await readFile(
-      path.isAbsolute(dataFilePath)
-        ? dataFilePath
-        : path.join(process.projectDir, dataFilePath)
+      getAbsolutePath(dataFilePath, process.projectDir)
     )
 
     try {
@@ -52,9 +51,7 @@ export async function runSasJob(command: Command) {
     }
 
     const configFile = await readFile(
-      path.isAbsolute(configFilePath)
-        ? configFilePath
-        : path.join(process.projectDir, configFilePath)
+      getAbsolutePath(configFilePath, process.projectDir)
     )
 
     try {
@@ -65,8 +62,14 @@ export async function runSasJob(command: Command) {
   }
 
   if (target.serverType === ServerType.Sas9) {
-    configJson.username = process.env.SAS_USERNAME
-    configJson.password = process.env.SAS_PASSWORD
+    if (target.authConfigSas9) {
+      configJson.username = target.authConfigSas9.userName
+      configJson.password = target.authConfigSas9.password
+    } else {
+      configJson.username = process.env.SAS_USERNAME
+      configJson.password = process.env.SAS_PASSWORD
+    }
+
     if (!configJson.username || !configJson.password) {
       const { sas9CredentialsError } = await getConstants()
       throw new Error(sas9CredentialsError)

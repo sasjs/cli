@@ -1,8 +1,12 @@
 import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
-import { getLocalConfig, getAuthConfig } from '../../utils/config'
-import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
+import { getAuthConfig, getStreamConfig } from '../../utils/config'
+import {
+  displaySasjsRunnerError,
+  executeShellScript,
+  getAbsolutePath
+} from '../../utils/utils'
 import {
   readFile,
   readFileBinary,
@@ -23,18 +27,20 @@ export async function deploy(target: Target, isLocal: boolean) {
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
   ) {
+    const appLoc = target.appLoc.replace(/\ /g, '%20')
     process.logger?.info(
-      `Deploying service pack to ${target.serverUrl} at location ${target.appLoc} .`
+      `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
     )
     const webIndexFileName = await deployToSasViyaWithServicePack(
       target,
       isLocal
     )
     process.logger?.success('Build pack has been successfully deployed.')
+
     process.logger?.success(
       target.serverType === ServerType.SasViya && webIndexFileName
-        ? `${target.serverUrl}/SASJobExecution?_file=${target.appLoc}/services/${webIndexFileName}&_debug=2`
-        : `${target.serverUrl}/SASJobExecution?_folder=${target.appLoc}`
+        ? `${target.serverUrl}/SASJobExecution?_file=${appLoc}/services/${webIndexFileName}&_debug=2`
+        : `${target.serverUrl}/SASJobExecution?_folder=${appLoc}`
     )
   }
 
@@ -50,9 +56,7 @@ export async function deploy(target: Target, isLocal: boolean) {
 
   const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
-    const deployScriptPath = path.isAbsolute(deployScript)
-      ? deployScript
-      : path.join(process.projectDir, deployScript)
+    const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
 
     if (isSasFile(deployScript)) {
       process.logger?.info(
@@ -63,12 +67,7 @@ export async function deploy(target: Target, isLocal: boolean) {
       // split into lines
       const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
 
-      const localConfig = await getLocalConfig()
-
-      const streamConfig = {
-        ...localConfig?.streamConfig,
-        ...target.streamConfig
-      } as StreamConfig
+      const streamConfig = await getStreamConfig(target)
 
       if (target.serverType === ServerType.SasViya) {
         await deployToSasViya(
@@ -233,7 +232,8 @@ async function deployToSasViya(
     )
 
     if (streamConfig?.streamWeb) {
-      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${target.appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
+      const appLoc = target.appLoc.replace(/\ /g, '%20')
+      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
       process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
     }
   } else {
@@ -248,8 +248,15 @@ async function deployToSas9(
   logFilePath: string | null,
   streamConfig?: StreamConfig
 ) {
-  const username = process.env.SAS_USERNAME
-  let password = process.env.SAS_PASSWORD
+  let username: any
+  let password: any
+  if (target.authConfigSas9) {
+    username = target.authConfigSas9.userName
+    password = target.authConfigSas9.password
+  } else {
+    username = process.env.SAS_USERNAME
+    password = process.env.SAS_PASSWORD
+  }
   if (!username || !password) {
     const { sas9CredentialsError } = await getConstants()
     throw new Error(sas9CredentialsError)
@@ -287,7 +294,8 @@ async function deployToSas9(
       )}`
     )
     if (streamConfig?.streamWeb) {
-      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${target.appLoc}/services/${streamConfig.streamServiceName}`
+      const appLoc = target.appLoc.replace(/\ /g, '%20')
+      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
       process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
     }
   } else {

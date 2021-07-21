@@ -2,6 +2,7 @@ import path from 'path'
 import { Target } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
 import { getConfiguration } from '../../../utils/config'
+import { getAbsolutePath } from '../../../utils/utils'
 import { readFile } from '@sasjs/utils'
 
 export const getBuildInit = async (target: Target) => {
@@ -9,9 +10,7 @@ export const getBuildInit = async (target: Target) => {
   let buildInitContent = ''
   if (target?.buildConfig?.initProgram) {
     buildInitContent = await readFile(
-      path.isAbsolute(target.buildConfig.initProgram)
-        ? target.buildConfig.initProgram
-        : path.join(buildSourceFolder, target.buildConfig.initProgram)
+      getAbsolutePath(target.buildConfig.initProgram, buildSourceFolder)
     )
   } else {
     const configuration = await getConfiguration(
@@ -19,9 +18,10 @@ export const getBuildInit = async (target: Target) => {
     )
     if (configuration?.buildConfig?.initProgram) {
       buildInitContent = await readFile(
-        path.isAbsolute(configuration.buildConfig.initProgram)
-          ? configuration.buildConfig.initProgram
-          : path.join(buildSourceFolder, configuration.buildConfig.initProgram)
+        getAbsolutePath(
+          configuration.buildConfig.initProgram,
+          buildSourceFolder
+        )
       )
     }
   }
@@ -36,9 +36,7 @@ export const getBuildTerm = async (target: Target) => {
   let buildTermContent = ''
   if (target?.buildConfig?.termProgram) {
     buildTermContent = await readFile(
-      path.isAbsolute(target.buildConfig.termProgram)
-        ? target.buildConfig.termProgram
-        : path.join(buildSourceFolder, target.buildConfig.termProgram)
+      getAbsolutePath(target.buildConfig.termProgram, buildSourceFolder)
     )
   } else {
     const configuration = await getConfiguration(
@@ -46,9 +44,10 @@ export const getBuildTerm = async (target: Target) => {
     )
     if (configuration?.buildConfig?.termProgram) {
       buildTermContent = await readFile(
-        path.isAbsolute(configuration.buildConfig.termProgram)
-          ? configuration.buildConfig.termProgram
-          : path.join(buildSourceFolder, configuration.buildConfig.termProgram)
+        getAbsolutePath(
+          configuration.buildConfig.termProgram,
+          buildSourceFolder
+        )
       )
     }
   }

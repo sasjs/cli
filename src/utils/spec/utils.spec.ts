@@ -3,7 +3,8 @@ import {
   millisecondsToDdHhMmSs,
   inExistingProject,
   diff,
-  setupGitIgnore
+  setupGitIgnore,
+  getAbsolutePath
 } from '../utils'
 import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
 import path from 'path'
@@ -156,6 +157,37 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('getAbsolutePath', () => {
+    const homedir = require('os').homedir()
+    it('should convert relative path to absolute', () => {
+      const relativePath = './my-path/xyz'
+      const pathRelativeTo = '/home/abc'
+
+      const expectedAbsolutePath = '/home/abc/my-path/xyz'
+
+      expect(getAbsolutePath(relativePath, pathRelativeTo)).toEqual(
+        expectedAbsolutePath
+      )
+    })
+
+    it('should convert tilde from absolute path', () => {
+      const relativePath = '~/my-path/xyz'
+
+      const expectedAbsolutePath = '~/my-path/xyz'.replace('~', homedir)
+
+      expect(getAbsolutePath(relativePath, '')).toEqual(expectedAbsolutePath)
+    })
+
+    it('should return same path if path is absolute', () => {
+      const absolutePath = '/my-path/xyz'
+      const pathRelativeTo = '/home/abc'
+
+      expect(getAbsolutePath(absolutePath, pathRelativeTo)).toEqual(
+        absolutePath
+      )
     })
   })
 })

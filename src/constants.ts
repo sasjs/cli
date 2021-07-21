@@ -1,6 +1,7 @@
 import path from 'path'
 import { getInstalledPath } from 'get-installed-path'
 import { getLocalOrGlobalConfig } from './utils/config'
+import { getAbsolutePath } from './utils/utils'
 
 interface Constants {
   buildSourceFolder: string
@@ -16,6 +17,7 @@ interface Constants {
   macroCorePath: string
   contextName: string
   sas9CredentialsError: string
+  invalidSasError: string
 }
 
 // process.projectDir sets in cli.js
@@ -54,9 +56,10 @@ export const getConstants = async (): Promise<Constants> => {
     'sasjs',
     'db'
   )
-  const buildDestinationFolder = path.isAbsolute(buildOutputFolder)
-    ? buildOutputFolder
-    : path.join(isLocal ? process.projectDir : homeDir, buildOutputFolder)
+  const buildDestinationFolder = getAbsolutePath(
+    buildOutputFolder,
+    isLocal ? process.projectDir : homeDir
+  )
   const buildDestinationServicesFolder = path.join(
     buildDestinationFolder,
     'services'
@@ -68,9 +71,10 @@ export const getConstants = async (): Promise<Constants> => {
   const macroCorePath = isLocal
     ? path.join(buildSourceFolder, 'node_modules', '@sasjs/core')
     : await getMacroCoreGlobalPath()
-  const buildDestinationResultsFolder = path.isAbsolute(buildResultsFolder)
-    ? buildResultsFolder
-    : path.join(isLocal ? process.projectDir : homeDir, buildResultsFolder)
+  const buildDestinationResultsFolder = getAbsolutePath(
+    buildResultsFolder,
+    isLocal ? process.projectDir : homeDir
+  )
   const buildDestinationResultsLogsFolder = path.join(
     buildDestinationResultsFolder,
     'logs'
@@ -81,6 +85,9 @@ export const getConstants = async (): Promise<Constants> => {
     '\n* SAS_USERNAME' +
     '\n* SAS_PASSWORD' +
     '\nPlease run "sasjs auth" for your specified target to apply the correct credentials.'
+
+  const invalidSasError =
+    'Url specified does not contain a valid sas program. Please provide valid url.'
 
   return {
     buildSourceFolder,
@@ -95,6 +102,7 @@ export const getConstants = async (): Promise<Constants> => {
     buildDestinationTestFolder,
     macroCorePath,
     contextName,
-    sas9CredentialsError
+    sas9CredentialsError,
+    invalidSasError
   }
 }
