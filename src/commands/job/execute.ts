@@ -35,6 +35,8 @@ import { terminateProcess } from '../../main'
  * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
  * @param {boolean | undefined} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error). Works only if waitForJob flag was provided.
  * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
+ * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
+ * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
 export async function execute(
   sasjs: SASjs,
@@ -47,7 +49,8 @@ export async function execute(
   statusFile: string,
   returnStatusOnly: boolean,
   ignoreWarnings: boolean,
-  source: string | undefined
+  source: string | undefined,
+  streamLog: boolean
 ) {
   let logFolderPath
 
@@ -61,7 +64,7 @@ export async function execute(
   const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
     pollInterval: 1000,
-    streamLog: false,
+    streamLog,
     logFolderPath
   }
 
@@ -86,7 +89,7 @@ export async function execute(
     )
   }
 
-  const contextName = getContextName(target, returnStatusOnly)
+  const contextName = await getContextName(target, returnStatusOnly)
 
   let macroVars: MacroVars | undefined
 

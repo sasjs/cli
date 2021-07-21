@@ -25,13 +25,14 @@ export async function execute(
   csvFile: string,
   target: Target,
   prefixAppLoc: Function,
+  streamLog: boolean,
   sasjs: SASjs
 ) {
   return new Promise(async (resolve, reject) => {
     const pollOptions: PollOptions = {
       maxPollCount: 24 * 60 * 60,
       pollInterval: 1000,
-      streamLog: false,
+      streamLog,
       logFolderPath: logFolder
     }
 
