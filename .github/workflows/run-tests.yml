@@ -58,9 +58,6 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Clear npm cache
-        run: npm cache clean --force
-
       - name: Run smoke tests
         run: sh ./test.sh
 
