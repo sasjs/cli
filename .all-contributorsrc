@@ -13,6 +13,17 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "YuryShkoda",
+      "name": "Yury Shkoda",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25773492?v=4",
+      "profile": "https://www.erudicat.com",
+      "contributions": [
+        "code",
+        "projectManagement",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
