@@ -1,4 +1,4 @@
-import { Target, asyncForEach, readFile, MacroVar } from '@sasjs/utils'
+import { Target, asyncForEach, readFile, Configuration } from '@sasjs/utils'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { chunk } from '../../../utils/utils'
 import {
@@ -58,10 +58,11 @@ export async function loadDependencies(
   let init, initPath
   let term, termPath
   let serviceVars = ''
+  let jobVars = ''
   let testVars = ''
 
   if (type === 'service' && !isTestFile(filePath)) {
-    serviceVars = await getVars(target?.serviceConfig?.macroVars)
+    serviceVars = await getVars('service', target)
     ;({ content: init, filePath: initPath } = await getServiceInit(target))
     ;({ content: term, filePath: termPath } = await getServiceTerm(target))
 
@@ -69,6 +70,7 @@ export async function loadDependencies(
       ? `\n* Service start;\n${fileContent}\n* Service end;`
       : ''
   } else if (type === 'job' && !isTestFile(filePath)) {
+    jobVars = await getVars('job', target)
     ;({ content: init, filePath: initPath } = await getJobInit(target))
     ;({ content: term, filePath: termPath } = await getJobTerm(target))
 
@@ -76,7 +78,7 @@ export async function loadDependencies(
       ? `\n* Job start;\n${fileContent}\n* Job end;`
       : ''
   } else {
-    testVars = await getVars(target.testConfig?.macroVars)
+    testVars = await getVars('test', target)
     ;({ content: init, filePath: initPath } = await getTestInit(target))
     ;({ content: term, filePath: termPath } = await getTestTerm(target))
 
@@ -127,6 +129,9 @@ export async function loadDependencies(
     case 'service':
       fileContent = `* Service Variables start;\n${serviceVars}\n*Service Variables end;\n${fileContent}`
       break
+    case 'job':
+      fileContent = `* Job Variables start;\n${jobVars}\n*Job Variables end;\n${fileContent}`
+      break
     case 'test':
       fileContent = `* Test Variables start;\n${testVars}\n*Test Variables end;\n${fileContent}`
       break
@@ -147,10 +152,23 @@ async function getDependencies(filePaths: string[]): Promise<string> {
   return dependenciesContent.join('\n')
 }
 
-export const getVars = async (macroVars: MacroVar | undefined) => {
-  const targetVars = macroVars ?? {}
+export const getVars = async (
+  varType: 'service' | 'job' | 'test',
+  target: Target
+) => {
+  const getInternalVars = (config: Configuration | Target) =>
+    varType === 'service'
+      ? config?.serviceConfig?.macroVars
+      : varType === 'job'
+      ? config?.jobConfig?.macroVars
+      : varType === 'test'
+      ? config?.testConfig?.macroVars
+      : {}
+
+  const targetVars = getInternalVars(target)
+
   const { configuration } = await getLocalOrGlobalConfig()
-  const commonServiceVars = configuration?.serviceConfig?.macroVars ?? {}
+  const commonServiceVars = getInternalVars(configuration)
 
   return convertVarsToSasFormat({ ...commonServiceVars, ...targetVars })
 }
