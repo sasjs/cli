@@ -50,10 +50,10 @@
     }
   },
   "dependencies": {
-    "@sasjs/adapter": "2.8.13",
+    "@sasjs/adapter": "file:../adapter/build/sasjs-adapter-5.0.0.tgz",
     "@sasjs/core": "2.35.3",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.23.3",
+    "@sasjs/utils": "^2.25.4",
     "@types/url-parse": "1.4.3",
     "btoa": "1.2.1",
     "chalk": "4.1.1",

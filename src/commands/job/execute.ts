@@ -61,7 +61,7 @@ export async function execute(
   const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
     pollInterval: 1000,
-    streamLog: true,
+    streamLog: false,
     logFolderPath
   }
 
