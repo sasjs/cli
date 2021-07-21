@@ -1,5 +1,6 @@
 import path from 'path'
 import { getProgramFolders, getMacroFolders } from '../../utils/config'
+import { getAbsolutePath } from '../../utils/utils'
 import { fileExists, deleteFolder, createFolder, copy } from '@sasjs/utils'
 import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
@@ -42,9 +43,7 @@ export async function compileSingleFile(
 
   source = source.split('/').join(path.sep)
 
-  const sourcePath = path.isAbsolute(source)
-    ? source
-    : path.join(process.currentDir!, source)
+  const sourcePath = getAbsolutePath(source, process.currentDir)
 
   if (!(await validateSourcePath(sourcePath))) {
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
@@ -71,7 +70,10 @@ export async function compileSingleFile(
   let outputPathParts = outputPath.split(path.sep)
   outputPathParts.pop(), outputPathParts.pop()
   const parentOutputFolder = outputPathParts.join(path.sep)
-  await deleteFolder(parentOutputFolder)
+
+  const pathExists = await fileExists(parentOutputFolder)
+  if (pathExists) await deleteFolder(parentOutputFolder)
+
   await createFolder(outputPath)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string

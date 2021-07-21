@@ -1,7 +1,7 @@
-import path from 'path'
 import { Target } from '@sasjs/utils'
 import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
+import { getAbsolutePath } from '../../../utils/utils'
 
 export async function getAllJobFolders(target: Target) {
   const { configuration } = await getLocalOrGlobalConfig()
@@ -16,9 +16,7 @@ export async function getAllJobFolders(target: Target) {
   allJobs = allJobs.filter((s) => !!s) as string[]
 
   const { buildSourceFolder } = await getConstants()
-  allJobs = allJobs.map((job) =>
-    path.isAbsolute(job) ? job : path.join(buildSourceFolder, job)
-  )
+  allJobs = allJobs.map((job) => getAbsolutePath(job, buildSourceFolder))
 
   return [...new Set(allJobs)]
 }

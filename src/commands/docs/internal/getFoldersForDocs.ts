@@ -2,6 +2,7 @@ import path from 'path'
 
 import { Target, Configuration } from '@sasjs/utils/types'
 import { getConstants } from '../../../constants'
+import { getAbsolutePath } from '../../../utils/utils'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )
@@ -36,23 +37,19 @@ async function extractFoldersForDocs(config: Target | Configuration) {
       : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
 
   const macroFolders = config?.macroFolders
-    ? config.macroFolders.map((f) =>
-        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-      )
+    ? config.macroFolders.map((f) => getAbsolutePath(f, buildSourceFolder))
     : []
   const programFolders = config?.programFolders
-    ? config.programFolders.map((f) =>
-        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
-      )
+    ? config.programFolders.map((f) => getAbsolutePath(f, buildSourceFolder))
     : []
   const serviceFolders = config?.serviceConfig?.serviceFolders
     ? config.serviceConfig.serviceFolders.map((f) =>
-        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+        getAbsolutePath(f, buildSourceFolder)
       )
     : []
   const jobFolders = config?.jobConfig?.jobFolders
     ? config.jobConfig.jobFolders.map((f) =>
-        path.isAbsolute(f) ? f : path.join(buildSourceFolder, f)
+        getAbsolutePath(f, buildSourceFolder)
       )
     : []
 
