@@ -15,7 +15,7 @@ export async function processFlow(command: Command, sasjs?: SASjs) {
   const logFolder =
     (command.getFlagValue('logFolder') as string) ||
     path.join(await getProjectRoot(), 'sasjsbuild', 'logs')
-
+  const streamLog = !!command.getFlagValue('streamLog')
   let result
 
   if (!sasjs) {
@@ -35,6 +35,7 @@ export async function processFlow(command: Command, sasjs?: SASjs) {
         csvFile,
         target,
         command.prefixAppLoc,
+        streamLog,
         sasjs
       ).catch((err) => {
         displayError(err, 'An error has occurred when executing this flow.')

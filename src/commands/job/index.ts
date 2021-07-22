@@ -28,6 +28,7 @@ export async function processJob(command: Command, sasjs?: SASjs) {
   const returnStatusOnly = command.getFlagValue('returnStatusOnly') as boolean
   const ignoreWarnings = command.getFlagValue('ignoreWarnings') as boolean
   const source = command.getFlagValue('source') as string | undefined
+  const streamLog = !!command.getFlagValue('streamLog')
 
   const { target } = await findTargetInConfiguration(targetName)
 
@@ -62,7 +63,8 @@ export async function processJob(command: Command, sasjs?: SASjs) {
         status,
         returnStatusOnly,
         ignoreWarnings,
-        source
+        source,
+        streamLog
       )
 
       break

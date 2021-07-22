@@ -3,7 +3,11 @@ import { isJsonFile } from '../../utils/file'
 import { parseLogLines } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import path from 'path'
-import SASjs, { Link, NoSessionStateError } from '@sasjs/adapter/node'
+import SASjs, {
+  Link,
+  NoSessionStateError,
+  PollOptions
+} from '@sasjs/adapter/node'
 import {
   Target,
   MacroVars,
@@ -31,6 +35,8 @@ import { terminateProcess } from '../../main'
  * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
  * @param {boolean | undefined} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error). Works only if waitForJob flag was provided.
  * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
+ * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
+ * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
 export async function execute(
   sasjs: SASjs,
@@ -43,9 +49,24 @@ export async function execute(
   statusFile: string,
   returnStatusOnly: boolean,
   ignoreWarnings: boolean,
-  source: string | undefined
+  source: string | undefined,
+  streamLog: boolean
 ) {
-  const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+  let logFolderPath
+
+  if (typeof logFile === 'string') {
+    const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
+    logFolderPath = path.join(currentDirPath, logFile)
+  } else {
+    logFolderPath = process.projectDir
+  }
+
+  const pollOptions: PollOptions = {
+    maxPollCount: 24 * 60 * 60,
+    pollInterval: 1000,
+    streamLog,
+    logFolderPath
+  }
 
   if (returnStatusOnly && !waitForJob) waitForJob = true
 
@@ -68,7 +89,7 @@ export async function execute(
     )
   }
 
-  const contextName = getContextName(target, returnStatusOnly)
+  const contextName = await getContextName(target, returnStatusOnly)
 
   let macroVars: MacroVars | undefined
 
@@ -196,7 +217,9 @@ export async function execute(
           if (!returnStatusOnly) (process.logger || console).log(outputJson)
         }
 
-        if (logFile !== undefined) {
+        // If the log was being streamed, it should already be present
+        // at the specified log path
+        if (logFile !== undefined && !pollOptions.streamLog) {
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
           )
