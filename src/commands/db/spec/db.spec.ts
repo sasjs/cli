@@ -20,15 +20,4 @@ describe(`sasjs db`, () => {
 
     await verifyStep('db')
   })
-
-  it(`should throw an error when the db folder does not exist`, async () => {
-    const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
-
-    process.projectDir = path.join(__dirname, parentFolderNameTimeStamped)
-
-    await expect(buildDB()).rejects.toThrow('no such file or directory')
-
-    await removeTestApp(__dirname, parentFolderNameTimeStamped)
-  })
 })
