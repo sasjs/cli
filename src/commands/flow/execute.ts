@@ -381,21 +381,14 @@ export async function execute(
 
           const logParsed = parseLogLines(logJson)
 
-          const generateFileName = () =>
-            `${flowName}_${jobLocation
-              .split('/')
-              .splice(-1, 1)
-              .join('')
-              .replace(/\W/g, '_')}_${generateTimestamp('_')}.log`
-
-          let logName = generateFileName()
+          let logName = generateFileName(flowName, jobLocation)
 
           while (
             await fileExists(path.join(logFolder, logName)).catch((err) =>
               displayError(err, 'Error while checking if log file exists.')
             )
           ) {
-            logName = generateFileName()
+            logName = generateFileName(flowName, jobLocation)
           }
 
           await createFile(path.join(logFolder, logName), logParsed).catch(
@@ -526,6 +519,12 @@ export async function execute(
 
           displaySuccess(`'${job.location}' has been submitted for execution.`)
 
+          let logName: string
+
+          if (pollOptions.streamLog) {
+            logName = `${logFolder}/${generateFileName(flowName, jobLocation)}`
+          }
+
           sasjs
             .startComputeJob(
               jobLocation,
@@ -544,16 +543,20 @@ export async function execute(
 
                 const details = parseJobDetails(res)
 
-                let logName = await saveLog(
-                  res.links,
-                  successor,
-                  jobLocation,
-                  details?.lineCount
-                ).catch((err: any) => {
-                  displayError(err, 'Error while saving log file.')
-                })
+                // If the log was being streamed, it should already be present
+                // at the specified log path
+                if (!pollOptions.streamLog) {
+                  logName = (await saveLog(
+                    res.links,
+                    successor,
+                    jobLocation,
+                    details?.lineCount
+                  ).catch((err: any) => {
+                    displayError(err, 'Error while saving log file.')
+                  })) as string
 
-                logName = logName ? `${logFolder}/${logName}` : ''
+                  logName = logName ? `${logFolder}/${logName}` : ''
+                }
 
                 await saveToCsv(
                   successor,
@@ -721,3 +724,10 @@ const parseJobDetails = (response: any) => {
 
   return { details, lineCount }
 }
+
+const generateFileName = (flowName: string, jobLocation: string) =>
+  `${flowName}_${jobLocation
+    .split('/')
+    .splice(-1, 1)
+    .join('')
+    .replace(/\W/g, '_')}_${generateTimestamp('_')}.log`

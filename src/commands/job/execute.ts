@@ -217,7 +217,9 @@ export async function execute(
           if (!returnStatusOnly) (process.logger || console).log(outputJson)
         }
 
-        if (logFile !== undefined) {
+        // If the log was being streamed, it should already be present
+        // at the specified log path
+        if (logFile !== undefined && !pollOptions.streamLog) {
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
           )
