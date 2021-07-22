@@ -8,6 +8,7 @@ import {
 } from '../utils'
 import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
 import path from 'path'
+import { isWindows } from '../command'
 
 describe('utils', () => {
   const folderPath = path.join('src', 'utils', 'spec')
@@ -166,7 +167,9 @@ describe('utils', () => {
       const relativePath = './my-path/xyz'
       const pathRelativeTo = '/home/abc'
 
-      const expectedAbsolutePath = '/home/abc/my-path/xyz'
+      const expectedAbsolutePath = isWindows()
+        ? '\\home\\abc\\my-path\\xyz'
+        : '/home/abc/my-path/xyz'
 
       expect(getAbsolutePath(relativePath, pathRelativeTo)).toEqual(
         expectedAbsolutePath
@@ -176,7 +179,8 @@ describe('utils', () => {
     it('should convert tilde from absolute path', () => {
       const relativePath = '~/my-path/xyz'
 
-      const expectedAbsolutePath = '~/my-path/xyz'.replace('~', homedir)
+      const expectedAbsolutePath =
+        homedir + (isWindows() ? '\\my-path\\xyz' : '/my-path/xyz')
 
       expect(getAbsolutePath(relativePath, '')).toEqual(expectedAbsolutePath)
     })
@@ -185,8 +189,12 @@ describe('utils', () => {
       const absolutePath = '/my-path/xyz'
       const pathRelativeTo = '/home/abc'
 
+      const expectedAbsolutePath = isWindows()
+        ? '\\my-path\\xyz'
+        : '/my-path/xyz'
+
       expect(getAbsolutePath(absolutePath, pathRelativeTo)).toEqual(
-        absolutePath
+        expectedAbsolutePath
       )
     })
   })
