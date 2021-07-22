@@ -33,7 +33,9 @@ describe('sasjs test', () => {
         : 'SASStoredProcess'
     }/?_program=/Public/app/cli-tests/${
       target.name
-    }/tests/${test}&_debug=2477&_contextName=${encodeURI(target.contextName)}`
+    }/tests/${test}&_debug=2477&_contextName=${encodeURIComponent(
+      target.contextName
+    )}`
   const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
 
   beforeAll(async () => {
