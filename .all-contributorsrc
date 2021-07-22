@@ -24,6 +24,16 @@
         "projectManagement",
         "test"
       ]
+    },
+    {
+      "login": "krishna-acondy",
+      "name": "Krishna Acondy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2980428?v=4",
+      "profile": "https://krishna-acondy.io/",
+      "contributions": [
+        "code",
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
