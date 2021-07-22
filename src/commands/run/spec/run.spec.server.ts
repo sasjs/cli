@@ -201,7 +201,7 @@ describe('sasjs run', () => {
         expect(result.log.includes(logPart)).toBeTruthy()
       },
 
-      60 * 1000
+      5 * 60 * 1000
     )
   })
 

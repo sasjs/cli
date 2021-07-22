@@ -237,7 +237,7 @@ describe('sasjs cbd having stream app', () => {
 
       await updateLocalTarget(target.name, { appLoc })
     },
-    2 * 60 * 1000
+    5 * 60 * 1000
   )
 })
 
