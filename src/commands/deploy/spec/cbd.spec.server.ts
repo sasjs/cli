@@ -69,7 +69,7 @@ describe('sasjs cbd with global config', () => {
      */
     const jobContent = await readFile(jobPath)
     expect(jobContent).not.toEqual('')
-    expect(/^\* Dependencies start;*/.test(jobContent)).toEqual(true)
+    expect(/^\* Job Variables start;*/.test(jobContent)).toEqual(true)
     expect(jobContent.includes(`* JobInit start;`)).toEqual(true)
     expect(jobContent.includes(`* JobTerm start;`)).toEqual(true)
     /**
