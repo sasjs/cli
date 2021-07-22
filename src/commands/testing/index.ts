@@ -162,7 +162,9 @@ export async function runTest(command: Command) {
     }/?_program=${sasJobLocation}&_debug=2477`
 
     if (target.contextName) {
-      testUrl = `${testUrl}&_contextName=${encodeURI(target.contextName)}`
+      testUrl = `${testUrl}&_contextName=${encodeURIComponent(
+        target.contextName
+      )}`
     }
 
     const printTestUrl = () => process.logger.info(`Test URL: ${testUrl}`)
