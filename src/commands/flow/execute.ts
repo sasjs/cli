@@ -13,7 +13,7 @@ import {
   createFolder,
   getRealPath
 } from '@sasjs/utils'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import stringify from 'csv-stringify'
 import examples from './examples'
 import { FilePath, Flow } from '../../types'
@@ -25,10 +25,16 @@ export async function execute(
   csvFile: string,
   target: Target,
   prefixAppLoc: Function,
+  streamLog: boolean,
   sasjs: SASjs
 ) {
   return new Promise(async (resolve, reject) => {
-    const pollOptions = { MAX_POLL_COUNT: 24 * 60 * 60, POLL_INTERVAL: 1000 }
+    const pollOptions: PollOptions = {
+      maxPollCount: 24 * 60 * 60,
+      pollInterval: 1000,
+      streamLog,
+      logFolderPath: logFolder
+    }
 
     const normalizeFilePath = (filePath: string) => {
       const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
@@ -256,7 +262,7 @@ export async function execute(
                 }' failed with the status '${job.status}'.${
                   job.status === 'running'
                     ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                        pollOptions.MAX_POLL_COUNT * pollOptions.POLL_INTERVAL
+                        pollOptions.maxPollCount * pollOptions.pollInterval
                       )}).`
                     : ''
                 }`
@@ -375,21 +381,14 @@ export async function execute(
 
           const logParsed = parseLogLines(logJson)
 
-          const generateFileName = () =>
-            `${flowName}_${jobLocation
-              .split('/')
-              .splice(-1, 1)
-              .join('')
-              .replace(/\W/g, '_')}_${generateTimestamp('_')}.log`
-
-          let logName = generateFileName()
+          let logName = generateFileName(flowName, jobLocation)
 
           while (
             await fileExists(path.join(logFolder, logName)).catch((err) =>
               displayError(err, 'Error while checking if log file exists.')
             )
           ) {
-            logName = generateFileName()
+            logName = generateFileName(flowName, jobLocation)
           }
 
           await createFile(path.join(logFolder, logName), logParsed).catch(
@@ -520,6 +519,12 @@ export async function execute(
 
           displaySuccess(`'${job.location}' has been submitted for execution.`)
 
+          let logName: string
+
+          if (pollOptions.streamLog) {
+            logName = `${logFolder}/${generateFileName(flowName, jobLocation)}`
+          }
+
           sasjs
             .startComputeJob(
               jobLocation,
@@ -538,16 +543,20 @@ export async function execute(
 
                 const details = parseJobDetails(res)
 
-                let logName = await saveLog(
-                  res.links,
-                  successor,
-                  jobLocation,
-                  details?.lineCount
-                ).catch((err: any) => {
-                  displayError(err, 'Error while saving log file.')
-                })
+                // If the log was being streamed, it should already be present
+                // at the specified log path
+                if (!pollOptions.streamLog) {
+                  logName = (await saveLog(
+                    res.links,
+                    successor,
+                    jobLocation,
+                    details?.lineCount
+                  ).catch((err: any) => {
+                    displayError(err, 'Error while saving log file.')
+                  })) as string
 
-                logName = logName ? `${logFolder}/${logName}` : ''
+                  logName = logName ? `${logFolder}/${logName}` : ''
+                }
 
                 await saveToCsv(
                   successor,
@@ -575,8 +584,7 @@ export async function execute(
                     }' failed with the status '${job.status}'.${
                       job.status === 'running'
                         ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                            pollOptions.MAX_POLL_COUNT *
-                              pollOptions.POLL_INTERVAL
+                            pollOptions.maxPollCount * pollOptions.pollInterval
                           )}).`
                         : ''
                     }`
@@ -716,3 +724,10 @@ const parseJobDetails = (response: any) => {
 
   return { details, lineCount }
 }
+
+const generateFileName = (flowName: string, jobLocation: string) =>
+  `${flowName}_${jobLocation
+    .split('/')
+    .splice(-1, 1)
+    .join('')
+    .replace(/\W/g, '_')}_${generateTimestamp('_')}.log`
