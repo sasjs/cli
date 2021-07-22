@@ -90,7 +90,7 @@ describe('sasjs context', () => {
 
         expect(contexts.length).toBeGreaterThan(0)
       },
-      60 * 4 * 1000
+      10 * 60 * 1000
     )
   })
 
