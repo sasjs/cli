@@ -32,7 +32,11 @@
       "profile": "https://krishna-acondy.io/",
       "contributions": [
         "code",
-        "infra"
+        "infra",
+        "content",
+        "maintenance",
+        "platform",
+        "review"
       ]
     }
   ],
