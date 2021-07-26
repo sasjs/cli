@@ -4,15 +4,14 @@ import { deleteFolder, generateTimestamp } from '@sasjs/utils'
 import { buildDB } from '../db'
 
 describe(`sasjs db`, () => {
-  let appName: string
+  const timestamp = generateTimestamp()
+  const appName = `test-app-DB-${timestamp}`
 
-  beforeEach(async () => {
-    const timestamp = generateTimestamp()
-    appName = `test-app-DB-${timestamp}`
+  beforeAll(async () => {
     await createTestApp(__dirname, appName)
   })
 
-  afterEach(async () => {
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
   })
 
