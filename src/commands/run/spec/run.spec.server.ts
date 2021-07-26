@@ -86,73 +86,53 @@ describe('sasjs run', () => {
       ).rejects.toThrowError(error)
     })
 
-    it(
-      'should get the log on successfull execution having relative path',
-      async () => {
-        const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
+    it('should get the log on successfull execution having relative path', async () => {
+      const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        const result: any = await runSasCode(
-          new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+      const result: any = await runSasCode(
+        new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+      )
+
+      expect(result.log.includes(logPart)).toBeTruthy()
+    })
+
+    it('should get the log on successfull execution having absolute path', async () => {
+      const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
+
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
         )
+      )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
-      },
+      expect(result.log.includes(logPart)).toBeTruthy()
+    })
 
-      60 * 1000
-    )
+    it('should get the log on successfull execution having relative path but compile it first', async () => {
+      const logPartRegex =
+        /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
-    it(
-      'should get the log on successfull execution having absolute path',
-      async () => {
-        const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
-          )
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} sasjs/testServices/logJob.sas --compile`
         )
+      )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
-      },
+      expect(logPartRegex.test(result.log)).toBeTruthy()
+    })
 
-      60 * 1000
-    )
+    it('should get the log on successfull execution having absolute path but compile it first', async () => {
+      const logPartRegex =
+        /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
-    it(
-      'should get the log on successfull execution having relative path but compile it first',
-      async () => {
-        const logPartRegex =
-          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} sasjs/testServices/logJob.sas --compile`
-          )
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
         )
+      )
 
-        expect(logPartRegex.test(result.log)).toBeTruthy()
-      },
-
-      60 * 1000
-    )
-
-    it(
-      'should get the log on successfull execution having absolute path but compile it first',
-      async () => {
-        const logPartRegex =
-          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
-          )
-        )
-
-        expect(logPartRegex.test(result.log)).toBeTruthy()
-      },
-
-      60 * 1000
-    )
+      expect(logPartRegex.test(result.log)).toBeTruthy()
+    })
   })
 
   describe('runSasCode within vanilla js project', () => {
@@ -189,20 +169,15 @@ describe('sasjs run', () => {
       await removeTestApp(__dirname, appName)
     })
 
-    it(
-      'should get the log having launch code message',
-      async () => {
-        const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
-        await build(target)
-        const result: any = await runSasCode(
-          new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
-        )
+    it('should get the log having launch code message', async () => {
+      const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
+      await build(target)
+      const result: any = await runSasCode(
+        new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
+      )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
-      },
-
-      5 * 60 * 1000
-    )
+      expect(result.log.includes(logPart)).toBeTruthy()
+    })
   })
 
   describe('runSasCode outside project', () => {
@@ -254,73 +229,53 @@ describe('sasjs run', () => {
       await deleteFolder(path.join(homedir, 'sasjsresults'))
     })
 
-    it(
-      'should get the log on successfull execution having relative path',
-      async () => {
-        const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
+    it('should get the log on successfull execution having relative path', async () => {
+      const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-        const result: any = await runSasCode(
-          new Command(`run -t ${target.name} ../testServices/logJob.sas`)
+      const result: any = await runSasCode(
+        new Command(`run -t ${target.name} ../testServices/logJob.sas`)
+      )
+
+      expect(result.log.includes(logPart)).toBeTruthy()
+    })
+
+    it('should get the log on successfull execution having absolute path', async () => {
+      const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
+
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ${__dirname}/testServices/logJob.sas`
         )
+      )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
-      },
+      expect(result.log.includes(logPart)).toBeTruthy()
+    })
 
-      60 * 1000
-    )
+    it('should get the log on successfull execution having relative path but compile it first', async () => {
+      const logPartRegex =
+        /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
-    it(
-      'should get the log on successfull execution having absolute path',
-      async () => {
-        const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ${__dirname}/testServices/logJob.sas`
-          )
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ../testServices/logJob.sas --compile`
         )
+      )
 
-        expect(result.log.includes(logPart)).toBeTruthy()
-      },
+      expect(logPartRegex.test(result.log)).toBeTruthy()
+    })
 
-      60 * 1000
-    )
+    it('should get the log on successfull execution having absolute path but compile it first', async () => {
+      const logPartRegex =
+        /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
-    it(
-      'should get the log on successfull execution having relative path but compile it first',
-      async () => {
-        const logPartRegex =
-          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ../testServices/logJob.sas --compile`
-          )
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ${__dirname}/testServices/logJob.sas --compile`
         )
+      )
 
-        expect(logPartRegex.test(result.log)).toBeTruthy()
-      },
-
-      60 * 1000
-    )
-
-    it(
-      'should get the log on successfull execution having absolute path but compile it first',
-      async () => {
-        const logPartRegex =
-          /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ${__dirname}/testServices/logJob.sas --compile`
-          )
-        )
-
-        expect(logPartRegex.test(result.log)).toBeTruthy()
-      },
-
-      60 * 1000
-    )
+      expect(logPartRegex.test(result.log)).toBeTruthy()
+    })
   })
 
   describe('without global config', () => {
@@ -375,40 +330,30 @@ describe('sasjs run', () => {
       await removeTestApp(__dirname, target.name)
     })
 
-    it(
-      'should run a file when a relative path is provided',
-      async () => {
-        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
+    it('should run a file when a relative path is provided', async () => {
+      const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
 
-        const result: any = await runSasCode(
-          new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+      const result: any = await runSasCode(
+        new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+      )
+
+      logParts.forEach((logPart) => {
+        expect(result.log.includes(logPart)).toBeTruthy()
+      })
+    })
+
+    it('should run a file when an absolute path is provided', async () => {
+      const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
+
+      const result: any = await runSasCode(
+        new Command(
+          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
         )
+      )
 
-        logParts.forEach((logPart) => {
-          expect(result.log.includes(logPart)).toBeTruthy()
-        })
-      },
-
-      60 * 1000
-    )
-
-    it(
-      'should run a file when an absolute path is provided',
-      async () => {
-        const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
-
-        const result: any = await runSasCode(
-          new Command(
-            `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
-          )
-        )
-
-        logParts.forEach((logPart) => {
-          expect(result.log.includes(logPart)).toBeTruthy()
-        })
-      },
-
-      60 * 1000
-    )
+      logParts.forEach((logPart) => {
+        expect(result.log.includes(logPart)).toBeTruthy()
+      })
+    })
   })
 })
