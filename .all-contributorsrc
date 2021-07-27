@@ -11,7 +11,11 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/8914650?v=4",
       "profile": "https://github.com/saadjutt01",
       "contributions": [
-        "code"
+        "code",
+        "test",
+        "review",
+        "mentoring",
+        "doc"
       ]
     },
     {
@@ -22,7 +26,9 @@
       "contributions": [
         "code",
         "projectManagement",
-        "test"
+        "test",
+        "video",
+        "doc"
       ]
     },
     {
@@ -37,6 +43,53 @@
         "content",
         "maintenance",
         "platform",
+        "review"
+      ]
+    },
+    {
+      "login": "medjedovicm",
+      "name": "Mihajlo Medjedovic",
+      "avatar_url": "https://avatars.githubusercontent.com/u/18329105?v=4",
+      "profile": "https://github.com/medjedovicm",
+      "contributions": [
+        "code",
+        "infra",
+        "test",
+        "review"
+      ]
+    },
+    {
+      "login": "allanbowe",
+      "name": "Allan Bowe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4420615?v=4",
+      "profile": "https://github.com/allanbowe",
+      "contributions": [
+        "code",
+        "review",
+        "test",
+        "video",
+        "doc"
+      ]
+    },
+    {
+      "login": "sabhas",
+      "name": "Sabir Hassan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/82647447?v=4",
+      "profile": "https://github.com/sabhas",
+      "contributions": [
+        "code",
+        "review",
+        "test",
+        "ideas"
+      ]
+    },
+    {
+      "login": "VladislavParhomchik",
+      "name": "VladislavParhomchik",
+      "avatar_url": "https://avatars.githubusercontent.com/u/83717836?v=4",
+      "profile": "https://github.com/VladislavParhomchik",
+      "contributions": [
+        "test",
         "review"
       ]
     }
