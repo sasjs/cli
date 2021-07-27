@@ -453,7 +453,6 @@ describe('sasjs compile outside project', () => {
     })
 
     afterEach(async () => {
-      await deleteFolder(parentOutputFolder)
       await deleteFolder(process.currentDir)
     })
 

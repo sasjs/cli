@@ -1,6 +1,6 @@
 import path from 'path'
 import { createTestApp, removeTestApp, verifyStep } from '../../../utils/test'
-import { generateTimestamp } from '@sasjs/utils'
+import { deleteFolder, generateTimestamp } from '@sasjs/utils'
 import { buildDB } from '../db'
 
 describe(`sasjs db`, () => {
@@ -22,13 +22,8 @@ describe(`sasjs db`, () => {
   })
 
   it(`should throw an error when the db folder does not exist`, async () => {
-    const timestamp = generateTimestamp()
-    const parentFolderNameTimeStamped = `test-app-DB-${timestamp}`
-
-    process.projectDir = path.join(__dirname, parentFolderNameTimeStamped)
+    await deleteFolder(path.join(__dirname, appName, 'sasjs', 'db'))
 
     await expect(buildDB()).rejects.toThrow('no such file or directory')
-
-    await removeTestApp(__dirname, parentFolderNameTimeStamped)
   })
 })
