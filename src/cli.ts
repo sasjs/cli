@@ -29,6 +29,7 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { Command, parseCommand } from './utils/command'
 import { getProjectRoot } from './utils/config'
+import { loadEnvVariables } from './utils/utils'
 import { LogLevel, Logger } from '@sasjs/utils/logger'
 
 export async function cli(args: string[]) {
@@ -197,21 +198,4 @@ async function loadProjectEnvVariables() {
 
 async function loadTargetEnvVariables(targetName: string) {
   await loadEnvVariables(`.env.${targetName}`)
-}
-
-async function loadEnvVariables(fileName: string) {
-  const envFileExistsInCurrentPath = await fileExists(
-    path.join(process.cwd(), fileName)
-  )
-  const envFileExistsInParentPath = await fileExists(
-    path.join(process.cwd(), '..', fileName)
-  )
-  const envFilePath = envFileExistsInCurrentPath
-    ? path.join(process.cwd(), fileName)
-    : envFileExistsInParentPath
-    ? path.join(process.cwd(), '..', fileName)
-    : null
-  if (envFilePath) {
-    dotenv.config({ path: envFilePath })
-  }
 }
