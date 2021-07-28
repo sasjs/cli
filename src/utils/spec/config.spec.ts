@@ -23,11 +23,8 @@ import {
   Target,
   generateTimestamp
 } from '@sasjs/utils'
-import {
-  createTestMinimalApp,
-  generateTestTarget,
-  removeTestApp
-} from '../test'
+import { generateTestTarget, resetTestAppAndReuse } from '../test'
+import { APP_NAMES } from '../../../APPS_FOR_TESTING'
 jest.mock('@sasjs/adapter/node')
 
 describe('getAccessToken', () => {
@@ -390,11 +387,7 @@ describe('saveToLocalConfig', () => {
 
   beforeEach(async () => {
     appName = `cli-tests-config-${generateTimestamp()}`
-    await createTestMinimalApp(__dirname, appName)
-  })
-
-  afterEach(async () => {
-    await removeTestApp(__dirname, appName)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   it('should set the target as default when isDefault is true', async () => {
@@ -435,11 +428,7 @@ describe('removeFromLocalConfig', () => {
 
   beforeEach(async () => {
     appName = `cli-tests-config-${generateTimestamp()}`
-    await createTestMinimalApp(__dirname, appName)
-  })
-
-  afterEach(async () => {
-    await removeTestApp(__dirname, appName)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   it('should reset the default target when that target is removed', async () => {

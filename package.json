@@ -12,8 +12,12 @@
     "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy",
     "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
     "test": "npm run test:mocked && npm run test:server",
+    "pretest:server": "ts-node --files pretest.ts",
+    "pretest:mocked": "ts-node --files pretest.ts",
     "test:server": "jest --silent --runInBand --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
+    "posttest:server": "ts-node --files posttest.ts",
+    "posttest:mocked": "ts-node --files posttest.ts",
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\""

@@ -2,14 +2,14 @@ import path from 'path'
 import { buildWebApp } from '../../../main'
 import { Command } from '../../../utils/command'
 import {
-  createTestMinimalApp,
-  removeTestApp,
+  resetTestAppAndReuse,
   updateConfig,
   updateTarget,
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
 import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
@@ -68,11 +68,9 @@ const streamConfig: StreamConfig = {
 }
 
 describe('sasjs web', () => {
-  let appName: string
-
   beforeAll(async () => {
-    appName = `cli-test-web-minimal-${generateTimestamp()}`
-    await createTestMinimalApp(__dirname, appName)
+    const appName = APP_NAMES.MINIMAL_SEED_APP
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
 
     await updateConfig({
       streamConfig: {
@@ -83,7 +81,7 @@ describe('sasjs web', () => {
 
     await createFile(
       path.join(
-        __dirname,
+        process.cwd(),
         appName,
         streamConfig.webSourcePath,
         'testing.js.map'
@@ -96,10 +94,6 @@ describe('sasjs web', () => {
       { serverUrl: undefined, streamConfig: undefined },
       'sas9'
     )
-  })
-
-  afterAll(async () => {
-    await removeTestApp(__dirname, appName)
   })
 
   it(

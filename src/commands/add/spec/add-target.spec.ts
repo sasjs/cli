@@ -12,10 +12,10 @@ import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
 import {
-  createTestMinimalApp,
-  removeTestApp,
-  createTestGlobalTarget
+  createTestGlobalTarget,
+  resetTestAppAndReuse
 } from '../../../utils/test'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`
@@ -25,11 +25,10 @@ describe('addTarget', () => {
 
   beforeAll(async () => {
     dotenv.config()
-    await createTestMinimalApp(__dirname, appName)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   afterAll(async () => {
-    await removeTestApp(__dirname, appName)
     await removeFromGlobalConfig(viyaTargetName)
   })
 

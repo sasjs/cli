@@ -19,18 +19,20 @@ import * as displayResultModule from '../../../utils/displayResult'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
-  createTestMinimalApp,
-  removeTestApp
+  removeTestApp,
+  resetTestAppAndReuse
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { getConstants } from '../../../constants'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
+  const appName = APP_NAMES.MINIMAL_SEED_APP
 
   beforeEach(async () => {
     target = await createGlobalTarget()
-    await createTestMinimalApp(__dirname, target.name)
+    await resetTestAppAndReuse(appName)
     await copyJobsAndServices(target.name)
   })
 
@@ -40,25 +42,23 @@ describe('sasjs cbd with global config', () => {
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
-
-    await removeTestApp(__dirname, target.name)
   })
 
   it('should compile, build and deploy', async () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     const servicePath = path.join(
-      __dirname,
-      target.name,
+      process.cwd(),
+      appName,
       'sasjsbuild/services/testJob/job.sas'
     )
     const jobPath = path.join(
-      __dirname,
-      target.name,
+      process.cwd(),
+      appName,
       'sasjsbuild/jobs/testJob/job.sas'
     )
     const buildJsonPath = path.join(
-      __dirname,
-      target.name,
+      process.cwd(),
+      appName,
       `sasjsbuild/${target.name}.json`
     )
     await expect(compileBuildDeployServices(command)).toResolve()
@@ -186,7 +186,7 @@ describe('sasjs cbd having stream app', () => {
 
   beforeEach(async () => {
     appName = `cli-tests-cbd-local-stream-${generateTimestamp()}`
-    await createTestMinimalApp(__dirname, appName)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
     target = await createLocalTarget()
   })
 
@@ -194,8 +194,6 @@ describe('sasjs cbd having stream app', () => {
     await folder(
       new Command(`folder delete ${target.appLoc} -t ${target.name}`)
     ).catch(() => {})
-
-    await removeTestApp(__dirname, appName)
 
     jest.resetAllMocks()
   })

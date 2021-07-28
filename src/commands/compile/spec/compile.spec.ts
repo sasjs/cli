@@ -14,18 +14,19 @@ import {
 } from '../../../utils/config'
 import {
   createTestApp,
-  createTestJobsApp,
   removeTestApp,
   removeAllTargetsFromConfigs,
   verifyCompiledService,
   updateConfig,
-  updateTarget
+  updateTarget,
+  resetTestAppAndReuse
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
 import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs compile', () => {
   let sharedAppName: string
@@ -134,14 +135,10 @@ describe('sasjs compile single file', () => {
   let appName: string
   let target: Target
 
-  afterEach(async () => {
-    await removeTestApp(__dirname, appName)
-  })
-
   describe('job', () => {
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
-      await createTestJobsApp(__dirname, appName)
+      appName = `cli-tests-compile-job-${generateTimestamp()}`
+      await resetTestAppAndReuse(APP_NAMES.JOB_TEMPLATE_APP)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileJobFile, 'compileJobFile')
     })
@@ -173,10 +170,14 @@ describe('sasjs compile single file', () => {
 
   describe('service', () => {
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-service-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileServiceFile, 'compileServiceFile')
+    })
+
+    afterEach(async () => {
+      await removeTestApp(__dirname, appName)
     })
 
     it('should compile single file', async () => {
@@ -225,7 +226,7 @@ describe('sasjs compile outside project', () => {
     })
 
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-outside-with-global-${generateTimestamp()}`
       await updateConfig(
         {
           macroFolders: [

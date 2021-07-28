@@ -4,12 +4,12 @@ import * as internalModule from '../internal/config'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
-  createTestMinimalApp,
-  removeTestApp,
+  resetTestAppAndReuse,
   verifyCompiledService
 } from '../../../utils/test'
 import { compileServiceFile } from '../internal/compileServiceFile'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 const fakeJobInit = `/**
   @file
@@ -62,12 +62,11 @@ describe('compileServiceFile', () => {
   beforeAll(async () => {
     const appName = `cli-tests-compile-service-file-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
-    await createTestMinimalApp(__dirname, target.name)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await removeTestApp(__dirname, target.name)
   })
 
   test('it should compile and create file', async () => {

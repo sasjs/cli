@@ -5,9 +5,10 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import {
   createTestGlobalTarget,
-  createTestMinimalApp,
-  removeTestApp
+  resetTestAppAndReuse
 } from '../../../utils/test'
+import path from 'path'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 jest.mock('../delete')
 
@@ -28,12 +29,11 @@ describe('sasjs folder delete', () => {
       targetName,
       `/Public/app/cli-tests/${targetName}`
     )
-    await createTestMinimalApp(__dirname, targetName)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(targetName)
-    await removeTestApp(__dirname, targetName)
   })
 
   it('should append appLoc to relative folder paths', async () => {

@@ -16,14 +16,14 @@ import {
   deleteFolder
 } from '@sasjs/utils'
 import {
-  removeTestApp,
-  createTestMinimalApp,
-  createTestGlobalTarget
+  createTestGlobalTarget,
+  resetTestAppAndReuse
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
+import { APP_NAMES } from '../../../../../APPS_FOR_TESTING'
 
 describe('compileTestFile', () => {
   let appName: string
@@ -36,11 +36,14 @@ describe('compileTestFile', () => {
   beforeAll(async () => {
     process.logger = new Logger(LogLevel.Off)
 
-    appName = `cli-tests-compile-test-file-${generateTimestamp()}`
+    appName = APP_NAMES.MINIMAL_SEED_APP
 
-    buildPath = path.join(__dirname, appName, 'sasjsbuild')
+    buildPath = path.join(process.cwd(), appName, 'sasjsbuild')
 
-    target = await createTestGlobalTarget(appName, '/Public/app')
+    target = await createTestGlobalTarget(
+      `cli-tests-compile-test-file-${generateTimestamp()}`,
+      '/Public/app'
+    )
     target = new Target({
       ...target.toJson(false),
       jobConfig: {
@@ -48,19 +51,18 @@ describe('compileTestFile', () => {
       }
     })
 
-    await createTestMinimalApp(__dirname, target.name)
+    await resetTestAppAndReuse(appName)
     await copyTestFiles(appName)
 
     testBody = await readFile(
       path.join(__dirname, 'testFiles', 'services', testFileName)
     )
 
-    sasjsPath = path.join(__dirname, appName, 'sasjs')
+    sasjsPath = path.join(process.cwd(), appName, 'sasjs')
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await removeTestApp(__dirname, target.name)
   })
 
   afterEach(async () => await deleteFolder(buildPath))
@@ -71,7 +73,7 @@ describe('compileTestFile', () => {
 
       const testContent = async (filePath: string) => {
         const compiledTestFilePath = path.join(
-          __dirname,
+          process.cwd(),
           appName,
           'sasjsbuild',
           'tests',
@@ -135,7 +137,7 @@ describe('compileTestFile', () => {
         'admin',
         testFileName
       )
-      const buildPath = path.join(__dirname, appName, 'sasjsbuild')
+      const buildPath = path.join(process.cwd(), appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
 
@@ -150,7 +152,7 @@ describe('compileTestFile', () => {
 
     it('should move job test', async () => {
       const relativePath = path.join('jobs', 'jobs', testFileName)
-      const buildPath = path.join(__dirname, appName, 'sasjsbuild')
+      const buildPath = path.join(process.cwd(), appName, 'sasjsbuild')
       const originalFilePath = path.join(buildPath, relativePath)
       const destinationFilePath = path.join(buildPath, 'tests', relativePath)
 
@@ -288,15 +290,15 @@ describe('isTestFile', () => {
 const copyTestFiles = async (appName: string) => {
   await copy(
     path.join(__dirname, 'testFiles', 'tests'),
-    path.join(__dirname, appName, 'tests')
+    path.join(process.cwd(), appName, 'tests')
   )
   await copy(
     path.join(__dirname, 'testFiles', 'services'),
-    path.join(__dirname, appName, 'sasjs', 'services', 'admin')
+    path.join(process.cwd(), appName, 'sasjs', 'services', 'admin')
   )
   await copy(
     path.join(__dirname, 'testFiles', 'jobs'),
-    path.join(__dirname, appName, 'sasjs', 'jobs')
+    path.join(process.cwd(), appName, 'sasjs', 'jobs')
   )
 }
 

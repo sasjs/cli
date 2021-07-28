@@ -4,13 +4,13 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import { readFile } from '@sasjs/utils'
 import {
   createTestGlobalTarget,
-  createTestMinimalApp,
-  removeTestApp
+  resetTestAppAndReuse
 } from '../../../utils/test'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides
 } from '../../shared/dependencies'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('getDependencyPaths', () => {
   let target: Target
@@ -18,12 +18,11 @@ describe('getDependencyPaths', () => {
   beforeAll(async () => {
     const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
-    await createTestMinimalApp(__dirname, target.name)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await removeTestApp(__dirname, target.name)
   })
 
   test('it should recursively get all dependency paths', async () => {

@@ -13,14 +13,15 @@ import { Command } from '../../../utils/command'
 import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
-  createTestMinimalApp,
   createTestGlobalTarget,
   removeTestApp,
   updateTarget,
-  updateConfig
+  updateConfig,
+  resetTestAppAndReuse
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { getConstants } from '../../../constants'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs run', () => {
   let target: Target
@@ -140,7 +141,7 @@ describe('sasjs run', () => {
     beforeEach(async () => {
       dotenv.config()
       appName = 'cli-tests-run-' + generateTimestamp()
-      await createTestMinimalApp(__dirname, appName)
+      await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
       target = await updateTarget(
         {
           appLoc: `/Public/app/cli-tests/${appName}`,
@@ -166,7 +167,6 @@ describe('sasjs run', () => {
       await folder(
         new Command(`folder delete ${target.appLoc} -t ${target.name}`)
       ).catch(() => {})
-      await removeTestApp(__dirname, appName)
     })
 
     it('should get the log having launch code message', async () => {

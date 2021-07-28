@@ -9,12 +9,12 @@ import * as internalModule from '../internal/config'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
-  createTestMinimalApp,
-  removeTestApp,
+  resetTestAppAndReuse,
   updateConfig,
   updateTarget
 } from '../../../utils/test'
 import { loadDependencies } from '../internal/loadDependencies'
+import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 const fakeInit = `/**
   @file serviceinit.sas
@@ -168,7 +168,7 @@ describe('loadDependencies', () => {
   beforeAll(async () => {
     const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
     target = await createTestGlobalTarget(appName, '/Public/app')
-    await createTestMinimalApp(__dirname, target.name)
+    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
 
     await updateConfig({
       jobConfig: jobConfig(),
@@ -183,7 +183,6 @@ describe('loadDependencies', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await removeTestApp(__dirname, target.name)
   })
 
   test('it should load dependencies for a service with <h4> Dependencies </h4>', async () => {

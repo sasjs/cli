@@ -1,5 +1,6 @@
 import path from 'path'
 import dotenv from 'dotenv'
+import shelljs from 'shelljs'
 import { getConstants } from '../constants'
 import {
   createFile,
@@ -57,6 +58,18 @@ export const createTestMinimalApp = async (
   process.projectDir = parentFolder
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
+  process.currentDir = process.projectDir
+}
+
+export const resetTestAppAndReuse = async (appName: string) => {
+  const folderPath = path.join(process.cwd(), appName)
+  shelljs.exec(
+    `cd ${folderPath} && git reset . && git checkout . && git clean -fd`,
+    {
+      silent: true
+    }
+  )
+  process.projectDir = folderPath
   process.currentDir = process.projectDir
 }
 
