@@ -272,6 +272,7 @@ async function deployToSas9(
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch((err) => {
+      console.log(err)
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
       }
