@@ -34,7 +34,6 @@ export async function processFlow(command: Command, sasjs?: SASjs) {
         logFolder,
         csvFile,
         target,
-        command.prefixAppLoc,
         streamLog,
         sasjs
       ).catch((err) => {
