@@ -23,8 +23,7 @@ import {
   Target,
   generateTimestamp
 } from '@sasjs/utils'
-import { generateTestTarget, resetTestAppAndReuse } from '../test'
-import { APP_NAMES } from '../../../APPS_FOR_TESTING'
+import { generateTestTarget, resetTestAppAndReuse, APP_NAMES } from '../test'
 jest.mock('@sasjs/adapter/node')
 
 describe('getAccessToken', () => {

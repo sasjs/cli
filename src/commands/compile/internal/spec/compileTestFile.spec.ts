@@ -17,13 +17,13 @@ import {
 } from '@sasjs/utils'
 import {
   createTestGlobalTarget,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../../utils/test'
 import { removeFromGlobalConfig } from '../../../../utils/config'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
-import { APP_NAMES } from '../../../../../APPS_FOR_TESTING'
 
 describe('compileTestFile', () => {
   let appName: string

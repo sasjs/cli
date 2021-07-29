@@ -13,9 +13,9 @@ import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
 import {
   createTestGlobalTarget,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`

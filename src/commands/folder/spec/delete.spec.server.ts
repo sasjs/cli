@@ -5,10 +5,9 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import { Command } from '../../../utils/command'
 import {
   createTestGlobalTarget,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
-import path from 'path'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 jest.mock('../delete')
 

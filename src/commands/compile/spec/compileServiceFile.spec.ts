@@ -5,11 +5,11 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestGlobalTarget,
   resetTestAppAndReuse,
-  verifyCompiledService
+  verifyCompiledService,
+  APP_NAMES
 } from '../../../utils/test'
 import { compileServiceFile } from '../internal/compileServiceFile'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 const fakeJobInit = `/**
   @file

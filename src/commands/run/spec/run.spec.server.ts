@@ -17,11 +17,11 @@ import {
   removeTestApp,
   updateTarget,
   updateConfig,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { getConstants } from '../../../constants'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs run', () => {
   let target: Target

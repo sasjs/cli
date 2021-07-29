@@ -11,10 +11,10 @@ import {
   createTestGlobalTarget,
   resetTestAppAndReuse,
   updateConfig,
-  updateTarget
+  updateTarget,
+  APP_NAMES
 } from '../../../utils/test'
 import { loadDependencies } from '../internal/loadDependencies'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 const fakeInit = `/**
   @file serviceinit.sas

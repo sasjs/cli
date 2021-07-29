@@ -14,8 +14,6 @@
     "resolveJsonModule": true
   },
   "exclude": [
-    "**/*.spec.ts",
-    "**/*.server.ts",
     "test/**/*",
     "node_modules",
     "src/utils/test.ts",

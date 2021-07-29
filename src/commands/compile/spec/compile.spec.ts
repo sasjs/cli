@@ -19,14 +19,14 @@ import {
   verifyCompiledService,
   updateConfig,
   updateTarget,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
 import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs compile', () => {
   let sharedAppName: string

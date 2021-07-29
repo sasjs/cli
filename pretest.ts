@@ -1,9 +1,12 @@
 import path from 'path'
 import shelljs from 'shelljs'
 
-import { createTestJobsApp, createTestMinimalApp } from './src/utils/test'
+import {
+  createTestJobsApp,
+  createTestMinimalApp,
+  APP_NAMES
+} from './src/utils/test'
 import { folderExists } from '@sasjs/utils'
-import { APP_NAMES } from './APPS_FOR_TESTING'
 
 const createInitialCommit = (folderPath: string) => {
   shelljs.exec(

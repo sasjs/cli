@@ -20,11 +20,11 @@ import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
   removeTestApp,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { getConstants } from '../../../constants'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('sasjs cbd with global config', () => {
   let target: Target

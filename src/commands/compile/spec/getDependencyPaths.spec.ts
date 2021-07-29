@@ -4,13 +4,13 @@ import { removeFromGlobalConfig } from '../../../utils/config'
 import { readFile } from '@sasjs/utils'
 import {
   createTestGlobalTarget,
-  resetTestAppAndReuse
+  resetTestAppAndReuse,
+  APP_NAMES
 } from '../../../utils/test'
 import {
   getDependencyPaths,
   prioritiseDependencyOverrides
 } from '../../shared/dependencies'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
 
 describe('getDependencyPaths', () => {
   let target: Target

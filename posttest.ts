@@ -1,5 +1,5 @@
 import path from 'path'
-import { APP_NAMES } from './APPS_FOR_TESTING'
+import { APP_NAMES } from './src/utils/test'
 import { deleteFolder, folderExists } from '@sasjs/utils'
 
 Object.entries(APP_NAMES)

@@ -5,11 +5,11 @@ import {
   resetTestAppAndReuse,
   updateConfig,
   updateTarget,
-  verifyFolder
+  verifyFolder,
+  APP_NAMES
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
-import { APP_NAMES } from '../../../../APPS_FOR_TESTING'
+import { createFile, StreamConfig } from '@sasjs/utils'
 
 const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
