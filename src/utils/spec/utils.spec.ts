@@ -4,9 +4,16 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
-  getAbsolutePath
+  getAbsolutePath,
+  loadEnvVariables
 } from '../utils'
-import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
+import {
+  createFile,
+  deleteFile,
+  fileExists,
+  readFile,
+  generateTimestamp
+} from '@sasjs/utils'
 import path from 'path'
 
 describe('utils', () => {
@@ -193,6 +200,24 @@ describe('utils', () => {
       expect(getAbsolutePath(absolutePath, pathRelativeTo)).toEqual(
         expectedAbsolutePath
       )
+    })
+  })
+
+  describe('loadEnvVariables', () => {
+    const fileName = `.env.${generateTimestamp()}`
+    const filePath = path.join(process.projectDir, fileName)
+    beforeEach(async () => {
+      const fileContent = 'TEST=this is test variable'
+      await createFile(filePath, fileContent)
+    })
+
+    afterEach(async () => {
+      await deleteFile(filePath)
+    })
+
+    it('should load the environment variables from provided file', async () => {
+      await loadEnvVariables(fileName)
+      expect(process.env.TEST).toBe('this is test variable')
     })
   })
 })
