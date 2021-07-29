@@ -4,6 +4,7 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
+  displaySasjsRunnerError,
   getAbsolutePath,
   loadEnvVariables
 } from '../utils'
@@ -164,6 +165,14 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('displaySasjsRunnerError', () => {
+    it('should have called once', () => {
+      const mockFun = jest.fn(displaySasjsRunnerError)
+      mockFun('testUser')
+      expect(mockFun).toHaveBeenCalledTimes(1)
     })
   })
 
