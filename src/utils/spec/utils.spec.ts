@@ -4,11 +4,13 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
+  checkNodeVersion,
   getAdapterInstance,
   displaySasjsRunnerError,
   getAbsolutePath,
   loadEnvVariables
 } from '../utils'
+import { mockProcessExit } from '../test'
 import {
   createFile,
   deleteFile,
@@ -169,6 +171,35 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('checkNodeVersion', () => {
+    afterEach(() => {
+      jest.resetAllMocks()
+    })
+
+    it('should exit the process when node version is less than 12', () => {
+      let originalProcess: NodeJS.Process = global.process
+      global.process = {
+        ...originalProcess,
+        versions: { ...originalProcess.versions, node: '11.0.0' }
+      }
+
+      const mockExit = mockProcessExit()
+
+      checkNodeVersion()
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+
+      global.process = originalProcess
+    })
+    it('should not exit the process when node version greater than 12', () => {
+      jest.spyOn(process, 'exit')
+
+      checkNodeVersion()
+
+      expect(process.exit).toHaveBeenCalledTimes(0)
     })
   })
 
