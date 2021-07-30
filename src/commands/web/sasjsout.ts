@@ -41,7 +41,9 @@ export const sasjsout = `
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,application/javascript));
+    %let rc=%sysfunc(stpsrv_header(
+      Content-type,application/javascript%str(;)charset=UTF-8
+    ));
   %end;
   %else %if &type=CSS or &type=CSS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
@@ -112,18 +114,12 @@ export const sasjsout = `
     fileout = fopen("_webout",'A',1,'B');
     char= '20'x;
     do while(fread(filein)=0);
-      raw="1234";
+      length raw $4 ;
       do i=1 to 4;
         rc=fget(filein,char,1);
         substr(raw,i,1)=char;
       end;
-      val="123";
-      val=input(raw,$base64X4.);
-      do i=1 to 3;
-        length byte $1;
-        byte=byte(rank(substr(val,i,1)));
-        rc = fput(fileout, byte);
-      end;
+      rc = fput(fileout, input(raw,$base64X4.));
       rc =fwrite(fileout);
     end;
     rc = fclose(filein);
