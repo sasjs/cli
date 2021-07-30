@@ -4,6 +4,7 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
+  getAdapterInstance,
   displaySasjsRunnerError,
   getAbsolutePath,
   loadEnvVariables
@@ -13,8 +14,11 @@ import {
   deleteFile,
   fileExists,
   readFile,
-  generateTimestamp
+  generateTimestamp,
+  ServerType,
+  Target
 } from '@sasjs/utils'
+import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 
 describe('utils', () => {
@@ -165,6 +169,42 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('getAdapterInstance', () => {
+    it('should throw an error when target is not valid', () => {
+      expect(() => getAdapterInstance(null as any)).toThrow(
+        'Unable to create SASjs adapter instance: Invalid target.'
+      )
+    })
+
+    it('should throw an error when target is missing serverUrl', () => {
+      expect(() => getAdapterInstance({ name: 'test-target' } as any)).toThrow(
+        `Unable to create SASjs adapter instance: Target test-target is missing a \`serverUrl\`.`
+      )
+    })
+
+    it('should throw an error when target is missing serverType', () => {
+      expect(() =>
+        getAdapterInstance({
+          name: 'test-target',
+          serverUrl: 'http://server.com'
+        } as any)
+      ).toThrow(
+        `Unable to create SASjs adapter instance: Target test-target is missing a \`serverType\`.`
+      )
+    })
+
+    it('should return an instance of SASjs', () => {
+      expect(
+        getAdapterInstance({
+          name: 'test-target',
+          serverUrl: 'http://server.com',
+          serverType: ServerType.SasViya,
+          contextName: 'test-context'
+        } as Target)
+      ).toBeInstanceOf(SASjs)
     })
   })
 
