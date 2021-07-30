@@ -29,11 +29,12 @@ import { getConstants } from '../../../constants'
 describe('sasjs cbd with global config', () => {
   let target: Target
   const appName = APP_NAMES.MINIMAL_SEED_APP
+  const appPath = path.join(process.cwd(), appName)
 
   beforeEach(async () => {
     target = await createGlobalTarget()
     await resetTestAppAndReuse(appName)
-    await copyJobsAndServices(target.name)
+    await copyJobsAndServices(appPath)
   })
 
   afterEach(async () => {
@@ -47,20 +48,11 @@ describe('sasjs cbd with global config', () => {
   it('should compile, build and deploy', async () => {
     const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     const servicePath = path.join(
-      process.cwd(),
-      appName,
+      appPath,
       'sasjsbuild/services/testJob/job.sas'
     )
-    const jobPath = path.join(
-      process.cwd(),
-      appName,
-      'sasjsbuild/jobs/testJob/job.sas'
-    )
-    const buildJsonPath = path.join(
-      process.cwd(),
-      appName,
-      `sasjsbuild/${target.name}.json`
-    )
+    const jobPath = path.join(appPath, 'sasjsbuild/jobs/testJob/job.sas')
+    const buildJsonPath = path.join(appPath, `sasjsbuild/${target.name}.json`)
     await expect(compileBuildDeployServices(command)).toResolve()
     await expect(fileExists(servicePath)).resolves.toEqual(true)
     await expect(fileExists(jobPath)).resolves.toEqual(true)
@@ -98,7 +90,7 @@ describe('sasjs cbd with local config', () => {
     appName = `cli-tests-cbd-local-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
     target = await createLocalTarget()
-    await copyJobsAndServices(appName)
+    await copyJobsAndServices(path.join(__dirname, appName))
     await copy(
       path.join(__dirname, 'testScript', 'copyscript.sh'),
       path.join(process.projectDir, 'sasjs', 'build', 'copyscript.sh')
@@ -182,11 +174,11 @@ const streamConfig: StreamConfig = {
 
 describe('sasjs cbd having stream app', () => {
   let target: Target
-  let appName: string
+  const appName = APP_NAMES.MINIMAL_SEED_APP
+  const appPath = path.join(process.cwd(), appName)
 
   beforeEach(async () => {
-    appName = `cli-tests-cbd-local-stream-${generateTimestamp()}`
-    await resetTestAppAndReuse(APP_NAMES.MINIMAL_SEED_APP)
+    await resetTestAppAndReuse(appName)
     target = await createLocalTarget()
   })
 
@@ -216,7 +208,7 @@ describe('sasjs cbd having stream app', () => {
     await expect(compileBuildDeployServices(command)).toResolve()
 
     const logFileContent = await readFile(
-      path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)
+      path.join(appPath, 'sasjsbuild', `${target.name}.log`)
     )
 
     const appLocTransformed = '/with%20some/space%20s'
@@ -230,8 +222,6 @@ describe('sasjs cbd having stream app', () => {
     expect(logFileContent.replace(/\s/g, '')).toEqual(
       expect.stringContaining(streamingApplink)
     )
-
-    await updateLocalTarget(target.name, { appLoc })
   })
 })
 
@@ -352,13 +342,13 @@ const updateLocalTarget = async (targetName: string, data: any) => {
   )
 }
 
-const copyJobsAndServices = async (appName: string) => {
+const copyJobsAndServices = async (appPath: string) => {
   await copy(
     path.join(__dirname, 'testJob'),
-    path.join(__dirname, appName, 'sasjs', 'testJob')
+    path.join(appPath, 'sasjs', 'testJob')
   )
   await copy(
     path.join(__dirname, 'testServices'),
-    path.join(__dirname, appName, 'sasjs', 'testServices')
+    path.join(appPath, 'sasjs', 'testServices')
   )
 }
