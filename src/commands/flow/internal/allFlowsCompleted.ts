@@ -1,4 +1,4 @@
-const isFlowsCompleted = (
+export const allFlowsCompleted = (
   flows: any
 ): {
   completed: boolean
