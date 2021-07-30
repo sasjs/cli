@@ -4,6 +4,7 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
+  arrToObj,
   checkNodeVersion,
   getAdapterInstance,
   displaySasjsRunnerError,
@@ -171,6 +172,17 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('arrToObj', () => {
+    it('should return an object', () => {
+      const arr = ['a', 'b', 'c']
+      expect(arrToObj(arr)).toEqual({
+        a: 'a',
+        b: 'b',
+        c: 'c'
+      })
     })
   })
 
