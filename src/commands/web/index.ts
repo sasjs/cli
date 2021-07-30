@@ -403,10 +403,7 @@ async function createBuildDestinationFolder() {
 }
 
 async function createTargetDestinationFolder(destinationPath: string) {
-  const pathExists = await fileExists(destinationPath)
-  if (pathExists) {
-    await deleteFolder(destinationPath)
-  }
+  await deleteFolder(destinationPath)
   await createFolder(destinationPath)
 }
 

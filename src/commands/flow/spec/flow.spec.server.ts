@@ -59,7 +59,7 @@ describe('sasjs flow', () => {
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
       )
     )
-    if (await fileExists(csvPath)) await deleteFile(csvPath)
+    await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })

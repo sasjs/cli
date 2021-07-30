@@ -130,8 +130,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
   )
   if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.start()
 
-  const pathExists = await fileExists(newOutDirectory)
-  if (pathExists) await deleteFolder(newOutDirectory)
+  await deleteFolder(newOutDirectory)
   await createFolder(newOutDirectory)
 
   const { stderr, code } = shelljs.exec(

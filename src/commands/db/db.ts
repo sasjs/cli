@@ -63,9 +63,8 @@ async function recreateBuildFolder() {
   const { buildDestinationFolder, buildDestinationDbFolder } =
     await getConstants()
   process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
-  const pathExists = await fileExists(buildDestinationFolder)
-  if (pathExists) await deleteFolder(buildDestinationDbFolder)
-  else await createFolder(buildDestinationFolder)
+  await createFolder(buildDestinationFolder)
+  await deleteFolder(buildDestinationDbFolder)
   await createFolder(buildDestinationDbFolder)
   process.logger?.success(
     `Folder ${buildDestinationDbFolder} has been created.`

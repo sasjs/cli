@@ -164,10 +164,8 @@ export async function compileJobsServicesTests(target: Target) {
 async function recreateBuildFolder() {
   const { buildDestinationFolder } = await getConstants()
   process.logger?.info('Recreating build folder...')
-  const pathExists = await fileExists(buildDestinationFolder)
-  if (pathExists) {
-    await deleteFolder(buildDestinationFolder)
-  }
+
+  await deleteFolder(buildDestinationFolder)
   await createFolder(buildDestinationFolder)
 }
 
