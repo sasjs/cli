@@ -4,6 +4,7 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
+  chunk,
   arrToObj,
   checkNodeVersion,
   getAdapterInstance,
@@ -172,6 +173,19 @@ describe('utils', () => {
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
 
       await deleteFile(gitFilePath)
+    })
+  })
+
+  describe('chunk', () => {
+    it('should return an array with only one element that is equal to text itself if text size is less than max length', () => {
+      const txt = '0B0pFTOzHXyRuikRydwnd8uQdwvITllwNOX20vQLsT0JgkXa1W'
+      expect(chunk(txt)[0]).toBe(txt)
+    })
+
+    it('should return an array with 3 elements', () => {
+      const txt =
+        'SGmqg3pnHCJn0iPQC4Rd9AnFS3k5V7dDc81GlF6lCCurmsEJq7VS\nig42yjxerV7OAjE1HIOgJZXqID30\nkaVJsCwWrtFEIL8mQepjp4zLGeCaWk7ymu9BqolSnqA3udaiWuHcm6m80E36mWYWU0lITAgdp1QzVwIczpopXRaUWtJamiPnHyflksdNEXkboKlAT5RuR795ShUOc6KajQZ1qH2ZGJPV2DxjEqtXA9uvNbpisOVY6MpRdEzWNgdDsXlfuXkrBk5RqA7PkdtjBtNHA7JtEklTnYKrOdge03qFXKjh'
+      expect(chunk(txt)).toBeArrayOfSize(3)
     })
   })
 
