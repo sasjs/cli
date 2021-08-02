@@ -19,7 +19,7 @@ import path from 'path'
 import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './sasjsout'
 import { adjustIframeScript } from './adjustIframeScript'
-import btoa from 'btoa'
+import { encode } from 'js-base64'
 import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import uniqBy from 'lodash.uniqby'
@@ -115,33 +115,18 @@ export async function createWebAppServices(target: Target) {
         webSourcePath,
         destinationPath,
         target,
-        streamConfig,
         assetPathMap
       )
     })
 
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
-      await updateLinkHref(
-        linkTag,
-        webSourcePath,
-        destinationPath,
-        target,
-        streamConfig,
-        assetPathMap
-      )
+      await updateLinkHref(linkTag, assetPathMap)
     })
 
     const faviconTags = getFaviconTags(indexHtml)
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateLinkHref(
-        faviconTag,
-        webSourcePath,
-        destinationPath,
-        target,
-        streamConfig,
-        assetPathMap
-      )
+      await updateLinkHref(faviconTag, assetPathMap)
     })
 
     if (target.serverType === ServerType.SasViya) {
@@ -273,16 +258,12 @@ async function generateAssetService(
   destinationPath: string,
   serverType: ServerType
 ) {
-  const nonBinaryFileTypes = ['HTML', 'CSS', 'JS']
-
   const fileExtension = path.extname(filePath)
   const fileType = fileExtension.replace('.', '').toUpperCase()
   const fileName = path
     .basename(filePath)
     .replace(new RegExp(fileExtension + '$'), fileExtension.replace('.', '-'))
-  const base64string = nonBinaryFileTypes.includes(fileType)
-    ? btoa(await readFile(sourcePath))
-    : await base64EncodeFile(sourcePath)
+  const base64string = await base64EncodeFile(sourcePath)
 
   const serviceContent = await getWebServiceContentSAS9(
     base64string,
@@ -298,12 +279,11 @@ async function generateAssetService(
   return `${fileName}.sas`
 }
 
-async function updateTagSource(
+export async function updateTagSource(
   tag: HTMLLinkElement,
   webAppSourcePath: string,
   destinationPath: string,
   target: Target,
-  streamConfig: StreamConfig,
   assetPathMap: { source: string; target: string }[]
 ) {
   const scriptPath = tag.getAttribute('src')
@@ -327,7 +307,7 @@ async function updateTagSource(
         await createFile(path.join(destinationPath, scriptPath), content)
       } else {
         const serviceContent = await getWebServiceContentSAS9(
-          btoa(content),
+          encode(content),
           'JS',
           target.serverType
         )
@@ -353,10 +333,6 @@ async function updateTagSource(
 
 async function updateLinkHref(
   linkTag: HTMLLinkElement,
-  webAppSourcePath: string,
-  destinationPath: string,
-  target: Target,
-  streamConfig: StreamConfig,
   assetPathMap: { source: string; target: string }[]
 ) {
   const linkSourcePath = linkTag.getAttribute('href') || ''
