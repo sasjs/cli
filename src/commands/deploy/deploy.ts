@@ -272,7 +272,7 @@ async function deployToSas9(
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch((err) => {
-      console.log(err)
+      process.logger.log(displayError(err))
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
       }
@@ -302,4 +302,28 @@ async function deployToSas9(
   } else {
     process.logger?.error('Unable to create log file.')
   }
+}
+
+function displayError(error: any) {
+  let err = ''
+
+  err += `${error.stack}\n`
+
+  err += `url: ${error.config?.url ? removePassword(error.config.url) : ''}\n`
+
+  err += `method: ${error.config?.method ? error.config.method : ''}\n`
+
+  err += `headers: ${error.config?.headers ? error.config.headers : ''}\n`
+
+  err += `data: ${error.response?.data ? error.response.data : ''}`
+  return err
+}
+
+function removePassword(str: string) {
+  const startingIndex = str.indexOf('_password')
+  if (startingIndex !== -1) {
+    return str.slice(0, startingIndex) + 'PASSWORD-REMOVED'
+  }
+
+  return str
 }
