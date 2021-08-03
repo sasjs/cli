@@ -70,11 +70,14 @@ async function getAndValidateServerType(): Promise<ServerType> {
     'Please choose either option 1 or 2.',
     [
       { title: '1. SAS Viya', value: 1 },
-      { title: '2. SAS 9', value: 2 }
+      { title: '2. SAS 9', value: 2 },
+      { title: '3. SASjs', value: 3 }
     ]
   )
 
-  return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
+  const serverTypes = [ServerType.SasViya, ServerType.Sas9, ServerType.Sasjs]
+
+  return serverTypes[serverType - 1]
 }
 
 export async function getAndValidateServerUrl(target: TargetJson) {

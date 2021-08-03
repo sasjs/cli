@@ -42,44 +42,56 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
-  if (serverType === ServerType.Sas9) {
-    const { serverName, repositoryName, userName, password } =
-      await getAndValidateSas9Fields(name, scope)
-    targetJson = {
-      ...targetJson,
-      serverName,
-      repositoryName
-    }
-    if (scope === TargetScope.Local) {
-      createEnvFileForSas9(name, userName, password)
-    } else {
+  switch (serverType) {
+    case ServerType.Sas9:
+      const { serverName, repositoryName, userName, password } =
+        await getAndValidateSas9Fields(name, scope)
+
       targetJson = {
         ...targetJson,
-        authConfigSas9: { userName, password }
+        serverName,
+        repositoryName
       }
-    }
-  } else {
-    const { contextName } = await getAndValidateSasViyaFields(
-      name,
-      scope,
-      serverUrl,
-      insecure,
-      addCredential
-    )
 
-    targetJson = {
-      contextName,
-      deployConfig: {
-        deployServicePack: true,
-        deployScripts: []
+      if (scope === TargetScope.Local) {
+        createEnvFileForSas9(name, userName, password)
+      } else {
+        targetJson = {
+          ...targetJson,
+          authConfigSas9: { userName, password }
+        }
       }
-    }
 
-    const { target: currentTarget } = await findTargetInConfiguration(
-      name,
-      scope
-    )
-    targetJson = { ...currentTarget.toJson(false), ...targetJson }
+      break
+    case ServerType.SasViya:
+      const { contextName } = await getAndValidateSasViyaFields(
+        name,
+        scope,
+        serverUrl,
+        insecure,
+        addCredential
+      )
+
+      targetJson = {
+        contextName,
+        deployConfig: {
+          deployServicePack: true,
+          deployScripts: []
+        }
+      }
+
+      const { target: currentTarget } = await findTargetInConfiguration(
+        name,
+        scope
+      )
+
+      targetJson = { ...currentTarget.toJson(false), ...targetJson }
+
+      break
+    case ServerType.Sasjs:
+      break
+    default:
+      break
   }
 
   const isDefault = await getIsDefault()

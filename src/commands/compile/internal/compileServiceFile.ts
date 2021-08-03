@@ -56,6 +56,15 @@ export async function getPreCodeForServicePack(serverType: ServerType) {
         '    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
         '  %mend;\n'
       break
+    case ServerType.Sasjs:
+      content += await readFile(`${macroCorePath}/base/mf_getuser.sas`)
+      content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
+      content += await readFile(`${macroCorePath}/meta/mm_webout.sas`)
+      content +=
+        '  %macro webout(action,ds,dslabel=,fmt=);\n' +
+        '    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
+        '  %mend;\n'
+      break
 
     default:
       throw new Error(

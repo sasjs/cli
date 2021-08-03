@@ -3,7 +3,7 @@ import { displayError } from '../../utils/displayResult'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from './execute'
 import { Command } from '../../utils/command'
-import { AuthConfig } from '@sasjs/utils'
+import { AuthConfig, ServerType } from '@sasjs/utils'
 
 export async function processJob(command: Command, sasjs?: SASjs) {
   const subCommand = command.getSubCommand()
@@ -32,7 +32,10 @@ export async function processJob(command: Command, sasjs?: SASjs) {
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  const jobPath = command.prefixAppLoc(target.appLoc, command.values as any)
+  const jobPath =
+    target.serverType !== ServerType.Sasjs
+      ? command.prefixAppLoc(target.appLoc, command.values as any)
+      : command.values.join('/')
 
   if (!sasjs) {
     sasjs = new SASjs({
@@ -44,17 +47,19 @@ export async function processJob(command: Command, sasjs?: SASjs) {
     })
   }
 
-  const authConfig = await getAuthConfig(target).catch((err) => {
-    displayError(err, 'Error obtaining access token.')
-  })
+  let result, authConfig
 
-  let result
+  if (target.serverType !== ServerType.Sasjs) {
+    const authConfig = await getAuthConfig(target).catch((err) => {
+      displayError(err, 'Error obtaining access token.')
+    })
+  }
 
   switch (subCommand) {
     case subCommands.execute:
       result = await execute(
         sasjs,
-        authConfig as AuthConfig,
+        authConfig ? (authConfig as AuthConfig) : authConfig,
         jobPath as string,
         target,
         waitForJob,

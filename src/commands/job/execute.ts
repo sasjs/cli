@@ -17,10 +17,12 @@ import {
   createFile,
   createFolder,
   folderExists,
-  AuthConfig
+  AuthConfig,
+  ServerType
 } from '@sasjs/utils'
 import { getConstants } from '../../constants'
 import { terminateProcess } from '../../main'
+import axios from 'axios'
 
 /**
  * Triggers existing job for execution.
@@ -40,7 +42,7 @@ import { terminateProcess } from '../../main'
  */
 export async function execute(
   sasjs: SASjs,
-  authConfig: AuthConfig,
+  authConfig: AuthConfig | undefined,
   jobPath: string,
   target: Target,
   waitForJob: boolean,
@@ -52,6 +54,7 @@ export async function execute(
   source: string | undefined,
   streamLog: boolean
 ) {
+  console.log(`[job execute]`)
   let logFolderPath
 
   if (typeof logFile === 'string') {
@@ -112,54 +115,72 @@ export async function execute(
     }
   }
 
-  let submittedJob = await sasjs
-    .startComputeJob(
-      jobPath,
-      null,
-      { contextName },
-      authConfig,
-      waitForJob || logFile !== undefined ? true : false,
-      pollOptions,
-      true,
-      macroVars?.macroVars
-    )
-    .catch(async (err) => {
-      if (err instanceof NoSessionStateError) {
-        if (err?.logUrl) {
-          const logData = await fetchLogFileContent(
-            sasjs,
-            authConfig.access_token,
-            err.logUrl,
-            100000
-          )
+  let submittedJob
 
-          await saveLog(logData, logFile, jobPath, returnStatusOnly)
+  if (target.serverType === ServerType.Sasjs) {
+    const payload = { _program: jobPath, macroVars: macroVars?.macroVars }
+
+    const res = await axios
+      .post(`${target.serverUrl}/execute`, payload)
+      .catch((err) => console.log(`[err]`, err))
+
+    console.log(`[res]`, res)
+  } else {
+    submittedJob = await sasjs
+      .startComputeJob(
+        jobPath,
+        null,
+        { contextName },
+        authConfig,
+        waitForJob || logFile !== undefined ? true : false,
+        pollOptions,
+        true,
+        macroVars?.macroVars
+      )
+      .catch(async (err) => {
+        if (err instanceof NoSessionStateError) {
+          if (err?.logUrl) {
+            let logData
+
+            if (target.serverType !== ServerType.Sasjs && authConfig) {
+              logData = await fetchLogFileContent(
+                sasjs,
+                authConfig.access_token,
+                err.logUrl,
+                100000
+              )
+            } else {
+              // TODO: implement fetchLogFileContent for @sasjs/server
+            }
+
+            await saveLog(logData, logFile, jobPath, returnStatusOnly)
+          }
+
+          displayError(err)
+
+          terminateProcess(2)
         }
 
-        displayError(err)
+        if (err && err.log) {
+          await saveLog(err.log, logFile, jobPath, returnStatusOnly)
+        }
 
-        terminateProcess(2)
-      }
+        if (returnStatusOnly) terminateProcess(2)
 
-      if (err && err.log) {
-        await saveLog(err.log, logFile, jobPath, returnStatusOnly)
-      }
+        if (err?.name === 'NotFoundError') {
+          throw `Job located at '${jobPath}' was not found.`
+        }
 
-      if (returnStatusOnly) terminateProcess(2)
-
-      if (err?.name === 'NotFoundError') {
-        throw `Job located at '${jobPath}' was not found.`
-      }
-
-      result = returnStatusOnly
-        ? 2
-        : typeof err === 'object' && Object.keys(err).length
-        ? JSON.stringify({ state: err.job?.state })
-        : `${err}`
-      if (err.job) {
-        return err.job
-      }
-    })
+        result = returnStatusOnly
+          ? 2
+          : typeof err === 'object' && Object.keys(err).length
+          ? JSON.stringify({ state: err.job?.state })
+          : `${err}`
+        if (err.job) {
+          return err.job
+        }
+      })
+  }
 
   const endTime = new Date().getTime()
 
@@ -228,12 +249,18 @@ export async function execute(
             const logUrl = target.serverUrl + logObj.href
             const logCount = submittedJob.logStatistics.lineCount
 
-            const logData = await fetchLogFileContent(
-              sasjs,
-              authConfig.access_token,
-              logUrl,
-              logCount
-            )
+            let logData
+
+            if (target.serverType !== ServerType.Sasjs && authConfig) {
+              const logData = await fetchLogFileContent(
+                sasjs,
+                authConfig.access_token,
+                logUrl,
+                logCount
+              )
+            } else {
+              // TODO: implement fetchLogFileContent for @sasjs/server
+            }
 
             await saveLog(logData, logFile, jobPath, returnStatusOnly)
           }

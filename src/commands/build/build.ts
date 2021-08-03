@@ -96,8 +96,11 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
-  const createWebServiceScript = await getCreateWebServiceScript(serverType)
-  buildConfig += `${createWebServiceScript}\n`
+
+  if (target.serverType !== ServerType.Sasjs) {
+    const createWebServiceScript = await getCreateWebServiceScript(serverType)
+    buildConfig += `${createWebServiceScript}\n`
+  }
 
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
 
@@ -319,10 +322,14 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(
-  serverType,
-  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
-)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(
+        serverType,
+        isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
+      )
+    : ''
+}
 filename sascode clear;
 `
 }
@@ -345,7 +352,11 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType, undefined, false, encoded)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(serverType, undefined, false, encoded)
+    : ''
+}
 filename filecode clear;
 `
 }
