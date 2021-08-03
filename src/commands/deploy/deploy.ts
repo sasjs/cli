@@ -272,7 +272,7 @@ async function deployToSas9(
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch((err) => {
-      process.logger.log(displayError(err))
+      process.logger.log(formatErrorString(err))
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
       }
@@ -304,12 +304,19 @@ async function deployToSas9(
   }
 }
 
-function displayError(error: any) {
+/**
+ * this function formats the error string to dump error log on console
+ * @param error
+ * @returns returns a string
+ */
+function formatErrorString(error: any) {
   let err = ''
 
   err += `${error.stack}\n`
 
-  err += `url: ${error.config?.url ? removePassword(error.config.url) : ''}\n`
+  err += `url: ${
+    error.config?.url ? removePasswordFromUrl(error.config.url) : ''
+  }\n`
 
   err += `method: ${error.config?.method ? error.config.method : ''}\n`
 
@@ -319,7 +326,12 @@ function displayError(error: any) {
   return err
 }
 
-function removePassword(str: string) {
+/**
+ * removes password from url
+ * @param str parameter of type string
+ * @returns returns a string
+ */
+function removePasswordFromUrl(str: string) {
   const startingIndex = str.indexOf('_password')
   if (startingIndex !== -1) {
     return str.slice(0, startingIndex) + 'PASSWORD-REMOVED'
