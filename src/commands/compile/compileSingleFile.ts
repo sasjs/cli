@@ -6,16 +6,12 @@ import { Target } from '@sasjs/utils/types'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
 import { identifySasFile } from './internal/identifySasFile'
-import { Command } from '../../utils/command'
-import {
-  getDestinationServicePath,
-  getDestinationJobPath
-} from './internal/getDestinationPath'
 
 export async function compileSingleFile(
   target: Target,
-  command: Command,
   subCommand: string = 'identify',
+  source: string,
+  output: string,
   insertProgramVar: boolean = false
 ) {
   const subCommands = {
@@ -34,9 +30,6 @@ export async function compileSingleFile(
   const commandExample =
     'sasjs compile <command> --source myjob.sas --target targetName -output /some/folder'
 
-  let source = command.getFlagValue('source') as string
-  const output = command.getFlagValue('output') as string
-
   if (!source) {
     throw new Error(`'--source' flag is missing (eg '${commandExample}')`)
   }
@@ -53,31 +46,20 @@ export async function compileSingleFile(
     subCommand = await identifySasFile(target, sourcePath)
   }
 
-  let sourcefilePathParts = sourcePath.split(path.sep)
-  sourcefilePathParts.splice(-1, 1)
-  const sourceFolderPath = sourcefilePathParts.join(path.sep)
-  const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
-  const outputPath = output
-    ? path.isAbsolute(output)
-      ? path.join(output, `${subCommand}s`, leafFolderName)
-      : path.join(process.currentDir!, output, `${subCommand}s`, leafFolderName)
-    : subCommand === subCommands.job
-    ? await getDestinationJobPath(sourceFolderPath)
-    : await getDestinationServicePath(sourceFolderPath)
-
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
-  let outputPathParts = outputPath.split(path.sep)
+  let outputPathParts = output.split(path.sep)
+  const leafFolderName = source.split(path.sep).pop() as string
   outputPathParts.pop(), outputPathParts.pop()
   const parentOutputFolder = outputPathParts.join(path.sep)
 
   const pathExists = await fileExists(parentOutputFolder)
   if (pathExists) await deleteFolder(parentOutputFolder)
 
-  await createFolder(outputPath)
+  await createFolder(output)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string
-  const destinationPath = path.join(outputPath, sourceFileName)
+  const destinationPath = path.join(output, sourceFileName)
   await copy(sourcePath, destinationPath)
 
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
