@@ -6,5 +6,6 @@ export const failAllSuccessors = (flows: any, flowName: string) => {
 
   successors.forEach((successor: any) => {
     flows[successor].jobs.map((job: any) => (job.status = 'failure'))
+    failAllSuccessors(flows, successor)
   })
 }
