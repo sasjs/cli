@@ -9,7 +9,7 @@
     "outDir": "build",
     "rootDir": "src",
     "strict": true,
-    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "typeRoots": ["./node_modules/@types", "./src/types/system"],
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
