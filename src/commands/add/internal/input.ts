@@ -176,12 +176,12 @@ export async function getAndValidateSas9Fields(
 }
 
 export async function getAndValidateSasViyaFields(
-  targetName: string,
+  target: Target,
   scope: TargetScope,
   serverUrl: string,
   insecure: boolean,
   authenticateCallback: (
-    targetName: string,
+    target: Target,
     insecure: boolean,
     targetScope: TargetScope
   ) => Promise<void>
@@ -195,7 +195,7 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await authenticateCallback(targetName, insecure, scope)
+    await authenticateCallback(target, insecure, scope)
 
     const sasjs = new SASjs({
       serverUrl,
@@ -206,23 +206,25 @@ export async function getAndValidateSasViyaFields(
     let contexts: any[] = []
     if (scope === TargetScope.Local) {
       dotenv.config({
-        path: path.join(process.projectDir, `.env.${targetName}`)
+        path: path.join(process.projectDir, `.env.${target.name}`)
       })
       contexts = await sasjs.getComputeContexts(
         process.env.ACCESS_TOKEN as string
       )
     } else {
-      const { target } = await findTargetInConfiguration(
-        targetName,
+      const { target: currentTarget } = await findTargetInConfiguration(
+        target.name,
         TargetScope.Global
       )
-      if (!target.authConfig || !target.authConfig.access_token) {
+      if (!currentTarget.authConfig || !currentTarget.authConfig.access_token) {
         throw new Error(
-          `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${targetName}\` to authenticate.`
+          `No access token available for target ${currentTarget.name}. Please run \`sasjs add cred -t ${currentTarget.name}\` to authenticate.`
         )
       }
 
-      contexts = await sasjs.getComputeContexts(target.authConfig.access_token)
+      contexts = await sasjs.getComputeContexts(
+        currentTarget.authConfig.access_token
+      )
     }
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
