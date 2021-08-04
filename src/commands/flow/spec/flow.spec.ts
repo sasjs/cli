@@ -5,7 +5,7 @@ import { execute } from '../execute'
 
 describe('sasjs flow', () => {
   describe('execute', () => {
-    it('should execute flow in order case 1', async () => {
+    it('should execute flow in order - basic', async () => {
       const flows = {
         flow1: {
           jobs: [{ location: 'somejob' }],
@@ -17,32 +17,7 @@ describe('sasjs flow', () => {
         }
       }
 
-      jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
-        Promise.resolve({
-          terminate: false,
-          flows,
-          authConfig: {} as any as AuthConfig
-        })
-      )
-      jest.spyOn(internalModule, 'executeFlow').mockImplementation(
-        async (
-          flow: any,
-          sasjs: SASjs,
-          pollOptions: PollOptions,
-          target: Target,
-          authConfig: AuthConfig,
-          sendToCsv: Function
-        ): Promise<{
-          jobStatus: boolean
-          flowStatus: { terminate: boolean; message: string }
-        }> => {
-          flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
-          return {
-            jobStatus: true,
-            flowStatus: { terminate: false, message: '' }
-          }
-        }
-      )
+      setupMocks(flows)
 
       await execute(
         '',
@@ -55,28 +30,10 @@ describe('sasjs flow', () => {
 
       const [flow1, flow2] = Object.values(flows)
 
-      expect(internalModule.executeFlow).toHaveBeenCalledTimes(2)
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        1,
-        flow1,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        2,
-        flow2,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
+      validateFlowExecution([flow1, flow2])
     })
 
-    it('should execute flow in order case 2', async () => {
+    it('should execute flow in order - dependent on first', async () => {
       const flows = {
         flow1: {
           jobs: [{ location: 'somejob' }],
@@ -88,32 +45,7 @@ describe('sasjs flow', () => {
         }
       }
 
-      jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
-        Promise.resolve({
-          terminate: false,
-          flows,
-          authConfig: {} as any as AuthConfig
-        })
-      )
-      jest.spyOn(internalModule, 'executeFlow').mockImplementation(
-        async (
-          flow: any,
-          sasjs: SASjs,
-          pollOptions: PollOptions,
-          target: Target,
-          authConfig: AuthConfig,
-          sendToCsv: Function
-        ): Promise<{
-          jobStatus: boolean
-          flowStatus: { terminate: boolean; message: string }
-        }> => {
-          flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
-          return {
-            jobStatus: true,
-            flowStatus: { terminate: false, message: '' }
-          }
-        }
-      )
+      setupMocks(flows)
 
       await execute(
         '',
@@ -126,28 +58,10 @@ describe('sasjs flow', () => {
 
       const [flow1, flow2] = Object.values(flows)
 
-      expect(internalModule.executeFlow).toHaveBeenCalledTimes(2)
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        1,
-        flow2,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        2,
-        flow1,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
+      validateFlowExecution([flow2, flow1])
     })
 
-    it('should execute flow in order case 3', async () => {
+    it('should execute flow in order - two level dependency', async () => {
       const flows = {
         flow1: {
           jobs: [{ location: 'somejob' }],
@@ -163,32 +77,7 @@ describe('sasjs flow', () => {
         }
       }
 
-      jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
-        Promise.resolve({
-          terminate: false,
-          flows,
-          authConfig: {} as any as AuthConfig
-        })
-      )
-      jest.spyOn(internalModule, 'executeFlow').mockImplementation(
-        async (
-          flow: any,
-          sasjs: SASjs,
-          pollOptions: PollOptions,
-          target: Target,
-          authConfig: AuthConfig,
-          sendToCsv: Function
-        ): Promise<{
-          jobStatus: boolean
-          flowStatus: { terminate: boolean; message: string }
-        }> => {
-          flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
-          return {
-            jobStatus: true,
-            flowStatus: { terminate: false, message: '' }
-          }
-        }
-      )
+      setupMocks(flows)
 
       await execute(
         '',
@@ -201,37 +90,10 @@ describe('sasjs flow', () => {
 
       const [flow1, flow2, flow3] = Object.values(flows)
 
-      expect(internalModule.executeFlow).toHaveBeenCalledTimes(3)
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        1,
-        flow2,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        2,
-        flow3,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        3,
-        flow1,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
+      validateFlowExecution([flow2, flow3, flow1])
     })
 
-    it('should execute flow in order case 4', async () => {
+    it('should execute flow in order - complex dependency', async () => {
       const flows = {
         flow1: {
           jobs: [{ location: 'somejob' }],
@@ -254,33 +116,7 @@ describe('sasjs flow', () => {
           predecessors: ['flow3']
         }
       }
-
-      jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
-        Promise.resolve({
-          terminate: false,
-          flows,
-          authConfig: {} as any as AuthConfig
-        })
-      )
-      jest.spyOn(internalModule, 'executeFlow').mockImplementation(
-        async (
-          flow: any,
-          sasjs: SASjs,
-          pollOptions: PollOptions,
-          target: Target,
-          authConfig: AuthConfig,
-          sendToCsv: Function
-        ): Promise<{
-          jobStatus: boolean
-          flowStatus: { terminate: boolean; message: string }
-        }> => {
-          flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
-          return {
-            jobStatus: true,
-            flowStatus: { terminate: false, message: '' }
-          }
-        }
-      )
+      setupMocks(flows)
 
       await execute(
         '',
@@ -293,52 +129,55 @@ describe('sasjs flow', () => {
 
       const [flow1, flow2, flow3, flow4, flow5] = Object.values(flows)
 
-      expect(internalModule.executeFlow).toHaveBeenCalledTimes(5)
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        1,
-        flow3,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        2,
-        flow4,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        3,
-        flow1,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        4,
-        flow5,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
-      expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
-        5,
-        flow2,
-        undefined,
-        expect.anything(),
-        undefined,
-        expect.anything(),
-        expect.anything()
-      )
+      validateFlowExecution([flow3, flow4, flow1, flow5, flow2])
     })
   })
 })
+
+const setupMocks = (flows: any) => {
+  jest.restoreAllMocks()
+  jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
+    Promise.resolve({
+      terminate: false,
+      flows,
+      authConfig: {} as any as AuthConfig
+    })
+  )
+  jest.spyOn(internalModule, 'executeFlow').mockImplementation(
+    async (
+      flow: any,
+      sasjs: SASjs,
+      pollOptions: PollOptions,
+      target: Target,
+      authConfig: AuthConfig,
+      sendToCsv: Function
+    ): Promise<{
+      jobStatus: boolean
+      flowStatus: { terminate: boolean; message: string }
+    }> => {
+      flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
+      return {
+        jobStatus: true,
+        flowStatus: { terminate: false, message: '' }
+      }
+    }
+  )
+}
+
+const validateFlowExecution = (flowsExecutionInOrder: any[]) => {
+  const noOfTimesExecuteFlowCalled = flowsExecutionInOrder.length
+  expect(internalModule.executeFlow).toHaveBeenCalledTimes(
+    noOfTimesExecuteFlowCalled
+  )
+  flowsExecutionInOrder.forEach((flow, index) => {
+    expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
+      index + 1,
+      flow,
+      undefined,
+      expect.anything(),
+      undefined,
+      expect.anything(),
+      expect.anything()
+    )
+  })
+}
