@@ -1,14 +1,10 @@
 import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
-import { SasAuthResponse, Target } from '@sasjs/utils/types'
+import { SasAuthResponse, ServerType, Target } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
-import {
-  findTargetInConfiguration,
-  saveToGlobalConfig,
-  saveToLocalConfig
-} from '../../utils/config'
+import { saveToGlobalConfig, saveToLocalConfig } from '../../utils/config'
 import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
@@ -22,25 +18,16 @@ import { TargetScope } from '../../types/targetScope'
  * The file will contain the client ID, secret, access token and refresh token if the server type of target is viya.
  * The file will contain the username and password if the server type of target is sas9
  * Its name will be of the form `.env.{targetName}`
- * @param {string} targetName- the name of the target to create the env file for.
+ * @param {string} target- the target to create the env file for.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
 export const addCredential = async (
-  targetName: string,
+  target: Target,
   insecure: boolean = false,
-  targetScope?: TargetScope
+  targetScope: TargetScope
 ): Promise<void> => {
-  targetName = validateTargetName(targetName)
   let scope = ''
-  let { target, isLocal } = await findTargetInConfiguration(
-    targetName,
-    targetScope
-  )
-  if (isLocal) {
-    scope = TargetScope.Local
-  } else {
-    scope = TargetScope.Global
-  }
+
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
@@ -48,14 +35,14 @@ export const addCredential = async (
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(false), serverUrl })
-    if (isLocal) {
+    if (targetScope === TargetScope.Local) {
       await saveToLocalConfig(target, false, false)
     } else {
       await saveToGlobalConfig(target, false, false)
     }
   }
 
-  if (target.serverType === 'SASVIYA') {
+  if (target.serverType === ServerType.SasViya) {
     const { client, secret } = await getCredentialsInputForViya(target.name)
 
     const { access_token, refresh_token } = await getTokens(
@@ -65,7 +52,7 @@ export const addCredential = async (
       insecure
     )
 
-    if (isLocal) {
+    if (targetScope === TargetScope.Local) {
       await createEnvFileForViya(
         target.name,
         client,
@@ -81,13 +68,13 @@ export const addCredential = async (
       })
       await saveToGlobalConfig(target, false, false)
     }
-  } else if (target.serverType === 'SAS9') {
+  } else if (target.serverType === ServerType.Sas9) {
     const { userName, password } = await getCredentialsInputSas9(
-      targetName,
+      target.name,
       scope
     )
 
-    if (isLocal) {
+    if (targetScope === TargetScope.Local) {
       await createEnvFileForSas9(target.name, userName, password)
       await saveToLocalConfig(target, false, false)
     } else {

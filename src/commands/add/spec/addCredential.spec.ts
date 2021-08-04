@@ -13,12 +13,21 @@ import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
 import { getConstants } from '../../../constants'
+import { TargetScope } from '../../../types'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async () => {
     process.projectDir = '.'
     setupMocks()
-    await addCredential('test-target')
+    const target = new Target({
+      name: 'test-target',
+      serverUrl: '',
+      serverType: ServerType.SasViya,
+      appLoc: '/test',
+      contextName: (await getConstants()).contextName
+    })
+
+    await addCredential(target, false, TargetScope.Local)
 
     expect(inputModule.getAndValidateServerUrl).toHaveBeenCalled()
     expect(configUtils.saveToLocalConfig).toHaveBeenCalledWith(
