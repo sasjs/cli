@@ -134,6 +134,7 @@ describe('validateParams', () => {
 
   it('should return not terminate flag, if all params are valid ', async () => {
     const source = path.join(appFolder, 'source.json')
+    const csv = path.join(appFolder, 'data.csv')
 
     await createFile(source, '{ "flows": [] }')
 
@@ -143,7 +144,7 @@ describe('validateParams', () => {
 
     const { terminate, flows } = await validateParams(
       source,
-      'csv.csv',
+      csv,
       'mylogs',
       undefined as any as Target
     )
@@ -152,5 +153,6 @@ describe('validateParams', () => {
     expect(flows).toEqual([])
 
     await deleteFile(source)
+    await deleteFile(csv)
   })
 })

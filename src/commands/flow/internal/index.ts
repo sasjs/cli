@@ -1,5 +1,4 @@
 export { executeFlow } from './executeFlow'
-export { isSessionStateError } from './isSessionStateError'
 export { printError } from './printError'
 export { validateParams } from './validateParams'
 export { failAllSuccessors } from './failAllSuccessors'

@@ -4,7 +4,6 @@ import { Command } from '../../../utils/command'
 import { displayError, displaySuccess } from '../../../utils/displayResult'
 import { millisecondsToDdHhMmSs } from '../../../utils/utils'
 import { saveLog } from './saveLog'
-import { isSessionStateError } from './isSessionStateError'
 import { normalizeFilePath } from './normalizeFilePath'
 import { parseJobDetails } from './parseJobDetails'
 import { printError } from './printError'
@@ -58,7 +57,10 @@ export const executeFlow = async (
       .catch(async (err: any) => {
         printError(job, flowName, err)
 
-        if (typeof err === 'string' && isSessionStateError(err)) {
+        if (
+          typeof err === 'string' &&
+          err.includes('Could not get session state')
+        ) {
           flowStatus = { terminate: true, message: 'Flow has been terminated.' }
         }
 
