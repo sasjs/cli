@@ -39,8 +39,6 @@ export async function execute(
       `Executing flow for '${target.name}' target with app location '${target.appLoc}':`
     )
 
-    let csvFileAbleToSave = true
-
     const preExecuteFlow = async (flowName: string) => {
       const flow = flows[flowName]
 
@@ -80,7 +78,6 @@ export async function execute(
         ) => {
           await saveToCsv(
             csvFile,
-            csvFileAbleToSave,
             flowName,
             flow.predecessors || ['none'],
             jobLocation,

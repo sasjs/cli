@@ -5,7 +5,6 @@ import { displayError } from '../../../utils/displayResult'
 // REFACTOR: move to utility
 export const saveToCsv = async (
   csvFileRealPath: string,
-  csvFileAbleToSave: boolean,
   flowName: string,
   predecessors: any,
   location: string,
@@ -14,16 +13,20 @@ export const saveToCsv = async (
   logName = ''
 ) => {
   return new Promise(async (resolve, reject) => {
+    if (process.csvFileAbleToSave === undefined)
+      process.csvFileAbleToSave = true
+
     const timerId = setInterval(async () => {
-      if (csvFileAbleToSave) {
-        csvFileAbleToSave = false
+      if (process.csvFileAbleToSave) {
+        process.csvFileAbleToSave = false
+        clearInterval(timerId)
 
         if (
           !(await fileExists(csvFileRealPath).catch((err) =>
             displayError(err, 'Error while checking if csv file exists.')
           ))
         ) {
-          await createFile(getRealPath(csvFileRealPath), '').catch((err) =>
+          await createFile(csvFileRealPath, '').catch((err) =>
             displayError(err, 'Error while creating CSV file.')
           )
         }
@@ -73,9 +76,7 @@ export const saveToCsv = async (
               displayError(err, 'Error while creating CSV file.')
             )
 
-            csvFileAbleToSave = true
-
-            clearInterval(timerId)
+            process.csvFileAbleToSave = true
 
             resolve(true)
           }
