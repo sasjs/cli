@@ -31,13 +31,7 @@ import { getConstants } from './constants'
 import { findTargetInConfiguration } from './utils/config'
 import { Target } from '@sasjs/utils/types'
 import { lintFix } from './commands/lint/processLint'
-
-export enum ReturnCode {
-  Success,
-  InvalidCommand,
-  InternalError,
-  LintError
-}
+import { ReturnCode } from './types/command'
 
 export async function initSasjs() {
   return await init()
@@ -315,15 +309,15 @@ export async function add(command: Command) {
 
   if (command && command.name === 'add') {
     if (subCommand === 'cred') {
-      return await addCredential(targetName, insecure)
-        .then(() => {
-          displaySuccess('Credential has been successfully added!')
-          return ReturnCode.Success
-        })
-        .catch((err) => {
-          displayError(err, 'An error has occurred when adding the credential.')
-          return ReturnCode.InternalError
-        })
+      // return await addCredential(targetName, insecure)
+      //   .then(() => {
+      //     displaySuccess('Credential has been successfully added!')
+      //     return ReturnCode.Success
+      //   })
+      //   .catch((err) => {
+      //     displayError(err, 'An error has occurred when adding the credential.')
+      //     return ReturnCode.InternalError
+      //   })
     } else if (subCommand === 'target' || !subCommand) {
       return await addTarget(insecure)
         .then(() => {
@@ -359,15 +353,15 @@ export async function auth(command: Command) {
   }
 
   if (command && command.name === 'auth') {
-    return await addCredential(targetName, insecure)
-      .then(() => {
-        displaySuccess('Credential has been successfully added!')
-        return ReturnCode.Success
-      })
-      .catch((err) => {
-        displayError(err, 'An error has occurred when adding the credential.')
-        return ReturnCode.InternalError
-      })
+    // return await addCredential(targetName, insecure)
+    //   .then(() => {
+    //     displaySuccess('Credential has been successfully added!')
+    //     return ReturnCode.Success
+    //   })
+    //   .catch((err) => {
+    //     displayError(err, 'An error has occurred when adding the credential.')
+    //     return ReturnCode.InternalError
+    //   })
   } else {
     displayError(null, 'Invalid command: supported commands is - sasjs auth.')
     return ReturnCode.InvalidCommand
@@ -546,17 +540,17 @@ async function executeSingleFileCompile(
   command: Command,
   subCommand: string
 ) {
-  return await compileSingleFile(target, command, subCommand)
-    .then((res) => {
-      displaySuccess(
-        `Source has been successfully compiled!\nThe compiled output is located in at:\n- '${res.destinationPath}'`
-      )
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when compiling source.')
-      return ReturnCode.InternalError
-    })
+  // return await compileSingleFile(target, command, subCommand)
+  //   .then((res) => {
+  //     displaySuccess(
+  //       `Source has been successfully compiled!\nThe compiled output is located in at:\n- '${res.destinationPath}'`
+  //     )
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when compiling source.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 async function executeCompile(target: Target) {
