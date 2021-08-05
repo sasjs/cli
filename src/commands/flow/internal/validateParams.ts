@@ -57,7 +57,7 @@ export const validateParams = async (
   } catch (_) {
     return {
       terminate: true,
-      message: examples.source
+      message: `Unable to parse JSON of provided source file.\n${examples.source}`
     }
   }
 
@@ -66,7 +66,7 @@ export const validateParams = async (
   if (!flows)
     return {
       terminate: true,
-      message: examples.source
+      message: `There are no flows present in source JSON.\n${examples.source}`
     }
 
   const authConfig = await getAuthConfig(target).catch((err) => {
