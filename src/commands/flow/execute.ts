@@ -7,8 +7,7 @@ import {
   failAllSuccessors,
   saveToCsv,
   allFlowsCompleted,
-  validateParams,
-  isFlowExecuted
+  validateParams
 } from './internal'
 
 export async function execute(
@@ -45,7 +44,7 @@ export async function execute(
       if (!flow.jobs || !Array.isArray(flow.jobs))
         return reject(examples.source)
 
-      if (isFlowExecuted(flow)) return
+      if (flow.execution) return
 
       flow.predecessors?.forEach(async (predecessorName: string) => {
         if (!Object.keys(flows).includes(predecessorName))
@@ -58,11 +57,11 @@ export async function execute(
             {},
             `Predecessor '${predecessorName}' mentioned in '${flowName}' cannot point to itself.`
           )
-        else if (!isFlowExecuted(flows[predecessorName]))
+        else if (!flows[predecessorName].execution)
           await preExecuteFlow(predecessorName)
       })
 
-      if (isFlowExecuted(flow)) return
+      if (flow.execution) return
 
       const { jobStatus, flowStatus } = await executeFlow(
         flow,

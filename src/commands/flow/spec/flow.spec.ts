@@ -155,6 +155,7 @@ const setupMocks = (flows: any) => {
       jobStatus: boolean
       flowStatus: { terminate: boolean; message: string }
     }> => {
+      flow.execution = 'started'
       flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
       return {
         jobStatus: true,

@@ -27,6 +27,7 @@ export const executeFlow = async (
 
   let jobStatus = true,
     flowStatus = { terminate: false, message: '' }
+  flow.execution = 'started'
   flow.jobs.forEach(async (job: any) => {
     const jobLocation: string = Command.prefixAppLoc(
       target.appLoc,
@@ -173,5 +174,6 @@ export const executeFlow = async (
       }
     }
   })
+  flow.execution = 'finished'
   return { jobStatus, flowStatus }
 }
