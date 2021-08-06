@@ -59,7 +59,7 @@ describe('sasjs flow', () => {
         `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
       )
     )
-    if (await fileExists(csvPath)) await deleteFile(csvPath)
+    await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
@@ -159,7 +159,9 @@ describe('sasjs flow', () => {
       `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
     )
 
-    await expect(processFlow(command)).resolves.toEqual(examples.source)
+    await expect(processFlow(command)).resolves.toEqual(
+      `Unable to parse JSON of provided source file.\n` + examples.source
+    )
   })
 
   it('should return an error if provided source file does not have flows property', async () => {
@@ -169,7 +171,9 @@ describe('sasjs flow', () => {
       `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
     )
 
-    await expect(processFlow(command)).resolves.toEqual(examples.source)
+    await expect(processFlow(command)).resolves.toEqual(
+      `There are no flows present in source JSON.\n` + examples.source
+    )
   })
 
   it('should return an error if provided source file does not have jobs property', async () => {
