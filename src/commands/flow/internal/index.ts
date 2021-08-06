@@ -1,4 +1,5 @@
 export { executeFlow } from './executeFlow'
+export { checkPredecessorDeadlock } from './checkPredecessorDeadlock'
 export { printError } from './printError'
 export { validateParams } from './validateParams'
 export { failAllSuccessors } from './failAllSuccessors'

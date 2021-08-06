@@ -6,7 +6,8 @@ import {
   executeFlow,
   failAllSuccessors,
   allFlowsCompleted,
-  validateParams
+  validateParams,
+  checkPredecessorDeadlock
 } from './internal'
 
 export async function execute(
@@ -26,6 +27,13 @@ export async function execute(
       csvFile: csvFileRealPath
     } = await validateParams(source, csvFile, logFolder, target)
     if (terminate) return reject(message)
+
+    const predecessorDeadlock = checkPredecessorDeadlock(flows)
+    if (predecessorDeadlock)
+      return reject(
+        'Circular dependency found in flows, cannot proceed\n- ' +
+          predecessorDeadlock.join(' -> ')
+      )
 
     const pollOptions: PollOptions = {
       maxPollCount: 24 * 60 * 60,
