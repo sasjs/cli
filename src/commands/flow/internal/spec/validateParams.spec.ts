@@ -4,6 +4,7 @@ import {
   createFolder,
   deleteFile,
   deleteFolder,
+  fileExists,
   generateTimestamp,
   Target
 } from '@sasjs/utils'
@@ -19,6 +20,7 @@ describe('validateParams', () => {
   )
   beforeAll(async () => {
     await createFolder(appFolder)
+    process.projectDir = appFolder
 
     jest.spyOn(module, 'getConstants').mockImplementation(() =>
       Promise.resolve({
@@ -132,7 +134,7 @@ describe('validateParams', () => {
     await deleteFile(source)
   })
 
-  it('should return not terminate flag, if all params are valid ', async () => {
+  it('should not return terminate flag, if all params are valid ', async () => {
     const source = path.join(appFolder, 'source.json')
     const csv = path.join(appFolder, 'data.csv')
 
@@ -154,5 +156,34 @@ describe('validateParams', () => {
 
     await deleteFile(source)
     await deleteFile(csv)
+  })
+
+  it('should return with default csv file location', async () => {
+    const source = path.join(appFolder, 'source.json')
+    const csvDefaultLoc = path.join(appFolder, 'sasjsbuild', 'flowResults.csv')
+
+    await createFile(source, '{ "flows": [] }')
+
+    jest
+      .spyOn(configUtils, 'getAuthConfig')
+      .mockImplementation(() => Promise.resolve({} as any))
+    jest
+      .spyOn(configUtils, 'getLocalOrGlobalConfig')
+      .mockImplementation(() => Promise.resolve({ isLocal: true } as any))
+
+    const { terminate, flows } = await validateParams(
+      source,
+      undefined as any as string,
+      'mylogs',
+      undefined as any as Target
+    )
+
+    expect(terminate).toEqual(false)
+    expect(flows).toEqual([])
+
+    await expect(fileExists(csvDefaultLoc)).resolves.toEqual(true)
+
+    await deleteFile(source)
+    await deleteFile(csvDefaultLoc)
   })
 })

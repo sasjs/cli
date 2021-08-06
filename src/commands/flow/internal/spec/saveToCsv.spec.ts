@@ -1,6 +1,7 @@
 import path from 'path'
 import { deleteFile, generateTimestamp, readFile } from '@sasjs/utils'
 import { saveToCsv } from '..'
+import csvColumns from '../../csvColumns'
 
 describe('saveToCsv', () => {
   let csvFilePath: string
@@ -14,10 +15,15 @@ describe('saveToCsv', () => {
 
     await saveToCsv(
       csvFilePath,
-      'someFlowName',
-      ['flow1', 'flow2'],
-      'location',
-      'success'
+      [
+        'someFlowName',
+        ['flow1', 'flow2'].join(' | '),
+        'location',
+        'success',
+        undefined,
+        undefined
+      ],
+      Object.values(csvColumns)
     )
 
     const csvContent = await readFile(csvFilePath)
@@ -27,28 +33,61 @@ describe('saveToCsv', () => {
     )
   })
 
-  it('should write to csv - asynchronous ', async () => {
+  it('should write to csv - asynchronous at same time', async () => {
     csvFilePath = path.join(__dirname, `cli-tests-csv-${generateTimestamp()}`)
 
-    let csvOperationsCompleted = 0
-    ;[1, 2, 3].forEach(async (_, i) => {
-      const randomNumber = global.Math.random() * 1000
-      await new Promise((r) => setTimeout(r, randomNumber))
+    await Promise.all(
+      [1, 2, 3].map(async (_, i) => {
+        await new Promise((r) => setTimeout(r, 1000 * (i - 1) * (i - 1)))
 
-      await saveToCsv(
-        csvFilePath,
-        `someFlowName${i}`,
-        [`flow-${i}`],
-        `location-${i}`,
-        'success'
-      )
+        await saveToCsv(
+          csvFilePath,
+          [
+            `someFlowName${i}`,
+            [`flow-${i}`].join(' | '),
+            `location-${i}`,
+            'success',
+            undefined,
+            undefined
+          ],
+          Object.values(csvColumns)
+        )
+      })
+    )
 
-      csvOperationsCompleted++
-    })
+    const csvContent = await readFile(csvFilePath)
 
-    while (csvOperationsCompleted !== 3) {
-      await new Promise((r) => setTimeout(r, 200))
-    }
+    const flow1csv = ',someFlowName0,flow-0,location-0,success,,'
+    const flow2csv = ',someFlowName1,flow-1,location-1,success,,'
+    const flow3csv = ',someFlowName2,flow-2,location-2,success,,'
+
+    expect(csvContent).toEqual(expect.stringContaining(flow1csv))
+    expect(csvContent).toEqual(expect.stringContaining(flow2csv))
+    expect(csvContent).toEqual(expect.stringContaining(flow3csv))
+  })
+
+  it('should write to csv - asynchronous at random times', async () => {
+    csvFilePath = path.join(__dirname, `cli-tests-csv-${generateTimestamp()}`)
+
+    await Promise.all(
+      [1, 2, 3].map(async (_, i) => {
+        const randomNumber = global.Math.random() * 1000
+        await new Promise((r) => setTimeout(r, randomNumber))
+
+        await saveToCsv(
+          csvFilePath,
+          [
+            `someFlowName${i}`,
+            [`flow-${i}`].join(' | '),
+            `location-${i}`,
+            'success',
+            undefined,
+            undefined
+          ],
+          Object.values(csvColumns)
+        )
+      })
+    )
 
     const csvContent = await readFile(csvFilePath)
 

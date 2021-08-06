@@ -5,7 +5,6 @@ import examples from './examples'
 import {
   executeFlow,
   failAllSuccessors,
-  saveToCsv,
   allFlowsCompleted,
   validateParams
 } from './internal'
@@ -40,13 +39,14 @@ export async function execute(
 
     const preExecuteFlow = async (flowName: string) => {
       const flow = flows[flowName]
+      flow.name = flowName
 
       if (!flow.jobs || !Array.isArray(flow.jobs))
         return reject(examples.source)
 
       if (flow.execution) return
 
-      flow.predecessors?.forEach(async (predecessorName: string) => {
+      for (const predecessorName of flow.predecessors) {
         if (!Object.keys(flows).includes(predecessorName))
           displayError(
             {},
@@ -59,7 +59,7 @@ export async function execute(
           )
         else if (!flows[predecessorName].execution)
           await preExecuteFlow(predecessorName)
-      })
+      }
 
       if (flow.execution) return
 
@@ -69,23 +69,9 @@ export async function execute(
         pollOptions,
         target,
         authConfig!,
-        async (
-          jobLocation: string,
-          jobStatus: string,
-          errMessage: string,
-          logName: string
-        ) => {
-          await saveToCsv(
-            csvFile,
-            flowName,
-            flow.predecessors || ['none'],
-            jobLocation,
-            jobStatus,
-            errMessage,
-            logName as string
-          ).catch((err) => displayError(err, 'Error while saving CSV file.'))
-        }
+        csvFile
       )
+
       if (!jobStatus) failAllSuccessors(flows, flowName)
       if (flowStatus.terminate) reject(flowStatus.message)
 
@@ -96,6 +82,8 @@ export async function execute(
       }
     }
 
-    Object.keys(flows).forEach(preExecuteFlow)
+    for (const flowName in flows) {
+      await preExecuteFlow(flowName)
+    }
   })
 }

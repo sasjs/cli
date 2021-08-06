@@ -5,12 +5,8 @@ import { displayError } from '../../../utils/displayResult'
 // REFACTOR: move to utility
 export const saveToCsv = async (
   csvFileRealPath: string,
-  flowName: string,
-  predecessors: any,
-  location: string,
-  status: string,
-  details = '',
-  logName = ''
+  data: any,
+  columns: any
 ) => {
   return new Promise(async (resolve, reject) => {
     if (process.csvFileAbleToSave === undefined)
@@ -42,29 +38,9 @@ export const saveToCsv = async (
           .filter((row) => row.length)
           .map((data) => data.split(','))
 
-        const columns = {
-          id: 'id',
-          flow: 'Flow',
-          predecessors: 'Predecessors',
-          name: 'Location',
-          status: 'Status',
-          logLocation: 'Log location',
-          details: 'Details'
-        }
-
         const id = csvData.length === 0 ? 1 : csvData.length
 
-        const data = [
-          id,
-          flowName,
-          predecessors.join(' | '),
-          location,
-          status,
-          logName,
-          details
-        ]
-
-        csvData.push(data)
+        csvData.push([id, ...data])
 
         stringify(
           csvData,
