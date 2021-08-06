@@ -180,8 +180,8 @@ const validateFlowExecution = (flowsExecutionInOrder: any[]) => {
       undefined,
       expect.anything(),
       undefined,
-      expect.anything(),
-      expect.anything()
+      {},
+      undefined
     )
   })
 }

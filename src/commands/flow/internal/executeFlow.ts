@@ -82,20 +82,26 @@ export const executeFlow = async (
             target.serverUrl,
             authConfig.access_token,
             1000000
-          ).catch((err) => displayError(err, 'Error while saving log file.'))
+          ).catch((err) => {
+            displayError(err, 'Error while saving log file.')
+          })
 
           logName = logName ? `${logFolder}/${logName}` : ''
 
           const data = [
             flowName,
-            (flow.predecessors?.length || ['none']).join(' | '),
+            (flow.predecessors.length ? flow.predecessors : ['none']).join(
+              ' | '
+            ),
             jobLocation,
             'failure',
-            err?.message || '',
-            logName
+            logName,
+            err?.message || ''
           ]
           await saveToCsv(csvFile, data, Object.values(csvColumns)).catch(
-            (err) => displayError(err, 'Error while saving CSV file.')
+            (err) => {
+              displayError(err, 'Error while saving CSV file.')
+            }
           )
 
           job.status = 'failure'
@@ -141,11 +147,11 @@ export const executeFlow = async (
 
         const data = [
           flowName,
-          (flow.predecessors?.length || ['none']).join(' | '),
+          (flow.predecessors.length ? flow.predecessors : ['none']).join(' | '),
           jobLocation,
           submittedJob.state || 'failure',
-          details?.details,
-          logName
+          logName,
+          details?.details
         ]
         await saveToCsv(csvFile, data, Object.values(csvColumns)).catch((err) =>
           displayError(err, 'Error while saving CSV file.')

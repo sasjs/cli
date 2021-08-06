@@ -72,16 +72,16 @@ describe('executeFlow', () => {
       'none',
       `${target.appLoc}/${flow.jobs[0].location}`,
       'success',
-      '',
-      fakeLogPath
+      fakeLogPath,
+      ''
     ]
     const csvDataFailed = [
       flowName,
       'none',
       `${target.appLoc}/${flow.jobs[1].location}`,
       'failure',
-      '',
-      fakeLogPath
+      fakeLogPath,
+      ''
     ]
 
     validatesaveToCsv([csvDataFailed, csvDataSuccess, csvDataSuccess])
@@ -123,16 +123,16 @@ describe('executeFlow', () => {
       'none',
       `${target.appLoc}/${flow.jobs[0].location}`,
       'success',
-      '',
-      fakeLogPath
+      fakeLogPath,
+      ''
     ]
     const csvDataFailed = [
       flowName,
       'none',
       `${target.appLoc}/${flow.jobs[1].location}`,
       'failure',
-      jobNotFoundMessage,
-      fakeLogPath
+      fakeLogPath,
+      jobNotFoundMessage
     ]
 
     validatesaveToCsv([csvDataFailed, csvDataSuccess])
@@ -178,8 +178,8 @@ describe('executeFlow', () => {
       'none',
       `${target.appLoc}/${flow.jobs[0].location}`,
       'failure',
-      '',
-      fakeLogPath
+      fakeLogPath,
+      ''
     ]
     validatesaveToCsv([csvDataFailed])
   })
@@ -189,7 +189,6 @@ const validatesaveToCsv = (jobExecutionInOrder: any[]) => {
   expect(internalModule.saveToCsv).toHaveBeenCalledTimes(
     jobExecutionInOrder.length
   )
-  const noOfTimesExecuteFlowCalled = jobExecutionInOrder.length
   jobExecutionInOrder.forEach((expectedCsvData, index) => {
     expect(internalModule.saveToCsv).toHaveBeenNthCalledWith(
       index + 1,

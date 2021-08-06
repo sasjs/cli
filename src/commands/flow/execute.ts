@@ -18,12 +18,13 @@ export async function execute(
   sasjs: SASjs
 ) {
   return new Promise(async (resolve, reject) => {
-    const { terminate, message, flows, authConfig } = await validateParams(
-      source,
-      csvFile,
-      logFolder,
-      target
-    )
+    const {
+      terminate,
+      message,
+      flows,
+      authConfig,
+      csvFile: csvFileRealPath
+    } = await validateParams(source, csvFile, logFolder, target)
     if (terminate) return reject(message)
 
     const pollOptions: PollOptions = {
@@ -69,7 +70,7 @@ export async function execute(
         pollOptions,
         target,
         authConfig!,
-        csvFile
+        csvFileRealPath!
       )
 
       if (!jobStatus) failAllSuccessors(flows, flowName)
@@ -77,7 +78,7 @@ export async function execute(
 
       const { completed, completedWithAllSuccess } = allFlowsCompleted(flows)
       if (completed) {
-        if (completedWithAllSuccess) resolve(csvFile)
+        if (completedWithAllSuccess) resolve(csvFileRealPath)
         else resolve(false)
       }
     }

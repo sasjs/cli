@@ -427,8 +427,6 @@ describe('sasjs flow', () => {
       serverType: target.serverType
     })
 
-    const mockExit = mockProcessExit()
-
     jest
       .spyOn(sasjs, 'fetchLogFileContent')
       .mockImplementation(() => Promise.resolve(''))
@@ -436,9 +434,9 @@ describe('sasjs flow', () => {
       .spyOn(sasjs, 'startComputeJob')
       .mockImplementation(() => Promise.reject('Could not get session state.'))
 
-    await processFlow(command, sasjs)
-
-    expect(mockExit).toHaveBeenCalledWith(2)
+    await expect(processFlow(command, sasjs)).resolves.toEqual(
+      'Flow has been terminated.'
+    )
   })
 })
 
