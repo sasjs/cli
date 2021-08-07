@@ -200,45 +200,41 @@ describe('sasjs cbd having stream app', () => {
     jest.resetAllMocks()
   })
 
-  it(
-    `should deploy compile and build with streamConfig`,
-    async () => {
-      const appLoc = `/Public/app/cli-tests/${target.name}`
-      const appLocWithSpaces = `${appLoc}/with some/space s`
-      await updateLocalTarget(target.name, {
-        appLoc: appLocWithSpaces,
-        streamConfig,
-        jobConfig: undefined,
-        serviceConfig: undefined,
-        deployConfig: {
-          deployServicePack: false,
-          deployScripts: [`sasjsbuild/${target.name}.sas`]
-        }
-      })
+  it(`should deploy compile and build with streamConfig`, async () => {
+    const appLoc = `/Public/app/cli-tests/${target.name}`
+    const appLocWithSpaces = `${appLoc}/with some/space s`
+    await updateLocalTarget(target.name, {
+      appLoc: appLocWithSpaces,
+      streamConfig,
+      jobConfig: undefined,
+      serviceConfig: undefined,
+      deployConfig: {
+        deployServicePack: false,
+        deployScripts: [`sasjsbuild/${target.name}.sas`]
+      }
+    })
 
-      const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-      await expect(compileBuildDeployServices(command)).toResolve()
+    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
+    await expect(compileBuildDeployServices(command)).toResolve()
 
-      const logFileContent = await readFile(
-        path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)
-      )
+    const logFileContent = await readFile(
+      path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)
+    )
 
-      const appLocTransformed = '/with%20some/space%20s'
-      const streamingApplink = `${target.serverUrl.replace(
-        'https://',
-        ''
-      )}/SASJobExecution?_FILE=${appLoc}${appLocTransformed}/services/${
-        streamConfig.streamServiceName
-      }.html&_debug=2`
+    const appLocTransformed = '/with%20some/space%20s'
+    const streamingApplink = `${target.serverUrl.replace(
+      'https://',
+      ''
+    )}/SASJobExecution?_FILE=${appLoc}${appLocTransformed}/services/${
+      streamConfig.streamServiceName
+    }.html&_debug=2`
 
-      expect(logFileContent.replace(/\s/g, '')).toEqual(
-        expect.stringContaining(streamingApplink)
-      )
+    expect(logFileContent.replace(/\s/g, '')).toEqual(
+      expect.stringContaining(streamingApplink)
+    )
 
-      await updateLocalTarget(target.name, { appLoc })
-    },
-    2 * 60 * 1000
-  )
+    await updateLocalTarget(target.name, { appLoc })
+  })
 })
 
 const createGlobalTarget = async (serverType = ServerType.SasViya) => {

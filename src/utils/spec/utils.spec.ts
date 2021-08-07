@@ -166,7 +166,9 @@ describe('utils', () => {
       const relativePath = './my-path/xyz'
       const pathRelativeTo = '/home/abc'
 
-      const expectedAbsolutePath = '/home/abc/my-path/xyz'
+      const expectedAbsolutePath = ['', 'home', 'abc', 'my-path', 'xyz'].join(
+        path.sep
+      )
 
       expect(getAbsolutePath(relativePath, pathRelativeTo)).toEqual(
         expectedAbsolutePath
@@ -176,7 +178,8 @@ describe('utils', () => {
     it('should convert tilde from absolute path', () => {
       const relativePath = '~/my-path/xyz'
 
-      const expectedAbsolutePath = '~/my-path/xyz'.replace('~', homedir)
+      const expectedAbsolutePath =
+        homedir + ['', 'my-path', 'xyz'].join(path.sep)
 
       expect(getAbsolutePath(relativePath, '')).toEqual(expectedAbsolutePath)
     })
@@ -185,8 +188,10 @@ describe('utils', () => {
       const absolutePath = '/my-path/xyz'
       const pathRelativeTo = '/home/abc'
 
+      const expectedAbsolutePath = ['', 'my-path', 'xyz'].join(path.sep)
+
       expect(getAbsolutePath(absolutePath, pathRelativeTo)).toEqual(
-        absolutePath
+        expectedAbsolutePath
       )
     })
   })

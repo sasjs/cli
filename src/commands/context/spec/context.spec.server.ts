@@ -75,23 +75,19 @@ describe('sasjs context', () => {
   })
 
   describe('list', () => {
-    it(
-      'should list accessible compute contexts',
-      async () => {
-        contexts = (await processContext(
-          new Command(`context list -t ${targetName}`)
-        )) as {
-          createdBy: any
-          id: any
-          name: any
-          version: any
-          sysUserId: any
-        }[]
+    it('should list accessible compute contexts', async () => {
+      contexts = (await processContext(
+        new Command(`context list -t ${targetName}`)
+      )) as {
+        createdBy: any
+        id: any
+        name: any
+        version: any
+        sysUserId: any
+      }[]
 
-        expect(contexts.length).toBeGreaterThan(0)
-      },
-      60 * 4 * 1000
-    )
+      expect(contexts.length).toBeGreaterThan(0)
+    })
   })
 
   describe('exportContext', () => {
