@@ -11,7 +11,7 @@ import {
   printError,
   generateFileName
 } from '.'
-import csvColumns from '../csvColumns'
+import csvColumns from './csvColumns'
 
 export const executeFlow = async (
   flow: any,

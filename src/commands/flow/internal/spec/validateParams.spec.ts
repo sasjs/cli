@@ -11,7 +11,7 @@ import {
 import { validateParams } from '..'
 import * as module from '../../../../constants'
 import * as configUtils from '../../../../utils/config'
-import examples from '../../examples'
+import examples from '../examples'
 
 describe('validateParams', () => {
   let appFolder = path.join(

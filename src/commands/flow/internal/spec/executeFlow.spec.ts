@@ -2,7 +2,7 @@ import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { executeFlow } from '../executeFlow'
 import * as internalModule from '../'
-import csvColumns from '../../csvColumns'
+import csvColumns from '../csvColumns'
 
 const pollOptions: PollOptions = {
   maxPollCount: 24 * 60 * 60,

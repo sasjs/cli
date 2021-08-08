@@ -1,7 +1,7 @@
 import path from 'path'
 import { deleteFile, generateTimestamp, readFile } from '@sasjs/utils'
 import { saveToCsv } from '..'
-import csvColumns from '../../csvColumns'
+import csvColumns from '../csvColumns'
 
 describe('saveToCsv', () => {
   let csvFilePath: string

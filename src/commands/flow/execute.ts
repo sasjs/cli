@@ -1,7 +1,7 @@
 import { displayError } from '../../utils/displayResult'
 import { Target } from '@sasjs/utils'
 import SASjs, { PollOptions } from '@sasjs/adapter/node'
-import examples from './examples'
+import examples from './internal/examples'
 import {
   executeFlow,
   failAllSuccessors,

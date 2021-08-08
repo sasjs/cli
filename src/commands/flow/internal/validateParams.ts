@@ -13,7 +13,7 @@ import { Flow } from '../../../types'
 import { getAuthConfig } from '../../../utils/config'
 import { displayError } from '../../../utils/displayResult'
 import { isCsvFile, isJsonFile } from '../../../utils/file'
-import examples from '../examples'
+import examples from './examples'
 
 export const validateParams = async (
   source: string,

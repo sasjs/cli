@@ -21,7 +21,7 @@ import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import examples from '../examples'
+import examples from '../internal/examples'
 import { Command } from '../../../utils/command'
 import {
   ServerType,
