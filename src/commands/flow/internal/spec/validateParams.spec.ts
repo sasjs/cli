@@ -5,6 +5,7 @@ import {
   deleteFile,
   deleteFolder,
   fileExists,
+  folderExists,
   generateTimestamp,
   Target
 } from '@sasjs/utils'
@@ -137,6 +138,7 @@ describe('validateParams', () => {
   it('should not return terminate flag, if all params are valid ', async () => {
     const source = path.join(appFolder, 'source.json')
     const csv = path.join(appFolder, 'data.csv')
+    const logFolder = path.join(appFolder, 'my-logs')
 
     await createFile(source, '{ "flows": [] }')
 
@@ -147,20 +149,25 @@ describe('validateParams', () => {
     const { terminate, flows } = await validateParams(
       source,
       csv,
-      'mylogs',
+      logFolder,
       undefined as any as Target
     )
 
     expect(terminate).toEqual(false)
     expect(flows).toEqual([])
 
+    await expect(fileExists(csv)).resolves.toEqual(true)
+    await expect(folderExists(logFolder)).resolves.toEqual(true)
+
     await deleteFile(source)
     await deleteFile(csv)
+    await deleteFolder(logFolder)
   })
 
-  it('should return with default csv file location', async () => {
+  it('should not return terminate flag, creates default csv file and log folder location', async () => {
     const source = path.join(appFolder, 'source.json')
     const csvDefaultLoc = path.join(appFolder, 'sasjsbuild', 'flowResults.csv')
+    const logFolderDefaultLoc = path.join(appFolder, 'sasjsbuild', 'logs')
 
     await createFile(source, '{ "flows": [] }')
 
@@ -182,8 +189,10 @@ describe('validateParams', () => {
     expect(flows).toEqual([])
 
     await expect(fileExists(csvDefaultLoc)).resolves.toEqual(true)
+    await expect(folderExists(logFolderDefaultLoc)).resolves.toEqual(true)
 
     await deleteFile(source)
     await deleteFile(csvDefaultLoc)
+    await deleteFile(logFolderDefaultLoc)
   })
 })

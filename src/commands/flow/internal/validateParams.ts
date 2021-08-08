@@ -26,6 +26,7 @@ export const validateParams = async (
   flows?: any
   authConfig?: AuthConfig
   csvFile?: string
+  logFolder?: string
 }> => {
   const { buildDestinationFolder } = await getConstants()
 
@@ -110,6 +111,7 @@ export const validateParams = async (
     terminate: false,
     flows,
     authConfig,
-    csvFile
+    csvFile,
+    logFolder
   }
 }

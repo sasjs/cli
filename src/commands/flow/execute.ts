@@ -24,7 +24,8 @@ export async function execute(
       message,
       flows,
       authConfig,
-      csvFile: csvFileRealPath
+      csvFile: csvFileRealPath,
+      logFolder: logFolderRealPath
     } = await validateParams(source, csvFile, logFolder, target)
     if (terminate) return reject(message)
 
@@ -39,7 +40,7 @@ export async function execute(
       maxPollCount: 24 * 60 * 60,
       pollInterval: 1000,
       streamLog,
-      logFolderPath: logFolder
+      logFolderPath: logFolderRealPath
     }
 
     process.logger?.info(
