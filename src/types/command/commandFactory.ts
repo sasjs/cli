@@ -5,8 +5,12 @@ import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
 import { CompileSingleFileCommand } from '../../commands/compile/compileSingleFileCommand'
 import { CreateContextCommand } from '../../commands/context/createContextCommand'
+import { DeleteContextCommand } from '../../commands/context/deleteContextCommand'
 import { EditContextCommand } from '../../commands/context/editContextCommand'
+import { ExportContextCommand } from '../../commands/context/exportContextCommand'
+import { ListContextCommand } from '../../commands/context/listContextCommand'
 import { CreateCommand } from '../../commands/create/createCommand'
+import { DbCommand } from '../../commands/db/dbCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -20,6 +24,10 @@ export const commandFactory = new Map<string, Function>([
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],
   ['create', (args: string[]) => new CreateCommand(args)],
   ['context create', (args: string[]) => new CreateContextCommand(args)],
-  ['context edit', (args: string[]) => new EditContextCommand(args)]
+  ['context delete', (args: string[]) => new DeleteContextCommand(args)],
+  ['context edit', (args: string[]) => new EditContextCommand(args)],
+  ['context export', (args: string[]) => new ExportContextCommand(args)],
+  ['context list', (args: string[]) => new ListContextCommand(args)],
+  ['db', (args: string[]) => new DbCommand(args)]
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
 ])
