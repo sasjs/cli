@@ -1,10 +1,15 @@
-export const failAllSuccessors = (flows: any, flowName: string) => {
-  const successors = Object.keys(flows).filter((flow: any) =>
+import { FlowWave, FlowWaveJob } from '../../../types'
+
+export const failAllSuccessors = (
+  flows: { [key: string]: FlowWave },
+  flowName: string
+) => {
+  const successors = Object.keys(flows).filter((flow: string) =>
     flows[flow]?.predecessors?.includes(flowName)
   )
 
-  successors.forEach((successor: any) => {
-    flows[successor].jobs.map((job: any) => (job.status = 'failure'))
+  successors.forEach((successor: string) => {
+    flows[successor].jobs.map((job: FlowWaveJob) => (job.status = 'failure'))
     flows[successor].execution = 'failedByPredecessor'
     failAllSuccessors(flows, successor)
   })

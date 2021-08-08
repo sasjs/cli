@@ -181,7 +181,7 @@ describe('validateParams', () => {
     const { terminate, flows } = await validateParams(
       source,
       undefined as any as string,
-      'mylogs',
+      undefined as any as string,
       undefined as any as Target
     )
 

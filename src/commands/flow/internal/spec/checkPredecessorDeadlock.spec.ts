@@ -74,7 +74,7 @@ describe('checkPredecessorDeadlock', () => {
     const flows = {
       flow1: {
         jobs: [{ location: 'job' }],
-        predecessors: [undefined]
+        predecessors: [undefined as any as string]
       },
       flow2: {
         jobs: [{ location: 'job' }],
@@ -86,7 +86,7 @@ describe('checkPredecessorDeadlock', () => {
       },
       flow4: {
         jobs: [{ location: 'job' }],
-        predecessors: [null]
+        predecessors: [null as any as string]
       }
     }
 

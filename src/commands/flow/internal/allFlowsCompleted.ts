@@ -1,6 +1,8 @@
-export const allFlowsCompleted = (
-  flows: any
-): {
+import { FlowWave, FlowWaveJob } from '../../../types'
+
+export const allFlowsCompleted = (flows: {
+  [key: string]: FlowWave
+}): {
   completed: boolean
   completedWithAllSuccess: boolean
 } => {
@@ -14,13 +16,13 @@ export const allFlowsCompleted = (
   flowNames.map(
     (name) =>
       (jobsWithSuccessStatus += flows[name].jobs.filter(
-        (job: any) => job.status && job.status === 'success'
+        (job: FlowWaveJob) => job.status && job.status === 'success'
       ).length)
   )
   flowNames.map(
     (name) =>
       (jobsWithNotSuccessStatus += flows[name].jobs.filter(
-        (job: any) => job.status && job.status !== 'success'
+        (job: FlowWaveJob) => job.status && job.status !== 'success'
       ).length)
   )
 

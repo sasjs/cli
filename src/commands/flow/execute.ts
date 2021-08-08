@@ -9,6 +9,7 @@ import {
   validateParams,
   checkPredecessorDeadlock
 } from './internal'
+import { FlowWave, TestFlow } from '../../types'
 
 export async function execute(
   source: string,
@@ -29,7 +30,7 @@ export async function execute(
     } = await validateParams(source, csvFile, logFolder, target)
     if (terminate) return reject(message)
 
-    const predecessorDeadlock = checkPredecessorDeadlock(flows)
+    const predecessorDeadlock = checkPredecessorDeadlock(flows!)
     if (predecessorDeadlock)
       return reject(
         'Circular dependency found in flows, cannot proceed\n- ' +
@@ -48,7 +49,7 @@ export async function execute(
     )
 
     const preExecuteFlow = async (flowName: string) => {
-      const flow = flows[flowName]
+      const flow: FlowWave = flows![flowName]
       flow.name = flowName
 
       if (!flow.jobs || !Array.isArray(flow.jobs))
@@ -56,20 +57,22 @@ export async function execute(
 
       if (flow.execution) return
 
-      for (const predecessorName of flow.predecessors) {
-        if (!Object.keys(flows).includes(predecessorName))
-          displayError(
-            {},
-            `Predecessor '${predecessorName}' mentioned in '${flowName}' flow does not exist.`
-          )
-        else if (predecessorName === flowName)
-          displayError(
-            {},
-            `Predecessor '${predecessorName}' mentioned in '${flowName}' cannot point to itself.`
-          )
-        else if (!flows[predecessorName].execution)
-          await preExecuteFlow(predecessorName)
-      }
+      const predecessors = flow.predecessors
+      if (predecessors)
+        for (const predecessorName of predecessors) {
+          if (!Object.keys(flows!).includes(predecessorName))
+            displayError(
+              {},
+              `Predecessor '${predecessorName}' mentioned in '${flowName}' flow does not exist.`
+            )
+          else if (predecessorName === flowName)
+            displayError(
+              {},
+              `Predecessor '${predecessorName}' mentioned in '${flowName}' cannot point to itself.`
+            )
+          else if (!flows![predecessorName].execution)
+            await preExecuteFlow(predecessorName)
+        }
 
       if (flow.execution) return
 
@@ -82,10 +85,10 @@ export async function execute(
         csvFileRealPath!
       )
 
-      if (!jobStatus) failAllSuccessors(flows, flowName)
+      if (!jobStatus) failAllSuccessors(flows!, flowName)
       if (flowStatus.terminate) reject(flowStatus.message)
 
-      const { completed, completedWithAllSuccess } = allFlowsCompleted(flows)
+      const { completed, completedWithAllSuccess } = allFlowsCompleted(flows!)
       if (completed) {
         if (completedWithAllSuccess) resolve(csvFileRealPath)
         else resolve(false)

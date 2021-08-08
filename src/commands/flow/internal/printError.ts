@@ -1,5 +1,7 @@
+import { FlowWaveJob } from '../../../types'
+
 export const printError = (
-  job: { location: string },
+  job: FlowWaveJob,
   flowName: string,
   err: { name?: string; message?: string } | string
 ) => {

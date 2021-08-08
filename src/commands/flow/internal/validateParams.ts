@@ -9,7 +9,7 @@ import {
   Target
 } from '@sasjs/utils'
 import { getConstants } from '../../../constants'
-import { Flow } from '../../../types'
+import { Flow, FlowWave } from '../../../types'
 import { getAuthConfig } from '../../../utils/config'
 import { displayError } from '../../../utils/displayResult'
 import { isCsvFile, isJsonFile } from '../../../utils/file'
@@ -23,7 +23,7 @@ export const validateParams = async (
 ): Promise<{
   terminate: boolean
   message?: string
-  flows?: any
+  flows?: { [key: string]: FlowWave }
   authConfig?: AuthConfig
   csvFile?: string
   logFolder?: string
@@ -63,7 +63,7 @@ export const validateParams = async (
     }
   }
 
-  let flows = sourceConfig?.flows
+  const flows = sourceConfig?.flows
 
   if (!flows)
     return {

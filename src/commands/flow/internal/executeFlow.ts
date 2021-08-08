@@ -12,9 +12,10 @@ import {
   generateFileName
 } from '.'
 import csvColumns from './csvColumns'
+import { FlowWave, FlowWaveJob } from '../../../types'
 
 export const executeFlow = async (
-  flow: any,
+  flow: FlowWave,
   sasjs: SASjs,
   pollOptions: PollOptions,
   target: Target,
@@ -25,7 +26,7 @@ export const executeFlow = async (
   flowStatus: { terminate: boolean; message: string }
 }> => {
   const logFolder: string = pollOptions.logFolderPath as string
-  const flowName = flow.name
+  const flowName: string = flow.name!
   displaySuccess(`'${flowName}' flow started.`)
 
   let jobStatus = true,
@@ -33,7 +34,7 @@ export const executeFlow = async (
   flow.execution = 'started'
 
   await Promise.all(
-    flow.jobs.map(async (job: any) => {
+    flow.jobs.map(async (job: FlowWaveJob) => {
       const jobLocation: string = Command.prefixAppLoc(
         target.appLoc,
         job.location
@@ -88,11 +89,12 @@ export const executeFlow = async (
 
           logName = logName ? `${logFolder}/${logName}` : ''
 
+          const predecessors = flow.predecessors?.length
+            ? flow.predecessors
+            : ['none']
           const data = [
             flowName,
-            (flow.predecessors.length ? flow.predecessors : ['none']).join(
-              ' | '
-            ),
+            predecessors.join(' | '),
             jobLocation,
             'failure',
             logName,
@@ -113,8 +115,8 @@ export const executeFlow = async (
           }
 
           if (
-            flow.jobs.filter((j: any) => j.hasOwnProperty('status')).length ===
-            flow.jobs.length
+            flow.jobs.filter((j: FlowWaveJob) => j.hasOwnProperty('status'))
+              .length === flow.jobs.length
           ) {
             displayError({}, `'${flowName}' flow failed!`)
             jobStatus = false
@@ -145,9 +147,12 @@ export const executeFlow = async (
           logName = logName ? `${logFolder}/${logName}` : ''
         }
 
+        const predecessors = flow.predecessors?.length
+          ? flow.predecessors
+          : ['none']
         const data = [
           flowName,
-          (flow.predecessors.length ? flow.predecessors : ['none']).join(' | '),
+          predecessors.join(' | '),
           jobLocation,
           submittedJob.state || 'failure',
           logName,
@@ -188,13 +193,13 @@ export const executeFlow = async (
         }
 
         if (
-          flow.jobs.filter((j: any) => j.status === 'success').length ===
-          flow.jobs.length
+          flow.jobs.filter((j: FlowWaveJob) => j.status === 'success')
+            .length === flow.jobs.length
         ) {
           displaySuccess(`'${flowName}' flow completed successfully!`)
         } else if (
-          flow.jobs.filter((j: any) => j.hasOwnProperty('status')).length ===
-          flow.jobs.length
+          flow.jobs.filter((j: FlowWaveJob) => j.hasOwnProperty('status'))
+            .length === flow.jobs.length
         ) {
           displayError({}, `'${flowName}' flow failed!`)
           jobStatus = false

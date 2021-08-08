@@ -8,6 +8,14 @@ export interface Flow {
 }
 
 export interface FlowWave {
-  jobs: [{ location: string; macroVars?: MacroVar }]
+  name?: string
+  jobs: FlowWaveJob[]
   predecessors?: string[]
+  execution?: 'started' | 'finished' | 'failedByPredecessor'
+}
+
+export interface FlowWaveJob {
+  location: string
+  macroVars?: MacroVar
+  status?: 'running' | 'success' | 'failure'
 }

@@ -1,4 +1,8 @@
-export const checkPredecessorDeadlock = (flows: any): string[] | false => {
+import { FlowWave } from '../../../types'
+
+export const checkPredecessorDeadlock = (flows: {
+  [key: string]: FlowWave
+}): string[] | false => {
   for (const flowName in flows) {
     const result = checkPredecessorDeadlockRecursive(flows, flowName, [])
     if (result) return result
@@ -8,14 +12,15 @@ export const checkPredecessorDeadlock = (flows: any): string[] | false => {
 }
 
 const checkPredecessorDeadlockRecursive = (
-  flows: any,
+  flows: { [key: string]: FlowWave },
   flowName: string,
   chain: string[]
 ): string[] | false => {
   if (chain.includes(flowName)) return [...chain, flowName]
 
-  if (flows[flowName]?.predecessors)
-    for (const predecessorName of flows[flowName].predecessors) {
+  const predecessors = flows[flowName]?.predecessors
+  if (predecessors)
+    for (const predecessorName of predecessors) {
       const result = checkPredecessorDeadlockRecursive(flows, predecessorName, [
         ...chain,
         flowName
