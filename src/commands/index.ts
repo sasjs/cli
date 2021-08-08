@@ -6,8 +6,6 @@ export { compileSingleFile } from './compile/compileSingleFile'
 
 export { build, getBuildVars } from './build/build'
 
-export { processContext } from './context'
-
 export { init } from './init/init'
 
 export { create } from './create/create'

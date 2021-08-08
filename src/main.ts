@@ -4,7 +4,6 @@ import {
   compile,
   compileSingleFile,
   build,
-  processContext,
   init,
   create,
   buildDB,
@@ -391,19 +390,18 @@ export async function runRequest(command: Command) {
 }
 
 export async function context(command: Command) {
-  if (!command) {
-    displayError(null, `Please provide action for the 'context' command.`)
-    return ReturnCode.InvalidCommand
-  }
-
-  return await processContext(command)
-    .then(() => {
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when processing context.')
-      return ReturnCode.InternalError
-    })
+  // if (!command) {
+  //   displayError(null, `Please provide action for the 'context' command.`)
+  //   return ReturnCode.InvalidCommand
+  // }
+  // return await processContext(command)
+  //   .then(() => {
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when processing context.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function servicepack(command: Command) {

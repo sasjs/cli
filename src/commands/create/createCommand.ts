@@ -1,7 +1,6 @@
 import { create } from './create'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { CreateTemplate } from './createTemplate'
-import { displayError } from '../../utils'
 import { CommandBase } from '../../types'
 
 const syntax = 'create [folderName]'
@@ -46,14 +45,14 @@ export class CreateCommand extends CommandBase {
     return await create(this.folderName, this.template)
       .then(() => {
         process.logger?.success(
-          `Project ${
-            this.folderName ? `${this.folderName} created` : `updated`
-          } successfully.\nGet ready to Unleash your SAS!`
+          `Project${
+            this.folderName ? ` ${this.folderName} created` : ` updated`
+          } successfully.\nGet ready to unleash your SAS!`
         )
         return ReturnCode.Success
       })
       .catch((err: any) => {
-        displayError(err, 'Error while creating your project.')
+        process.logger?.error('Error while creating your project: ', err)
         return ReturnCode.InternalError
       })
   }

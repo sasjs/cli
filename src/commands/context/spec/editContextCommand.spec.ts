@@ -4,15 +4,7 @@ import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as fileModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
-import { mockAuthConfig } from './mocks'
-
-const mockContext = {
-  name: 'testContext',
-  launchContext: {
-    contextName: 'test launcher context'
-  },
-  launchType: 'service'
-}
+import { mockAuthConfig, mockContext } from './mocks'
 
 describe('EditContextCommand', () => {
   const defaultArgs = ['node', 'sasjs']

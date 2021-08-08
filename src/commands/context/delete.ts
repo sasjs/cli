@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Removes compute context.
@@ -7,29 +6,19 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  */
-export async function remove(
+export async function deleteContext(
   contextName: string,
   sasjs: SASjs,
   accessToken: string
 ) {
-  let result
-
   const deletedContext = await sasjs
     .deleteComputeContext(contextName, accessToken)
     .catch((err) => {
-      result = err
-
-      displayError(
-        err,
-        `An error has occurred when deleting context '${contextName}'.`
-      )
+      process.logger?.error(`Error deleting context '${contextName}': `, err)
+      throw err
     })
 
   if (deletedContext) {
-    result = true
-
-    displaySuccess(`Context '${contextName}' has been deleted!`)
+    process.logger?.success(`Context '${contextName}' has been deleted!`)
   }
-
-  return result
 }

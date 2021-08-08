@@ -1,4 +1,3 @@
-import { displayError, displaySuccess } from '../../utils/displayResult'
 import path from 'path'
 import { createFile } from '@sasjs/utils'
 import { sanitizeFileName } from '../../utils/file'
@@ -18,49 +17,47 @@ export async function exportContext(
   const context = await sasjs
     .getComputeContextByName(contextName, accessToken)
     .catch((err) => {
-      displayError(
-        err,
-        `An error has occurred while fetching context ${contextName}`
+      process.logger?.error(
+        `An error has occurred while fetching context ${contextName}: `,
+        err
       )
+      throw err
     })
-
-  let result
 
   if (context && context.id) {
     const contextAllAttributes = await sasjs
       .getComputeContextById(context.id, accessToken)
       .catch((err) => {
-        displayError(
-          err,
-          `An error has occurred while fetching context ${contextName}`
+        process.logger?.error(
+          `An error has occurred while fetching context ${contextName}: `,
+          err
         )
+        throw err
       })
 
     if (contextAllAttributes) {
       delete (contextAllAttributes as any).links
-
-      result = true
 
       let output
 
       try {
         output = JSON.stringify(contextAllAttributes, null, 2)
       } catch (error) {
-        displayError(null, 'Error parsing context JSON.')
-
-        return false
+        process.logger?.error('Error stringifying context JSON: ', error)
+        throw error
       }
 
       const outputFileName = sanitizeFileName(contextName) + '.json'
       const outputPath = path.join(process.cwd(), outputFileName)
 
       await createFile(outputPath, output).catch((err) => {
-        result = err
+        process.logger?.error('Error creating context JSON file: ', err)
+        throw err
       })
 
-      displaySuccess(`Context successfully exported to '${outputPath}'.`)
+      process.logger?.success(
+        `Context successfully exported to '${outputPath}'.`
+      )
     }
   }
-
-  return result
 }

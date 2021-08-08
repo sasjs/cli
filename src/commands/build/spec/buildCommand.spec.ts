@@ -4,28 +4,17 @@ import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 
+const defaultArgs = ['node', 'sasjs']
+const target = new Target({
+  name: 'test',
+  appLoc: '/Public/test/',
+  serverType: ServerType.SasViya,
+  contextName: 'test context'
+})
+
 describe('BuildCommand', () => {
-  const defaultArgs = ['node', 'sasjs']
-  const target = new Target({
-    name: 'test',
-    appLoc: '/Public/test/',
-    serverType: ServerType.SasViya,
-    contextName: 'test context'
-  })
-
   beforeEach(() => {
-    jest.resetAllMocks()
-    jest.mock('../build')
-    jest.mock('../../../utils/config')
-    jest.spyOn(buildModule, 'build').mockImplementation(() => Promise.resolve())
-
-    jest
-      .spyOn(configUtils, 'findTargetInConfiguration')
-      .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
-
-    process.logger = new Logger(LogLevel.Off)
-    jest.spyOn(process.logger, 'success')
-    jest.spyOn(process.logger, 'error')
+    setupMocks()
   })
 
   it('should parse a simple sasjs build command', () => {
@@ -96,3 +85,18 @@ describe('BuildCommand', () => {
     expect(process.logger.error).toHaveBeenCalled()
   })
 })
+
+const setupMocks = () => {
+  jest.resetAllMocks()
+  jest.mock('../build')
+  jest.mock('../../../utils/config')
+  jest.spyOn(buildModule, 'build').mockImplementation(() => Promise.resolve())
+
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  process.logger = new Logger(LogLevel.Off)
+  jest.spyOn(process.logger, 'success')
+  jest.spyOn(process.logger, 'error')
+}

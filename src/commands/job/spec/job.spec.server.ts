@@ -1,6 +1,6 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { processJob, processContext } from '../..'
+import { processJob } from '../..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import {
@@ -379,26 +379,6 @@ describe('sasjs job execute', () => {
     expect(mockExit).toHaveBeenCalledWith(terminationCode)
   })
 })
-
-async function getAvailableContext(target: Target) {
-  const timestamp = generateTimestamp()
-  const targetName = `cli-job-tests-context-${timestamp}`
-
-  await saveToGlobalConfig(
-    new Target({
-      ...target.toJson(),
-      name: targetName
-    })
-  )
-
-  const contexts = await processContext(
-    new Command(['context', 'list', '-t', targetName])
-  )
-
-  await removeFromGlobalConfig(targetName)
-
-  return (contexts as any[])[0]
-}
 
 const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
