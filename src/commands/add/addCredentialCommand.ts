@@ -19,11 +19,6 @@ export class AddCredentialCommand extends TargetCommand {
         default: false,
         description:
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
-      },
-      target: {
-        type: 'string',
-        alias: 't',
-        description: 'The target to authenticate against.'
       }
     }
     super(args, parseOptions, ['auth'], usage, example)

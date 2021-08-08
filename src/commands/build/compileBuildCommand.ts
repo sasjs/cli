@@ -13,7 +13,7 @@ const example: CommandExample = {
 
 export class CompileBuildCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, {}, ['b'], usage, example)
+    super(args, {}, ['cb'], usage, example)
   }
 
   public async execute() {

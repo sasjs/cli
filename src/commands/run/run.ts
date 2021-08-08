@@ -66,8 +66,10 @@ export async function runSasCode(command: Command) {
   if (compile) {
     ;({ destinationPath: filePath } = await compileSingleFile(
       target,
-      new Command(`compile -s ${filePath}`),
       'identify',
+      filePath,
+      // TODO: Fix output path
+      '',
       true
     ))
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)
