@@ -8,22 +8,25 @@ export const allFlowsCompleted = (flows: {
 } => {
   const flowNames = Object.keys(flows)
 
-  let jobsCount = 0
-  let jobsWithSuccessStatus = 0
-  let jobsWithFailureStatus = 0
-
-  flowNames.map((name) => (jobsCount += flows[name].jobs.length))
-  flowNames.map(
-    (name) =>
-      (jobsWithSuccessStatus += flows[name].jobs.filter(
-        (job: FlowWaveJob) => job.status && job.status === 'success'
-      ).length)
+  const jobsCount = flowNames.reduce(
+    (count: number, name: string) => count + flows[name].jobs.length,
+    0
   )
-  flowNames.map(
-    (name) =>
-      (jobsWithFailureStatus += flows[name].jobs.filter(
+  const jobsWithSuccessStatus = flowNames.reduce(
+    (count: number, name: string) =>
+      count +
+      flows[name].jobs.filter(
+        (job: FlowWaveJob) => job.status && job.status === 'success'
+      ).length,
+    0
+  )
+  const jobsWithFailureStatus = flowNames.reduce(
+    (count: number, name: string) =>
+      count +
+      flows[name].jobs.filter(
         (job: FlowWaveJob) => job.status && job.status !== 'success'
-      ).length)
+      ).length,
+    0
   )
 
   return {
