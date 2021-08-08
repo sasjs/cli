@@ -4,8 +4,10 @@ import { BuildCommand } from '../../commands/build/buildCommand'
 import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
 import { CompileSingleFileCommand } from '../../commands/compile/compileSingleFileCommand'
+import { CreateContextCommand } from '../../commands/context/createContextCommand'
+import { EditContextCommand } from '../../commands/context/editContextCommand'
 import { CreateCommand } from '../../commands/create/createCommand'
-import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
+// import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddTargetCommand(args)],
@@ -17,5 +19,7 @@ export const commandFactory = new Map<string, Function>([
   ['compile identify', (args: string[]) => new CompileSingleFileCommand(args)],
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],
   ['create', (args: string[]) => new CreateCommand(args)],
-  ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
+  ['context create', (args: string[]) => new CreateContextCommand(args)],
+  ['context edit', (args: string[]) => new EditContextCommand(args)]
+  // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
 ])

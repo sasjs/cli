@@ -143,8 +143,8 @@ describe('AddCredentialCommand', () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
 
     const command = new AddCredentialCommand(args)
-    let targetInfo = await command.target
-    targetInfo = await command.target
+    let targetInfo = await command.getTargetInfo()
+    targetInfo = await command.getTargetInfo()
 
     expect(configUtils.findTargetInConfiguration).toHaveBeenCalledWith('test')
     expect(configUtils.findTargetInConfiguration).toHaveBeenCalledTimes(1)

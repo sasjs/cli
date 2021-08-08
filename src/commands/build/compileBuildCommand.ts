@@ -4,7 +4,9 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { compile } from '../compile/compile'
 import { build } from './build'
 
-const usage = 'Usage: sasjs build [options]'
+const syntax = 'compilebuild'
+const aliases = ['cb']
+const usage = 'sasjs compilebuild [options]'
 const example: CommandExample = {
   command: 'sasjs compilebuild -t myTarget | sasjs cb -t myTarget',
   description:
@@ -13,11 +15,11 @@ const example: CommandExample = {
 
 export class CompileBuildCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, {}, ['cb'], usage, example)
+    super(args, { syntax, usage, aliases, example })
   }
 
   public async execute() {
-    const { target } = await this.target
+    const { target } = await this.getTargetInfo()
 
     let returnCode = await compile(target, true)
       .then(() => ReturnCode.Success)
@@ -30,8 +32,10 @@ export class CompileBuildCommand extends TargetCommand {
       return returnCode
     }
 
+    const { buildDestinationFolder } = await getConstants()
+
     process.logger?.success(
-      `Services have been successfully compiled!\nThe compile output is located in the 'sasjsbuild' directory.`
+      `Services have been successfully compiled!\nThe compile output is located in the ${buildDestinationFolder} directory.`
     )
 
     returnCode = await build(target)
@@ -45,7 +49,6 @@ export class CompileBuildCommand extends TargetCommand {
       return returnCode
     }
 
-    const { buildDestinationFolder } = await getConstants()
     process.logger?.success(
       `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
     )

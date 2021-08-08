@@ -5,23 +5,22 @@ import * as projectDirModule from './utils/setProjectDir'
 import * as parseModule from './types/command/parse'
 import { Logger } from '@sasjs/utils'
 import { CommandBase } from './types/command/commandBase'
+import { ReturnCode } from './types/command'
 
 const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'mock', 'command']
 
 class MockCommand extends CommandBase {
+  constructor(args: string[]) {
+    super(args, {
+      syntax: 'mock <command>'
+    })
+  }
   public async execute() {
     return 0
   }
 }
 
-const mockCommand = new MockCommand(
-  args,
-  {},
-  [],
-  '',
-  { command: '', description: '' },
-  false
-)
+const mockCommand = new MockCommand(args)
 
 describe('CLI command parsing', () => {
   beforeEach(() => {
@@ -49,6 +48,21 @@ describe('CLI command parsing', () => {
 
     expect(process.logger).toBeInstanceOf(Logger)
     expect(mockCommand.execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('should return with the correct exit code after successful execution', async () => {
+    await cli(args)
+
+    expect(process.exit).toHaveBeenCalledWith(0)
+  })
+
+  it('should return with the correct exit code on errors', async () => {
+    jest
+      .spyOn(mockCommand, 'execute')
+      .mockImplementation(() => Promise.resolve(ReturnCode.InternalError))
+    await cli(args)
+
+    expect(process.exit).toHaveBeenCalledWith(2)
   })
 })
 

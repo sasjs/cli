@@ -4,7 +4,8 @@ import { CreateTemplate } from './createTemplate'
 import { displayError } from '../../utils'
 import { CommandBase } from '../../types'
 
-const usage = 'Usage: sasjs create <project-name> [options]'
+const syntax = 'create [folderName]'
+const usage = 'sasjs create [folder-name] [options]'
 const example: CommandExample = {
   command: 'sasjs create my-app --template react',
   description:
@@ -25,7 +26,12 @@ export class CreateCommand extends CommandBase {
         ]
       }
     }
-    super(args, parseOptions, [], usage, example)
+    super(args, {
+      parseOptions,
+      syntax,
+      usage,
+      example
+    })
   }
 
   public get template(): CreateTemplate {
@@ -33,7 +39,7 @@ export class CreateCommand extends CommandBase {
   }
 
   public get folderName() {
-    return this.value || '.'
+    return (this.parsed.folderName as string) || '.'
   }
 
   public async execute() {

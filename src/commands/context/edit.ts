@@ -18,22 +18,16 @@ export async function edit(
 
   delete config.id
 
-  let result
-
   const editedContext = await sasjs
     .editComputeContext(name, config, accessToken)
     .catch((err) => {
-      result = err
-
-      displayError(err, 'An error has occurred when processing context.')
+      process.logger?.error('Error editing context: ', err)
+      throw err
     })
 
   if (editedContext) {
-    result = true
     const editedContextName = editedContext.result.name || ''
 
     displaySuccess(`Context '${editedContextName}' successfully updated!`)
   }
-
-  return result
 }

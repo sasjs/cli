@@ -8,11 +8,13 @@ import {
   getDestinationServicePath
 } from './internal/getDestinationPath'
 
-const usage = 'Usage: sasjs build [options]'
+const syntax = 'compile <subCommand>'
+const usage = 'sasjs compile <subCommand> [options]'
+const aliases = ['c <subCommand>']
 const example: CommandExample = {
-  command: 'sasjs compile -t myTarget | sasjs c -t myTarget',
+  command: 'sasjs compile job -t myTarget | sasjs c job -t myTarget',
   description:
-    'Compiles all jobs and services in the project by inlining all dependencies and adds init and term programs as configured in the specified target.'
+    'Compiles the single job or service specified by inlining all dependencies and adds init and term programs as configured in the specified target.'
 }
 
 export class CompileSingleFileCommand extends TargetCommand {
@@ -21,7 +23,7 @@ export class CompileSingleFileCommand extends TargetCommand {
       source: { type: 'string', alias: 's', demandOption: true },
       output: { type: 'string', alias: 'o' }
     }
-    super(args, parseOptions, ['c'], usage, example)
+    super(args, { parseOptions, usage, example, syntax, aliases })
   }
 
   public get source(): string {
@@ -53,9 +55,14 @@ export class CompileSingleFileCommand extends TargetCommand {
   }
 
   public async execute() {
-    const { target } = await this.target
+    const { target } = await this.getTargetInfo()
     const output = await this.output
-    return await compileSingleFile(target, this.subCommand, this.source, output)
+    return await compileSingleFile(
+      target,
+      this.parsed.subCommand as string,
+      this.source,
+      output
+    )
       .then((res) => {
         process.logger?.success(
           `Source has been successfully compiled!\nThe compiled output is located at: ${res.destinationPath}`

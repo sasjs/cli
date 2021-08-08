@@ -2,7 +2,8 @@ import { CommandBase } from '../../types'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { addTarget } from './addTarget'
 
-const usage = 'Usage: sasjs add [options]'
+const syntax = 'add'
+const usage = 'sasjs add [options]'
 const example: CommandExample = {
   command: 'sasjs add',
   description: 'Adds a target to your local or global SASjs configuration.'
@@ -19,7 +20,7 @@ export class AddTargetCommand extends CommandBase {
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
       }
     }
-    super(args, parseOptions, [], usage, example)
+    super(args, { parseOptions, syntax, usage, example })
   }
 
   public get insecure(): boolean {

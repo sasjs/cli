@@ -18,8 +18,6 @@ describe('CommandBase', () => {
     expect(command.name).toEqual('create')
     expect(command.value).toEqual('test-app')
     expect(command.subCommand).toEqual('')
-    expect(command['usage']).toEqual('')
-    expect(command['example']).toEqual({ command: '', description: '' })
   })
 
   it('should parse a sasjs command with a subcommand', () => {
@@ -52,7 +50,7 @@ describe('CommandBase', () => {
     ]
 
     const command = new CommandBase(args, {
-      ignoreWarnings: { type: 'boolean' }
+      parseOptions: { ignoreWarnings: { type: 'boolean' } }
     })
 
     expect(command.name).toEqual('job')

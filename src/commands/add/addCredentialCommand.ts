@@ -3,7 +3,11 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { addCredential } from './addCredential'
 
-const usage = 'Usage: sasjs add cred [options] | sasjs auth [options]'
+// The syntax here needs to use square brackets for the subCommand(i.e. make it optional) since
+// the alias `auth` does not have a subCommand
+const syntax = 'add [subCommand]'
+const aliases = ['auth']
+const usage = 'sasjs add cred [options] | sasjs auth [options]'
 const example: CommandExample = {
   command: 'sasjs add cred -t myTarget',
   description:
@@ -21,7 +25,7 @@ export class AddCredentialCommand extends TargetCommand {
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
       }
     }
-    super(args, parseOptions, ['auth'], usage, example)
+    super(args, { parseOptions, usage, example, syntax, aliases })
   }
 
   public get insecure(): boolean {
@@ -29,7 +33,7 @@ export class AddCredentialCommand extends TargetCommand {
   }
 
   public async execute() {
-    const { target, isLocal } = await this.target
+    const { target, isLocal } = await this.getTargetInfo()
     const scope = isLocal ? TargetScope.Local : TargetScope.Global
     return await addCredential(target, this.insecure, scope)
       .then(() => {

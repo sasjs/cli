@@ -1,4 +1,4 @@
-import yargs from 'yargs'
+import yargs, { Options } from 'yargs'
 import { CommandExample } from './commandExample'
 import { ReturnCode } from './returnCode'
 import { unalias } from './unalias'
@@ -19,24 +19,40 @@ interface Command {
   execute: (...parameters: any) => Promise<ReturnCode>
 }
 
+export interface CommandOptions {
+  parseOptions?: { [key: string]: Object }
+  syntax?: string
+  aliases?: string[]
+  usage?: string
+  example?: CommandExample
+  strict?: boolean
+}
+
+export const defaultCommandOptions: CommandOptions = {
+  parseOptions: {},
+  syntax: '*',
+  aliases: [],
+  usage: '',
+  example: { command: '', description: '' },
+  strict: true
+}
+
 export class CommandBase implements Command {
   protected parsed
 
-  constructor(
-    args: string[],
-    protected parseOptions = {},
-    protected aliases: string[] = [],
-    protected usage = '',
-    protected example: CommandExample = { command: '', description: '' },
-    strict = true
-  ) {
+  constructor(args: string[], options: CommandOptions = defaultCommandOptions) {
+    const commandOptions = { ...defaultCommandOptions, ...options }
+    const { parseOptions, syntax, aliases, usage, example, strict } =
+      commandOptions
+
     this.parsed = yargs(args.slice(2))
       .help(false)
       .version(false)
-      .options(parseOptions)
-      .usage(usage)
-      .example(example.command, example.description)
-      .strict(strict).argv
+      .options(parseOptions!)
+      .command([syntax!, ...aliases!], example!.description)
+      .usage(usage!)
+      .example(example!.command, example!.description)
+      .strict(strict!).argv
   }
 
   public get name() {
@@ -44,6 +60,9 @@ export class CommandBase implements Command {
   }
 
   public get subCommand() {
+    if (this.parsed.subCommand) {
+      return this.parsed.subCommand as string
+    }
     if (
       this.parsed._.length > 1 &&
       commandsWithSubCommands.includes(unalias(this.name))

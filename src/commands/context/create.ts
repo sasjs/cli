@@ -13,8 +13,6 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
   const autoExecLines = config.environment && config.environment.autoExecLines
   const sharedAccountId = config.attributes && config.attributes.runServerAs
 
-  let result
-
   const createdContext = await sasjs
     .createComputeContext(
       name,
@@ -24,18 +22,13 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
       accessToken
     )
     .catch((err) => {
-      displayError(err, 'An error has occurred when processing context.')
-
-      result = err
+      process.logger?.error('Error creating context: ', err)
+      throw err
     })
 
   if (createdContext) {
-    result = true
-
     displaySuccess(
       `Context '${name}' with id '${createdContext.id}' successfully created!`
     )
   }
-
-  return result
 }

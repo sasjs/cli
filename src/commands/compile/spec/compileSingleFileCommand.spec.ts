@@ -57,6 +57,7 @@ describe('CompileSingleFileCommand', () => {
     const args = [
       ...defaultArgs,
       'compile',
+      'job',
       '--target',
       'test',
       '-s',
@@ -64,10 +65,10 @@ describe('CompileSingleFileCommand', () => {
     ]
 
     const command = new CompileSingleFileCommand(args)
-    const targetInfo = await command.target
+    const targetInfo = await command.getTargetInfo()
 
     expect(command.name).toEqual('compile')
-    expect(command.subCommand).toEqual('')
+    expect(command.subCommand).toEqual('job')
     expect(targetInfo.target).toEqual(target)
     expect(targetInfo.isLocal).toBeTrue()
   })
@@ -84,7 +85,7 @@ describe('CompileSingleFileCommand', () => {
     ]
 
     const command = new CompileSingleFileCommand(args)
-    const targetInfo = await command.target
+    const targetInfo = await command.getTargetInfo()
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('job')

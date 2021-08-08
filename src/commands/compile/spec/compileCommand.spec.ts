@@ -52,7 +52,7 @@ describe('CompileCommand', () => {
     const args = [...defaultArgs, 'compile', '--target', 'test']
 
     const command = new CompileCommand(args)
-    const targetInfo = await command.target
+    const targetInfo = await command.getTargetInfo()
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('')
@@ -64,7 +64,7 @@ describe('CompileCommand', () => {
     const args = [...defaultArgs, 'compile', '-t', 'test']
 
     const command = new CompileCommand(args)
-    const targetInfo = await command.target
+    const targetInfo = await command.getTargetInfo()
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('')

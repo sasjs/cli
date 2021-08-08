@@ -4,7 +4,9 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
 import { build } from './build'
 
-const usage = 'Usage: sasjs build [options]'
+const syntax = 'build'
+const aliases = ['b']
+const usage = 'sasjs build [options]'
 const example: CommandExample = {
   command: 'sasjs build -t myTarget | sasjs b -t myTarget',
   description:
@@ -13,11 +15,11 @@ const example: CommandExample = {
 
 export class BuildCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, {}, ['b'], usage, example)
+    super(args, { syntax, usage, example, aliases })
   }
 
   public async execute() {
-    const { target } = await this.target
+    const { target } = await this.getTargetInfo()
     return await build(target)
       .then(async () => {
         const { buildDestinationFolder } = await getConstants()
