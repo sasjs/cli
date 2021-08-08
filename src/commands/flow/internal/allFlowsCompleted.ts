@@ -10,7 +10,7 @@ export const allFlowsCompleted = (flows: {
 
   let jobsCount = 0
   let jobsWithSuccessStatus = 0
-  let jobsWithNotSuccessStatus = 0
+  let jobsWithFailureStatus = 0
 
   flowNames.map((name) => (jobsCount += flows[name].jobs.length))
   flowNames.map(
@@ -21,7 +21,7 @@ export const allFlowsCompleted = (flows: {
   )
   flowNames.map(
     (name) =>
-      (jobsWithNotSuccessStatus += flows[name].jobs.filter(
+      (jobsWithFailureStatus += flows[name].jobs.filter(
         (job: FlowWaveJob) => job.status && job.status !== 'success'
       ).length)
   )
@@ -29,8 +29,8 @@ export const allFlowsCompleted = (flows: {
   return {
     completed:
       jobsCount === jobsWithSuccessStatus ||
-      jobsCount === jobsWithNotSuccessStatus ||
-      jobsCount === jobsWithSuccessStatus + jobsWithNotSuccessStatus,
+      jobsCount === jobsWithFailureStatus ||
+      jobsCount === jobsWithSuccessStatus + jobsWithFailureStatus,
     completedWithAllSuccess: jobsCount === jobsWithSuccessStatus
   }
 }
