@@ -13,7 +13,9 @@ describe('CommandBase', () => {
   it('should parse a simple sasjs command', () => {
     const args = [...defaultArgs, 'create', 'test-app']
 
-    const command = new CommandBase(args)
+    const command = new CommandBase(args, {
+      syntax: '* <name> [value]'
+    })
 
     expect(command.name).toEqual('create')
     expect(command.value).toEqual('test-app')
@@ -23,7 +25,7 @@ describe('CommandBase', () => {
   it('should parse a sasjs command with a subcommand', () => {
     const args = [...defaultArgs, 'flow', 'execute']
 
-    const command = new CommandBase(args)
+    const command = new CommandBase(args, { syntax: '* <name> <subCommand>' })
 
     expect(command.name).toEqual('flow')
     expect(command.value).toEqual('')
@@ -50,7 +52,8 @@ describe('CommandBase', () => {
     ]
 
     const command = new CommandBase(args, {
-      parseOptions: { ignoreWarnings: { type: 'boolean' } }
+      parseOptions: { ignoreWarnings: { type: 'boolean' } },
+      syntax: '* <name> <subCommand> [value]'
     })
 
     expect(command.name).toEqual('job')

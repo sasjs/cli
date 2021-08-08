@@ -56,6 +56,10 @@ export class CommandBase implements Command {
   }
 
   public get name() {
+    if (this.parsed.name) {
+      return unalias(this.parsed.name as string)
+    }
+
     return unalias(`${this.parsed._[0]}`)
   }
 
@@ -73,6 +77,9 @@ export class CommandBase implements Command {
   }
 
   public get value() {
+    if (this.parsed.value) {
+      return this.parsed.value as string
+    }
     if (this.parsed._.length > 2) {
       return `${this.parsed._[2]}`
     } else if (
