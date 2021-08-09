@@ -13,6 +13,8 @@ import { CreateCommand } from '../../commands/create/createCommand'
 import { DbCommand } from '../../commands/db/dbCommand'
 import { CompileBuildDeployCommand } from '../../commands/deploy/compileBuildDeployCommand'
 import { DeployCommand } from '../../commands/deploy/deployCommand'
+import { VersionCommand } from '../../commands/version/versionCommand'
+import { WebCommand } from '../../commands/web/webCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -35,6 +37,8 @@ export const commandFactory = new Map<string, Function>([
   ['context export', (args: string[]) => new ExportContextCommand(args)],
   ['context list', (args: string[]) => new ListContextCommand(args)],
   ['db', (args: string[]) => new DbCommand(args)],
-  ['deploy', (args: string[]) => new DeployCommand(args)]
+  ['deploy', (args: string[]) => new DeployCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
+  ['version', (args: string[]) => new VersionCommand(args)],
+  ['web', (args: string[]) => new WebCommand(args)]
 ])

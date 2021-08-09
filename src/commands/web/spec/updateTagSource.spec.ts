@@ -11,7 +11,7 @@ import {
   ServerType,
   Target
 } from '@sasjs/utils'
-import { updateTagSource } from '..'
+import { updateTagSource } from '../web'
 
 describe('updateTagSource', () => {
   let destinationPath: string

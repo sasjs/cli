@@ -32,7 +32,7 @@ export { processServicepack } from './servicepack'
 
 export { printVersion } from './version/version'
 
-export { createWebAppServices } from './web'
+export { createWebAppServices } from './web/web'
 
 export { processFlow } from './flow'
 

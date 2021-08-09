@@ -17,7 +17,7 @@ import {
   asyncForEach,
   listFilesAndSubFoldersInFolder
 } from '@sasjs/utils'
-import { createWebAppServices } from '../web'
+import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
 import { Target, StreamConfig } from '@sasjs/utils/types'
 import { getConstants } from '../../constants'
