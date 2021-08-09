@@ -1,4 +1,4 @@
-import yargs, { Options } from 'yargs'
+import yargs from 'yargs'
 import { CommandExample } from './commandExample'
 import { ReturnCode } from './returnCode'
 import { unalias } from './unalias'
@@ -9,7 +9,8 @@ const commandsWithSubCommands = [
   'context',
   'folder',
   'add',
-  'compile'
+  'compile',
+  'doc'
 ]
 
 interface Command {

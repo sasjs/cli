@@ -85,31 +85,31 @@ export async function doc(command: Command) {
   const targetName = command.getFlagValue('target') as string
   const outDirectory = command.getFlagValue('outDirectory') as string
 
-  if (subCommand === 'lineage') {
-    return await generateDot(targetName, outDirectory)
-      .then((res) => {
-        displaySuccess(
-          `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
-        )
-        return ReturnCode.Success
-      })
-      .catch((err: any) => {
-        displayError(err, 'An error has occurred whilst initiating docs.')
-        return ReturnCode.InternalError
-      })
-  }
+  // if (subCommand === 'lineage') {
+  //   return await generateDot(targetName, outDirectory)
+  //     .then((res) => {
+  //       displaySuccess(
+  //         `Dot files have been generated!\nFiles are located in the ${res.outDirectory}' directory.`
+  //       )
+  //       return ReturnCode.Success
+  //     })
+  //     .catch((err: any) => {
+  //       displayError(err, 'An error has occurred whilst initiating docs.')
+  //       return ReturnCode.InternalError
+  //     })
+  // }
 
-  return await generateDocs(targetName, outDirectory)
-    .then((res) => {
-      displaySuccess(
-        `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
-      )
-      return ReturnCode.Success
-    })
-    .catch((err: any) => {
-      displayError(err, 'An error has occurred while generating docs.')
-      return ReturnCode.InternalError
-    })
+  // return await generateDocs(targetName, outDirectory)
+  //   .then((res) => {
+  //     displaySuccess(
+  //       `Docs have been generated!\nThe docs are located in the ${res.outDirectory}' directory.\nClick to open: ${res.outDirectory}/index.html`
+  //     )
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err: any) => {
+  //     displayError(err, 'An error has occurred while generating docs.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function showHelp() {

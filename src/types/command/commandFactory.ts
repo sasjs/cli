@@ -13,6 +13,9 @@ import { CreateCommand } from '../../commands/create/createCommand'
 import { DbCommand } from '../../commands/db/dbCommand'
 import { CompileBuildDeployCommand } from '../../commands/deploy/compileBuildDeployCommand'
 import { DeployCommand } from '../../commands/deploy/deployCommand'
+import { GenerateDocsCommand } from '../../commands/docs/generateDocsCommand'
+import { GenerateDotCommand } from '../../commands/docs/generateDotCommand'
+import { InitDocsCommand } from '../../commands/docs/initDocsCommand'
 import { TestCommand } from '../../commands/testing/testCommand'
 import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
@@ -39,6 +42,9 @@ export const commandFactory = new Map<string, Function>([
   ['context list', (args: string[]) => new ListContextCommand(args)],
   ['db', (args: string[]) => new DbCommand(args)],
   ['deploy', (args: string[]) => new DeployCommand(args)],
+  ['doc', (args: string[]) => new GenerateDocsCommand(args)],
+  ['doc init', (args: string[]) => new InitDocsCommand(args)],
+  ['doc lineage', (args: string[]) => new GenerateDotCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],
