@@ -81,15 +81,17 @@ const verifySasjsConstants = (appFolder?: string) => {
     expect(sasjsConstants.macroCorePath).toEqual(
       [prefixAppFolder, 'node_modules', '@sasjs', 'core'].join(path.sep)
     )
-  else {
+  else
     expect(sasjsConstants.macroCorePath).toEqual(
-      expect.toStartWith(prefixAppFolder)
+      expect.toEndWith(
+        [
+          'node_modules',
+          '@sasjs',
+          'cli',
+          'node_modules',
+          '@sasjs',
+          'core'
+        ].join(path.sep)
+      )
     )
-    expect(sasjsConstants.macroCorePath).toEqual(
-      expect.toEndWith(['node_modules', '@sasjs', 'core'].join(path.sep))
-    )
-    expect(sasjsConstants.macroCorePath).not.toEqual(
-      [prefixAppFolder, 'node_modules', '@sasjs', 'core'].join(path.sep)
-    )
-  }
 }
