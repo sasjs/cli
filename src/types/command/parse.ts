@@ -9,8 +9,6 @@ export const parse = (args: string[]): CommandBase => {
     baseCommand.subCommand ? ' ' + baseCommand.subCommand : ''
   }`
 
-  console.log('key', key)
-
   if (!Array.from(commandFactory.keys()).includes(key)) {
     process.logger?.error(
       'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'

@@ -6,21 +6,15 @@ import { TargetScope } from '../../../types/targetScope'
 /**
  * Returns doc related config from root-level and Target-specfic(having precedence)
  * @param {Configuration} config- from which doc related config will be extracted
- * @param {string} targetName- the name of the target for doc config.
+ * @param {Target} target- the target for doc config.
  * @param {string} outDirectory- the name of the output folder, provided using command.
  */
 export async function getDocConfig(
   config: Configuration,
-  targetName: string,
+  target: Target,
   outDirectory: string
 ) {
   const { buildDestinationDocsFolder } = await getConstants()
-
-  let target: Target = {} as Target
-  try {
-    target = (await findTargetInConfiguration(targetName, TargetScope.Local))
-      .target
-  } catch (error) {}
 
   if (!outDirectory) {
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder

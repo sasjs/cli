@@ -4,7 +4,7 @@ import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 
-describe('WbCommand', () => {
+describe('WebCommand', () => {
   const defaultArgs = ['node', 'sasjs']
   const target = new Target({
     name: 'test',
