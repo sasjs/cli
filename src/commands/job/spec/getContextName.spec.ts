@@ -1,7 +1,11 @@
 import { Target } from '@sasjs/utils'
+import { setConstants } from '../../../utils'
 import { getContextName } from '../execute'
 
 describe('getContextName', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
   it('should return the context name if specified in the target', async () => {
     const target = { contextName: 'Test Context' }
 

@@ -3,14 +3,19 @@ import { WebCommand } from '../webCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
+import { setConstants } from '../../../utils'
 
-describe('WbCommand', () => {
+describe('WebCommand', () => {
   const defaultArgs = ['node', 'sasjs']
   const target = new Target({
     name: 'test',
     appLoc: '/Public/test/',
     serverType: ServerType.SasViya,
     contextName: 'test context'
+  })
+
+  beforeAll(async () => {
+    await setConstants()
   })
 
   beforeEach(() => {

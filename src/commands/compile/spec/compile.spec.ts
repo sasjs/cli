@@ -428,6 +428,7 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
 
       const command = new CompileSingleFileCommand([
         'node',
@@ -482,6 +483,8 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
+
       const command = new CompileSingleFileCommand([
         'node',
         'sasjs',

@@ -84,6 +84,7 @@ export const generateTestTarget = async (
 ) => {
   dotenv.config()
 
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,

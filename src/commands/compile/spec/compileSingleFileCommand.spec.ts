@@ -5,6 +5,7 @@ import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 import path from 'path'
 import os from 'os'
+import { setConstants } from '../../../utils'
 
 describe('CompileSingleFileCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -13,6 +14,10 @@ describe('CompileSingleFileCommand', () => {
     appLoc: '/Public/test/',
     serverType: ServerType.SasViya,
     contextName: 'test context'
+  })
+
+  beforeAll(async () => {
+    await setConstants()
   })
 
   beforeEach(() => {

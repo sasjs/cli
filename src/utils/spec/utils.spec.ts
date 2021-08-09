@@ -70,7 +70,7 @@ describe('utils', () => {
     })
   })
 
-  describe('inExistingProject', async () => {
+  describe('inExistingProject', () => {
     it('should return true if package.json exists in folder', async () => {
       process.projectDir = process.cwd()
       await setConstants()
@@ -118,9 +118,11 @@ describe('utils', () => {
     })
   })
 
-  describe('setupGitIgnore', async () => {
+  describe('setupGitIgnore', () => {
     process.projectDir = process.cwd()
-    await setConstants()
+    beforeAll(async () => {
+      await setConstants()
+    })
 
     const gitFilePath = path.join(process.projectDir, folderPath, '.gitignore')
 
