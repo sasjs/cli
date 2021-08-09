@@ -118,13 +118,15 @@ export async function execute(
   let submittedJob
 
   if (target.serverType === ServerType.Sasjs) {
-    const payload = { _program: jobPath, macroVars: macroVars?.macroVars }
+    const payload = { _program: jobPath, macroVars: macroVars }
 
     const res = await axios
       .post(`${target.serverUrl}/execute`, payload)
       .catch((err) => console.log(`[err]`, err))
 
-    console.log(`[res]`, res)
+    if (res?.data) {
+      await saveLog(res.data.log, logFile, jobPath, returnStatusOnly)
+    }
   } else {
     submittedJob = await sasjs
       .startComputeJob(
