@@ -1,6 +1,6 @@
 import * as buildModule from '../build'
 import * as compileModule from '../../compile/compile'
-import { CompileBuildCommand } from '../CompileBuildCommand'
+import { CompileBuildCommand } from '../compileBuildCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
