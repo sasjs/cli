@@ -1,4 +1,4 @@
-import { runTest } from '../'
+import { runTest } from '..'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { TestDescription, TestResult } from '../../../types'
@@ -22,7 +22,6 @@ import {
 } from '../../../utils/config'
 import dotenv from 'dotenv'
 import path from 'path'
-import { getConstants } from '../../../constants'
 
 describe('sasjs test', () => {
   let target: Target
@@ -174,9 +173,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     )}
 `
 
-    const command = new Command(`test -t ${target.name}`)
-
-    await runTest(command)
+    await runTest(target)
 
     const resultsFolderPath = path.join(__dirname, target.name, 'sasjsresults')
     const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
@@ -339,11 +336,13 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       path.join(__dirname, target.name, movedTestFlow)
     )
 
-    const command = new Command(
-      `test jobs/standalone shouldFail services/admin/dostuff.test.0 -t ${target.name} -s ${movedTestFlow} -o ${outputFolder}`
-    )
-
-    await runTest(command)
+    await runTest(target, [
+      'jobs/standalone',
+      'shouldFail',
+      'services/admin/dostuff.test.0',
+      outputFolder,
+      movedTestFlow
+    ])
 
     const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
     const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
@@ -448,7 +447,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     macroFolders: ['sasjs/macros'],
     serviceConfig: {
       serviceFolders: [],

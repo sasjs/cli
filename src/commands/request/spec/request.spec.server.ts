@@ -16,7 +16,6 @@ import {
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { removeFromGlobalConfig } from '../../../utils/config'
-import { getConstants } from '../../../constants'
 
 const sampleDataJson = {
   table1: [
@@ -313,7 +312,7 @@ describe(`sasjs request with compute API`, () => {
         {
           ...target.toJson(),
           useComputeApi: true,
-          contextName: (await getConstants()).contextName
+          contextName: process.sasjsConstants.contextName
         },
         null,
         2

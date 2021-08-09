@@ -5,7 +5,6 @@ import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 import path from 'path'
 import os from 'os'
-import { getConstants } from '../../../constants'
 
 describe('CompileSingleFileCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -202,7 +201,7 @@ describe('CompileSingleFileCommand', () => {
       '-s',
       '/dev/test.sas'
     ]
-    const { buildDestinationJobsFolder } = await getConstants()
+    const { buildDestinationJobsFolder } = process.sasjsConstants
     const command = new CompileSingleFileCommand(args)
 
     const output = await command.output
@@ -220,7 +219,7 @@ describe('CompileSingleFileCommand', () => {
       '-s',
       '/dev/test.sas'
     ]
-    const { buildDestinationServicesFolder } = await getConstants()
+    const { buildDestinationServicesFolder } = process.sasjsConstants
     const command = new CompileSingleFileCommand(args)
 
     const output = await command.output

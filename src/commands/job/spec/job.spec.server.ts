@@ -24,7 +24,6 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
-import { getConstants } from '../../../constants'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
 
 describe('sasjs job execute', () => {
@@ -392,7 +391,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

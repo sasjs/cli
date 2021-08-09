@@ -1,5 +1,4 @@
 import path from 'path'
-import { getConstants } from '../../../constants'
 
 export const getDestinationServicePath = async (
   inputPath: string
@@ -9,7 +8,7 @@ export const getDestinationServicePath = async (
       'Cannot get leaf folder name: input path is empty, null or undefined.'
     )
   }
-  const { buildDestinationServicesFolder } = await getConstants()
+  const { buildDestinationServicesFolder } = process.sasjsConstants
 
   const inputPathParts = inputPath.split(path.sep)
   const leafFolderName = inputPathParts.pop() as string
@@ -24,7 +23,7 @@ export const getDestinationJobPath = async (
       'Cannot get leaf folder name: input path is empty, null or undefined.'
     )
   }
-  const { buildDestinationJobsFolder } = await getConstants()
+  const { buildDestinationJobsFolder } = process.sasjsConstants
 
   const inputPathParts = inputPath.split(path.sep)
   const leafFolderName = inputPathParts.pop() as string

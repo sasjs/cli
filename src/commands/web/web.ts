@@ -20,7 +20,6 @@ import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './internal/sasjsout'
 import { adjustIframeScript } from './internal/adjustIframeScript'
 import { encode } from 'js-base64'
-import { getConstants } from '../../constants'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import uniqBy from 'lodash.uniqby'
 
@@ -38,7 +37,7 @@ const exampleStreamConfig: StreamConfig = {
 }
 
 export async function createWebAppServices(target: Target) {
-  const { buildDestinationServicesFolder } = await getConstants()
+  const { buildDestinationServicesFolder } = process.sasjsConstants
 
   const streamConfig = await getStreamConfig(target)
 
@@ -395,7 +394,7 @@ function getFaviconTags(parsedHtml: JSDOM) {
 }
 
 async function createBuildDestinationFolder() {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
   const pathExists = await fileExists(buildDestinationFolder)
   if (!pathExists) {
     await createFolder(buildDestinationFolder)
@@ -489,7 +488,7 @@ async function createClickMeService(
     }
   })
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
-  const { buildDestinationServicesFolder } = await getConstants()
+  const { buildDestinationServicesFolder } = process.sasjsConstants
   await createFile(
     path.join(buildDestinationServicesFolder, `${fileName}.sas`),
     clickMeServiceContent
@@ -497,7 +496,7 @@ async function createClickMeService(
 }
 
 async function createClickMeFile(indexHtmlContent: string, fileName: string) {
-  const { buildDestinationServicesFolder } = await getConstants()
+  const { buildDestinationServicesFolder } = process.sasjsConstants
   await createFile(
     path.join(buildDestinationServicesFolder, `${fileName}.html`),
     indexHtmlContent

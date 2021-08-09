@@ -1,5 +1,3 @@
-import { getConstants } from '../../constants'
-
 import { getLocalConfig } from '../../utils/config'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'

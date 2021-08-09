@@ -1,6 +1,5 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { getConstants } from '../constants'
 import {
   createFile,
   deleteFolder,
@@ -85,7 +84,7 @@ export const generateTestTarget = async (
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     appLoc,
     authConfig: {
       client: process.env.CLIENT,
@@ -285,7 +284,7 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
 }
 
 export const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []

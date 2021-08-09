@@ -12,7 +12,6 @@ import * as fileUtils from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
-import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types'
 
 describe('addCredential', () => {
@@ -24,7 +23,7 @@ describe('addCredential', () => {
       serverUrl: '',
       serverType: ServerType.SasViya,
       appLoc: '/test',
-      contextName: (await getConstants()).contextName
+      contextName: process.sasjsConstants.contextName
     })
 
     await addCredential(target, false, TargetScope.Local)
@@ -209,7 +208,7 @@ const setupMocks = () => {
           serverUrl: '',
           serverType: ServerType.SasViya,
           appLoc: '/test',
-          contextName: (await getConstants()).contextName
+          contextName: process.sasjsConstants.contextName
         }),
         isLocal: true
       })

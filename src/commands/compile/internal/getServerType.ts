@@ -1,7 +1,5 @@
 import { Target } from '@sasjs/utils'
-import path from 'path'
 import { ServerType } from '@sasjs/utils/types'
-import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 
 /**

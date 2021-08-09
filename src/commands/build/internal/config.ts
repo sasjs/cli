@@ -1,12 +1,11 @@
 import path from 'path'
 import { Target } from '@sasjs/utils/types'
-import { getConstants } from '../../../constants'
 import { getConfiguration } from '../../../utils/config'
 import { getAbsolutePath } from '../../../utils/utils'
 import { readFile } from '@sasjs/utils'
 
 export const getBuildInit = async (target: Target) => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let buildInitContent = ''
   if (target?.buildConfig?.initProgram) {
     buildInitContent = await readFile(
@@ -32,7 +31,7 @@ export const getBuildInit = async (target: Target) => {
 }
 
 export const getBuildTerm = async (target: Target) => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let buildTermContent = ''
   if (target?.buildConfig?.termProgram) {
     buildTermContent = await readFile(

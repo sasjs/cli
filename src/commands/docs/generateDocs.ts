@@ -12,7 +12,6 @@ import {
   readFile
 } from '@sasjs/utils'
 import { getLocalConfig } from '../../utils/config'
-import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'

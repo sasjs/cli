@@ -1,5 +1,4 @@
 import { Target } from '@sasjs/utils'
-import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { getAbsolutePath } from '../../../utils/utils'
 
@@ -15,7 +14,7 @@ export async function getAllServiceFolders(target: Target) {
 
   allServices = allServices.filter((p) => !!p)
 
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   allServices = allServices.map((service) =>
     getAbsolutePath(service, buildSourceFolder)
   )

@@ -12,8 +12,6 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Command } from '../../utils/command'
 import { ServerType } from '@sasjs/utils/types'
 import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
-import { getConstants } from '../../constants'
-import { config } from 'dotenv'
 
 export async function runSasJob(command: Command) {
   const sasJobLocation = command.values.shift() as string
@@ -71,7 +69,7 @@ export async function runSasJob(command: Command) {
     }
 
     if (!configJson.username || !configJson.password) {
-      const { sas9CredentialsError } = await getConstants()
+      const { sas9CredentialsError } = process.sasjsConstants
       throw new Error(sas9CredentialsError)
     }
     configJson.password = decodeFromBase64(configJson.password)

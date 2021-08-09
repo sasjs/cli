@@ -19,7 +19,6 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { getConstants } from '../../constants'
 import { terminateProcess } from '../../main'
 
 /**
@@ -282,7 +281,7 @@ export async function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
 ) {
-  const defaultContextName = (await getConstants()).contextName
+  const defaultContextName = process.sasjsConstants.contextName
 
   if (target && target.contextName) return target.contextName
 
