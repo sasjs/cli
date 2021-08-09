@@ -1,6 +1,5 @@
 import ora from 'ora'
-import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displayError, displaySuccess } from '../../utils/displayResult'
+import { AuthConfig, Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 
 /**
@@ -60,14 +59,14 @@ export async function list(
       }))
 
     if (accessibleContexts.length) {
-      displaySuccess(
+      process.logger?.success(
         'Accessible contexts:\n' +
           accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )
     }
 
     if (inaccessibleContexts.length) {
-      displaySuccess(
+      process.logger?.success(
         'Inaccessible contexts:\n' +
           inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )
