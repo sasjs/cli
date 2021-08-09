@@ -1,5 +1,5 @@
 import { createFile, fileExists, getRealPath, readFile } from '@sasjs/utils'
-import stringify from 'csv-stringify'
+import stringify from 'csv-stringify/lib/sync'
 import { displayError } from '../../../utils/displayResult'
 
 // REFACTOR: move to utility
@@ -42,21 +42,22 @@ export const saveToCsv = async (
 
         csvData.push([id, ...data])
 
-        stringify(
-          csvData,
-          { header: csvData.length === 1, columns: columns },
-          async (err, output) => {
-            if (err) reject(err)
+        try {
+          const output = stringify(csvData, {
+            header: csvData.length === 1,
+            columns: columns
+          })
 
-            await createFile(csvFileRealPath, output).catch((err) =>
-              displayError(err, 'Error while creating CSV file.')
-            )
+          await createFile(csvFileRealPath, output).catch((err) =>
+            displayError(err, 'Error while creating CSV file.')
+          )
 
-            process.csvFileAbleToSave = true
+          process.csvFileAbleToSave = true
 
-            resolve(true)
-          }
-        )
+          resolve(true)
+        } catch (err) {
+          if (err) reject(err)
+        }
       }
     }, 100)
   })
