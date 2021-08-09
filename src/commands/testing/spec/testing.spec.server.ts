@@ -1,4 +1,4 @@
-import { runTest } from '..'
+import { runTest } from '../test'
 import { compileBuildDeployServices } from '../../../main'
 import { folder } from '../../folder/index'
 import { TestDescription, TestResult } from '../../../types'

@@ -6,6 +6,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
+import { setConstants } from '../../../utils'
 
 describe('sasjs folder operations', () => {
   let target: Target
@@ -13,6 +14,7 @@ describe('sasjs folder operations', () => {
   beforeAll(async () => {
     target = await createGlobalTarget()
     process.projectDir = process.cwd()
+    await setConstants()
   })
 
   afterAll(async () => {

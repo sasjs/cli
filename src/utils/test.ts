@@ -30,12 +30,15 @@ import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
+import { setConstants } from './setConstants'
+import { Constants } from '../constants'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
 }
 
 export const createTestJobsApp = async (
@@ -46,6 +49,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
   await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
 
@@ -57,12 +61,14 @@ export const createTestMinimalApp = async (
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
 }
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
   process.projectDir = ''
   process.currentDir = ''
+  process.sasjsConstants = undefined as any as Constants
 }
 
 export const generateTestTarget = async (

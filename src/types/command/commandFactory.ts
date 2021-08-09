@@ -11,6 +11,7 @@ import { ExportContextCommand } from '../../commands/context/exportContextComman
 import { ListContextCommand } from '../../commands/context/listContextCommand'
 import { CreateCommand } from '../../commands/create/createCommand'
 import { DbCommand } from '../../commands/db/dbCommand'
+import { TestCommand } from '../../commands/testing/testCommand'
 import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
@@ -33,5 +34,6 @@ export const commandFactory = new Map<string, Function>([
   ['db', (args: string[]) => new DbCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['version', (args: string[]) => new VersionCommand(args)],
+  ['test', (args: string[]) => new TestCommand(args)],
   ['web', (args: string[]) => new WebCommand(args)]
 ])

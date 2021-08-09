@@ -12,6 +12,7 @@ import {
   Target
 } from '@sasjs/utils'
 import { updateTagSource } from '../web'
+import { setConstants } from '../../../utils'
 
 describe('updateTagSource', () => {
   let destinationPath: string
@@ -23,6 +24,7 @@ describe('updateTagSource', () => {
     )
     await createFolder(destinationPath)
     process.projectDir = destinationPath
+    await setConstants()
   })
 
   afterAll(async () => {

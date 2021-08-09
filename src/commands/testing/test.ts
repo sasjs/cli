@@ -3,7 +3,7 @@ import {
   saveResultJson,
   saveResultCsv,
   saveResultXml
-} from './saveOutput'
+} from './internal/saveOutput'
 import {
   TestFlow,
   TestResults,

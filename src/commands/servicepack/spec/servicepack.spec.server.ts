@@ -8,6 +8,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
+import { setConstants } from '../../../utils'
 
 describe('sasjs servicepack', () => {
   let config: TargetJson
@@ -37,6 +38,7 @@ describe('sasjs servicepack', () => {
     await saveToGlobalConfig(new Target(config))
 
     process.projectDir = path.join(process.cwd())
+    await setConstants()
     process.currentDir = process.projectDir
   })
 

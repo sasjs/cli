@@ -20,6 +20,7 @@ import {
   updateConfig
 } from '../../../utils/test'
 import { build } from '../../build/build'
+import { setConstants } from '../../../utils'
 
 describe('sasjs run', () => {
   let target: Target
@@ -210,6 +211,7 @@ describe('sasjs run', () => {
         }
       )
       process.projectDir = ''
+      await setConstants()
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
@@ -282,6 +284,7 @@ describe('sasjs run', () => {
       const appName = `cli-tests-run-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
+      await setConstants()
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
