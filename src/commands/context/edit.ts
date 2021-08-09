@@ -28,6 +28,8 @@ export async function edit(
   if (editedContext) {
     const editedContextName = editedContext.result.name || ''
 
-    displaySuccess(`Context '${editedContextName}' successfully updated!`)
+    process.logger?.success(
+      `Context '${editedContextName}' successfully updated!`
+    )
   }
 }

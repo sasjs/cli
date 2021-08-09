@@ -11,6 +11,8 @@ import { ExportContextCommand } from '../../commands/context/exportContextComman
 import { ListContextCommand } from '../../commands/context/listContextCommand'
 import { CreateCommand } from '../../commands/create/createCommand'
 import { DbCommand } from '../../commands/db/dbCommand'
+import { CompileBuildDeployCommand } from '../../commands/deploy/compileBuildDeployCommand'
+import { DeployCommand } from '../../commands/deploy/deployCommand'
 import { TestCommand } from '../../commands/testing/testCommand'
 import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
@@ -25,6 +27,10 @@ export const commandFactory = new Map<string, Function>([
   ['compile service', (args: string[]) => new CompileSingleFileCommand(args)],
   ['compile identify', (args: string[]) => new CompileSingleFileCommand(args)],
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],
+  [
+    'compilebuilddeploy',
+    (args: string[]) => new CompileBuildDeployCommand(args)
+  ],
   ['create', (args: string[]) => new CreateCommand(args)],
   ['context create', (args: string[]) => new CreateContextCommand(args)],
   ['context delete', (args: string[]) => new DeleteContextCommand(args)],
@@ -32,6 +38,7 @@ export const commandFactory = new Map<string, Function>([
   ['context export', (args: string[]) => new ExportContextCommand(args)],
   ['context list', (args: string[]) => new ListContextCommand(args)],
   ['db', (args: string[]) => new DbCommand(args)],
+  ['deploy', (args: string[]) => new DeployCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],

@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Creates compute context using provided config.
@@ -27,7 +26,7 @@ export async function create(config: any, sasjs: SASjs, accessToken: string) {
     })
 
   if (createdContext) {
-    displaySuccess(
+    process.logger?.success(
       `Context '${name}' with id '${createdContext.id}' successfully created!`
     )
   }
