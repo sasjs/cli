@@ -7,19 +7,17 @@ import { ServerType, Target } from '@sasjs/utils/types'
 import { getAbsolutePath } from '../../utils/utils'
 
 export async function servicePackDeploy(
+  target: Target,
   jsonFilePath: string,
-  targetName: string,
   isForced = false
 ) {
   if (path.extname(jsonFilePath) !== '.json') {
     throw new Error('Provided data file must be valid json.')
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
-      `Unable to deploy service pack to target ${targetName}. This command is only supported for server type ${ServerType.SasViya}.`
+      `Unable to deploy service pack to target ${target.name}. This command is only supported for server type ${ServerType.SasViya}.`
     )
   }
 

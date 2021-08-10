@@ -23,7 +23,7 @@ export async function processServicepack(command: Command) {
 
   switch (subCommand) {
     case subCommands.deploy:
-      output = await servicePackDeploy(jsonFilePath, targetName, isForced)
+      // output = await servicePackDeploy(jsonFilePath, targetName, isForced)
 
       break
   }

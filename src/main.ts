@@ -405,19 +405,18 @@ export async function context(command: Command) {
 }
 
 export async function servicepack(command: Command) {
-  if (!command) {
-    displayError(null, `Please provide action for the 'servicepack' command.`)
-    return ReturnCode.InvalidCommand
-  }
-
-  return await processServicepack(command)
-    .then(() => {
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when processing servicepack.')
-      return ReturnCode.InternalError
-    })
+  // if (!command) {
+  //   displayError(null, `Please provide action for the 'servicepack' command.`)
+  //   return ReturnCode.InvalidCommand
+  // }
+  // return await processServicepack(command)
+  //   .then(() => {
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when processing servicepack.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function folderManagement(command: Command) {

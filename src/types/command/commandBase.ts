@@ -5,7 +5,8 @@ import { unalias } from './unalias'
 
 const commandMap = new Map<string, string[]>([
   ['compile', ['job', 'service', 'identify']],
-  ['context', ['list', 'create', 'edit', 'delete']]
+  ['context', ['list', 'create', 'edit', 'delete']],
+  ['servicepack', ['deploy']]
 ])
 
 interface Command {

@@ -21,6 +21,7 @@ import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
 import { CreateFolderCommand } from '../../commands/folder/createFolderCommand'
 import { DeleteFolderCommand } from '../../commands/folder/deleteFolderCommand'
+import { ServicePackCommand } from '../../commands/servicepack/servicePackCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -48,6 +49,7 @@ export const commandFactory = new Map<string, Function>([
   ['folder delete', (args: string[]) => new DeleteFolderCommand(args)],
   ['folder list', (args: string[]) => new ListFolderCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
+  ['servicepack', (args: string[]) => new ServicePackCommand(args)],
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],
   ['web', (args: string[]) => new WebCommand(args)]

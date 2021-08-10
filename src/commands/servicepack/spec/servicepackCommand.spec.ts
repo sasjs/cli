@@ -1,5 +1,5 @@
-import * as testModule from '../test'
-import { TestCommand } from '../testCommand'
+import * as deployModule from '../deploy'
+import { ServicePackCommand } from '../servicePackCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
@@ -7,12 +7,13 @@ import { setConstants } from '../../../utils'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
-  name: 'testTarget',
+  name: 'test',
   appLoc: '/Public/test/',
   serverType: ServerType.SasViya,
   contextName: 'test context'
 })
-describe('TestCommand', () => {
+const source = 'path/to/json'
+describe('ServicePackCommand', () => {
   beforeAll(async () => {
     await setConstants()
   })
@@ -21,93 +22,97 @@ describe('TestCommand', () => {
     setupMocks()
   })
 
-  it('should parse a simple sasjs test command', () => {
-    const args = [...defaultArgs, 'test']
+  it('should parse sasjs servicepack deploy command', async () => {
+    const args = [...defaultArgs, 'servicepack', 'deploy', '--source', source]
 
-    const command = new TestCommand(args)
-
-    expect(command.name).toEqual('test')
-    expect(command.subCommand).toEqual('')
-  })
-
-  it('should parse a sasjs test command with all arguments', async () => {
-    const args = [
-      ...defaultArgs,
-      'test',
-      '--target',
-      'testTarget',
-      '--filteringString',
-      'pattern-1',
-      'pattern-2',
-      '--outDirectory',
-      'path-to-out',
-      '--source',
-      'path-to-source'
-    ]
-
-    const command = new TestCommand(args)
+    const command = new ServicePackCommand(args)
+    await command.execute()
     const targetInfo = await command.getTargetInfo()
 
-    expect(command.name).toEqual('test')
-    expect(command.subCommand).toEqual('')
+    expect(command.name).toEqual('servicepack')
+    expect(command.subCommand).toEqual('deploy')
     expect(targetInfo.target).toEqual(target)
     expect(targetInfo.isLocal).toBeTrue()
+
+    expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
+      target,
+      source,
+      false
+    )
+  })
+
+  it('should parse sasjs servicepack deploy command with all arguments', async () => {
+    const args = [
+      ...defaultArgs,
+      'servicepack',
+      'deploy',
+      '--target',
+      'test',
+      '--source',
+      source,
+      '--force'
+    ]
+
+    const command = new ServicePackCommand(args)
+    await command.execute()
+    const targetInfo = await command.getTargetInfo()
+
+    expect(command.name).toEqual('servicepack')
+    expect(command.subCommand).toEqual('deploy')
+    expect(targetInfo.target).toEqual(target)
+    expect(targetInfo.isLocal).toBeTrue()
+
+    expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
+      target,
+      source,
+      true
+    )
   })
 
   it('should parse a sasjs test command with all shorthand arguments', async () => {
     const args = [
       ...defaultArgs,
-      'test',
+      'servicepack',
+      'deploy',
       '-t',
-      'testTarget',
-      '--fs',
-      'pattern-1',
-      'pattern-2',
-      '--out',
-      'path-to-out',
+      'test',
       '-s',
-      'path-to-source'
+      source,
+      '-f'
     ]
 
-    const command = new TestCommand(args)
+    const command = new ServicePackCommand(args)
+    await command.execute()
     const targetInfo = await command.getTargetInfo()
 
-    expect(command.name).toEqual('test')
-    expect(command.subCommand).toEqual('')
+    expect(command.name).toEqual('servicepack')
+    expect(command.subCommand).toEqual('deploy')
     expect(targetInfo.target).toEqual(target)
     expect(targetInfo.isLocal).toBeTrue()
-  })
 
-  it('should call the test handler when executed with the correct target', async () => {
-    const args = [...defaultArgs, 'test', '-t', 'testTarget']
-
-    const command = new TestCommand(args)
-    await command.execute()
-
-    expect(testModule.runTest).toHaveBeenCalledWith(
+    expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
       target,
-      undefined,
-      undefined,
-      undefined
+      source,
+      true
     )
   })
 
   it('should log success and return the success code when execution is successful', async () => {
-    const args = [...defaultArgs, 'test', '-t', 'testTarget']
+    const args = [...defaultArgs, 'servicepack', 'deploy', '--source', source]
 
-    const command = new TestCommand(args)
+    const command = new ServicePackCommand(args)
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 
   it('should log the error and return the error code when execution is unsuccessful', async () => {
-    const args = [...defaultArgs, 'test', '-t', 'testTarget']
+    const args = [...defaultArgs, 'servicepack', 'deploy', '--source', source]
     jest
-      .spyOn(testModule, 'runTest')
+      .spyOn(deployModule, 'servicePackDeploy')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
-    const command = new TestCommand(args)
+    const command = new ServicePackCommand(args)
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
@@ -117,10 +122,10 @@ describe('TestCommand', () => {
 
 const setupMocks = () => {
   jest.resetAllMocks()
-  jest.mock('../test')
+  jest.mock('../deploy')
   jest.mock('../../../utils/config')
   jest
-    .spyOn(testModule, 'runTest')
+    .spyOn(deployModule, 'servicePackDeploy')
     .mockImplementation(() => Promise.resolve(undefined))
 
   jest
