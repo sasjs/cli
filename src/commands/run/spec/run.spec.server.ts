@@ -71,7 +71,7 @@ describe('sasjs run', () => {
     it('should throw an error if url response starts with angular bracket(<)', async () => {
       const url = 'https://github.com/sasjs/cli/issues/808'
       const { invalidSasError } = await getConstants()
-      const error = new Error('Error: ' + invalidSasError)
+      const error = new Error(`${invalidSasError}\nUrl: ${url}`)
       await expect(
         runSasCode(new Command(`run -t ${target.name} ${url}`))
       ).rejects.toThrowError(error)
@@ -80,7 +80,7 @@ describe('sasjs run', () => {
     it('should throw an error when url response is not a string', async () => {
       const url = 'https://api.agify.io/?name=sabir'
       const { invalidSasError } = await getConstants()
-      const error = new Error('Error: ' + invalidSasError)
+      const error = new Error(`${invalidSasError}\nUrl: ${url}`)
       await expect(
         runSasCode(new Command(`run -t ${target.name} ${url}`))
       ).rejects.toThrowError(error)

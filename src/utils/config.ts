@@ -22,7 +22,7 @@ import {
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
-import { getAbsolutePath } from './utils'
+import { getAbsolutePath, loadEnvVariables } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
@@ -181,7 +181,7 @@ async function getLocalFallbackTarget(): Promise<Target> {
       fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
       fallBackTargetJson.allowInsecureRequests =
         getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
-
+      await loadEnvVariables(`.env.${fallBackTargetJson.name}`)
       return new Target(fallBackTargetJson)
     }
   }
