@@ -14,6 +14,7 @@ import {
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
+import dotenv from 'dotenv'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -399,3 +400,20 @@ export const getAbsolutePath = (providedPath: string, relativePath: string) =>
   path.isAbsolute(providedPath) || /^~/.exec(providedPath)
     ? path.normalize(providedPath.replace(/^~/, os.homedir()))
     : path.join(relativePath, providedPath)
+
+export const loadEnvVariables = async (fileName: string) => {
+  const envFileExistsInCurrentPath = await fileExists(
+    path.join(process.cwd(), fileName)
+  )
+  const envFileExistsInParentPath = await fileExists(
+    path.join(process.cwd(), '..', fileName)
+  )
+  const envFilePath = envFileExistsInCurrentPath
+    ? path.join(process.cwd(), fileName)
+    : envFileExistsInParentPath
+    ? path.join(process.cwd(), '..', fileName)
+    : null
+  if (envFilePath) {
+    dotenv.config({ path: envFilePath })
+  }
+}

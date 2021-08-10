@@ -4,9 +4,25 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
-  getAbsolutePath
+  chunk,
+  arrToObj,
+  checkNodeVersion,
+  getAdapterInstance,
+  displaySasjsRunnerError,
+  getAbsolutePath,
+  loadEnvVariables
 } from '../utils'
-import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
+import { mockProcessExit } from '../test'
+import {
+  createFile,
+  deleteFile,
+  fileExists,
+  readFile,
+  generateTimestamp,
+  ServerType,
+  Target
+} from '@sasjs/utils'
+import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import { setConstants } from '..'
 
@@ -165,6 +181,103 @@ describe('utils', () => {
     })
   })
 
+  describe('chunk', () => {
+    it('should return an array with only one element that is equal to text itself if text size is less than max length', () => {
+      const txt = '0B0pFTOzHXyRuikRydwnd8uQdwvITllwNOX20vQLsT0JgkXa1W'
+      expect(chunk(txt)[0]).toBe(txt)
+    })
+
+    it('should return an array with 3 elements', () => {
+      const txt =
+        'SGmqg3pnHCJn0iPQC4Rd9AnFS3k5V7dDc81GlF6lCCurmsEJq7VS\nig42yjxerV7OAjE1HIOgJZXqID30\nkaVJsCwWrtFEIL8mQepjp4zLGeCaWk7ymu9BqolSnqA3udaiWuHcm6m80E36mWYWU0lITAgdp1QzVwIczpopXRaUWtJamiPnHyflksdNEXkboKlAT5RuR795ShUOc6KajQZ1qH2ZGJPV2DxjEqtXA9uvNbpisOVY6MpRdEzWNgdDsXlfuXkrBk5RqA7PkdtjBtNHA7JtEklTnYKrOdge03qFXKjh'
+      expect(chunk(txt)).toBeArrayOfSize(3)
+    })
+  })
+
+  describe('arrToObj', () => {
+    it('should return an object', () => {
+      const arr = ['a', 'b', 'c']
+      expect(arrToObj(arr)).toEqual({
+        a: 'a',
+        b: 'b',
+        c: 'c'
+      })
+    })
+  })
+
+  describe('checkNodeVersion', () => {
+    afterEach(() => {
+      jest.resetAllMocks()
+    })
+
+    it('should exit the process when node version is less than 12', () => {
+      let originalProcess: NodeJS.Process = global.process
+      global.process = {
+        ...originalProcess,
+        versions: { ...originalProcess.versions, node: '11.0.0' }
+      }
+
+      const mockExit = mockProcessExit()
+
+      checkNodeVersion()
+
+      expect(mockExit).toHaveBeenCalledWith(1)
+
+      global.process = originalProcess
+    })
+    it('should not exit the process when node version greater than 12', () => {
+      jest.spyOn(process, 'exit')
+
+      checkNodeVersion()
+
+      expect(process.exit).toHaveBeenCalledTimes(0)
+    })
+  })
+
+  describe('getAdapterInstance', () => {
+    it('should throw an error when target is not valid', () => {
+      expect(() => getAdapterInstance(null as any)).toThrow(
+        'Unable to create SASjs adapter instance: Invalid target.'
+      )
+    })
+
+    it('should throw an error when target is missing serverUrl', () => {
+      expect(() => getAdapterInstance({ name: 'test-target' } as any)).toThrow(
+        `Unable to create SASjs adapter instance: Target test-target is missing a \`serverUrl\`.`
+      )
+    })
+
+    it('should throw an error when target is missing serverType', () => {
+      expect(() =>
+        getAdapterInstance({
+          name: 'test-target',
+          serverUrl: 'http://server.com'
+        } as any)
+      ).toThrow(
+        `Unable to create SASjs adapter instance: Target test-target is missing a \`serverType\`.`
+      )
+    })
+
+    it('should return an instance of SASjs', () => {
+      expect(
+        getAdapterInstance({
+          name: 'test-target',
+          serverUrl: 'http://server.com',
+          serverType: ServerType.SasViya,
+          contextName: 'test-context'
+        } as Target)
+      ).toBeInstanceOf(SASjs)
+    })
+  })
+
+  describe('displaySasjsRunnerError', () => {
+    it('should have called once', () => {
+      const mockFun = jest.fn(displaySasjsRunnerError)
+      mockFun('testUser')
+      expect(mockFun).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('getAbsolutePath', () => {
     const homedir = require('os').homedir()
     it('should convert relative path to absolute', () => {
@@ -198,6 +311,24 @@ describe('utils', () => {
       expect(getAbsolutePath(absolutePath, pathRelativeTo)).toEqual(
         expectedAbsolutePath
       )
+    })
+  })
+
+  describe('loadEnvVariables', () => {
+    const fileName = `.env.${generateTimestamp()}`
+    const filePath = path.join(process.projectDir, fileName)
+    beforeEach(async () => {
+      const fileContent = 'TEST=this is test variable'
+      await createFile(filePath, fileContent)
+    })
+
+    afterEach(async () => {
+      await deleteFile(filePath)
+    })
+
+    it('should load the environment variables from provided file', async () => {
+      await loadEnvVariables(fileName)
+      expect(process.env.TEST).toBe('this is test variable')
     })
   })
 })
