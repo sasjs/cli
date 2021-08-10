@@ -4,7 +4,7 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { deleteContext } from './delete'
 
-const syntax = 'context <subCommand> <contextName>'
+const syntax = 'context delete <contextName>'
 const usage = 'sasjs context delete <context-name> --target <target-name>'
 const description =
   'Deletes the specified context from the server specified in the target.'

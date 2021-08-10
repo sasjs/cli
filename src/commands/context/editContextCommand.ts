@@ -7,7 +7,7 @@ import { edit } from './edit'
 import { parseConfig } from './internal/parseConfig'
 import { validateConfigPath } from './internal/validateConfigPath'
 
-const syntax = 'context <subCommand> [contextName]'
+const syntax = 'context edit [contextName]'
 const usage =
   'sasjs context edit <contextName> --source <source-JSON-file-path> --target <target-name>'
 const description =

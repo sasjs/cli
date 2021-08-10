@@ -6,7 +6,7 @@ import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { list } from './list'
 
-const syntax = 'folder <subCommand> <folderPath>'
+const syntax = 'folder list <folderPath>'
 const usage = 'sasjs folder list <folderPath> --target <target-name>'
 const description =
   'Lists the first level children folders of the given folder.'

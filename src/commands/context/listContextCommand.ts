@@ -5,7 +5,7 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { list } from './list'
 
-const syntax = 'context <subCommand>'
+const syntax = 'context list'
 const usage = 'sasjs context list --target <target-name>'
 const description =
   'Lists the accessible and inaccessible compute contexts on the server specified in the target.'

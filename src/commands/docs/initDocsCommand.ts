@@ -2,7 +2,7 @@ import { CommandBase } from '../../types'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { initDocs } from './initDocs'
 
-const syntax = 'doc <subCommand>'
+const syntax = 'doc init'
 const aliases = ['docs']
 const usage = 'sasjs docs init'
 const description =

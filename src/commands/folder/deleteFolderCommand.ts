@@ -6,7 +6,7 @@ import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { deleteFolder } from './delete'
 
-const syntax = 'folder <subCommand> <folderPath>'
+const syntax = 'folder delete <folderPath>'
 const usage = 'sasjs folder delete <folderPath> --target <target-name>'
 const description = 'Deletes the given folder from the server.'
 const examples: CommandExample[] = [

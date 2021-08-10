@@ -7,7 +7,7 @@ import { create } from './create'
 import { parseConfig } from './internal/parseConfig'
 import { validateConfigPath } from './internal/validateConfigPath'
 
-const syntax = 'context <subCommand>'
+const syntax = 'context create'
 const usage =
   'sasjs context create --source <source-JSON-file-path> --target <target-name>'
 const description =

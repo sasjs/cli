@@ -2,7 +2,7 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { generateDot } from './generateDot'
 
-const syntax = 'doc <subCommand>'
+const syntax = 'doc lineage'
 const aliases = ['docs']
 const usage = 'sasjs doc lineage'
 const description = 'Generates lineage for the current project in dot language.'
