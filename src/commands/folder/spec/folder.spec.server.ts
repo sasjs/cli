@@ -205,6 +205,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-folder-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     appLoc: `/Public/app/cli-tests/${targetName}`,

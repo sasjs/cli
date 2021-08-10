@@ -1,8 +1,6 @@
 import path from 'path'
 
-export const getDestinationServicePath = async (
-  inputPath: string
-): Promise<string> => {
+export const getDestinationServicePath = (inputPath: string): string => {
   if (!inputPath) {
     throw new Error(
       'Cannot get leaf folder name: input path is empty, null or undefined.'
@@ -15,9 +13,7 @@ export const getDestinationServicePath = async (
   return path.join(buildDestinationServicesFolder, leafFolderName)
 }
 
-export const getDestinationJobPath = async (
-  inputPath: string
-): Promise<string> => {
+export const getDestinationJobPath = (inputPath: string): string => {
   if (!inputPath) {
     throw new Error(
       'Cannot get leaf folder name: input path is empty, null or undefined.'

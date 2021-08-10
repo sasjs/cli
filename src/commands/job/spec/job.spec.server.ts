@@ -25,6 +25,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
+import { setConstants } from '../../../utils'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -383,7 +384,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-job-${timestamp}`
-
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,

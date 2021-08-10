@@ -31,6 +31,7 @@ import {
   generateTimestamp
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
+import { setConstants } from '../../../utils'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -441,6 +442,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-flow-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,

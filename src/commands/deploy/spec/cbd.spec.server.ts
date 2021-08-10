@@ -23,6 +23,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
+import { setConstants } from '../../../utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -240,6 +241,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,

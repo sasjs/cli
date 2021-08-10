@@ -22,6 +22,7 @@ import {
 } from '../../../utils/config'
 import dotenv from 'dotenv'
 import path from 'path'
+import { setConstants } from '../../../utils'
 
 describe('sasjs test', () => {
   let target: Target
@@ -439,7 +440,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
 
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-test-command-${timestamp}`
-
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,

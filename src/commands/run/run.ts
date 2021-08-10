@@ -16,6 +16,7 @@ import { displayError } from '../../utils/displayResult'
 import { compileSingleFile } from '../'
 import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
 import axios from 'axios'
+import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -63,12 +64,14 @@ export async function runSasCode(command: Command) {
   const { target } = await findTargetInConfiguration(targetName)
 
   if (compile) {
+    let sourcefilePathParts = filePath.split(path.sep)
+    sourcefilePathParts.splice(-1, 1)
+    const sourceFolderPath = sourcefilePathParts.join(path.sep)
     ;({ destinationPath: filePath } = await compileSingleFile(
       target,
       'identify',
       filePath,
-      // TODO: Fix output path
-      '',
+      getDestinationServicePath(sourceFolderPath),
       true
     ))
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)

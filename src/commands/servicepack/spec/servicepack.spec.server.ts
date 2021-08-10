@@ -19,6 +19,7 @@ describe('sasjs servicepack', () => {
 
     const serverType = ServerType.SasViya
 
+    await setConstants()
     config = {
       name: targetName,
       serverType: serverType,
@@ -38,7 +39,6 @@ describe('sasjs servicepack', () => {
     await saveToGlobalConfig(new Target(config))
 
     process.projectDir = path.join(process.cwd())
-    await setConstants()
     process.currentDir = process.projectDir
   })
 
