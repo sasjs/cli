@@ -10,11 +10,14 @@ import { validateConfigPath } from './internal/validateConfigPath'
 const syntax = 'context <subCommand> [contextName]'
 const usage =
   'sasjs context edit <contextName> --source <source-JSON-file-path> --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs context edit  -s source.json -t myTarget',
-  description:
-    'Edit a context using the configuration from the provided JSON file on the server specified in the target.'
-}
+const description =
+  'Edit a context using the configuration from the provided JSON file on the server specified in the target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs context edit  -s source.json -t myTarget',
+    description: ''
+  }
+]
 
 export class EditContextCommand extends TargetCommand {
   private _config?: Object
@@ -30,7 +33,8 @@ export class EditContextCommand extends TargetCommand {
         }
       },
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

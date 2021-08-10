@@ -5,10 +5,13 @@ import { generateDot } from './generateDot'
 const syntax = 'doc <subCommand>'
 const aliases = ['docs']
 const usage = 'sasjs doc lineage'
-const example: CommandExample = {
-  command: 'sasjs doc lineage',
-  description: 'Generates lineage for the current project in dot language.'
-}
+const description = 'Generates lineage for the current project in dot language.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs doc lineage',
+    description: ''
+  }
+]
 
 export class GenerateDotCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -22,7 +25,8 @@ export class GenerateDotCommand extends TargetCommand {
         }
       },
       usage,
-      example,
+      description,
+      examples,
       syntax,
       aliases
     })

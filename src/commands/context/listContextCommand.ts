@@ -7,17 +7,21 @@ import { list } from './list'
 
 const syntax = 'context <subCommand>'
 const usage = 'sasjs context list --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs context list -t myTarget',
-  description:
-    'Lists the accessible and inaccessible compute contexts on the server specified in the target.'
-}
+const description =
+  'Lists the accessible and inaccessible compute contexts on the server specified in the target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs context list -t myTarget',
+    description: ''
+  }
+]
 
 export class ListContextCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

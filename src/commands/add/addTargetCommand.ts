@@ -4,10 +4,13 @@ import { addTarget } from './addTarget'
 
 const syntax = 'add'
 const usage = 'sasjs add [options]'
-const example: CommandExample = {
-  command: 'sasjs add',
-  description: 'Adds a target to your local or global SASjs configuration.'
-}
+const description = 'Adds a target to your local or global SASjs configuration.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs add',
+    description: ''
+  }
+]
 
 export class AddTargetCommand extends CommandBase {
   constructor(args: string[]) {
@@ -20,7 +23,7 @@ export class AddTargetCommand extends CommandBase {
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
       }
     }
-    super(args, { parseOptions, syntax, usage, example })
+    super(args, { parseOptions, syntax, usage, description, examples })
   }
 
   public get insecure(): boolean {

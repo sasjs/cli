@@ -6,17 +6,21 @@ import { exportContext } from './export'
 
 const syntax = 'context <subCommand> <contextName>'
 const usage = 'sasjs context export <context-name> --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs context export myContext -t myTarget',
-  description:
-    'Exports the definition for the specified context into a JSON file in the current directory.'
-}
+const description =
+  'Exports the definition for the specified context into a JSON file in the current directory.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs context export myContext -t myTarget',
+    description: ''
+  }
+]
 
 export class ExportContextCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

@@ -8,11 +8,18 @@ import { addCredential } from './addCredential'
 const syntax = 'add [subCommand]'
 const aliases = ['auth']
 const usage = 'sasjs add cred [options] | sasjs auth [options]'
-const example: CommandExample = {
-  command: 'sasjs add cred -t myTarget',
-  description:
-    'Authenticates against the specified target and creates a `.env.{targetName}` file at the root of the current project.'
-}
+const description =
+  'Authenticates against the specified target and creates a `.env.{targetName}` file at the root of the current project.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs add cred -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs auth -t myTarget',
+    description: ''
+  }
+]
 
 export class AddCredentialCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -25,7 +32,7 @@ export class AddCredentialCommand extends TargetCommand {
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
       }
     }
-    super(args, { parseOptions, usage, example, syntax, aliases })
+    super(args, { parseOptions, usage, description, examples, syntax, aliases })
   }
 
   public get insecure(): boolean {

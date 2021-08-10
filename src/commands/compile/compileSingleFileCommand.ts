@@ -11,11 +11,18 @@ import {
 const syntax = 'compile <subCommand>'
 const usage = 'sasjs compile <subCommand> [options]'
 const aliases = ['c <subCommand>']
-const example: CommandExample = {
-  command: 'sasjs compile job -t myTarget | sasjs c job -t myTarget',
-  description:
-    'Compiles the single job or service specified by inlining all dependencies and adds init and term programs as configured in the specified target.'
-}
+const description =
+  'Compiles the single job or service specified by inlining all dependencies and adds init and term programs as configured in the specified target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs compile job -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs c job -t myTarget',
+    description: ''
+  }
+]
 
 export class CompileSingleFileCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -23,7 +30,7 @@ export class CompileSingleFileCommand extends TargetCommand {
       source: { type: 'string', alias: 's', demandOption: true },
       output: { type: 'string', alias: 'o' }
     }
-    super(args, { parseOptions, usage, example, syntax, aliases })
+    super(args, { parseOptions, usage, description, examples, syntax, aliases })
   }
 
   public get source(): string {
