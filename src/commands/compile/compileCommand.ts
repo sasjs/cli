@@ -82,7 +82,7 @@ export class CompileCommand extends TargetCommand {
       : await this.executeCompile()
   }
 
-  public async executeCompile() {
+  async executeCompile() {
     const { target } = await this.getTargetInfo()
     const { buildDestinationFolder } = process.sasjsConstants
 
@@ -99,7 +99,7 @@ export class CompileCommand extends TargetCommand {
       })
   }
 
-  public async executeSingleFileCompile() {
+  async executeSingleFileCompile() {
     const { target } = await this.getTargetInfo()
     const output = await this.output
     return await compileSingleFile(

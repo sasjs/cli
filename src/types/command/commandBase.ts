@@ -6,6 +6,7 @@ import { unalias } from './unalias'
 const commandMap = new Map<string, string[]>([
   ['compile', ['job', 'service', 'identify']],
   ['context', ['list', 'create', 'edit', 'delete']],
+  ['doc', ['init', 'lineage']],
   ['servicepack', ['deploy']]
 ])
 
