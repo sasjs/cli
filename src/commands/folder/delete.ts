@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import { displayError, displaySuccess } from '../../utils/displayResult'
 
 /**
  * Deletes folder.
@@ -15,12 +14,11 @@ export const deleteFolder = async (
   const deletedFolder = await sasjs
     .deleteFolder(path, accessToken)
     .catch((err) => {
-      displayError(err, `Error deleting folder ${path}`)
+      process.logger?.error(`Error deleting folder ${path}: `, err)
+      throw err
     })
 
   if (deletedFolder) {
-    displaySuccess(`Folder '${path}' has been moved to 'Recycle Bin'.`)
-    return Promise.resolve(true)
+    process.logger?.success(`Folder '${path}' has been moved to 'Recycle Bin'.`)
   }
-  return Promise.reject(false)
 }

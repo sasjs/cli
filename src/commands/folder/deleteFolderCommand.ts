@@ -4,16 +4,16 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
-import { list } from './list'
+import { deleteFolder } from './delete'
 
 const syntax = 'folder <subCommand> <folderPath>'
-const usage = 'sasjs folder list <folderPath> --target <target-name>'
+const usage = 'sasjs folder delete <folderPath> --target <target-name>'
 const example: CommandExample = {
-  command: 'sasjs folder list /Public/app -t myTarget',
-  description: 'Lists the first level children folders of the given folder.'
+  command: 'sasjs folder delete /Public/app/myFolder -t myTarget',
+  description: 'Deletes the given folder from the server.'
 }
 
-export class ListFolderCommand extends TargetCommand {
+export class DeleteFolderCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       usage,
@@ -26,7 +26,7 @@ export class ListFolderCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     if (target.serverType !== ServerType.SasViya) {
       process.logger?.error(
-        `'folder list' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
+        `'folder delete' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
       )
       return ReturnCode.InternalError
     }
@@ -40,7 +40,7 @@ export class ListFolderCommand extends TargetCommand {
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
-        'Unable to list folder. Error fetching auth config: ',
+        'Unable to delete folder. Error fetching auth config: ',
         err
       )
       return null
@@ -54,12 +54,15 @@ export class ListFolderCommand extends TargetCommand {
       this.parsed.folderPath as string
     )
 
-    const returnCode = await list(folderPath, sasjs, authConfig.access_token)
+    const returnCode = await deleteFolder(
+      folderPath,
+      sasjs,
+      authConfig.access_token
+    )
       .then(() => {
         return ReturnCode.Success
       })
-      .catch((err) => {
-        process.logger?.error('Error listing folder: ', err)
+      .catch(() => {
         return ReturnCode.InternalError
       })
 

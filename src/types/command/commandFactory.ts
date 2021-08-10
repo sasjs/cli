@@ -20,6 +20,8 @@ import { TestCommand } from '../../commands/testing/testCommand'
 import { ListFolderCommand } from '../../commands/folder/listFolderCommand'
 import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
+import { CreateFolderCommand } from '../../commands/folder/createFolderCommand'
+import { DeleteFolderCommand } from '../../commands/folder/deleteFolderCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -46,6 +48,8 @@ export const commandFactory = new Map<string, Function>([
   ['doc', (args: string[]) => new GenerateDocsCommand(args)],
   ['doc init', (args: string[]) => new InitDocsCommand(args)],
   ['doc lineage', (args: string[]) => new GenerateDotCommand(args)],
+  ['folder create', (args: string[]) => new CreateFolderCommand(args)],
+  ['folder delete', (args: string[]) => new DeleteFolderCommand(args)],
   ['folder list', (args: string[]) => new ListFolderCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['version', (args: string[]) => new VersionCommand(args)],

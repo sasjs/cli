@@ -4,18 +4,26 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
-import { list } from './list'
+import { create } from './create'
 
 const syntax = 'folder <subCommand> <folderPath>'
-const usage = 'sasjs folder list <folderPath> --target <target-name>'
+const usage = 'sasjs folder create <folderPath> --target <target-name>'
 const example: CommandExample = {
-  command: 'sasjs folder list /Public/app -t myTarget',
+  command: 'sasjs folder create /Public/app/myFolder -t myTarget',
   description: 'Lists the first level children folders of the given folder.'
 }
 
-export class ListFolderCommand extends TargetCommand {
+export class CreateFolderCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
+      parseOptions: {
+        force: {
+          type: 'boolean',
+          default: false,
+          description:
+            'Forces a delete and re-create if the folder already exists.'
+        }
+      },
       usage,
       example,
       syntax
@@ -26,7 +34,7 @@ export class ListFolderCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     if (target.serverType !== ServerType.SasViya) {
       process.logger?.error(
-        `'folder list' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
+        `'folder create' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
       )
       return ReturnCode.InternalError
     }
@@ -40,7 +48,7 @@ export class ListFolderCommand extends TargetCommand {
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
-        'Unable to list folder. Error fetching auth config: ',
+        'Unable to create folder. Error fetching auth config: ',
         err
       )
       return null
@@ -54,12 +62,17 @@ export class ListFolderCommand extends TargetCommand {
       this.parsed.folderPath as string
     )
 
-    const returnCode = await list(folderPath, sasjs, authConfig.access_token)
+    const returnCode = await create(
+      folderPath,
+      sasjs,
+      authConfig.access_token,
+      !!this.parsed.force
+    )
       .then(() => {
         return ReturnCode.Success
       })
       .catch((err) => {
-        process.logger?.error('Error listing folder: ', err)
+        process.logger?.error('Error creating folder: ', err)
         return ReturnCode.InternalError
       })
 
