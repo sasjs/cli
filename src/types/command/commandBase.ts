@@ -60,12 +60,12 @@ export class CommandBase implements Command {
       .help(false)
       .version(false)
       .options(parseOptions!)
-      .command([syntax!, ...aliases!], description!, (y) =>
+      .command([syntax!, ...aliases!], description!, (y: yargs.Argv) =>
         y.example(
-          examples?.map((example) => [
-            example.command as string as string,
-            example.description as any as string
-          ]) ?? []
+          examples!.map((example: CommandExample) => [
+            example.command,
+            example.description
+          ])
         )
       )
       .usage(usage!)
