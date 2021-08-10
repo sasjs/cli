@@ -1,7 +1,5 @@
 import path from 'path'
 import { graphviz } from 'node-graphviz'
-import { doc } from '../../../main'
-import { Command } from '../../../utils/command'
 import {
   createTestApp,
   removeTestApp,
@@ -15,6 +13,9 @@ import {
   JobConfig,
   generateTimestamp
 } from '@sasjs/utils'
+import { generateDot } from '../generateDot'
+import { findTargetInConfiguration } from '../../../utils'
+import { TargetScope } from '../../../types'
 
 describe('sasjs doc lineage', () => {
   let appName: string
@@ -39,7 +40,14 @@ describe('sasjs doc lineage', () => {
         defaultTarget: 'viya'
       })
 
-      await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        undefined as any as string,
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
     },
@@ -59,7 +67,14 @@ describe('sasjs doc lineage', () => {
 
       await createTestApp(__dirname, appName)
 
-      await expect(doc(new Command(`doc lineage -t sas9`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'sas9',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
     },
@@ -77,11 +92,13 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(
-        doc(
-          new Command(`doc lineage -t viya --outDirectory ${docOutputProvided}`)
-        )
-      ).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+      await expect(generateDot(target, docOutputProvided)).resolves.toEqual({
+        outDirectory: docOutputProvided
+      })
 
       await verifyDotFiles(docOutputProvided)
     },
@@ -105,7 +122,14 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputProvided })
 
       await verifyDotFiles(docOutputProvided)
     },
@@ -128,7 +152,14 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
     },
@@ -158,7 +189,14 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
       await verifyCustomDotFiles(docOutputDefault)
@@ -189,7 +227,14 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
     },
@@ -219,7 +264,14 @@ describe('sasjs doc lineage', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDot(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDotFiles(docOutputDefault)
     },

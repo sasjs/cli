@@ -29,7 +29,7 @@ export async function getDocConfig(
     : serverUrl
 
   const enableLineage: boolean =
-    target.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
+    target?.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
 
   const doxyContent = {
     ...config?.docConfig?.doxyContent,

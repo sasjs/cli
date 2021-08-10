@@ -29,7 +29,10 @@ import { getAbsolutePath } from '../../utils/utils'
  * @param {Target} target- the name of the target to be specific for docs.
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDocs(target: Target, outDirectory: string) {
+export async function generateDocs(
+  target: Target,
+  outDirectory: string
+): Promise<{ outDirectory: string }> {
   const config = await getLocalConfig()
   const {
     serverUrl,

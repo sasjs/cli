@@ -1,10 +1,7 @@
 import path from 'path'
-import { doc } from '../../../main'
-import { Command } from '../../../utils/command'
 import {
   createTestApp,
   removeTestApp,
-  removeAllTargetsFromConfigs,
   updateConfig,
   updateTarget,
   verifyDocs,
@@ -17,8 +14,12 @@ import {
   deleteFolder,
   deleteFile,
   DocConfig,
-  generateTimestamp
+  generateTimestamp,
+  Target
 } from '@sasjs/utils'
+import { generateDocs } from '../generateDocs'
+import { findTargetInConfiguration } from '../../../utils'
+import { TargetScope } from '../../../types'
 
 describe('sasjs doc', () => {
   let appName: string
@@ -43,7 +44,14 @@ describe('sasjs doc', () => {
         defaultTarget: 'viya'
       })
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        undefined as any as string,
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
     },
@@ -82,7 +90,14 @@ describe('sasjs doc', () => {
         }
       })
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        undefined as any as string,
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
     },
@@ -121,7 +136,14 @@ describe('sasjs doc', () => {
         }
       })
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        undefined as any as string,
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
     },
@@ -145,7 +167,14 @@ describe('sasjs doc', () => {
         defaultTarget: 'viya'
       })
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        undefined as any as string,
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya', false)
     },
@@ -165,7 +194,14 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
 
-      await expect(doc(new Command(`doc -t sas9`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'sas9',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'sas9')
     },
@@ -183,9 +219,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(
-        doc(new Command(`doc -t viya --outDirectory ${docOutputProvided}`))
-      ).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(generateDocs(target, docOutputProvided)).resolves.toEqual({
+        outDirectory: docOutputProvided
+      })
 
       await verifyDocs(docOutputProvided, 'viya')
     },
@@ -211,7 +252,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya', false)
     },
@@ -232,7 +280,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputProvided })
 
       await verifyDocs(docOutputProvided, 'viya')
     },
@@ -255,7 +310,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
     },
@@ -271,7 +333,16 @@ describe('sasjs doc', () => {
 
       await deleteFile(path.join(__dirname, appName, 'sasjs/doxy/Doxyfile'))
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(2)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).rejects.toEqual(
+        expect.stringMatching(/^Doxygen Configuration File is not found!/)
+      )
     },
     60 * 1000
   )
@@ -289,9 +360,9 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
 
-      await removeAllTargetsFromConfigs()
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(
+        generateDocs(undefined as any as Target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'no-target')
     },
@@ -319,7 +390,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputProvided })
 
       await verifyDocs(docOutputProvided, 'viya', false)
       await verifyDotFilesNotGenerated(docOutputProvided)
@@ -349,7 +427,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputProvided })
 
       await verifyDocs(docOutputProvided, 'viya', false)
       await verifyDotFilesNotGenerated(docOutputProvided)
@@ -374,7 +459,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
       await verifyDotFiles(docOutputDefault)
@@ -399,7 +491,14 @@ describe('sasjs doc', () => {
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
+      const { target } = await findTargetInConfiguration(
+        'viya',
+        TargetScope.Local
+      )
+
+      await expect(
+        generateDocs(target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'viya')
       await verifyDotFiles(docOutputDefault)
@@ -421,11 +520,12 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
       await updateConfig({ docConfig: null as unknown as DocConfig })
-      await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(
+        generateDocs(undefined as any as Target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'no-target')
       await verifyDotFiles(docOutputDefault)
@@ -434,7 +534,7 @@ describe('sasjs doc', () => {
   )
 
   it(
-    `should generate docs having empty docConfig at root level and not targets`,
+    `should generate docs having empty docConfig at root level and no targets`,
     async () => {
       appName = `test-app-doc-${generateTimestamp()}`
 
@@ -447,11 +547,12 @@ describe('sasjs doc', () => {
 
       await createTestApp(__dirname, appName)
       await updateConfig({ docConfig: {} })
-      await removeAllTargetsFromConfigs()
 
       await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+      await expect(
+        generateDocs(undefined as any as Target, undefined as any as string)
+      ).resolves.toEqual({ outDirectory: docOutputDefault })
 
       await verifyDocs(docOutputDefault, 'no-target')
       await verifyDotFiles(docOutputDefault)

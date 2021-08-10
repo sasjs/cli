@@ -12,7 +12,10 @@ import { Target } from '@sasjs/utils'
  * @param {string} target- the target for dot files.
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDot(target: Target, outDirectory: string) {
+export async function generateDot(
+  target: Target,
+  outDirectory: string
+): Promise<{ outDirectory: string }> {
   const config = await getLocalConfig()
 
   const { serverUrl, newOutDirectory } = await getDocConfig(
