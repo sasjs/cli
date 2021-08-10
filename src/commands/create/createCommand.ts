@@ -5,11 +5,14 @@ import { CommandBase } from '../../types'
 
 const syntax = 'create [folderName]'
 const usage = 'sasjs create [folder-name] [options]'
-const example: CommandExample = {
-  command: 'sasjs create my-app --template react',
-  description:
-    'Create a SASjs app in the specified folder. You can also specify a template to scaffold your app with.'
-}
+const description =
+  'Create a SASjs app in the specified folder. You can also specify a template to scaffold your app with.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs create my-app --template react',
+    description: ''
+  }
+]
 
 export class CreateCommand extends CommandBase {
   constructor(args: string[]) {
@@ -29,7 +32,8 @@ export class CreateCommand extends CommandBase {
       parseOptions,
       syntax,
       usage,
-      example
+      description,
+      examples
     })
   }
 

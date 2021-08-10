@@ -6,15 +6,22 @@ import { compile } from './compile'
 const syntax = 'compile'
 const aliases = ['c']
 const usage = 'Usage: sasjs compile [options]'
-const example: CommandExample = {
-  command: 'sasjs compile -t myTarget | sasjs c -t myTarget',
-  description:
-    'Compiles all jobs and services in the project by inlining all dependencies and adds init and term programs as configured in the specified target.'
-}
+const description =
+  'Compiles all jobs and services in the project by inlining all dependencies and adds init and term programs as configured in the specified target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs compile -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs c -t myTarget',
+    description: ''
+  }
+]
 
 export class CompileCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example, aliases })
+    super(args, { syntax, usage, description, examples, aliases })
   }
 
   public async execute() {

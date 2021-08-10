@@ -5,11 +5,14 @@ import { CommandBase } from '../../types'
 const syntax = 'db'
 const aliases = ['build-DB', 'build-db']
 const usage = 'sasjs db'
-const example: CommandExample = {
-  command: 'sasjs db',
-  description:
-    'Concatenates the DDL and SAS files within the `sasjs/db` directory.'
-}
+const description =
+  'Concatenates the DDL and SAS files within the `sasjs/db` directory.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs db',
+    description: ''
+  }
+]
 
 export class DbCommand extends CommandBase {
   constructor(args: string[]) {
@@ -17,7 +20,8 @@ export class DbCommand extends CommandBase {
       syntax,
       aliases,
       usage,
-      example
+      description,
+      examples
     })
   }
 

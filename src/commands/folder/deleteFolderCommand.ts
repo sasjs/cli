@@ -8,16 +8,20 @@ import { deleteFolder } from './delete'
 
 const syntax = 'folder <subCommand> <folderPath>'
 const usage = 'sasjs folder delete <folderPath> --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs folder delete /Public/app/myFolder -t myTarget',
-  description: 'Deletes the given folder from the server.'
-}
+const description = 'Deletes the given folder from the server.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs folder delete /Public/app/myFolder -t myTarget',
+    description: ''
+  }
+]
 
 export class DeleteFolderCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

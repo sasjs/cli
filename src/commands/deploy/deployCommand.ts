@@ -5,14 +5,22 @@ import { deploy } from './deploy'
 const syntax = 'deploy'
 const aliases = ['d']
 const usage = 'sasjs deploy [options]'
-const example: CommandExample = {
-  command: 'sasjs deploy -t myTarget | sasjs d -t myTarget',
-  description: 'Deploys a built project to the server specified in the target.'
-}
+const description =
+  'Deploys a built project to the server specified in the target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs deploy -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs d -t myTarget',
+    description: ''
+  }
+]
 
 export class DeployCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example, aliases })
+    super(args, { syntax, usage, description, examples, aliases })
   }
 
   public async execute() {

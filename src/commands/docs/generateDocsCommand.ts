@@ -5,10 +5,14 @@ import { generateDocs } from './generateDocs'
 const syntax = 'doc'
 const aliases = ['docs']
 const usage = 'sasjs doc'
-const example: CommandExample = {
-  command: 'sasjs doc',
-  description: 'Generates documentation for the current project using Doxygen.'
-}
+const description =
+  'Generates documentation for the current project using Doxygen.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs doc',
+    description: ''
+  }
+]
 
 export class GenerateDocsCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -22,7 +26,8 @@ export class GenerateDocsCommand extends TargetCommand {
         }
       },
       usage,
-      example,
+      description,
+      examples,
       syntax,
       aliases
     })

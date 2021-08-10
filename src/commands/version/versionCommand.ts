@@ -6,14 +6,17 @@ import { printVersion } from './version'
 const syntax = 'version'
 const aliases = ['v', '-v', '--v']
 const usage = 'Usage: sasjs version'
-const example: CommandExample = {
-  command: 'sasjs version | sasjs v | sasjs --version | sasjs -v',
-  description: 'displays currently installed version.'
-}
+const description = 'displays currently installed version.'
+const examples: CommandExample[] = [
+  { command: 'sasjs version', description },
+  { command: 'sasjs v', description },
+  { command: 'sasjs --version', description },
+  { command: 'sasjs -v', description }
+]
 
 export class VersionCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example, aliases })
+    super(args, { syntax, usage, description, examples, aliases })
   }
 
   public async execute() {

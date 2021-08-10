@@ -8,10 +8,14 @@ import { create } from './create'
 
 const syntax = 'folder <subCommand> <folderPath>'
 const usage = 'sasjs folder create <folderPath> --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs folder create /Public/app/myFolder -t myTarget',
-  description: 'Lists the first level children folders of the given folder.'
-}
+const description =
+  'Lists the first level children folders of the given folder.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs folder create /Public/app/myFolder -t myTarget',
+    description: ''
+  }
+]
 
 export class CreateFolderCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -25,7 +29,8 @@ export class CreateFolderCommand extends TargetCommand {
         }
       },
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

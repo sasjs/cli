@@ -6,15 +6,22 @@ import { createWebAppServices } from './web'
 const syntax = 'web'
 const aliases = ['w']
 const usage = 'Usage: sasjs web [options]'
-const example: CommandExample = {
-  command: 'sasjs web -t myTarget | sasjs w -t myTarget',
-  description:
-    'compiles the web app service and place at webSourcePath specified in target.'
-}
+const description =
+  'compiles the web app service and place at webSourcePath specified in target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs web -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs w -t myTarget',
+    description: ''
+  }
+]
 
 export class WebCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example, aliases })
+    super(args, { syntax, usage, description, examples, aliases })
   }
 
   public async execute() {

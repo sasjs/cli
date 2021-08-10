@@ -6,15 +6,22 @@ import { build } from './build'
 const syntax = 'build'
 const aliases = ['b']
 const usage = 'sasjs build [options]'
-const example: CommandExample = {
-  command: 'sasjs build -t myTarget | sasjs b -t myTarget',
-  description:
-    'Collates all the compiled jobs and services in the project into a single .sas file and a .json file for deployment. Uses configuration from the specified target.'
-}
+const description =
+  'Collates all the compiled jobs and services in the project into a single .sas file and a .json file for deployment. Uses configuration from the specified target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs build -t myTarget',
+    description: ''
+  },
+  {
+    command: 'sasjs b -t myTarget',
+    description: ''
+  }
+]
 
 export class BuildCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example, aliases })
+    super(args, { syntax, usage, description, examples, aliases })
   }
 
   public async execute() {

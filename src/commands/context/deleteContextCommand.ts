@@ -6,17 +6,21 @@ import { deleteContext } from './delete'
 
 const syntax = 'context <subCommand> <contextName>'
 const usage = 'sasjs context delete <context-name> --target <target-name>'
-const example: CommandExample = {
-  command: 'sasjs context delete myContext -t myTarget',
-  description:
-    'Deletes the specified context from the server specified in the target.'
-}
+const description =
+  'Deletes the specified context from the server specified in the target.'
+const examples: CommandExample[] = [
+  {
+    command: 'sasjs context delete myContext -t myTarget',
+    description: ''
+  }
+]
 
 export class DeleteContextCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       usage,
-      example,
+      description,
+      examples,
       syntax
     })
   }

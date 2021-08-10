@@ -6,12 +6,19 @@ import { runTest } from './test'
 const syntax = 'test [options]'
 const usage =
   'Usage: sasjs test --filteringString <filtering-strings> --source <test-flow-path> --outDirectory <folder-path> --target <target-name>'
-const example: CommandExample = {
-  command:
-    '- sasjs test --filteringString jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>\n' +
-    '- sasjs test --fs jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
-  description: 'Triggers SAS unit tests.'
-}
+const description = 'Triggers SAS unit tests.'
+const examples: CommandExample[] = [
+  {
+    command:
+      'sasjs test --filteringString jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>',
+    description: ''
+  },
+  {
+    command:
+      'sasjs test --fs jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
+    description: ''
+  }
+]
 
 export class TestCommand extends TargetCommand {
   constructor(args: string[]) {
@@ -35,7 +42,8 @@ export class TestCommand extends TargetCommand {
       },
       syntax,
       usage,
-      example
+      description,
+      examples
     })
   }
 

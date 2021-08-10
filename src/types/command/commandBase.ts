@@ -26,7 +26,8 @@ export interface CommandOptions {
   syntax?: string
   aliases?: string[]
   usage?: string
-  example?: CommandExample
+  description?: string
+  examples?: CommandExample[]
   strict?: boolean
 }
 
@@ -35,7 +36,8 @@ export const defaultCommandOptions: CommandOptions = {
   syntax: '*',
   aliases: [],
   usage: '',
-  example: { command: '', description: '' },
+  description: '',
+  examples: [],
   strict: true
 }
 
@@ -44,16 +46,29 @@ export class CommandBase implements Command {
 
   constructor(args: string[], options: CommandOptions = defaultCommandOptions) {
     const commandOptions = { ...defaultCommandOptions, ...options }
-    const { parseOptions, syntax, aliases, usage, example, strict } =
-      commandOptions
+    const {
+      parseOptions,
+      syntax,
+      aliases,
+      usage,
+      description,
+      examples,
+      strict
+    } = commandOptions
 
     this.parsed = yargs(args.slice(2))
       .help(false)
       .version(false)
       .options(parseOptions!)
-      .command([syntax!, ...aliases!], example!.description)
+      .command([syntax!, ...aliases!], description!, (y) =>
+        y.example(
+          examples?.map((example) => [
+            example.command as string as string,
+            example.description as any as string
+          ]) ?? []
+        )
+      )
       .usage(usage!)
-      .example(example!.command, example!.description)
       .strict(strict!).argv
   }
 
