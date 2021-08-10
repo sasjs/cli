@@ -3,24 +3,53 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
 import { runTest } from './test'
 
-const syntax = 'test'
-const usage = 'Usage: sasjs test [options]'
+const syntax = 'test [options]'
+const usage =
+  'Usage: sasjs test --filteringString <filtering-strings> --source <test-flow-path> --outDirectory <folder-path> --target <target-name>'
 const example: CommandExample = {
-  command: 'sasjs test -t myTarget | sasjs c -t myTarget',
-  description:
-    'tests all jobs and services in the project by inlining all dependencies and adds init and term programs as configured in the specified target.'
+  command:
+    '- sasjs test --filteringString jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>\n' +
+    '- sasjs test --fs jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
+  description: 'Triggers SAS unit tests.'
 }
 
 export class TestCommand extends TargetCommand {
   constructor(args: string[]) {
-    super(args, { syntax, usage, example })
+    super(args, {
+      parseOptions: {
+        filteringString: {
+          type: 'array',
+          alias: 'fs',
+          description: 'Patterns to filter tests.'
+        },
+        outDirectory: {
+          type: 'string',
+          alias: 'out',
+          description: 'Path to output folder for tests resuls.'
+        },
+        source: {
+          type: 'string',
+          alias: 's',
+          description: 'Test flow located at source will be executed.'
+        }
+      },
+      syntax,
+      usage,
+      example
+    })
   }
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-    const { buildDestinationFolder } = process.sasjsConstants
 
-    return await runTest(target)
+    const { filteringString, outDirectory, source } = this.parsed
+
+    return await runTest(
+      target,
+      filteringString as string[],
+      outDirectory as string,
+      source as string
+    )
       .then(() => {
         return ReturnCode.Success
       })

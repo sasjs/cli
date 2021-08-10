@@ -337,13 +337,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       path.join(__dirname, target.name, movedTestFlow)
     )
 
-    await runTest(target, [
-      'jobs/standalone',
-      'shouldFail',
-      'services/admin/dostuff.test.0',
+    await runTest(
+      target,
+      ['jobs/standalone', 'shouldFail', 'services/admin/dostuff.test.0'],
       outputFolder,
       movedTestFlow
-    ])
+    )
 
     const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
     const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
