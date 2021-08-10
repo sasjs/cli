@@ -3,16 +3,10 @@ import { CommandExample } from './commandExample'
 import { ReturnCode } from './returnCode'
 import { unalias } from './unalias'
 
-const commandsWithSubCommands = [
-  'job',
-  'flow',
-  'context',
-  'folder',
-  'add',
-  'compile',
-  'doc',
-  'folder'
-]
+const commandMap = new Map<string, string[]>([
+  ['compile', ['job', 'service', 'identify']],
+  ['context', ['list', 'create', 'edit', 'delete']]
+])
 
 interface Command {
   name: string
@@ -56,18 +50,34 @@ export class CommandBase implements Command {
       strict
     } = commandOptions
 
+    const command = unalias(syntax!.split(' ')[0])
+
+    let builder = (y: yargs.Argv) =>
+      y.example(
+        examples!.map((example: CommandExample) => [
+          example.command,
+          example.description
+        ])
+      )
+    if ([...commandMap.keys()].includes(command)) {
+      builder = (y: yargs.Argv) =>
+        y
+          .example(
+            examples!.map((example: CommandExample) => [
+              example.command,
+              example.description
+            ])
+          )
+          .positional('subCommand', {
+            choices: commandMap.get(command)
+          })
+    }
+
     this.parsed = yargs(args.slice(2))
       .help(false)
       .version(false)
       .options(parseOptions!)
-      .command([syntax!, ...aliases!], description!, (y: yargs.Argv) =>
-        y.example(
-          examples!.map((example: CommandExample) => [
-            example.command,
-            example.description
-          ])
-        )
-      )
+      .command([syntax!, ...aliases!], description!, builder)
       .usage(usage!)
       .strict(strict!).argv
   }
@@ -86,7 +96,7 @@ export class CommandBase implements Command {
     }
     if (
       this.parsed._.length > 1 &&
-      commandsWithSubCommands.includes(unalias(this.name))
+      [...commandMap.keys()].includes(unalias(this.name))
     ) {
       return `${this.parsed._[1]}`
     }
@@ -101,7 +111,7 @@ export class CommandBase implements Command {
       return `${this.parsed._[2]}`
     } else if (
       this.parsed._.length > 1 &&
-      !commandsWithSubCommands.includes(unalias(this.name))
+      ![...commandMap.keys()].includes(unalias(this.name))
     ) {
       return `${this.parsed._[1]}`
     }

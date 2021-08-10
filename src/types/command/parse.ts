@@ -5,11 +5,8 @@ import { unalias } from './unalias'
 
 export const parse = (args: string[]): CommandBase => {
   const baseCommand = getBaseCommand(args)
-  const key = `${unalias(baseCommand.name)}${
-    baseCommand.subCommand ? ' ' + baseCommand.subCommand : ''
-  }`
 
-  if (!Array.from(commandFactory.keys()).includes(key)) {
+  if (!Array.from(commandFactory.keys()).includes(baseCommand.name)) {
     process.logger?.error(
       'Invalid SASjs command! Run `sasjs help` for a full list of available commands.'
     )
@@ -17,5 +14,5 @@ export const parse = (args: string[]): CommandBase => {
     process.exit(1)
   }
 
-  return commandFactory.get(key)!(args)
+  return commandFactory.get(baseCommand.name)!(args)
 }

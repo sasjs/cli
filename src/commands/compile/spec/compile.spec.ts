@@ -21,13 +21,12 @@ import {
   updateConfig,
   updateTarget
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
 import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
-import { CompileSingleFileCommand } from '../compileSingleFileCommand'
 import { setConstants } from '../../../utils'
+import { CompileCommand } from '../compileCommand'
 
 describe('sasjs compile', () => {
   let sharedAppName: string
@@ -149,7 +148,7 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file', async () => {
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -165,7 +164,7 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file with absolute path', async () => {
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -190,7 +189,7 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file', async () => {
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -205,7 +204,7 @@ describe('sasjs compile single file', () => {
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
     })
     it('should compile single file with absolute path', async () => {
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -288,7 +287,7 @@ describe('sasjs compile outside project', () => {
 
       parentOutputFolder = buildOutputFolder
 
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -344,7 +343,7 @@ describe('sasjs compile outside project', () => {
         false
       )
 
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -387,7 +386,7 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -430,7 +429,7 @@ describe('sasjs compile outside project', () => {
       )
       await setConstants()
 
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -485,7 +484,7 @@ describe('sasjs compile outside project', () => {
       )
       await setConstants()
 
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
@@ -536,7 +535,7 @@ describe('sasjs compile outside project', () => {
 
     it('should fail to compile single file', async () => {
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
-      const command = new CompileSingleFileCommand([
+      const command = new CompileCommand([
         'node',
         'sasjs',
         'compile',
