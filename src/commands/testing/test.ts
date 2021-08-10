@@ -1,10 +1,9 @@
-import { getConstants } from '../../constants'
 import {
   saveLog,
   saveResultJson,
   saveResultCsv,
   saveResultXml
-} from './saveOutput'
+} from './internal/saveOutput'
 import {
   TestFlow,
   TestResults,
@@ -12,8 +11,7 @@ import {
   TestDescription
 } from '../../types'
 import { sasFileRegExp } from '../../utils/file'
-import { Command } from '../../utils/command'
-import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
+import { getAuthConfig } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import {
   ServerType,
@@ -21,23 +19,22 @@ import {
   asyncForEach,
   readFile,
   AuthConfig,
-  decodeFromBase64
+  decodeFromBase64,
+  Target
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
 import { displaySasjsRunnerError } from '../../utils/utils'
 
-export async function runTest(command: Command) {
-  const targetName = command.getFlagValue('target') as string
-  const testRegExps = command.values
-
-  let outDirectory = command.getFlagValue('outDirectory') as string
-
+export async function runTest(
+  target: Target,
+  testRegExps: string[] = [],
+  outDirectory?: string,
+  flowSourcePath?: string
+) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
-  else outDirectory = (await getConstants()).buildDestinationResultsFolder
-
-  const { target } = await findTargetInConfiguration(targetName)
+  else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
 
   if (!target) {
     return Promise.reject(
@@ -45,14 +42,9 @@ export async function runTest(command: Command) {
     )
   }
 
-  let flowSourcePath = command.getFlagValue('source') as string
-
   flowSourcePath = flowSourcePath
     ? path.join(process.currentDir, flowSourcePath)
-    : (flowSourcePath = path.join(
-        (await getConstants()).buildDestinationFolder,
-        'testFlow.json'
-      ))
+    : path.join(process.sasjsConstants.buildDestinationFolder, 'testFlow.json')
 
   const testFlowData = await readFile(flowSourcePath).catch((_) => {
     return Promise.reject(`Test flow file was not found at ${flowSourcePath}`)
@@ -113,7 +105,7 @@ export async function runTest(command: Command) {
       password = process.env.SAS_PASSWORD as string
     }
     if (!username || !password) {
-      const { sas9CredentialsError } = await getConstants()
+      const { sas9CredentialsError } = process.sasjsConstants
       throw new Error(sas9CredentialsError)
     }
 
@@ -224,7 +216,7 @@ export async function runTest(command: Command) {
 
         printTestUrl()
 
-        if (res.log) await saveLog(outDirectory, test, res.log, lineBreak)
+        if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
         if (res.result?.test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
@@ -274,7 +266,7 @@ export async function runTest(command: Command) {
         }
 
         if (err?.error?.details?.result) {
-          await saveLog(outDirectory, test, err.error.details.result)
+          await saveLog(outDirectory!, test, err.error.details.result)
         }
       })
   })

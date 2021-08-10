@@ -27,6 +27,7 @@ import { compileSingleFile } from '../compileSingleFile'
 import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
 import { CompileSingleFileCommand } from '../compileSingleFileCommand'
+import { setConstants } from '../../../utils'
 
 describe('sasjs compile', () => {
   let sharedAppName: string
@@ -253,6 +254,8 @@ describe('sasjs compile outside project', () => {
         false
       )
       process.projectDir = ''
+      await setConstants()
+
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
@@ -425,6 +428,7 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
 
       const command = new CompileSingleFileCommand([
         'node',
@@ -479,6 +483,8 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
+
       const command = new CompileSingleFileCommand([
         'node',
         'sasjs',
@@ -518,6 +524,8 @@ describe('sasjs compile outside project', () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
+      await setConstants()
+
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })

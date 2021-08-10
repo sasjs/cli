@@ -10,6 +10,7 @@ import {
 import { initFiles } from './initFiles'
 import { create } from '../../create/create'
 import { init } from '../init'
+import { setConstants } from '../../../utils'
 
 describe('sasjs init', () => {
   beforeAll(() => {
@@ -24,6 +25,7 @@ describe('sasjs init', () => {
     const appName = `test-app-init-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -38,6 +40,7 @@ describe('sasjs init', () => {
     const appName = `test-app-init-sasonly-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -51,6 +54,7 @@ describe('sasjs init', () => {
     const appName = `test-app-init-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 

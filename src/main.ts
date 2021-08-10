@@ -26,7 +26,7 @@ import {
 } from './commands'
 import { displayError, displaySuccess } from './utils/displayResult'
 import { Command } from './utils/command'
-import { getConstants } from './constants'
+
 import { findTargetInConfiguration } from './utils/config'
 import { Target } from '@sasjs/utils/types'
 import { lintFix } from './commands/lint/processLint'
@@ -256,7 +256,7 @@ export async function compileBuildDeployServices(command: Command) {
 export async function buildDBs() {
   return await buildDB()
     .then(async () => {
-      const { buildDestinationDbFolder } = await getConstants()
+      const { buildDestinationDbFolder } = process.sasjsConstants
       displaySuccess(
         `DBs been successfully built!\nThe build output is located in the ${buildDestinationDbFolder} directory.`
       )
@@ -285,7 +285,7 @@ export async function buildWebApp(command: Command) {
 
   return await createWebAppServices(target)
     .then(async () => {
-      const { buildDestinationFolder } = await getConstants()
+      const { buildDestinationFolder } = process.sasjsConstants
       displaySuccess(
         `Web app services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )
@@ -524,13 +524,12 @@ export async function lint(command: Command) {
 }
 
 export async function test(command: Command) {
-  return await runTest(command)
-    .then((_) => ReturnCode.Success)
-    .catch((err) => {
-      displayError(err, 'An error has occurred when running tests.')
-
-      return ReturnCode.InternalError
-    })
+  // return await runTest(command)
+  //   .then((_) => ReturnCode.Success)
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when running tests.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 async function executeSingleFileCompile(
@@ -568,7 +567,7 @@ async function executeCompile(target: Target) {
 async function executeBuild(target: Target) {
   return await build(target)
     .then(async () => {
-      const { buildDestinationFolder } = await getConstants()
+      const { buildDestinationFolder } = process.sasjsConstants
       displaySuccess(
         `Services have been successfully built!\nThe build output is located in the ${buildDestinationFolder} directory.`
       )

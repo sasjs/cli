@@ -1,6 +1,5 @@
 import { Target, Configuration } from '@sasjs/utils/types'
 import { findTargetInConfiguration } from '../../../utils/config'
-import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types/targetScope'
 
 /**
@@ -14,7 +13,7 @@ export async function getDocConfig(
   target: Target,
   outDirectory: string
 ) {
-  const { buildDestinationDocsFolder } = await getConstants()
+  const { buildDestinationDocsFolder } = process.sasjsConstants
 
   if (!outDirectory) {
     outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
@@ -30,7 +29,7 @@ export async function getDocConfig(
     : serverUrl
 
   const enableLineage: boolean =
-    target.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
+    target?.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
 
   const doxyContent = {
     ...config?.docConfig?.doxyContent,

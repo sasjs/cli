@@ -1,10 +1,9 @@
 import { ServerType, Target } from '@sasjs/utils'
 import path from 'path'
-import { getConstants } from '../../../constants'
 import { getConfiguration } from '../../../utils/config'
 
 export async function getDeployScripts(target: Target) {
-  const { buildSourceFolder, buildDestinationFolder } = await getConstants()
+  const { buildSourceFolder, buildDestinationFolder } = process.sasjsConstants
   const configuration = await getConfiguration(
     path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   )

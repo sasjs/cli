@@ -8,7 +8,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
 
 describe('sasjs servicepack', () => {
   let config: TargetJson
@@ -19,13 +19,14 @@ describe('sasjs servicepack', () => {
 
     const serverType = ServerType.SasViya
 
+    await setConstants()
     config = {
       name: targetName,
       serverType: serverType,
       serverUrl: process.env.VIYA_SERVER_URL as string,
       allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
-      contextName: (await getConstants()).contextName,
+      contextName: process.sasjsConstants.contextName,
       authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,

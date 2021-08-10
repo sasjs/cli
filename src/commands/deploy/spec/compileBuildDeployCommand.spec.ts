@@ -5,6 +5,7 @@ import { CompileBuildDeployCommand } from '../compileBuildDeployCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
+import { setConstants } from '../../../utils'
 
 describe('CompileBuildDeployCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -13,6 +14,10 @@ describe('CompileBuildDeployCommand', () => {
     appLoc: '/Public/test/',
     serverType: ServerType.SasViya,
     contextName: 'test context'
+  })
+
+  beforeAll(async () => {
+    await setConstants()
   })
 
   beforeEach(() => {

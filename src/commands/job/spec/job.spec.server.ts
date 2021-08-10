@@ -24,8 +24,8 @@ import {
   mockProcessExit,
   removeTestApp
 } from '../../../utils/test'
-import { getConstants } from '../../../constants'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
+import { setConstants } from '../../../utils'
 
 describe('sasjs job execute', () => {
   let target: Target
@@ -384,7 +384,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-job-${timestamp}`
-
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -392,7 +392,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

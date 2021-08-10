@@ -4,7 +4,6 @@ import { readFile } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { getConstants } from '../../constants'
 import { getAbsolutePath } from '../../utils/utils'
 
 export async function servicePackDeploy(
@@ -57,7 +56,7 @@ async function deployToSasViyaWithServicePack(
     serverType: buildTarget.serverType,
     useComputeApi: true
   })
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
   const finalFilePathJSON = path.join(
     buildDestinationFolder,

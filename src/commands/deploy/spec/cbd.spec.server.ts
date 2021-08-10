@@ -23,7 +23,7 @@ import {
   removeTestApp
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -241,6 +241,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -248,7 +249,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
       initProgram: 'sasjs/testServices/serviceinit.sas',
@@ -288,7 +289,7 @@ const createLocalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

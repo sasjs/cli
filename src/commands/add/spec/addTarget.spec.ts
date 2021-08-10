@@ -8,7 +8,6 @@ import {
   getGlobalRcFile,
   removeFromGlobalConfig
 } from '../../../utils/config'
-import { getConstants } from '../../../constants'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
 import {
@@ -126,7 +125,7 @@ describe('addTarget', () => {
   })
 
   it('should update a Viya target in the local sasjsconfig.json file', async () => {
-    const { buildSourceFolder } = await getConstants()
+    const { buildSourceFolder } = process.sasjsConstants
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
@@ -160,7 +159,7 @@ describe('addTarget', () => {
   })
 
   it('should update a SAS9 target in the local sasjsconfig.json file', async () => {
-    const { buildSourceFolder } = await getConstants()
+    const { buildSourceFolder } = process.sasjsConstants
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
@@ -226,7 +225,7 @@ describe('addTarget', () => {
 async function verifyTarget(commonFields: CommonFields, isLocal: boolean) {
   let config
   if (isLocal) {
-    const { buildSourceFolder } = await getConstants()
+    const { buildSourceFolder } = process.sasjsConstants
     config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )

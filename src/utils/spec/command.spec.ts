@@ -4,10 +4,6 @@ describe('parseCommandLine', () => {
   const defaultFlagNames = ['target']
   const defaultFlagValues = ['targetName']
 
-  afterEach(() => {
-    jest.resetAllMocks()
-  })
-
   describe('folder command', () => {
     const expectedName = 'folder'
     let expectedValues = ['create', '/Public/folder']

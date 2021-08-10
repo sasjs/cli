@@ -28,11 +28,13 @@ import {
   generateTestTarget,
   removeTestApp
 } from '../test'
+import { setConstants } from '../setConstants'
 jest.mock('@sasjs/adapter/node')
 
 describe('getAccessToken', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     process.projectDir = process.cwd()
+    await setConstants()
     dotenv.config()
     process.env.ACCESS_TOKEN = undefined
     process.env.CLIENT = undefined
@@ -69,6 +71,7 @@ describe('getAccessToken', () => {
       'ACCESS_TOKEN=T4RG3TT0K3N'
     )
     process.projectDir = __dirname
+    await setConstants()
 
     const token = await getAccessToken(target as Target, false)
 
@@ -261,6 +264,7 @@ describe('overrideEnvVariables', () => {
   it('should display a warning when the target env file is not found', async () => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
+    await setConstants()
     jest
       .spyOn(fileUtils, 'readFile')
       .mockImplementationOnce(() => Promise.reject())
@@ -278,6 +282,7 @@ describe('overrideEnvVariables', () => {
   it('should override env variables with values from the target-specific file', async () => {
     process.logger = new Logger(LogLevel.Off)
     process.projectDir = __dirname
+    await setConstants()
     jest
       .spyOn(fileUtils, 'readFile')
       .mockImplementationOnce(() => Promise.resolve('ACCESS_TOKEN=T4RG3TT0K3N'))
@@ -294,8 +299,9 @@ describe('overrideEnvVariables', () => {
 })
 
 describe('saveToGlobalConfig', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     process.projectDir = __dirname
+    await setConstants()
   })
 
   it('should set the target as default when isDefault is true', async () => {
@@ -332,8 +338,9 @@ describe('saveToGlobalConfig', () => {
 })
 
 describe('removeFromGlobalConfig', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     process.projectDir = __dirname
+    await setConstants()
   })
 
   it('should reset the default target when that target is removed', async () => {

@@ -6,7 +6,7 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import { Command } from '../../../utils/command'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
 
 describe('sasjs folder operations', () => {
   let target: Target
@@ -14,6 +14,7 @@ describe('sasjs folder operations', () => {
   beforeAll(async () => {
     target = await createGlobalTarget()
     process.projectDir = process.cwd()
+    await setConstants()
   })
 
   afterAll(async () => {
@@ -204,11 +205,12 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-folder-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serverType,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,

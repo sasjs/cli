@@ -1,5 +1,4 @@
 import SASjs from '@sasjs/adapter/node'
-import { getConstants } from '../constants'
 import {
   Configuration,
   Target,
@@ -431,7 +430,7 @@ export async function getProgramFolders(target: Target) {
     programFolders = programFolders.concat(target.programFolders)
   }
 
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   programFolders = programFolders.map((programFolder) =>
     getAbsolutePath(programFolder, buildSourceFolder)
   )
@@ -457,7 +456,7 @@ export async function getMacroFolders(target?: Target) {
     macroFolders = target.macroFolders.concat(macroFolders)
   }
 
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   macroFolders = macroFolders.map((macroFolder) =>
     getAbsolutePath(macroFolder, buildSourceFolder)
   )
@@ -481,7 +480,7 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
 }
 
 export async function getMacroCorePath() {
-  const { macroCorePath } = await getConstants()
+  const { macroCorePath } = process.sasjsConstants
   return macroCorePath
 }
 

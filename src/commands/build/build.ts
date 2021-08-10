@@ -17,7 +17,6 @@ import {
   getStreamConfig
 } from '../../utils/config'
 import { compile } from '../compile/compile'
-import { getConstants } from '../../constants'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
@@ -44,7 +43,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
 
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
@@ -184,7 +183,7 @@ function getWebServiceScriptInvocation(
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType) {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
   const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''

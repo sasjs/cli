@@ -1,4 +1,3 @@
-import { getConstants } from '../../constants'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
@@ -20,7 +19,7 @@ export class CompileCommand extends TargetCommand {
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-    const { buildDestinationFolder } = await getConstants()
+    const { buildDestinationFolder } = process.sasjsConstants
 
     return await compile(target, true)
       .then(() => {

@@ -8,6 +8,7 @@ import { reactAppFiles } from './reactAppFiles'
 import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
+import { setConstants } from '../../../utils'
 
 describe('sasjs create', () => {
   beforeAll(() => {
@@ -22,6 +23,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-.-${generateTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -34,6 +36,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-.-${generateTimestamp()}-sasonly`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -47,6 +50,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-.-${timestamp}-react`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -60,6 +64,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-.-${timestamp}-react`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -73,6 +78,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-${timestamp}-minimal`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -86,6 +92,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-${timestamp}-angular`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 
@@ -99,6 +106,7 @@ describe('sasjs create', () => {
     const appName = `test-app-create-${timestamp}-xyz`
 
     process.projectDir = path.join(__dirname, appName)
+    await setConstants()
 
     await createFolder(process.projectDir)
 

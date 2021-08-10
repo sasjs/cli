@@ -1,6 +1,5 @@
 import { TestFlow, Coverage, CoverageType, CoverageState } from '../../../types'
 import path from 'path'
-import { getConstants } from '../../../constants'
 import {
   createFile,
   copy,
@@ -117,7 +116,7 @@ export const isTestFile = (fileName: string) => testFileRegExp.test(fileName)
 
 export const compileTestFlow = async (target: Target) => {
   const { buildDestinationFolder, buildDestinationTestFolder } =
-    await getConstants()
+    process.sasjsConstants
 
   if (await folderExists(buildDestinationTestFolder)) {
     let testFiles = (

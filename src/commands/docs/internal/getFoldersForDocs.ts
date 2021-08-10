@@ -1,7 +1,6 @@
 import path from 'path'
 
 import { Target, Configuration } from '@sasjs/utils/types'
-import { getConstants } from '../../../constants'
 import { getAbsolutePath } from '../../../utils/utils'
 
 /**
@@ -29,7 +28,7 @@ export async function getFoldersForDocs(target: Target, config: Configuration) {
 }
 
 async function extractFoldersForDocs(config: Target | Configuration) {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
 
   const macroCoreFolders =
     config?.docConfig?.displayMacroCore === false

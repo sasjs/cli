@@ -1,6 +1,7 @@
 import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
+import { setConstants } from '../../../utils'
 import { execute } from '../execute'
 import { mockAuthConfig } from './mocks'
 
@@ -13,8 +14,8 @@ const target = new Target({
 })
 
 describe('execute', () => {
-  beforeEach(() => {
-    setupMocks()
+  beforeEach(async () => {
+    await setupMocks()
   })
 
   it('should set streamLog to true when the flag is passed in', async () => {
@@ -88,8 +89,9 @@ describe('execute', () => {
   })
 })
 
-const setupMocks = () => {
+const setupMocks = async () => {
   process.projectDir = process.cwd()
+  await setConstants()
   jest.restoreAllMocks()
   jest.mock('@sasjs/adapter')
 

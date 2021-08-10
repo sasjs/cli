@@ -30,7 +30,7 @@ export class CompileSingleFileCommand extends TargetCommand {
     return this.parsed.source as string
   }
 
-  public get output(): Promise<string> {
+  public get output(): string {
     const value = this.parsed.output as string
     let sourcefilePathParts = this.source.split(path.sep)
     sourcefilePathParts.splice(-1, 1)
@@ -38,16 +38,12 @@ export class CompileSingleFileCommand extends TargetCommand {
     const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
     return value
       ? path.isAbsolute(value)
-        ? Promise.resolve(
-            path.join(value, `${this.subCommand}s`, leafFolderName)
-          )
-        : Promise.resolve(
-            path.join(
-              process.currentDir!,
-              value,
-              `${this.subCommand}s`,
-              leafFolderName
-            )
+        ? path.join(value, `${this.subCommand}s`, leafFolderName)
+        : path.join(
+            process.currentDir!,
+            value,
+            `${this.subCommand}s`,
+            leafFolderName
           )
       : this.subCommand === 'job'
       ? getDestinationJobPath(sourceFolderPath)

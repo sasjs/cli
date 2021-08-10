@@ -3,6 +3,7 @@ import { BuildCommand } from '../buildCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
+import { setConstants } from '../../../utils'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
@@ -13,6 +14,9 @@ const target = new Target({
 })
 
 describe('BuildCommand', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
   beforeEach(() => {
     setupMocks()
   })

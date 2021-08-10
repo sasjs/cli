@@ -1,4 +1,3 @@
-import { getConstants } from '../../constants'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { compile } from '../compile/compile'
@@ -32,7 +31,7 @@ export class CompileBuildCommand extends TargetCommand {
       return returnCode
     }
 
-    const { buildDestinationFolder } = await getConstants()
+    const { buildDestinationFolder } = process.sasjsConstants
 
     process.logger?.success(
       `Services have been successfully compiled!\nThe compile output is located in the ${buildDestinationFolder} directory.`

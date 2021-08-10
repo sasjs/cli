@@ -20,7 +20,7 @@ import {
   updateConfig
 } from '../../../utils/test'
 import { build } from '../../build/build'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
 
 describe('sasjs run', () => {
   let target: Target
@@ -70,7 +70,7 @@ describe('sasjs run', () => {
 
     it('should throw an error if url response starts with angular bracket(<)', async () => {
       const url = 'https://github.com/sasjs/cli/issues/808'
-      const { invalidSasError } = await getConstants()
+      const { invalidSasError } = process.sasjsConstants
       const error = new Error('Error: ' + invalidSasError)
       await expect(
         runSasCode(new Command(`run -t ${target.name} ${url}`))
@@ -79,7 +79,7 @@ describe('sasjs run', () => {
 
     it('should throw an error when url response is not a string', async () => {
       const url = 'https://api.agify.io/?name=sabir'
-      const { invalidSasError } = await getConstants()
+      const { invalidSasError } = process.sasjsConstants
       const error = new Error('Error: ' + invalidSasError)
       await expect(
         runSasCode(new Command(`run -t ${target.name} ${url}`))
@@ -211,6 +211,7 @@ describe('sasjs run', () => {
         }
       )
       process.projectDir = ''
+      await setConstants()
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
@@ -283,6 +284,7 @@ describe('sasjs run', () => {
       const appName = `cli-tests-run-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
+      await setConstants()
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })

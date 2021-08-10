@@ -8,6 +8,7 @@ import {
 } from '../utils'
 import { createFile, deleteFile, fileExists, readFile } from '@sasjs/utils'
 import path from 'path'
+import { setConstants } from '..'
 
 describe('utils', () => {
   const folderPath = path.join('src', 'utils', 'spec')
@@ -72,6 +73,7 @@ describe('utils', () => {
   describe('inExistingProject', () => {
     it('should return true if package.json exists in folder', async () => {
       process.projectDir = process.cwd()
+      await setConstants()
 
       const packagePath = path.join(
         process.projectDir,
@@ -118,6 +120,9 @@ describe('utils', () => {
 
   describe('setupGitIgnore', () => {
     process.projectDir = process.cwd()
+    beforeAll(async () => {
+      await setConstants()
+    })
 
     const gitFilePath = path.join(process.projectDir, folderPath, '.gitignore')
 

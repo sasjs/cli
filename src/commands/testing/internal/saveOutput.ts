@@ -1,7 +1,7 @@
 import path from 'path'
 import { createFile, generateTimestamp } from '@sasjs/utils'
-import { sasFileRegExp } from '../../utils/file'
-import { displayError } from '../../utils/displayResult'
+import { sasFileRegExp } from '../../../utils/file'
+import { displayError } from '../../../utils/displayResult'
 import stringify from 'csv-stringify'
 import {
   TestDescription,
@@ -9,7 +9,7 @@ import {
   TestResultDescription,
   TestResults,
   TestResultStatus
-} from '../../types'
+} from '../../../types'
 import xml from 'xml'
 
 const resultFileName = 'testResults'
