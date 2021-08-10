@@ -10,7 +10,8 @@ const commandsWithSubCommands = [
   'folder',
   'add',
   'compile',
-  'doc'
+  'doc',
+  'folder'
 ]
 
 interface Command {

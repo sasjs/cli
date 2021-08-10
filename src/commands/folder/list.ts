@@ -18,16 +18,15 @@ export const list = async (
   const folderList = await sasjs
     .listFolder(sourceFolder, accessToken, 10000)
     .catch((err: any) => {
-      displayError(err)
+      throw err
     })
 
   if (folderList) {
-    // Join array with comma and then replace every comma with 3 spaces
-    const folderFormattedList = folderList.join(',').replace(/,/gim, '   ')
-    displaySuccess(folderFormattedList)
+    const folderFormattedList = folderList.join('   ')
+    process.logger?.success(folderFormattedList)
 
     return Promise.resolve(folderFormattedList)
   }
 
-  return Promise.reject('')
+  return Promise.reject()
 }
