@@ -3,19 +3,19 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
 import { runTest } from './test'
 
-const syntax = 'test [options]'
+const syntax = 'test [filteringString..]'
 const usage =
-  'Usage: sasjs test --filteringString <filtering-strings> --source <test-flow-path> --outDirectory <folder-path> --target <target-name>'
+  'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name>'
 const description = 'Triggers SAS unit tests.'
 const examples: CommandExample[] = [
   {
     command:
-      'sasjs test --filteringString jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>',
+      'sasjs test jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>',
     description: ''
   },
   {
     command:
-      'sasjs test --fs jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
+      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
     description: ''
   }
 ]
@@ -24,11 +24,6 @@ export class TestCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       parseOptions: {
-        filteringString: {
-          type: 'array',
-          alias: 'fs',
-          description: 'Patterns to filter tests.'
-        },
         outDirectory: {
           type: 'string',
           alias: 'out',

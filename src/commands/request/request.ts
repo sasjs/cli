@@ -1,6 +1,5 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { getAuthConfig } from '../../utils/config'
 import {
   readFile,
   folderExists,
