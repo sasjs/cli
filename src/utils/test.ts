@@ -21,8 +21,7 @@ import {
   saveLocalConfigFile,
   getGlobalRcFile,
   saveGlobalRcFile,
-  saveToGlobalConfig,
-  getAuthConfig
+  saveToGlobalConfig
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
@@ -78,14 +77,19 @@ export const removeTestServerFolder = async (
   folderPath: string,
   target: Target
 ) => {
+  // We do not have a way of deleting server folders with SAS9 yet
+  if (target.serverType === ServerType.Sas9) {
+    return
+  }
+
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType
   })
-  const authConfig = await getAuthConfig(target)
-  await deleteServerFolder(folderPath, sasjs, authConfig.access_token)
+  const accessToken = process.env.ACCESS_TOKEN as string
+  await deleteServerFolder(folderPath, sasjs, accessToken)
 }
 
 export const generateTestTarget = async (
