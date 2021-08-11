@@ -4,7 +4,6 @@ import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 import { setConstants } from '../../../utils'
-import { config } from 'dotenv'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({

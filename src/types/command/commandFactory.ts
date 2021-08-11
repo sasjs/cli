@@ -17,6 +17,7 @@ import { ServicePackCommand } from '../../commands/servicepack/servicePackComman
 import { InitCommand } from '../../commands/init/initCommand'
 import { RunCommand } from '../../commands/run/runCommand'
 import { RequestCommand } from '../../commands/request/requestCommand'
+import { HelpCommand } from '../../commands/help/helpCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -35,6 +36,7 @@ export const commandFactory = new Map<string, Function>([
   ['deploy', (args: string[]) => new DeployCommand(args)],
   ['doc', (args: string[]) => new DocsCommand(args)],
   ['folder', (args: string[]) => new FolderCommand(args)],
+  ['help', (args: string[]) => new HelpCommand(args)],
   ['init', (args: string[]) => new InitCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['request', (args: string[]) => new RequestCommand(args)],
