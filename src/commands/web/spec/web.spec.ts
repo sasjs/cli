@@ -115,7 +115,7 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SASVIYA`,
     async () => {
-      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).toResolve()
 
       await expect(verifyFolder(webBuiltFilesSASVIYA())).resolves.toEqual(true)
     },
@@ -125,7 +125,7 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SAS9`,
     async () => {
-      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).toResolve()
 
       await expect(verifyFolder(webBuiltFilesSAS9())).resolves.toEqual(true)
     },
@@ -142,7 +142,7 @@ describe('sasjs web', () => {
         },
         'viya'
       )
-      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).toResolve()
 
       await expect(
         verifyFolder(webBuiltFilesSASVIYA(streamServiceName))
@@ -161,7 +161,7 @@ describe('sasjs web', () => {
         },
         'sas9'
       )
-      await expect(createWebAppServices(sas9Target)).resolves.toEqual(0)
+      await expect(createWebAppServices(sas9Target)).toResolve()
 
       await expect(
         verifyFolder(webBuiltFilesSAS9(streamServiceName))
