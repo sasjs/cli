@@ -106,14 +106,6 @@ describe('sasjs flow', () => {
       validateFlowExecution([flow3, flow4, flow1, flow5, flow2])
     })
   })
-
-  // it(`should execute 2 chained flows with a failing job in predecessor's flow`, async () => {})
-
-  // it(`should execute 2 chained flows with a failing job in successor's flow`, async () => {})
-
-  // it(`should execute 3 chained flows with a failing job in one of the predecessor's flow`, async () => {})
-
-  // it(`should execute 6 chained flows with failing and succeeding jobs`, async () => {})
 })
 
 const setupMocks = (flows: { [key: string]: FlowWave }) => {
