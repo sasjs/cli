@@ -9,8 +9,6 @@ import {
   generateTimestamp,
   ServerType
 } from '@sasjs/utils'
-import { Command } from '../../../utils/command'
-import { saveGlobalRcFile, removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
   createTestMinimalApp,
@@ -21,7 +19,7 @@ import {
   removeTestServerFolder
 } from '../../../utils/test'
 import { build } from '../../build/build'
-import { setConstants } from '../../../utils'
+import { removeFromGlobalConfig, setConstants } from '../../../utils'
 
 describe('sasjs run', () => {
   let target: Target
@@ -55,41 +53,34 @@ describe('sasjs run', () => {
       const file = 'test.sas.txt'
       const error = new Error(`'sasjs run' command supports only *.sas files.`)
 
-      await expect(
-        runSasCode(new Command(`run -t ${target.name} ${file}`))
-      ).rejects.toEqual(error)
+      await expect(runSasCode(target, file)).rejects.toEqual(error)
     })
 
     it('should throw an error if url does not point to a webpage', async () => {
       const url = 'https://raw.githubusercontent.com/sasjs/cli/issues/808'
-      await expect(
-        runSasCode(new Command(`run -t ${target.name} ${url}`))
-      ).rejects.toThrow()
+      await expect(runSasCode(target, url)).rejects.toThrow()
     })
 
     it('should throw an error if url response starts with angular bracket(<)', async () => {
       const url = 'https://github.com/sasjs/cli/issues/808'
       const { invalidSasError } = process.sasjsConstants
       const error = new Error(`${invalidSasError}\nUrl: ${url}`)
-      await expect(
-        runSasCode(new Command(`run -t ${target.name} ${url}`))
-      ).rejects.toThrowError(error)
+      await expect(runSasCode(target, url)).rejects.toThrowError(error)
     })
 
     it('should throw an error when url response is not a string', async () => {
       const url = 'https://api.agify.io/?name=sabir'
       const { invalidSasError } = process.sasjsConstants
       const error = new Error(`${invalidSasError}\nUrl: ${url}`)
-      await expect(
-        runSasCode(new Command(`run -t ${target.name} ${url}`))
-      ).rejects.toThrowError(error)
+      await expect(runSasCode(target, url)).rejects.toThrowError(error)
     })
 
     it('should get the log on successfull execution having relative path', async () => {
       const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
       const result: any = await runSasCode(
-        new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+        target,
+        'sasjs/testServices/logJob.sas'
       )
 
       expect(result.log.includes(logPart)).toBeTruthy()
@@ -99,9 +90,8 @@ describe('sasjs run', () => {
       const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
-        )
+        target,
+        `${process.projectDir}/sasjs/testServices/logJob.sas`
       )
 
       expect(result.log.includes(logPart)).toBeTruthy()
@@ -112,9 +102,8 @@ describe('sasjs run', () => {
         /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} sasjs/testServices/logJob.sas --compile`
-        )
+        target,
+        `sasjs/testServices/logJob.sas --compile`
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
@@ -125,9 +114,8 @@ describe('sasjs run', () => {
         /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas --compile`
-        )
+        target,
+        `${process.projectDir}/sasjs/testServices/logJob.sas --compile`
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
@@ -170,7 +158,8 @@ describe('sasjs run', () => {
       const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
       await build(target)
       const result: any = await runSasCode(
-        new Command(`run -t ${target.name} sasjsbuild/myviyadeploy.sas`)
+        target,
+        'sasjsbuild/myviyadeploy.sas'
       )
 
       expect(result.log.includes(logPart)).toBeTruthy()
@@ -228,9 +217,7 @@ describe('sasjs run', () => {
     it('should get the log on successfull execution having relative path', async () => {
       const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
-      const result: any = await runSasCode(
-        new Command(`run -t ${target.name} ../testServices/logJob.sas`)
-      )
+      const result: any = await runSasCode(target, '../testServices/logJob.sas')
 
       expect(result.log.includes(logPart)).toBeTruthy()
     })
@@ -239,9 +226,8 @@ describe('sasjs run', () => {
       const logPart = `1    data;\n2      do x=1 to 100;\n3        output;\n4      end;\n5    run;`
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ${__dirname}/testServices/logJob.sas`
-        )
+        target,
+        `${__dirname}/testServices/logJob.sas`
       )
 
       expect(result.log.includes(logPart)).toBeTruthy()
@@ -252,9 +238,9 @@ describe('sasjs run', () => {
         /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ../testServices/logJob.sas --compile`
-        )
+        target,
+        '../testServices/logJob.sas',
+        true
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
@@ -265,36 +251,12 @@ describe('sasjs run', () => {
         /[0-9]*  data;\n[0-9]*    do x=1 to 100;\n[0-9]*      output;\n[0-9]*    end;\n[0-9]*  run;\n/
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ${__dirname}/testServices/logJob.sas --compile`
-        )
+        target,
+        `${__dirname}/testServices/logJob.sas`,
+        true
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
-    })
-  })
-
-  describe('without global config', () => {
-    beforeEach(async () => {
-      const appName = `cli-tests-run-${generateTimestamp()}`
-      await saveGlobalRcFile('')
-      process.projectDir = ''
-      await setConstants()
-      process.currentDir = path.join(__dirname, appName)
-      await createFolder(process.currentDir)
-    })
-
-    afterEach(async () => {
-      await deleteFolder(process.currentDir)
-    })
-
-    it('should throw an error for no target found', async () => {
-      const error = new Error(
-        'Target `someTargetName` was not found.\nPlease check the target name and try again, or use `sasjs add` to add a new target.'
-      )
-      await expect(
-        runSasCode(new Command(`run -t someTargetName some-file.sas`))
-      ).rejects.toEqual(error)
     })
   })
 
@@ -329,7 +291,8 @@ describe('sasjs run', () => {
       const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
 
       const result: any = await runSasCode(
-        new Command(`run -t ${target.name} sasjs/testServices/logJob.sas`)
+        target,
+        'sasjs/testServices/logJob.sas'
       )
 
       logParts.forEach((logPart) => {
@@ -341,9 +304,8 @@ describe('sasjs run', () => {
       const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
 
       const result: any = await runSasCode(
-        new Command(
-          `run -t ${target.name} ${process.projectDir}/sasjs/testServices/logJob.sas`
-        )
+        target,
+        `${process.projectDir}/sasjs/testServices/logJob.sas`
       )
 
       logParts.forEach((logPart) => {

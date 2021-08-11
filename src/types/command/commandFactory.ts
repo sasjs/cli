@@ -15,6 +15,7 @@ import { WebCommand } from '../../commands/web/webCommand'
 import { FolderCommand } from '../../commands/folder/folderCommand'
 import { ServicePackCommand } from '../../commands/servicepack/servicePackCommand'
 import { InitCommand } from '../../commands/init/initCommand'
+import { RunCommand } from '../../commands/run/runCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -35,6 +36,7 @@ export const commandFactory = new Map<string, Function>([
   ['folder', (args: string[]) => new FolderCommand(args)],
   ['init', (args: string[]) => new InitCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
+  ['run', (args: string[]) => new RunCommand(args)],
   ['servicepack', (args: string[]) => new ServicePackCommand(args)],
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],

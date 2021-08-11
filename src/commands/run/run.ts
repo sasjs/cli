@@ -20,13 +20,15 @@ import { getDestinationServicePath } from '../compile/internal/getDestinationPat
 
 /**
  * Runs SAS code from a given file on the specified target.
+ * @param {Target} target - the target to run the SAS code on.
  * @param {string} filePath - the path to the file containing SAS code.
- * @param {string} targetName - the name of the target to run the SAS code on.
+ * @param {boolean} compile - compiles sas file present at 'filePath' before running code.
  */
-export async function runSasCode(command: Command) {
-  let filePath = command.values.shift() || ''
-  const targetName = command.getFlagValue('target') as string
-  const compile = !!command.getFlag('compile')
+export async function runSasCode(
+  target: Target,
+  filePath: string,
+  compile: boolean = false
+) {
   let isFileCreated: boolean = false
 
   const tempFilePath = path.join(
@@ -60,8 +62,6 @@ export async function runSasCode(command: Command) {
   if (!/\.sas$/i.test(filePath)) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
   }
-
-  const { target } = await findTargetInConfiguration(targetName)
 
   if (compile) {
     let sourcefilePathParts = filePath.split(path.sep)

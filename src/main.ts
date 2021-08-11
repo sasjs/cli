@@ -367,14 +367,14 @@ export async function auth(command: Command) {
 }
 
 export async function run(command: Command) {
-  return await runSasCode(command)
-    .then(() => {
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when running your SAS code.')
-      return ReturnCode.InternalError
-    })
+  // return await runSasCode(command)
+  //   .then(() => {
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when running your SAS code.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function runRequest(command: Command) {
