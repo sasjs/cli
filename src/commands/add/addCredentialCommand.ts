@@ -5,7 +5,7 @@ import { addCredential } from './addCredential'
 
 // The syntax here needs to use square brackets for the subCommand(i.e. make it optional) since
 // the alias `auth` does not have a subCommand
-const syntax = 'add [cred]'
+const syntax = 'add [subCommand]'
 const aliases = ['auth']
 const usage = 'sasjs add cred [options] | sasjs auth [options]'
 const description =

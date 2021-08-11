@@ -3,12 +3,13 @@ import { CommandExample } from './commandExample'
 import { ReturnCode } from './returnCode'
 import { unalias } from './unalias'
 
-const commandMap = new Map<string, string[]>([
+const subCommandMap = new Map<string, string[]>([
   ['compile', ['job', 'service', 'identify']],
   ['context', ['create', 'delete', 'edit', 'export', 'list']],
   ['folder', ['create', 'delete', 'list']],
   ['doc', ['init', 'lineage']],
-  ['servicepack', ['deploy']]
+  ['servicepack', ['deploy']],
+  ['add', ['cred']]
 ])
 
 interface Command {
@@ -62,7 +63,7 @@ export class CommandBase implements Command {
           example.description
         ])
       )
-    if ([...commandMap.keys()].includes(command)) {
+    if ([...subCommandMap.keys()].includes(command)) {
       builder = (y: yargs.Argv) =>
         y
           .example(
@@ -72,7 +73,7 @@ export class CommandBase implements Command {
             ])
           )
           .positional('subCommand', {
-            choices: commandMap.get(command)
+            choices: subCommandMap.get(command)
           })
     }
 
@@ -99,7 +100,7 @@ export class CommandBase implements Command {
     }
     if (
       this.parsed._.length > 1 &&
-      [...commandMap.keys()].includes(unalias(this.name))
+      [...subCommandMap.keys()].includes(unalias(this.name))
     ) {
       return `${this.parsed._[1]}`
     }
@@ -114,7 +115,7 @@ export class CommandBase implements Command {
       return `${this.parsed._[2]}`
     } else if (
       this.parsed._.length > 1 &&
-      ![...commandMap.keys()].includes(unalias(this.name))
+      ![...subCommandMap.keys()].includes(unalias(this.name))
     ) {
       return `${this.parsed._[1]}`
     }
