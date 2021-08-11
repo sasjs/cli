@@ -4,7 +4,8 @@ import {
   readFile,
   deleteFolder,
   createFile,
-  ServerType
+  ServerType,
+  AuthConfig
 } from '@sasjs/utils'
 import { Target, generateTimestamp } from '@sasjs/utils'
 import {
@@ -13,7 +14,7 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { removeFromGlobalConfig } from '../../../utils/config'
+import { getAuthConfig, removeFromGlobalConfig } from '../../../utils/config'
 import { runSasJob } from '../request'
 import { build } from '../../build/build'
 import { deploy } from '../../deploy/deploy'
@@ -52,6 +53,7 @@ const expectedDataObj = {
 
 describe('sasjs request without compute API', () => {
   let target: Target
+  let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
@@ -68,6 +70,7 @@ describe('sasjs request without compute API', () => {
         macroVars: {}
       }
     )
+    authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
       path.join(process.projectDir, 'sasjs', 'runRequest')
@@ -103,7 +106,9 @@ describe('sasjs request without compute API', () => {
         target,
         false,
         `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
-        dataPathRel
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -119,7 +124,9 @@ describe('sasjs request without compute API', () => {
         target,
         false,
         `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
-        dataPathRel
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -131,7 +138,14 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
-      runSasJob(target, false, 'services/runRequest/sendArr', dataPathRel)
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendArr',
+        dataPathRel,
+        undefined,
+        authConfig
+      )
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -261,6 +275,7 @@ describe('sasjs request with SAS9', () => {
 
 describe(`sasjs request with compute API`, () => {
   let target: Target
+  let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
@@ -277,6 +292,7 @@ describe(`sasjs request with compute API`, () => {
         macroVars: {}
       }
     )
+    authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
       path.join(process.projectDir, 'sasjs', 'runRequest')
@@ -318,7 +334,8 @@ describe(`sasjs request with compute API`, () => {
         false,
         `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
         dataPathRel,
-        configPathRel
+        configPathRel,
+        authConfig
       )
     ).toResolve()
 
@@ -336,7 +353,8 @@ describe(`sasjs request with compute API`, () => {
         false,
         `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
         dataPathRel,
-        configPathRel
+        configPathRel,
+        authConfig
       )
     ).toResolve()
 
@@ -349,7 +367,14 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
-      runSasJob(target, false, 'services/runRequest/sendArr', dataPathRel)
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendArr',
+        dataPathRel,
+        undefined,
+        authConfig
+      )
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -361,7 +386,14 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
-      runSasJob(target, false, 'services/runRequest/sendObj', dataPathRel)
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendObj',
+        dataPathRel,
+        undefined,
+        authConfig
+      )
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)
