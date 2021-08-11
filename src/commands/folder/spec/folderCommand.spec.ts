@@ -52,7 +52,7 @@ describe('FolderCommand - create', () => {
   })
 
   it('should return with the success code after execution', async () => {
-    const args = [...defaultArgs, 'folder', 'delete', '/test', '-t', 'test']
+    const args = [...defaultArgs, 'folder', 'create', '/test', '-t', 'test']
     const command = new FolderCommand(args)
 
     const returnCode = await command.execute()
@@ -61,7 +61,7 @@ describe('FolderCommand - create', () => {
   })
 
   it('should return with the error code when execution fails', async () => {
-    const args = [...defaultArgs, 'folder', 'delete', '/test', '-t', 'test']
+    const args = [...defaultArgs, 'folder', 'create', '/test', '-t', 'test']
     jest
       .spyOn(createModule, 'create')
       .mockImplementation(() => Promise.reject())
