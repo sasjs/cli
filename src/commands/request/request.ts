@@ -1,6 +1,6 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
+import { getAuthConfig } from '../../utils/config'
 import {
   readFile,
   folderExists,
@@ -9,21 +9,17 @@ import {
   decodeFromBase64
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { Command } from '../../utils/command'
-import { ServerType } from '@sasjs/utils/types'
+import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
 import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
 
-export async function runSasJob(command: Command) {
-  const sasJobLocation = command.values.shift() as string
-  const dataFilePath = command.getFlagValue('datafile') as string
-  const configFilePath = command.getFlagValue('configfile') as string
-  const targetName = command.getFlagValue('target') as string
-
-  const { target, isLocal } = await findTargetInConfiguration(targetName)
-  if (!target) {
-    throw new Error('Target not found! Please try again with another target.')
-  }
-
+export async function runSasJob(
+  target: Target,
+  isLocal: boolean,
+  sasJobLocation: string,
+  dataFilePath?: string,
+  configFilePath?: string,
+  authConfig?: AuthConfig
+) {
   let dataJson: any = {}
   let configJson: any = {}
 
@@ -83,10 +79,6 @@ export async function runSasJob(command: Command) {
     contextName: target.contextName,
     useComputeApi: false
   })
-
-  let authConfig
-  if (target.serverType === ServerType.SasViya)
-    authConfig = await getAuthConfig(target)
 
   if (!dataJson) dataJson = null
 

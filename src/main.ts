@@ -378,14 +378,14 @@ export async function run(command: Command) {
 }
 
 export async function runRequest(command: Command) {
-  return await runSasJob(command)
-    .then(() => {
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(err, 'An error has occurred when running your SAS job.')
-      return ReturnCode.InternalError
-    })
+  // return await runSasJob(command)
+  //   .then(() => {
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(err, 'An error has occurred when running your SAS job.')
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function context(command: Command) {
