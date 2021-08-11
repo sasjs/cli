@@ -3,11 +3,7 @@ import { AddTargetCommand } from '../../commands/add/addTargetCommand'
 import { BuildCommand } from '../../commands/build/buildCommand'
 import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
-import { CreateContextCommand } from '../../commands/context/createContextCommand'
-import { DeleteContextCommand } from '../../commands/context/deleteContextCommand'
-import { EditContextCommand } from '../../commands/context/editContextCommand'
-import { ExportContextCommand } from '../../commands/context/exportContextCommand'
-import { ListContextCommand } from '../../commands/context/listContextCommand'
+import { ContextCommand } from '../../commands/context/contextCommand'
 import { CreateCommand } from '../../commands/create/createCommand'
 import { DbCommand } from '../../commands/db/dbCommand'
 import { CompileBuildDeployCommand } from '../../commands/deploy/compileBuildDeployCommand'
@@ -31,11 +27,7 @@ export const commandFactory = new Map<string, Function>([
     (args: string[]) => new CompileBuildDeployCommand(args)
   ],
   ['create', (args: string[]) => new CreateCommand(args)],
-  ['context create', (args: string[]) => new CreateContextCommand(args)],
-  ['context delete', (args: string[]) => new DeleteContextCommand(args)],
-  ['context edit', (args: string[]) => new EditContextCommand(args)],
-  ['context export', (args: string[]) => new ExportContextCommand(args)],
-  ['context list', (args: string[]) => new ListContextCommand(args)],
+  ['context', (args: string[]) => new ContextCommand(args)],
   ['db', (args: string[]) => new DbCommand(args)],
   ['deploy', (args: string[]) => new DeployCommand(args)],
   ['doc', (args: string[]) => new DocsCommand(args)],
