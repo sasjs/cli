@@ -75,14 +75,10 @@ const streamConfig: StreamConfig = {
 
 describe('sasjs web', () => {
   let appName: string
-  let viyaTarget: Target
-  let sas9Target: Target
 
   beforeAll(async () => {
     appName = `cli-test-web-minimal-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
-    viyaTarget = (await findTargetInConfiguration('viya')).target
-    sas9Target = (await findTargetInConfiguration('sas9')).target
 
     await updateConfig({
       streamConfig: {
@@ -115,6 +111,7 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SASVIYA`,
     async () => {
+      const viyaTarget = (await findTargetInConfiguration('viya')).target
       await expect(createWebAppServices(viyaTarget)).toResolve()
 
       await expect(verifyFolder(webBuiltFilesSASVIYA())).resolves.toEqual(true)
@@ -125,7 +122,8 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SAS9`,
     async () => {
-      await expect(createWebAppServices(viyaTarget)).toResolve()
+      const sas9Target = (await findTargetInConfiguration('sas9')).target
+      await expect(createWebAppServices(sas9Target)).toResolve()
 
       await expect(verifyFolder(webBuiltFilesSAS9())).resolves.toEqual(true)
     },
@@ -142,7 +140,9 @@ describe('sasjs web', () => {
         },
         'viya'
       )
-      await expect(createWebAppServices(viyaTarget)).toResolve()
+      const targetCustomServiceName = (await findTargetInConfiguration('viya'))
+        .target
+      await expect(createWebAppServices(targetCustomServiceName)).toResolve()
 
       await expect(
         verifyFolder(webBuiltFilesSASVIYA(streamServiceName))
@@ -161,7 +161,9 @@ describe('sasjs web', () => {
         },
         'sas9'
       )
-      await expect(createWebAppServices(sas9Target)).toResolve()
+      const targetCustomServiceName = (await findTargetInConfiguration('sas9'))
+        .target
+      await expect(createWebAppServices(targetCustomServiceName)).toResolve()
 
       await expect(
         verifyFolder(webBuiltFilesSAS9(streamServiceName))
