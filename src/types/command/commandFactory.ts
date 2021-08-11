@@ -14,11 +14,9 @@ import { CompileBuildDeployCommand } from '../../commands/deploy/compileBuildDep
 import { DeployCommand } from '../../commands/deploy/deployCommand'
 import { DocsCommand } from '../../commands/docs/docsCommand'
 import { TestCommand } from '../../commands/testing/testCommand'
-import { ListFolderCommand } from '../../commands/folder/listFolderCommand'
 import { VersionCommand } from '../../commands/version/versionCommand'
 import { WebCommand } from '../../commands/web/webCommand'
-import { CreateFolderCommand } from '../../commands/folder/createFolderCommand'
-import { DeleteFolderCommand } from '../../commands/folder/deleteFolderCommand'
+import { FolderCommand } from '../../commands/folder/folderCommand'
 import { ServicePackCommand } from '../../commands/servicepack/servicePackCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
@@ -41,9 +39,7 @@ export const commandFactory = new Map<string, Function>([
   ['db', (args: string[]) => new DbCommand(args)],
   ['deploy', (args: string[]) => new DeployCommand(args)],
   ['doc', (args: string[]) => new DocsCommand(args)],
-  ['folder create', (args: string[]) => new CreateFolderCommand(args)],
-  ['folder delete', (args: string[]) => new DeleteFolderCommand(args)],
-  ['folder list', (args: string[]) => new ListFolderCommand(args)],
+  ['folder', (args: string[]) => new FolderCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['servicepack', (args: string[]) => new ServicePackCommand(args)],
   ['version', (args: string[]) => new VersionCommand(args)],

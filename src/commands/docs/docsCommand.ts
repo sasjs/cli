@@ -10,7 +10,8 @@ enum DocSubCommand {
 const syntax = 'doc [subCommand]'
 const aliases = ['docs']
 const usage = 'sasjs doc [init | lineage]'
-const description = 'SASjs docs uses Doxygen to perform actions.'
+const description =
+  'Generates docs for SAS Programs / Macros / Jobs / Services listed in the sasjsconfig.json file by default and supplied Target.'
 const examples: CommandExample[] = [
   {
     command: 'sasjs doc',
