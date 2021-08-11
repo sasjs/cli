@@ -50,7 +50,7 @@ export async function runSasCode(command: Command) {
         isFileCreated = true
       })
       .catch((err) => {
-        throw new Error(err)
+        throw new Error(`${err.message}\nUrl: ${filePath}`)
       })
   }
   if (isFileCreated) {
