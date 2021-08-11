@@ -8,7 +8,6 @@ import {
   create,
   buildDB,
   deploy,
-  folder,
   printHelpText,
   processJob,
   runSasJob,
@@ -420,22 +419,21 @@ export async function servicepack(command: Command) {
 }
 
 export async function folderManagement(command: Command) {
-  if (!command) {
-    displayError(null, `Please provide action for the 'folder' command.`)
-    return ReturnCode.InvalidCommand
-  }
-
-  return await folder(command)
-    .then(() => {
-      return ReturnCode.Success
-    })
-    .catch((err) => {
-      displayError(
-        err,
-        'An error has occurred when processing folder operation.'
-      )
-      return ReturnCode.InternalError
-    })
+  // if (!command) {
+  //   displayError(null, `Please provide action for the 'folder' command.`)
+  //   return ReturnCode.InvalidCommand
+  // }
+  // return await folder(command)
+  //   .then(() => {
+  //     return ReturnCode.Success
+  //   })
+  //   .catch((err) => {
+  //     displayError(
+  //       err,
+  //       'An error has occurred when processing folder operation.'
+  //     )
+  //     return ReturnCode.InternalError
+  //   })
 }
 
 export async function jobManagement(command: Command) {

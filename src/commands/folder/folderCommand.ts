@@ -1,5 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType } from '@sasjs/utils'
+import { AuthConfig, ServerType, Target } from '@sasjs/utils'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
@@ -7,21 +7,25 @@ import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { create } from './create'
 import { deleteFolder } from './delete'
 import { list } from './list'
+import { move } from './move'
 
 enum FolderSubCommand {
   Create = 'create',
   Delete = 'delete',
-  List = 'list'
+  List = 'list',
+  Move = 'move'
 }
 
-const syntax = 'folder <subCommand> <folderPath>'
+const generalSyntax = 'folder <subCommand> <folderPath>'
+const moveSyntax = 'folder <subCommand> <sourceFolderPath> <targetFolderPath>'
+
 const usage =
-  'sasjs folder <create | delete | list> <folderPath> --target <target-name>'
+  'sasjs folder <create | delete | list | move> <folderPath> [targetFolderPath] --target <target-name>'
 const description = 'Performs operations on folders'
 const examples: CommandExample[] = [
   {
     command: 'sasjs folder create /Public/app/myFolder -t myTarget',
-    description: 'Lists the first level children folders of the given folder.'
+    description: 'Creates the folder at the given path on the target server.'
   },
   {
     command: 'sasjs folder delete /Public/app/myFolder -t myTarget',
@@ -30,10 +34,14 @@ const examples: CommandExample[] = [
   {
     command: 'sasjs folder list /Public/app -t myTarget',
     description: 'Lists the first level children folders of the given folder.'
+  },
+  {
+    command: 'sasjs folder move /Public/app -t myTarget',
+    description: 'Lists the first level children folders of the given folder.'
   }
 ]
 
-const commandParseOptions = {
+const createParseOptions = {
   force: {
     type: 'boolean',
     default: false,
@@ -45,7 +53,9 @@ export class FolderCommand extends TargetCommand {
   constructor(args: string[]) {
     const subCommand = args[3]
     const parseOptions =
-      subCommand === FolderSubCommand.Create ? commandParseOptions : {}
+      subCommand === FolderSubCommand.Create ? createParseOptions : {}
+    const syntax =
+      subCommand === FolderSubCommand.Move ? moveSyntax : generalSyntax
     super(args, {
       parseOptions,
       usage,
@@ -56,19 +66,10 @@ export class FolderCommand extends TargetCommand {
   }
 
   public async execute() {
-    return this.parsed.subCommand === FolderSubCommand.Create
-      ? await this.executeCreateFolder()
-      : this.parsed.subCommand === FolderSubCommand.Delete
-      ? await this.executeDeleteFolder()
-      : this.parsed.subCommand === FolderSubCommand.List
-      ? await this.executeListFolder()
-      : ReturnCode.InvalidCommand
-  }
-  async executeCreateFolder() {
     const { target } = await this.getTargetInfo()
     if (target.serverType !== ServerType.SasViya) {
       process.logger?.error(
-        `'folder create' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
+        `This command is only supported for SAS Viya targets.\nPlease try again with a different target.`
       )
       return ReturnCode.InternalError
     }
@@ -82,15 +83,30 @@ export class FolderCommand extends TargetCommand {
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
-        'Unable to create folder. Error fetching auth config: ',
+        'Unable to execute folder command. Error fetching auth config: ',
         err
       )
       return null
     })
+
     if (!authConfig) {
       return ReturnCode.InternalError
     }
 
+    return this.parsed.subCommand === FolderSubCommand.Create
+      ? await this.executeCreateFolder(target, sasjs, authConfig)
+      : this.parsed.subCommand === FolderSubCommand.Delete
+      ? await this.executeDeleteFolder(target, sasjs, authConfig)
+      : this.parsed.subCommand === FolderSubCommand.List
+      ? await this.executeListFolder(target, sasjs, authConfig)
+      : ReturnCode.InvalidCommand
+  }
+
+  async executeCreateFolder(
+    target: Target,
+    sasjs: SASjs,
+    authConfig: AuthConfig
+  ) {
     const folderPath = prefixAppLoc(
       target.appLoc,
       this.parsed.folderPath as string
@@ -113,33 +129,11 @@ export class FolderCommand extends TargetCommand {
     return returnCode
   }
 
-  async executeDeleteFolder() {
-    const { target } = await this.getTargetInfo()
-    if (target.serverType !== ServerType.SasViya) {
-      process.logger?.error(
-        `'folder delete' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
-      )
-      return ReturnCode.InternalError
-    }
-
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
-
-    const authConfig = await getAuthConfig(target).catch((err) => {
-      process.logger?.error(
-        'Unable to delete folder. Error fetching auth config: ',
-        err
-      )
-      return null
-    })
-    if (!authConfig) {
-      return ReturnCode.InternalError
-    }
-
+  async executeDeleteFolder(
+    target: Target,
+    sasjs: SASjs,
+    authConfig: AuthConfig
+  ) {
     const folderPath = prefixAppLoc(
       target.appLoc,
       this.parsed.folderPath as string
@@ -160,11 +154,33 @@ export class FolderCommand extends TargetCommand {
     return returnCode
   }
 
-  async executeListFolder() {
+  async executeListFolder(
+    target: Target,
+    sasjs: SASjs,
+    authConfig: AuthConfig
+  ) {
+    const folderPath = prefixAppLoc(
+      target.appLoc,
+      this.parsed.folderPath as string
+    )
+
+    const returnCode = await list(folderPath, sasjs, authConfig.access_token)
+      .then(() => {
+        return ReturnCode.Success
+      })
+      .catch((err) => {
+        process.logger?.error('Error listing folder: ', err)
+        return ReturnCode.InternalError
+      })
+
+    return returnCode
+  }
+
+  public async executeMoveFolder() {
     const { target } = await this.getTargetInfo()
     if (target.serverType !== ServerType.SasViya) {
       process.logger?.error(
-        `'folder list' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
+        `'folder move' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
       )
       return ReturnCode.InternalError
     }
@@ -187,12 +203,22 @@ export class FolderCommand extends TargetCommand {
       return ReturnCode.InternalError
     }
 
-    const folderPath = prefixAppLoc(
+    const sourceFolderPath = prefixAppLoc(
       target.appLoc,
-      this.parsed.folderPath as string
+      this.parsed.sourceFolderPath as string
     )
 
-    const returnCode = await list(folderPath, sasjs, authConfig.access_token)
+    const targetFolderPath = prefixAppLoc(
+      target.appLoc,
+      this.parsed.targetFolderPath as string
+    )
+
+    const returnCode = await move(
+      sourceFolderPath,
+      targetFolderPath,
+      sasjs,
+      authConfig.access_token
+    )
       .then(() => {
         return ReturnCode.Success
       })

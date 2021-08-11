@@ -18,8 +18,6 @@ export { buildDB } from './db/db'
 
 export { deploy } from './deploy/deploy'
 
-export { folder } from './folder'
-
 export { printHelpText } from './help/help'
 
 export { processJob } from './job'

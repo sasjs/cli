@@ -1,6 +1,6 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { folder, runSasCode } from '../..'
+import { runSasCode } from '../..'
 import {
   copy,
   createFolder,
@@ -17,7 +17,8 @@ import {
   createTestGlobalTarget,
   removeTestApp,
   updateTarget,
-  updateConfig
+  updateConfig,
+  removeTestServerFolder
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { setConstants } from '../../../utils'
@@ -47,9 +48,7 @@ describe('sasjs run', () => {
 
     afterEach(async () => {
       await removeFromGlobalConfig(target.name)
-      await folder(
-        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-      ).catch(() => {})
+      await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, target.name)
     })
     it('should throw an error if file type is not *.sas', async () => {
@@ -163,9 +162,7 @@ describe('sasjs run', () => {
     })
 
     afterEach(async () => {
-      await folder(
-        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-      ).catch(() => {})
+      await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, appName)
     })
 
@@ -219,9 +216,7 @@ describe('sasjs run', () => {
     afterEach(async () => {
       await removeFromGlobalConfig(target.name)
       await deleteFolder(process.currentDir)
-      await folder(
-        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-      ).catch(() => {})
+      await removeTestServerFolder(target.appLoc, target)
     })
 
     afterAll(async () => {
@@ -326,9 +321,7 @@ describe('sasjs run', () => {
 
     afterEach(async () => {
       await removeFromGlobalConfig(target.name)
-      await folder(
-        new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-      ).catch(() => {})
+      await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, target.name)
     })
 

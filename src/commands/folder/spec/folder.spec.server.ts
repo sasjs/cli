@@ -1,36 +1,52 @@
 import dotenv from 'dotenv'
-import { folder } from '../index'
-import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
+import { ServerType, Target, generateTimestamp, AuthConfig } from '@sasjs/utils'
 import {
+  getAuthConfig,
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import { Command } from '../../../utils/command'
 import { setConstants } from '../../../utils'
+import SASjs from '@sasjs/adapter/node'
+import { list } from '../list'
+import { create } from '../create'
+import { move } from '../move'
+import { deleteFolder } from '../delete'
 
 describe('sasjs folder operations', () => {
   let target: Target
+  let authConfig: AuthConfig
+  let sasjs: SASjs
 
   beforeAll(async () => {
     target = await createGlobalTarget()
     process.projectDir = process.cwd()
     await setConstants()
+
+    authConfig = await getAuthConfig(target)
+
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
   })
 
-  it('list folder children', async () => {
+  it('lists folder children', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
-    await createTestFolder(testFolderPath, target.name)
+    await createTestFolder(testFolderPath, sasjs, authConfig.access_token)
 
-    const commandList = new Command(
-      `folder list /Public/app/cli-tests -t ${target.name}`
-    )
-    const list: string = (await folder(commandList)) as string
+    const folderList: string = (await list(
+      '/Public/app/cli-tests',
+      sasjs,
+      authConfig.access_token
+    )) as string
 
     /**
      * This regex function will pass only if it matches the whole word.
@@ -38,21 +54,22 @@ describe('sasjs folder operations', () => {
      */
     const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
 
-    expect(regex.test(list)).toBe(true)
+    expect(regex.test(folderList)).toBe(true)
 
-    await deleteTestFolder(testFolderPath, target.name)
+    await deleteTestFolder(testFolderPath, sasjs, authConfig.access_token)
   })
 
   it('move folders keeping the folder name', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
-    await createTestFolder(testFolderPath, target.name)
+    await createTestFolder(testFolderPath, sasjs, authConfig.access_token)
 
-    const commandList1 = new Command(
-      `folder list /Public/app/cli-tests -t ${target.name}`
-    )
-    const list: string = (await folder(commandList1)) as string
+    const folderList: string = (await list(
+      '/Public/app/cli-tests',
+      sasjs,
+      authConfig.access_token
+    )) as string
 
     /**
      * This regex function will pass only if it matches the whole word.
@@ -60,26 +77,34 @@ describe('sasjs folder operations', () => {
      */
     const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
 
-    expect(regex.test(list)).toBe(true)
+    expect(regex.test(folderList)).toBe(true)
 
-    const commandCreate2 = new Command(
-      `folder create ${testFolderPath}/temp/test -t ${target.name}`
+    await create(
+      `${testFolderPath}/temp/test`,
+      sasjs,
+      authConfig.access_token,
+      false
     )
-    await folder(commandCreate2)
 
-    const commandCreate3 = new Command(
-      `folder create ${testFolderPath}/test2 -t ${target.name}`
+    await create(
+      `${testFolderPath}/test2`,
+      sasjs,
+      authConfig.access_token,
+      false
     )
-    await folder(commandCreate3)
 
-    const commandMove = new Command(
-      `folder move ${testFolderPath}/temp ${testFolderPath}/test2 -t ${target.name}`
+    await move(
+      `${testFolderPath}/temp`,
+      `${testFolderPath}/test2`,
+      sasjs,
+      authConfig.access_token
     )
-    await folder(commandMove)
 
     // Check if operations are executed correctly
-    const folderList1: string = (await folder(
-      new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
+    const newFolderList: string = (await list(
+      `${testFolderPath}/test2`,
+      sasjs,
+      authConfig.access_token
     )) as string
 
     /**
@@ -88,10 +113,12 @@ describe('sasjs folder operations', () => {
      */
     const regex2 = new RegExp(`(?<!\S)temp(?!\S)`, 'gm')
 
-    expect(regex2.test(folderList1)).toBe(true)
+    expect(regex2.test(newFolderList)).toBe(true)
 
-    const folderList2: string = (await folder(
-      new Command(`folder list ${testFolderPath}/test2/temp -t ${target.name}`)
+    const newSubfolderList: string = (await list(
+      `${testFolderPath}/test2/temp`,
+      sasjs,
+      authConfig.access_token
     )) as string
 
     /**
@@ -100,21 +127,22 @@ describe('sasjs folder operations', () => {
      */
     const regex3 = new RegExp(`(?<!\S)test(?!\S)`, 'gm')
 
-    expect(regex3.test(folderList2)).toBe(true)
+    expect(regex3.test(newSubfolderList)).toBe(true)
 
-    await deleteTestFolder(testFolderPath, target.name)
+    await deleteTestFolder(testFolderPath, sasjs, authConfig.access_token)
   })
 
   it('move folder to the same location and rename it', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
-    await createTestFolder(testFolderPath, target.name)
+    await createTestFolder(testFolderPath, sasjs, authConfig.access_token)
 
-    const commandList1 = new Command(
-      `folder list /Public/app/cli-tests -t ${target.name}`
-    )
-    const list1: string = (await folder(commandList1)) as string
+    const folderList: string = (await list(
+      '/Public/app/cli-tests',
+      sasjs,
+      authConfig.access_token
+    )) as string
 
     /**
      * This regex function will pass only if it matches the whole word.
@@ -122,21 +150,27 @@ describe('sasjs folder operations', () => {
      */
     const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
 
-    expect(regex.test(list1)).toBe(true)
+    expect(regex.test(folderList)).toBe(true)
 
-    const commandCreate2 = new Command(
-      `folder create ${testFolderPath}/temp/test -t ${target.name}`
+    await create(
+      `${testFolderPath}/temp/test`,
+      sasjs,
+      authConfig.access_token,
+      false
     )
-    await folder(commandCreate2)
 
-    const commandMove1 = new Command(
-      `folder move ${testFolderPath}/temp/test ${testFolderPath}/temp/test_renamed -t ${target.name}`
+    await move(
+      `${testFolderPath}/temp/test`,
+      `${testFolderPath}/temp/test_renamed`,
+      sasjs,
+      authConfig.access_token
     )
-    await folder(commandMove1)
 
     // Check if operations are executed correctly
-    const folderList1: string = (await folder(
-      new Command(`folder list ${testFolderPath}/temp -t ${target.name}`)
+    const newFolderList: string = (await list(
+      `${testFolderPath}/temp`,
+      sasjs,
+      authConfig.access_token
     )) as string
 
     /**
@@ -145,21 +179,22 @@ describe('sasjs folder operations', () => {
      */
     const regex2 = new RegExp(`(?<!\S)test_renamed(?!\S)`, 'gm')
 
-    expect(regex2.test(folderList1)).toBe(true)
+    expect(regex2.test(newFolderList)).toBe(true)
 
-    await deleteTestFolder(testFolderPath, target.name)
+    await deleteTestFolder(testFolderPath, sasjs, authConfig.access_token)
   })
 
   it('move folder to different location renaming the folder', async () => {
     const timestamp = generateTimestamp()
     const testFolderPath = `/Public/app/cli-tests/cli-tests-folder-${timestamp}`
 
-    await createTestFolder(testFolderPath, target.name)
+    await createTestFolder(testFolderPath, sasjs, authConfig.access_token)
 
-    const commandList1 = new Command(
-      `folder list /Public/app/cli-tests -t ${target.name}`
+    const folderList: string = await list(
+      '/Public/app/cli-tests',
+      sasjs,
+      authConfig.access_token
     )
-    const list1: string = (await folder(commandList1)) as string
 
     /**
      * This regex function will pass only if it matches the whole word.
@@ -167,27 +202,34 @@ describe('sasjs folder operations', () => {
      */
     const regex = new RegExp(`(?<!\S)cli-tests-folder-${timestamp}(?!\S)`, 'gm')
 
-    expect(regex.test(list1)).toBe(true)
+    expect(regex.test(folderList)).toBe(true)
 
-    const commandCreate2 = new Command(
-      `folder create ${testFolderPath}/temp/test -t ${target.name}`
+    await create(
+      `${testFolderPath}/temp/test`,
+      sasjs,
+      authConfig.access_token,
+      false
     )
-    await folder(commandCreate2)
+    await create(
+      `${testFolderPath}/test2`,
+      sasjs,
+      authConfig.access_token,
+      false
+    )
 
-    const commandCreate3 = new Command(
-      `folder create ${testFolderPath}/test2 -t ${target.name}`
+    await move(
+      `${testFolderPath}/temp`,
+      `${testFolderPath}/test2/test_renamed`,
+      sasjs,
+      authConfig.access_token
     )
-    await folder(commandCreate3)
-
-    const commandMove1 = new Command(
-      `folder move ${testFolderPath}/temp ${testFolderPath}/test2/test_renamed -t ${target.name}`
-    )
-    await folder(commandMove1)
 
     // Check if operations are executed correctly
-    const folderList1: string = (await folder(
-      new Command(`folder list ${testFolderPath}/test2 -t ${target.name}`)
-    )) as string
+    const newFolderList: string = await list(
+      `${testFolderPath}/test2`,
+      sasjs,
+      authConfig.access_token
+    )
 
     /**
      * This regex function will pass only if it matches the whole word.
@@ -195,9 +237,9 @@ describe('sasjs folder operations', () => {
      */
     const regex2 = new RegExp(`(?<!\S)test_renamed(?!\S)`, 'gm')
 
-    expect(regex2.test(folderList1)).toBe(true)
+    expect(regex2.test(newFolderList)).toBe(true)
 
-    await deleteTestFolder(testFolderPath, target.name)
+    await deleteTestFolder(testFolderPath, sasjs, authConfig.access_token)
   })
 })
 
@@ -225,16 +267,18 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   return target
 }
 
-const createTestFolder = async (testFolderPath: string, targetName: string) => {
-  const commandCreate1 = new Command(
-    `folder create ${testFolderPath} -t ${targetName}`
-  )
-  await folder(commandCreate1)
+const createTestFolder = async (
+  testFolderPath: string,
+  sasjs: SASjs,
+  accessToken: string
+) => {
+  await create(testFolderPath, sasjs, accessToken, false)
 }
 
-const deleteTestFolder = async (testFolderPath: string, targetName: string) => {
-  const commandDelete = new Command(
-    `folder delete ${testFolderPath} -t ${targetName}`
-  )
-  await folder(commandDelete)
+const deleteTestFolder = async (
+  testFolderPath: string,
+  sasjs: SASjs,
+  accessToken: string
+) => {
+  await deleteFolder(testFolderPath, sasjs, accessToken)
 }

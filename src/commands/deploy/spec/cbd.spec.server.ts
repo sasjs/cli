@@ -8,7 +8,6 @@ import {
 import dotenv from 'dotenv'
 import path from 'path'
 import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
@@ -20,7 +19,8 @@ import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
   createTestMinimalApp,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { setConstants } from '../../../utils'
@@ -37,9 +37,7 @@ describe('sasjs cbd with global config', () => {
   afterEach(async () => {
     await removeFromGlobalConfig(target.name)
 
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, target.name)
   })
@@ -106,9 +104,7 @@ describe('sasjs cbd with local config', () => {
   })
 
   afterEach(async () => {
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, appName)
 
@@ -191,9 +187,7 @@ describe('sasjs cbd having stream app', () => {
   })
 
   afterEach(async () => {
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, appName)
 

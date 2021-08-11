@@ -8,6 +8,7 @@ import {
   readFile,
   asyncForEach
 } from '@sasjs/utils'
+import { deleteFolder as deleteServerFolder } from '../commands/folder/delete'
 import {
   ServerType,
   Target,
@@ -20,7 +21,8 @@ import {
   saveLocalConfigFile,
   getGlobalRcFile,
   saveGlobalRcFile,
-  saveToGlobalConfig
+  saveToGlobalConfig,
+  getAuthConfig
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
@@ -32,6 +34,7 @@ import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants } from './setConstants'
 import { Constants } from '../constants'
+import SASjs from '@sasjs/adapter/node'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
@@ -69,6 +72,20 @@ export const removeTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = ''
   process.currentDir = ''
   process.sasjsConstants = undefined as any as Constants
+}
+
+export const removeTestServerFolder = async (
+  folderPath: string,
+  target: Target
+) => {
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
+    appLoc: target.appLoc,
+    serverType: target.serverType
+  })
+  const authConfig = await getAuthConfig(target)
+  await deleteServerFolder(folderPath, sasjs, authConfig.access_token)
 }
 
 export const generateTestTarget = async (

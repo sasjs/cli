@@ -11,11 +11,11 @@ import {
   copy
 } from '@sasjs/utils'
 import { processFlow } from '..'
-import { folder } from '../../folder'
 import {
   createTestApp,
   removeTestApp,
-  mockProcessExit
+  mockProcessExit,
+  removeTestServerFolder
 } from '../../../utils/test'
 import {
   removeFromGlobalConfig,
@@ -54,11 +54,8 @@ describe('sasjs flow', () => {
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
+
     if (await fileExists(csvPath)) await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)

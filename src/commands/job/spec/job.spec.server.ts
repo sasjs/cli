@@ -2,7 +2,6 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { processJob } from '../..'
 import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import {
   folderExists,
   fileExists,
@@ -22,7 +21,8 @@ import { Command } from '../../../utils/command'
 import {
   createTestApp,
   mockProcessExit,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
 import { setConstants } from '../../../utils'
@@ -46,11 +46,7 @@ describe('sasjs job execute', () => {
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })

@@ -1,15 +1,13 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processServicepack } from '..'
-import { folder } from '../../folder/index'
-import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
+import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import { Command } from '../../../utils/command'
 import { setConstants } from '../../../utils'
 import { servicePackDeploy } from '../deploy'
+import { removeTestServerFolder } from '../../../utils/test'
 
 describe('sasjs servicepack', () => {
   let target: Target
@@ -72,9 +70,7 @@ describe('sasjs servicepack', () => {
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    )
+    await removeTestServerFolder(target.appLoc, target)
     await removeFromGlobalConfig(target.name)
   }, 60 * 1000)
 })

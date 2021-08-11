@@ -7,12 +7,12 @@ import {
   ServerType
 } from '@sasjs/utils'
 import { runRequest, compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   createTestApp,
   createTestGlobalTarget,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import { removeFromGlobalConfig } from '../../../utils/config'
@@ -80,9 +80,7 @@ describe('sasjs request without compute API', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 
@@ -191,9 +189,7 @@ describe('sasjs request with SAS9', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 
@@ -299,9 +295,7 @@ describe(`sasjs request with compute API`, () => {
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 

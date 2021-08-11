@@ -1,6 +1,5 @@
 import { runTest } from '../test'
 import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import { TestDescription, TestResult } from '../../../types'
 import {
   Logger,
@@ -14,7 +13,11 @@ import {
   readFile,
   generateTimestamp
 } from '@sasjs/utils'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  removeTestServerFolder
+} from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import {
   removeFromGlobalConfig,
@@ -49,11 +52,7 @@ describe('sasjs test', () => {
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
