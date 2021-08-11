@@ -103,7 +103,8 @@ describe('sasjs run', () => {
 
       const result: any = await runSasCode(
         target,
-        `sasjs/testServices/logJob.sas --compile`
+        `sasjs/testServices/logJob.sas`,
+        true
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
@@ -115,7 +116,8 @@ describe('sasjs run', () => {
 
       const result: any = await runSasCode(
         target,
-        `${process.projectDir}/sasjs/testServices/logJob.sas --compile`
+        `${process.projectDir}/sasjs/testServices/logJob.sas`,
+        true
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()

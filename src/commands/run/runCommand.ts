@@ -6,7 +6,7 @@ import { runSasCode } from './run'
 const syntax = 'run <sasFilePath> [options]'
 const usage = 'sasjs run <sasFilePath> --target <target-name>'
 const description =
-  `lets the user run a given SAS file against a specified target.\n` +
+  `Lets the user run a given SAS file against a specified target.\n` +
   `The target can exist either in the local project configuration or in the global .sasjsrc file.`
 const examples: CommandExample[] = [
   {
