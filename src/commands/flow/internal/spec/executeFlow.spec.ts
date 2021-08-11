@@ -84,17 +84,15 @@ describe('executeFlow', () => {
       ''
     ]
 
-    validatesaveToCsv([csvDataFailed, csvDataSuccess, csvDataSuccess])
+    validateSaveToCsv([csvDataFailed, csvDataSuccess, csvDataSuccess])
   })
 
   it('should execute flow with 1 successful job and 1 job that does not exist', async () => {
+    const nonExistingJob = 'jobs/testJob/DOES_NOT_EXIST'
     const flowName = 'firstFlow'
     const flow = {
       name: flowName,
-      jobs: [
-        { location: 'jobs/testJob/job' },
-        { location: 'jobs/testJob/DOES_NOT_EXIST' }
-      ],
+      jobs: [{ location: 'jobs/testJob/job' }, { location: nonExistingJob }],
       predecessors: []
     }
     const jobNotFoundMessage = 'Job was not found.'
@@ -135,11 +133,11 @@ describe('executeFlow', () => {
       jobNotFoundMessage
     ]
 
-    validatesaveToCsv([csvDataFailed, csvDataSuccess])
+    validateSaveToCsv([csvDataFailed, csvDataSuccess])
 
     expect(process.logger.error).toHaveBeenNthCalledWith(
       1,
-      "An error has occurred when executing 'firstFlow' flow's job located at: 'jobs/testJob/DOES_NOT_EXIST'. Job was not found."
+      `An error has occurred when executing 'firstFlow' flow's job located at: '${nonExistingJob}'. Job was not found.`
     )
   })
 
@@ -181,11 +179,11 @@ describe('executeFlow', () => {
       fakeLogPath,
       ''
     ]
-    validatesaveToCsv([csvDataFailed])
+    validateSaveToCsv([csvDataFailed])
   })
 })
 
-const validatesaveToCsv = (jobExecutionInOrder: any[]) => {
+const validateSaveToCsv = (jobExecutionInOrder: any[]) => {
   expect(internalModule.saveToCsv).toHaveBeenCalledTimes(
     jobExecutionInOrder.length
   )

@@ -1,22 +1,28 @@
 import { FlowWave } from '../../../types'
 
+interface PredecessorDeadlockChain {
+  chain?: string[]
+  present: boolean
+}
+
 export const checkPredecessorDeadlock = (flows: {
   [key: string]: FlowWave
-}): string[] | false => {
+}): PredecessorDeadlockChain => {
   for (const flowName in flows) {
     const result = checkPredecessorDeadlockRecursive(flows, flowName, [])
-    if (result) return result
+    if (result.present) return result
   }
 
-  return false
+  return { present: false }
 }
 
 const checkPredecessorDeadlockRecursive = (
   flows: { [key: string]: FlowWave },
   flowName: string,
   chain: string[]
-): string[] | false => {
-  if (chain.includes(flowName)) return [...chain, flowName]
+): PredecessorDeadlockChain => {
+  if (chain.includes(flowName))
+    return { chain: [...chain, flowName], present: true }
 
   const predecessors = flows[flowName]?.predecessors
   if (predecessors)
@@ -25,7 +31,7 @@ const checkPredecessorDeadlockRecursive = (
         ...chain,
         flowName
       ])
-      if (result) return result
+      if (result.present) return result
     }
-  return false
+  return { present: false }
 }

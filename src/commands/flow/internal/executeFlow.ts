@@ -13,6 +13,12 @@ import {
 } from '.'
 import csvColumns from './csvColumns'
 import { FlowWave, FlowWaveJob } from '../../../types'
+import { FlowWaveJobStatus } from '../../../types/flow'
+
+interface executeFlowReturn {
+  jobStatus: boolean
+  flowStatus: { terminate: boolean; message: string }
+}
 
 export const executeFlow = async (
   flow: FlowWave,
@@ -21,10 +27,7 @@ export const executeFlow = async (
   target: Target,
   authConfig: AuthConfig,
   csvFile: string
-): Promise<{
-  jobStatus: boolean
-  flowStatus: { terminate: boolean; message: string }
-}> => {
+): Promise<executeFlowReturn> => {
   const logFolder: string = pollOptions.logFolderPath as string
   const flowName: string = flow.name!
   displaySuccess(`'${flowName}' flow started.`)
@@ -106,7 +109,7 @@ export const executeFlow = async (
             }
           )
 
-          job.status = 'failure'
+          job.status = FlowWaveJobStatus.Failure
 
           if (logName) {
             process.logger?.info(

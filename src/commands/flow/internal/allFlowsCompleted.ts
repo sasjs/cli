@@ -1,11 +1,13 @@
 import { FlowWave, FlowWaveJob } from '../../../types'
 
-export const allFlowsCompleted = (flows: {
-  [key: string]: FlowWave
-}): {
+interface flowsCompletionStatus {
   completed: boolean
   completedWithAllSuccess: boolean
-} => {
+}
+
+export const allFlowsCompleted = (flows: {
+  [key: string]: FlowWave
+}): flowsCompletionStatus => {
   const flowNames = Object.keys(flows)
 
   const jobsCount = flowNames.reduce(

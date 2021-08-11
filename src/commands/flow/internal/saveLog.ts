@@ -17,43 +17,41 @@ export const saveLog = async (
   access_token: string,
   lineCount: number = 1000000
 ) => {
-  return new Promise(async (resolve, reject) => {
-    if (!logFolder) return reject('No log folder provided')
-    if (!links) return reject('No links provided')
+  if (!logFolder) throw 'No log folder provided'
+  if (!links) throw 'No links provided'
 
-    const logObj = links.find(
-      (link: any) => link.rel === 'log' && link.method === 'GET'
+  const logObj = links.find(
+    (link: any) => link.rel === 'log' && link.method === 'GET'
+  )
+
+  if (logObj) {
+    const logUrl = serverUrl + logObj.href
+
+    const logJson = await fetchLogFileContent(
+      sasjs,
+      access_token,
+      logUrl,
+      lineCount
     )
 
-    if (logObj) {
-      const logUrl = serverUrl + logObj.href
+    const logParsed = parseLogLines(logJson)
 
-      const logJson = await fetchLogFileContent(
-        sasjs,
-        access_token,
-        logUrl,
-        lineCount
-      ).catch((err) => Promise.reject(err))
+    let logName = generateFileName(flowName, jobLocation)
 
-      const logParsed = parseLogLines(logJson)
-
-      let logName = generateFileName(flowName, jobLocation)
-
-      while (
-        await fileExists(path.join(logFolder, logName)).catch((err) =>
-          displayError(err, 'Error while checking if log file exists.')
-        )
-      ) {
-        logName = generateFileName(flowName, jobLocation)
-      }
-
-      await createFile(path.join(logFolder, logName), logParsed).catch((err) =>
-        displayError(err, 'Error while creating log file.')
+    while (
+      await fileExists(path.join(logFolder, logName)).catch((err) =>
+        displayError(err, 'Error while checking if log file exists.')
       )
-
-      return resolve(logName)
+    ) {
+      logName = generateFileName(flowName, jobLocation)
     }
 
-    return resolve(null)
-  })
+    await createFile(path.join(logFolder, logName), logParsed).catch((err) =>
+      displayError(err, 'Error while creating log file.')
+    )
+
+    return logName
+  }
+
+  return null
 }

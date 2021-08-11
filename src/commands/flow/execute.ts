@@ -30,11 +30,12 @@ export async function execute(
     } = await validateParams(source, csvFile, logFolder, target)
     if (terminate) return reject(message)
 
-    const predecessorDeadlock = checkPredecessorDeadlock(flows!)
+    const { present: predecessorDeadlock, chain: deadlockChain } =
+      checkPredecessorDeadlock(flows!)
     if (predecessorDeadlock)
       return reject(
         'Circular dependency found in flows, cannot proceed\n- ' +
-          predecessorDeadlock.join(' -> ')
+          deadlockChain!.join(' -> ')
       )
 
     const pollOptions: PollOptions = {

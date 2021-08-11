@@ -14,8 +14,14 @@ export interface FlowWave {
   execution?: 'started' | 'finished' | 'failedByPredecessor'
 }
 
+export enum FlowWaveJobStatus {
+  Runnning = 'running',
+  Success = 'success',
+  Failure = 'failure'
+}
+
 export interface FlowWaveJob {
   location: string
   macroVars?: MacroVar
-  status?: 'running' | 'success' | 'failure'
+  status?: FlowWaveJobStatus
 }

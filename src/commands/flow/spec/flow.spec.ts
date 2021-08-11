@@ -2,6 +2,8 @@ import { AuthConfig, Target } from '@sasjs/utils'
 import * as internalModule from '../internal/'
 import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import { execute } from '../execute'
+import { FlowWave, FlowWaveJob } from '../../../types'
+import { FlowWaveJobStatus } from '../../../types/flow'
 
 describe('sasjs flow', () => {
   describe('execute', () => {
@@ -19,14 +21,7 @@ describe('sasjs flow', () => {
 
       setupMocks(flows)
 
-      await execute(
-        '',
-        '',
-        '',
-        undefined as any as Target,
-        undefined as any as boolean,
-        undefined as any as SASjs
-      )
+      await executeFlowWrapper()
 
       const [flow1, flow2] = Object.values(flows)
 
@@ -47,14 +42,7 @@ describe('sasjs flow', () => {
 
       setupMocks(flows)
 
-      await execute(
-        '',
-        '',
-        '',
-        undefined as any as Target,
-        undefined as any as boolean,
-        undefined as any as SASjs
-      )
+      await executeFlowWrapper()
 
       const [flow1, flow2] = Object.values(flows)
 
@@ -79,14 +67,7 @@ describe('sasjs flow', () => {
 
       setupMocks(flows)
 
-      await execute(
-        '',
-        '',
-        '',
-        undefined as any as Target,
-        undefined as any as boolean,
-        undefined as any as SASjs
-      )
+      await executeFlowWrapper()
 
       const [flow1, flow2, flow3] = Object.values(flows)
 
@@ -118,14 +99,7 @@ describe('sasjs flow', () => {
       }
       setupMocks(flows)
 
-      await execute(
-        '',
-        '',
-        '',
-        undefined as any as Target,
-        undefined as any as boolean,
-        undefined as any as SASjs
-      )
+      await executeFlowWrapper()
 
       const [flow1, flow2, flow3, flow4, flow5] = Object.values(flows)
 
@@ -142,7 +116,7 @@ describe('sasjs flow', () => {
   // it(`should execute 6 chained flows with failing and succeeding jobs`, async () => {})
 })
 
-const setupMocks = (flows: any) => {
+const setupMocks = (flows: { [key: string]: FlowWave }) => {
   jest.restoreAllMocks()
   jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
     Promise.resolve({
@@ -153,13 +127,15 @@ const setupMocks = (flows: any) => {
   )
   jest.spyOn(internalModule, 'executeFlow').mockImplementation(
     async (
-      flow: any
+      flow: FlowWave
     ): Promise<{
       jobStatus: boolean
       flowStatus: { terminate: boolean; message: string }
     }> => {
       flow.execution = 'started'
-      flow.jobs.forEach((job: any) => (job.status = 'Success!!'))
+      flow.jobs.forEach(
+        (job: FlowWaveJob) => (job.status = FlowWaveJobStatus.Success)
+      )
       return {
         jobStatus: true,
         flowStatus: { terminate: false, message: '' }
@@ -168,12 +144,11 @@ const setupMocks = (flows: any) => {
   )
 }
 
-const validateFlowExecution = (flowsExecutionInOrder: any[]) => {
-  const noOfTimesExecuteFlowCalled = flowsExecutionInOrder.length
+const validateFlowExecution = (flowsExecutionOrder: FlowWave[]) => {
   expect(internalModule.executeFlow).toHaveBeenCalledTimes(
-    noOfTimesExecuteFlowCalled
+    flowsExecutionOrder.length
   )
-  flowsExecutionInOrder.forEach((flow, index) => {
+  flowsExecutionOrder.forEach((flow: FlowWave, index) => {
     expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
       index + 1,
       flow,
@@ -185,3 +160,13 @@ const validateFlowExecution = (flowsExecutionInOrder: any[]) => {
     )
   })
 }
+
+const executeFlowWrapper = async () =>
+  await execute(
+    '',
+    '',
+    '',
+    undefined as any as Target,
+    undefined as any as boolean,
+    undefined as any as SASjs
+  )

@@ -1,7 +1,7 @@
 import { checkPredecessorDeadlock } from '..'
 
 describe('checkPredecessorDeadlock', () => {
-  it('should return true, if predecessorDeadlock is present and itself', () => {
+  it('should return true, if predecessorDeadlock is present and it is pointing to itself', () => {
     const flows = {
       flow1: {
         jobs: [{ location: 'job' }],
@@ -9,10 +9,13 @@ describe('checkPredecessorDeadlock', () => {
       }
     }
 
-    expect(checkPredecessorDeadlock(flows)).toEqual(['flow1', 'flow1'])
+    expect(checkPredecessorDeadlock(flows)).toEqual({
+      present: true,
+      chain: ['flow1', 'flow1']
+    })
   })
 
-  it('should return true, if predecessorDeadlock is present and direct', () => {
+  it('should return true, if predecessorDeadlock is present and pointing to each other', () => {
     const flows = {
       flow1: {
         jobs: [{ location: 'job' }],
@@ -24,10 +27,13 @@ describe('checkPredecessorDeadlock', () => {
       }
     }
 
-    expect(checkPredecessorDeadlock(flows)).toEqual(['flow1', 'flow2', 'flow1'])
+    expect(checkPredecessorDeadlock(flows)).toEqual({
+      present: true,
+      chain: ['flow1', 'flow2', 'flow1']
+    })
   })
 
-  it('should return true, if predecessorDeadlock is present and indirect', () => {
+  it('should return true, if predecessorDeadlock is present and pointing to each other indirectly', () => {
     const flows = {
       flow1: {
         jobs: [{ location: 'job' }],
@@ -43,12 +49,10 @@ describe('checkPredecessorDeadlock', () => {
       }
     }
 
-    expect(checkPredecessorDeadlock(flows)).toEqual([
-      'flow1',
-      'flow2',
-      'flow3',
-      'flow1'
-    ])
+    expect(checkPredecessorDeadlock(flows)).toEqual({
+      present: true,
+      chain: ['flow1', 'flow2', 'flow3', 'flow1']
+    })
   })
 
   it('should return false, if predecessorDeadlock is not present', () => {
@@ -67,29 +71,6 @@ describe('checkPredecessorDeadlock', () => {
       }
     }
 
-    expect(checkPredecessorDeadlock(flows)).toEqual(false)
-  })
-
-  it('should return false, if predecessorDeadlock is not present with undefined/null', () => {
-    const flows = {
-      flow1: {
-        jobs: [{ location: 'job' }],
-        predecessors: [undefined as any as string]
-      },
-      flow2: {
-        jobs: [{ location: 'job' }],
-        predecessors: []
-      },
-      flow3: {
-        jobs: [{ location: 'job' }],
-        predecessors: ['']
-      },
-      flow4: {
-        jobs: [{ location: 'job' }],
-        predecessors: [null as any as string]
-      }
-    }
-
-    expect(checkPredecessorDeadlock(flows)).toEqual(false)
+    expect(checkPredecessorDeadlock(flows)).toEqual({ present: false })
   })
 })

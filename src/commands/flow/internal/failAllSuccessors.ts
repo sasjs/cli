@@ -1,4 +1,5 @@
 import { FlowWave, FlowWaveJob } from '../../../types'
+import { FlowWaveJobStatus } from '../../../types/flow'
 
 export const failAllSuccessors = (
   flows: { [key: string]: FlowWave },
@@ -9,7 +10,9 @@ export const failAllSuccessors = (
   )
 
   successors.forEach((successor: string) => {
-    flows[successor].jobs.map((job: FlowWaveJob) => (job.status = 'failure'))
+    flows[successor].jobs.map(
+      (job: FlowWaveJob) => (job.status = FlowWaveJobStatus.Failure)
+    )
     flows[successor].execution = 'failedByPredecessor'
     failAllSuccessors(flows, successor)
   })
