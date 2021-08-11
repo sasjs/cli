@@ -1,5 +1,4 @@
 import { runTest } from '../test'
-import { compileBuildDeployServices } from '../../../main'
 import { TestDescription, TestResult } from '../../../types'
 import {
   Logger,
@@ -26,6 +25,7 @@ import {
 import dotenv from 'dotenv'
 import path from 'path'
 import { setConstants } from '../../../utils'
+import { build, deploy } from '../..'
 
 describe('sasjs test', () => {
   let target: Target
@@ -46,7 +46,8 @@ describe('sasjs test', () => {
 
     await createTestApp(__dirname, target.name)
     await copyTestFiles(target.name)
-    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+    await build(target)
+    await deploy(target, false)
 
     process.logger = new Logger(LogLevel.Off)
   })

@@ -1,6 +1,5 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { compileBuildDeployServices } from '../../../main'
 import {
   fileExists,
   readFile,
@@ -32,6 +31,7 @@ import {
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { setConstants } from '../../../utils'
+import { build, deploy } from '../..'
 
 describe('sasjs flow', () => {
   let target: Target
@@ -43,7 +43,8 @@ describe('sasjs flow', () => {
 
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
-    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+    await build(target)
+    await deploy(target, false)
 
     process.logger = new Logger(LogLevel.Off)
   })

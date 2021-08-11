@@ -18,6 +18,7 @@ import { InitCommand } from '../../commands/init/initCommand'
 import { RunCommand } from '../../commands/run/runCommand'
 import { RequestCommand } from '../../commands/request/requestCommand'
 import { HelpCommand } from '../../commands/help/helpCommand'
+import { JobCommand } from '../../commands/job/jobCommand'
 // import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
 
 export const commandFactory = new Map<string, Function>([
@@ -38,6 +39,7 @@ export const commandFactory = new Map<string, Function>([
   ['folder', (args: string[]) => new FolderCommand(args)],
   ['help', (args: string[]) => new HelpCommand(args)],
   ['init', (args: string[]) => new InitCommand(args)],
+  ['job', (args: string[]) => new JobCommand(args)],
   // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
   ['request', (args: string[]) => new RequestCommand(args)],
   ['run', (args: string[]) => new RunCommand(args)],

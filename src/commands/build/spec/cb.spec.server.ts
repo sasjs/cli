@@ -1,6 +1,4 @@
 import path from 'path'
-import { compileBuildServices } from '../../../main'
-import { Command } from '../../../utils/command'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
@@ -66,18 +64,6 @@ describe('sasjs compile', () => {
     await verifyStep('compile')
 
     await expect(build(target)).toResolve()
-
-    await verifyStep('build', target.name)
-  })
-
-  it(`should compile and build(with recompile)`, async () => {
-    await expect(compile(target)).toResolve()
-
-    await verifyStep('compile')
-
-    await expect(
-      compileBuildServices(new Command(`compilebuild -t ${target.name}`))
-    ).toResolve()
 
     await verifyStep('build', target.name)
   })

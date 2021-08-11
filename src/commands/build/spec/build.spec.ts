@@ -1,7 +1,8 @@
-import { buildServices, compileServices } from '../../../main'
-import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { Logger, LogLevel, generateTimestamp } from '@sasjs/utils'
+import { findTargetInConfiguration } from '../../../utils'
+import { build } from '../build'
+import { compile } from '../..'
 
 describe('sasjs build', () => {
   let appName: string
@@ -19,8 +20,9 @@ describe('sasjs build', () => {
     async () => {
       appName = `test-app-build-minimal-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
+      const target = (await findTargetInConfiguration('viya')).target
 
-      await expect(buildServices(new Command(`build`))).toResolve()
+      await expect(build(target)).toResolve()
     },
     2 * 60 * 1000
   )
@@ -31,9 +33,10 @@ describe('sasjs build', () => {
       appName = `test-app-build-${generateTimestamp()}`
 
       await createTestApp(__dirname, appName)
+      const target = (await findTargetInConfiguration('viya')).target
 
-      await compileServices(new Command(`compile`))
-      await expect(buildServices(new Command(`build`))).toResolve()
+      await compile(target)
+      await expect(build(target)).toResolve()
     },
     2 * 60 * 1000
   )

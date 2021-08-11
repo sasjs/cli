@@ -7,7 +7,6 @@ import {
 } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import { compileBuildDeployServices } from '../../../main'
 import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
@@ -22,8 +21,9 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
 import { setConstants } from '../../../utils'
+import { build } from '../../build/build'
+import { deploy } from '../deploy'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -43,7 +43,6 @@ describe('sasjs cbd with global config', () => {
   })
 
   it('should compile, build and deploy', async () => {
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     const servicePath = path.join(
       __dirname,
       target.name,
@@ -59,7 +58,8 @@ describe('sasjs cbd with global config', () => {
       target.name,
       `sasjsbuild/${target.name}.json`
     )
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, false)).toResolve()
     await expect(fileExists(servicePath)).resolves.toEqual(true)
     await expect(fileExists(jobPath)).resolves.toEqual(true)
     /**
@@ -112,8 +112,8 @@ describe('sasjs cbd with local config', () => {
   })
 
   it('should deploy service pack when deployServicePack is true', async () => {
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, false)).toResolve()
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
@@ -123,8 +123,8 @@ describe('sasjs cbd with local config', () => {
         deployScripts: ['sasjs/build/copyscript.sh']
       }
     })
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, false)).toResolve()
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
@@ -139,8 +139,8 @@ describe('sasjs cbd with local config', () => {
       .mockImplementation(() => Promise.resolve([]))
     jest.spyOn(displayResultModule, 'displayError')
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await compileBuildDeployServices(command)
+    await build(target)
+    await deploy(target, false)
 
     expect(displayResultModule.displayError).toHaveBeenCalledWith(
       new Error(
@@ -156,8 +156,8 @@ describe('sasjs cbd with local config', () => {
     })
     jest.spyOn(displayResultModule, 'displayError')
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await compileBuildDeployServices(command)
+    await build(target)
+    await deploy(target, false)
 
     expect(displayResultModule.displayError).toHaveBeenCalledWith(
       new Error(
@@ -208,8 +208,8 @@ describe('sasjs cbd having stream app', () => {
       }
     })
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, false)).toResolve()
 
     const logFileContent = await readFile(
       path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)

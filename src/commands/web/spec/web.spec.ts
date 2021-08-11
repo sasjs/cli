@@ -1,5 +1,4 @@
 import path from 'path'
-import { buildWebApp } from '../../../main'
 import { Command } from '../../../utils/command'
 import {
   createTestMinimalApp,
@@ -9,7 +8,14 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
+import {
+  createFile,
+  generateTimestamp,
+  StreamConfig,
+  Target
+} from '@sasjs/utils'
+import { createWebAppServices } from '../web'
+import { findTargetInConfiguration } from '../../../utils'
 
 const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
@@ -69,10 +75,14 @@ const streamConfig: StreamConfig = {
 
 describe('sasjs web', () => {
   let appName: string
+  let viyaTarget: Target
+  let sas9Target: Target
 
   beforeAll(async () => {
     appName = `cli-test-web-minimal-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
+    viyaTarget = (await findTargetInConfiguration('viya')).target
+    sas9Target = (await findTargetInConfiguration('sas9')).target
 
     await updateConfig({
       streamConfig: {
@@ -105,7 +115,7 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SASVIYA`,
     async () => {
-      await expect(buildWebApp(new Command(`web -t viya`))).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
 
       await expect(verifyFolder(webBuiltFilesSASVIYA())).resolves.toEqual(true)
     },
@@ -115,7 +125,7 @@ describe('sasjs web', () => {
   it(
     `should create web app with minimal template for target SAS9`,
     async () => {
-      await expect(buildWebApp(new Command(`web -t sas9`))).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
 
       await expect(verifyFolder(webBuiltFilesSAS9())).resolves.toEqual(true)
     },
@@ -132,7 +142,7 @@ describe('sasjs web', () => {
         },
         'viya'
       )
-      await expect(buildWebApp(new Command(`web -t viya`))).resolves.toEqual(0)
+      await expect(createWebAppServices(viyaTarget)).resolves.toEqual(0)
 
       await expect(
         verifyFolder(webBuiltFilesSASVIYA(streamServiceName))
@@ -151,7 +161,7 @@ describe('sasjs web', () => {
         },
         'sas9'
       )
-      await expect(buildWebApp(new Command(`web -t sas9`))).resolves.toEqual(0)
+      await expect(createWebAppServices(sas9Target)).resolves.toEqual(0)
 
       await expect(
         verifyFolder(webBuiltFilesSAS9(streamServiceName))

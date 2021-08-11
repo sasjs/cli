@@ -20,8 +20,6 @@ export { deploy } from './deploy/deploy'
 
 export { printHelpText } from './help/help'
 
-export { processJob } from './job'
-
 export { runSasJob } from './request/request'
 
 export { runSasCode } from './run/run'
