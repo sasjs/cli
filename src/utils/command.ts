@@ -270,7 +270,7 @@ export class Command {
     return flag.value
   }
 
-  prefixAppLoc(appLoc = '', path = '') {
+  static prefixAppLoc(appLoc = '', path = '') {
     if (!path) return null
 
     if (!/^\//.test(appLoc)) appLoc = '/' + appLoc

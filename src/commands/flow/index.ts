@@ -12,9 +12,7 @@ export async function processFlow(command: Command, sasjs?: SASjs) {
   const csvFile = command.getFlagValue('csvFile') as string
   const targetName = command.getFlagValue('target') as string
   const { target } = await findTargetInConfiguration(targetName)
-  const logFolder =
-    (command.getFlagValue('logFolder') as string) ||
-    path.join(await getProjectRoot(), 'sasjsbuild', 'logs')
+  const logFolder = command.getFlagValue('logFolder') as string
   const streamLog = !!command.getFlagValue('streamLog')
   let result
 
@@ -34,7 +32,6 @@ export async function processFlow(command: Command, sasjs?: SASjs) {
         logFolder,
         csvFile,
         target,
-        command.prefixAppLoc,
         streamLog,
         sasjs
       ).catch((err) => {

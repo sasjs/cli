@@ -20,7 +20,7 @@ import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import examples from '../examples'
+import examples from '../internal/examples'
 import { Command } from '../../../utils/command'
 import {
   ServerType,
@@ -57,7 +57,7 @@ describe('sasjs flow', () => {
   afterAll(async () => {
     await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
 
-    if (await fileExists(csvPath)) await deleteFile(csvPath)
+    await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
@@ -157,7 +157,9 @@ describe('sasjs flow', () => {
       `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
     )
 
-    await expect(processFlow(command)).resolves.toEqual(examples.source)
+    await expect(processFlow(command)).resolves.toEqual(
+      `Unable to parse JSON of provided source file.\n` + examples.source
+    )
   })
 
   it('should return an error if provided source file does not have flows property', async () => {
@@ -167,7 +169,9 @@ describe('sasjs flow', () => {
       `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
     )
 
-    await expect(processFlow(command)).resolves.toEqual(examples.source)
+    await expect(processFlow(command)).resolves.toEqual(
+      `There are no flows present in source JSON.\n` + examples.source
+    )
   })
 
   it('should return an error if provided source file does not have jobs property', async () => {
@@ -421,8 +425,6 @@ describe('sasjs flow', () => {
       serverType: target.serverType
     })
 
-    const mockExit = mockProcessExit()
-
     jest
       .spyOn(sasjs, 'fetchLogFileContent')
       .mockImplementation(() => Promise.resolve(''))
@@ -430,9 +432,9 @@ describe('sasjs flow', () => {
       .spyOn(sasjs, 'startComputeJob')
       .mockImplementation(() => Promise.reject('Could not get session state.'))
 
-    await processFlow(command, sasjs)
-
-    expect(mockExit).toHaveBeenCalledWith(2)
+    await expect(processFlow(command, sasjs)).resolves.toEqual(
+      'Flow has been terminated.'
+    )
   })
 })
 
