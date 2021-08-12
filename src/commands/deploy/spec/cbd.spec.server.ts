@@ -9,6 +9,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
+  findTargetInConfiguration,
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
@@ -24,6 +25,7 @@ import {
 import { setConstants } from '../../../utils'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
+import { TargetScope } from '../../../types'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -113,7 +115,7 @@ describe('sasjs cbd with local config', () => {
 
   it('should deploy service pack when deployServicePack is true', async () => {
     await expect(build(target)).toResolve()
-    await expect(deploy(target, false)).toResolve()
+    await expect(deploy(target, true)).toResolve()
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
@@ -124,7 +126,7 @@ describe('sasjs cbd with local config', () => {
       }
     })
     await expect(build(target)).toResolve()
-    await expect(deploy(target, false)).toResolve()
+    await expect(deploy(target, true)).toResolve()
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
@@ -134,19 +136,19 @@ describe('sasjs cbd with local config', () => {
         deployScripts: []
       }
     })
+    const { target: customTarget } = await findTargetInConfiguration(
+      target.name,
+      TargetScope.Local
+    )
     jest
       .spyOn(getDeployScriptsModule, 'getDeployScripts')
       .mockImplementation(() => Promise.resolve([]))
-    jest.spyOn(displayResultModule, 'displayError')
 
-    await build(target)
-    await deploy(target, false)
-
-    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+    await build(customTarget)
+    await expect(deploy(customTarget, true)).rejects.toEqual(
       new Error(
         `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
-      ),
-      'An error has occurred when deploying services.'
+      )
     )
   })
 
@@ -154,16 +156,12 @@ describe('sasjs cbd with local config', () => {
     jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
       return Promise.reject('Token error')
     })
-    jest.spyOn(displayResultModule, 'displayError')
 
     await build(target)
-    await deploy(target, false)
-
-    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+    await expect(deploy(target, true)).rejects.toEqual(
       new Error(
         `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env.${target.name} file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      ),
-      'An error has occurred when deploying services.'
+      )
     )
   })
 })
@@ -207,9 +205,13 @@ describe('sasjs cbd having stream app', () => {
         deployScripts: [`sasjsbuild/${target.name}.sas`]
       }
     })
+    const { target: customTarget } = await findTargetInConfiguration(
+      target.name,
+      TargetScope.Local
+    )
 
-    await expect(build(target)).toResolve()
-    await expect(deploy(target, false)).toResolve()
+    await expect(build(customTarget)).toResolve()
+    await expect(deploy(customTarget, true)).toResolve()
 
     const logFileContent = await readFile(
       path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)

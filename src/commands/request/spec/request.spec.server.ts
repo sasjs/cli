@@ -157,7 +157,14 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
-      runSasJob(target, false, 'services/runRequest/sendObj', dataPathRel)
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendObj',
+        dataPathRel,
+        undefined,
+        authConfig
+      )
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)

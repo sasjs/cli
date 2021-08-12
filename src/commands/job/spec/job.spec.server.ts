@@ -431,13 +431,13 @@ describe('sasjs job execute', () => {
       execute(
         sasjs,
         authConfig,
-        'jobs/testJob/failingJob',
+        'jobs/testJob/job',
         target,
         true,
         false,
         undefined,
-        path.join(process.projectDir, 'my/folder/job.status'),
-        false,
+        undefined,
+        true,
         false,
         undefined,
         false

@@ -106,7 +106,6 @@ export async function execute(
       macroVars?.macroVars
     )
     .catch(async (err) => {
-      console.log('adapter error', err)
       if (err instanceof NoSessionStateError) {
         if (err?.logUrl) {
           const logData = await fetchLogFileContent(
