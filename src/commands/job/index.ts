@@ -32,7 +32,7 @@ export async function processJob(command: Command, sasjs?: SASjs) {
 
   const { target } = await findTargetInConfiguration(targetName)
 
-  const jobPath = command.prefixAppLoc(target.appLoc, command.values as any)
+  const jobPath = Command.prefixAppLoc(target.appLoc, command.values as any)
 
   if (!sasjs) {
     sasjs = new SASjs({

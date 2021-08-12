@@ -39,7 +39,7 @@ export async function folder(command: Command) {
     return
   }
 
-  folderPath = command.prefixAppLoc(target.appLoc, folderPath) as string
+  folderPath = Command.prefixAppLoc(target.appLoc, folderPath) as string
 
   const sasjs = getAdapterInstance(target)
 
