@@ -9,7 +9,8 @@ const subCommandMap = new Map<string, string[]>([
   ['folder', ['create', 'delete', 'list']],
   ['doc', ['init', 'lineage']],
   ['servicepack', ['deploy']],
-  ['add', ['cred']]
+  ['add', ['cred']],
+  ['lint', ['init', 'fix']]
 ])
 
 interface Command {

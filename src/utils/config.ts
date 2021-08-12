@@ -538,10 +538,9 @@ export async function getProjectRoot() {
  * @returns {AuthConfig} - an object containing an access token, refresh token, client ID and secret.
  */
 export async function getAuthConfig(target: Target): Promise<AuthConfig> {
-  let access_token =
-    target && target.authConfig && target.authConfig.access_token
-      ? target.authConfig.access_token
-      : ''
+  let access_token = target?.authConfig?.access_token
+    ? target.authConfig.access_token
+    : ''
 
   if (
     !access_token ||
@@ -552,20 +551,18 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     access_token = process.env.ACCESS_TOKEN as string
   }
 
-  let refresh_token =
-    target.authConfig && target.authConfig.refresh_token
-      ? target.authConfig.refresh_token
-      : process.env.REFRESH_TOKEN
+  let refresh_token = target?.authConfig?.refresh_token
+    ? target.authConfig.refresh_token
+    : process.env.REFRESH_TOKEN
   refresh_token =
     refresh_token &&
     (refresh_token.trim() === 'null' || refresh_token.trim() === 'undefined')
       ? undefined
       : refresh_token
 
-  let client =
-    target.authConfig && target.authConfig.client
-      ? target.authConfig.client
-      : process.env.CLIENT
+  let client = target?.authConfig?.client
+    ? target.authConfig.client
+    : process.env.CLIENT
   client =
     client && (client.trim() === 'null' || client.trim() === 'undefined')
       ? undefined
@@ -578,10 +575,9 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     )
   }
 
-  let secret =
-    target.authConfig && target.authConfig.secret
-      ? target.authConfig.secret
-      : process.env.SECRET
+  let secret = target?.authConfig?.secret
+    ? target.authConfig.secret
+    : process.env.SECRET
   secret =
     secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
       ? undefined
