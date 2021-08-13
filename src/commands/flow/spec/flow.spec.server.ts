@@ -128,7 +128,7 @@ describe('sasjs flow', () => {
 
     await expect(
       execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
-    ).resolves.toEqual(
+    ).rejects.toEqual(
       `Please provide flow source (--source) file.\n${examples.command}`
     )
   })
