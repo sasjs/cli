@@ -20,7 +20,7 @@ import { RequestCommand } from '../../commands/request/requestCommand'
 import { HelpCommand } from '../../commands/help/helpCommand'
 import { JobCommand } from '../../commands/job/jobCommand'
 import { LintCommand } from '../../commands/lint/lintCommand'
-// import { FlowExecuteCommand } from '../../commands/flow/flowExecuteCommand'
+import { FlowCommand } from '../../commands/flow/flowCommand'
 
 export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddTargetCommand(args)],
@@ -42,7 +42,7 @@ export const commandFactory = new Map<string, Function>([
   ['init', (args: string[]) => new InitCommand(args)],
   ['job', (args: string[]) => new JobCommand(args)],
   ['lint', (args: string[]) => new LintCommand(args)],
-  // ['flow execute', (args: string[]) => new FlowExecuteCommand(args)]
+  ['flow', (args: string[]) => new FlowCommand(args)],
   ['request', (args: string[]) => new RequestCommand(args)],
   ['run', (args: string[]) => new RunCommand(args)],
   ['servicepack', (args: string[]) => new ServicePackCommand(args)],
