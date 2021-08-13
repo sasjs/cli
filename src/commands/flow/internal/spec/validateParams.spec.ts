@@ -30,17 +30,11 @@ describe('validateParams', () => {
     await deleteFolder(appFolder)
   })
 
-  it('should return terminate flag, if source is not provided', async () => {
-    const { terminate, message } = await validateParams()
-
-    expect(terminate).toEqual(true)
-    expect(message).toEqual(
-      `Please provide flow source (--source) file.\n${examples.command}`
-    )
-  })
-
   it('should return terminate flag, if source is not JSON File', async () => {
-    const { terminate, message } = await validateParams('source.txt')
+    const { terminate, message } = await validateParams(
+      undefined as any as Target,
+      'source.txt'
+    )
 
     expect(terminate).toEqual(true)
     expect(message).toEqual(
@@ -49,7 +43,10 @@ describe('validateParams', () => {
   })
 
   it('should return terminate flag, if source File does not exist', async () => {
-    const { terminate, message } = await validateParams('source.json')
+    const { terminate, message } = await validateParams(
+      undefined as any as Target,
+      'source.json'
+    )
 
     expect(terminate).toEqual(true)
     expect(message).toEqual(`Source file does not exist.\n${examples.command}`)
@@ -60,7 +57,10 @@ describe('validateParams', () => {
 
     await createFile(source, '{ SOME : CONTENT : INVALID }')
 
-    const { terminate, message } = await validateParams(source)
+    const { terminate, message } = await validateParams(
+      undefined as any as Target,
+      source
+    )
 
     expect(terminate).toEqual(true)
     expect(message).toEqual(
@@ -74,7 +74,10 @@ describe('validateParams', () => {
 
     await createFile(source, '{ "notFlows": [] }')
 
-    const { terminate, message } = await validateParams(source)
+    const { terminate, message } = await validateParams(
+      undefined as any as Target,
+      source
+    )
 
     expect(terminate).toEqual(true)
     expect(message).toEqual(
@@ -92,7 +95,11 @@ describe('validateParams', () => {
       .spyOn(configUtils, 'getAuthConfig')
       .mockImplementation(() => Promise.resolve({} as any))
 
-    const { terminate, message } = await validateParams(source, 'csv.txt')
+    const { terminate, message } = await validateParams(
+      undefined as any as Target,
+      source,
+      'csv.txt'
+    )
 
     expect(terminate).toEqual(true)
     expect(message).toEqual(
@@ -112,7 +119,12 @@ describe('validateParams', () => {
       .spyOn(configUtils, 'getAuthConfig')
       .mockImplementation(() => Promise.resolve({} as any))
 
-    const { terminate, flows } = await validateParams(source, csv, logFolder)
+    const { terminate, flows } = await validateParams(
+      undefined as any as Target,
+      source,
+      csv,
+      logFolder
+    )
 
     expect(terminate).toEqual(false)
     expect(flows).toEqual([])
@@ -139,7 +151,10 @@ describe('validateParams', () => {
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(() => Promise.resolve({ isLocal: true } as any))
 
-    const { terminate, flows, csvFile } = await validateParams(source)
+    const { terminate, flows, csvFile } = await validateParams(
+      undefined as any as Target,
+      source
+    )
 
     expect(terminate).toEqual(false)
     expect(flows).toEqual([])
