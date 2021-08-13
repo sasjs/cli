@@ -11,8 +11,7 @@ enum JobSubCommand {
   Execute = 'execute'
 }
 
-const syntax = 'job <subCommand> <jobPath>'
-
+const syntax = 'job <subCommand> <jobPath> [options]'
 const usage = 'sasjs job <execute> <jobPath> [options]'
 const description = 'Performs operations on jobs'
 const examples: CommandExample[] = [
@@ -125,13 +124,13 @@ export class JobCommand extends TargetCommand {
   async executeJob(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
-    let wait = (this.parsed.wait as boolean) || !!this.parsed.log
+    let wait = (this.parsed.wait as boolean) || !!log
     const output = this.parsed.output as string
     const statusFile = getStatusFilePath(this.parsed.statusFile)
-    const returnStatusOnly = this.parsed.returnStatusOnly as boolean
-    const ignoreWarnings = this.parsed.ignoreWarnings as boolean
+    const returnStatusOnly = !!this.parsed.returnStatusOnly
+    const ignoreWarnings = !!this.parsed.ignoreWarnings
     const source = this.parsed.source as string
-    const streamLog = this.parsed.streamLog as boolean
+    const streamLog = !!this.parsed.streamLog
 
     if (returnStatusOnly && !wait) wait = true
 
