@@ -142,7 +142,7 @@ describe('sasjs flow', () => {
 
     await expect(
       execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
-    ).resolves.toEqual(`Source file does not exist.\n${examples.command}`)
+    ).rejects.toEqual(`Source file does not exist.\n${examples.command}`)
   })
 
   it('should return an error if provided an invalid source file', async () => {
@@ -150,7 +150,7 @@ describe('sasjs flow', () => {
 
     await expect(
       execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
-    ).resolves.toEqual(
+    ).rejects.toEqual(
       `Unable to parse JSON of provided source file.\n` + examples.source
     )
   })
@@ -160,7 +160,7 @@ describe('sasjs flow', () => {
 
     await expect(
       execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
-    ).resolves.toEqual(
+    ).rejects.toEqual(
       `There are no flows present in source JSON.\n` + examples.source
     )
   })
@@ -170,7 +170,7 @@ describe('sasjs flow', () => {
 
     await expect(
       execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
-    ).resolves.toEqual(examples.source)
+    ).rejects.toEqual(examples.source)
   })
 
   it('should execute flow with 2 successful jobs and 1 failing job', async () => {
@@ -355,7 +355,7 @@ describe('sasjs flow', () => {
       'flowResults.csv'
     )
 
-    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvLoc)
 
     await expect(fileExists(csvLoc)).resolves.toEqual(true)
 
