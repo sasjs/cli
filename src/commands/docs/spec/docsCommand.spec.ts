@@ -5,7 +5,7 @@ import * as initDocsModule from '../initDocs'
 import { ReturnCode } from '../../../types/command'
 import * as configUtils from '../../../utils/config'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
-import { ServerType, Target } from '@sasjs/utils'
+import { Configuration, ServerType, Target } from '@sasjs/utils'
 
 const target = new Target({
   name: 'test',
@@ -13,6 +13,8 @@ const target = new Target({
   serverType: ServerType.SasViya,
   contextName: 'test context'
 })
+
+const config: Configuration = {}
 
 describe('DocsCommand - generate docs', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -230,4 +232,8 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+  jest.spyOn(process.logger, 'error')
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve(config))
 }

@@ -62,8 +62,10 @@ export class CompileCommand extends TargetCommand {
     sourcefilePathParts.splice(-1, 1)
     const sourceFolderPath = sourcefilePathParts.join(path.sep)
     const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
-    return value
-      ? path.isAbsolute(value)
+
+    let outputPath: string
+    if (value)
+      outputPath = path.isAbsolute(value)
         ? path.join(value, `${this.subCommand}s`, leafFolderName)
         : path.join(
             process.currentDir!,
@@ -71,9 +73,13 @@ export class CompileCommand extends TargetCommand {
             `${this.subCommand}s`,
             leafFolderName
           )
-      : this.subCommand === 'job'
-      ? getDestinationJobPath(sourceFolderPath)
-      : getDestinationServicePath(sourceFolderPath)
+    else
+      outputPath =
+        this.subCommand === 'job'
+          ? getDestinationJobPath(sourceFolderPath)
+          : getDestinationServicePath(sourceFolderPath)
+
+    return outputPath
   }
 
   public async execute() {

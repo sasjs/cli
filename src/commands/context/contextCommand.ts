@@ -99,17 +99,28 @@ export class ContextCommand extends TargetCommand {
   }
 
   public async execute() {
-    return this.parsed.subCommand === ContextSubCommand.Create
-      ? await this.executeCreateContext()
-      : this.parsed.subCommand === ContextSubCommand.Delete
-      ? await this.executeDeleteContext()
-      : this.parsed.subCommand === ContextSubCommand.Edit
-      ? await this.executeEditContext()
-      : this.parsed.subCommand === ContextSubCommand.Export
-      ? await this.executeExportContext()
-      : this.parsed.subCommand === ContextSubCommand.List
-      ? await this.executeListContext()
-      : ReturnCode.InvalidCommand
+    let returnCode: ReturnCode
+    switch (this.parsed.subCommand) {
+      case ContextSubCommand.Create:
+        returnCode = await this.executeCreateContext()
+        break
+      case ContextSubCommand.Delete:
+        returnCode = await this.executeDeleteContext()
+        break
+      case ContextSubCommand.Edit:
+        returnCode = await this.executeEditContext()
+        break
+      case ContextSubCommand.Export:
+        returnCode = await this.executeExportContext()
+        break
+      case ContextSubCommand.List:
+        returnCode = await this.executeListContext()
+        break
+      default:
+        returnCode = ReturnCode.InvalidCommand
+        break
+    }
+    return returnCode
   }
 
   public async getConfig(): Promise<Object> {
