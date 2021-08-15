@@ -1,6 +1,4 @@
 import { Target, Configuration } from '@sasjs/utils/types'
-import { findTargetInConfiguration } from '../../../utils/config'
-import { TargetScope } from '../../../types/targetScope'
 
 /**
  * Returns doc related config from root-level and Target-specfic(having precedence)
@@ -8,10 +6,10 @@ import { TargetScope } from '../../../types/targetScope'
  * @param {Target} target- the target for doc config.
  * @param {string} outDirectory- the name of the output folder, provided using command.
  */
-export async function getDocConfig(
-  config: Configuration,
-  target: Target,
-  outDirectory: string
+export function getDocConfig(
+  target?: Target,
+  config?: Configuration,
+  outDirectory?: string
 ) {
   const { buildDestinationDocsFolder } = process.sasjsConstants
 
@@ -29,7 +27,7 @@ export async function getDocConfig(
     : serverUrl
 
   const enableLineage: boolean =
-    target?.docConfig?.enableLineage ?? config.docConfig?.enableLineage ?? true
+    target?.docConfig?.enableLineage ?? config?.docConfig?.enableLineage ?? true
 
   const doxyContent = {
     ...config?.docConfig?.doxyContent,

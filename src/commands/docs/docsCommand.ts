@@ -1,6 +1,7 @@
 import { generateDocs, generateDot, initDocs } from '..'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
+import { getLocalConfig } from '../../utils'
 
 enum DocSubCommand {
   Init = 'init',
@@ -62,8 +63,10 @@ export class DocsCommand extends TargetCommand {
 
   async executeGenerateDocs() {
     const { target } = await this.getTargetInfo()
+    const config = await getLocalConfig()
     const returnCode = await generateDocs(
       target,
+      config,
       this.parsed.outDirectory as string
     )
       .then((res) => {
@@ -82,8 +85,10 @@ export class DocsCommand extends TargetCommand {
 
   async executeGenerateDot() {
     const { target } = await this.getTargetInfo()
+    const config = await getLocalConfig()
     const returnCode = await generateDot(
       target,
+      config,
       this.parsed.outDirectory as string
     )
       .then((res) => {
@@ -99,6 +104,7 @@ export class DocsCommand extends TargetCommand {
 
     return returnCode
   }
+
   async executeInitDocs() {
     const returnCode = await initDocs()
       .then(() => {

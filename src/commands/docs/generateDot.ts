@@ -1,8 +1,7 @@
-import { getLocalConfig } from '../../utils/config'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
-import { Target } from '@sasjs/utils'
+import { Configuration, Target } from '@sasjs/utils'
 
 /**
  * Generates lineage in dot language
@@ -13,18 +12,17 @@ import { Target } from '@sasjs/utils'
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDot(
-  target: Target,
-  outDirectory: string
+  target?: Target,
+  config?: Configuration,
+  outDirectory?: string
 ): Promise<{ outDirectory: string }> {
-  const config = await getLocalConfig()
-
-  const { serverUrl, newOutDirectory } = await getDocConfig(
-    config,
+  const { serverUrl, newOutDirectory } = getDocConfig(
     target,
+    config,
     outDirectory
   )
 
-  const { service: serviceFolders, job: jobFolders } = await getFoldersForDocs(
+  const { service: serviceFolders, job: jobFolders } = getFoldersForDocs(
     target,
     config
   )

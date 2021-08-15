@@ -7,12 +7,11 @@ import { isWindows } from '../../utils/command'
 import {
   createFolder,
   deleteFolder,
-  folderExists,
   fileExists,
   readFile,
-  Target
+  Target,
+  Configuration
 } from '@sasjs/utils'
-import { getLocalConfig } from '../../utils/config'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
@@ -30,16 +29,16 @@ import { getAbsolutePath } from '../../utils/utils'
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
 export async function generateDocs(
-  target: Target,
-  outDirectory: string
+  target?: Target,
+  config?: Configuration,
+  outDirectory?: string
 ): Promise<{ outDirectory: string }> {
-  const config = await getLocalConfig()
   const {
     serverUrl,
     newOutDirectory,
     enableLineage,
     doxyContent: doxyContentFromConfig
-  } = await getDocConfig(config, target, outDirectory)
+  } = getDocConfig(target, config, outDirectory)
 
   const {
     macroCore: macroCoreFolders,
@@ -47,7 +46,7 @@ export async function generateDocs(
     program: programFolders,
     service: serviceFolders,
     job: jobFolders
-  } = await getFoldersForDocs(target, config)
+  } = getFoldersForDocs(target, config)
 
   const combinedFolders = [
     ...new Set([
