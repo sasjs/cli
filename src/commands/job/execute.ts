@@ -30,10 +30,10 @@ import { ReturnCode } from '../../types/command'
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
- * @param {boolean | string} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
- * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
- * @param {boolean | undefined} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error).
- * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
+ * @param {string | undefined} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {string | undefined} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
+ * @param {boolean} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error).
+ * @param {boolean} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
@@ -296,19 +296,16 @@ async function displayStatus(
     displaySuccess(status)
   else displayError({}, status)
 
-  if (typeof statusFile === 'string') {
-    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.projectDir
-    const statusPath = path.join(currentDirPath, statusFile)
-
-    let folderPath = statusPath.split(path.sep)
+  if (statusFile) {
+    let folderPath = statusFile.split(path.sep)
     folderPath.pop()
     const parentFolderPath = folderPath.join(path.sep)
 
     if (!(await folderExists(parentFolderPath)))
       await createFolder(parentFolderPath)
 
-    await createFile(statusPath, status)
-    if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusPath}`)
+    await createFile(statusFile, status)
+    if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusFile}`)
   }
 }
 

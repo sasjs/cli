@@ -4,7 +4,6 @@ import { JobCommand } from '../jobCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
-import { setConstants } from '../../../utils'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
@@ -43,18 +42,7 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      false,
-      undefined,
-      undefined,
-      undefined,
-      false,
-      false,
-      undefined,
-      false
+      ...executeCalledWith({ jobPath })
     )
   })
 
@@ -71,18 +59,11 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      true,
-      undefined,
-      path.join(projectFolder, log),
-      undefined,
-      false,
-      false,
-      undefined,
-      false
+      ...executeCalledWith({
+        jobPath,
+        waitForJob: true,
+        logFile: path.join(projectFolder, log)
+      })
     )
   })
 
@@ -99,18 +80,11 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      true,
-      undefined,
-      path.join(process.projectDir, `${jobFileName}.log`),
-      undefined,
-      false,
-      false,
-      undefined,
-      false
+      ...executeCalledWith({
+        jobPath,
+        waitForJob: true,
+        logFile: path.join(process.projectDir, `${jobFileName}.log`)
+      })
     )
   })
 
@@ -133,18 +107,11 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      true,
-      undefined,
-      undefined,
-      undefined,
-      true,
-      false,
-      undefined,
-      false
+      ...executeCalledWith({
+        jobPath,
+        waitForJob: true,
+        returnStatusOnly: true
+      })
     )
   })
 
@@ -180,18 +147,17 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      true,
-      output,
-      path.join(projectFolder, log),
-      path.join(projectFolder, statusFile),
-      true,
-      true,
-      source,
-      true
+      ...executeCalledWith({
+        jobPath,
+        waitForJob: true,
+        output,
+        logFile: path.join(projectFolder, log),
+        statusFile: path.join(projectFolder, statusFile),
+        returnStatusOnly: true,
+        ignoreWarnings: true,
+        source,
+        streamLog: true
+      })
     )
   })
 
@@ -227,18 +193,17 @@ describe('JobCommand', () => {
     expect(targetInfo.isLocal).toBeTrue()
 
     expect(executeModule.execute).toHaveBeenCalledWith(
-      expect.anything(),
-      authConfig,
-      jobPath,
-      target,
-      true,
-      output,
-      path.join(projectFolder, log),
-      path.join(projectFolder, statusFile),
-      true,
-      true,
-      source,
-      true
+      ...executeCalledWith({
+        jobPath,
+        waitForJob: true,
+        output,
+        logFile: path.join(projectFolder, log),
+        statusFile: path.join(projectFolder, statusFile),
+        returnStatusOnly: true,
+        ignoreWarnings: true,
+        source,
+        streamLog: true
+      })
     )
   })
 
@@ -320,3 +285,40 @@ const setupMocks = () => {
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'error')
 }
+
+interface executeWrapperParams {
+  jobPath: string
+  waitForJob?: boolean
+  output?: string | boolean
+  logFile?: string
+  statusFile?: string
+  returnStatusOnly?: boolean
+  ignoreWarnings?: boolean
+  source?: string
+  streamLog?: boolean
+}
+
+const executeCalledWith = ({
+  jobPath,
+  waitForJob = false,
+  output = false,
+  logFile = undefined,
+  statusFile = undefined,
+  returnStatusOnly = false,
+  ignoreWarnings = false,
+  source = undefined,
+  streamLog = false
+}: executeWrapperParams) => [
+  expect.anything(),
+  authConfig,
+  jobPath,
+  target,
+  waitForJob,
+  output,
+  logFile,
+  statusFile,
+  returnStatusOnly,
+  ignoreWarnings,
+  source,
+  streamLog
+]

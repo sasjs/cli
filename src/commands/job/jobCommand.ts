@@ -125,7 +125,11 @@ export class JobCommand extends TargetCommand {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
     let wait = (this.parsed.wait as boolean) || !!log
-    const output = this.parsed.output as string
+    const output = (this.parsed.output as string)?.length
+      ? (this.parsed.output as string)
+      : (this.parsed.output as string)?.length === 0
+      ? true
+      : false
     const statusFile = getStatusFilePath(this.parsed.statusFile)
     const returnStatusOnly = !!this.parsed.returnStatusOnly
     const ignoreWarnings = !!this.parsed.ignoreWarnings
