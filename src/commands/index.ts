@@ -24,8 +24,6 @@ export { runSasJob } from './request/request'
 
 export { runSasCode } from './run/run'
 
-export { processServicepack } from './servicepack'
-
 export { printVersion } from './version/version'
 
 export { createWebAppServices } from './web/web'
