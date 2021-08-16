@@ -58,7 +58,7 @@ export class CompileCommand extends TargetCommand {
 
   public get output(): string {
     const value = this.parsed.output as string
-    let sourcefilePathParts = this.source.split(path.sep)
+    const sourcefilePathParts = this.source.split(path.sep)
     sourcefilePathParts.splice(-1, 1)
     const sourceFolderPath = sourcefilePathParts.join(path.sep)
     const leafFolderName = sourceFolderPath.split(path.sep).pop() as string

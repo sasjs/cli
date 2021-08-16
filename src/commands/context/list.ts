@@ -14,7 +14,6 @@ export async function list(
   authConfig: AuthConfig
 ) {
   const startTime = new Date().getTime()
-  let endTime
 
   const spinner = ora(
     `Checking the compute contexts on ${target.serverUrl} ...\n`
@@ -75,7 +74,7 @@ export async function list(
 
   spinner.stop()
 
-  endTime = new Date().getTime()
+  const endTime = new Date().getTime()
 
   process.logger?.info(
     `This operation took ${(endTime - startTime) / 1000} seconds`
