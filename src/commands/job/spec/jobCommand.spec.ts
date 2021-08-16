@@ -5,7 +5,7 @@ import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 
-const defaultArgs = ['node', 'sasjs']
+const defaultArgs = ['node', 'sasjs', 'job', 'execute']
 const target = new Target({
   name: 'test',
   appLoc: '/Public/test/',
@@ -30,16 +30,7 @@ describe('JobCommand', () => {
   })
 
   it('should parse sasjs job execute command', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath]
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    await executeCommandWrapper([jobPath])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({ jobPath })
@@ -47,16 +38,7 @@ describe('JobCommand', () => {
   })
 
   it('should pass wait as true if log flag with value is present', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath, '--log', log]
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    await executeCommandWrapper([jobPath, '--log', log])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({
@@ -68,16 +50,7 @@ describe('JobCommand', () => {
   })
 
   it('should pass path for log file and wait to true if log flag without value is present', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath, '--log']
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    await executeCommandWrapper([jobPath, '--log'])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({
@@ -89,22 +62,7 @@ describe('JobCommand', () => {
   })
 
   it('should pass wait as true if returnStatusOnly flag is present', async () => {
-    const args = [
-      ...defaultArgs,
-      'job',
-      'execute',
-      jobPath,
-      '--returnStatusOnly'
-    ]
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    await executeCommandWrapper([jobPath, '--returnStatusOnly'])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({
@@ -116,10 +74,7 @@ describe('JobCommand', () => {
   })
 
   it('should parse sasjs job execute command with all arguments', async () => {
-    const args = [
-      ...defaultArgs,
-      'job',
-      'execute',
+    await executeCommandWrapper([
       jobPath,
       '--target',
       'test',
@@ -135,16 +90,7 @@ describe('JobCommand', () => {
       '--ignoreWarnings',
       '--wait',
       '--streamLog'
-    ]
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    ])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({
@@ -162,10 +108,7 @@ describe('JobCommand', () => {
   })
 
   it('should parse a sasjs job execute command with all shorthand arguments', async () => {
-    const args = [
-      ...defaultArgs,
-      'job',
-      'execute',
+    await executeCommandWrapper([
       jobPath,
       '-t',
       'test',
@@ -181,16 +124,7 @@ describe('JobCommand', () => {
       '-i',
       '-w',
       '--streamLog'
-    ]
-
-    const command = new JobCommand(args)
-    await command.execute()
-    const targetInfo = await command.getTargetInfo()
-
-    expect(command.name).toEqual('job')
-    expect(command.subCommand).toEqual('execute')
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
+    ])
 
     expect(executeModule.execute).toHaveBeenCalledWith(
       ...executeCalledWith({
@@ -208,17 +142,12 @@ describe('JobCommand', () => {
   })
 
   it('should log success and return the success code when execution is successful', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath]
-
-    const command = new JobCommand(args)
-    const returnCode = await command.execute()
+    const returnCode = await executeCommandWrapper([jobPath])
 
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 
   it('should return the error code when target is not SASVIYA', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath]
-
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() =>
@@ -231,35 +160,29 @@ describe('JobCommand', () => {
         })
       )
 
-    const command = new JobCommand(args)
-    const returnCode = await command.execute()
+    const returnCode = await executeCommandWrapper([jobPath], false)
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
     expect(process.logger.error).toHaveBeenCalled()
   })
 
   it('should return the error code when getting Auth Config is unsuccessful', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath]
-
     jest
       .spyOn(configUtils, 'getAuthConfig')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
-    const command = new JobCommand(args)
-    const returnCode = await command.execute()
+    const returnCode = await executeCommandWrapper([jobPath])
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
     expect(process.logger.error).toHaveBeenCalled()
   })
 
   it('should log the error and return the error code when execution is unsuccessful', async () => {
-    const args = [...defaultArgs, 'job', 'execute', jobPath]
     jest
       .spyOn(executeModule, 'execute')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
-    const command = new JobCommand(args)
-    const returnCode = await command.execute()
+    const returnCode = await executeCommandWrapper([jobPath])
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
     expect(process.logger.error).toHaveBeenCalled()
@@ -322,3 +245,24 @@ const executeCalledWith = ({
   source,
   streamLog
 ]
+
+const executeCommandWrapper = async (
+  additionalParams: string[],
+  checkTarget = true
+) => {
+  const args = [...defaultArgs, ...additionalParams]
+
+  const command = new JobCommand(args)
+  const returnCode = await command.execute()
+
+  expect(command.name).toEqual('job')
+  expect(command.subCommand).toEqual('execute')
+
+  if (checkTarget) {
+    const targetInfo = await command.getTargetInfo()
+    expect(targetInfo.target).toEqual(target)
+    expect(targetInfo.isLocal).toBeTrue()
+  }
+
+  return returnCode
+}
