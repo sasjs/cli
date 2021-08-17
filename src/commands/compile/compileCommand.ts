@@ -1,6 +1,6 @@
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { displayError } from '../../utils'
+import { displayError, getAbsolutePath } from '../../utils'
 import { compile } from './compile'
 import path from 'path'
 import {
@@ -64,20 +64,15 @@ export class CompileCommand extends TargetCommand {
     const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
 
     let outputPath: string
-    if (value)
-      outputPath = path.isAbsolute(value)
-        ? path.join(value, `${this.subCommand}s`, leafFolderName)
-        : path.join(
-            process.currentDir!,
-            value,
-            `${this.subCommand}s`,
-            leafFolderName
-          )
-    else
+    if (value) {
+      const internal = [value, `${this.subCommand}s`, leafFolderName]
+      outputPath = getAbsolutePath(internal.join(path.sep), process.currentDir)
+    } else {
       outputPath =
         this.subCommand === 'job'
           ? getDestinationJobPath(sourceFolderPath)
           : getDestinationServicePath(sourceFolderPath)
+    }
 
     return outputPath
   }

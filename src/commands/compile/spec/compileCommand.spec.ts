@@ -236,7 +236,7 @@ describe('CompileCommand', () => {
     expect(process.logger.error).toHaveBeenCalled()
   })
 
-  it('should return the output path for a job when specified', async () => {
+  it('should return the output path for a job when specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -244,18 +244,18 @@ describe('CompileCommand', () => {
       '-t',
       'test',
       '-s',
-      'test.sas',
+      './test.sas',
       '-o',
       os.homedir()
     ]
     const command = new CompileCommand(args)
 
-    const output = await command.output
+    const output = command.output
 
     expect(output).toEqual(path.join(os.homedir(), 'jobs'))
   })
 
-  it('should return the output path for a service when specified', async () => {
+  it('should return the output path for a service when specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -269,12 +269,12 @@ describe('CompileCommand', () => {
     ]
     const command = new CompileCommand(args)
 
-    const output = await command.output
+    const output = command.output
 
     expect(output).toEqual(path.join(os.homedir(), 'services'))
   })
 
-  it('should return the output path for a job when not specified', async () => {
+  it('should return the output path for a job when not specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -287,12 +287,12 @@ describe('CompileCommand', () => {
     const { buildDestinationJobsFolder } = process.sasjsConstants
     const command = new CompileCommand(args)
 
-    const output = await command.output
+    const output = command.output
 
     expect(output).toEqual(path.join(buildDestinationJobsFolder, 'dev'))
   })
 
-  it('should return the output path for a service when not specified', async () => {
+  it('should return the output path for a service when not specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -305,7 +305,7 @@ describe('CompileCommand', () => {
     const { buildDestinationServicesFolder } = process.sasjsConstants
     const command = new CompileCommand(args)
 
-    const output = await command.output
+    const output = command.output
 
     expect(output).toEqual(path.join(buildDestinationServicesFolder, 'dev'))
   })
