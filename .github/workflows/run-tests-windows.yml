@@ -31,8 +31,11 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Install CLI
-        run: npm i -g @sasjs/cli
+      - name: Link
+        run: npm link
+
+      - name: npm prefix for user
+        run: echo prefix=C:\npm\prefix >> ~\.npmrc
 
       - name: Check SASjs Version
         run: sasjs v
