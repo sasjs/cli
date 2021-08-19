@@ -35,7 +35,7 @@ jobs:
         run: npm link
 
       - name: Check SASjs Version
-      run: sasjs v
+        run: sasjs v
 
       - name: Run mocked tests
         run: npm run test:mocked
