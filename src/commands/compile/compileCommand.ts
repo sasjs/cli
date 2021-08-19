@@ -58,14 +58,17 @@ export class CompileCommand extends TargetCommand {
 
   public get output(): string {
     const value = this.parsed.output as string
-    const sourcefilePathParts = this.source.split(path.sep)
+    const sourcefilePathParts = path.normalize(this.source).split(path.sep)
     sourcefilePathParts.splice(-1, 1)
     const sourceFolderPath = sourcefilePathParts.join(path.sep)
     const leafFolderName = sourceFolderPath.split(path.sep).pop() as string
 
     let outputPath: string
     if (value) {
-      const internal = [value, `${this.subCommand}s`, leafFolderName]
+      const internal = [value, `${this.subCommand}s`]
+
+      if (leafFolderName) internal.push(leafFolderName)
+
       outputPath = getAbsolutePath(internal.join(path.sep), process.currentDir)
     } else {
       outputPath =
