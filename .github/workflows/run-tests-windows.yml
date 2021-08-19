@@ -4,7 +4,6 @@
 name: Run mocked tests on Windows
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -25,11 +24,11 @@ jobs:
       - name: Install Doxygen
         run: choco install doxygen.install
 
+      - name: Add doxygen to path
+        run: $Env:Path += "C:\Program Files\doxygen\bin"
+
       - name: Refresh Environment Variables
         run: refreshenv
-
-      - name: Check path
-        run: $Env:Path
 
       - name: Check doxygen version
         run: doxygen -v
