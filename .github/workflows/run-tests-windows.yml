@@ -30,6 +30,9 @@ jobs:
       - name: Refresh Environment Variables
         run: refreshenv
 
+      - name: Check path
+        run: $Env:Path
+
       - name: Check doxygen version
         run: doxygen -v
 
