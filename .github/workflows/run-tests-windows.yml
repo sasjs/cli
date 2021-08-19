@@ -4,7 +4,6 @@
 name: Run mocked tests on Windows
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -22,6 +21,15 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install Doxygen
+        run: choco install doxygen.install
+
+      - name: Add doxygen to path
+        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Check doxygen version
+        run: doxygen -v
+
       - name: Install dependencies
         run: npm ci
 
@@ -31,11 +39,11 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Install CLI
-        run: npm i -g @sasjs/cli
+      - name: Link
+        run: npm link
 
-      - name: Check SASjs Version
-        run: sasjs v
+      - name: npm prefix for user
+        run: echo prefix=C:\npm\prefix >> ~\.npmrc
 
       - name: Run mocked tests
         run: npm run test:mocked
