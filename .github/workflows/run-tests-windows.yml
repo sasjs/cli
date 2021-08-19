@@ -31,14 +31,14 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Install Chocolatey
-        run: Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
       - name: Install Doxygen
         run: choco install doxygen.install
 
       - name: Refresh Environment Variables
         run: refreshenv
+
+      - name: Check doxygen version
+        run: doxygen -v
 
       - name: Link
         run: npm link
