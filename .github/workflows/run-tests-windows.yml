@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
       - name: Link
-        run: npm link && npm i -g @sasjs/core
+        run: npm i -g @sasjs/cli && npm link
 
       - name: Check SASjs Version
         run: sasjs v
