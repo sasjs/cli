@@ -25,7 +25,7 @@ jobs:
         run: choco install doxygen.install
 
       - name: Add doxygen to path
-        run: $Env:Path += ";C:\Program Files\doxygen\bin"
+        run: [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\doxygen\bin", "User")
 
       - name: Refresh Environment Variables
         run: refreshenv
