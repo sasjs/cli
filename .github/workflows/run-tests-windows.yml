@@ -22,6 +22,18 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install Doxygen
+        run: choco install doxygen.install
+
+      - name: Refresh Environment Variables
+        run: refreshenv
+
+      - name: Check path
+        run: $Env:Path
+
+      - name: Check doxygen version
+        run: doxygen -v
+
       - name: Install dependencies
         run: npm ci
 
@@ -30,15 +42,6 @@ jobs:
 
       - name: Build Project
         run: npm run build
-
-      - name: Install Doxygen
-        run: choco install doxygen.install
-
-      - name: Refresh Environment Variables
-        run: refreshenv
-
-      - name: Check doxygen version
-        run: doxygen -v
 
       - name: Link
         run: npm link
