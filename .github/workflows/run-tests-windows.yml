@@ -31,8 +31,8 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Link
-        run: npm i -g @sasjs/cli && npm link
+      - name: Install CLI
+        run: npm i -g @sasjs/cli
 
       - name: Check SASjs Version
         run: sasjs v
