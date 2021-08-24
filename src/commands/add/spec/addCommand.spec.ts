@@ -1,11 +1,69 @@
+import { AddCommand } from '../addCommand'
+import * as addTargetModule from '../addTarget'
 import * as addCredentialModule from '../addCredential'
-import { AddCredentialCommand } from '../addCredentialCommand'
-import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
+import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { TargetScope } from '../../../types'
 import { ReturnCode } from '../../../types/command'
 
-describe('AddCredentialCommand', () => {
+describe('AddCommand', () => {
+  const defaultArgs = ['node', 'sasjs']
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.mock('../addTarget')
+    jest
+      .spyOn(addTargetModule, 'addTarget')
+      .mockImplementation(() => Promise.resolve(true))
+  })
+
+  it('should parse a simple sasjs add command', () => {
+    const args = [...defaultArgs, 'add']
+
+    const command = new AddCommand(args)
+
+    expect(command.name).toEqual('add')
+    expect(command.insecure).toEqual(false)
+  })
+
+  it('should parse a sasjs add command with the insecure flag', () => {
+    const args = [...defaultArgs, 'add', '--insecure']
+
+    const command = new AddCommand(args)
+
+    expect(command.name).toEqual('add')
+    expect(command.insecure).toEqual(true)
+  })
+
+  it('should parse a sasjs add command with the shorthand insecure flag', () => {
+    const args = [...defaultArgs, 'add', '-i']
+
+    const command = new AddCommand(args)
+
+    expect(command.name).toEqual('add')
+    expect(command.insecure).toEqual(true)
+  })
+
+  it('should call the addTarget handler when executed with the insecure option', async () => {
+    const args = [...defaultArgs, 'add', '-i']
+
+    const command = new AddCommand(args)
+    await command.execute()
+
+    expect(addTargetModule.addTarget).toHaveBeenCalledWith(true)
+  })
+
+  it('should call the addTarget handler when executed without the insecure option', async () => {
+    const args = [...defaultArgs, 'add']
+
+    const command = new AddCommand(args)
+    await command.execute()
+
+    expect(addTargetModule.addTarget).toHaveBeenCalledWith(false)
+  })
+})
+
+describe('AddCommand - cred', () => {
   const defaultArgs = ['node', 'sasjs']
   const target = new Target({
     name: 'test',
@@ -33,7 +91,7 @@ describe('AddCredentialCommand', () => {
   it('should parse a simple sasjs add cred command', () => {
     const args = [...defaultArgs, 'add', 'cred']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
 
     expect(command.name).toEqual('add')
     expect(command.subCommand).toEqual('cred')
@@ -43,7 +101,7 @@ describe('AddCredentialCommand', () => {
   it('should parse a sasjs add cred command with the insecure flag', () => {
     const args = [...defaultArgs, 'add', 'cred', '--insecure']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
 
     expect(command.name).toEqual('add')
     expect(command.subCommand).toEqual('cred')
@@ -53,7 +111,7 @@ describe('AddCredentialCommand', () => {
   it('should parse a sasjs add cred command with the shorthand insecure flag', () => {
     const args = [...defaultArgs, 'add', 'cred', '-i']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
 
     expect(command.name).toEqual('add')
     expect(command.subCommand).toEqual('cred')
@@ -63,16 +121,29 @@ describe('AddCredentialCommand', () => {
   it('should parse a sasjs add cred command invoked with the alias sasjs auth', () => {
     const args = [...defaultArgs, 'auth', '-i']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
 
-    expect(command.name).toEqual('add cred')
+    expect(command.name).toEqual('add')
     expect(command.insecure).toEqual(true)
+  })
+
+  it('should call the addCredential handler when executed with the alias sasjs auth', async () => {
+    const args = [...defaultArgs, 'auth', '-t', 'test']
+
+    const command = new AddCommand(args)
+    await command.execute()
+
+    expect(addCredentialModule.addCredential).toHaveBeenCalledWith(
+      target,
+      false,
+      TargetScope.Local
+    )
   })
 
   it('should call the addCredential handler when executed without the insecure option', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     await command.execute()
 
     expect(addCredentialModule.addCredential).toHaveBeenCalledWith(
@@ -85,7 +156,7 @@ describe('AddCredentialCommand', () => {
   it('should log success and return the success code when execution was successful', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.Success)
@@ -100,7 +171,7 @@ describe('AddCredentialCommand', () => {
       .spyOn(addCredentialModule, 'addCredential')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
@@ -113,7 +184,7 @@ describe('AddCredentialCommand', () => {
   it('should call the addCredential handler when executed with the insecure option', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test', '--insecure']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     await command.execute()
 
     expect(addCredentialModule.addCredential).toHaveBeenCalledWith(
@@ -129,7 +200,7 @@ describe('AddCredentialCommand', () => {
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() => Promise.resolve({ target, isLocal: false }))
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     await command.execute()
 
     expect(addCredentialModule.addCredential).toHaveBeenCalledWith(
@@ -142,7 +213,7 @@ describe('AddCredentialCommand', () => {
   it('should return the cached target when available', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
 
-    const command = new AddCredentialCommand(args)
+    const command = new AddCommand(args)
     let targetInfo = await command.getTargetInfo()
     targetInfo = await command.getTargetInfo()
 

@@ -1,5 +1,5 @@
 export const aliasMap = new Map<string, string[]>([
-  ['add cred', ['auth']],
+  ['add', ['auth']],
   ['build', ['b']],
   ['compile', ['c']],
   ['compilebuild', ['cb']],

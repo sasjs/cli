@@ -1,5 +1,4 @@
-import { AddCredentialCommand } from '../../commands/add/addCredentialCommand'
-import { AddTargetCommand } from '../../commands/add/addTargetCommand'
+import { AddCommand } from '../../commands/add/addCommand'
 import { BuildCommand } from '../../commands/build/buildCommand'
 import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
@@ -23,8 +22,7 @@ import { LintCommand } from '../../commands/lint/lintCommand'
 import { FlowCommand } from '../../commands/flow/flowCommand'
 
 export const commandFactory = new Map<string, Function>([
-  ['add', (args: string[]) => new AddTargetCommand(args)],
-  ['add cred', (args: string[]) => new AddCredentialCommand(args)],
+  ['add', (args: string[]) => new AddCommand(args)],
   ['build', (args: string[]) => new BuildCommand(args)],
   ['compile', (args: string[]) => new CompileCommand(args)],
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],

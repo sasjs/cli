@@ -1,7 +1,6 @@
 import { getBaseCommand } from '../../utils/getBaseCommand'
 import { CommandBase } from './commandBase'
 import { commandFactory } from './commandFactory'
-import { unalias } from './unalias'
 
 export const parse = (args: string[]): CommandBase => {
   const baseCommand = getBaseCommand(args)
