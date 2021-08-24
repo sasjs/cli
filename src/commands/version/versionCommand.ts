@@ -4,14 +4,12 @@ import { displayError } from '../../utils'
 import { printVersion } from './version'
 
 const syntax = 'version'
-const aliases = ['v', '-v', '--v']
+const aliases = ['v']
 const usage = 'Usage: sasjs version'
 const description = 'displays currently installed version.'
 const examples: CommandExample[] = [
   { command: 'sasjs version', description },
-  { command: 'sasjs v', description },
-  { command: 'sasjs --version', description },
-  { command: 'sasjs -v', description }
+  { command: 'sasjs v', description }
 ]
 
 export class VersionCommand extends TargetCommand {
