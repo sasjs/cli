@@ -7,6 +7,7 @@ export const aliasMap = new Map<string, string[]>([
   ['db', ['build-DB', 'build-db']],
   ['deploy', ['d']],
   ['doc', ['docs']],
+  ['help', ['h']],
   ['version', ['v']],
   ['web', ['w']]
 ])
