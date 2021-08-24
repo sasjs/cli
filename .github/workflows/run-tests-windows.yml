@@ -22,7 +22,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install Doxygen
-        run: choco install doxygen.install
+        run: choco install doxygen.install --version 1.9.1
 
       - name: Add doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
