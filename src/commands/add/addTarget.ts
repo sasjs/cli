@@ -17,7 +17,7 @@ import { addCredential, createEnvFileForSas9 } from './addCredential'
  * Creates new target/ updates current target(if found) for either local config or global config file.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
-export async function addTarget(insecure: boolean = false): Promise<boolean> {
+export async function addTarget(insecure: boolean): Promise<boolean> {
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   const { scope, serverType, name, appLoc, serverUrl, existingTarget } =
@@ -33,18 +33,14 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     appLoc
   }
 
-  let filePath = await saveConfig(
-    scope,
-    new Target(targetJson),
-    false,
-    saveWithDefaultValues
-  )
+  const target = new Target(targetJson)
+  let filePath = await saveConfig(scope, target, false, saveWithDefaultValues)
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName, userName, password } =
-      await getAndValidateSas9Fields(name, scope)
+      await getAndValidateSas9Fields(target, scope)
     targetJson = {
       ...targetJson,
       serverName,

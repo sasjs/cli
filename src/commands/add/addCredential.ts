@@ -23,11 +23,9 @@ import { TargetScope } from '../../types/targetScope'
  */
 export const addCredential = async (
   target: Target,
-  insecure: boolean = false,
+  insecure: boolean,
   targetScope: TargetScope
 ): Promise<void> => {
-  let scope = ''
-
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
@@ -70,8 +68,8 @@ export const addCredential = async (
     }
   } else if (target.serverType === ServerType.Sas9) {
     const { userName, password } = await getCredentialsInputSas9(
-      target.name,
-      scope
+      target,
+      targetScope
     )
 
     if (targetScope === TargetScope.Local) {
