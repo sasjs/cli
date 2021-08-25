@@ -173,9 +173,10 @@ export async function getAndValidateSasViyaFields(
     target: Target,
     insecure: boolean,
     targetScope: TargetScope
-  ) => Promise<void>
+  ) => Promise<Target>
 ): Promise<{
   contextName: string
+  target: Target
 }> {
   let contextName = 'SAS Job Execution compute context'
   const shouldAuthenticate = await getConfirmation(
@@ -184,7 +185,7 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await authenticateCallback(target, insecure, scope)
+    target = await authenticateCallback(target, insecure, scope)
 
     const sasjs = new SASjs({
       serverUrl,
@@ -219,11 +220,12 @@ export async function getAndValidateSasViyaFields(
 
     contextName = contexts[contextNumber].name
 
-    return { contextName }
+    return { contextName, target }
   }
 
   return {
-    contextName
+    contextName,
+    target
   }
 }
 

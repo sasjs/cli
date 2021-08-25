@@ -375,7 +375,7 @@ export async function saveToLocalConfig(
   const targetJson = target.toJson(saveWithDefaultValues)
   let config = await getLocalConfig()
   if (config) {
-    if (config.targets && config.targets.length) {
+    if (config?.targets?.length) {
       const existingTargetIndex = config.targets.findIndex(
         (t) => t.name === target.name
       )

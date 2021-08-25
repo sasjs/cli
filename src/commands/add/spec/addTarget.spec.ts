@@ -61,7 +61,10 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
-        Promise.resolve({ contextName: 'Test Context' })
+        Promise.resolve({
+          contextName: 'Test Context',
+          target: new Target(commonFields)
+        })
       )
 
     await expect(addTarget(false)).resolves.toEqual(true)
@@ -116,7 +119,10 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
-        Promise.resolve({ contextName: 'Test Context' })
+        Promise.resolve({
+          contextName: 'Test Context',
+          target: new Target(commonFields)
+        })
       )
 
     await expect(addTarget(false)).resolves.toEqual(true)
@@ -129,7 +135,7 @@ describe('addTarget', () => {
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    const target: TargetJson = (config!.targets || []).find(
+    const targetJson: TargetJson = (config!.targets || []).find(
       (t: TargetJson) => t.name === 'viya'
     ) as TargetJson
 
@@ -139,7 +145,7 @@ describe('addTarget', () => {
       name: 'viya',
       appLoc: '/Public/app/new/location',
       serverUrl: process.env.VIYA_SERVER_URL as string,
-      existingTarget: target
+      existingTarget: targetJson
     }
     jest
       .spyOn(inputModule, 'getCommonFields')
@@ -150,7 +156,10 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
-        Promise.resolve({ contextName: 'Test Context' })
+        Promise.resolve({
+          contextName: 'Test Context',
+          target: new Target({ ...targetJson, ...commonFields })
+        })
       )
 
     await expect(addTarget(false)).resolves.toEqual(true)
@@ -213,7 +222,10 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getAndValidateSasViyaFields')
       .mockImplementation(() =>
-        Promise.resolve({ contextName: 'Test Context' })
+        Promise.resolve({
+          contextName: 'Test Context',
+          target: new Target({ ...globalTestTarget, ...commonFields })
+        })
       )
 
     await expect(addTarget(false)).resolves.toEqual(true)
