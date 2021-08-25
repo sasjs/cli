@@ -64,7 +64,7 @@ describe('addTarget', () => {
         Promise.resolve({ contextName: 'Test Context' })
       )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
   })
@@ -93,7 +93,7 @@ describe('addTarget', () => {
       })
     )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
   })
@@ -119,7 +119,7 @@ describe('addTarget', () => {
         Promise.resolve({ contextName: 'Test Context' })
       )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, false)
   })
@@ -153,7 +153,7 @@ describe('addTarget', () => {
         Promise.resolve({ contextName: 'Test Context' })
       )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
   })
@@ -190,7 +190,7 @@ describe('addTarget', () => {
       })
     )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, true)
   })
@@ -216,7 +216,7 @@ describe('addTarget', () => {
         Promise.resolve({ contextName: 'Test Context' })
       )
 
-    await expect(addTarget()).resolves.toEqual(true)
+    await expect(addTarget(false)).resolves.toEqual(true)
 
     await verifyTarget(commonFields, false)
   })
