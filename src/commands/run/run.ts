@@ -64,7 +64,7 @@ export async function runSasCode(
   }
 
   if (compile) {
-    let sourcefilePathParts = filePath.split(path.sep)
+    const sourcefilePathParts = path.normalize(filePath).split(path.sep)
     sourcefilePathParts.splice(-1, 1)
     const sourceFolderPath = sourcefilePathParts.join(path.sep)
     ;({ destinationPath: filePath } = await compileSingleFile(
