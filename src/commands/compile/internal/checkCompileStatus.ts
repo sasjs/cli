@@ -1,5 +1,3 @@
-import path from 'path'
-import { getConstants } from '../../../constants'
 import { Target, asyncForEach, folderExists } from '@sasjs/utils'
 import { compareFolders } from './compareFolders'
 import { getAllJobFolders } from './getAllJobFolders'
@@ -13,7 +11,7 @@ export async function checkCompileStatus(
   target: Target,
   exceptions?: string[]
 ) {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
   const pathExists = await folderExists(buildDestinationFolder)
 
   if (!pathExists) {

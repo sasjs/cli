@@ -1,8 +1,5 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { processJob, processContext } from '../..'
-import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import {
   folderExists,
   fileExists,
@@ -12,29 +9,38 @@ import {
   Target,
   Logger,
   LogLevel,
-  generateTimestamp
+  generateTimestamp,
+  AuthConfig
 } from '@sasjs/utils'
 import {
+  getAuthConfig,
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import { Command } from '../../../utils/command'
 import {
   createTestApp,
   mockProcessExit,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
-import { getConstants } from '../../../constants'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
+import { setConstants } from '../../../utils'
+import { execute } from '../execute'
+import { prefixAppLoc } from '../../../utils/prefixAppLoc'
+import { build } from '../../build/build'
+import { deploy } from '../../deploy/deploy'
+
+let target: Target
+let sasjs: SASjs
+let authConfig: AuthConfig
 
 describe('sasjs job execute', () => {
-  let target: Target
-
   beforeAll(async () => {
     target = await createGlobalTarget()
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
-    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+    await build(target)
+    await deploy(target, false)
 
     await saveToGlobalConfig(
       new Target({
@@ -42,76 +48,82 @@ describe('sasjs job execute', () => {
       })
     )
 
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType,
+      debug: true
+    })
+    authConfig = await getAuthConfig(target)
     process.logger = new Logger(LogLevel.Off)
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
 
   it('should submit a job for execution', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/services/testJob/job -t ${target.name}`
-    )
-
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/services/testJob/job`
+      })
+    ).toResolve()
   })
 
   it('should submit a job and wait for completion', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w`
-    )
-
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/services/testJob/job`,
+        waitForJob: true
+      })
+    ).toResolve()
   })
 
   it('should submit a job and wait for its output', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -w -o`
-    )
-
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/jobs/testJob/job`,
+        waitForJob: true,
+        output: true
+      })
+    ).toResolve()
   })
 
   it('should submit a job and create a file with job output', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput`
-    )
-
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/jobs/testJob/job`,
+        output: 'testOutput'
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
   })
 
   it('should submit a job and create a file with job output and wait', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -w`
-    )
-
     const folderPath = path.join(process.projectDir, 'testOutput')
     const filePath = path.join(process.projectDir, 'testOutput/output.json')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/jobs/testJob/job`,
+        waitForJob: true,
+        output: 'testOutput'
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
   })
 
   it('should submit a job and create a file with job output, log and auto-wait', async () => {
-    const command = new Command(
-      `job execute /Public/app/cli-tests/${target.name}/jobs/testJob/job -t ${target.name} -o testOutput -l testLog.txt`
-    )
-
     const folderPathOutput = path.join(process.projectDir, 'testOutput')
     const filePathOutput = path.join(
       process.projectDir,
@@ -120,7 +132,14 @@ describe('sasjs job execute', () => {
 
     const filePathLog = path.join(process.projectDir, 'testLog.txt')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/jobs/testJob/job`,
+        waitForJob: true,
+        output: 'testOutput',
+        logFile: path.join(process.projectDir, 'testLog.txt')
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPathOutput)).resolves.toEqual(true)
     await expect(fileExists(filePathOutput)).resolves.toEqual(true)
@@ -129,13 +148,14 @@ describe('sasjs job execute', () => {
   })
 
   it('should submit a job and create a file with job log', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/job -t ${target.name} -l`
-    )
-
     const filePath = path.join(process.projectDir, 'job.log')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: `/Public/app/cli-tests/${target.name}/jobs/testJob/job`,
+        logFile: path.join(process.projectDir, 'job.log')
+      })
+    ).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
   })
@@ -145,13 +165,15 @@ describe('sasjs job execute', () => {
     async () => {
       const sourcePath = path.join(__dirname, 'testSource', 'source.json')
       const largeLogFileLines = 21 * 1000
-      const command = new Command(
-        `job execute jobs/testJob/largeLogJob -t ${target.name} -s ${sourcePath} -l`
-      )
-
       const filePath = path.join(process.projectDir, 'largeLogJob.log')
 
-      await expect(processJob(command)).toResolve()
+      await expect(
+        executeWrapper({
+          jobPath: 'jobs/testJob/largeLogJob',
+          logFile: path.join(process.projectDir, 'largeLogJob.log'),
+          source: sourcePath
+        })
+      ).toResolve()
 
       await expect(fileExists(filePath)).resolves.toEqual(true)
 
@@ -173,36 +195,34 @@ describe('sasjs job execute', () => {
   )
 
   it('should submit a job and create a file with provided job log filename', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/job -t ${target.name} -l mycustom.log`
-    )
-
     const filePath = path.join(process.projectDir, 'mycustom.log')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/job',
+        logFile: path.join(process.projectDir, 'mycustom.log')
+      })
+    ).toResolve()
 
     await expect(fileExists(filePath)).resolves.toEqual(true)
   })
 
   it('should submit a job and create a file with provided job log filename and path', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log`
-    )
-
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/job',
+        logFile: path.join(process.projectDir, 'my/folder/mycustom.log')
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
   })
 
   it('should submit a job and create a file with provided job log filename and status file', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/job -t ${target.name} -l ./my/folder/mycustom.log --status ./my/folder/testJob.status`
-    )
-
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePath = path.join(process.projectDir, 'my/folder/mycustom.log')
     const filePathStatus = path.join(
@@ -210,7 +230,13 @@ describe('sasjs job execute', () => {
       'my/folder/testJob.status'
     )
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/job',
+        logFile: path.join(process.projectDir, 'my/folder/mycustom.log'),
+        statusFile: path.join(process.projectDir, 'my/folder/testJob.status')
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePath)).resolves.toEqual(true)
@@ -222,18 +248,18 @@ describe('sasjs job execute', () => {
   })
 
   it("should submit a job that doesn't exist and create a status file", async () => {
-    const command = new Command(
-      `job execute job-not-present -t ${target.name} --wait --status ./my/folder/status.txt`
-    )
-
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePathStatus = path.join(process.projectDir, 'my/folder/status.txt')
 
     jest.spyOn(process.logger, 'error')
 
-    await expect(processJob(command)).resolves.toEqual(
-      'Error: Job was not found.'
-    )
+    await expect(
+      executeWrapper({
+        jobPath: prefixAppLoc(target.appLoc, 'job-not-present'),
+        waitForJob: true,
+        statusFile: path.join(process.projectDir, 'my/folder/status.txt')
+      })
+    ).resolves.toEqual('Error: Job was not found.')
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePathStatus)).resolves.toEqual(true)
@@ -255,14 +281,16 @@ describe('sasjs job execute', () => {
   })
 
   it('should submit a job that fails and create a status file', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/failingJob -t ${target.name} --wait --status ./my/folder/job.status`
-    )
-
     const folderPath = path.join(process.projectDir, 'my/folder')
     const filePathStatus = path.join(process.projectDir, 'my/folder/job.status')
 
-    await expect(processJob(command)).toResolve()
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/failingJob',
+        waitForJob: true,
+        statusFile: path.join(process.projectDir, 'my/folder/job.status')
+      })
+    ).toResolve()
 
     await expect(folderExists(folderPath)).resolves.toEqual(true)
     await expect(fileExists(filePathStatus)).resolves.toEqual(true)
@@ -273,49 +301,59 @@ describe('sasjs job execute', () => {
   })
 
   it(`should submit a job that completes and return it's status`, async () => {
-    const command = new Command(
-      `job execute jobs/testJob/job -t ${target.name} --wait --returnStatusOnly`
-    )
-
     const mockExit = mockProcessExit()
 
-    await processJob(command)
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/job',
+        waitForJob: true,
+        returnStatusOnly: true
+      })
+    ).toResolve()
 
     expect(mockExit).toHaveBeenCalledWith(0)
   })
 
   it(`should submit a job that completes with a warning and return it's status`, async () => {
-    const command = new Command(
-      `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly`
-    )
-
     const mockExit = mockProcessExit()
 
-    await processJob(command)
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/jobWithWarning',
+        waitForJob: true,
+        returnStatusOnly: true
+      })
+    ).toResolve()
 
     expect(mockExit).toHaveBeenCalledWith(1)
   })
 
   it(`should submit a job that completes with ignored warning and return it's status`, async () => {
-    const command = new Command(
-      `job execute jobs/testJob/jobWithWarning -t ${target.name} --returnStatusOnly --ignoreWarnings`
-    )
-
     const mockExit = mockProcessExit()
 
-    await processJob(command)
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/jobWithWarning',
+        waitForJob: true,
+        returnStatusOnly: true,
+        ignoreWarnings: true
+      })
+    ).toResolve()
 
     expect(mockExit).toHaveBeenCalledWith(0)
   })
 
   it(`should submit a job that fails and return its status`, async () => {
-    const command = new Command(
-      `job execute jobs/testJob/failingJob -t ${target.name} --returnStatusOnly -l`
-    )
-
     const mockExit = mockProcessExit()
 
-    await processJob(command)
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/failingJob',
+        waitForJob: true,
+        logFile: path.join(process.projectDir, 'failingJob.log'),
+        returnStatusOnly: true
+      })
+    ).toResolve()
 
     expect(mockExit).toHaveBeenCalledWith(2)
     await expect(folderExists(process.projectDir)).resolves.toEqual(true)
@@ -333,23 +371,21 @@ describe('sasjs job execute', () => {
   })
 
   it(`should submit a job that does not exist and return it's status`, async () => {
-    const command = new Command(
-      `job execute jobs/testJob/failingJob_DOES_NOT_EXIST -t ${target.name} --wait --returnStatusOnly`
-    )
-
     const mockExit = mockProcessExit()
 
-    await processJob(command)
+    await expect(
+      executeWrapper({
+        jobPath: 'jobs/testJob/failingJob_DOES_NOT_EXIST',
+        waitForJob: true,
+        returnStatusOnly: true
+      })
+    ).toResolve()
 
     expect(mockExit).toHaveBeenCalledWith(2)
   })
 
   it('should terminate the process if server could not get session status', async () => {
-    const command = new Command(
-      `job execute jobs/testJob/jobWithWarning -t ${target.name}`
-    )
-
-    const sasjs = new SASjs({
+    const adapter = new SASjs({
       serverUrl: target.serverUrl,
       allowInsecureRequests: target.allowInsecureRequests,
       appLoc: target.appLoc,
@@ -365,10 +401,15 @@ describe('sasjs job execute', () => {
     jest.spyOn(process.logger, 'error')
     jest.spyOn(process.logger, 'info')
     jest
-      .spyOn(sasjs, 'startComputeJob')
+      .spyOn(adapter, 'startComputeJob')
       .mockImplementation(() => Promise.reject(err))
 
-    await processJob(command, sasjs)
+    await expect(
+      executeWrapper({
+        adapter,
+        jobPath: 'jobs/testJob/jobWithWarning'
+      })
+    ).toResolve()
 
     const terminationCode = 2
 
@@ -380,31 +421,11 @@ describe('sasjs job execute', () => {
   })
 })
 
-async function getAvailableContext(target: Target) {
-  const timestamp = generateTimestamp()
-  const targetName = `cli-job-tests-context-${timestamp}`
-
-  await saveToGlobalConfig(
-    new Target({
-      ...target.toJson(),
-      name: targetName
-    })
-  )
-
-  const contexts = await processContext(
-    new Command(['context', 'list', '-t', targetName])
-  )
-
-  await removeFromGlobalConfig(targetName)
-
-  return (contexts as any[])[0]
-}
-
 const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-job-${timestamp}`
-
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -412,7 +433,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',
@@ -450,3 +471,43 @@ const copyJobsAndServices = async (appName: string) => {
     path.join(__dirname, appName, 'sasjs', 'testServices')
   )
 }
+
+interface executeWrapperParams {
+  adapter?: SASjs
+  jobPath: string
+  waitForJob?: boolean
+  output?: string | boolean
+  logFile?: string
+  statusFile?: string
+  returnStatusOnly?: boolean
+  ignoreWarnings?: boolean
+  source?: string
+  streamLog?: boolean
+}
+
+const executeWrapper = async ({
+  adapter = sasjs,
+  jobPath,
+  waitForJob = false,
+  output = false,
+  logFile = undefined,
+  statusFile = undefined,
+  returnStatusOnly = false,
+  ignoreWarnings = false,
+  source = undefined,
+  streamLog = false
+}: executeWrapperParams) =>
+  execute(
+    adapter,
+    authConfig,
+    jobPath,
+    target,
+    waitForJob,
+    output,
+    logFile,
+    statusFile,
+    returnStatusOnly,
+    ignoreWarnings,
+    source,
+    streamLog
+  )

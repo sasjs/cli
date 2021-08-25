@@ -1,6 +1,5 @@
 import ora from 'ora'
-import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displayError, displaySuccess } from '../../utils/displayResult'
+import { AuthConfig, Target } from '@sasjs/utils/types'
 import SASjs from '@sasjs/adapter/node'
 
 /**
@@ -14,12 +13,6 @@ export async function list(
   sasjs: SASjs,
   authConfig: AuthConfig
 ) {
-  if (target.serverType !== ServerType.SasViya) {
-    throw new Error(
-      `'context list' command is only supported for SAS Viya build targets.\nPlease check the target name and try again.`
-    )
-  }
-
   const startTime = new Date().getTime()
 
   const spinner = ora(
@@ -31,10 +24,10 @@ export async function list(
   const contexts = await sasjs
     .getExecutableContexts(authConfig)
     .catch((err) => {
-      displayError(err, 'An error has occurred when fetching contexts list.')
+      spinner.stop()
+      process.logger?.error('Error listing contexts: ', err)
+      throw err
     })
-
-  let result
 
   if (contexts) {
     const accessibleContexts = contexts.map((context) => ({
@@ -49,7 +42,8 @@ export async function list(
     const allContexts = await sasjs
       .getComputeContexts(authConfig.access_token)
       .catch((err) => {
-        displayError(err, 'An error has occurred when fetching contexts list.')
+        spinner.stop()
+        process.logger?.error('Error listing contexts: ', err)
         throw err
       })
 
@@ -64,16 +58,14 @@ export async function list(
       }))
 
     if (accessibleContexts.length) {
-      result = accessibleContexts
-
-      displaySuccess(
+      process.logger?.success(
         'Accessible contexts:\n' +
           accessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )
     }
 
     if (inaccessibleContexts.length) {
-      displaySuccess(
+      process.logger?.success(
         'Inaccessible contexts:\n' +
           inaccessibleContexts.map((c, i) => `${i + 1}. ${c.name}\n`).join('')
       )
@@ -87,6 +79,4 @@ export async function list(
   process.logger?.info(
     `This operation took ${(endTime - startTime) / 1000} seconds`
   )
-
-  return result ? result : false
 }

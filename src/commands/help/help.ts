@@ -337,8 +337,8 @@ export async function printHelpText() {
     { name: 'deploy', aliases: ['d'] },
     { name: 'compilebuilddeploy', aliases: ['cbd'] },
     { name: 'web', aliases: ['w'] },
-    { name: 'version', aliases: ['-version', '--version', '-v', '--v', 'v'] },
-    { name: 'help', aliases: ['--help', '-help', '-h', '--h', 'h'] },
+    { name: 'version', aliases: ['v'] },
+    { name: 'help', aliases: ['h'] },
     { name: 'add', aliases: ['a'] },
     { name: 'run', aliases: ['r'] },
     { name: 'request', aliases: ['rq'] }

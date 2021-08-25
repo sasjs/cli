@@ -60,7 +60,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     }
   } else {
     const { contextName } = await getAndValidateSasViyaFields(
-      name,
+      new Target(targetJson),
       scope,
       serverUrl,
       insecure,
@@ -92,7 +92,6 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
   )
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
-
   return true
 }
 

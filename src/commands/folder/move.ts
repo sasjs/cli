@@ -8,20 +8,13 @@ import { displayError, displaySuccess } from '../../utils/displayResult'
  * @param {string} accessToken - an access token for an authorized user.
  */
 export const move = async (
-  paths: string,
+  sourcePath: string,
+  destinationPath: string,
   sasjs: SASjs,
   accessToken: string
 ) => {
-  const pathMap = paths.split(' ')
-
-  if (pathMap.length !== 2) {
-    throw new Error(
-      `Bad command.\nCommand example: sasjs folder move /Public/sourceFolder /Public/targetFolder`
-    )
-  }
-
-  const sourceFolder = pathMap[0]
-  let targetFolder = pathMap[1]
+  const sourceFolder = sourcePath
+  let targetFolder = destinationPath
   const targetFolderName = targetFolder.split('/').pop() as string
 
   const movedFolder = await sasjs

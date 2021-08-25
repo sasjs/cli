@@ -8,7 +8,6 @@ import {
   readFile,
   Target
 } from '@sasjs/utils'
-import { getConstants } from '../../../constants'
 import { Flow, FlowWave } from '../../../types'
 import { getAuthConfig } from '../../../utils/config'
 import { displayError } from '../../../utils/displayResult'
@@ -16,21 +15,20 @@ import { isCsvFile, isJsonFile } from '../../../utils/file'
 import examples from './examples'
 
 export const validateParams = async (
+  target: Target,
   source: string,
-  csvFile: string,
-  logFolder: string,
-  target: Target
+  csvFile?: string,
+  logFolder?: string
 ): Promise<{
   terminate: boolean
   message?: string
   flows?: { [key: string]: FlowWave }
-  authConfig?: AuthConfig
   csvFile?: string
   logFolder?: string
 }> => {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
-  if (!source || !isJsonFile(source)) {
+  if (!isJsonFile(source)) {
     return {
       terminate: true,
       message: `Please provide flow source (--source) file.\n${examples.command}`
@@ -71,11 +69,6 @@ export const validateParams = async (
       message: `There are no flows present in source JSON.\n${examples.source}`
     }
 
-  const authConfig = await getAuthConfig(target).catch((err) => {
-    displayError(err, 'Error while getting access token.')
-    throw err
-  })
-
   const defaultCsvFileName = 'flowResults.csv'
 
   if (csvFile) {
@@ -110,7 +103,6 @@ export const validateParams = async (
   return {
     terminate: false,
     flows,
-    authConfig,
     csvFile,
     logFolder
   }

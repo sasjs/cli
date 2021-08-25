@@ -10,12 +10,12 @@ import {
   fileExists,
   asyncForEach
 } from '@sasjs/utils'
-import { getConstants } from '../../constants'
 
 const whiteListedDBExtensions = ['ddl', 'sas']
 
 export async function buildDB() {
-  const { buildSourceDbFolder, buildDestinationDbFolder } = await getConstants()
+  const { buildSourceDbFolder, buildDestinationDbFolder } =
+    process.sasjsConstants
   await recreateBuildFolder()
 
   const buildDBFolders = await listSubFoldersInFolder(buildSourceDbFolder)
@@ -61,7 +61,7 @@ export async function buildDB() {
 
 async function recreateBuildFolder() {
   const { buildDestinationFolder, buildDestinationDbFolder } =
-    await getConstants()
+    process.sasjsConstants
   process.logger?.info(`Recreating folder ${buildDestinationDbFolder} ...`)
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) await deleteFolder(buildDestinationDbFolder)

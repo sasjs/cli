@@ -19,8 +19,8 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { getConstants } from '../../constants'
 import { terminateProcess } from '../../main'
+import { ReturnCode } from '../../types/command'
 
 /**
  * Triggers existing job for execution.
@@ -29,12 +29,11 @@ import { terminateProcess } from '../../main'
  * @param {string} jobPath - location of the job on SAS Drive.
  * @param {object} target - SAS server configuration.
  * @param {boolean} waitForJob - flag indicating if CLI should wait for job completion.
- * @param {boolean} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output.
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
- * @param {boolean | string} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
- * @param {boolean | string} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
- * @param {boolean | undefined} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error). Works only if waitForJob flag was provided.
- * @param {boolean | undefined} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
+ * @param {string | undefined} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
+ * @param {string | undefined} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
+ * @param {boolean} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error).
+ * @param {boolean} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
@@ -44,43 +43,26 @@ export async function execute(
   jobPath: string,
   target: Target,
   waitForJob: boolean,
-  output: string,
-  logFile: string,
-  statusFile: string,
+  output: string | boolean,
+  logFile: string | undefined,
+  statusFile: string | undefined,
   returnStatusOnly: boolean,
   ignoreWarnings: boolean,
   source: string | undefined,
   streamLog: boolean
 ) {
-  let logFolderPath
-
-  if (typeof logFile === 'string') {
-    const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
-    logFolderPath = path.join(currentDirPath, logFile)
-  } else {
-    logFolderPath = process.projectDir
-  }
-
   const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
     pollInterval: 1000,
     streamLog,
-    logFolderPath
-  }
-
-  if (returnStatusOnly && !waitForJob) waitForJob = true
-
-  if (ignoreWarnings && !returnStatusOnly) {
-    process.logger?.warn(
-      `Using the 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the sasjs job execute command.`
-    )
+    logFolderPath: logFile
   }
 
   let result
 
   const startTime = new Date().getTime()
 
-  if (statusFile !== undefined && !returnStatusOnly)
+  if (statusFile && !returnStatusOnly)
     await displayStatus({ state: 'Initiating' }, statusFile)
 
   if (!returnStatusOnly) {
@@ -118,7 +100,7 @@ export async function execute(
       null,
       { contextName },
       authConfig,
-      waitForJob || logFile !== undefined ? true : false,
+      waitForJob || !!logFile,
       pollOptions,
       true,
       macroVars?.macroVars
@@ -141,18 +123,18 @@ export async function execute(
         terminateProcess(2)
       }
 
-      if (err && err.log) {
+      if (err?.log) {
         await saveLog(err.log, logFile, jobPath, returnStatusOnly)
       }
 
       if (returnStatusOnly) terminateProcess(2)
 
       if (err?.name === 'NotFoundError') {
-        throw `Job located at '${jobPath}' was not found.`
+        throw new Error(`Job located at '${jobPath}' was not found.`)
       }
 
       result = returnStatusOnly
-        ? 2
+        ? ReturnCode.InternalError
         : typeof err === 'object' && Object.keys(err).length
         ? JSON.stringify({ state: err.job?.state })
         : `${err}`
@@ -168,7 +150,7 @@ export async function execute(
   }
 
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
-  if (statusFile !== undefined && !returnStatusOnly)
+  if (statusFile && !returnStatusOnly)
     await displayStatus(submittedJob, statusFile, result, true)
 
   if (submittedJob && submittedJob.links) {
@@ -187,7 +169,7 @@ export async function execute(
       )
     }
 
-    if (output !== undefined || logFile !== undefined) {
+    if (output || logFile) {
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
@@ -219,7 +201,7 @@ export async function execute(
 
         // If the log was being streamed, it should already be present
         // at the specified log path
-        if (logFile !== undefined && !pollOptions.streamLog) {
+        if (logFile && !pollOptions.streamLog) {
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
           )
@@ -282,7 +264,7 @@ export async function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
 ) {
-  const defaultContextName = (await getConstants()).contextName
+  const defaultContextName = process.sasjsConstants.contextName
 
   if (target && target.contextName) return target.contextName
 
@@ -301,8 +283,9 @@ async function displayStatus(
   error = '',
   displayStatusFilePath = false
 ) {
-  const adapterStatus =
-    submittedJob && submittedJob.state ? submittedJob.state : 'Not Available'
+  const adapterStatus = submittedJob?.state
+    ? submittedJob.state
+    : 'Not Available'
 
   const status =
     adapterStatus === 'Not Available'
@@ -313,33 +296,29 @@ async function displayStatus(
     displaySuccess(status)
   else displayError({}, status)
 
-  if (typeof statusFile === 'string') {
-    const currentDirPath = path.isAbsolute(statusFile) ? '' : process.projectDir
-    const statusPath = path.join(currentDirPath, statusFile)
-
-    let folderPath = statusPath.split(path.sep)
+  if (statusFile) {
+    let folderPath = statusFile.split(path.sep)
     folderPath.pop()
     const parentFolderPath = folderPath.join(path.sep)
 
     if (!(await folderExists(parentFolderPath)))
       await createFolder(parentFolderPath)
 
-    await createFile(statusPath, status)
-    if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusPath}`)
+    await createFile(statusFile, status)
+    if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusFile}`)
   }
 }
 
 const saveLog = async (
   logData: any,
-  logFile: string,
+  logFile: string | undefined,
   jobPath: string,
   returnStatusOnly: boolean
 ) => {
   let logPath
 
-  if (typeof logFile === 'string') {
-    const currentDirPath = path.isAbsolute(logFile) ? '' : process.projectDir
-    logPath = path.join(currentDirPath, logFile)
+  if (logFile) {
+    logPath = logFile
   } else {
     logPath = path.join(
       process.projectDir,

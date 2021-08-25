@@ -11,7 +11,8 @@ import {
   ServerType,
   Target
 } from '@sasjs/utils'
-import { updateTagSource } from '..'
+import { updateTagSource } from '../web'
+import { setConstants } from '../../../utils'
 
 describe('updateTagSource', () => {
   let destinationPath: string
@@ -23,6 +24,7 @@ describe('updateTagSource', () => {
     )
     await createFolder(destinationPath)
     process.projectDir = destinationPath
+    await setConstants()
   })
 
   afterAll(async () => {
@@ -38,7 +40,7 @@ describe('updateTagSource', () => {
 
     const script1Filename = 'script1.js'
     const script1SASProgramName = 'script1-js.sas'
-    const script1Base64 = `O1sn4pWQJywgJ+KVpCcsICfilZQnLCAn4pWXJywgJ+KVkCcsICfilacnLCAn4pWaJywgJ+KVnScsICfilZEnLCAn4pWfJywgJ+KUgCcsICfilLwnLCAn4pWRJywgJ+KVoicsICfilIInXQo=`
+    const script1Base64 = `O1sn4pWQJywgJ+KVpCcsICfilZQnLCAn4pWXJywgJ+KVkCcsICfilacnLCAn4pWaJywgJ+KVnScsICfilZEnLCAn4pWfJywgJ+KUgCcsICfilLwnLCAn4pWRJywgJ+KVoicsICfilIInXQ`
 
     scriptTag.setAttribute('src', script1Filename)
     const sasProgramScript1Path = path.join(
@@ -60,11 +62,11 @@ describe('updateTagSource', () => {
     expect(scriptTag.getAttribute('src')).toEqual(sasProgramScript1Path)
 
     const content1 = await readFile(sasProgramScript1Path)
-    expect(content1).toEqual(expect.stringContaining(`put '${script1Base64}'`))
+    expect(content1).toEqual(expect.stringContaining(`put '${script1Base64}`))
 
     const script2Filename = './script2.js'
     const script2SASProgramName = 'script2-js.sas'
-    const script2Base64 = `O1snxKYnLCAnxpUnLCAn0qInLCAn0ronLCAn04cnLCAn1IonXQo=`
+    const script2Base64 = `O1snxKYnLCAnxpUnLCAn0qInLCAn0ronLCAn04cnLCAn1IonXQ`
     scriptTag.setAttribute('src', script2Filename)
     const sasProgramScript2Path = path.join(
       destinationPath,
@@ -85,6 +87,6 @@ describe('updateTagSource', () => {
     expect(scriptTag.getAttribute('src')).toEqual(sasProgramScript2Path)
 
     const content2 = await readFile(sasProgramScript2Path)
-    expect(content2).toEqual(expect.stringContaining(`put '${script2Base64}'`))
+    expect(content2).toEqual(expect.stringContaining(`put '${script2Base64}`))
   })
 })

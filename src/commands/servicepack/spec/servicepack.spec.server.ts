@@ -1,31 +1,30 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { processServicepack } from '..'
-import { folder } from '../../folder/index'
-import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
+import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
 import {
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
-import { Command } from '../../../utils/command'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
+import { servicePackDeploy } from '../deploy'
+import { removeTestServerFolder } from '../../../utils/test'
 
 describe('sasjs servicepack', () => {
-  let config: TargetJson
-  const targetName = 'cli-tests-servicepack-' + generateTimestamp()
+  let target: Target
 
   beforeAll(async () => {
     dotenv.config()
 
-    const serverType = ServerType.SasViya
+    await setConstants()
 
-    config = {
+    const targetName = 'cli-tests-servicepack-' + generateTimestamp()
+    target = new Target({
       name: targetName,
-      serverType: serverType,
+      serverType: ServerType.SasViya,
       serverUrl: process.env.VIYA_SERVER_URL as string,
       allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
-      contextName: (await getConstants()).contextName,
+      contextName: process.sasjsConstants.contextName,
       authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
@@ -34,8 +33,8 @@ describe('sasjs servicepack', () => {
       },
       macroFolders: [],
       programFolders: []
-    }
-    await saveToGlobalConfig(new Target(config))
+    })
+    await saveToGlobalConfig(target)
 
     process.projectDir = path.join(process.cwd())
     process.currentDir = process.projectDir
@@ -45,17 +44,13 @@ describe('sasjs servicepack', () => {
     it(
       'should deploy servicepack',
       async () => {
-        const command = new Command([
-          'servicepack',
-          'deploy',
-          '-s',
-          'src/commands/servicepack/spec/testServicepack.json',
-          '-f',
-          '-t',
-          targetName
-        ])
-
-        await expect(processServicepack(command)).resolves.toEqual(true)
+        await expect(
+          servicePackDeploy(
+            target,
+            'src/commands/servicepack/spec/testServicepack.json',
+            true
+          )
+        ).resolves.toEqual(true)
       },
       60 * 1000
     )
@@ -63,23 +58,19 @@ describe('sasjs servicepack', () => {
     it(
       'should fail because servicepack already been deployed',
       async () => {
-        const command = new Command([
-          'servicepack',
-          'deploy',
-          '-s',
-          'src/commands/servicepack/spec/testServicepack.json',
-          '-t',
-          targetName
-        ])
-
-        await expect(processServicepack(command)).resolves.toEqual(false)
+        await expect(
+          servicePackDeploy(
+            target,
+            'src/commands/servicepack/spec/testServicepack.json'
+          )
+        ).resolves.toEqual(false)
       },
       60 * 1000
     )
   })
 
   afterAll(async () => {
-    await folder(new Command(`folder delete ${config.appLoc} -t ${targetName}`))
-    await removeFromGlobalConfig(targetName)
+    await removeTestServerFolder(target.appLoc, target)
+    await removeFromGlobalConfig(target.name)
   }, 60 * 1000)
 })

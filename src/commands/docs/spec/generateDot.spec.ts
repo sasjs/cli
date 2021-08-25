@@ -1,230 +1,146 @@
 import path from 'path'
 import { graphviz } from 'node-graphviz'
-import { doc } from '../../../main'
-import { Command } from '../../../utils/command'
 import {
   createTestApp,
   removeTestApp,
-  updateConfig,
-  updateTarget,
   verifyDotFiles
 } from '../../../utils/test'
 import {
-  folderExists,
   readFile,
   JobConfig,
-  generateTimestamp
+  generateTimestamp,
+  Target,
+  Configuration,
+  deleteFolder
 } from '@sasjs/utils'
+import { generateDot } from '../generateDot'
+import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
+import { TargetScope } from '../../../types'
 
 describe('sasjs doc lineage', () => {
-  let appName: string
+  const appName = `test-app-doc-${generateTimestamp()}`
+  const docOutputDefault = path.join(__dirname, appName, 'sasjsbuild', 'docs')
+  const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
+  let defaultTarget: Target
+  let defaultConfig: Configuration
+
+  beforeAll(async () => {
+    await createTestApp(__dirname, appName)
+    ;({ target: defaultTarget } = await findTargetInConfiguration(
+      'viya',
+      TargetScope.Local
+    ))
+    defaultConfig = await getLocalConfig()
+  })
 
   afterEach(async () => {
+    await deleteFolder(docOutputDefault)
+  })
+
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
   })
 
-  it(
-    `should generate dot-files (default Target from config)`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
+  it(`should generate dot-files`, async () => {
+    await expect(generateDot(defaultTarget, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await createTestApp(__dirname, appName)
-      await updateConfig({
-        defaultTarget: 'viya'
-      })
+    await verifyDotFiles(docOutputDefault)
+  })
 
-      await expect(doc(new Command(`doc lineage`))).resolves.toEqual(0)
+  it(`should generate dot-files to ./my-docs-<timestamp>`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `my-docs-${generateTimestamp()}`
+    )
 
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
+    await expect(
+      generateDot(defaultTarget, defaultConfig, docOutputProvided)
+    ).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
 
-  it(
-    `should generate dot-files for supplied target`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
+    await verifyDotFiles(docOutputProvided)
+  })
 
-      await createTestApp(__dirname, appName)
+  it(`should generate dot-files to sasjsconfig.json's outDirectory`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `xyz-${generateTimestamp()}`
+    )
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      docConfig: { outDirectory: docOutputProvided }
+    })
 
-      await expect(doc(new Command(`doc lineage -t sas9`))).resolves.toEqual(0)
+    await expect(generateDot(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
 
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
+    await verifyDotFiles(docOutputProvided)
+  })
 
-  it(
-    `should generate dot-files to ./my-docs`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
+  it(`should generate dot-files to default location having docConfig.outDirectory is empty`, async () => {
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      docConfig: { outDirectory: '' }
+    })
 
-      const docOutputProvided = path.join(__dirname, appName, 'my-docs')
+    await expect(generateDot(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await createTestApp(__dirname, appName)
+    await verifyDotFiles(docOutputDefault)
+  })
 
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
+  it(`should generate dot-files custom jobs`, async () => {
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      jobConfig: {
+        jobFolders: ['../testJobs']
+      } as JobConfig
+    })
 
-      await expect(
-        doc(
-          new Command(`doc lineage -t viya --outDirectory ${docOutputProvided}`)
-        )
-      ).resolves.toEqual(0)
+    await expect(generateDot(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await verifyDotFiles(docOutputProvided)
-    },
-    60 * 1000
-  )
+    await verifyDotFiles(docOutputDefault)
+    await verifyCustomDotFiles(docOutputDefault)
+  })
 
-  it(
-    `should generate dot-files to sasjsconfig.json's outDirectory`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
+  it(`should generate dot-files custom jobs having double qoutes`, async () => {
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      jobConfig: {
+        jobFolders: ['../testJobHavingDoubleQoutes']
+      } as JobConfig
+    })
 
-      const docOutputProvided = path.join(__dirname, appName, 'xyz')
+    await expect(generateDot(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await createTestApp(__dirname, appName)
-      await updateTarget(
-        {
-          docConfig: { outDirectory: docOutputProvided }
-        },
-        'viya'
-      )
+    await verifyDotFiles(docOutputDefault)
+  })
 
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
+  it(`should generate dot-files custom jobs having back slashes`, async () => {
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      jobConfig: {
+        jobFolders: ['../testJobHavingBackSlashes']
+      } as JobConfig
+    })
 
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
+    await expect(generateDot(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await verifyDotFiles(docOutputProvided)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate dot-files to default location having docConfig.outDirectory is empty`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateTarget({ docConfig: { outDirectory: '' } }, 'viya')
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
-
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate dot-files custom jobs`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateTarget(
-        {
-          jobConfig: {
-            jobFolders: ['../testJobs']
-          } as JobConfig
-        },
-        'viya'
-      )
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
-
-      await verifyDotFiles(docOutputDefault)
-      await verifyCustomDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate dot-files custom jobs having double qoutes`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateTarget(
-        {
-          jobConfig: {
-            jobFolders: ['../testJobHavingDoubleQoutes']
-          } as JobConfig
-        },
-        'viya'
-      )
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
-
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate dot-files custom jobs having back slashes`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateTarget(
-        {
-          jobConfig: {
-            jobFolders: ['../testJobHavingBackSlashes']
-          } as JobConfig
-        },
-        'viya'
-      )
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc lineage -t viya`))).resolves.toEqual(0)
-
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
+    await verifyDotFiles(docOutputDefault)
+  })
 })
 
 const verifyCustomDotFiles = async (docsFolder: string) => {

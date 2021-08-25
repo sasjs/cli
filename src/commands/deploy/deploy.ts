@@ -19,7 +19,6 @@ import {
   decodeFromBase64
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
-import { getConstants } from '../../constants'
 import { getDeployScripts } from './internal/getDeployScripts'
 
 export async function deploy(target: Target, isLocal: boolean) {
@@ -52,7 +51,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     )
   }
 
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
   const logFilePath = buildDestinationFolder
   await asyncForEach(deployScripts, async (deployScript) => {
@@ -142,7 +141,7 @@ async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean
 ): Promise<string> {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
     `${target.name}.json`
@@ -258,7 +257,7 @@ async function deployToSas9(
     password = process.env.SAS_PASSWORD
   }
   if (!username || !password) {
-    const { sas9CredentialsError } = await getConstants()
+    const { sas9CredentialsError } = process.sasjsConstants
     throw new Error(sas9CredentialsError)
   }
   password = decodeFromBase64(password)

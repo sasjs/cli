@@ -4,19 +4,20 @@ import {
   readFile,
   deleteFolder,
   createFile,
-  ServerType
+  ServerType,
+  AuthConfig
 } from '@sasjs/utils'
-import { runRequest, compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   createTestApp,
   createTestGlobalTarget,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
-import { removeFromGlobalConfig } from '../../../utils/config'
-import { getConstants } from '../../../constants'
+import { getAuthConfig, removeFromGlobalConfig } from '../../../utils/config'
+import { runSasJob } from '../request'
+import { build } from '../../build/build'
+import { deploy } from '../../deploy/deploy'
 
 const sampleDataJson = {
   table1: [
@@ -52,6 +53,7 @@ const expectedDataObj = {
 
 describe('sasjs request without compute API', () => {
   let target: Target
+  let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
@@ -68,12 +70,14 @@ describe('sasjs request without compute API', () => {
         macroVars: {}
       }
     )
+    authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
       path.join(process.projectDir, 'sasjs', 'runRequest')
     )
 
-    await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
+    await build(target)
+    await deploy(target, false)
 
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
@@ -81,9 +85,7 @@ describe('sasjs request without compute API', () => {
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 
@@ -100,10 +102,13 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -115,10 +120,13 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -130,10 +138,13 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendArr',
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
 
@@ -146,10 +157,13 @@ describe('sasjs request without compute API', () => {
 
   it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendObj',
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
 
@@ -185,16 +199,16 @@ describe('sasjs request with SAS9', () => {
       path.join(process.projectDir, 'sasjs', 'runRequest')
     )
 
-    await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
+    await build(target)
+    await deploy(target, false)
+
     const sasjsBuildDirPath = path.join(process.projectDir, 'sasjsbuild')
     await deleteFolder(sasjsBuildDirPath)
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 
@@ -211,10 +225,11 @@ describe('sasjs request with SAS9', () => {
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        dataPathRel
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -226,10 +241,11 @@ describe('sasjs request with SAS9', () => {
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
+        dataPathRel
       )
     ).toResolve()
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -241,11 +257,7 @@ describe('sasjs request with SAS9', () => {
 
   it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
-        )
-      )
+      runSasJob(target, false, 'services/runRequest/sendArr', dataPathRel)
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -257,11 +269,7 @@ describe('sasjs request with SAS9', () => {
 
   it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendObj -d ${dataPathRel} -t ${target.name}`
-        )
-      )
+      runSasJob(target, false, 'services/runRequest/sendObj', dataPathRel)
     ).toResolve()
 
     const rawData = await readFile(`${process.projectDir}/output.json`)
@@ -274,6 +282,7 @@ describe('sasjs request with SAS9', () => {
 
 describe(`sasjs request with compute API`, () => {
   let target: Target
+  let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
@@ -290,19 +299,19 @@ describe(`sasjs request with compute API`, () => {
         macroVars: {}
       }
     )
+    authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
       path.join(process.projectDir, 'sasjs', 'runRequest')
     )
 
-    await compileBuildDeployServices(new Command(`cbd -t ${appName} -f`))
+    await build(target)
+    await deploy(target, false)
   })
 
   afterAll(async () => {
     await removeFromGlobalConfig(target.name)
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
 
@@ -313,7 +322,7 @@ describe(`sasjs request with compute API`, () => {
         {
           ...target.toJson(),
           useComputeApi: true,
-          contextName: (await getConstants()).contextName
+          contextName: process.sasjsConstants.contextName
         },
         null,
         2
@@ -327,10 +336,13 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendArr -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        dataPathRel,
+        configPathRel,
+        authConfig
       )
     ).toResolve()
 
@@ -343,10 +355,13 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request /Public/app/cli-tests/${target.name}/services/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
+        dataPathRel,
+        configPathRel,
+        authConfig
       )
     ).toResolve()
 
@@ -359,10 +374,13 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendArr' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendArr -d ${dataPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendArr',
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
 
@@ -375,10 +393,13 @@ describe(`sasjs request with compute API`, () => {
 
   it(`should execute service 'sendObj' with relative path`, async () => {
     await expect(
-      runRequest(
-        new Command(
-          `request services/runRequest/sendObj -d ${dataPathRel} -c ${configPathRel} -t ${target.name}`
-        )
+      runSasJob(
+        target,
+        false,
+        'services/runRequest/sendObj',
+        dataPathRel,
+        undefined,
+        authConfig
       )
     ).toResolve()
 

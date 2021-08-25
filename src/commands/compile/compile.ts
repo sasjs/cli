@@ -17,10 +17,9 @@ import {
   asyncForEach,
   listFilesAndSubFoldersInFolder
 } from '@sasjs/utils'
-import { createWebAppServices } from '../web'
+import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
 import { Target, StreamConfig } from '@sasjs/utils/types'
-import { getConstants } from '../../constants'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
@@ -66,7 +65,7 @@ export async function compile(target: Target, forceCompile = false) {
     )
 
     const buildMacroTestFolder = path.join(
-      (await getConstants()).buildDestinationTestFolder,
+      process.sasjsConstants.buildDestinationTestFolder,
       'macros'
     )
 
@@ -94,7 +93,7 @@ export async function compile(target: Target, forceCompile = false) {
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
   await recreateBuildFolder()
 
@@ -162,7 +161,7 @@ export async function compileJobsServicesTests(target: Target) {
 }
 
 async function recreateBuildFolder() {
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
   process.logger?.info('Recreating build folder...')
   const pathExists = await fileExists(buildDestinationFolder)
   if (pathExists) {

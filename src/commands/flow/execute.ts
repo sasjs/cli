@@ -1,5 +1,5 @@
 import { displayError } from '../../utils/displayResult'
-import { Target } from '@sasjs/utils'
+import { AuthConfig, Target } from '@sasjs/utils'
 import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import examples from './internal/examples'
 import {
@@ -9,25 +9,25 @@ import {
   validateParams,
   checkPredecessorDeadlock
 } from './internal'
-import { FlowWave, TestFlow } from '../../types'
+import { FlowWave } from '../../types'
 
 export async function execute(
-  source: string,
-  logFolder: string,
-  csvFile: string,
   target: Target,
-  streamLog: boolean,
-  sasjs: SASjs
+  sasjs: SASjs,
+  authConfig: AuthConfig,
+  source: string,
+  logFolder?: string,
+  csvFile?: string,
+  streamLog: boolean = false
 ) {
   return new Promise(async (resolve, reject) => {
     const {
       terminate,
       message,
       flows,
-      authConfig,
       csvFile: csvFileRealPath,
       logFolder: logFolderRealPath
-    } = await validateParams(source, csvFile, logFolder, target)
+    } = await validateParams(target, source, csvFile, logFolder)
     if (terminate) return reject(message)
 
     const { present: predecessorDeadlock, chain: deadlockChain } =

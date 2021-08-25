@@ -1,12 +1,7 @@
 import path from 'path'
-import { doc } from '../../../main'
-import { Command } from '../../../utils/command'
 import {
   createTestApp,
   removeTestApp,
-  removeAllTargetsFromConfigs,
-  updateConfig,
-  updateTarget,
   verifyDocs,
   verifyDotFiles,
   verifyDotFilesNotGenerated
@@ -17,445 +12,301 @@ import {
   deleteFolder,
   deleteFile,
   DocConfig,
-  generateTimestamp
+  generateTimestamp,
+  Target,
+  Configuration
 } from '@sasjs/utils'
+import { generateDocs } from '../generateDocs'
+import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
+import { TargetScope } from '../../../types'
 
 describe('sasjs doc', () => {
-  let appName: string
+  const appName = `test-app-doc-${generateTimestamp()}`
+  const docOutputDefault = path.join(__dirname, appName, 'sasjsbuild', 'docs')
+  const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
+  let defaultTarget: Target
+  let defaultConfig: Configuration
+
+  beforeAll(async () => {
+    await createTestApp(__dirname, appName)
+    ;({ target: defaultTarget } = await findTargetInConfiguration(
+      'viya',
+      TargetScope.Local
+    ))
+    defaultConfig = await getLocalConfig()
+  })
 
   afterEach(async () => {
+    await deleteFolder(docOutputDefault)
+  })
+
+  afterAll(async () => {
     await removeTestApp(__dirname, appName)
   })
 
-  it(
-    `should generate docs for (default Target from config)`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
+  it(`should generate docs`, async () => {
+    await expect(generateDocs(defaultTarget, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await createTestApp(__dirname, appName)
-      await updateConfig({
-        defaultTarget: 'viya'
-      })
+    await verifyDocs(docOutputDefault, defaultTarget.name)
+  })
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+  it(`should generate docs having doxy folder at relative path`, async () => {
+    const doxyContentPathNew = path.join(
+      __dirname,
+      appName,
+      'doxy-custom-folder'
+    )
 
-      await verifyDocs(docOutputDefault, 'viya')
-    },
-    60 * 1000
-  )
+    await copy(doxyContentPath, doxyContentPathNew)
+    await deleteFolder(doxyContentPath)
 
-  it(
-    `should generate docs for (default Target from config) having doxy folder at relative path`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-      const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
-      const doxyContentPathNew = path.join(
-        __dirname,
-        appName,
-        'doxy-custom-folder'
-      )
-
-      await createTestApp(__dirname, appName)
-
-      await copy(doxyContentPath, doxyContentPathNew)
-      await deleteFolder(doxyContentPath)
-
-      await updateConfig({
-        defaultTarget: 'viya',
-        docConfig: {
-          doxyContent: {
-            readMe: '../README.md',
-            path: './doxy-custom-folder'
-          }
+    const config = {
+      ...defaultConfig,
+      docConfig: {
+        doxyContent: {
+          readMe: '../README.md',
+          path: './doxy-custom-folder'
         }
-      })
+      }
+    }
 
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
 
-      await verifyDocs(docOutputDefault, 'viya')
-    },
-    60 * 1000
-  )
+    await verifyDocs(docOutputDefault, defaultTarget.name)
 
-  it(
-    `should generate docs for (default Target from config) having doxy folder at absolute path`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-      const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
-      const doxyContentPathNew = path.join(
-        __dirname,
-        appName,
-        'doxy-custom-folder'
-      )
+    await copy(doxyContentPathNew, doxyContentPath)
+    await deleteFolder(doxyContentPathNew)
+  })
 
-      await createTestApp(__dirname, appName)
+  it(`should generate docs for having doxy folder at absolute path`, async () => {
+    const doxyContentPathNew = path.join(
+      __dirname,
+      appName,
+      'doxy-custom-folder'
+    )
 
-      await copy(doxyContentPath, doxyContentPathNew)
-      await deleteFolder(doxyContentPath)
+    await copy(doxyContentPath, doxyContentPathNew)
+    await deleteFolder(doxyContentPath)
 
-      await updateConfig({
-        defaultTarget: 'viya',
-        docConfig: {
-          doxyContent: {
-            readMe: '../README.md',
-            path: doxyContentPathNew
-          }
+    const config = {
+      ...defaultConfig,
+      docConfig: {
+        doxyContent: {
+          readMe: '../README.md',
+          path: doxyContentPathNew
         }
-      })
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs for (default Target from config) having space in folderPath(parent Folder)`,
-    async () => {
-      appName = `test app  doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({
-        docConfig: { displayMacroCore: false },
-        defaultTarget: 'viya'
-      })
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya', false)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs for supplied target`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-
-      await expect(doc(new Command(`doc -t sas9`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'sas9')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs to ./my-docs`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputProvided = path.join(__dirname, appName, 'my-docs')
-
-      await createTestApp(__dirname, appName)
-
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
-
-      await expect(
-        doc(new Command(`doc -t viya --outDirectory ${docOutputProvided}`))
-      ).resolves.toEqual(0)
-
-      await verifyDocs(docOutputProvided, 'viya')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs without sasjs/core`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({
-        docConfig: { displayMacroCore: false }
-      })
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya', false)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs to sasjsconfig.json's outDirectory`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputProvided = path.join(__dirname, appName, 'xyz')
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({
-        docConfig: { outDirectory: docOutputProvided }
-      })
-
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputProvided, 'viya')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs to default location having docConfig.outDirectory is empty`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: { outDirectory: '' } })
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should fail to generate docs for not having Doxyfile configuration`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      await createTestApp(__dirname, appName)
-
-      await deleteFile(path.join(__dirname, appName, 'sasjs/doxy/Doxyfile'))
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(2)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs if no target is present`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-
-      await removeAllTargetsFromConfigs()
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'no-target')
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having target precedence over root level`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputProvided = path.join(__dirname, appName, 'xyz')
-
-      await createTestApp(__dirname, appName)
-      await updateTarget(
-        {
-          docConfig: {
-            displayMacroCore: false,
-            enableLineage: false,
-            outDirectory: docOutputProvided
-          }
-        },
-        'viya'
-      )
-
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputProvided, 'viya', false)
-      await verifyDotFilesNotGenerated(docOutputProvided)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having target precedence over root level(no docConfig)`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputProvided = path.join(__dirname, appName, 'xyz')
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown as DocConfig })
-      await updateTarget(
-        {
-          docConfig: {
-            displayMacroCore: false,
-            enableLineage: false,
-            outDirectory: docOutputProvided
-          }
-        },
-        'viya'
-      )
-
-      await expect(folderExists(docOutputProvided)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputProvided, 'viya', false)
-      await verifyDotFilesNotGenerated(docOutputProvided)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having no docConfig at root level`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown as DocConfig })
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya')
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having empty docConfig at root level`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: {} })
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc -t viya`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'viya')
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having no docConfig at root level and no targets`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: null as unknown as DocConfig })
-      await removeAllTargetsFromConfigs()
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'no-target')
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
-
-  it(
-    `should generate docs having empty docConfig at root level and not targets`,
-    async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
-
-      const docOutputDefault = path.join(
-        __dirname,
-        appName,
-        'sasjsbuild',
-        'docs'
-      )
-
-      await createTestApp(__dirname, appName)
-      await updateConfig({ docConfig: {} })
-      await removeAllTargetsFromConfigs()
-
-      await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
-
-      await expect(doc(new Command(`doc`))).resolves.toEqual(0)
-
-      await verifyDocs(docOutputDefault, 'no-target')
-      await verifyDotFiles(docOutputDefault)
-    },
-    60 * 1000
-  )
+      }
+    }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name)
+
+    await copy(doxyContentPathNew, doxyContentPath)
+    await deleteFolder(doxyContentPathNew)
+  })
+
+  it(`should generate docs for having space in folderPath(parent Folder)`, async () => {
+    const config = {
+      ...defaultConfig,
+      docConfig: { displayMacroCore: false }
+    }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name, false)
+  })
+
+  it(`should generate docs to ./my-docs-<timestamp>`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `my-docs-${generateTimestamp()}`
+    )
+
+    await expect(
+      generateDocs(defaultTarget, defaultConfig, docOutputProvided)
+    ).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
+
+    await verifyDocs(docOutputProvided, defaultTarget.name)
+  })
+
+  it(`should generate docs without sasjs/core`, async () => {
+    await expect(folderExists(docOutputDefault)).resolves.toEqual(false)
+
+    const config = {
+      ...defaultConfig,
+      docConfig: { displayMacroCore: false }
+    }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name, false)
+  })
+
+  it(`should generate docs to sasjsconfig.json's outDirectory`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `xyz-${generateTimestamp()}`
+    )
+
+    const config = {
+      ...defaultConfig,
+      docConfig: { outDirectory: docOutputProvided }
+    }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
+
+    await verifyDocs(docOutputProvided, defaultTarget.name)
+  })
+
+  it(`should generate docs to default location having docConfig.outDirectory is empty`, async () => {
+    const config = { ...defaultConfig, docConfig: { outDirectory: '' } }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name)
+  })
+
+  it(`should fail to generate docs for not having Doxyfile configuration`, async () => {
+    const doxyFile = path.join(__dirname, appName, 'sasjs/doxy/Doxyfile')
+    const doxyFileNew = path.join(__dirname, appName, 'sasjs/doxy/Doxytemp')
+
+    await copy(doxyFile, doxyFileNew)
+    await deleteFile(doxyFile)
+
+    await expect(generateDocs(defaultTarget, defaultConfig)).rejects.toEqual(
+      expect.stringMatching(/^Doxygen Configuration File is not found!/)
+    )
+
+    await copy(doxyFileNew, doxyFile)
+    await deleteFile(doxyFileNew)
+  })
+
+  it(`should generate docs if no target is present`, async () => {
+    await expect(generateDocs(undefined, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, 'no-target')
+  })
+
+  it(`should generate docs having target precedence over root level`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `xyz-${generateTimestamp()}`
+    )
+
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      docConfig: {
+        displayMacroCore: false,
+        enableLineage: false,
+        outDirectory: docOutputProvided
+      }
+    })
+
+    await expect(generateDocs(target, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
+
+    await verifyDocs(docOutputProvided, defaultTarget.name, false)
+    await verifyDotFilesNotGenerated(docOutputProvided)
+  })
+
+  it(`should generate docs having target precedence over root level(no docConfig)`, async () => {
+    const docOutputProvided = path.join(
+      __dirname,
+      appName,
+      `xyz-${generateTimestamp()}`
+    )
+
+    const config = {
+      ...defaultConfig,
+      docConfig: null as unknown as DocConfig
+    }
+    const target = new Target({
+      ...defaultTarget.toJson(),
+      docConfig: {
+        displayMacroCore: false,
+        enableLineage: false,
+        outDirectory: docOutputProvided
+      }
+    })
+
+    await expect(generateDocs(target, config)).resolves.toEqual({
+      outDirectory: docOutputProvided
+    })
+
+    await verifyDocs(docOutputProvided, defaultTarget.name, false)
+    await verifyDotFilesNotGenerated(docOutputProvided)
+  })
+
+  it(`should generate docs having no docConfig at root level`, async () => {
+    const config = { ...defaultConfig, docConfig: null as unknown as DocConfig }
+
+    await expect(
+      generateDocs(defaultTarget, config, undefined)
+    ).resolves.toEqual({ outDirectory: docOutputDefault })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name)
+    await verifyDotFiles(docOutputDefault)
+  })
+
+  it(`should generate docs having empty docConfig at root level`, async () => {
+    const config = { ...defaultConfig, docConfig: {} }
+
+    await expect(generateDocs(defaultTarget, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, defaultTarget.name)
+    await verifyDotFiles(docOutputDefault)
+  })
+
+  it(`should generate docs having no docConfig at root level and no targets`, async () => {
+    const config = {
+      ...defaultConfig,
+      docConfig: null as unknown as DocConfig
+    }
+
+    await expect(generateDocs(undefined, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, 'no-target')
+    await verifyDotFiles(docOutputDefault)
+  })
+
+  it(`should generate docs having empty docConfig at root level and no targets`, async () => {
+    const config = {
+      ...defaultConfig,
+      docConfig: {}
+    }
+
+    await expect(generateDocs(undefined, config)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await verifyDocs(docOutputDefault, 'no-target')
+    await verifyDotFiles(docOutputDefault)
+  })
 })

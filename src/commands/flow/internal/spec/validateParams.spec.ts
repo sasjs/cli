@@ -10,7 +10,6 @@ import {
   Target
 } from '@sasjs/utils'
 import { validateParams } from '..'
-import * as module from '../../../../constants'
 import * as configUtils from '../../../../utils/config'
 import examples from '../examples'
 
@@ -22,38 +21,19 @@ describe('validateParams', () => {
   beforeAll(async () => {
     await createFolder(appFolder)
     process.projectDir = appFolder
-
-    jest.spyOn(module, 'getConstants').mockImplementation(() =>
-      Promise.resolve({
-        buildDestinationFolder: appFolder
-      } as any)
-    )
+    process.sasjsConstants = {
+      buildDestinationFolder: path.join(appFolder, 'sasjsbuild')
+    } as any
   })
 
   afterAll(async () => {
     await deleteFolder(appFolder)
   })
 
-  it('should return terminate flag, if source is not provided', async () => {
-    const { terminate, message } = await validateParams(
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
-    )
-
-    expect(terminate).toEqual(true)
-    expect(message).toEqual(
-      `Please provide flow source (--source) file.\n${examples.command}`
-    )
-  })
-
   it('should return terminate flag, if source is not JSON File', async () => {
     const { terminate, message } = await validateParams(
-      'source.txt',
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
+      undefined as any as Target,
+      'source.txt'
     )
 
     expect(terminate).toEqual(true)
@@ -64,10 +44,8 @@ describe('validateParams', () => {
 
   it('should return terminate flag, if source File does not exist', async () => {
     const { terminate, message } = await validateParams(
-      'source.json',
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
+      undefined as any as Target,
+      'source.json'
     )
 
     expect(terminate).toEqual(true)
@@ -80,10 +58,8 @@ describe('validateParams', () => {
     await createFile(source, '{ SOME : CONTENT : INVALID }')
 
     const { terminate, message } = await validateParams(
-      source,
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
+      undefined as any as Target,
+      source
     )
 
     expect(terminate).toEqual(true)
@@ -99,10 +75,8 @@ describe('validateParams', () => {
     await createFile(source, '{ "notFlows": [] }')
 
     const { terminate, message } = await validateParams(
-      source,
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
+      undefined as any as Target,
+      source
     )
 
     expect(terminate).toEqual(true)
@@ -122,10 +96,9 @@ describe('validateParams', () => {
       .mockImplementation(() => Promise.resolve({} as any))
 
     const { terminate, message } = await validateParams(
+      undefined as any as Target,
       source,
-      'csv.txt',
-      undefined as any as string,
-      undefined as any as Target
+      'csv.txt'
     )
 
     expect(terminate).toEqual(true)
@@ -147,10 +120,10 @@ describe('validateParams', () => {
       .mockImplementation(() => Promise.resolve({} as any))
 
     const { terminate, flows } = await validateParams(
+      undefined as any as Target,
       source,
       csv,
-      logFolder,
-      undefined as any as Target
+      logFolder
     )
 
     expect(terminate).toEqual(false)
@@ -178,15 +151,14 @@ describe('validateParams', () => {
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(() => Promise.resolve({ isLocal: true } as any))
 
-    const { terminate, flows } = await validateParams(
-      source,
-      undefined as any as string,
-      undefined as any as string,
-      undefined as any as Target
+    const { terminate, flows, csvFile } = await validateParams(
+      undefined as any as Target,
+      source
     )
 
     expect(terminate).toEqual(false)
     expect(flows).toEqual([])
+    expect(csvFile).toEqual(csvDefaultLoc)
 
     await expect(fileExists(csvDefaultLoc)).resolves.toEqual(true)
     await expect(folderExists(logFolderDefaultLoc)).resolves.toEqual(true)

@@ -6,10 +6,15 @@ import {
   validateFileRef,
   validateProgramsList
 } from '../../shared/dependencies'
+import { setConstants } from '../../../utils'
 
 process.projectDir = path.join(process.cwd())
 
 describe('getProgramDependencies', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
+
   const expectedLines = [
     'filename TEST temp;',
     'data _null_;',
@@ -90,6 +95,10 @@ describe('getProgramDependencies', () => {
 })
 
 describe('validateFileRef', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
+
   test('it should return true for a file ref containing characters', () => {
     const fileRef = 'TEST'
 
@@ -138,6 +147,10 @@ describe('validateFileRef', () => {
 })
 
 describe('getProgramList', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
+
   test('it should get program dependencies when header is lowercase', async () => {
     let fileContent = await readFile(path.join(__dirname, './example.sas'))
     fileContent = fileContent.replace('SAS Programs', 'sas programs')
@@ -244,6 +257,10 @@ describe('getProgramList', () => {
 })
 
 describe('validateProgramsList', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
+
   test('it should throw an error when filerefs are not unique', () => {
     const programsList = [
       { fileName: 'test.sas', fileRef: 'TEST' },

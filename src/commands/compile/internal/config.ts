@@ -1,7 +1,6 @@
 import { Target } from '@sasjs/utils/types'
 import { readFile } from '@sasjs/utils'
 import path from 'path'
-import { getConstants } from '../../../constants'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
 import { getAbsolutePath } from '../../../utils/utils'
 
@@ -10,7 +9,7 @@ import { getAbsolutePath } from '../../../utils/utils'
 export const getServiceInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let serviceInitContent = '',
     filePath = ''
   if (target?.serviceConfig?.initProgram) {
@@ -45,7 +44,7 @@ export const getServiceInit = async (
 export const getServiceTerm = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let serviceTermContent = '',
     filePath = ''
   if (target?.serviceConfig?.termProgram) {
@@ -81,7 +80,7 @@ export const getServiceTerm = async (
 export const getJobInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let jobInitContent = '',
     filePath = ''
   if (target?.jobConfig?.initProgram) {
@@ -114,7 +113,7 @@ export const getJobInit = async (
 export const getJobTerm = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let jobTermContent = '',
     filePath = ''
   if (target?.jobConfig?.termProgram) {
@@ -146,7 +145,7 @@ export const getJobTerm = async (
 export const getTestInit = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let testInitContent = '',
     filePath = ''
 
@@ -181,7 +180,7 @@ export const getTestInit = async (
 export const getTestTerm = async (
   target: Target
 ): Promise<{ content: string; filePath: string }> => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   let testTermContent = '',
     filePath = ''
 

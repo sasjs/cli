@@ -1,342 +1,83 @@
-import { removeFromGlobalConfig } from './utils/config'
 import { cli } from './cli'
-import {
-  createTestApp,
-  createTestGlobalTarget,
-  mockProcessExit,
-  removeTestApp
-} from './utils/test'
-import * as mainModule from './main'
-import { ReturnCode } from './main'
-import { Command } from './utils/command'
-import { Target, generateTimestamp } from '@sasjs/utils'
+import { mockProcessExit } from './utils/test'
+import * as envVariablesModule from './utils/loadEnvVariables'
+import * as projectDirModule from './utils/setProjectDir'
+import * as parseModule from './types/command/parse'
+import { Logger } from '@sasjs/utils'
+import { CommandBase } from './types/command/commandBase'
+import { ReturnCode } from './types/command'
+
+const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'mock', 'command']
+
+class MockCommand extends CommandBase {
+  constructor(args: string[]) {
+    super(args, {
+      syntax: 'mock <command>'
+    })
+  }
+  public async execute() {
+    return 0
+  }
+}
+
+const mockCommand = new MockCommand(args)
 
 describe('CLI command parsing', () => {
-  let target: Target
-
-  beforeEach(async () => {
-    const appName = `cli-tests-${generateTimestamp()}`
-    await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
-      appName,
-      `/Public/app/cli-tests/${appName}`
-    )
-    mockProcessExit()
+  beforeEach(() => {
+    setupMocks()
   })
 
-  afterEach(async () => {
-    await removeTestApp(__dirname, target.name)
-    await removeFromGlobalConfig(target.name)
-  })
-
-  it('should call the correct function for the create command', async () => {
-    jest
-      .spyOn(mainModule, 'createFileStructure')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'create',
-      'testapp'
-    ]
-
+  it('should set up common infrastructure before parsing the command', async () => {
     await cli(args)
 
-    expect(mainModule.createFileStructure).toHaveBeenCalledWith(
-      new Command(['create', 'testapp'])
-    )
+    expect(envVariablesModule.loadProjectEnvVariables).toHaveBeenCalledTimes(1)
+    expect(projectDirModule.setProjectDir).toHaveBeenCalledTimes(1)
+    expect(projectDirModule.setProjectDir).toHaveBeenCalledWith(args)
+    expect(process.logger).toBeInstanceOf(Logger)
   })
 
-  it('should call the correct function for the create command with additional arguments', async () => {
-    jest
-      .spyOn(mainModule, 'createFileStructure')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'create',
-      'testapp',
-      '-t',
-      'minimal'
-    ]
-
+  it('should parse the command passed in', async () => {
     await cli(args)
 
-    expect(mainModule.createFileStructure).toHaveBeenCalledWith(
-      new Command(['create', 'testapp', '-t', 'minimal'])
-    )
+    expect(parseModule.parse).toHaveBeenCalledTimes(1)
+    expect(parseModule.parse).toHaveBeenCalledWith(args)
   })
 
-  it('should call the correct function for the compile command', async () => {
-    jest
-      .spyOn(mainModule, 'compileServices')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'compile']
-
+  it('should execute the command when successfully parsed', async () => {
     await cli(args)
 
-    expect(mainModule.compileServices).toHaveBeenCalledWith(
-      new Command(['compile'])
-    )
+    expect(process.logger).toBeInstanceOf(Logger)
+    expect(mockCommand.execute).toHaveBeenCalledTimes(1)
   })
 
-  it('should call the correct function for the build command', async () => {
-    jest
-      .spyOn(mainModule, 'buildServices')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'build',
-      '-t',
-      'viya'
-    ]
-
+  it('should return with the correct exit code after successful execution', async () => {
     await cli(args)
 
-    expect(mainModule.buildServices).toHaveBeenCalledWith(
-      new Command(['build', '-t', 'viya'])
-    )
+    expect(process.exit).toHaveBeenCalledWith(0)
   })
 
-  it('should call the correct function for the deploy command', async () => {
+  it('should return with the correct exit code on errors', async () => {
     jest
-      .spyOn(mainModule, 'deployServices')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'deploy',
-      '-t',
-      'viya'
-    ]
-
+      .spyOn(mockCommand, 'execute')
+      .mockImplementation(() => Promise.resolve(ReturnCode.InternalError))
     await cli(args)
 
-    expect(mainModule.deployServices).toHaveBeenCalledWith(
-      new Command(['deploy', '-t', 'viya'])
-    )
-  })
-
-  it('should call the correct function for the db command', async () => {
-    jest
-      .spyOn(mainModule, 'buildDBs')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'db']
-
-    await cli(args)
-
-    expect(mainModule.buildDBs).toHaveBeenCalledWith()
-  })
-
-  it('should call the correct function for the compilebuild command', async () => {
-    jest
-      .spyOn(mainModule, 'compileBuildServices')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'cb']
-
-    await cli(args)
-
-    expect(mainModule.compileBuildServices).toHaveBeenCalledWith(
-      new Command(['cb'])
-    )
-  })
-
-  it('should call the correct function for the compilebuilddeploy command', async () => {
-    jest
-      .spyOn(mainModule, 'compileBuildDeployServices')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'cbd']
-
-    await cli(args)
-
-    expect(mainModule.compileBuildDeployServices).toHaveBeenCalledWith(
-      new Command(['cbd'])
-    )
-  })
-
-  it('should call the correct function for the servicepack command', async () => {
-    jest
-      .spyOn(mainModule, 'servicepack')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'servicepack',
-      'deploy'
-    ]
-
-    await cli(args)
-
-    expect(mainModule.servicepack).toHaveBeenCalledWith(
-      new Command(['servicepack', 'deploy'])
-    )
-  })
-
-  it('should call the correct function for the help command', async () => {
-    jest
-      .spyOn(mainModule, 'showHelp')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'help']
-
-    await cli(args)
-
-    expect(mainModule.showHelp).toHaveBeenCalledWith()
-  })
-
-  it('should call the correct function for the version command', async () => {
-    jest
-      .spyOn(mainModule, 'showVersion')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'v']
-
-    await cli(args)
-
-    expect(mainModule.showVersion).toHaveBeenCalledWith()
-  })
-
-  it('should call the correct function for the web command', async () => {
-    jest
-      .spyOn(mainModule, 'buildWebApp')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'web']
-
-    await cli(args)
-
-    expect(mainModule.buildWebApp).toHaveBeenCalledWith(new Command(['web']))
-  })
-
-  it('should call the correct function for the add command', async () => {
-    jest
-      .spyOn(mainModule, 'add')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'add']
-
-    await cli(args)
-
-    expect(mainModule.add).toHaveBeenCalledWith(new Command(['add']))
-  })
-
-  it('should call the correct function for the run command', async () => {
-    jest
-      .spyOn(mainModule, 'run')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'run']
-
-    await cli(args)
-
-    expect(mainModule.run).toHaveBeenCalledWith(new Command(['run']))
-  })
-
-  it('should call the correct function for the request command', async () => {
-    jest
-      .spyOn(mainModule, 'runRequest')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'request']
-
-    await cli(args)
-
-    expect(mainModule.runRequest).toHaveBeenCalledWith(new Command(['request']))
-  })
-
-  it('should call the correct function for the context command', async () => {
-    jest
-      .spyOn(mainModule, 'context')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'context',
-      'create'
-    ]
-
-    await cli(args)
-
-    expect(mainModule.context).toHaveBeenCalledWith(
-      new Command(['context', 'create'])
-    )
-  })
-
-  it('should call the correct function for the folder command', async () => {
-    jest
-      .spyOn(mainModule, 'folderManagement')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'folder',
-      'move'
-    ]
-
-    await cli(args)
-
-    expect(mainModule.folderManagement).toHaveBeenCalledWith(
-      new Command(['folder', 'move'])
-    )
-  })
-
-  it('should call the correct function for the job command', async () => {
-    jest
-      .spyOn(mainModule, 'jobManagement')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'job',
-      'execute'
-    ]
-
-    await cli(args)
-
-    expect(mainModule.jobManagement).toHaveBeenCalledWith(
-      new Command(['job', 'execute'])
-    )
-  })
-
-  it('should call the correct function for the flow command', async () => {
-    jest
-      .spyOn(mainModule, 'flowManagement')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'flow',
-      'execute'
-    ]
-
-    await cli(args)
-
-    expect(mainModule.flowManagement).toHaveBeenCalledWith(
-      new Command(['flow', 'execute'])
-    )
-  })
-
-  it('should call the correct function for the lint command', async () => {
-    jest
-      .spyOn(mainModule, 'lint')
-      .mockImplementation(() => Promise.resolve(ReturnCode.Success))
-    const args = ['/usr/local/bin/node', '/usr/local/bin/sasjs', 'lint']
-
-    await cli(args)
-
-    expect(mainModule.lint).toHaveBeenCalledTimes(1)
-  })
-
-  it('should exit with an error when an invalid command is entered', async () => {
-    jest
-      .spyOn(process, 'exit')
-      .mockImplementation(
-        (code: number | undefined) => console.log(code) as never
-      )
-    const args = [
-      '/usr/local/bin/node',
-      '/usr/local/bin/sasjs',
-      'garbage',
-      'dispose'
-    ]
-
-    await cli(args)
-
-    expect(process.exit).toHaveBeenCalledWith(1)
+    expect(process.exit).toHaveBeenCalledWith(2)
   })
 })
+
+const setupMocks = () => {
+  jest.resetAllMocks()
+  mockProcessExit()
+  jest.mock('./utils')
+  jest.mock('./types/command')
+
+  jest
+    .spyOn(envVariablesModule, 'loadProjectEnvVariables')
+    .mockImplementation(() => Promise.resolve())
+  jest
+    .spyOn(projectDirModule, 'setProjectDir')
+    .mockImplementation(() => Promise.resolve())
+  jest.spyOn(parseModule, 'parse').mockImplementation(() => mockCommand)
+  jest.spyOn(mockCommand, 'execute')
+}

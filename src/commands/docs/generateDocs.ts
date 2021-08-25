@@ -7,12 +7,11 @@ import { isWindows } from '../../utils/command'
 import {
   createFolder,
   deleteFolder,
-  folderExists,
   fileExists,
-  readFile
+  readFile,
+  Target,
+  Configuration
 } from '@sasjs/utils'
-import { getLocalConfig } from '../../utils/config'
-import { getConstants } from '../../constants'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
@@ -26,18 +25,20 @@ import { getAbsolutePath } from '../../utils/utils'
  * By default the docs will be at 'sasjsbuild/docs' folder
  * If a target is supplied, generates docs only for the SAS programs / macros / jobs / services in that target (and the root).
  * If no target is supplied, generates for all sas programs/ macros / jobs / services.
- * @param {string} targetName- the name of the target to be specific for docs.
+ * @param {Target} target- the name of the target to be specific for docs.
  * @param {string} outDirectory- the name of the output folder, picks from sasjsconfig.docConfig if present.
  */
-export async function generateDocs(targetName: string, outDirectory: string) {
-  const config = await getLocalConfig()
+export async function generateDocs(
+  target?: Target,
+  config?: Configuration,
+  outDirectory?: string
+): Promise<{ outDirectory: string }> {
   const {
-    target,
     serverUrl,
     newOutDirectory,
     enableLineage,
     doxyContent: doxyContentFromConfig
-  } = await getDocConfig(config, targetName, outDirectory)
+  } = getDocConfig(target, config, outDirectory)
 
   const {
     macroCore: macroCoreFolders,
@@ -45,7 +46,7 @@ export async function generateDocs(targetName: string, outDirectory: string) {
     program: programFolders,
     service: serviceFolders,
     job: jobFolders
-  } = await getFoldersForDocs(target, config)
+  } = getFoldersForDocs(target, config)
 
   const combinedFolders = [
     ...new Set([

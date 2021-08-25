@@ -1,8 +1,11 @@
 import { Target } from '@sasjs/utils'
+import { setConstants } from '../../../utils'
 import { getContextName } from '../execute'
-import { getConstants } from '../../../constants'
 
 describe('getContextName', () => {
+  beforeAll(async () => {
+    await setConstants()
+  })
   it('should return the context name if specified in the target', async () => {
     const target = { contextName: 'Test Context' }
 
@@ -13,7 +16,7 @@ describe('getContextName', () => {
     const target = { contextName: undefined }
 
     expect(await getContextName(target as unknown as Target)).toEqual(
-      (await getConstants()).contextName
+      process.sasjsConstants.contextName
     )
   })
 })

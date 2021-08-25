@@ -1,9 +1,8 @@
 import path from 'path'
 
-import { doc } from '../../../main'
-import { Command } from '../../../utils/command'
 import { createTestApp, removeTestApp } from '../../../utils/test'
 import { folderExists, deleteFolder, generateTimestamp } from '@sasjs/utils'
+import { initDocs } from '../initDocs'
 
 describe('sasjs doc', () => {
   let appName: string
@@ -23,7 +22,7 @@ describe('sasjs doc', () => {
       await deleteFolder(doxypath)
       await expect(folderExists(doxypath)).resolves.toEqual(false)
 
-      await expect(doc(new Command(`doc init`))).resolves.toEqual(0)
+      await expect(initDocs()).resolves.not.toThrow()
 
       await expect(folderExists(doxypath)).resolves.toEqual(true)
     },

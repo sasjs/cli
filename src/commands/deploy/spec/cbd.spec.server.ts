@@ -7,10 +7,9 @@ import {
 } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
 import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import {
+  findTargetInConfiguration,
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
@@ -20,10 +19,13 @@ import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
   createTestMinimalApp,
-  removeTestApp
+  removeTestApp,
+  removeTestServerFolder
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
+import { build } from '../../build/build'
+import { deploy } from '../deploy'
+import { TargetScope } from '../../../types'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -37,15 +39,12 @@ describe('sasjs cbd with global config', () => {
   afterEach(async () => {
     await removeFromGlobalConfig(target.name)
 
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, target.name)
   })
 
   it('should compile, build and deploy', async () => {
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
     const servicePath = path.join(
       __dirname,
       target.name,
@@ -61,7 +60,8 @@ describe('sasjs cbd with global config', () => {
       target.name,
       `sasjsbuild/${target.name}.json`
     )
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, false)).toResolve()
     await expect(fileExists(servicePath)).resolves.toEqual(true)
     await expect(fileExists(jobPath)).resolves.toEqual(true)
     /**
@@ -106,9 +106,7 @@ describe('sasjs cbd with local config', () => {
   })
 
   afterEach(async () => {
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, appName)
 
@@ -116,8 +114,8 @@ describe('sasjs cbd with local config', () => {
   })
 
   it('should deploy service pack when deployServicePack is true', async () => {
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, true)).toResolve()
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
@@ -127,8 +125,8 @@ describe('sasjs cbd with local config', () => {
         deployScripts: ['sasjs/build/copyscript.sh']
       }
     })
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(target)).toResolve()
+    await expect(deploy(target, true)).toResolve()
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
@@ -138,19 +136,19 @@ describe('sasjs cbd with local config', () => {
         deployScripts: []
       }
     })
+    const { target: customTarget } = await findTargetInConfiguration(
+      target.name,
+      TargetScope.Local
+    )
     jest
       .spyOn(getDeployScriptsModule, 'getDeployScripts')
       .mockImplementation(() => Promise.resolve([]))
-    jest.spyOn(displayResultModule, 'displayError')
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await compileBuildDeployServices(command)
-
-    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+    await build(customTarget)
+    await expect(deploy(customTarget, true)).rejects.toEqual(
       new Error(
         `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
-      ),
-      'An error has occurred when deploying services.'
+      )
     )
   })
 
@@ -158,16 +156,12 @@ describe('sasjs cbd with local config', () => {
     jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
       return Promise.reject('Token error')
     })
-    jest.spyOn(displayResultModule, 'displayError')
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await compileBuildDeployServices(command)
-
-    expect(displayResultModule.displayError).toHaveBeenCalledWith(
+    await build(target)
+    await expect(deploy(target, true)).rejects.toEqual(
       new Error(
         `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env.${target.name} file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-      ),
-      'An error has occurred when deploying services.'
+      )
     )
   })
 })
@@ -191,9 +185,7 @@ describe('sasjs cbd having stream app', () => {
   })
 
   afterEach(async () => {
-    await folder(
-      new Command(`folder delete ${target.appLoc} -t ${target.name}`)
-    ).catch(() => {})
+    await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, appName)
 
@@ -213,9 +205,13 @@ describe('sasjs cbd having stream app', () => {
         deployScripts: [`sasjsbuild/${target.name}.sas`]
       }
     })
+    const { target: customTarget } = await findTargetInConfiguration(
+      target.name,
+      TargetScope.Local
+    )
 
-    const command = new Command(`cbd -t ${target.name} -f`.split(' '))
-    await expect(compileBuildDeployServices(command)).toResolve()
+    await expect(build(customTarget)).toResolve()
+    await expect(deploy(customTarget, true)).toResolve()
 
     const logFileContent = await readFile(
       path.join(__dirname, appName, 'sasjsbuild', `${target.name}.log`)
@@ -241,6 +237,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -248,7 +245,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
       initProgram: 'sasjs/testServices/serviceinit.sas',
@@ -288,7 +285,7 @@ const createLocalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

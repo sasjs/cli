@@ -13,20 +13,22 @@ import {
 } from '@sasjs/utils'
 import { Command } from '../../utils/command'
 import { displayError } from '../../utils/displayResult'
-import { getConstants } from '../../constants'
 import { compileSingleFile } from '../'
 import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
 import axios from 'axios'
+import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
 /**
  * Runs SAS code from a given file on the specified target.
+ * @param {Target} target - the target to run the SAS code on.
  * @param {string} filePath - the path to the file containing SAS code.
- * @param {string} targetName - the name of the target to run the SAS code on.
+ * @param {boolean} compile - compiles sas file present at 'filePath' before running code.
  */
-export async function runSasCode(command: Command) {
-  let filePath = command.values.shift() || ''
-  const targetName = command.getFlagValue('target') as string
-  const compile = !!command.getFlag('compile')
+export async function runSasCode(
+  target: Target,
+  filePath: string,
+  compile: boolean = false
+) {
   let isFileCreated: boolean = false
 
   const tempFilePath = path.join(
@@ -38,7 +40,7 @@ export async function runSasCode(command: Command) {
     await axios
       .get(filePath)
       .then(async (res) => {
-        const { invalidSasError } = await getConstants()
+        const { invalidSasError } = process.sasjsConstants
         if (typeof res.data !== 'string') {
           throw new Error(invalidSasError)
         }
@@ -61,13 +63,15 @@ export async function runSasCode(command: Command) {
     throw new Error(`'sasjs run' command supports only *.sas files.`)
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
   if (compile) {
+    const sourcefilePathParts = path.normalize(filePath).split(path.sep)
+    sourcefilePathParts.splice(-1, 1)
+    const sourceFolderPath = sourcefilePathParts.join(path.sep)
     ;({ destinationPath: filePath } = await compileSingleFile(
       target,
-      new Command(`compile -s ${filePath}`),
       'identify',
+      filePath,
+      getDestinationServicePath(sourceFolderPath),
       true
     ))
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)
@@ -150,7 +154,7 @@ async function executeOnSasViya(
 
   process.logger?.success('Job execution completed!')
 
-  const { buildDestinationResultsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = process.sasjsConstants
   process.logger?.info(
     `Creating ${
       isOutput ? 'output' : 'log'
@@ -185,7 +189,7 @@ async function executeOnSas9(
   }
 
   if (!username || !password) {
-    const { sas9CredentialsError } = await getConstants()
+    const { sas9CredentialsError } = process.sasjsConstants
     throw new Error(sas9CredentialsError)
   }
 
@@ -198,7 +202,7 @@ async function executeOnSas9(
     serverType: target.serverType,
     debug: true
   })
-  const { buildDestinationResultsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = process.sasjsConstants
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch(async (err) => {
@@ -237,7 +241,7 @@ async function executeOnSas9(
 
 async function createOutputFile(log: string) {
   const timestamp = generateTimestamp()
-  const { buildDestinationResultsFolder } = await getConstants()
+  const { buildDestinationResultsFolder } = process.sasjsConstants
   const outputFilePath = path.join(
     buildDestinationResultsFolder,
     `sasjs-run-${timestamp}.log`

@@ -21,11 +21,12 @@ import {
   updateConfig,
   updateTarget
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
 import * as compileJobFile from '../internal/compileJobFile'
 import * as compileServiceFile from '../internal/compileServiceFile'
+import { setConstants } from '../../../utils'
+import { CompileCommand } from '../compileCommand'
 
 describe('sasjs compile', () => {
   let sharedAppName: string
@@ -147,25 +148,33 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file', async () => {
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'job',
+        '-s',
+        './jobs/extract/makedata1.sas'
+      ])
+      const output = await command.output
       await expect(
-        compileSingleFile(
-          target,
-          new Command(`compile job -s ./jobs/extract/makedata1.sas`),
-          'job'
-        )
+        compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
     })
 
     it('should compile single file with absolute path', async () => {
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'job',
+        '-s',
+        './jobs/extract/makedata1.sas'
+      ])
+      const output = await command.output
       await expect(
-        compileSingleFile(
-          target,
-          new Command(
-            `compile job -s ${process.projectDir}/jobs/extract/makedata1.sas`
-          ),
-          'job'
-        )
+        compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
       expect(compileJobFile.compileJobFile).toHaveBeenCalled()
     })
@@ -180,24 +189,32 @@ describe('sasjs compile single file', () => {
     })
 
     it('should compile single file', async () => {
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        'sasjs/services/common/example.sas'
+      ])
+      const output = await command.output
       await expect(
-        compileSingleFile(
-          target,
-          new Command(`compile service -s sasjs/services/common/example.sas`),
-          'service'
-        )
+        compileSingleFile(target, 'service', command.source, output)
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
     })
     it('should compile single file with absolute path', async () => {
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        `${process.projectDir}/sasjs/services/common/example.sas`
+      ])
+      const output = await command.output
       await expect(
-        compileSingleFile(
-          target,
-          new Command(
-            `compile service -s ${process.projectDir}/sasjs/services/common/example.sas`
-          ),
-          'service'
-        )
+        compileSingleFile(target, 'service', command.source, output)
       ).toResolve()
       expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
     })
@@ -236,6 +253,8 @@ describe('sasjs compile outside project', () => {
         false
       )
       process.projectDir = ''
+      await setConstants()
+
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
@@ -268,11 +287,22 @@ describe('sasjs compile outside project', () => {
 
       parentOutputFolder = buildOutputFolder
 
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
+
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).resolves.toEqual({
         destinationPath
@@ -312,11 +342,22 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).resolves.toEqual({
         destinationPath
@@ -345,11 +386,21 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
@@ -376,11 +427,23 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
+
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).resolves.toEqual({
         destinationPath
@@ -419,11 +482,23 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      await setConstants()
+
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).resolves.toEqual({
         destinationPath
@@ -448,6 +523,8 @@ describe('sasjs compile outside project', () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await saveGlobalRcFile('')
       process.projectDir = ''
+      await setConstants()
+
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
     })
@@ -458,11 +535,21 @@ describe('sasjs compile outside project', () => {
 
     it('should fail to compile single file', async () => {
       const dependencies = ['examplemacro.sas', 'yetanothermacro.sas']
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        'service',
+        '-s',
+        '../services/example1.sas'
+      ])
+      const output = await command.output
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
-          new Command(`compile service -s ../services/example1.sas`),
-          'service'
+          'service',
+          command.source,
+          output
         )
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`

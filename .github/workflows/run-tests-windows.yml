@@ -1,0 +1,59 @@
+# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Run mocked tests on Windows
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Doxygen
+        run: choco install doxygen.install --version 1.9.1
+
+      - name: Add doxygen to path
+        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Check doxygen version
+        run: doxygen -v
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check code style
+        run: npm run lint
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Link
+        run: npm link
+
+      - name: npm prefix for user
+        run: echo prefix=C:\npm\prefix >> ~\.npmrc
+
+      - name: Run mocked tests
+        run: npm run test:mocked
+        env:
+          CI: true
+          CLIENT: ${{secrets.CLIENT}}
+          SECRET: ${{secrets.SECRET}}
+          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
+          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
+          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
+          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}

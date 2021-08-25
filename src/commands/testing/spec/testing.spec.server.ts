@@ -1,6 +1,4 @@
-import { runTest } from '../'
-import { compileBuildDeployServices } from '../../../main'
-import { folder } from '../../folder/index'
+import { runTest } from '../test'
 import { TestDescription, TestResult } from '../../../types'
 import {
   Logger,
@@ -14,7 +12,11 @@ import {
   readFile,
   generateTimestamp
 } from '@sasjs/utils'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  removeTestServerFolder
+} from '../../../utils/test'
 import { Command } from '../../../utils/command'
 import {
   removeFromGlobalConfig,
@@ -22,7 +24,8 @@ import {
 } from '../../../utils/config'
 import dotenv from 'dotenv'
 import path from 'path'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
+import { build, deploy } from '../..'
 
 describe('sasjs test', () => {
   let target: Target
@@ -43,17 +46,14 @@ describe('sasjs test', () => {
 
     await createTestApp(__dirname, target.name)
     await copyTestFiles(target.name)
-    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+    await build(target)
+    await deploy(target, false)
 
     process.logger = new Logger(LogLevel.Off)
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
   })
@@ -174,9 +174,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     )}
 `
 
-    const command = new Command(`test -t ${target.name}`)
-
-    await runTest(command)
+    await runTest(target)
 
     const resultsFolderPath = path.join(__dirname, target.name, 'sasjsresults')
     const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
@@ -339,11 +337,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       path.join(__dirname, target.name, movedTestFlow)
     )
 
-    const command = new Command(
-      `test jobs/standalone shouldFail services/admin/dostuff.test.0 -t ${target.name} -s ${movedTestFlow} -o ${outputFolder}`
+    await runTest(
+      target,
+      ['jobs/standalone', 'shouldFail', 'services/admin/dostuff.test.0'],
+      outputFolder,
+      movedTestFlow
     )
-
-    await runTest(command)
 
     const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
     const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
@@ -440,7 +439,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
 
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-test-command-${timestamp}`
-
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -448,7 +447,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     macroFolders: ['sasjs/macros'],
     serviceConfig: {
       serviceFolders: [],

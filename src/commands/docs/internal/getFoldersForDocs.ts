@@ -1,7 +1,6 @@
 import path from 'path'
 
 import { Target, Configuration } from '@sasjs/utils/types'
-import { getConstants } from '../../../constants'
 import { getAbsolutePath } from '../../../utils/utils'
 
 /**
@@ -9,13 +8,13 @@ import { getAbsolutePath } from '../../../utils/utils'
  * @param {Target} target- target for docs.
  * @param {Configuration} config- sasjsconfig.json
  */
-export async function getFoldersForDocs(target: Target, config: Configuration) {
+export function getFoldersForDocs(target?: Target, config?: Configuration) {
   let macroCore = []
 
-  const rootFolders = await extractFoldersForDocs(config)
+  const rootFolders = extractFoldersForDocs(config)
   macroCore = rootFolders.macroCore
 
-  const targetFolders = await extractFoldersForDocs(target)
+  const targetFolders = extractFoldersForDocs(target)
   if (target?.docConfig?.displayMacroCore !== undefined)
     macroCore = targetFolders.macroCore
 
@@ -28,13 +27,13 @@ export async function getFoldersForDocs(target: Target, config: Configuration) {
   }
 }
 
-async function extractFoldersForDocs(config: Target | Configuration) {
-  const { buildSourceFolder } = await getConstants()
+function extractFoldersForDocs(config?: Target | Configuration) {
+  const { buildSourceFolder } = process.sasjsConstants
 
   const macroCoreFolders =
     config?.docConfig?.displayMacroCore === false
       ? []
-      : [path.join(process.projectDir, 'node_modules', '@sasjs', 'core')]
+      : [process.sasjsConstants.macroCorePath]
 
   const macroFolders = config?.macroFolders
     ? config.macroFolders.map((f) => getAbsolutePath(f, buildSourceFolder))

@@ -1,6 +1,5 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { compileBuildDeployServices } from '../../../main'
 import {
   fileExists,
   readFile,
@@ -8,21 +7,20 @@ import {
   folderExists,
   deleteFolder,
   deleteFile,
-  copy
+  copy,
+  AuthConfig
 } from '@sasjs/utils'
-import { processFlow } from '..'
-import { folder } from '../../folder'
 import {
   createTestApp,
   removeTestApp,
-  mockProcessExit
+  removeTestServerFolder
 } from '../../../utils/test'
 import {
+  getAuthConfig,
   removeFromGlobalConfig,
   saveToGlobalConfig
 } from '../../../utils/config'
 import examples from '../internal/examples'
-import { Command } from '../../../utils/command'
 import {
   ServerType,
   Target,
@@ -30,20 +28,32 @@ import {
   LogLevel,
   generateTimestamp
 } from '@sasjs/utils'
-import { getConstants } from '../../../constants'
+import { setConstants } from '../../../utils'
+import { build, deploy } from '../..'
+import { execute } from '../execute'
 import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs flow', () => {
   let target: Target
+  let sasjs: SASjs
+  let authConfig: AuthConfig
   const csvPath = path.join(__dirname, 'output.csv')
   const logPath = path.join(__dirname, 'logs')
 
   beforeAll(async () => {
     target = await createGlobalTarget()
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      allowInsecureRequests: target.allowInsecureRequests,
+      appLoc: target.appLoc,
+      serverType: target.serverType
+    })
+    authConfig = await getAuthConfig(target)
 
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
-    await compileBuildDeployServices(new Command(`cbd -t ${target.name} -f`))
+    await build(target)
+    await deploy(target, false)
 
     process.logger = new Logger(LogLevel.Off)
   })
@@ -54,11 +64,8 @@ describe('sasjs flow', () => {
   })
 
   afterAll(async () => {
-    await folder(
-      new Command(
-        `folder delete /Public/app/cli-tests/${target.name} -t ${target.name}`
-      )
-    )
+    await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
+
     await deleteFile(csvPath)
     await removeTestApp(__dirname, target.name)
     await removeFromGlobalConfig(target.name)
@@ -67,11 +74,7 @@ describe('sasjs flow', () => {
   it('should execute flow with 2 successful jobs', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     await expect(fileExists(csvPath)).resolves.toEqual(true)
     await expect(folderExists(logPath)).resolves.toEqual(true)
@@ -97,11 +100,7 @@ describe('sasjs flow', () => {
 
       const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_8.json')
 
-      const command = new Command(
-        `flow execute -s ${sourcePath} -t ${target.name} --logFolder ${logPath}`
-      )
-
-      await processFlow(command)
+      await execute(target, sasjs, authConfig, sourcePath, logPath)
 
       await expect(folderExists(logPath)).resolves.toEqual(true)
       const filesInLogFolder = await listFilesInFolder(logPath)
@@ -127,11 +126,9 @@ describe('sasjs flow', () => {
   it('should return an error if provided source file is not JSON', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid.txt')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await expect(processFlow(command)).resolves.toEqual(
+    await expect(
+      execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    ).rejects.toEqual(
       `Please provide flow source (--source) file.\n${examples.command}`
     )
   })
@@ -143,23 +140,17 @@ describe('sasjs flow', () => {
       'does_not_exist.json'
     )
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await expect(processFlow(command)).resolves.toEqual(
-      `Source file does not exist.\n${examples.command}`
-    )
+    await expect(
+      execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    ).rejects.toEqual(`Source file does not exist.\n${examples.command}`)
   })
 
   it('should return an error if provided an invalid source file', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_1.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await expect(processFlow(command)).resolves.toEqual(
+    await expect(
+      execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    ).rejects.toEqual(
       `Unable to parse JSON of provided source file.\n` + examples.source
     )
   })
@@ -167,11 +158,9 @@ describe('sasjs flow', () => {
   it('should return an error if provided source file does not have flows property', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_2.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await expect(processFlow(command)).resolves.toEqual(
+    await expect(
+      execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    ).rejects.toEqual(
       `There are no flows present in source JSON.\n` + examples.source
     )
   })
@@ -179,21 +168,15 @@ describe('sasjs flow', () => {
   it('should return an error if provided source file does not have jobs property', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'not_valid_3.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await expect(processFlow(command)).resolves.toEqual(examples.source)
+    await expect(
+      execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
+    ).rejects.toEqual(examples.source)
   })
 
   it('should execute flow with 2 successful jobs and 1 failing job', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_2.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -217,13 +200,9 @@ describe('sasjs flow', () => {
   it('should execute flow with 1 successful job and 1 job that does not exist', async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_3.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
     jest.spyOn(process.logger, 'error')
 
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -252,11 +231,7 @@ describe('sasjs flow', () => {
   it(`should execute 2 chained flows with a failing job in predecessor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_4.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -280,11 +255,7 @@ describe('sasjs flow', () => {
   it(`should execute 2 chained flows with a failing job in successor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_5.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -313,11 +284,7 @@ describe('sasjs flow', () => {
   it(`should execute 3 chained flows with a failing job in one of the predecessor's flow`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_6.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -341,11 +308,7 @@ describe('sasjs flow', () => {
   it(`should execute 6 chained flows with failing and succeeding jobs`, async () => {
     const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_7.json')
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name} --csvFile ${csvPath} --logFolder ${logPath}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvPath)
 
     const csvData = await readFile(csvPath)
 
@@ -392,11 +355,7 @@ describe('sasjs flow', () => {
       'flowResults.csv'
     )
 
-    const command = new Command(
-      `flow execute -s ${sourcePath} --logFolder ${logPath} -t ${target.name}`
-    )
-
-    await processFlow(command)
+    await execute(target, sasjs, authConfig, sourcePath, logPath, csvLoc)
 
     await expect(fileExists(csvLoc)).resolves.toEqual(true)
 
@@ -413,37 +372,13 @@ describe('sasjs flow', () => {
     expect(csvData.match(csvColumnsRegExp)!.length).toEqual(1)
     expect(csvData.match(csvRowRegExp)!.length).toEqual(2)
   })
-
-  it('should terminate the process if server could not get session status', async () => {
-    const sourcePath = path.join(__dirname, 'sourceFiles', 'testFlow_1.json')
-    const command = new Command(
-      `flow execute -s ${sourcePath} -t ${target.name}`
-    )
-
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
-
-    jest
-      .spyOn(sasjs, 'fetchLogFileContent')
-      .mockImplementation(() => Promise.resolve(''))
-    jest
-      .spyOn(sasjs, 'startComputeJob')
-      .mockImplementation(() => Promise.reject('Could not get session state.'))
-
-    await expect(processFlow(command, sasjs)).resolves.toEqual(
-      'Flow has been terminated.'
-    )
-  })
 })
 
 const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-flow-${timestamp}`
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
@@ -451,7 +386,7 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

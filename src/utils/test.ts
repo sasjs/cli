@@ -1,6 +1,5 @@
 import path from 'path'
 import dotenv from 'dotenv'
-import { getConstants } from '../constants'
 import {
   createFile,
   deleteFolder,
@@ -9,6 +8,7 @@ import {
   readFile,
   asyncForEach
 } from '@sasjs/utils'
+import { deleteFolder as deleteServerFolder } from '../commands/folder/delete'
 import {
   ServerType,
   Target,
@@ -31,12 +31,16 @@ import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
+import { setConstants } from './setConstants'
+import { Constants } from '../constants'
+import SASjs from '@sasjs/adapter/node'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
 }
 
 export const createTestJobsApp = async (
@@ -47,6 +51,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
   await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
 
@@ -58,12 +63,33 @@ export const createTestMinimalApp = async (
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  await setConstants()
 }
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
   process.projectDir = ''
   process.currentDir = ''
+  process.sasjsConstants = undefined as any as Constants
+}
+
+export const removeTestServerFolder = async (
+  folderPath: string,
+  target: Target
+) => {
+  // We do not have a way of deleting server folders with SAS9 yet
+  if (target.serverType === ServerType.Sas9) {
+    return
+  }
+
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
+    appLoc: target.appLoc,
+    serverType: target.serverType
+  })
+  const accessToken = process.env.ACCESS_TOKEN as string
+  await deleteServerFolder(folderPath, sasjs, accessToken)
 }
 
 export const generateTestTarget = async (
@@ -79,13 +105,14 @@ export const generateTestTarget = async (
 ) => {
   dotenv.config()
 
+  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
-    contextName: (await getConstants()).contextName,
+    contextName: process.sasjsConstants.contextName,
     appLoc,
     authConfig: {
       client: process.env.CLIENT,
@@ -285,7 +312,7 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
 }
 
 export const removeAllTargetsFromConfigs = async () => {
-  const { buildSourceFolder } = await getConstants()
+  const { buildSourceFolder } = process.sasjsConstants
   const configPath = path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
   const config = await getConfiguration(configPath)
   config.targets = []

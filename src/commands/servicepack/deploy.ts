@@ -4,23 +4,20 @@ import { readFile } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { getAccessToken, findTargetInConfiguration } from '../../utils/config'
 import { ServerType, Target } from '@sasjs/utils/types'
-import { getConstants } from '../../constants'
 import { getAbsolutePath } from '../../utils/utils'
 
 export async function servicePackDeploy(
+  target: Target,
   jsonFilePath: string,
-  targetName: string,
   isForced = false
 ) {
   if (path.extname(jsonFilePath) !== '.json') {
     throw new Error('Provided data file must be valid json.')
   }
 
-  const { target } = await findTargetInConfiguration(targetName)
-
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
-      `Unable to deploy service pack to target ${targetName}. This command is only supported for server type ${ServerType.SasViya}.`
+      `Unable to deploy service pack to target ${target.name}. This command is only supported for server type ${ServerType.SasViya}.`
     )
   }
 
@@ -57,7 +54,7 @@ async function deployToSasViyaWithServicePack(
     serverType: buildTarget.serverType,
     useComputeApi: true
   })
-  const { buildDestinationFolder } = await getConstants()
+  const { buildDestinationFolder } = process.sasjsConstants
 
   const finalFilePathJSON = path.join(
     buildDestinationFolder,

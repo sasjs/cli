@@ -1,6 +1,6 @@
 import { AuthConfig, Target } from '@sasjs/utils'
 import * as internalModule from '../internal/'
-import SASjs, { PollOptions } from '@sasjs/adapter/node'
+import SASjs from '@sasjs/adapter/node'
 import { execute } from '../execute'
 import { FlowWave, FlowWaveJob } from '../../../types'
 import { FlowWaveJobStatus } from '../../../types/flow'
@@ -110,6 +110,8 @@ describe('sasjs flow', () => {
 
 const setupMocks = (flows: { [key: string]: FlowWave }) => {
   jest.restoreAllMocks()
+  jest.mock('../internal/')
+
   jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
     Promise.resolve({
       terminate: false,
@@ -147,7 +149,7 @@ const validateFlowExecution = (flowsExecutionOrder: FlowWave[]) => {
       undefined,
       expect.anything(),
       undefined,
-      {},
+      undefined,
       undefined
     )
   })
@@ -155,10 +157,8 @@ const validateFlowExecution = (flowsExecutionOrder: FlowWave[]) => {
 
 const executeFlowWrapper = async () =>
   await execute(
-    '',
-    '',
-    '',
     undefined as any as Target,
-    undefined as any as boolean,
-    undefined as any as SASjs
+    undefined as any as SASjs,
+    undefined as any as AuthConfig,
+    undefined as any as string
   )
