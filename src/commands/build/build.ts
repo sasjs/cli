@@ -261,7 +261,7 @@ async function getContentFor(
       )
       content += `\n${transformedContent}\n`
 
-      contentJSON!.members!.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'service',
         code: removeComments(fileContent)
@@ -276,7 +276,7 @@ async function getContentFor(
       )
       content += `\n${transformedContent}\n`
 
-      contentJSON!.members!.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'file',
         code: fileContentEncoded
@@ -299,7 +299,7 @@ async function getContentFor(
           : undefined
       )
 
-    contentJSON!.members!.push(childContentJSON)
+    contentJSON.members!.push(childContentJSON)
     content += childContent
   })
 

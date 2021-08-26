@@ -19,6 +19,8 @@ import {
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
+import { deployToSasViyaWithServicePack } from './internal/deployToSasViyaWithServicePack'
+import { ServicePack } from '../../types'
 
 export async function deploy(target: Target, isLocal: boolean) {
   if (
@@ -29,10 +31,27 @@ export async function deploy(target: Target, isLocal: boolean) {
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
     )
-    const webIndexFileName = await deployToSasViyaWithServicePack(
-      target,
-      isLocal
+
+    const { buildDestinationFolder } = process.sasjsConstants
+    const finalFilePathJSON = path.join(
+      buildDestinationFolder,
+      `${target.name}.json`
     )
+
+    const jsonObject: ServicePack = await deployToSasViyaWithServicePack(
+      finalFilePathJSON,
+      target,
+      true
+    )
+
+    const webIndexFileName: string =
+      jsonObject?.members
+        .find(
+          (member: any) =>
+            member?.name === 'services' && member?.type === 'folder'
+        )
+        ?.members?.find((member: any) => member?.type === 'file')?.name ?? ''
+
     process.logger?.success('Build pack has been successfully deployed.')
 
     process.logger?.success(
@@ -127,48 +146,6 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
     sasjs,
     authConfig
   }
-}
-
-function populateCodeInServicePack(json: any) {
-  json?.members?.forEach((member: any) => {
-    if (member.type === 'file')
-      member.code = Buffer.from(member.code!, 'base64')
-    if (member.type === 'folder') populateCodeInServicePack(member)
-  })
-}
-
-async function deployToSasViyaWithServicePack(
-  target: Target,
-  isLocal: boolean
-): Promise<string> {
-  const { buildDestinationFolder } = process.sasjsConstants
-  const finalFilePathJSON = path.join(
-    buildDestinationFolder,
-    `${target.name}.json`
-  )
-  const jsonContent = await readFile(finalFilePathJSON)
-  const jsonObject: any = JSON.parse(jsonContent)
-
-  populateCodeInServicePack(jsonObject)
-
-  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
-  const { access_token } = authConfig
-
-  await sasjs.deployServicePack(
-    jsonObject,
-    undefined,
-    undefined,
-    access_token,
-    true
-  )
-
-  const webIndexFileName = jsonObject?.members
-    .find(
-      (member: any) => member?.name === 'services' && member?.type === 'folder'
-    )
-    ?.members?.find((member: any) => member?.type === 'file')?.name
-
-  return webIndexFileName ?? ''
 }
 
 async function deployToSasViya(
