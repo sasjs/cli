@@ -19,7 +19,7 @@ import {
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
-import { deployToSasViyaWithServicePack } from './internal/deployToSasViyaWithServicePack'
+import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
 import { ServicePack } from '../../types'
 
 export async function deploy(target: Target, isLocal: boolean) {

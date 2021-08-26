@@ -1,8 +1,8 @@
 import SASjs from '@sasjs/adapter/node'
 import { readFile, Target } from '@sasjs/utils'
-import { ServicePack, ServicePackMember } from '../../../types'
+import { ServicePack, ServicePackMember } from '../../types'
 import { decode } from 'js-base64'
-import { getAccessToken } from '../../../utils'
+import { getAccessToken } from '../../utils'
 
 export async function deployToSasViyaWithServicePack(
   jsonFilePath: string,

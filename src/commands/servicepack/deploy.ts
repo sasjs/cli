@@ -2,7 +2,7 @@ import path from 'path'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { Target } from '@sasjs/utils'
 import { getAbsolutePath } from '../../utils/utils'
-import { deployToSasViyaWithServicePack } from '../deploy/internal/deployToSasViyaWithServicePack'
+import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
 
 export async function servicePackDeploy(
   target: Target,
