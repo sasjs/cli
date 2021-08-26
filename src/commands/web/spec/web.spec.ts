@@ -1,5 +1,4 @@
 import path from 'path'
-import { Command } from '../../../utils/command'
 import {
   createTestMinimalApp,
   removeTestApp,
@@ -8,12 +7,7 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import {
-  createFile,
-  generateTimestamp,
-  StreamConfig,
-  Target
-} from '@sasjs/utils'
+import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
 import { createWebAppServices } from '../web'
 import { findTargetInConfiguration } from '../../../utils'
 

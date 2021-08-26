@@ -417,3 +417,18 @@ export const loadEnvVariables = async (fileName: string) => {
     dotenv.config({ path: envFilePath })
   }
 }
+
+export function prefixAppLoc(appLoc = '', path = '') {
+  if (!path) return null
+
+  if (!/^\//.test(appLoc)) appLoc = '/' + appLoc
+
+  if (Array.isArray(path)) path = path.join(' ')
+
+  return path
+    .split(' ')
+    .map((p) => (/^\//.test(p) ? p : `${appLoc}/${p}`))
+    .join(' ')
+}
+
+export const isWindows = () => process.platform === 'win32'

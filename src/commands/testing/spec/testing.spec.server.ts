@@ -1,3 +1,4 @@
+import path from 'path'
 import { runTest } from '../test'
 import { TestDescription, TestResult } from '../../../types'
 import {
@@ -17,14 +18,12 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { Command } from '../../../utils/command'
 import {
   removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
+  saveToGlobalConfig,
+  setConstants
+} from '../../../utils'
 import dotenv from 'dotenv'
-import path from 'path'
-import { setConstants } from '../../../utils'
 import { build, deploy } from '../..'
 
 describe('sasjs test', () => {
