@@ -69,7 +69,8 @@
     "ora": "5.4.1",
     "rimraf": "3.0.2",
     "shelljs": "0.8.4",
-    "xml": "1.0.1"
+    "xml": "1.0.1",
+    "yargs": "^17.1.1"
   },
   "devDependencies": {
     "@babel/preset-env": "7.14.7",
