@@ -9,7 +9,6 @@ import {
 } from '../../utils/utils'
 import {
   readFile,
-  readFileBinary,
   createFile,
   ServerType,
   Target,
@@ -130,10 +129,11 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
   }
 }
 
-async function populateCodeInServicePack(json: any) {
-  await asyncForEach(json.members, async (member) => {
-    if (member.type === 'file') member.code = await readFileBinary(member.path)
-    if (member.type === 'folder') await populateCodeInServicePack(member)
+function populateCodeInServicePack(json: any) {
+  json?.members?.forEach((member: any) => {
+    if (member.type === 'file')
+      member.code = Buffer.from(member.code!, 'base64')
+    if (member.type === 'folder') populateCodeInServicePack(member)
   })
 }
 
@@ -147,9 +147,9 @@ async function deployToSasViyaWithServicePack(
     `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
-  const jsonObject = JSON.parse(jsonContent)
+  const jsonObject: any = JSON.parse(jsonContent)
 
-  await populateCodeInServicePack(jsonObject)
+  populateCodeInServicePack(jsonObject)
 
   const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
   const { access_token } = authConfig
