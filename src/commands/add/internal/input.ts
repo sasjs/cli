@@ -12,27 +12,24 @@ import dotenv from 'dotenv'
 import SASjs from '@sasjs/adapter/node'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
-import {
-  findTargetInConfiguration,
-  getGlobalRcFile,
-  getLocalConfig
-} from '../../../utils/config'
+import { findTargetInConfiguration } from '../../../utils/config'
 
 export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()
   const serverType = await getAndValidateServerType()
   const name = await getAndValidateTargetName(serverType)
-  const { targetJson, retry } = await getAndValidateUpdateExisting(scope, name)
+  const { targetJson: existingTarget, retry } =
+    await getAndValidateUpdateExisting(scope, name)
 
   if (retry) return await getCommonFields()
 
-  if (targetJson) {
+  if (existingTarget) {
     process.logger?.info(`Updating current target '${name}'`)
   }
 
-  const appLoc = await getAndValidateAppLoc(name, targetJson)
+  const appLoc = await getAndValidateAppLoc(name, existingTarget)
 
-  const serverUrl = await getAndValidateServerUrl(targetJson)
+  const serverUrl = await getAndValidateServerUrl(existingTarget)
 
   return {
     scope,
@@ -40,7 +37,7 @@ export async function getCommonFields(): Promise<CommonFields> {
     name,
     appLoc,
     serverUrl,
-    existingTarget: targetJson
+    existingTarget
   }
 }
 
@@ -77,7 +74,7 @@ async function getAndValidateServerType(): Promise<ServerType> {
   return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
 }
 
-export async function getAndValidateServerUrl(target: TargetJson) {
+export async function getAndValidateServerUrl(target?: TargetJson) {
   const serverUrl = await getUrl(
     'Please enter a target server URL (including port, if relevant): ',
     'Server URL is required.',
@@ -119,15 +116,10 @@ async function getAndValidateTargetName(
 async function getAndValidateUpdateExisting(
   targetScope: TargetScope,
   targetName: string
-): Promise<{ targetJson: TargetJson; retry: boolean }> {
-  let config, targetJson: TargetJson
-  if (targetScope === TargetScope.Local) {
-    config = await getLocalConfig()
-  } else {
-    config = await getGlobalRcFile()
-  }
-
-  targetJson = config?.targets?.find((t: Target) => t.name === targetName)
+): Promise<{ targetJson?: TargetJson; retry: boolean }> {
+  const targetJson = await findTargetInConfiguration(targetName, targetScope)
+    .then((res) => res.target.toJson())
+    .catch((_) => undefined)
 
   if (targetJson) {
     process.logger?.info(`Found target with same name: '${targetName}'`)
@@ -154,8 +146,8 @@ async function getAndValidateUpdateExisting(
 }
 
 export async function getAndValidateSas9Fields(
-  targetName: string,
-  scope: string
+  target: Target,
+  scope: TargetScope
 ) {
   const serverName = await getString(
     'Please enter a server name (default is SASApp): ',
@@ -168,10 +160,7 @@ export async function getAndValidateSas9Fields(
     (v) => !!v || 'Repository name is required.',
     'Foundation'
   )
-  const { userName, password } = await getCredentialsInputSas9(
-    targetName,
-    scope
-  )
+  const { userName, password } = await getCredentialsInputSas9(target, scope)
   return { serverName, repositoryName, userName, password }
 }
 
@@ -184,9 +173,10 @@ export async function getAndValidateSasViyaFields(
     target: Target,
     insecure: boolean,
     targetScope: TargetScope
-  ) => Promise<void>
+  ) => Promise<Target>
 ): Promise<{
   contextName: string
+  target: Target
 }> {
   let contextName = 'SAS Job Execution compute context'
   const shouldAuthenticate = await getConfirmation(
@@ -195,7 +185,7 @@ export async function getAndValidateSasViyaFields(
   )
 
   if (shouldAuthenticate) {
-    await authenticateCallback(target, insecure, scope)
+    target = await authenticateCallback(target, insecure, scope)
 
     const sasjs = new SASjs({
       serverUrl,
@@ -212,19 +202,13 @@ export async function getAndValidateSasViyaFields(
         process.env.ACCESS_TOKEN as string
       )
     } else {
-      const { target: currentTarget } = await findTargetInConfiguration(
-        target.name,
-        TargetScope.Global
-      )
-      if (!currentTarget.authConfig || !currentTarget.authConfig.access_token) {
+      if (!target.authConfig || !target.authConfig.access_token) {
         throw new Error(
-          `No access token available for target ${currentTarget.name}. Please run \`sasjs add cred -t ${currentTarget.name}\` to authenticate.`
+          `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${target.name}\` to authenticate.`
         )
       }
 
-      contexts = await sasjs.getComputeContexts(
-        currentTarget.authConfig.access_token
-      )
+      contexts = await sasjs.getComputeContexts(target.authConfig.access_token)
     }
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
@@ -236,17 +220,18 @@ export async function getAndValidateSasViyaFields(
 
     contextName = contexts[contextNumber].name
 
-    return { contextName }
+    return { contextName, target }
   }
 
   return {
-    contextName
+    contextName,
+    target
   }
 }
 
 async function getAndValidateAppLoc(
   targetName: string,
-  target: TargetJson
+  target?: TargetJson
 ): Promise<string> {
   const errorMessage = 'App location is required.'
 
@@ -277,9 +262,10 @@ export const getCredentialsInputForViya = async (targetName: string) => {
 }
 
 export const getCredentialsInputSas9 = async (
-  targetName: string,
-  scope: string
+  target: Target,
+  scope: TargetScope
 ) => {
+  const targetName = target.name
   let name = ''
   if (scope === TargetScope.Local) {
     const result = dotenv.config({
@@ -293,10 +279,6 @@ export const getCredentialsInputSas9 = async (
       name = process.env.SAS_USERNAME as string
     }
   } else {
-    const { target } = await findTargetInConfiguration(
-      targetName,
-      TargetScope.Global
-    )
     name = target.authConfigSas9?.userName ?? ''
   }
   const userName = await getString(

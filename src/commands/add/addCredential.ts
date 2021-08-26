@@ -4,7 +4,6 @@ import { SasAuthResponse, ServerType, Target } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
-import { saveToGlobalConfig, saveToLocalConfig } from '../../utils/config'
 import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
@@ -12,6 +11,7 @@ import {
   getCredentialsInputSas9
 } from './internal/input'
 import { TargetScope } from '../../types/targetScope'
+import { saveConfig } from './internal/saveConfig'
 
 /**
  * Creates a .env file for the specified target.
@@ -23,11 +23,9 @@ import { TargetScope } from '../../types/targetScope'
  */
 export const addCredential = async (
   target: Target,
-  insecure: boolean = false,
+  insecure: boolean,
   targetScope: TargetScope
-): Promise<void> => {
-  let scope = ''
-
+): Promise<Target> => {
   insecure = insecure || target.allowInsecureRequests
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
@@ -35,11 +33,9 @@ export const addCredential = async (
   if (!target.serverUrl) {
     const serverUrl = await getAndValidateServerUrl(target)
     target = new Target({ ...target.toJson(false), serverUrl })
-    if (targetScope === TargetScope.Local) {
-      await saveToLocalConfig(target, false, false)
-    } else {
-      await saveToGlobalConfig(target, false, false)
-    }
+
+    const filePath = await saveConfig(targetScope, target, false, false)
+    process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   }
 
   if (target.serverType === ServerType.SasViya) {
@@ -60,35 +56,38 @@ export const addCredential = async (
         access_token,
         refresh_token
       )
-      await saveToLocalConfig(target, false, false)
     } else {
       target = new Target({
         ...target.toJson(false),
         authConfig: { client, secret, access_token, refresh_token }
       })
-      await saveToGlobalConfig(target, false, false)
     }
+
+    const filePath = await saveConfig(targetScope, target, false, false)
+    process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   } else if (target.serverType === ServerType.Sas9) {
     const { userName, password } = await getCredentialsInputSas9(
-      target.name,
-      scope
+      target,
+      targetScope
     )
 
     if (targetScope === TargetScope.Local) {
       await createEnvFileForSas9(target.name, userName, password)
-      await saveToLocalConfig(target, false, false)
     } else {
       target = new Target({
         ...target.toJson(false),
         authConfigSas9: { userName, password }
       })
-      await saveToGlobalConfig(target, false, false)
     }
+
+    const filePath = await saveConfig(targetScope, target, false, false)
+    process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   } else {
     throw new Error(
       'Target contains invalid serverType. Possible types could be SASVIYA and SAS9.'
     )
   }
+  return target
 }
 
 export const validateTargetName = (targetName: string): string => {
