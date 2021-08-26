@@ -11,10 +11,12 @@ import {
   ServerType,
   decodeFromBase64
 } from '@sasjs/utils'
-import { Command } from '../../utils/command'
-import { displayError } from '../../utils/displayResult'
 import { compileSingleFile } from '../'
-import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
+import {
+  displayError,
+  displaySasjsRunnerError,
+  getAbsolutePath
+} from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 

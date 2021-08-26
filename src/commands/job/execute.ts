@@ -19,7 +19,6 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { terminateProcess } from '../../main'
 import { ReturnCode } from '../../types/command'
 
 /**
@@ -340,4 +339,12 @@ const saveLog = async (
   await createFile(logPath, logLines)
 
   if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
+}
+
+const terminateProcess = (status: number) => {
+  process.logger?.info(
+    `Process will be terminated with the status code ${status}.`
+  )
+
+  process.exit(status)
 }

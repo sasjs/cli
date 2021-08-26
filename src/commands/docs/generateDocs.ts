@@ -3,7 +3,6 @@ import shelljs from 'shelljs'
 import chalk from 'chalk'
 import ora from 'ora'
 
-import { isWindows } from '../../utils/command'
 import {
   createFolder,
   deleteFolder,
@@ -18,7 +17,7 @@ import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
 
 import { LogLevel } from '@sasjs/utils/logger'
-import { getAbsolutePath } from '../../utils/utils'
+import { isWindows, getAbsolutePath } from '../../utils'
 
 /**
  * Generates documentation(Doxygen)

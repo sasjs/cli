@@ -53,8 +53,8 @@ export async function printHelpText() {
       ]
     },
     {
-      name: 'build-DB',
-      title: 'build-DB <targetName>',
+      name: 'db',
+      title: 'db <targetName>',
       description: [
         `compiles the dbfiles specified in the ${chalk.cyanBright(
           'db'
@@ -329,19 +329,19 @@ export async function printHelpText() {
   ]
 
   const aliases = [
-    { name: 'doc', aliases: ['docs'] },
-    { name: 'build-DB', aliases: ['DB', 'db'] },
+    { name: 'add', aliases: ['auth'] },
     { name: 'build', aliases: ['b'] },
     { name: 'compile', aliases: ['c'] },
     { name: 'compilebuild', aliases: ['cb'] },
-    { name: 'deploy', aliases: ['d'] },
     { name: 'compilebuilddeploy', aliases: ['cbd'] },
-    { name: 'web', aliases: ['w'] },
-    { name: 'version', aliases: ['v'] },
+    { name: 'db', aliases: ['DB', 'build-DB', 'build-db'] },
+    { name: 'deploy', aliases: ['d'] },
+    { name: 'doc', aliases: ['docs'] },
     { name: 'help', aliases: ['h'] },
-    { name: 'add', aliases: ['a'] },
+    { name: 'request', aliases: ['rq'] },
     { name: 'run', aliases: ['r'] },
-    { name: 'request', aliases: ['rq'] }
+    { name: 'version', aliases: ['v'] },
+    { name: 'web', aliases: ['w'] }
   ]
 
   const outputCommands = `${commands
