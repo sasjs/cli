@@ -41,6 +41,7 @@ export async function deploy(target: Target, isLocal: boolean) {
     const jsonObject: ServicePack = await deployToSasViyaWithServicePack(
       finalFilePathJSON,
       target,
+      isLocal,
       true
     )
 

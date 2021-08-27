@@ -6,6 +6,7 @@ import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithSer
 
 export async function servicePackDeploy(
   target: Target,
+  isLocal: boolean,
   jsonFilePath: string,
   isForced = false
 ) {
@@ -25,7 +26,7 @@ export async function servicePackDeploy(
   }
 
   let success
-  await deployToSasViyaWithServicePack(jsonFilePath, target, isForced)
+  await deployToSasViyaWithServicePack(jsonFilePath, target, isLocal, isForced)
     .then((_) => {
       displaySuccess('Servicepack successfully deployed!')
 

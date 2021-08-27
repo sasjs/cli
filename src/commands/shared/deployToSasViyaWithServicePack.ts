@@ -7,6 +7,7 @@ import { getAccessToken } from '../../utils'
 export async function deployToSasViyaWithServicePack(
   jsonFilePath: string,
   target: Target,
+  isLocal: boolean,
   isForced: boolean = false
 ): Promise<ServicePack> {
   const jsonContent = await readFile(jsonFilePath)
@@ -21,6 +22,16 @@ export async function deployToSasViyaWithServicePack(
 
   populateCodeInServicePack(jsonObject)
 
+  const access_token: string = await getAccessToken(target).catch((e) => '')
+
+  if (!access_token) {
+    throw new Error(
+      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env${
+        isLocal ? `.${target.name}` : ''
+      } file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+    )
+  }
+
   const sasjs = new SASjs({
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
@@ -28,13 +39,6 @@ export async function deployToSasViyaWithServicePack(
     serverUrl: target.serverUrl,
     useComputeApi: true
   })
-  const access_token = await getAccessToken(target)
-
-  if (!access_token) {
-    throw new Error(
-      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-    )
-  }
 
   await sasjs.deployServicePack(
     jsonObject,
