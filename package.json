@@ -61,7 +61,7 @@
     "find": "0.3.0",
     "get-installed-path": "4.0.8",
     "js-base64": "3.6.1",
-    "jsdom": "16.6.0",
+    "jsdom": "^17.0.0",
     "jwt-decode": "3.1.2",
     "lodash.groupby": "4.6.0",
     "lodash.uniqby": "4.7.0",
@@ -78,7 +78,7 @@
     "@types/find": "0.2.1",
     "@types/get-installed-path": "4.0.1",
     "@types/jest": "26.0.24",
-    "@types/jsdom": "16.2.13",
+    "@types/jsdom": "^16.2.13",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
     "@types/node": "16.7.2",
@@ -91,13 +91,13 @@
     "jest": "27.0.6",
     "jest-cli": "27.0.6",
     "jest-extended": "0.11.5",
-    "mock-stdin": "1.0.0",
     "nodemon": "2.0.12",
     "semantic-release": "17.4.4",
     "ts-jest": "27.0.5",
     "ts-node": "10.2.1",
     "tslib": "2.3.0",
     "typescript": "4.3.5",
+    "util": "^0.12.4",
     "validate-commit-msg": "2.14.0"
   }
 }
