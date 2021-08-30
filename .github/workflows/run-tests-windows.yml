@@ -37,7 +37,7 @@ jobs:
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
       - name: Configure OpenVPN
-        run: cd "C:\Program Files\OpenVPN Connect" && ovpnconnector.exe install && ovpnconnector.exe set-config profile .github/vpn/config.ovpn
+        run:  "C:\Program Files\OpenVPN Connect\ovpnconnector.exe" install && "C:\Program Files\OpenVPN Connect\ovpnconnector.exe" set-config profile .github/vpn/config.ovpn
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
