@@ -40,7 +40,7 @@ jobs:
         run: echo "C:\Program Files\OpenVPN Connect" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure OpenVPN
-        run: ovpnconnector install && ovpnconnector set-config profile .github/vpn/config.ovpn && ovpnconnector start
+        run: ovpnconnector install && ovpnconnector set-config profile .github/vpn/config.ovpn && ovpnconnector stop && openvpnconnector start
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
@@ -65,6 +65,19 @@ jobs:
 
       - name: Run mocked tests
         run: npm run test:mocked
+        env:
+          CI: true
+          CLIENT: ${{secrets.CLIENT}}
+          SECRET: ${{secrets.SECRET}}
+          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
+          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
+          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
+          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+
+      - name: Run server tests
+        run: npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
