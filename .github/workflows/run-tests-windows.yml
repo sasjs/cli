@@ -21,20 +21,20 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install OpenVPN
+        run: choco install --yes openvpn-connect --no-progress
+
+      - name: Add OpenVPN to path
+        run: echo "C:\Program Files\OpenVPN\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Check OpenVPN
+        run: cd "C:\Program Files\OpenVPN" && dir && cd "C:\ProgramData\chocolatey\bin" && dir
+
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
 
       - name: Add Doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install GPG4win
-        run: choco install --yes gpg4win --no-progress
-
-      - name: Install OpenVPN
-        run: choco install --yes openvpn --no-progress
-
-      - name: Add OpenVPN to path
-        run: echo "C:\Program Files\OpenVPN\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Write VPN Files
         run: |
