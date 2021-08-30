@@ -22,7 +22,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install OpenVPN
-        run: choco install --yes openvpn-connect --no-progress
+        run: choco install --yes openvpn --verbose
 
       - name: Write VPN Files
         run: |
