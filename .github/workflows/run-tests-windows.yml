@@ -27,11 +27,8 @@ jobs:
       - name: Add Doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Install GnuPG
-        run: choco install gnupg
-
       - name: Install OpenVPN
-        run: choco install openvpn
+        run: choco install --yes openvpn
 
       - name: Write VPN Files
         run: |
