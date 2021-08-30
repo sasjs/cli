@@ -24,18 +24,6 @@ jobs:
       - name: Install OpenVPN
         run: choco install --yes openvpn-connect --no-progress
 
-      - name: Add OpenVPN to path
-        run: echo "C:\Program Files\OpenVPN\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Check OpenVPN
-        run: cd "C:\Program Files\OpenVPN Connect" && dir
-
-      - name: Install Doxygen
-        run: choco install doxygen.install --version 1.9.1 --no-progress
-
-      - name: Add Doxygen to path
-        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
       - name: Write VPN Files
         run: |
           echo "$CA_CRT" | Out-File -FilePath .github/vpn/ca.crt -Encoding utf8
@@ -48,8 +36,14 @@ jobs:
           USER_KEY: ${{ secrets.USER_KEY }}
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
-      - name: Start OpenVPN Session
-        run: openvpn --config .github/vpn/config.ovpn
+      - name: Configure OpenVPN
+        run: cd "C:\Program Files\OpenVPN Connect" && ovpnconnector.exe install && ovpnconnector.exe set-config profile .github/vpn/config.ovpn
+
+      - name: Install Doxygen
+        run: choco install doxygen.install --version 1.9.1 --no-progress
+
+      - name: Add Doxygen to path
+        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install dependencies
         run: npm ci
