@@ -36,8 +36,11 @@ jobs:
           USER_KEY: ${{ secrets.USER_KEY }}
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
+      - name: Debug OpenVPN
+        run: cd "C:\Program Files\OpenVPN Connect" && dir
+
       - name: Configure OpenVPN
-        run:  "C:\Program Files\OpenVPN Connect\ovpnconnector.exe" install && "C:\Program Files\OpenVPN Connect\ovpnconnector.exe" set-config profile .github/vpn/config.ovpn
+        run: cd "C:\Program Files\OpenVPN Connect\" && ovpnconnector.exe install && ovpnconnector.exe set-config profile .github/vpn/config.ovpn
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
