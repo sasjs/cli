@@ -22,7 +22,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install OpenVPN
-        run: choco install --yes gpg4win
+        run: choco install --yes openvpn -i --force
         shell: powershell
 
       - name: Write VPN Files
