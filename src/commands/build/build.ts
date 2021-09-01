@@ -368,11 +368,9 @@ function getWebFileContent(filecontent: string, type: string) {
     let combinedLines = ''
     chunkedLines.forEach((chunkedLine, index) => {
       let text = ` put '${chunkedLine.split("'").join("''")}'`
-      if (index !== chunkedLines.length - 1) {
-        text += '@;\n'
-      } else {
-        text += ';\n'
-      }
+      if (index !== chunkedLines.length - 1) text += '@;\n'
+      else text += ';\n'
+
       combinedLines += text
     })
     parsedContent += combinedLines
