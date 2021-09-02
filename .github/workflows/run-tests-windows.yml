@@ -22,7 +22,11 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install OpenVPN
-        run: choco install --yes gnupg -i --force
+        run: |
+          $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+          [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+          choco install --yes gpg4win
+          echo "C:\Program Files\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
         shell: powershell
 
       - name: Write VPN Files
