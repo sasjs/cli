@@ -25,7 +25,7 @@ jobs:
         run: |
           $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
           [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
-          choco install --yes openvpn
+          choco install --yes openvpn --no-progress
           echo "C:\Program Files\OpenVPN\bin" >> $env:GITHUB_PATH
         shell: powershell
 
@@ -42,7 +42,7 @@ jobs:
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
       - name: Connect to VPN
-        run: cd .github/vpn && dir && type user.crt && openvpn --config config.ovpn
+        run: cd .github/vpn && openvpn --config config.ovpn
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
