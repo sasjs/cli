@@ -41,11 +41,8 @@ jobs:
           USER_KEY: ${{ secrets.USER_KEY }}
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
-      - name: Add OpenVPN to path
-        run: echo "C:\Program Files\OpenVPN Connect" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Configure OpenVPN
-        run: dir && Stop-Process -Name "OpenVPNConnect" && ovpnconnector install && ovpnconnector set-config profile .github\\vpn\\config.ovpn ovpnconnector set-config log .\\vpn.log && ovpnconnector stop && ovpnconnector start && Get-Content -Path ./vpn.log && Test-Connection -TargetName sas.analytium.co.uk -IPv4
+      - name: Connect to VPN
+        run: openvpn --config .github/vpn/config.ovpn
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
