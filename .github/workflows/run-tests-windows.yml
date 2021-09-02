@@ -21,13 +21,15 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Disable Firewall
+        run: netsh advfirewall set allprofiles state off
+
       - name: Install OpenVPN
         run: |
           $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
           [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
           choco install --yes openvpn --no-progress
           echo "C:\Program Files\OpenVPN\bin" >> $env:GITHUB_PATH
-          netsh advfirewall set allprofiles state off
         shell: powershell
 
       - name: Write VPN Files
