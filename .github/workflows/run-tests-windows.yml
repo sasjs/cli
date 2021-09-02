@@ -27,6 +27,7 @@ jobs:
           [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
           choco install --yes openvpn --no-progress
           echo "C:\Program Files\OpenVPN\bin" >> $env:GITHUB_PATH
+          netsh advfirewall set allprofiles state off
         shell: powershell
 
       - name: Write VPN Files
