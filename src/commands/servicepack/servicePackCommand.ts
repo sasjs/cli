@@ -1,3 +1,4 @@
+import { ServerType } from '@sasjs/utils'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
@@ -47,11 +48,22 @@ export class ServicePackCommand extends TargetCommand {
   }
 
   public async execute() {
-    const { target } = await this.getTargetInfo()
+    const { target, isLocal } = await this.getTargetInfo()
+    if (target.serverType !== ServerType.SasViya) {
+      process.logger?.error(
+        `Unable to deploy service pack to target ${target.name}. This command is only supported for server type ${ServerType.SasViya}.`
+      )
+      return ReturnCode.InternalError
+    }
 
     const { source, force } = this.parsed
 
-    return await servicePackDeploy(target, source as string, force as boolean)
+    return await servicePackDeploy(
+      target,
+      isLocal,
+      source as string,
+      force as boolean
+    )
       .then(() => {
         return ReturnCode.Success
       })

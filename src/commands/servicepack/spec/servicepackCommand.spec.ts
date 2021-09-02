@@ -27,6 +27,7 @@ describe('ServicePackCommand', () => {
 
     expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
       target,
+      true,
       source,
       false
     )
@@ -43,6 +44,7 @@ describe('ServicePackCommand', () => {
 
     expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
       target,
+      true,
       source,
       true
     )
@@ -53,6 +55,7 @@ describe('ServicePackCommand', () => {
 
     expect(deployModule.servicePackDeploy).toHaveBeenCalledWith(
       target,
+      true,
       source,
       true
     )
@@ -102,7 +105,7 @@ const executeCommandWrapper = async (additionalParams: string[]) => {
   expect(command.name).toEqual('servicepack')
   expect(command.subCommand).toEqual('deploy')
   expect(targetInfo.target).toEqual(target)
-  expect(targetInfo.isLocal).toBeTrue()
+  expect(targetInfo.isLocal).toEqual(true)
 
   return returnCode
 }

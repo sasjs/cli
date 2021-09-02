@@ -1,5 +1,5 @@
 import path from 'path'
-import { Target, ServerType } from '@sasjs/utils/types'
+import { Target, ServerType, StreamConfig } from '@sasjs/utils/types'
 import {
   readFile,
   base64EncodeFile,
@@ -20,8 +20,8 @@ import { compile } from '../compile/compile'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
-import { StreamConfig } from '@sasjs/utils/types/config'
 import { isTestFile } from '../compile/internal/compileTestFile'
+import { ServicePack, ServicePackMember } from '../../types'
 
 export async function build(target: Target) {
   await compile(target)
@@ -182,12 +182,15 @@ function getWebServiceScriptInvocation(
  * Jobs are deployed within a jobs folder within the appLoc.
  * @param {ServerType} serverType
  */
-async function getFolderContent(serverType: ServerType) {
+async function getFolderContent(serverType: ServerType): Promise<{
+  folderContent: string
+  folderContentJSON: ServicePack
+}> {
   const { buildDestinationFolder } = process.sasjsConstants
   const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
-  let folderContentJSON: any = { members: [] }
+  let folderContentJSON: ServicePack = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
       path.join(buildDestinationFolder, subFolder),
@@ -218,7 +221,7 @@ async function getContentFor(
   folderPath: string,
   serverType: ServerType,
   testPath: string | undefined = undefined
-) {
+): Promise<{ content: string; contentJSON: ServicePackMember }> {
   const folderName = path.basename(folderPath)
   if (!testPath && folderName === 'tests') {
     testPath = ''
@@ -237,7 +240,7 @@ async function getContentFor(
           .join('/')
   };\n`
 
-  const contentJSON: any = {
+  const contentJSON: ServicePackMember = {
     name: folderName,
     type: 'folder',
     members: []
@@ -258,19 +261,25 @@ async function getContentFor(
       )
       content += `\n${transformedContent}\n`
 
-      contentJSON?.members.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'service',
         code: removeComments(fileContent)
       })
     } else {
-      const transformedContent = await getFileText(file, filePath, serverType)
+      const fileContentEncoded = await base64EncodeFile(filePath)
+
+      const transformedContent = getFileText(
+        file,
+        fileContentEncoded,
+        serverType
+      )
       content += `\n${transformedContent}\n`
 
-      contentJSON?.members.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'file',
-        path: filePath
+        code: fileContentEncoded
       })
     }
   })
@@ -290,7 +299,7 @@ async function getContentFor(
           : undefined
       )
 
-    contentJSON?.members.push(childContentJSON)
+    contentJSON.members!.push(childContentJSON)
     content += childContent
   })
 
@@ -326,15 +335,15 @@ filename sascode clear;
 `
 }
 
-async function getFileText(
+function getFileText(
   fileName: string,
-  filePath: string,
+  fileContent: string,
   serverType: ServerType
 ) {
   const fileExtension = path.extname(fileName).substring(1).toUpperCase()
 
-  const { content, encoded, maxLineLength } = await getWebFileContent(
-    filePath,
+  const { content, maxLineLength } = getWebFileContent(
+    fileContent,
     fileExtension
   )
 
@@ -344,59 +353,31 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType, undefined, false, encoded)}
+${getWebServiceScriptInvocation(serverType, undefined, false, true)}
 filename filecode clear;
 `
 }
 
-async function getWebFileContent(filePath: string, type: string) {
-  let lines,
-    encoded = false
+function getWebFileContent(filecontent: string, type: string) {
+  let parsedContent = ''
 
-  const typesToEncode: string[] = [
-    'ICO',
-    'PNG',
-    'JPG',
-    'JPEG',
-    'MP3',
-    'OGG',
-    'WAV'
-  ]
-
-  if (typesToEncode.includes(type)) {
-    encoded = true
-    lines = [await base64EncodeFile(filePath)]
+  const chunkedLines = chunk(filecontent)
+  if (chunkedLines.length === 1) {
+    parsedContent = ` put '${chunkedLines[0].split("'").join("''")}';\n`
   } else {
-    lines = (await readFile(filePath))
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .filter((l) => !!l)
+    let combinedLines = ''
+    chunkedLines.forEach((chunkedLine, index) => {
+      let text = ` put '${chunkedLine.split("'").join("''")}'`
+      if (index !== chunkedLines.length - 1) text += '@;\n'
+      else text += ';\n'
+
+      combinedLines += text
+    })
+    parsedContent += combinedLines
   }
+  const maxLineLength = Math.max(32767, filecontent.length)
 
-  let parsedContent = '',
-    maxLineLength = 32767
-
-  lines.forEach((line) => {
-    const chunkedLines = chunk(line)
-    if (chunkedLines.length === 1) {
-      parsedContent += ` put '${chunkedLines[0].split("'").join("''")}';\n`
-    } else {
-      let combinedLines = ''
-      chunkedLines.forEach((chunkedLine, index) => {
-        let text = ` put '${chunkedLine.split("'").join("''")}'`
-        if (index !== chunkedLines.length - 1) {
-          text += '@;\n'
-        } else {
-          text += ';\n'
-        }
-        combinedLines += text
-      })
-      parsedContent += combinedLines
-    }
-    maxLineLength = maxLineLength < line.length ? line.length : maxLineLength
-  })
-
-  return { content: parsedContent, encoded, maxLineLength }
+  return { content: parsedContent, maxLineLength }
 }
 
 function getLines(text: string): string[] {

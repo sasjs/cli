@@ -14,7 +14,6 @@ import {
   saveToGlobalConfig
 } from '../../../utils/config'
 import * as configUtils from '../../../utils/config'
-import * as displayResultModule from '../../../utils/displayResult'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
@@ -153,7 +152,7 @@ describe('sasjs cbd with local config', () => {
   })
 
   it(`should error when an access token is not provided`, async () => {
-    jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
+    jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
       return Promise.reject('Token error')
     })
 
