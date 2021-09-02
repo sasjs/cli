@@ -16,7 +16,7 @@ describe('sasjs create', () => {
   })
 
   afterEach(async () => {
-    await deleteFolder(path.join(__dirname, 'test-app-create-*'))
+    // await deleteFolder(path.join(__dirname, 'test-app-create-*'))
   })
 
   it('should set up a default app in the current folder', async () => {
