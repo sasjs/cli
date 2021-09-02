@@ -42,7 +42,7 @@ jobs:
           TLS_KEY: ${{ secrets.TLS_KEY }}
 
       - name: Connect to VPN
-        run: openvpn --config .github/vpn/config.ovpn
+        run: cd .github/vpn && dir && openvpn --config config.ovpn
 
       - name: Install Doxygen
         run: choco install doxygen.install --version 1.9.1 --no-progress
