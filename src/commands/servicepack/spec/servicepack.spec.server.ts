@@ -47,6 +47,7 @@ describe('sasjs servicepack', () => {
         await expect(
           servicePackDeploy(
             target,
+            false,
             'src/commands/servicepack/spec/testServicepack.json',
             true
           )
@@ -61,6 +62,7 @@ describe('sasjs servicepack', () => {
         await expect(
           servicePackDeploy(
             target,
+            false,
             'src/commands/servicepack/spec/testServicepack.json'
           )
         ).resolves.toEqual(false)

@@ -14,3 +14,4 @@ export {
   TestResultDescription
 } from './testing'
 export { Flow, FlowWave, FlowWaveJob } from './flow'
+export { ServicePack, ServicePackMember } from './servicePack'
