@@ -24,6 +24,13 @@ jobs:
       - name: Disable Firewall
         run: netsh advfirewall set allprofiles state off
 
+      - name: Install OpenSSL
+        run: |
+          $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+          [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+          choco install --yes openssl --no-progress
+        shell: powershell
+
       - name: Install OpenVPN
         run: |
           $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
