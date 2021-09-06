@@ -41,10 +41,10 @@ jobs:
 
       - name: Write VPN Files
         run: |
-          echo $Env:CA_CRT > .github/vpn/ca.crt
-          echo $Env:USER_CRT > .github/vpn/user.crt
-          echo $Env:USER_KEY > .github/vpn/user.key
-          echo $Env:TLS_KEY > .github/vpn/tls.key
+          echo $Env:CA_CRT | Out-File -FilePath .github/vpn/ca.crt -Encoding utf8
+          echo $Env:USER_CRT | Out-File -FilePath .github/vpn/user.crt -Encoding utf8
+          echo $Env:USER_KEY | Out-File -FilePath .github/vpn/user.key -Encoding utf8
+          echo $Env:TLS_KEY | Out-File -FilePath .github/vpn/tls.key -Encoding utf8
         env:
           CA_CRT: ${{ secrets.CA_CRT}}
           USER_CRT: ${{ secrets.USER_CRT }}
