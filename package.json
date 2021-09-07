@@ -66,7 +66,7 @@
     "lodash.groupby": "4.6.0",
     "lodash.uniqby": "4.7.0",
     "node-graphviz": "0.1.0",
-    "ora": "5.4.1",
+    "ora": "6.0.0",
     "rimraf": "3.0.2",
     "shelljs": "0.8.4",
     "xml": "1.0.1",
