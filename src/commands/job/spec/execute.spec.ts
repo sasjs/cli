@@ -1,4 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
+import { deleteFile } from '@sasjs/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
 import { setConstants } from '../../../utils'
@@ -12,10 +13,17 @@ const target = new Target({
   appLoc: '/test',
   contextName: 'Mock Context'
 })
+let statusFile: string
 
 describe('execute', () => {
   beforeEach(async () => {
     await setupMocks()
+
+    statusFile = path.join(process.projectDir, 'test')
+  })
+
+  afterEach(async () => {
+    await deleteFile(statusFile)
   })
 
   it('should set streamLog to true when the flag is passed in', async () => {
@@ -27,7 +35,7 @@ describe('execute', () => {
       false,
       false,
       path.join(process.projectDir, 'logs'),
-      path.join(process.projectDir, 'test'),
+      statusFile,
       false,
       false,
       undefined,
@@ -62,7 +70,7 @@ describe('execute', () => {
       false,
       false,
       path.join(process.projectDir, 'logs'),
-      path.join(process.projectDir, 'test'),
+      statusFile,
       false,
       false,
       undefined,
