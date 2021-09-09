@@ -92,31 +92,68 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 }
 
 async function getBuildInfo(target: Target, streamWeb: boolean) {
+  // The buildConfig variable contains the files for which we are fetching
+  // dependencies, eg mv_createwebservice.sas and mv_createfile.sas
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
 
+  // dependencyFilePaths contains the dependencies of each buildConfig file
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
 
   if (target.serverType === ServerType.SasViya && streamWeb) {
+    // In Viya the mv_createfile.sas program is used to deploy the content as
+    // files (rather than SAS programs / Stored Processes like in SAS 9)
+    // Therefore we have a build macro dependency in addition to
+    // mv_createwebservice.sas
     const createFileScript = await getCreateFileScript(serverType)
     buildConfig += `${createFileScript}\n`
-
     const dependencyFilePathsForCreateFile = await getDependencyPaths(
       createFileScript,
       macroFolders
     )
 
+    // The binary copy script is used to update the deployed index.html file in
+    // streamed viya apps at deploy time
+    const binaryCopyScript = await readFile(
+      `${await getMacroCorePath()}/base/mp_binarycopy.sas`
+    )
+    buildConfig += `${binaryCopyScript}\n`
+    const dependencyFilePathsForBinaryCopy = await getDependencyPaths(
+      binaryCopyScript,
+      macroFolders
+    )
+
     dependencyFilePaths = [
-      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
+      ...new Set([
+        ...dependencyFilePaths,
+        ...dependencyFilePathsForCreateFile,
+        ...dependencyFilePathsForBinaryCopy
+      ])
     ]
   }
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
-  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
+  return `
+/* The appLoc represents the metadata or files service location of your app */
+%global appLoc;
+%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc}));
+%let sasjs_clickmeservice=clickme;
+%let syscc=0;
+options ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;
+/* user supplied build vars */
+${buildVars}
+/* user supplied build vars end */
+/* system macro dependencies for build process */
+${dependenciesContent}
+/* system macro dependencies for build process end*/
+/* system macros for build process */
+${buildConfig}
+/* system macros for build process end */
+`
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {

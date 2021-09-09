@@ -3,7 +3,7 @@ import { ServerType } from '@sasjs/utils/types'
 const SAS9Code = (streamServiceName: string) => `
 options notes;
 data _null_;
- format url $256.; 
+ format url $256.;
  rc=METADATA_GETURI("Stored Process Web App",url);
  url=coalescec(url,"localhost/SASStoredProcess");
  urlEscaped = tranwrd(trim(url)," ","%20");
@@ -14,6 +14,24 @@ data _null_;
 run;
 `
 const SASViyaCode = (streamServiceName: string) => `
+/* The streamService we just deployed (as a _FILE) had an empty appLoc */
+/* Now we know the appLoc (either default, or user provided) we can update it */
+
+filename _streamr filesrvc
+  folderPath="&apploc/services"
+  filename="${streamServiceName}.html"
+  lrecl=1048544;
+
+%mp_binarycopy(inref=_streamr, outloc="%sysfunc(pathname(work))/service.html")
+
+proc lua;
+file = io.open(sas.pathname("work").."service.html", "a")';
+io.output(file)
+io.write(sasdata)
+io.close(file)
+
+
+/* Tell the user where the app was deployed so they can open it */
 options notes;
 data _null_;
  if symexist('_baseurl') then do;
