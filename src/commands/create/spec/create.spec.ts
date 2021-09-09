@@ -9,10 +9,26 @@ import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
+import shelljs from 'shelljs'
+import { ChildProcess } from 'child_process'
 
 describe('sasjs create', () => {
   beforeAll(() => {
     dotenv.config()
+  })
+
+  beforeEach(() => {
+    const exec = shelljs.exec
+
+    jest.spyOn(shelljs, 'exec').mockImplementation((command: string) => {
+      if (!command.includes('npm install')) {
+        return exec(command, {
+          silent: true
+        }) as unknown as ChildProcess
+      }
+
+      return undefined as unknown as ChildProcess
+    })
   })
 
   afterEach(async () => {

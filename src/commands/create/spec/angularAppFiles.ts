@@ -125,17 +125,6 @@ export const angularAppFiles: Folder = {
           subFolders: []
         }
       ]
-    },
-    {
-      folderName: 'node_modules',
-      files: [],
-      subFolders: [
-        {
-          folderName: '@sasjs',
-          files: [],
-          subFolders: []
-        }
-      ]
     }
   ]
 }
