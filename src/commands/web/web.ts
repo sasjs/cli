@@ -362,9 +362,12 @@ function getAssetPath(
   }
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS
+    // using three forward slashes as a marker
+    // for SAS 9 the file is a program, with replacement in sasjsout.ts
+    // for Viya, the file is a FILE, so is replaced as a post deploy program
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamWebFolder}`
+      ? `/SASJobExecution?_FILE=///${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=///${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }
 
