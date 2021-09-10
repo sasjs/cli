@@ -73,7 +73,7 @@
     "yargs": "17.1.1"
   },
   "devDependencies": {
-    "@babel/preset-env": "7.15.0",
+    "@babel/preset-env": "7.15.6",
     "@babel/preset-typescript": "7.15.0",
     "@types/find": "0.2.1",
     "@types/get-installed-path": "4.0.1",
