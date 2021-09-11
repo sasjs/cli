@@ -302,13 +302,6 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
   expect(packageJson.dependencies).toEqual(
     expect.objectContaining({ '@sasjs/core': expect.anything() })
   )
-  expect(packageJson.devDependencies).toEqual(
-    expect.objectContaining({ ghooks: expect.anything() })
-  )
-
-  expect(
-    /sasjs lint/.test(packageJson?.config?.ghooks?.['pre-commit'])
-  ).toEqual(true)
 }
 
 export const removeAllTargetsFromConfigs = async () => {

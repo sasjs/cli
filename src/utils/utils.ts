@@ -9,8 +9,7 @@ import {
   readFile,
   copy,
   LogLevel,
-  Target,
-  padWithNumber
+  Target
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
@@ -91,9 +90,18 @@ function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  shelljs.exec(`cd "${folderPath}" && git clone ${repoUrl} .`, {
-    silent: true
-  })
+  const gitBranch = repoUrl.includes('template_sasonly')
+    ? 'master'
+    : repoUrl.includes('template_jobs')
+    ? 'master'
+    : 'main'
+
+  shelljs.exec(
+    `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
+    {
+      silent: true
+    }
+  )
 
   shelljs.rm('-rf', path.join(folderPath, '.git'))
 

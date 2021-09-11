@@ -76,22 +76,6 @@ export const reactAppFiles: Folder = {
           subFolders: []
         }
       ]
-    },
-    {
-      folderName: 'node_modules',
-      files: [],
-      subFolders: [
-        {
-          folderName: '@sasjs',
-          subFolders: [],
-          files: []
-        },
-        {
-          folderName: 'react',
-          subFolders: [],
-          files: []
-        }
-      ]
     }
   ]
 }
