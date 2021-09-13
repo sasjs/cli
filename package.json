@@ -6,6 +6,8 @@
     "build/**/*"
   ],
   "scripts": {
+    "preinstall": "node checkNodeVersion",
+    "prebuild": "node checkNodeVersion",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
@@ -50,7 +52,7 @@
     }
   },
   "dependencies": {
-    "@sasjs/adapter": "2.10.4",
+    "@sasjs/adapter": "2.10.5",
     "@sasjs/core": "2.42.0",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.30.0",
