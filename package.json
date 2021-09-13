@@ -6,14 +6,11 @@
     "build/**/*"
   ],
   "scripts": {
-    "preinstall": "node checkNodeVersion",
-    "prebuild": "node checkNodeVersion",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
     "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy",
-    "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/ && npm run copy:checkNodeVersion",
-    "copy:checkNodeVersion": "copyfiles ./checkNodeVersion.js ./build/",
+    "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --runInBand --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
