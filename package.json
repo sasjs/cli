@@ -1,14 +1,13 @@
 {
   "name": "@sasjs/cli",
-  "version": "5.0.0",
   "description": "Command line interface for SASjs",
   "main": "index.js",
-  "files": [
-    "build/**/*"
-  ],
   "scripts": {
     "preinstall": "node checkNodeVersion",
     "prebuild": "node checkNodeVersion",
+    "prepublishOnly": "cp LICENSE README.md build && rm -v !(\"build\") && cp -r build/* . && rm -rf build",
+    "postpublish": "git clean -fd",
+    "package:lib": "npm run build && cp ./package.json ./checkNodeVersion.js build && cp README.md build && cd build && npm version \"5.0.0\" && npm pack",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
@@ -27,7 +26,7 @@
     ]
   },
   "bin": {
-    "sasjs": "build/index.js"
+    "sasjs": "index.js"
   },
   "repository": {
     "type": "git",
