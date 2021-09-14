@@ -58,6 +58,9 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      - name: Test Package Install
+        run: npm version 5.0.0 && npm pack && npm install sasjs-cli-5.0.0.tgz && git clean -fdx
+
       - name: Run smoke tests
         run: sh ./test.sh
 
