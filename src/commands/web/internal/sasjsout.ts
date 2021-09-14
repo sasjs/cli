@@ -97,7 +97,7 @@ export const sasjsout = `
     end;
     else do;
       length newline $32767;
-      /* during compilation, dependencies are assigned three slashes /// */
+      /* during SAS9 compilation, dependencies are assigned three slashes /// */
       newline=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
       put newline;
     end;
