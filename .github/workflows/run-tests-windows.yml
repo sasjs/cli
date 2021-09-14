@@ -40,6 +40,9 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      - name: Test Package Install
+        run: npm pack && npm install -g sasjs-cli-5.0.0.tgz && sasjs v
+
       - name: Link
         run: npm link
 

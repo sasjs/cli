@@ -6,6 +6,8 @@ if (result && result.node) {
       `❌ Process failed due to Node Version,\nPlease install and use Node Version >= 14\nYour current Node Version is: ${result.node}`
     )
     process.exit(1)
+  } else {
+    console.log('You are good.')
   }
 } else {
   console.log(
