@@ -115,8 +115,10 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
       macroFolders
     )
 
-    // The binary copy script is used to update the deployed index.html file in
-    // streamed viya apps at deploy time
+    // The binary copy script is used to copy the deployed index.html file to
+    // a local directory for subsequent string (appLoc) replacement at deploy
+    // time.  This only happens when deploying using the SAS Program (build.sas)
+    // approach.
     const binaryCopyScript = await readFile(
       `${await getMacroCorePath()}/base/mp_binarycopy.sas`
     )
@@ -126,11 +128,23 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
       macroFolders
     )
 
+    // The gsubScript is used to perform the replacement of the appLoc within
+    // the local copy of the deployed index.html file
+    const gsubScript = await readFile(
+      `${await getMacroCorePath()}/base/mp_gsubfile.sas`
+    )
+    buildConfig += `${gsubScript}\n`
+    const dependencyFilePathsForGsubScript = await getDependencyPaths(
+      gsubScript,
+      macroFolders
+    )
+
     dependencyFilePaths = [
       ...new Set([
         ...dependencyFilePaths,
         ...dependencyFilePathsForCreateFile,
-        ...dependencyFilePathsForBinaryCopy
+        ...dependencyFilePathsForBinaryCopy,
+        ...dependencyFilePathsForGsubScript
       ])
     ]
   }
@@ -138,9 +152,23 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
   return `
-/* The appLoc represents the metadata or files service location of your app */
+/**
+  * The appLoc represents the metadata or SAS Drive location of the app you
+  * are about to deploy
+  *
+  * To set an alternative appLoc, simply populate the appLoc variable prior
+  * to running this program, eg:
+  *
+  * %let apploc=/my/apploc;
+  * %inc thisfile;
+  *
+  */
+
 %global appLoc;
-%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc}));
+%let compiled_apploc=${appLoc};
+
+%let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
+
 %let sasjs_clickmeservice=clickme;
 %let syscc=0;
 options ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;
@@ -214,9 +242,10 @@ function getWebServiceScriptInvocation(
 
 /**
  * Folders inside of `SASJS` folder are converted to JSON structure.
- * That JSON file is used to deploy services and jobs.
+ * That JSON file is used to deploy services, jobs and tests.
  * Services are deployed as direct subfolders within the appLoc.
  * Jobs are deployed within a jobs folder within the appLoc.
+ * Tests are deployed within a tests folder within the appLoc.
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType): Promise<{

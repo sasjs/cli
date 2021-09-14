@@ -14,21 +14,24 @@ data _null_;
 run;
 `
 const SASViyaCode = (streamServiceName: string) => `
-/* The streamService we just deployed (as a _FILE) had an empty appLoc */
-/* Now we know the appLoc (either default, or user provided) we can update it */
+
+/**
+  * The streamService we just deployed (as a _FILE) had the compile-time appLoc
+  * In this section we replace with the deploy-time appLoc
+  */
 
 filename _streamr filesrvc
   folderPath="&apploc/services"
   filename="${streamServiceName}.html"
   lrecl=1048544;
 
-%mp_binarycopy(inref=_streamr, outloc="%sysfunc(pathname(work))/service.html")
+%let local_file=%sysfunc(pathname(work))/service.html;
 
-proc lua;
-file = io.open(sas.pathname("work").."service.html", "a")';
-io.output(file)
-io.write(sasdata)
-io.close(file)
+%mp_binarycopy(inref=_streamr, outloc="&local_file")
+
+%mp_gsubfile(file=&local_file, pattern=compiled_apploc, replacement=apploc)
+
+%mp_binarycopy(inloc="&local_file", outref=_streamr)
 
 
 /* Tell the user where the app was deployed so they can open it */
