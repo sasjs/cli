@@ -22,14 +22,47 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      - name: Disable Firewall
+        run: |
+          netsh advfirewall set allprofiles state off
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+
+      - name: Install OpenSSL
+        run: |
+          $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+          [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+          choco install --yes openssl --no-progress
+          echo "C:\Program Files\OpenSSL-Win64\bin" >> $env:GITHUB_PATH
+        shell: powershell
+
+      - name: Install OpenVPN
+        run: |
+          $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+          [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+          choco install --yes openvpn --no-progress
+          echo "C:\Program Files\OpenVPN\bin" >> $env:GITHUB_PATH
+        shell: powershell
+
+      - name: Write VPN Files
+        run: |
+          echo $Env:CA_CRT | Out-File -FilePath .github/vpn/ca.crt -Encoding utf8
+          echo $Env:USER_CRT | Out-File -FilePath .github/vpn/user.crt -Encoding utf8
+          echo $Env:USER_KEY | Out-File -FilePath .github/vpn/user.key -Encoding utf8
+          echo $Env:TLS_KEY | Out-File -FilePath .github/vpn/tls.key -Encoding utf8
+        env:
+          CA_CRT: ${{ secrets.CA_CRT}}
+          USER_CRT: ${{ secrets.USER_CRT }}
+          USER_KEY: ${{ secrets.USER_KEY }}
+          TLS_KEY: ${{ secrets.TLS_KEY }}
+
+      - name: Connect to VPN
+        run: cd .github/vpn && openvpn --config config.ovpn
+
       - name: Install Doxygen
-        run: choco install doxygen.install --version 1.9.1
+        run: choco install doxygen.install --version 1.9.1 --no-progress
 
-      - name: Add doxygen to path
+      - name: Add Doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Check doxygen version
-        run: doxygen -v
 
       - name: Install dependencies
         run: npm ci
@@ -43,11 +76,24 @@ jobs:
       - name: Link
         run: npm link
 
-      - name: npm prefix for user
+      - name: Write .npmrc file
         run: echo prefix=C:\npm\prefix >> ~\.npmrc
 
       - name: Run mocked tests
         run: npm run test:mocked
+        env:
+          CI: true
+          CLIENT: ${{secrets.CLIENT}}
+          SECRET: ${{secrets.SECRET}}
+          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
+          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
+          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
+          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+
+      - name: Run server tests
+        run: npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
