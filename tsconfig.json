@@ -25,5 +25,5 @@
     ".env*",
     ".prettierrc"
   ],
-  "include": ["src"]
+  "include": ["src", "index.js"]
 }
