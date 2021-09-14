@@ -1,6 +1,5 @@
 {
   "name": "@sasjs/cli",
-  "version": "5.0.0",
   "description": "Command line interface for SASjs",
   "main": "index.js",
   "files": [
