@@ -20,19 +20,26 @@ const SASViyaCode = (streamServiceName: string) => `
   * In this section we replace with the deploy-time appLoc
   */
 
-filename _streamr filesrvc
+filename _homein filesrvc
   folderPath="&apploc/services"
   filename="${streamServiceName}.html"
+  recfm=v
   lrecl=1048544;
 
 %let local_file=%sysfunc(pathname(work))/service.html;
+filename _homeout "&local_file";
 
-%mp_binarycopy(inref=_streamr, outloc="&local_file")
+data _null_;
+  rc=fcopy('_homein','_homeout');
+  put rc=;
+run;
 
-%mp_gsubfile(file=&local_file, pattern=compiled_apploc, replacement=apploc)
+%mp_gsubfile(file=&local_file, patternvar=compiled_apploc, replacevar=apploc)
 
-%mp_binarycopy(inloc="&local_file", outref=_streamr)
-
+data _null_;
+  rc=fcopy('_homeout','_homein');
+  put rc=;
+run;
 
 /* Tell the user where the app was deployed so they can open it */
 options notes;

@@ -115,21 +115,9 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
       macroFolders
     )
 
-    // The binary copy script is used to copy the deployed index.html file to
-    // a local directory for subsequent string (appLoc) replacement at deploy
-    // time.  This only happens when deploying using the SAS Program (build.sas)
-    // approach.
-    const binaryCopyScript = await readFile(
-      `${await getMacroCorePath()}/base/mp_binarycopy.sas`
-    )
-    buildConfig += `${binaryCopyScript}\n`
-    const dependencyFilePathsForBinaryCopy = await getDependencyPaths(
-      binaryCopyScript,
-      macroFolders
-    )
-
     // The gsubScript is used to perform the replacement of the appLoc within
-    // the local copy of the deployed index.html file
+    // the deployed index.html file.  This only happens when deploying using the
+    // SAS Program (build.sas) approach.
     const gsubScript = await readFile(
       `${await getMacroCorePath()}/base/mp_gsubfile.sas`
     )
@@ -143,7 +131,6 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
       ...new Set([
         ...dependencyFilePaths,
         ...dependencyFilePathsForCreateFile,
-        ...dependencyFilePathsForBinaryCopy,
         ...dependencyFilePathsForGsubScript
       ])
     ]
