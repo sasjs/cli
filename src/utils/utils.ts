@@ -64,9 +64,7 @@ export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     const { stdout, stderr, code } = shelljs.exec(
       `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
-      {
-        silent: true
-      }
+      { silent: true }
     )
 
     if (stderr.includes('Repository not found') || code) {
@@ -98,9 +96,7 @@ function createApp(
 
   shelljs.exec(
     `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
-    {
-      silent: true
-    }
+    { silent: true }
   )
 
   shelljs.rm('-rf', path.join(folderPath, '.git'))
@@ -279,16 +275,8 @@ export async function executeShellScript(
   logFilePath: string
 ) {
   return new Promise(async (resolve, reject) => {
-    // fix for cli test executions
-    // using cli, process.cwd() and process.projectDir should be same
-    const currentCWD = process.cwd()
-    const result = shelljs.exec(
-      `cd ${process.projectDir} && bash ${filePath} && cd ${currentCWD}`,
-      {
-        silent: true,
-        async: false
-      }
-    )
+    const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
+    const result = shelljs.exec(shellCommand, { silent: true })
     if (result.code) {
       process.logger?.error(`Error: ${result.stderr}`)
       reject(result.code)
