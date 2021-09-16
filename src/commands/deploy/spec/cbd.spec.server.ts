@@ -104,7 +104,7 @@ describe('sasjs cbd with local config', () => {
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
     const customTarget = new Target({
-      ...target,
+      ...target.toJson(),
       deployConfig: {
         deployServicePack: false,
         deployScripts: ['sasjs/build/copyscript.sh']
@@ -117,7 +117,7 @@ describe('sasjs cbd with local config', () => {
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
     const customTarget = new Target({
-      ...target,
+      ...target.toJson(),
       deployConfig: {
         deployServicePack: false,
         deployScripts: []
@@ -180,7 +180,7 @@ describe('sasjs cbd having stream app', () => {
     const appLocWithSpaces = `${appLoc}/with some/space s`
 
     const customTarget = new Target({
-      ...target,
+      ...target.toJson(),
       appLoc: appLocWithSpaces,
       streamConfig,
       jobConfig: undefined,
