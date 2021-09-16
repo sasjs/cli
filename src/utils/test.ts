@@ -425,9 +425,8 @@ export const verifyDocs = async (
 
   const indexHTMLContent = await readFile(indexHTML)
 
-  expect(indexHTMLContent).toEqual(
-    expect.stringContaining('<h1><a class="anchor" id="autotoc_md1"></a>')
-  )
+  expect(indexHTMLContent).toEqual(expect.stringMatching(/Contributing/))
+  expect(indexHTMLContent).toEqual(expect.stringMatching(/Environment Setup/))
 }
 
 export const verifyDotFiles = async (docsFolder: string) => {
