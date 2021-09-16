@@ -10,11 +10,11 @@ import {
 import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   createTestApp,
-  createTestGlobalTarget,
+  generateTestTarget,
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { getAuthConfig, removeFromGlobalConfig } from '../../../utils/config'
+import { getAuthConfig } from '../../../utils/config'
 import { runSasJob } from '../request'
 import { build } from '../../build/build'
 import { deploy } from '../../deploy/deploy'
@@ -60,7 +60,7 @@ describe('sasjs request without compute API', () => {
   beforeAll(async () => {
     const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
+    target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
@@ -68,7 +68,8 @@ describe('sasjs request without compute API', () => {
         initProgram: '',
         termProgram: '',
         macroVars: {}
-      }
+      },
+      ServerType.SasViya
     )
     authConfig = await getAuthConfig(target)
     await copy(
@@ -84,7 +85,6 @@ describe('sasjs request without compute API', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
@@ -183,7 +183,7 @@ describe('sasjs request with SAS9', () => {
   beforeAll(async () => {
     const appName = 'cli-tests-request-sas9-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
+    target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`,
       {
@@ -207,7 +207,6 @@ describe('sasjs request with SAS9', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })
@@ -289,16 +288,12 @@ describe(`sasjs request with compute API`, () => {
   beforeAll(async () => {
     const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
-      appName,
-      `/Public/app/cli-tests/${appName}`,
-      {
-        serviceFolders: ['sasjs/runRequest'],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      }
-    )
+    target = generateTestTarget(appName, `/Public/app/cli-tests/${appName}`, {
+      serviceFolders: ['sasjs/runRequest'],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    })
     authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
@@ -310,7 +305,6 @@ describe(`sasjs request with compute API`, () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
   })

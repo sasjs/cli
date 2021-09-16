@@ -3,6 +3,8 @@ import { getInstalledPath } from 'get-installed-path'
 import { getLocalOrGlobalConfig } from './config'
 import { getAbsolutePath } from './utils'
 
+export const contextName = 'sasjs cli compute context'
+
 export const setConstants = async () => {
   const { configuration, isLocal } = await getLocalOrGlobalConfig().catch(
     () => ({
@@ -61,7 +63,6 @@ export const setConstants = async () => {
     buildDestinationResultsFolder,
     'logs'
   )
-  const contextName = 'sasjs cli compute context'
   const sas9CredentialsError =
     'The following attributes were not found:' +
     '\n* SAS_USERNAME' +

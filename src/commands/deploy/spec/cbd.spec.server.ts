@@ -1,18 +1,7 @@
-import {
-  fileExists,
-  createFile,
-  copy,
-  readFile,
-  StreamConfig
-} from '@sasjs/utils'
+import { fileExists, copy, readFile, StreamConfig } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
-import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
-import {
-  findTargetInConfiguration,
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
+import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
@@ -21,23 +10,19 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { setConstants } from '../../../utils'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
-import { TargetScope } from '../../../types'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
 
   beforeEach(async () => {
-    target = await createGlobalTarget()
+    target = generateTarget(false)
     await createTestMinimalApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
   })
 
   afterEach(async () => {
-    await removeFromGlobalConfig(target.name)
-
     await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, target.name)
@@ -96,7 +81,7 @@ describe('sasjs cbd with local config', () => {
   beforeEach(async () => {
     appName = `cli-tests-cbd-local-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
-    target = await createLocalTarget()
+    target = generateTarget(true)
     await copyJobsAndServices(appName)
     await copy(
       path.join(__dirname, 'testScript', 'copyscript.sh'),
@@ -118,27 +103,26 @@ describe('sasjs cbd with local config', () => {
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
-    await updateLocalTarget(target.name, {
+    const customTarget = new Target({
+      ...target,
       deployConfig: {
         deployServicePack: false,
         deployScripts: ['sasjs/build/copyscript.sh']
       }
     })
-    await expect(build(target)).toResolve()
-    await expect(deploy(target, true)).toResolve()
+
+    await expect(build(customTarget)).toResolve()
+    await expect(deploy(customTarget, true)).toResolve()
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
-    await updateLocalTarget(target.name, {
+    const customTarget = new Target({
+      ...target,
       deployConfig: {
         deployServicePack: false,
         deployScripts: []
       }
     })
-    const { target: customTarget } = await findTargetInConfiguration(
-      target.name,
-      TargetScope.Local
-    )
     jest
       .spyOn(getDeployScriptsModule, 'getDeployScripts')
       .mockImplementation(() => Promise.resolve([]))
@@ -180,7 +164,7 @@ describe('sasjs cbd having stream app', () => {
   beforeEach(async () => {
     appName = `cli-tests-cbd-local-stream-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
-    target = await createLocalTarget()
+    target = generateTarget(true)
   })
 
   afterEach(async () => {
@@ -194,7 +178,9 @@ describe('sasjs cbd having stream app', () => {
   it(`should deploy compile and build with streamConfig`, async () => {
     const appLoc = `/Public/app/cli-tests/${target.name}`
     const appLocWithSpaces = `${appLoc}/with some/space s`
-    await updateLocalTarget(target.name, {
+
+    const customTarget = new Target({
+      ...target,
       appLoc: appLocWithSpaces,
       streamConfig,
       jobConfig: undefined,
@@ -204,10 +190,6 @@ describe('sasjs cbd having stream app', () => {
         deployScripts: [`sasjsbuild/${target.name}.sas`]
       }
     })
-    const { target: customTarget } = await findTargetInConfiguration(
-      target.name,
-      TargetScope.Local
-    )
 
     await expect(build(customTarget)).toResolve()
     await expect(deploy(customTarget, true)).toResolve()
@@ -227,62 +209,27 @@ describe('sasjs cbd having stream app', () => {
     expect(logFileContent.replace(/\s/g, '')).toEqual(
       expect.stringContaining(streamingApplink)
     )
-
-    await updateLocalTarget(target.name, { appLoc })
   })
 })
 
-const createGlobalTarget = async (serverType = ServerType.SasViya) => {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-cbd-${timestamp}`
-  await setConstants()
-  const target = new Target({
-    name: targetName,
-    serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
-    serviceConfig: {
-      serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    jobConfig: {
-      jobFolders: ['sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    authConfig: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string,
-      access_token: process.env.ACCESS_TOKEN as string,
-      refresh_token: process.env.REFRESH_TOKEN as string
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-  await saveToGlobalConfig(target)
-  return target
-}
-
-const createLocalTarget = async (serverType = ServerType.SasViya) => {
+const generateTarget = (isLocal: boolean) => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
 
-  const target = new Target({
+  const authConfig = isLocal
+    ? undefined
+    : {
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
+      }
+
+  return new Target({
     name: targetName,
-    serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
+    serverType: ServerType.SasViya,
+    serverUrl: process.env.VIYA_SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     contextName: process.sasjsConstants.contextName,
     serviceConfig: {
@@ -297,57 +244,12 @@ const createLocalTarget = async (serverType = ServerType.SasViya) => {
       termProgram: 'sasjs/testServices/serviceterm.sas',
       macroVars: {}
     },
+    authConfig,
     deployConfig: {
       deployServicePack: true,
-      deployScripts: []
+      deployScripts: ['sasjs/build/copyscript.sh']
     }
   })
-
-  const configContent = await readFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
-  )
-
-  const configJSON = JSON.parse(configContent)
-  configJSON.targets = [
-    {
-      ...target.toJson(),
-      deployConfig: {
-        deployScripts: ['sasjs/build/copyscript.sh'],
-        deployServicePack: true
-      }
-    }
-  ]
-
-  await createFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
-    JSON.stringify(configJSON, null, 2)
-  )
-
-  return target
-}
-
-const updateLocalTarget = async (targetName: string, data: any) => {
-  dotenv.config()
-
-  const configContent = await readFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
-  )
-
-  const configJSON = JSON.parse(configContent)
-  const target = configJSON?.targets?.find(
-    (t: TargetJson) => t.name === targetName
-  )
-  configJSON.targets = [
-    {
-      ...target,
-      ...data
-    }
-  ]
-
-  await createFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
-    JSON.stringify(configJSON, null, 2)
-  )
 }
 
 const copyJobsAndServices = async (appName: string) => {

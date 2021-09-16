@@ -12,14 +12,14 @@ import {
 import {
   createTestApp,
   createTestMinimalApp,
-  createTestGlobalTarget,
+  generateTestTarget,
   removeTestApp,
   updateTarget,
   updateConfig,
   removeTestServerFolder
 } from '../../../utils/test'
 import { build } from '../../build/build'
-import { removeFromGlobalConfig, setConstants } from '../../../utils'
+import { setConstants } from '../../../utils'
 
 describe('sasjs run', () => {
   let target: Target
@@ -28,7 +28,7 @@ describe('sasjs run', () => {
     beforeEach(async () => {
       const appName = 'cli-tests-run-' + generateTimestamp()
       await createTestApp(__dirname, appName)
-      target = await createTestGlobalTarget(
+      target = generateTestTarget(
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
@@ -36,7 +36,8 @@ describe('sasjs run', () => {
           initProgram: '',
           termProgram: '',
           macroVars: {}
-        }
+        },
+        ServerType.SasViya
       )
       await copy(
         path.join(__dirname, 'testServices'),
@@ -45,7 +46,6 @@ describe('sasjs run', () => {
     })
 
     afterEach(async () => {
-      await removeFromGlobalConfig(target.name)
       await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, target.name)
     })
@@ -188,7 +188,7 @@ describe('sasjs run', () => {
 
     beforeEach(async () => {
       const appName = `cli-tests-run-${generateTimestamp()}`
-      target = await createTestGlobalTarget(
+      target = generateTestTarget(
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
@@ -196,7 +196,8 @@ describe('sasjs run', () => {
           initProgram: '',
           termProgram: '',
           macroVars: {}
-        }
+        },
+        ServerType.SasViya
       )
       process.projectDir = ''
       await setConstants()
@@ -205,7 +206,6 @@ describe('sasjs run', () => {
     })
 
     afterEach(async () => {
-      await removeFromGlobalConfig(target.name)
       await deleteFolder(process.currentDir)
       await removeTestServerFolder(target.appLoc, target)
     })
@@ -266,7 +266,7 @@ describe('sasjs run', () => {
     beforeEach(async () => {
       const appName = 'cli-tests-run-sas9-' + generateTimestamp()
       await createTestApp(__dirname, appName)
-      target = await createTestGlobalTarget(
+      target = generateTestTarget(
         appName,
         `/Public/app/cli-tests/${appName}`,
         {
@@ -284,7 +284,6 @@ describe('sasjs run', () => {
     })
 
     afterEach(async () => {
-      await removeFromGlobalConfig(target.name)
       await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, target.name)
     })

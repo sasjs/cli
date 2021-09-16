@@ -1,9 +1,4 @@
-import {
-  isTestFile,
-  moveTestFile,
-  compileTestFile,
-  compileTestFlow
-} from '../compileTestFile'
+import { isTestFile, moveTestFile, compileTestFlow } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -13,14 +8,14 @@ import {
   fileExists,
   createFile,
   generateTimestamp,
-  deleteFolder
+  deleteFolder,
+  ServerType
 } from '@sasjs/utils'
 import {
   removeTestApp,
   createTestMinimalApp,
-  createTestGlobalTarget
+  generateTestTarget
 } from '../../../../utils/test'
-import { removeFromGlobalConfig } from '../../../../utils/config'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
@@ -40,7 +35,17 @@ describe('compileTestFile', () => {
 
     buildPath = path.join(__dirname, appName, 'sasjsbuild')
 
-    target = await createTestGlobalTarget(appName, '/Public/app')
+    target = generateTestTarget(
+      appName,
+      '/Public/app',
+      {
+        serviceFolders: [path.join('sasjs', 'services')],
+        initProgram: '',
+        termProgram: '',
+        macroVars: {}
+      },
+      ServerType.SasViya
+    )
     target = new Target({
       ...target.toJson(false),
       jobConfig: {
@@ -59,7 +64,6 @@ describe('compileTestFile', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 
