@@ -18,16 +18,12 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import {
-  removeFromGlobalConfig,
-  saveToGlobalConfig,
-  setConstants
-} from '../../../utils'
+import { contextName } from '../../../utils'
 import dotenv from 'dotenv'
 import { build, deploy } from '../..'
 
 describe('sasjs test', () => {
-  let target: Target
+  const target: Target = generateTarget()
   const testUrl = (test: string) =>
     `${target.serverUrl}/${
       target.serverType === ServerType.SasViya
@@ -41,8 +37,6 @@ describe('sasjs test', () => {
   const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
 
   beforeAll(async () => {
-    target = await createGlobalTarget()
-
     await createTestApp(__dirname, target.name)
     await copyTestFiles(target.name)
     await build(target)
@@ -54,7 +48,6 @@ describe('sasjs test', () => {
   afterAll(async () => {
     await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
-    await removeFromGlobalConfig(target.name)
   })
 
   it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
@@ -433,20 +426,19 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
   })
 })
 
-const createGlobalTarget = async (serverType = ServerType.SasViya) => {
+const generateTarget = (serverType = ServerType.SasViya): Target => {
   dotenv.config()
 
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-test-command-${timestamp}`
-  await setConstants()
-  const target = new Target({
+  return new Target({
     name: targetName,
     serverType,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
+    contextName,
     macroFolders: ['sasjs/macros'],
     serviceConfig: {
       serviceFolders: [],
@@ -483,10 +475,6 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       testTearDown: path.join('sasjs', 'tests', 'testteardown.sas')
     }
   })
-
-  await saveToGlobalConfig(target)
-
-  return target
 }
 
 const copyTestFiles = async (appName: string) => {

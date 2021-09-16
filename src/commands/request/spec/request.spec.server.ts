@@ -18,6 +18,7 @@ import { getAuthConfig } from '../../../utils/config'
 import { runSasJob } from '../request'
 import { build } from '../../build/build'
 import { deploy } from '../../deploy/deploy'
+import { contextName } from '../../../utils'
 
 const sampleDataJson = {
   table1: [
@@ -317,7 +318,7 @@ describe(`sasjs request with compute API`, () => {
         {
           ...target.toJson(),
           useComputeApi: true,
-          contextName: process.sasjsConstants.contextName
+          contextName
         },
         null,
         2

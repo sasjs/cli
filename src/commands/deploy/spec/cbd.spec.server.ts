@@ -12,6 +12,7 @@ import {
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
+import { contextName } from '../../../utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -231,7 +232,7 @@ const generateTarget = (isLocal: boolean) => {
     serverType: ServerType.SasViya,
     serverUrl: process.env.VIYA_SERVER_URL as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
+    contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',

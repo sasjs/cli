@@ -1,11 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
-import {
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
-import { setConstants } from '../../../utils'
+import { contextName, setConstants } from '../../../utils'
 import { servicePackDeploy } from '../deploy'
 import { removeTestServerFolder } from '../../../utils/test'
 
@@ -24,7 +20,7 @@ describe('sasjs servicepack', () => {
       serverUrl: process.env.VIYA_SERVER_URL as string,
       allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
-      contextName: process.sasjsConstants.contextName,
+      contextName,
       authConfig: {
         client: process.env.CLIENT as string,
         secret: process.env.SECRET as string,
@@ -34,7 +30,6 @@ describe('sasjs servicepack', () => {
       macroFolders: [],
       programFolders: []
     })
-    await saveToGlobalConfig(target)
 
     process.projectDir = path.join(process.cwd())
     process.currentDir = process.projectDir
@@ -73,6 +68,5 @@ describe('sasjs servicepack', () => {
 
   afterAll(async () => {
     await removeTestServerFolder(target.appLoc, target)
-    await removeFromGlobalConfig(target.name)
   }, 60 * 1000)
 })
