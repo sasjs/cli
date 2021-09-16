@@ -27,11 +27,11 @@ const ERROR_MESSAGE = (targetName: string = '') => {
   return {
     NOT_FOUND_TARGET_NAME: `Target \`${targetName}\` was not found.
 Please check the target name and try again, or use \`sasjs add\` to add a new target.
-More info: https://cli.sasjs.io/sasjsconfig.html#defaultTarget
+More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets
 `,
     NOT_FOUND_FALLBACK: `No target was found.
 Please check the target name and try again, or use \`sasjs add\` to add a new target.
-More info: https://cli.sasjs.io/sasjsconfig.html#defaultTarget
+More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets
 `
   }
 }
