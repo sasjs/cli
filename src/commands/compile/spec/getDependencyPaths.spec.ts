@@ -13,21 +13,20 @@ import {
 } from '../../shared/dependencies'
 
 describe('getDependencyPaths', () => {
-  let target: Target
+  const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
+  const target: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
 
   beforeAll(async () => {
-    const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
-    target = generateTestTarget(
-      appName,
-      '/Public/app',
-      {
-        serviceFolders: [path.join('sasjs', 'services')],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.SasViya
-    )
     await createTestMinimalApp(__dirname, target.name)
   })
 

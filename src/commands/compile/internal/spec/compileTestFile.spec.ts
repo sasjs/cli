@@ -21,8 +21,24 @@ import { compile } from '../../compile'
 import chalk from 'chalk'
 
 describe('compileTestFile', () => {
-  let appName: string
-  let target: Target
+  const appName: string = `cli-tests-compile-test-file-${generateTimestamp()}`
+  const temp: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
+  const target: Target = new Target({
+    ...temp.toJson(),
+    jobConfig: {
+      jobFolders: [path.join('sasjs', 'jobs')]
+    }
+  })
   let sasjsPath: string
   let testBody: string
   let buildPath: string
@@ -31,27 +47,7 @@ describe('compileTestFile', () => {
   beforeAll(async () => {
     process.logger = new Logger(LogLevel.Off)
 
-    appName = `cli-tests-compile-test-file-${generateTimestamp()}`
-
     buildPath = path.join(__dirname, appName, 'sasjsbuild')
-
-    target = generateTestTarget(
-      appName,
-      '/Public/app',
-      {
-        serviceFolders: [path.join('sasjs', 'services')],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.SasViya
-    )
-    target = new Target({
-      ...target.toJson(false),
-      jobConfig: {
-        jobFolders: [path.join('sasjs', 'jobs')]
-      }
-    })
 
     await createTestMinimalApp(__dirname, target.name)
     await copyTestFiles(appName)

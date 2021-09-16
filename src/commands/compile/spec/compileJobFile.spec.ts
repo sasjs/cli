@@ -53,21 +53,20 @@ const fakeProgramLines = [
 ]
 
 describe('compileJobFile', () => {
-  let target: Target
+  const appName = `cli-tests-compile-job-file-${generateTimestamp()}`
+  const target: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
 
   beforeAll(async () => {
-    const appName = `cli-tests-compile-job-file-${generateTimestamp()}`
-    target = generateTestTarget(
-      appName,
-      '/Public/app',
-      {
-        serviceFolders: [path.join('sasjs', 'services')],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.SasViya
-    )
     await createTestMinimalApp(__dirname, target.name)
   })
 

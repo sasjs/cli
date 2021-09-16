@@ -57,21 +57,20 @@ const preCode =
   '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n'
 
 describe('compileServiceFile', () => {
-  let target: Target
+  const appName = `cli-tests-compile-service-file-${generateTimestamp()}`
+  const target: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
 
   beforeAll(async () => {
-    const appName = `cli-tests-compile-service-file-${generateTimestamp()}`
-    target = generateTestTarget(
-      appName,
-      '/Public/app',
-      {
-        serviceFolders: [path.join('sasjs', 'services')],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.SasViya
-    )
     await createTestMinimalApp(__dirname, target.name)
   })
 

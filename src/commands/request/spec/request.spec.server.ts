@@ -52,25 +52,24 @@ const expectedDataObj = {
 }
 
 describe('sasjs request without compute API', () => {
-  let target: Target
+  const appName = 'cli-tests-request-' + generateTimestamp()
+  const target: Target = generateTestTarget(
+    appName,
+    `/Public/app/cli-tests/${appName}`,
+    {
+      serviceFolders: ['sasjs/runRequest'],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
   let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
   beforeAll(async () => {
-    const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = generateTestTarget(
-      appName,
-      `/Public/app/cli-tests/${appName}`,
-      {
-        serviceFolders: ['sasjs/runRequest'],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.SasViya
-    )
     authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
@@ -176,24 +175,23 @@ describe('sasjs request without compute API', () => {
 })
 
 describe('sasjs request with SAS9', () => {
-  let target: Target
+  const appName = 'cli-tests-request-sas9-' + generateTimestamp()
+  const target: Target = generateTestTarget(
+    appName,
+    `/Public/app/cli-tests/${appName}`,
+    {
+      serviceFolders: ['sasjs/runRequest'],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.Sas9
+  )
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
   beforeAll(async () => {
-    const appName = 'cli-tests-request-sas9-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = generateTestTarget(
-      appName,
-      `/Public/app/cli-tests/${appName}`,
-      {
-        serviceFolders: ['sasjs/runRequest'],
-        initProgram: '',
-        termProgram: '',
-        macroVars: {}
-      },
-      ServerType.Sas9
-    )
     await copy(
       path.join(__dirname, 'runRequest'),
       path.join(process.projectDir, 'sasjs', 'runRequest')
@@ -280,20 +278,23 @@ describe('sasjs request with SAS9', () => {
 })
 
 describe(`sasjs request with compute API`, () => {
-  let target: Target
+  const appName = 'cli-tests-request-' + generateTimestamp()
+  const target: Target = generateTestTarget(
+    appName,
+    `/Public/app/cli-tests/${appName}`,
+    {
+      serviceFolders: ['sasjs/runRequest'],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    }
+  )
   let authConfig: AuthConfig
   const dataPathRel = 'data.json'
   const configPathRel = 'sasjsconfig-temp.json'
 
   beforeAll(async () => {
-    const appName = 'cli-tests-request-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = generateTestTarget(appName, `/Public/app/cli-tests/${appName}`, {
-      serviceFolders: ['sasjs/runRequest'],
-      initProgram: '',
-      termProgram: '',
-      macroVars: {}
-    })
     authConfig = await getAuthConfig(target)
     await copy(
       path.join(__dirname, 'runRequest'),
