@@ -20,6 +20,7 @@ import {
   AuthConfig
 } from '@sasjs/utils'
 import { ReturnCode } from '../../types/command'
+import { contextName } from '../../utils'
 
 /**
  * Triggers existing job for execution.
@@ -70,7 +71,7 @@ export async function execute(
     )
   }
 
-  const contextName = await getContextName(target, returnStatusOnly)
+  const contextName = getContextName(target, returnStatusOnly)
 
   let macroVars: MacroVars | undefined
 
@@ -259,13 +260,13 @@ export async function execute(
 }
 
 // REFACTOR: should be a utility
-export async function getContextName(
+export function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
-) {
-  const defaultContextName = process.sasjsConstants.contextName
+): string {
+  const defaultContextName = contextName
 
-  if (target && target.contextName) return target.contextName
+  if (target?.contextName) return target.contextName
 
   if (!returnStatusOnly) {
     process.logger?.warn(

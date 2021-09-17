@@ -1,11 +1,7 @@
 import dotenv from 'dotenv'
 import { ServerType, Target, generateTimestamp, AuthConfig } from '@sasjs/utils'
-import {
-  getAuthConfig,
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
-import { setConstants } from '../../../utils'
+import { getAuthConfig } from '../../../utils/config'
+import { contextName, setConstants } from '../../../utils'
 import SASjs from '@sasjs/adapter/node'
 import { list } from '../list'
 import { create } from '../create'
@@ -13,27 +9,20 @@ import { move } from '../move'
 import { deleteFolder } from '../delete'
 
 describe('sasjs folder operations', () => {
-  let target: Target
+  const target: Target = generateTarget()
+  const sasjs: SASjs = new SASjs({
+    serverUrl: target.serverUrl,
+    allowInsecureRequests: target.allowInsecureRequests,
+    appLoc: target.appLoc,
+    serverType: target.serverType
+  })
   let authConfig: AuthConfig
-  let sasjs: SASjs
 
   beforeAll(async () => {
-    target = await createGlobalTarget()
     process.projectDir = process.cwd()
     await setConstants()
 
     authConfig = await getAuthConfig(target)
-
-    sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
-  })
-
-  afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
   })
 
   it('lists folder children', async () => {
@@ -243,16 +232,15 @@ describe('sasjs folder operations', () => {
   })
 })
 
-const createGlobalTarget = async (serverType = ServerType.SasViya) => {
+function generateTarget(serverType = ServerType.SasViya): Target {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-folder-${timestamp}`
-  await setConstants()
-  const target = new Target({
+  return new Target({
     name: targetName,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     serverType,
-    contextName: process.sasjsConstants.contextName,
+    contextName,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
@@ -263,8 +251,6 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       refresh_token: process.env.REFRESH_TOKEN as string
     }
   })
-  await saveToGlobalConfig(target)
-  return target
 }
 
 const createTestFolder = async (

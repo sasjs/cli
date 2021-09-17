@@ -31,7 +31,7 @@ import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
 import { ServiceConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
-import { setConstants } from './setConstants'
+import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
 import SASjs from '@sasjs/adapter/node'
 
@@ -92,7 +92,7 @@ export const removeTestServerFolder = async (
   await deleteServerFolder(folderPath, sasjs, accessToken)
 }
 
-export const generateTestTarget = async (
+export const generateTestTarget = (
   targetName: string,
   appLoc: string,
   serviceConfig: ServiceConfig = {
@@ -105,14 +105,13 @@ export const generateTestTarget = async (
 ) => {
   dotenv.config()
 
-  await setConstants()
   const target = new Target({
     name: targetName,
     serverType,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
-    contextName: process.sasjsConstants.contextName,
+    contextName,
     appLoc,
     authConfig: {
       client: process.env.CLIENT,
@@ -156,7 +155,7 @@ export const createTestGlobalTarget = async (
   },
   serverType = ServerType.SasViya
 ) => {
-  const target = await generateTestTarget(
+  const target = generateTestTarget(
     targetName,
     appLoc,
     serviceConfig,
