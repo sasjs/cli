@@ -25,8 +25,14 @@ import { getAbsolutePath, loadEnvVariables } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
-    NOT_FOUND_TARGET_NAME: `Target \`${targetName}\` was not found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`,
-    NOT_FOUND_FALLBACK: `No target was found.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+    NOT_FOUND_TARGET_NAME: `Target \`${targetName}\` was not found.
+Please check the target name and try again, or use \`sasjs add\` to add a new target.
+More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets
+`,
+    NOT_FOUND_FALLBACK: `No target was found.
+Please check the target name and try again, or use \`sasjs add\` to add a new target.
+More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-global-targets
+`
   }
 }
 
@@ -123,7 +129,10 @@ export async function findTargetInConfiguration(
     if (target) return { target, isLocal: false }
 
     throw new Error(
-      `Unable to find any default target.\nPlease check the target name and try again, or use \`sasjs add\` to add a new target.`
+      `Unable to find any default target.
+Please check the target name and try again, or use \`sasjs add\` to add a new target.
+More info: https://cli.sasjs.io/sasjsconfig.html#defaultTarget
+`
     )
   }
 }
