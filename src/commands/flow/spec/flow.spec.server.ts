@@ -368,7 +368,7 @@ describe('sasjs flow', () => {
   })
 })
 
-const generateTarget = (serverType = ServerType.SasViya): Target => {
+function generateTarget(serverType = ServerType.SasViya): Target {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-flow-${timestamp}`

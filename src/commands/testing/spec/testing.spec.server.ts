@@ -426,7 +426,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
   })
 })
 
-const generateTarget = (serverType = ServerType.SasViya): Target => {
+function generateTarget(serverType = ServerType.SasViya): Target {
   dotenv.config()
 
   const timestamp = generateTimestamp()

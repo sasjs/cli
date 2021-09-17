@@ -248,7 +248,7 @@ const generateTarget = (isLocal: boolean) => {
     authConfig,
     deployConfig: {
       deployServicePack: true,
-      deployScripts: ['sasjs/build/copyscript.sh']
+      deployScripts: ['']
     }
   })
 }
