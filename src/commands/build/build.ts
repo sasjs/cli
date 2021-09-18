@@ -119,7 +119,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     // the deployed index.html file.  This only happens when deploying using the
     // SAS Program (build.sas) approach.
     const gsubScript = await readFile(
-      `${await getMacroCorePath()}/base/mp_gsubfile.sas`
+      `${getMacroCorePath()}/base/mp_gsubfile.sas`
     )
     buildConfig += `${gsubScript}\n`
     const dependencyFilePathsForGsubScript = await getDependencyPaths(
@@ -175,12 +175,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(
-        `${await getMacroCorePath()}/viya/mv_createwebservice.sas`
+        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
 
     case ServerType.Sas9:
       return await readFile(
-        `${await getMacroCorePath()}/meta/mm_createwebservice.sas`
+        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
     default:
@@ -193,9 +193,7 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(
-        `${await getMacroCorePath()}/viya/mv_createfile.sas`
-      )
+      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
 
     default:
       throw new Error(

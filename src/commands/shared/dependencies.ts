@@ -11,7 +11,7 @@ export async function getDependencyPaths(
   fileContent: string,
   macroFolders: string[] = []
 ) {
-  const sourcePaths = [...macroFolders, await getMacroCorePath()]
+  const sourcePaths = [...macroFolders, getMacroCorePath()]
 
   const dependenciesHeader = fileContent.includes('<h4> SAS Macros </h4>')
     ? '<h4> SAS Macros </h4>'
