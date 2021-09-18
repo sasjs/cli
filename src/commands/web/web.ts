@@ -107,6 +107,8 @@ export async function createWebAppServices(target: Target) {
       (content) => new jsdom.JSDOM(content)
     )
 
+    const assetsNotFound: Error[] = []
+
     const scriptTags = getScriptTags(indexHtml)
     await asyncForEach(scriptTags, async (tag) => {
       await updateTagSource(
@@ -115,18 +117,29 @@ export async function createWebAppServices(target: Target) {
         destinationPath,
         target,
         assetPathMap
-      )
+      ).catch((e) => assetsNotFound.push(e))
     })
 
     const linkTags = getLinkTags(indexHtml)
     await asyncForEach(linkTags, async (linkTag) => {
-      await updateLinkHref(linkTag, assetPathMap)
+      await updateLinkHref(linkTag, assetPathMap).catch((e) =>
+        assetsNotFound.push(e)
+      )
     })
 
     const faviconTags = getFaviconTags(indexHtml)
     await asyncForEach(faviconTags, async (faviconTag) => {
-      await updateLinkHref(faviconTag, assetPathMap)
+      await updateLinkHref(faviconTag, assetPathMap).catch((e) =>
+        assetsNotFound.push(e)
+      )
     })
+
+    if (assetsNotFound.length) {
+      const notFoundErrors = assetsNotFound
+        .map((e) => `- ${e.message}\n`)
+        .join('')
+      throw new Error(`Error(s) while preparing stream app:\n${notFoundErrors}`)
+    }
 
     if (target.serverType === ServerType.SasViya) {
       indexHtml.window.document.body.innerHTML += adjustIframeScript
@@ -293,7 +306,9 @@ export async function updateTagSource(
     if (!isUrl) {
       let content = await readFile(
         path.join(process.projectDir, webAppSourcePath, scriptPath)
-      )
+      ).catch((_) => {
+        throw new Error(`Unable to find file: ${scriptPath}`)
+      })
 
       assetPathMap.forEach((pathEntry) => {
         content = content.replace(
@@ -338,14 +353,17 @@ async function updateLinkHref(
   const isUrl =
     linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
   if (!isUrl) {
-    linkTag.setAttribute(
-      'href',
-      assetPathMap.find(
-        (entry) =>
-          entry.source === linkSourcePath ||
-          `./${entry.source}` === linkSourcePath
-      )!.target
+    const assetPath = assetPathMap.find(
+      (entry) =>
+        entry.source === linkSourcePath ||
+        `./${entry.source}` === linkSourcePath
     )
+
+    if (!assetPath?.target) {
+      throw new Error(`Unable to find file: ${linkSourcePath}`)
+    }
+
+    linkTag.setAttribute('href', assetPath.target)
   }
 }
 
