@@ -1,11 +1,14 @@
 {
   "name": "@sasjs/cli",
+  "version": "5.0.0",
   "description": "Command line interface for SASjs",
   "main": "index.js",
   "files": [
     "build/**/*"
   ],
   "scripts": {
+    "preinstall": "node build/checkNodeVersion.js",
+    "prebuild": "node src/checkNodeVersion.js",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
