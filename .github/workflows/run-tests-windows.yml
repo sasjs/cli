@@ -43,9 +43,6 @@ jobs:
       - name: Test Package Install
         run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
 
-      - name: Link
-        run: npm link
-
       - name: npm prefix for user
         run: echo prefix=C:\npm\prefix >> ~\.npmrc
 
