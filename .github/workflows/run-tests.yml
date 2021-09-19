@@ -58,6 +58,9 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      - name: Test Package Install
+        run: npm run package:lib && npm install -g ./build/sasjs-cli-5.0.0.tgz && sasjs v
+
       - name: Run smoke tests
         run: sh ./test.sh
 
