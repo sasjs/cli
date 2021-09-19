@@ -7,8 +7,9 @@
     "build/**/*"
   ],
   "scripts": {
-    "preinstall": "node build/checkNodeVersion.js",
-    "prebuild": "node src/checkNodeVersion.js",
+    "checkNodeVersion": "node -e \"console.log('\u001b[36m', 'Checking your Node.js version...'); if (process.versions && process.versions.node && parseInt(process.versions.node) < 14) { console.log('\u001b[31m%s\u001b[0m', '❌ You must be running at least Node.js 14 to install SASjs CLI.\\nYour current version is ' + process.versions.node + '.\\nPlease install a more recent version and try again.'); process.exit(1); } else { console.log('\u001b[32m', '✅ Node.js version check passed. Continuing...'); } console.log('\u001b[0m', '');\"",
+    "preinstall": "npm run checkNodeVersion -s",
+    "prebuild": "npm run checkNodeVersion -s",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
