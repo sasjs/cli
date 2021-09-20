@@ -92,31 +92,83 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 }
 
 async function getBuildInfo(target: Target, streamWeb: boolean) {
+  // The buildConfig variable contains the files for which we are fetching
+  // dependencies, eg mv_createwebservice.sas and mv_createfile.sas
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   buildConfig += `${createWebServiceScript}\n`
 
+  // dependencyFilePaths contains the dependencies of each buildConfig file
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
 
   if (target.serverType === ServerType.SasViya && streamWeb) {
+    // In Viya the mv_createfile.sas program is used to deploy the content as
+    // files (rather than SAS programs / Stored Processes like in SAS 9)
+    // Therefore we have a build macro dependency in addition to
+    // mv_createwebservice.sas
     const createFileScript = await getCreateFileScript(serverType)
     buildConfig += `${createFileScript}\n`
-
     const dependencyFilePathsForCreateFile = await getDependencyPaths(
       createFileScript,
       macroFolders
     )
 
+    // The gsubScript is used to perform the replacement of the appLoc within
+    // the deployed index.html file.  This only happens when deploying using the
+    // SAS Program (build.sas) approach.
+    const gsubScript = await readFile(
+      `${await getMacroCorePath()}/base/mp_gsubfile.sas`
+    )
+    buildConfig += `${gsubScript}\n`
+    const dependencyFilePathsForGsubScript = await getDependencyPaths(
+      gsubScript,
+      macroFolders
+    )
+
     dependencyFilePaths = [
-      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
+      ...new Set([
+        ...dependencyFilePaths,
+        ...dependencyFilePathsForCreateFile,
+        ...dependencyFilePathsForGsubScript
+      ])
     ]
   }
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
-  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
+  return `
+/**
+  * The appLoc represents the metadata or SAS Drive location of the app you
+  * are about to deploy
+  *
+  * To set an alternative appLoc, simply populate the appLoc variable prior
+  * to running this program, eg:
+  *
+  * %let apploc=/my/apploc;
+  * %inc thisfile;
+  *
+  */
+
+%global appLoc;
+%let compiled_apploc=${appLoc};
+
+%let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
+
+%let sasjs_clickmeservice=clickme;
+%let syscc=0;
+options ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;
+/* user supplied build vars */
+${buildVars}
+/* user supplied build vars end */
+/* system macro dependencies for build process */
+${dependenciesContent}
+/* system macro dependencies for build process end*/
+/* system macros for build process */
+${buildConfig}
+/* system macros for build process end */
+`
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {
@@ -177,9 +229,10 @@ function getWebServiceScriptInvocation(
 
 /**
  * Folders inside of `SASJS` folder are converted to JSON structure.
- * That JSON file is used to deploy services and jobs.
+ * That JSON file is used to deploy services, jobs and tests.
  * Services are deployed as direct subfolders within the appLoc.
  * Jobs are deployed within a jobs folder within the appLoc.
+ * Tests are deployed within a tests folder within the appLoc.
  * @param {ServerType} serverType
  */
 async function getFolderContent(serverType: ServerType): Promise<{

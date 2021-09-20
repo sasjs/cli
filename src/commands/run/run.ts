@@ -78,8 +78,9 @@ export async function runSasCode(
     ))
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)
   }
-  const sasFile = await readFile(getAbsolutePath(filePath, process.currentDir))
-  const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
+  const sasFilePath = getAbsolutePath(filePath, process.currentDir)
+  const sasFileContent = await readFile(sasFilePath)
+  const linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === ServerType.SasViya) {
     return await executeOnSasViya(
       filePath,
