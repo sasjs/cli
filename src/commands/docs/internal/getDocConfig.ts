@@ -38,7 +38,7 @@ export function getDocConfig(
 
   if (doxyContent.path?.startsWith('//')) {
     throw new Error(
-      'UNC paths are not supported. Please map to a network drive, or migrate the project to an existing path (with a drive letter).'
+      'UNC paths are not supported.\nPlease map to a network drive, or migrate the project to an existing path (with a drive letter).'
     )
   }
 

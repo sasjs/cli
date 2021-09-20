@@ -3,8 +3,8 @@ import { Constants } from '../../../constants'
 import { setConstants } from '../../../utils'
 import { getDocConfig } from '../internal/getDocConfig'
 
-const UNCErrorMessage =
-  'UNC paths are not supported. Please map to a network drive, or migrate the project to an existing path (with a drive letter).'
+const UNCErrorMessage = `UNC paths are not supported.
+Please map to a network drive, or migrate the project to an existing path (with a drive letter).`
 
 describe('getDocConfig', () => {
   let sasjsConstants: Constants
