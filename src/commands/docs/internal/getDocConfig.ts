@@ -14,8 +14,10 @@ export function getDocConfig(
   const { buildDestinationDocsFolder } = process.sasjsConstants
 
   if (!outDirectory) {
-    outDirectory = config?.docConfig?.outDirectory || buildDestinationDocsFolder
-    outDirectory = target?.docConfig?.outDirectory || outDirectory
+    outDirectory =
+      target?.docConfig?.outDirectory ||
+      config?.docConfig?.outDirectory ||
+      buildDestinationDocsFolder
   }
 
   let serverUrl = ''
@@ -32,6 +34,12 @@ export function getDocConfig(
   const doxyContent = {
     ...config?.docConfig?.doxyContent,
     ...target?.docConfig?.doxyContent
+  }
+
+  if (doxyContent.path?.startsWith('//')) {
+    throw new Error(
+      'UNC paths are not supported. Please map to a network drive, or migrate the project to an existing path (with a drive letter).'
+    )
   }
 
   return {

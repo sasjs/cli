@@ -20,7 +20,6 @@ import { TargetScope } from '../../../types'
 describe('sasjs doc lineage', () => {
   const appName = `test-app-doc-${generateTimestamp()}`
   const docOutputDefault = path.join(__dirname, appName, 'sasjsbuild', 'docs')
-  const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
   let defaultTarget: Target
   let defaultConfig: Configuration
 
