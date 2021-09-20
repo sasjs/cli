@@ -23,7 +23,8 @@ describe('saveToCsv', () => {
         undefined,
         undefined
       ],
-      Object.values(csvColumns)
+      Object.values(csvColumns),
+      'id'
     )
 
     const csvContent = await readFile(csvFilePath)
@@ -50,7 +51,8 @@ describe('saveToCsv', () => {
             undefined,
             undefined
           ],
-          Object.values(csvColumns)
+          Object.values(csvColumns),
+          'id'
         )
       })
     )
@@ -84,7 +86,8 @@ describe('saveToCsv', () => {
             undefined,
             undefined
           ],
-          Object.values(csvColumns)
+          Object.values(csvColumns),
+          'id'
         )
       })
     )

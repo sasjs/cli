@@ -192,7 +192,8 @@ const validateSaveToCsv = (jobExecutionInOrder: any[]) => {
       index + 1,
       expect.anything(),
       expectedCsvData,
-      Object.values(csvColumns)
+      Object.values(csvColumns),
+      'id'
     )
   })
 }
