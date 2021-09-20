@@ -7,7 +7,7 @@ import {
   ServerType,
   AuthConfig
 } from '@sasjs/utils'
-import { Target, generateTimestamp, Logger, LogLevel } from '@sasjs/utils'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   createTestApp,
   generateTestTarget,
@@ -51,8 +51,6 @@ const expectedDataObj = {
     }
   ]
 }
-
-process.logger = new Logger(LogLevel.Off)
 
 describe('sasjs request without compute API', () => {
   const appName = 'cli-tests-request-' + generateTimestamp()
