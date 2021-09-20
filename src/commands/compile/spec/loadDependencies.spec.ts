@@ -3,16 +3,15 @@ import {
   Target,
   generateTimestamp,
   JobConfig,
-  ServiceConfig
+  ServiceConfig,
+  ServerType
 } from '@sasjs/utils'
 import * as internalModule from '../internal/config'
-import { removeFromGlobalConfig } from '../../../utils/config'
 import {
-  createTestGlobalTarget,
+  generateTestTarget,
   createTestMinimalApp,
   removeTestApp,
-  updateConfig,
-  updateTarget
+  updateConfig
 } from '../../../utils/test'
 import { loadDependencies } from '../internal/loadDependencies'
 
@@ -163,26 +162,34 @@ const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
 *${type} Variables end;`
 
 describe('loadDependencies', () => {
-  let target: Target
+  const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
+  const temp: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
+  const target: Target = new Target({
+    ...temp.toJson(),
+    jobConfig: jobConfig(false),
+    serviceConfig: serviceConfig(false)
+  })
 
   beforeAll(async () => {
-    const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
-    target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
 
     await updateConfig({
       jobConfig: jobConfig(),
       serviceConfig: serviceConfig()
     })
-    target = await updateTarget(
-      { jobConfig: jobConfig(false), serviceConfig: serviceConfig(false) },
-      target.name,
-      false
-    )
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 

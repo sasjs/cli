@@ -23,7 +23,7 @@ jobs:
           cache: npm
 
       - name: Install Doxygen
-        run: choco install doxygen.install --version 1.9.1
+        run: choco install doxygen.install
 
       - name: Add doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
@@ -40,8 +40,8 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Link
-        run: npm link
+      - name: Test Package Install
+        run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
 
       - name: npm prefix for user
         run: echo prefix=C:\npm\prefix >> ~\.npmrc

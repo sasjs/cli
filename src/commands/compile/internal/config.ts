@@ -48,7 +48,6 @@ export const getServiceTerm = async (
   let serviceTermContent = '',
     filePath = ''
   if (target?.serviceConfig?.termProgram) {
-    filePath = path.join(buildSourceFolder, target.serviceConfig.termProgram)
     filePath = getAbsolutePath(
       target.serviceConfig.termProgram,
       buildSourceFolder
@@ -84,7 +83,6 @@ export const getJobInit = async (
   let jobInitContent = '',
     filePath = ''
   if (target?.jobConfig?.initProgram) {
-    filePath = path.join(buildSourceFolder, target.jobConfig.initProgram)
     filePath = getAbsolutePath(target.jobConfig.initProgram, buildSourceFolder)
     jobInitContent = await readFile(filePath)
   } else {
@@ -185,7 +183,6 @@ export const getTestTerm = async (
     filePath = ''
 
   if (target?.testConfig?.termProgram) {
-    filePath = path.join(buildSourceFolder, target.testConfig.termProgram)
     filePath = getAbsolutePath(target.testConfig.termProgram, buildSourceFolder)
 
     testTermContent = await readFile(filePath)

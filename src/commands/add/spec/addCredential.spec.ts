@@ -13,12 +13,11 @@ import * as configUtils from '../../../utils/config'
 import * as inputModule from '../internal/input'
 import { getDefaultValues } from '../internal/input'
 import { TargetScope } from '../../../types'
-import { setConstants } from '../../../utils'
+import { contextName } from '../../../utils'
 
 describe('addCredential', () => {
   it('prompts the user to enter the server URL if not found', async () => {
     process.projectDir = '.'
-    await setConstants()
 
     setupMocks()
     const target = new Target({
@@ -26,7 +25,7 @@ describe('addCredential', () => {
       serverUrl: '',
       serverType: ServerType.SasViya,
       appLoc: '/test',
-      contextName: process.sasjsConstants.contextName
+      contextName
     })
 
     await addCredential(target, false, TargetScope.Local)
@@ -138,7 +137,6 @@ describe('createEnvFile', () => {
     const refreshToken = 'r3fr35h'
     const expectedEnvFileContent = `CLIENT=${clientId}\nSECRET=${secret}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
     process.projectDir = '.'
-    await setConstants()
     const expectedEnvFilePath = path.join('.', `.env.${targetName}`)
     const createSpy = jest
       .spyOn(fileUtils, 'createFile')
@@ -212,7 +210,7 @@ const setupMocks = () => {
           serverUrl: '',
           serverType: ServerType.SasViya,
           appLoc: '/test',
-          contextName: process.sasjsConstants.contextName
+          contextName
         }),
         isLocal: true
       })

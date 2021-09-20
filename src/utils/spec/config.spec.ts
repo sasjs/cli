@@ -306,7 +306,7 @@ describe('saveToGlobalConfig', () => {
 
   it('should set the target as default when isDefault is true', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -322,7 +322,7 @@ describe('saveToGlobalConfig', () => {
 
   it('should not set the target as default when isDefault is false', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -345,7 +345,7 @@ describe('removeFromGlobalConfig', () => {
 
   it('should reset the default target when that target is removed', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -365,11 +365,11 @@ describe('removeFromGlobalConfig', () => {
   it('should not change the default target when another target is removed', async () => {
     const appName1 = 'cli-tests-config-1-' + generateTimestamp()
     const appName2 = 'cli-tests-config-2-' + generateTimestamp()
-    const target1 = await generateTestTarget(
+    const target1 = generateTestTarget(
       appName1,
       `/Public/app/cli-tests/${appName1}`
     )
-    const target2 = await generateTestTarget(
+    const target2 = generateTestTarget(
       appName2,
       `/Public/app/cli-tests/${appName2}`
     )
@@ -406,7 +406,7 @@ describe('saveToLocalConfig', () => {
 
   it('should set the target as default when isDefault is true', async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -422,7 +422,7 @@ describe('saveToLocalConfig', () => {
 
   it('should not set the target as default when isDefault is false', async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -451,7 +451,7 @@ describe('removeFromLocalConfig', () => {
 
   it('should reset the default target when that target is removed', async () => {
     const appName = 'cli-tests-config-' + generateTimestamp()
-    const target = await generateTestTarget(
+    const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
     )
@@ -471,11 +471,11 @@ describe('removeFromLocalConfig', () => {
   it('should not change the default target when another target is removed', async () => {
     const appName1 = 'cli-tests-config-1-' + generateTimestamp()
     const appName2 = 'cli-tests-config-2-' + generateTimestamp()
-    const target1 = await generateTestTarget(
+    const target1 = generateTestTarget(
       appName1,
       `/Public/app/cli-tests/${appName1}`
     )
-    const target2 = await generateTestTarget(
+    const target2 = generateTestTarget(
       appName2,
       `/Public/app/cli-tests/${appName2}`
     )

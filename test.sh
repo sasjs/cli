@@ -14,16 +14,6 @@ process_result() {
   fi
 }
 
-echo $'\e[34mLinking SASjs CLI...'
-npm link
-if [ $? -eq 0 ]
-then
-  echo $'\e[32mSuccess: SASjs CLI linked.'
-else
-  echo $'\e[91mError: Could not link SASjs CLI.'
-  exit 1
-fi
-
 echo $'\e[34mSASjs Version'
 sasjs v
 process_result $?
