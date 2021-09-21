@@ -106,7 +106,7 @@ export const executeFlow = async (
             logName,
             err?.message || ''
           ]
-          await saveToCsv(csvFile, data, Object.values(csvColumns)).catch(
+          await saveToCsv(csvFile, data, Object.values(csvColumns), 'id').catch(
             (err) => {
               displayError(err, 'Error while saving CSV file.')
             }
@@ -164,8 +164,8 @@ export const executeFlow = async (
           logName,
           details?.details
         ]
-        await saveToCsv(csvFile, data, Object.values(csvColumns)).catch((err) =>
-          displayError(err, 'Error while saving CSV file.')
+        await saveToCsv(csvFile, data, Object.values(csvColumns), 'id').catch(
+          (err) => displayError(err, 'Error while saving CSV file.')
         )
 
         job.status =
