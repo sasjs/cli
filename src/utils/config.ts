@@ -488,7 +488,7 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
   } as StreamConfig
 }
 
-export async function getMacroCorePath() {
+export function getMacroCorePath() {
   const { macroCorePath } = process.sasjsConstants
   return macroCorePath
 }
