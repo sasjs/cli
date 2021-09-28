@@ -45,7 +45,11 @@ export async function deploy(target: Target, isLocal: boolean) {
 
   const deployScripts = await getDeployScripts(target)
 
-  if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
+  if (
+    deployScripts.length === 0 &&
+    !target.deployConfig?.deployServicePack &&
+    target.serverType !== ServerType.Sasjs
+  ) {
     throw new Error(
       `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
     )
@@ -54,54 +58,61 @@ export async function deploy(target: Target, isLocal: boolean) {
   const { buildDestinationFolder } = process.sasjsConstants
 
   const logFilePath = buildDestinationFolder
-  await asyncForEach(deployScripts, async (deployScript) => {
-    const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
 
-    if (isSasFile(deployScript)) {
-      process.logger?.info(
-        `Processing SAS file ${path.basename(deployScript)} ...`
-      )
-      // get content of file
-      const deployScriptFile = await readFile(deployScriptPath)
-      // split into lines
-      const linesToExecute = deployScriptFile.replace(/\r\n/g, '\n').split('\n')
+  if (target.serverType === ServerType.Sasjs) {
+    await deployToSasjs(target)
+  } else {
+    await asyncForEach(deployScripts, async (deployScript) => {
+      const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
 
-      const streamConfig = await getStreamConfig(target)
-
-      if (target.serverType === ServerType.SasViya) {
-        await deployToSasViya(
-          deployScript,
-          target,
-          isLocal,
-          linesToExecute,
-          logFilePath,
-          streamConfig
+      if (isSasFile(deployScript)) {
+        process.logger?.info(
+          `Processing SAS file ${path.basename(deployScript)} ...`
         )
-      } else {
-        await deployToSas9(
-          deployScript,
-          target,
-          linesToExecute,
-          logFilePath,
-          streamConfig
+        // get content of file
+        const deployScriptFile = await readFile(deployScriptPath)
+        // split into lines
+        const linesToExecute = deployScriptFile
+          .replace(/\r\n/g, '\n')
+          .split('\n')
+
+        const streamConfig = await getStreamConfig(target)
+
+        if (target.serverType === ServerType.SasViya) {
+          await deployToSasViya(
+            deployScript,
+            target,
+            isLocal,
+            linesToExecute,
+            logFilePath,
+            streamConfig
+          )
+        } else {
+          await deployToSas9(
+            deployScript,
+            target,
+            linesToExecute,
+            logFilePath,
+            streamConfig
+          )
+        }
+      } else if (isShellScript(deployScript)) {
+        process.logger?.info(`Executing shell script ${deployScript} ...`)
+
+        const logPath = path.join(
+          process.projectDir,
+          'sasjsbuild',
+          `${path.basename(deployScript).replace('.sh', '')}.log`
+        )
+
+        await executeShellScript(deployScriptPath, logPath)
+
+        process.logger?.success(
+          `Shell script execution completed! Log is here: ${logPath}`
         )
       }
-    } else if (isShellScript(deployScript)) {
-      process.logger?.info(`Executing shell script ${deployScript} ...`)
-
-      const logPath = path.join(
-        process.projectDir,
-        'sasjsbuild',
-        `${path.basename(deployScript).replace('.sh', '')}.log`
-      )
-
-      await executeShellScript(deployScriptPath, logPath)
-
-      process.logger?.success(
-        `Shell script execution completed! Log is here: ${logPath}`
-      )
-    }
-  })
+    })
+  }
 }
 
 async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
@@ -301,6 +312,32 @@ async function deployToSas9(
   } else {
     process.logger?.error('Unable to create log file.')
   }
+}
+
+async function deployToSasjs(target: Target) {
+  const { buildDestinationFolder } = process.sasjsConstants
+  const finalFilePathJSON = path.join(
+    buildDestinationFolder,
+    `${target.name}.json`
+  )
+  const jsonContent = await readFile(finalFilePathJSON)
+  const jsonObject = JSON.parse(jsonContent)
+  const payload = jsonObject
+
+  const sasjs = new SASjs({
+    serverType: target.serverType,
+    pathSASBase: target.baseSasConfig?.pathSasBase
+  })
+
+  await sasjs.deployToSASBase(payload.members).catch((err) => {
+    process.logger?.error(err)
+  })
+
+  await sasjs
+    .executeScriptSASBase({ _program: 'jobs/load/runjob1' })
+    .catch((err) => {
+      process.logger?.error(err)
+    })
 }
 
 /**

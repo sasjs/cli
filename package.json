@@ -50,10 +50,10 @@
     }
   },
   "dependencies": {
-    "@sasjs/adapter": "2.10.0",
+    "@sasjs/adapter": "file:../adapter/build/sasjs-adapter-5.0.0.tgz",
     "@sasjs/core": "2.35.4",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.27.1",
+    "@sasjs/utils": "file:../utils/build/sasjs-utils-5.0.0.tgz",
     "chalk": "4.1.1",
     "csv-stringify": "5.6.2",
     "dotenv": "10.0.0",

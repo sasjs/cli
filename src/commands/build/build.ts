@@ -1,5 +1,4 @@
 import path from 'path'
-import { Target, ServerType } from '@sasjs/utils/types'
 import {
   readFile,
   base64EncodeFile,
@@ -8,6 +7,10 @@ import {
   createFile,
   asyncForEach
 } from '@sasjs/utils'
+import { Target, ServerType } from '@sasjs/utils/types'
+import { StreamConfig } from '@sasjs/utils/types/config'
+// TODO: use ServerTypeError
+import { ServerTypeError } from '@sasjs/utils/error'
 import { removeComments, chunk } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
 import {
@@ -20,7 +23,6 @@ import { compile } from '../compile/compile'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
-import { StreamConfig } from '@sasjs/utils/types/config'
 import { isTestFile } from '../compile/internal/compileTestFile'
 
 export async function build(target: Target) {
@@ -95,8 +97,11 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
-  const createWebServiceScript = await getCreateWebServiceScript(serverType)
-  buildConfig += `${createWebServiceScript}\n`
+
+  if (target.serverType !== ServerType.Sasjs) {
+    const createWebServiceScript = await getCreateWebServiceScript(serverType)
+    buildConfig += `${createWebServiceScript}\n`
+  }
 
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
 
@@ -133,7 +138,7 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 
     default:
       throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
+        `Invalid server type: valid options are ${ServerType.SasViya}, ${ServerType.Sas9} and ${ServerType.Sasjs}`
       )
   }
 }
@@ -318,10 +323,14 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(
-  serverType,
-  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
-)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(
+        serverType,
+        isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
+      )
+    : ''
+}
 filename sascode clear;
 `
 }
@@ -344,7 +353,11 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType, undefined, false, encoded)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(serverType, undefined, false, encoded)
+    : ''
+}
 filename filecode clear;
 `
 }

@@ -9,8 +9,7 @@ import {
   readFile,
   copy,
   LogLevel,
-  Target,
-  padWithNumber
+  Target
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
