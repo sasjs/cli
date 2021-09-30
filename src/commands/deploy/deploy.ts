@@ -321,23 +321,26 @@ async function deployToSasjs(target: Target) {
     `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
-  const jsonObject = JSON.parse(jsonContent)
-  const payload = jsonObject
+  const payload = JSON.parse(jsonContent)
 
   const sasjs = new SASjs({
     serverType: target.serverType,
-    pathSASBase: target.baseSasConfig?.pathSasBase
+    serverUrl: target.serverUrl
   })
 
-  await sasjs.deployToSASBase(payload.members).catch((err) => {
+  const result = await sasjs.deployToSASBase(payload).catch((err) => {
     process.logger?.error(err)
   })
 
-  await sasjs
-    .executeScriptSASBase({ _program: 'jobs/load/runjob1' })
-    .catch((err) => {
-      process.logger?.error(err)
-    })
+  if (result?.status === 'failure') {
+    process.logger?.error(result.message)
+
+    if (result.example) {
+      process.logger?.info(
+        `Payload example:\n${JSON.stringify(result.example, null, 2)}`
+      )
+    }
+  }
 }
 
 /**
