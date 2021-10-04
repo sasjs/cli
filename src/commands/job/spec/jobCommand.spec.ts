@@ -40,7 +40,7 @@ describe('JobCommand', () => {
   it('should pass wait as true if log flag with value is present', async () => {
     await executeCommandWrapper([jobPath, '--log', log])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -52,7 +52,7 @@ describe('JobCommand', () => {
   it('should pass path for log file and wait to true if log flag without value is present', async () => {
     await executeCommandWrapper([jobPath, '--log'])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -64,7 +64,7 @@ describe('JobCommand', () => {
   it('should pass wait as true if returnStatusOnly flag is present', async () => {
     await executeCommandWrapper([jobPath, '--returnStatusOnly'])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -92,7 +92,7 @@ describe('JobCommand', () => {
       '--streamLog'
     ])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -126,7 +126,7 @@ describe('JobCommand', () => {
       '--streamLog'
     ])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -179,7 +179,7 @@ describe('JobCommand', () => {
 
   it('should log the error and return the error code when execution is unsuccessful', async () => {
     jest
-      .spyOn(executeModule, 'execute')
+      .spyOn(executeModule, 'executeJobViya')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
     const returnCode = await executeCommandWrapper([jobPath])
@@ -194,7 +194,7 @@ const setupMocks = () => {
   jest.mock('../execute')
   jest.mock('../../../utils/config')
   jest
-    .spyOn(executeModule, 'execute')
+    .spyOn(executeModule, 'executeJobViya')
     .mockImplementation(() => Promise.resolve())
 
   jest
