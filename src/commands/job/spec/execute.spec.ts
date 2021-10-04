@@ -2,7 +2,7 @@ import SASjs from '@sasjs/adapter/node'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
 import { setConstants } from '../../../utils'
-import { execute } from '../execute'
+import { executeJobViya } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
 const sasjs = new (<jest.Mock<SASjs>>SASjs)()
@@ -19,7 +19,7 @@ describe('execute', () => {
   })
 
   it('should set streamLog to true when the flag is passed in', async () => {
-    await execute(
+    await executeJobViya(
       sasjs,
       mockAuthConfig,
       'test/job',
@@ -54,7 +54,7 @@ describe('execute', () => {
   })
 
   it('should set streamLog to false when the flag is false', async () => {
-    await execute(
+    await executeJobViya(
       sasjs,
       mockAuthConfig,
       'test/job',

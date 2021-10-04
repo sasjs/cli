@@ -1,7 +1,7 @@
-import { displayError, displaySuccess } from '../../utils/displayResult'
-import { isJsonFile } from '../../utils/file'
-import { parseLogLines } from '../../utils/utils'
-import { fetchLogFileContent } from '../shared/fetchLogFileContent'
+import { displayError, displaySuccess } from '../../../../utils/displayResult'
+import { isJsonFile } from '../../../../utils/file'
+import { parseLogLines } from '../../../../utils/utils'
+import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
 import path from 'path'
 import SASjs, {
   Link,
@@ -19,8 +19,9 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { terminateProcess } from '../../main'
-import { ReturnCode } from '../../types/command'
+import { terminateProcess } from '../../../../main'
+import { ReturnCode } from '../../../../types/command'
+import { saveLog } from '../utils'
 
 /**
  * Triggers existing job for execution.
@@ -37,7 +38,7 @@ import { ReturnCode } from '../../types/command'
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
-export async function execute(
+export async function executeJobViya(
   sasjs: SASjs,
   authConfig: AuthConfig,
   jobPath: string,
@@ -307,37 +308,4 @@ async function displayStatus(
     await createFile(statusFile, status)
     if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusFile}`)
   }
-}
-
-const saveLog = async (
-  logData: any,
-  logFile: string | undefined,
-  jobPath: string,
-  returnStatusOnly: boolean
-) => {
-  let logPath
-
-  if (logFile) {
-    logPath = logFile
-  } else {
-    logPath = path.join(
-      process.projectDir,
-      `${jobPath.split('/').slice(-1).pop()}.log`
-    )
-  }
-
-  let folderPath = logPath.split(path.sep)
-  folderPath.pop()
-  const parentFolderPath = folderPath.join(path.sep)
-
-  if (!(await folderExists(parentFolderPath))) {
-    await createFolder(parentFolderPath)
-  }
-
-  let logLines = typeof logData === 'object' ? parseLogLines(logData) : logData
-
-  process.logger?.info(`Creating log file at ${logPath} .`)
-  await createFile(logPath, logLines)
-
-  if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
 }

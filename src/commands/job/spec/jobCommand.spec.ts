@@ -1,5 +1,5 @@
 import path from 'path'
-import * as executeModule from '../execute'
+import * as executeModule from '../internal/execute'
 import { JobCommand } from '../jobCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
@@ -32,7 +32,7 @@ describe('JobCommand', () => {
   it('should parse sasjs job execute command', async () => {
     await executeCommandWrapper([jobPath])
 
-    expect(executeModule.execute).toHaveBeenCalledWith(
+    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({ jobPath })
     )
   })

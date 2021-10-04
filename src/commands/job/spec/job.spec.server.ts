@@ -25,7 +25,7 @@ import {
 } from '../../../utils/test'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
 import { setConstants } from '../../../utils'
-import { execute } from '../execute'
+import { executeJobViya } from '../internal/execute'
 import { prefixAppLoc } from '../../../utils/prefixAppLoc'
 import { build } from '../../build/build'
 import { deploy } from '../../deploy/deploy'
@@ -497,7 +497,7 @@ const executeWrapper = async ({
   source = undefined,
   streamLog = false
 }: executeWrapperParams) =>
-  execute(
+  executeJobViya(
     adapter,
     authConfig,
     jobPath,

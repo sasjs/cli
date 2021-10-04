@@ -5,7 +5,7 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
-import { execute } from './execute'
+import { executeJobViya, executeJobSasBase } from './internal/execute'
 
 enum JobSubCommand {
   Execute = 'execute'
@@ -121,24 +121,11 @@ export class JobCommand extends TargetCommand {
           serverUrl: target.serverUrl
         })
 
-        if (typeof this.parsed.jobPath === 'string') {
-          const result = await sasjs.executeJobSASBase({
-            _program: this.parsed.jobPath
-          })
+        if (this.parsed.jobPath !== 'string') return ReturnCode.InvalidCommand
 
-          if (result) {
-            if (result.status === 'success') {
-              process.logger.success(result.message)
-              process.logger.info(result.log!)
-              process.logger.info(result.logPath!)
-            } else {
-              process.logger.error(result.message)
-              process.logger.error(JSON.stringify(result.error, null, 2))
-            }
-          }
-
-          return ReturnCode.Success
-        }
+        return this.parsed.subCommand === JobSubCommand.Execute
+          ? await this.executeJobSasBase(sasjs)
+          : ReturnCode.InvalidCommand
       default:
         process.logger?.error(
           `This command is only supported for SAS Viya targets.\nPlease try again with a different target.`
@@ -146,6 +133,22 @@ export class JobCommand extends TargetCommand {
 
         return ReturnCode.InternalError
     }
+  }
+
+  async executeJobSasBase(sasjs: SASjs) {
+    const returnCode = await executeJobSasBase(
+      sasjs,
+      this.parsed.jobPath as string,
+      this.parsed.log as string
+    )
+      .then(() => ReturnCode.Success)
+      .catch((err) => {
+        process.logger?.error('Error executing job: ', err)
+
+        return ReturnCode.InternalError
+      })
+
+    return returnCode
   }
 
   async executeJobViya(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
@@ -171,7 +174,7 @@ export class JobCommand extends TargetCommand {
       )
     }
 
-    const returnCode = await execute(
+    const returnCode = await executeJobViya(
       sasjs,
       authConfig,
       jobPath,
