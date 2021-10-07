@@ -22,6 +22,7 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
 import { getAbsolutePath, loadEnvVariables } from './utils'
+import { HttpsAgentOptions } from '@sasjs/utils/types/httpsAgentOptions'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
@@ -96,7 +97,7 @@ export async function findTargetInConfiguration(
   if (targetName) {
     try {
       target = await getLocalTarget(targetName)
-    } catch (e) {
+    } catch (e: any) {
       if (e.message !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
     }
 
@@ -104,7 +105,7 @@ export async function findTargetInConfiguration(
 
     try {
       target = await getGlobalTarget(targetName)
-    } catch (e) {
+    } catch (e: any) {
       if (e.message !== ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME) throw e
     }
 
@@ -114,7 +115,7 @@ export async function findTargetInConfiguration(
   } else {
     try {
       target = await getLocalFallbackTarget()
-    } catch (e) {
+    } catch (e: any) {
       if (e.message !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
     }
 
@@ -122,7 +123,7 @@ export async function findTargetInConfiguration(
 
     try {
       target = await getGlobalFallbackTarget()
-    } catch (e) {
+    } catch (e: any) {
       if (e.message !== ERROR_MESSAGE().NOT_FOUND_FALLBACK) throw e
     }
 
@@ -153,10 +154,11 @@ async function getLocalTarget(targetName: string): Promise<Target> {
         targetJson.serverUrl = ''
       }
       targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
-      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        localConfig,
-        targetJson
-      )
+      targetJson.httpsAgentOptions =
+        await getPrecedenceOfHttpsAgentOptionsAndContent(
+          localConfig,
+          targetJson
+        )
 
       return new Target(targetJson)
     }
@@ -187,8 +189,11 @@ async function getLocalFallbackTarget(): Promise<Target> {
         fallBackTargetJson.serverUrl = ''
       }
       fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
-      fallBackTargetJson.allowInsecureRequests =
-        getPrecedenceOfInsecureRequests(localConfig, fallBackTargetJson)
+      fallBackTargetJson.httpsAgentOptions =
+        await getPrecedenceOfHttpsAgentOptionsAndContent(
+          localConfig,
+          fallBackTargetJson
+        )
       await loadEnvVariables(`.env.${fallBackTargetJson.name}`)
       return new Target(fallBackTargetJson)
     }
@@ -211,10 +216,11 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
         targetJson.serverUrl = ''
       }
       targetJson.serverUrl = urlOrigin(targetJson.serverUrl)
-      targetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-        globalConfig,
-        targetJson
-      )
+      targetJson.httpsAgentOptions =
+        await getPrecedenceOfHttpsAgentOptionsAndContent(
+          globalConfig,
+          targetJson
+        )
 
       return new Target(targetJson)
     }
@@ -242,10 +248,11 @@ async function getGlobalFallbackTarget(): Promise<Target> {
       fallBackTargetJson.serverUrl = ''
     }
     fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
-    fallBackTargetJson.allowInsecureRequests = getPrecedenceOfInsecureRequests(
-      globalConfig,
-      fallBackTargetJson
-    )
+    fallBackTargetJson.httpsAgentOptions =
+      await getPrecedenceOfHttpsAgentOptionsAndContent(
+        globalConfig,
+        fallBackTargetJson
+      )
 
     return new Target(fallBackTargetJson)
   }
@@ -604,7 +611,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   if (isAccessTokenExpiring(access_token)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       serverType: target.serverType
     })
 
@@ -668,7 +675,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       serverType: target.serverType
     })
 
@@ -755,11 +762,38 @@ export const overrideEnvVariables = async (targetName: string) => {
   }
 }
 
-const getPrecedenceOfInsecureRequests = (
+const getPrecedenceOfHttpsAgentOptionsAndContent = async (
   config: Configuration,
   target: TargetJson
-): boolean => {
-  return target.allowInsecureRequests ?? !!config.allowInsecureRequests
+): Promise<HttpsAgentOptions> => {
+  const httpsAgentOptions = getHttpsAgentOptionsForInsecure({
+    allowInsecureRequests: false,
+    ...config.httpsAgentOptions,
+    ...target.httpsAgentOptions
+  })
+
+  if (httpsAgentOptions.caPath) {
+    httpsAgentOptions.ca = await readFile(httpsAgentOptions.caPath)
+  }
+  if (httpsAgentOptions.keyPath) {
+    httpsAgentOptions.ca = await readFile(httpsAgentOptions.keyPath)
+  }
+  if (httpsAgentOptions.certPath) {
+    httpsAgentOptions.cert = await readFile(httpsAgentOptions.certPath)
+  }
+
+  return httpsAgentOptions
+}
+
+const getHttpsAgentOptionsForInsecure = (
+  options: HttpsAgentOptions
+): HttpsAgentOptions => {
+  return options.allowInsecureRequests
+    ? {
+        rejectUnauthorized: false,
+        ...options
+      }
+    : options
 }
 
 export const getTestSetUp = async (target: Target) => {

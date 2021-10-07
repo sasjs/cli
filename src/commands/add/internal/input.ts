@@ -187,10 +187,13 @@ export async function getAndValidateSasViyaFields(
   if (shouldAuthenticate) {
     target = await authenticateCallback(target, insecure, scope)
 
+    const { httpsAgentOptions } = target
+    if (insecure) httpsAgentOptions.rejectUnauthorized = true
+
     const sasjs = new SASjs({
       serverUrl,
       serverType: ServerType.SasViya,
-      allowInsecureRequests: insecure,
+      httpsAgentOptions,
       debug: process.logger?.logLevel === LogLevel.Debug
     })
     let contexts: any[] = []
