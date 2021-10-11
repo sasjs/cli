@@ -187,8 +187,13 @@ export async function getAndValidateSasViyaFields(
   if (shouldAuthenticate) {
     target = await authenticateCallback(target, insecure, scope)
 
-    const { httpsAgentOptions } = target
-    if (insecure) httpsAgentOptions.rejectUnauthorized = true
+    const httpsAgentOptions = insecure
+      ? {
+          ...target.httpsAgentOptions,
+          allowInsecureRequests: true,
+          rejectUnauthorized: false
+        }
+      : target.httpsAgentOptions
 
     const sasjs = new SASjs({
       serverUrl,

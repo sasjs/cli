@@ -27,8 +27,13 @@ export const addCredential = async (
   insecure: boolean,
   targetScope: TargetScope
 ): Promise<Target> => {
-  const { httpsAgentOptions } = target
-  if (insecure) httpsAgentOptions.rejectUnauthorized = true
+  const httpsAgentOptions = insecure
+    ? {
+        ...target.httpsAgentOptions,
+        allowInsecureRequests: true,
+        rejectUnauthorized: false
+      }
+    : target.httpsAgentOptions
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
