@@ -1,3 +1,4 @@
+import { ServerTypeError } from '@sasjs/utils/error'
 import { ServerType } from '@sasjs/utils/types'
 
 const SAS9Code = (streamServiceName: string) => `
@@ -44,8 +45,6 @@ export const getLaunchPageCode = (
       return SAS9Code(streamServiceName)
 
     default:
-      throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
-      )
+      throw new ServerTypeError([ServerType.SasViya, ServerType.Sas9])
   }
 }

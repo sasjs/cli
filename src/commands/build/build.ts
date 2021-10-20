@@ -9,7 +9,6 @@ import {
 } from '@sasjs/utils'
 import { Target, ServerType } from '@sasjs/utils/types'
 import { StreamConfig } from '@sasjs/utils/types/config'
-// TODO: use ServerTypeError
 import { ServerTypeError } from '@sasjs/utils/error'
 import { removeComments, chunk } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
@@ -137,9 +136,7 @@ async function getCreateWebServiceScript(serverType: ServerType) {
       )
 
     default:
-      throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya}, ${ServerType.Sas9} and ${ServerType.Sasjs}`
-      )
+      throw new ServerTypeError()
   }
 }
 
@@ -151,9 +148,7 @@ async function getCreateFileScript(serverType: ServerType) {
       )
 
     default:
-      throw new Error(
-        `Invalid server type: valid option is ${ServerType.SasViya}`
-      )
+      throw new ServerTypeError([ServerType.SasViya])
   }
 }
 
@@ -174,9 +169,7 @@ function getWebServiceScriptInvocation(
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
     default:
-      throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
-      )
+      throw new ServerTypeError([ServerType.SasViya, ServerType.Sas9])
   }
 }
 
