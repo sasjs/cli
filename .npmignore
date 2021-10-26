@@ -4,6 +4,7 @@
 .prettierignore
 .prettierrc
 *.md
+.all-contributorsrc
 
 jest.config.js
 jest.server.config.js
