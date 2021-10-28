@@ -5,7 +5,7 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
-import { executeJobViya, executeJobSasBase } from './internal/execute'
+import { executeJobViya, executeJobSasjs } from './internal/execute'
 
 enum JobSubCommand {
   Execute = 'execute'
@@ -121,10 +121,11 @@ export class JobCommand extends TargetCommand {
           serverUrl: target.serverUrl
         })
 
-        if (this.parsed.jobPath !== 'string') return ReturnCode.InvalidCommand
+        if (typeof this.parsed.jobPath !== 'string')
+          return ReturnCode.InvalidCommand
 
         return this.parsed.subCommand === JobSubCommand.Execute
-          ? await this.executeJobSasBase(sasjs)
+          ? await this.executeJobSasjs(sasjs)
           : ReturnCode.InvalidCommand
       default:
         process.logger?.error(
@@ -135,8 +136,8 @@ export class JobCommand extends TargetCommand {
     }
   }
 
-  async executeJobSasBase(sasjs: SASjs) {
-    const returnCode = await executeJobSasBase(
+  async executeJobSasjs(sasjs: SASjs) {
+    const returnCode = await executeJobSasjs(
       sasjs,
       this.parsed.jobPath as string,
       this.parsed.log as string

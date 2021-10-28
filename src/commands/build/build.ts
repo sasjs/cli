@@ -60,6 +60,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
     `${buildTerm}\n${buildInit}`,
     macroFolders
   )
+
   const dependenciesContent = await getDependencies(dependencyFilePaths)
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
@@ -67,8 +68,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const { folderContent, folderContentJSON } = await getFolderContent(
     serverType
   )
-  finalSasFileContent += `\n${folderContent}`
 
+  finalSasFileContent += `\n${folderContent}`
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {

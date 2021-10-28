@@ -1,2 +1,2 @@
 export * from './viya'
-export * from './sasBase'
+export * from './sasjs'

@@ -21,7 +21,7 @@ import {
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
 
-export async function deploy(target: Target, isLocal: boolean) {
+export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   if (
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
@@ -60,7 +60,7 @@ export async function deploy(target: Target, isLocal: boolean) {
   const logFilePath = buildDestinationFolder
 
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target)
+    await deployToSasjs(target, sasjs)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -314,7 +314,7 @@ async function deployToSas9(
   }
 }
 
-async function deployToSasjs(target: Target) {
+async function deployToSasjs(target: Target, sasjs?: SASjs) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -323,12 +323,14 @@ async function deployToSasjs(target: Target) {
   const jsonContent = await readFile(finalFilePathJSON)
   const payload = JSON.parse(jsonContent)
 
-  const sasjs = new SASjs({
-    serverType: target.serverType,
-    serverUrl: target.serverUrl
-  })
+  sasjs = sasjs
+    ? sasjs
+    : new SASjs({
+        serverType: target.serverType,
+        serverUrl: target.serverUrl
+      })
 
-  const result = await sasjs.deployToSASBase(payload).catch((err) => {
+  const result = await sasjs.deployToSASjs(payload).catch((err) => {
     process.logger?.error(err)
   })
 

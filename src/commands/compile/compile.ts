@@ -19,7 +19,7 @@ import {
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig } from '@sasjs/utils/types'
+import { Target, StreamConfig, ServerType } from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'
@@ -89,7 +89,7 @@ export async function compile(target: Target, forceCompile = false) {
     process.logger?.error('Test flow compilation has failed.')
   )
 
-  await compileWeb(target)
+  if (target.serverType !== ServerType.Sasjs) await compileWeb(target)
 }
 
 export async function copyFilesToBuildFolder(target: Target) {

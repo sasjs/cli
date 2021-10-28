@@ -4,7 +4,7 @@ import { ServerType } from '@sasjs/utils/types'
 const SAS9Code = (streamServiceName: string) => `
 options notes;
 data _null_;
- format url $256.; 
+ format url $256.;
  rc=METADATA_GETURI("Stored Process Web App",url);
  url=coalescec(url,"localhost/SASStoredProcess");
  urlEscaped = tranwrd(trim(url)," ","%20");
