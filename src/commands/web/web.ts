@@ -21,11 +21,6 @@ import { StreamConfig } from '@sasjs/utils/types/config'
 import { createAssetServices } from './internal/createAssetServices'
 import { updateAllTags } from './internal/updateAllTags'
 
-const permittedServerTypes = {
-  SAS9: 'SAS9',
-  SASVIYA: 'SASVIYA'
-}
-
 const exampleStreamConfig: StreamConfig = {
   streamWeb: true,
   streamWebFolder: '/example/folder/path',
