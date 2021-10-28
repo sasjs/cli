@@ -22,7 +22,6 @@ import {
   ServerType,
   Target
 } from '@sasjs/utils'
-import { ServerTypeError } from '@sasjs/utils/error'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import { setConstants } from '..'
