@@ -48,3 +48,5 @@ export const commandFactory = new Map<string, Function>([
   ['test', (args: string[]) => new TestCommand(args)],
   ['web', (args: string[]) => new WebCommand(args)]
 ])
+
+export const getAllSupportedCommands = () => commandFactory.keys()

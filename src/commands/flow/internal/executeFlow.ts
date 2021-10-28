@@ -1,8 +1,11 @@
 import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import { AuthConfig, Target } from '@sasjs/utils'
-import { Command } from '../../../utils/command'
-import { displayError, displaySuccess } from '../../../utils/displayResult'
-import { millisecondsToDdHhMmSs } from '../../../utils/utils'
+import {
+  displayError,
+  displaySuccess,
+  millisecondsToDdHhMmSs,
+  prefixAppLoc
+} from '../../../utils'
 import {
   saveLog,
   saveToCsv,
@@ -38,7 +41,7 @@ export const executeFlow = async (
 
   await Promise.all(
     flow.jobs.map(async (job: FlowWaveJob) => {
-      const jobLocation: string = Command.prefixAppLoc(
+      const jobLocation: string = prefixAppLoc(
         target.appLoc,
         job.location
       ) as string
@@ -103,7 +106,7 @@ export const executeFlow = async (
             logName,
             err?.message || ''
           ]
-          await saveToCsv(csvFile, data, Object.values(csvColumns)).catch(
+          await saveToCsv(csvFile, data, Object.values(csvColumns), 'id').catch(
             (err) => {
               displayError(err, 'Error while saving CSV file.')
             }
@@ -161,8 +164,8 @@ export const executeFlow = async (
           logName,
           details?.details
         ]
-        await saveToCsv(csvFile, data, Object.values(csvColumns)).catch((err) =>
-          displayError(err, 'Error while saving CSV file.')
+        await saveToCsv(csvFile, data, Object.values(csvColumns), 'id').catch(
+          (err) => displayError(err, 'Error while saving CSV file.')
         )
 
         job.status =

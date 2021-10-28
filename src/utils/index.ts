@@ -1,5 +1,4 @@
 export * from './auth'
-export * from './command'
 export * from './config'
 export * from './displayResult'
 export * from './file'

@@ -11,10 +11,12 @@ import {
   ServerType,
   decodeFromBase64
 } from '@sasjs/utils'
-import { Command } from '../../utils/command'
-import { displayError } from '../../utils/displayResult'
 import { compileSingleFile } from '../'
-import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
+import {
+  displayError,
+  displaySasjsRunnerError,
+  getAbsolutePath
+} from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
@@ -76,8 +78,9 @@ export async function runSasCode(
     ))
     process.logger?.success(`File Compiled and placed at: ${filePath} .`)
   }
-  const sasFile = await readFile(getAbsolutePath(filePath, process.currentDir))
-  const linesToExecute = sasFile.replace(/\r\n/g, '\n').split('\n')
+  const sasFilePath = getAbsolutePath(filePath, process.currentDir)
+  const sasFileContent = await readFile(sasFilePath)
+  const linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
   if (target.serverType === ServerType.SasViya) {
     return await executeOnSasViya(
       filePath,

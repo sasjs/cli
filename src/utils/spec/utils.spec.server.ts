@@ -5,18 +5,17 @@ import path from 'path'
 describe('utils', () => {
   describe('createReactApp', () => {
     it('should create React app', async () => {
-      const subFolderPath = 'src/utils/spec'
       const reactFolder = 'react-seed-app'
-      const folderPath = path.join(process.cwd(), subFolderPath, reactFolder)
-      const reactFolderPath = path.join(subFolderPath, reactFolder)
+
+      const reactFolderPath = path.join(__dirname, reactFolder)
       const sasjsFolderPath = path.join(reactFolderPath, 'sasjs')
 
-      await createFolder(folderPath)
+      await createFolder(reactFolderPath)
 
-      await expect(createReactApp(reactFolderPath)).resolves
+      await expect(createReactApp(reactFolderPath)).toResolve()
       await expect(folderExists(sasjsFolderPath)).resolves.toEqual(true)
 
-      await deleteFolder(folderPath)
+      await deleteFolder(reactFolderPath)
     })
   })
 })

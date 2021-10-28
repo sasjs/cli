@@ -19,7 +19,7 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { terminateProcess } from '../../../../main'
+import { terminateProcess, contextName } from '../../../../utils/'
 import { ReturnCode } from '../../../../types/command'
 import { saveLog } from '../utils'
 
@@ -72,7 +72,7 @@ export async function executeJobViya(
     )
   }
 
-  const contextName = await getContextName(target, returnStatusOnly)
+  const contextName = getContextName(target, returnStatusOnly)
 
   let macroVars: MacroVars | undefined
 
@@ -261,13 +261,13 @@ export async function executeJobViya(
 }
 
 // REFACTOR: should be a utility
-export async function getContextName(
+export function getContextName(
   target: Target,
   returnStatusOnly: boolean = false
-) {
-  const defaultContextName = process.sasjsConstants.contextName
+): string {
+  const defaultContextName = contextName
 
-  if (target && target.contextName) return target.contextName
+  if (target?.contextName) return target.contextName
 
   if (!returnStatusOnly) {
     process.logger?.warn(

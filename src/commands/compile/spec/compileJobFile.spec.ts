@@ -1,9 +1,8 @@
 import path from 'path'
-import { Target, generateTimestamp } from '@sasjs/utils'
+import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
 import * as internalModule from '../internal/config'
-import { removeFromGlobalConfig } from '../../../utils/config'
 import {
-  createTestGlobalTarget,
+  generateTestTarget,
   createTestMinimalApp,
   removeTestApp,
   verifyCompiledJob
@@ -54,16 +53,24 @@ const fakeProgramLines = [
 ]
 
 describe('compileJobFile', () => {
-  let target: Target
+  const appName = `cli-tests-compile-job-file-${generateTimestamp()}`
+  const target: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
 
   beforeAll(async () => {
-    const appName = `cli-tests-compile-job-file-${generateTimestamp()}`
-    target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 

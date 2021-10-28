@@ -30,7 +30,7 @@
 
 There is also a feature to let you deploy a frontend application as a set of streaming web services, bypassing the need to deploy to the SAS Web Server.
 
-A quick demonstration of using it to compile, build & deploy a set of SAS Viya jobs is shown below.
+A quick demonstration of using it to compile, build and deploy a set of SAS Viya jobs is shown below.
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/KKfUHTngSFo/0.jpg)](https://www.youtube.com/watch?v=KKfUHTngSFo)
 

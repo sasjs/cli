@@ -1,9 +1,4 @@
-import {
-  isTestFile,
-  moveTestFile,
-  compileTestFile,
-  compileTestFlow
-} from '../compileTestFile'
+import { isTestFile, moveTestFile, compileTestFlow } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -13,21 +8,37 @@ import {
   fileExists,
   createFile,
   generateTimestamp,
-  deleteFolder
+  deleteFolder,
+  ServerType
 } from '@sasjs/utils'
 import {
   removeTestApp,
   createTestMinimalApp,
-  createTestGlobalTarget
+  generateTestTarget
 } from '../../../../utils/test'
-import { removeFromGlobalConfig } from '../../../../utils/config'
 import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
 
 describe('compileTestFile', () => {
-  let appName: string
-  let target: Target
+  const appName: string = `cli-tests-compile-test-file-${generateTimestamp()}`
+  const temp: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
+  const target: Target = new Target({
+    ...temp.toJson(),
+    jobConfig: {
+      jobFolders: [path.join('sasjs', 'jobs')]
+    }
+  })
   let sasjsPath: string
   let testBody: string
   let buildPath: string
@@ -36,17 +47,7 @@ describe('compileTestFile', () => {
   beforeAll(async () => {
     process.logger = new Logger(LogLevel.Off)
 
-    appName = `cli-tests-compile-test-file-${generateTimestamp()}`
-
     buildPath = path.join(__dirname, appName, 'sasjsbuild')
-
-    target = await createTestGlobalTarget(appName, '/Public/app')
-    target = new Target({
-      ...target.toJson(false),
-      jobConfig: {
-        jobFolders: [path.join('sasjs', 'jobs')]
-      }
-    })
 
     await createTestMinimalApp(__dirname, target.name)
     await copyTestFiles(appName)
@@ -59,7 +60,6 @@ describe('compileTestFile', () => {
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 

@@ -38,17 +38,6 @@ export const minimalAppFiles: Folder = {
         { fileName: 'style.css' }
       ],
       subFolders: []
-    },
-    {
-      folderName: 'node_modules',
-      files: [],
-      subFolders: [
-        {
-          folderName: '@sasjs',
-          files: [],
-          subFolders: []
-        }
-      ]
     }
   ]
 }

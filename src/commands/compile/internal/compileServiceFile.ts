@@ -29,7 +29,7 @@ export async function compileServiceFile(
 
 export async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
-  const macroCorePath = await getMacroCorePath()
+  const macroCorePath = getMacroCorePath()
 
   switch (serverType) {
     case ServerType.SasViya:

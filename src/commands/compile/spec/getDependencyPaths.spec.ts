@@ -1,9 +1,9 @@
-import { Target, generateTimestamp } from '@sasjs/utils'
+import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
 import path from 'path'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import { readFile } from '@sasjs/utils'
 import {
-  createTestGlobalTarget,
+  generateTestTarget,
   createTestMinimalApp,
   removeTestApp
 } from '../../../utils/test'
@@ -13,16 +13,24 @@ import {
 } from '../../shared/dependencies'
 
 describe('getDependencyPaths', () => {
-  let target: Target
+  const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
+  const target: Target = generateTestTarget(
+    appName,
+    '/Public/app',
+    {
+      serviceFolders: [path.join('sasjs', 'services')],
+      initProgram: '',
+      termProgram: '',
+      macroVars: {}
+    },
+    ServerType.SasViya
+  )
 
   beforeAll(async () => {
-    const appName = `cli-tests-dependency-paths-${generateTimestamp()}`
-    target = await createTestGlobalTarget(appName, '/Public/app')
     await createTestMinimalApp(__dirname, target.name)
   })
 
   afterAll(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 

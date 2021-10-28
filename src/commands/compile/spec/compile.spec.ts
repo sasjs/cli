@@ -100,12 +100,12 @@ describe('sasjs compile', () => {
   })
 
   it('should fail to compile for missing program file', async () => {
-    let newTarget = {
-      ...target,
+    const newTarget = new Target({
+      ...target.toJson(),
       serviceConfig: {
         serviceFolders: ['../services']
       }
-    } as Target
+    })
 
     const errorMessage =
       'The following files were listed under SAS Programs but could not be found:\n' +

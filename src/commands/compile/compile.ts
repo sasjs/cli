@@ -105,12 +105,12 @@ export async function copyFilesToBuildFolder(target: Target) {
 
     // REFACTOR
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
-      const destinationPath = await getDestinationServicePath(serviceFolder)
+      const destinationPath = getDestinationServicePath(serviceFolder)
       await copy(serviceFolder, destinationPath)
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
-      const destinationPath = await getDestinationJobPath(jobFolder)
+      const destinationPath = getDestinationJobPath(jobFolder)
       await copy(jobFolder, destinationPath)
     })
   } catch (error) {
@@ -176,7 +176,7 @@ const compileServiceFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const destinationPath = await getDestinationServicePath(serviceFolder)
+  const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
@@ -212,7 +212,7 @@ const compileJobFolder = async (
   macroFolders: string[],
   programFolders: string[]
 ) => {
-  const destinationPath = await getDestinationJobPath(jobFolder)
+  const destinationPath = getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 

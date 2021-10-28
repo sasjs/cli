@@ -3,7 +3,7 @@ import { generateTimestamp, ServerType, Target } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
-  createTestGlobalTarget,
+  generateTestTarget,
   removeTestApp
 } from '../../../utils/test'
 import { getDeployScripts } from '../internal/getDeployScripts'
@@ -14,10 +14,15 @@ describe('getDeployScripts', () => {
   beforeEach(async () => {
     const appName = `cli-tests-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
+    target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`,
-      undefined,
+      {
+        serviceFolders: [path.join('sasjs', 'services')],
+        initProgram: '',
+        termProgram: '',
+        macroVars: {}
+      },
       ServerType.Sas9
     )
   })

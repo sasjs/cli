@@ -15,26 +15,18 @@ import {
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
-import { TargetScope } from '../../../types'
-import {
-  createGlobalTarget,
-  createLocalTarget,
-  updateLocalTarget,
-  copyJobsAndServices
-} from './utils'
+import { generateTarget, copyJobsAndServices } from './utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
 
   beforeEach(async () => {
-    target = await createGlobalTarget()
+    target = generateTarget(false)
     await createTestMinimalApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
   })
 
   afterEach(async () => {
-    await removeFromGlobalConfig(target.name)
-
     await removeTestServerFolder(target.appLoc, target)
 
     await removeTestApp(__dirname, target.name)
@@ -93,7 +85,7 @@ describe('sasjs cbd with local config', () => {
   beforeEach(async () => {
     appName = `cli-tests-cbd-local-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
-    target = await createLocalTarget()
+    target = generateTarget(true)
     await copyJobsAndServices(appName)
     await copy(
       path.join(__dirname, 'testScript', 'copyscript.sh'),
@@ -115,27 +107,26 @@ describe('sasjs cbd with local config', () => {
   })
 
   it('should deploy using deployScripts when deployServicePack is false', async () => {
-    await updateLocalTarget(target.name, {
+    const customTarget = new Target({
+      ...target.toJson(),
       deployConfig: {
         deployServicePack: false,
         deployScripts: ['sasjs/build/copyscript.sh']
       }
     })
-    await expect(build(target)).toResolve()
-    await expect(deploy(target, true)).toResolve()
+
+    await expect(build(customTarget)).toResolve()
+    await expect(deploy(customTarget, true)).toResolve()
   })
 
   it('should error when deployServicePack is false and no deployScripts have been specified', async () => {
-    await updateLocalTarget(target.name, {
+    const customTarget = new Target({
+      ...target.toJson(),
       deployConfig: {
         deployServicePack: false,
         deployScripts: []
       }
     })
-    const { target: customTarget } = await findTargetInConfiguration(
-      target.name,
-      TargetScope.Local
-    )
     jest
       .spyOn(getDeployScriptsModule, 'getDeployScripts')
       .mockImplementation(() => Promise.resolve([]))
@@ -149,7 +140,7 @@ describe('sasjs cbd with local config', () => {
   })
 
   it(`should error when an access token is not provided`, async () => {
-    jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
+    jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
       return Promise.reject('Token error')
     })
 
@@ -177,7 +168,7 @@ describe('sasjs cbd having stream app', () => {
   beforeEach(async () => {
     appName = `cli-tests-cbd-local-stream-${generateTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
-    target = await createLocalTarget()
+    target = generateTarget(true)
   })
 
   afterEach(async () => {
@@ -191,7 +182,9 @@ describe('sasjs cbd having stream app', () => {
   it(`should deploy compile and build with streamConfig`, async () => {
     const appLoc = `/Public/app/cli-tests/${target.name}`
     const appLocWithSpaces = `${appLoc}/with some/space s`
-    await updateLocalTarget(target.name, {
+
+    const customTarget = new Target({
+      ...target.toJson(),
       appLoc: appLocWithSpaces,
       streamConfig,
       jobConfig: undefined,
@@ -201,10 +194,6 @@ describe('sasjs cbd having stream app', () => {
         deployScripts: [`sasjsbuild/${target.name}.sas`]
       }
     })
-    const { target: customTarget } = await findTargetInConfiguration(
-      target.name,
-      TargetScope.Local
-    )
 
     await expect(build(customTarget)).toResolve()
     await expect(deploy(customTarget, true)).toResolve()
@@ -224,7 +213,5 @@ describe('sasjs cbd having stream app', () => {
     expect(logFileContent.replace(/\s/g, '')).toEqual(
       expect.stringContaining(streamingApplink)
     )
-
-    await updateLocalTarget(target.name, { appLoc })
   })
 })

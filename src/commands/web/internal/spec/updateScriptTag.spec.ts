@@ -11,16 +11,16 @@ import {
   ServerType,
   Target
 } from '@sasjs/utils'
-import { updateTagSource } from '../web'
-import { setConstants } from '../../../utils'
+import { updateScriptTag } from '../updateScriptTag'
+import { setConstants } from '../../../../utils'
 
-describe('updateTagSource', () => {
+describe('updateScriptTag', () => {
   let destinationPath: string
 
   beforeAll(async () => {
     destinationPath = path.join(
       __dirname,
-      `cli-test-web-updateTagSource-${generateTimestamp()}`
+      `cli-test-web-updateScriptTag-${generateTimestamp()}`
     )
     await createFolder(destinationPath)
     process.projectDir = destinationPath
@@ -34,7 +34,7 @@ describe('updateTagSource', () => {
   it(`should create program for SAS9 having base64 encoded content`, async () => {
     const scriptTag: HTMLLinkElement = document.createElement('link')
 
-    const sourcePath = '../testFiles'
+    const sourcePath = path.join(__dirname, 'testFiles')
     const target = { serverType: ServerType.Sas9 } as any as Target
     const assetPathMap = []
 
@@ -52,11 +52,11 @@ describe('updateTagSource', () => {
       target: sasProgramScript1Path
     })
 
-    await updateTagSource(
+    await updateScriptTag(
       scriptTag,
       sourcePath,
       destinationPath,
-      target,
+      target.serverType,
       assetPathMap
     )
     expect(scriptTag.getAttribute('src')).toEqual(sasProgramScript1Path)
@@ -77,11 +77,11 @@ describe('updateTagSource', () => {
       target: sasProgramScript2Path
     })
 
-    await updateTagSource(
+    await updateScriptTag(
       scriptTag,
       sourcePath,
       destinationPath,
-      target,
+      target.serverType,
       assetPathMap
     )
     expect(scriptTag.getAttribute('src')).toEqual(sasProgramScript2Path)

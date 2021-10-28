@@ -79,7 +79,7 @@ describe('AddCommand - cred', () => {
     jest.mock('../../../utils/config')
     jest
       .spyOn(addCredentialModule, 'addCredential')
-      .mockImplementation(() => Promise.resolve())
+      .mockImplementation(() => Promise.resolve(target))
 
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')

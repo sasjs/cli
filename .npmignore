@@ -4,9 +4,11 @@
 .prettierignore
 .prettierrc
 *.md
+.all-contributorsrc
 
 jest.config.js
 jest.server.config.js
+jest.env.js
 test.sh
 *.spec.ts
 *.spec.server.ts

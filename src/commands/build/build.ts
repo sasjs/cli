@@ -23,6 +23,7 @@ import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { getDependencyPaths } from '../shared/dependencies'
 import { isTestFile } from '../compile/internal/compileTestFile'
+import { ServicePack, ServicePackMember } from '../../types'
 
 export async function build(target: Target) {
   await compile(target)
@@ -94,6 +95,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
 }
 
 async function getBuildInfo(target: Target, streamWeb: boolean) {
+  // The buildConfig variable contains the files for which we are fetching
+  // dependencies, eg mv_createwebservice.sas and mv_createfile.sas
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
@@ -103,37 +106,87 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     buildConfig += `${createWebServiceScript}\n`
   }
 
+  // dependencyFilePaths contains the dependencies of each buildConfig file
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
 
   if (target.serverType === ServerType.SasViya && streamWeb) {
+    // In Viya the mv_createfile.sas program is used to deploy the content as
+    // files (rather than SAS programs / Stored Processes like in SAS 9)
+    // Therefore we have a build macro dependency in addition to
+    // mv_createwebservice.sas
     const createFileScript = await getCreateFileScript(serverType)
     buildConfig += `${createFileScript}\n`
-
     const dependencyFilePathsForCreateFile = await getDependencyPaths(
       createFileScript,
       macroFolders
     )
 
+    // The gsubScript is used to perform the replacement of the appLoc within
+    // the deployed index.html file.  This only happens when deploying using the
+    // SAS Program (build.sas) approach.
+    const gsubScript = await readFile(
+      `${getMacroCorePath()}/base/mp_gsubfile.sas`
+    )
+    buildConfig += `${gsubScript}\n`
+    const dependencyFilePathsForGsubScript = await getDependencyPaths(
+      gsubScript,
+      macroFolders
+    )
+
     dependencyFilePaths = [
-      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
+      ...new Set([
+        ...dependencyFilePaths,
+        ...dependencyFilePathsForCreateFile,
+        ...dependencyFilePathsForGsubScript
+      ])
     ]
   }
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
   const buildVars = await getBuildVars(target)
-  return `%global appLoc;\n%let appLoc=%sysfunc(coalescec(&appLoc,${appLoc})); /* metadata or files service location of your app */\n%let sasjs_clickmeservice=clickme;\n%let syscc=0;\noptions ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;\n${buildVars}\n${dependenciesContent}\n${buildConfig}\n`
+  return `
+/**
+  * The appLoc represents the metadata or SAS Drive location of the app you
+  * are about to deploy
+  *
+  * To set an alternative appLoc, simply populate the appLoc variable prior
+  * to running this program, eg:
+  *
+  * %let apploc=/my/apploc;
+  * %inc thisfile;
+  *
+  */
+
+%global appLoc;
+%let compiled_apploc=${appLoc};
+
+%let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
+
+%let sasjs_clickmeservice=clickme;
+%let syscc=0;
+options ps=max nonotes nosgen nomprint nomlogic nosource2 nosource noquotelenmax;
+/* user supplied build vars */
+${buildVars}
+/* user supplied build vars end */
+/* system macro dependencies for build process */
+${dependenciesContent}
+/* system macro dependencies for build process end*/
+/* system macros for build process */
+${buildConfig}
+/* system macros for build process end */
+`
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(
-        `${await getMacroCorePath()}/viya/mv_createwebservice.sas`
+        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
 
     case ServerType.Sas9:
       return await readFile(
-        `${await getMacroCorePath()}/meta/mm_createwebservice.sas`
+        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
     default:
@@ -144,9 +197,7 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(
-        `${await getMacroCorePath()}/viya/mv_createfile.sas`
-      )
+      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
 
     default:
       throw new ServerTypeError([ServerType.SasViya])
@@ -176,17 +227,21 @@ function getWebServiceScriptInvocation(
 
 /**
  * Folders inside of `SASJS` folder are converted to JSON structure.
- * That JSON file is used to deploy services and jobs.
+ * That JSON file is used to deploy services, jobs and tests.
  * Services are deployed as direct subfolders within the appLoc.
  * Jobs are deployed within a jobs folder within the appLoc.
+ * Tests are deployed within a tests folder within the appLoc.
  * @param {ServerType} serverType
  */
-async function getFolderContent(serverType: ServerType) {
+async function getFolderContent(serverType: ServerType): Promise<{
+  folderContent: string
+  folderContentJSON: ServicePack
+}> {
   const { buildDestinationFolder } = process.sasjsConstants
   const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
-  let folderContentJSON: any = { members: [] }
+  let folderContentJSON: ServicePack = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
       path.join(buildDestinationFolder, subFolder),
@@ -217,7 +272,7 @@ async function getContentFor(
   folderPath: string,
   serverType: ServerType,
   testPath: string | undefined = undefined
-) {
+): Promise<{ content: string; contentJSON: ServicePackMember }> {
   const folderName = path.basename(folderPath)
   if (!testPath && folderName === 'tests') {
     testPath = ''
@@ -236,7 +291,7 @@ async function getContentFor(
           .join('/')
   };\n`
 
-  const contentJSON: any = {
+  const contentJSON: ServicePackMember = {
     name: folderName,
     type: 'folder',
     members: []
@@ -257,19 +312,25 @@ async function getContentFor(
       )
       content += `\n${transformedContent}\n`
 
-      contentJSON?.members.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'service',
         code: removeComments(fileContent)
       })
     } else {
-      const transformedContent = await getFileText(file, filePath, serverType)
+      const fileContentEncoded = await base64EncodeFile(filePath)
+
+      const transformedContent = getFileText(
+        file,
+        fileContentEncoded,
+        serverType
+      )
       content += `\n${transformedContent}\n`
 
-      contentJSON?.members.push({
+      contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: 'file',
-        path: filePath
+        code: fileContentEncoded
       })
     }
   })
@@ -289,7 +350,7 @@ async function getContentFor(
           : undefined
       )
 
-    contentJSON?.members.push(childContentJSON)
+    contentJSON.members!.push(childContentJSON)
     content += childContent
   })
 
@@ -329,15 +390,15 @@ filename sascode clear;
 `
 }
 
-async function getFileText(
+function getFileText(
   fileName: string,
-  filePath: string,
+  fileContent: string,
   serverType: ServerType
 ) {
   const fileExtension = path.extname(fileName).substring(1).toUpperCase()
 
-  const { content, encoded, maxLineLength } = await getWebFileContent(
-    filePath,
+  const { content, maxLineLength } = getWebFileContent(
+    fileContent,
     fileExtension
   )
 
@@ -349,61 +410,33 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, undefined, false, encoded)
+    ? getWebServiceScriptInvocation(serverType, undefined, false, true)
     : ''
 }
 filename filecode clear;
 `
 }
 
-async function getWebFileContent(filePath: string, type: string) {
-  let lines,
-    encoded = false
+function getWebFileContent(filecontent: string, type: string) {
+  let parsedContent = ''
 
-  const typesToEncode: string[] = [
-    'ICO',
-    'PNG',
-    'JPG',
-    'JPEG',
-    'MP3',
-    'OGG',
-    'WAV'
-  ]
-
-  if (typesToEncode.includes(type)) {
-    encoded = true
-    lines = [await base64EncodeFile(filePath)]
+  const chunkedLines = chunk(filecontent)
+  if (chunkedLines.length === 1) {
+    parsedContent = ` put '${chunkedLines[0].split("'").join("''")}';\n`
   } else {
-    lines = (await readFile(filePath))
-      .replace(/\r\n/g, '\n')
-      .split('\n')
-      .filter((l) => !!l)
+    let combinedLines = ''
+    chunkedLines.forEach((chunkedLine, index) => {
+      let text = ` put '${chunkedLine.split("'").join("''")}'`
+      if (index !== chunkedLines.length - 1) text += '@;\n'
+      else text += ';\n'
+
+      combinedLines += text
+    })
+    parsedContent += combinedLines
   }
+  const maxLineLength = Math.max(32767, filecontent.length)
 
-  let parsedContent = '',
-    maxLineLength = 32767
-
-  lines.forEach((line) => {
-    const chunkedLines = chunk(line)
-    if (chunkedLines.length === 1) {
-      parsedContent += ` put '${chunkedLines[0].split("'").join("''")}';\n`
-    } else {
-      let combinedLines = ''
-      chunkedLines.forEach((chunkedLine, index) => {
-        let text = ` put '${chunkedLine.split("'").join("''")}'`
-        if (index !== chunkedLines.length - 1) {
-          text += '@;\n'
-        } else {
-          text += ';\n'
-        }
-        combinedLines += text
-      })
-      parsedContent += combinedLines
-    }
-    maxLineLength = maxLineLength < line.length ? line.length : maxLineLength
-  })
-
-  return { content: parsedContent, encoded, maxLineLength }
+  return { content: parsedContent, maxLineLength }
 }
 
 function getLines(text: string): string[] {

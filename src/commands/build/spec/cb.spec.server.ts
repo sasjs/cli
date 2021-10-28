@@ -1,12 +1,17 @@
 import path from 'path'
-import { removeFromGlobalConfig } from '../../../utils/config'
 import {
   createTestApp,
-  createTestGlobalTarget,
+  generateTestTarget,
   removeTestApp,
   verifyStep
 } from '../../../utils/test'
-import { Target, generateTimestamp, deleteFile, copy } from '@sasjs/utils'
+import {
+  Target,
+  generateTimestamp,
+  deleteFile,
+  copy,
+  ServerType
+} from '@sasjs/utils'
 import { compile } from '../../compile/compile'
 import { build } from '../build'
 
@@ -16,14 +21,20 @@ describe('sasjs compile', () => {
   beforeEach(async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
     await createTestApp(__dirname, appName)
-    target = await createTestGlobalTarget(
+    target = generateTestTarget(
       appName,
-      `/Public/app/cli-tests/${appName}`
+      `/Public/app/cli-tests/${appName}`,
+      {
+        serviceFolders: [path.join('sasjs', 'services')],
+        initProgram: '',
+        termProgram: '',
+        macroVars: {}
+      },
+      ServerType.SasViya
     )
   })
 
   afterEach(async () => {
-    await removeFromGlobalConfig(target.name)
     await removeTestApp(__dirname, target.name)
   })
 

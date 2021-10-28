@@ -1,11 +1,12 @@
 import { printHelpText } from '../help'
-import { Command } from '../../../utils/command'
 import { sanitizeSpecialChars } from '@sasjs/utils/formatter'
+import { getAllSupportedCommands } from '../../../types/command/commandFactory'
+import { getAllSupportedAliases } from '../../../types/command/commandAliases'
 
 describe('sasjs help', () => {
   describe('printHelpText', () => {
     it('should output information about all supported commands', async () => {
-      const supportedCommands = new Command('').getAllSupportedCommands()
+      const supportedCommands = getAllSupportedCommands()
 
       let { outputCommands } = await printHelpText()
 
@@ -17,7 +18,7 @@ describe('sasjs help', () => {
     })
 
     it('should output information about all supported aliases', async () => {
-      const supportedAliases = new Command('').getAllSupportedAliases()
+      const supportedAliases = getAllSupportedAliases()
 
       let { outputAliases } = await printHelpText()
 

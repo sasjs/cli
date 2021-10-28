@@ -1,9 +1,4 @@
 import { Target, ServerType } from '@sasjs/utils/types'
-import {
-  findTargetInConfiguration,
-  saveToGlobalConfig,
-  saveToLocalConfig
-} from '../../utils/config'
 import { TargetScope } from '../../types/targetScope'
 import {
   getCommonFields,
@@ -11,13 +6,14 @@ import {
   getAndValidateSas9Fields,
   getIsDefault
 } from './internal/input'
+import { saveConfig } from './internal/saveConfig'
 import { addCredential, createEnvFileForSas9 } from './addCredential'
 
 /**
  * Creates new target/ updates current target(if found) for either local config or global config file.
  * @param {boolean} insecure- boolean to use insecure connection, default is false. lf true the server will not reject any connection which is not authorized with the list of supplied CAs
  */
-export async function addTarget(insecure: boolean = false): Promise<boolean> {
+export async function addTarget(insecure: boolean): Promise<boolean> {
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   const { scope, serverType, name, appLoc, serverUrl, existingTarget } =
@@ -33,18 +29,14 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
     appLoc
   }
 
-  let filePath = await saveConfig(
-    scope,
-    new Target(targetJson),
-    false,
-    saveWithDefaultValues
-  )
+  const target = new Target(targetJson)
+  let filePath = await saveConfig(scope, target, false, saveWithDefaultValues)
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
   if (serverType === ServerType.Sas9) {
     const { serverName, repositoryName, userName, password } =
-      await getAndValidateSas9Fields(name, scope)
+      await getAndValidateSas9Fields(target, scope)
     targetJson = {
       ...targetJson,
       serverName,
@@ -59,13 +51,14 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
       }
     }
   } else {
-    const { contextName } = await getAndValidateSasViyaFields(
-      new Target(targetJson),
-      scope,
-      serverUrl,
-      insecure,
-      addCredential
-    )
+    const { contextName, target: updatedTarget } =
+      await getAndValidateSasViyaFields(
+        target,
+        scope,
+        serverUrl,
+        insecure,
+        addCredential
+      )
 
     targetJson = {
       contextName,
@@ -75,11 +68,7 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
       }
     }
 
-    const { target: currentTarget } = await findTargetInConfiguration(
-      name,
-      scope
-    )
-    targetJson = { ...currentTarget.toJson(false), ...targetJson }
+    targetJson = { ...updatedTarget.toJson(false), ...targetJson }
   }
 
   const isDefault = await getIsDefault()
@@ -93,25 +82,4 @@ export async function addTarget(insecure: boolean = false): Promise<boolean> {
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
   return true
-}
-
-async function saveConfig(
-  scope: TargetScope,
-  target: Target,
-  isDefault: boolean,
-  saveWithDefaultValues: boolean
-) {
-  let filePath = ''
-
-  if (scope === TargetScope.Local) {
-    filePath = await saveToLocalConfig(target, isDefault, saveWithDefaultValues)
-  } else if (scope === TargetScope.Global) {
-    filePath = await saveToGlobalConfig(
-      target,
-      isDefault,
-      saveWithDefaultValues
-    )
-  }
-
-  return filePath
 }

@@ -12,11 +12,7 @@ import {
   generateTimestamp,
   AuthConfig
 } from '@sasjs/utils'
-import {
-  getAuthConfig,
-  removeFromGlobalConfig,
-  saveToGlobalConfig
-} from '../../../utils/config'
+import { getAuthConfig } from '../../../utils/config'
 import {
   createTestApp,
   mockProcessExit,
@@ -24,7 +20,7 @@ import {
   removeTestServerFolder
 } from '../../../utils/test'
 import SASjs, { NoSessionStateError } from '@sasjs/adapter/node'
-import { setConstants } from '../../../utils'
+import { contextName } from '../../../utils'
 import { executeJobViya } from '../internal/execute'
 import { prefixAppLoc } from '../../../utils/prefixAppLoc'
 import { build } from '../../build/build'
@@ -36,17 +32,11 @@ let authConfig: AuthConfig
 
 describe('sasjs job execute', () => {
   beforeAll(async () => {
-    target = await createGlobalTarget()
+    target = generateTarget()
     await createTestApp(__dirname, target.name)
     await copyJobsAndServices(target.name)
     await build(target)
     await deploy(target, false)
-
-    await saveToGlobalConfig(
-      new Target({
-        ...target.toJson()
-      })
-    )
 
     sasjs = new SASjs({
       serverUrl: target.serverUrl,
@@ -62,7 +52,6 @@ describe('sasjs job execute', () => {
   afterAll(async () => {
     await removeTestServerFolder(`/Public/app/cli-tests/${target.name}`, target)
     await removeTestApp(__dirname, target.name)
-    await removeFromGlobalConfig(target.name)
   })
 
   it('should submit a job for execution', async () => {
@@ -421,19 +410,18 @@ describe('sasjs job execute', () => {
   })
 })
 
-const createGlobalTarget = async (serverType = ServerType.SasViya) => {
+const generateTarget = (serverType = ServerType.SasViya): Target => {
   dotenv.config()
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-job-${timestamp}`
-  await setConstants()
-  const target = new Target({
+  return new Target({
     name: targetName,
     serverType,
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : process.env.SAS9_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
+    contextName,
     serviceConfig: {
       serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
       initProgram: 'sasjs/testServices/serviceinit.sas',
@@ -457,8 +445,6 @@ const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       deployScripts: []
     }
   })
-  await saveToGlobalConfig(target)
-  return target
 }
 
 const copyJobsAndServices = async (appName: string) => {

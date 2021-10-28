@@ -4,10 +4,14 @@ export const aliasMap = new Map<string, string[]>([
   ['compile', ['c']],
   ['compilebuild', ['cb']],
   ['compilebuilddeploy', ['cbd']],
-  ['db', ['build-DB', 'build-db']],
+  ['db', ['DB', 'build-DB', 'build-db']],
   ['deploy', ['d']],
   ['doc', ['docs']],
   ['help', ['h']],
+  ['request', ['rq']],
+  ['run', ['r']],
   ['version', ['v']],
   ['web', ['w']]
 ])
+
+export const getAllSupportedAliases = () => aliasMap.keys()

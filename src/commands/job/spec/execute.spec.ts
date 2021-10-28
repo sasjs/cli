@@ -1,6 +1,6 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target } from '@sasjs/utils/types'
 import { deleteFile } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
 import { setConstants } from '../../../utils'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
@@ -13,6 +13,7 @@ const target = new Target({
   appLoc: '/test',
   contextName: 'Mock Context'
 })
+let statusFile: string
 
 describe('executeJobViya', () => {
   beforeEach(async () => {

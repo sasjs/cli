@@ -7,5 +7,5 @@ export interface CommonFields {
   name: string
   appLoc: string
   serverUrl: string
-  existingTarget: TargetJson
+  existingTarget?: TargetJson
 }
