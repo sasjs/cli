@@ -2,14 +2,9 @@ import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import { setConstants } from '../../../utils'
 import { saveToGlobalConfig } from '../../../utils/config'
 import dotenv from 'dotenv'
-import {
-  fileExists,
-  createFile,
-  copy,
-  readFile,
-  StreamConfig
-} from '@sasjs/utils'
+import { createFile, copy, readFile } from '@sasjs/utils'
 import path from 'path'
+import { contextName } from '../../../utils'
 
 export const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
@@ -138,4 +133,44 @@ export const copyJobsAndServices = async (appName: string) => {
     path.join(__dirname, 'testServices'),
     path.join(__dirname, appName, 'sasjs', 'testServices')
   )
+}
+
+export const generateTarget = (isLocal: boolean) => {
+  dotenv.config()
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-cbd-${timestamp}`
+
+  const authConfig = isLocal
+    ? undefined
+    : {
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
+      }
+
+  return new Target({
+    name: targetName,
+    serverType: ServerType.SasViya,
+    serverUrl: process.env.VIYA_SERVER_URL as string,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
+    contextName,
+    serviceConfig: {
+      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
+      macroVars: {}
+    },
+    jobConfig: {
+      jobFolders: ['sasjs/testJob'],
+      initProgram: 'sasjs/testServices/serviceinit.sas',
+      termProgram: 'sasjs/testServices/serviceterm.sas',
+      macroVars: {}
+    },
+    authConfig,
+    deployConfig: {
+      deployServicePack: true,
+      deployScripts: ['']
+    }
+  })
 }
