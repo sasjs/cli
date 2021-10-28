@@ -1,20 +1,11 @@
-import {
-  fileExists,
-  createFile,
-  copy,
-  readFile,
-  StreamConfig
-} from '@sasjs/utils'
-import dotenv from 'dotenv'
+import { fileExists, copy, readFile, StreamConfig } from '@sasjs/utils'
 import path from 'path'
-import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
+import { Target, generateTimestamp } from '@sasjs/utils'
 import {
   findTargetInConfiguration,
-  removeFromGlobalConfig,
-  saveToGlobalConfig
+  removeFromGlobalConfig
 } from '../../../utils/config'
 import * as configUtils from '../../../utils/config'
-import * as displayResultModule from '../../../utils/displayResult'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
   createTestApp,
@@ -22,10 +13,15 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { setConstants } from '../../../utils'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
 import { TargetScope } from '../../../types'
+import {
+  createGlobalTarget,
+  createLocalTarget,
+  updateLocalTarget,
+  copyJobsAndServices
+} from './utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -232,132 +228,3 @@ describe('sasjs cbd having stream app', () => {
     await updateLocalTarget(target.name, { appLoc })
   })
 })
-
-const createGlobalTarget = async (serverType = ServerType.SasViya) => {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-cbd-${timestamp}`
-  await setConstants()
-  const target = new Target({
-    name: targetName,
-    serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
-    serviceConfig: {
-      serviceFolders: ['sasjs/testServices', 'sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    jobConfig: {
-      jobFolders: ['sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    authConfig: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string,
-      access_token: process.env.ACCESS_TOKEN as string,
-      refresh_token: process.env.REFRESH_TOKEN as string
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-  await saveToGlobalConfig(target)
-  return target
-}
-
-const createLocalTarget = async (serverType = ServerType.SasViya) => {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-cbd-${timestamp}`
-
-  const target = new Target({
-    name: targetName,
-    serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName: process.sasjsConstants.contextName,
-    serviceConfig: {
-      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    jobConfig: {
-      jobFolders: ['sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-
-  const configContent = await readFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
-  )
-
-  const configJSON = JSON.parse(configContent)
-  configJSON.targets = [
-    {
-      ...target.toJson(),
-      deployConfig: {
-        deployScripts: ['sasjs/build/copyscript.sh'],
-        deployServicePack: true
-      }
-    }
-  ]
-
-  await createFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
-    JSON.stringify(configJSON, null, 2)
-  )
-
-  return target
-}
-
-const updateLocalTarget = async (targetName: string, data: any) => {
-  dotenv.config()
-
-  const configContent = await readFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
-  )
-
-  const configJSON = JSON.parse(configContent)
-  const target = configJSON?.targets?.find(
-    (t: TargetJson) => t.name === targetName
-  )
-  configJSON.targets = [
-    {
-      ...target,
-      ...data
-    }
-  ]
-
-  await createFile(
-    path.join(process.projectDir, 'sasjs', 'sasjsconfig.json'),
-    JSON.stringify(configJSON, null, 2)
-  )
-}
-
-const copyJobsAndServices = async (appName: string) => {
-  await copy(
-    path.join(__dirname, 'testJob'),
-    path.join(__dirname, appName, 'sasjs', 'testJob')
-  )
-  await copy(
-    path.join(__dirname, 'testServices'),
-    path.join(__dirname, appName, 'sasjs', 'testServices')
-  )
-}

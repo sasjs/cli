@@ -22,6 +22,7 @@ import {
   ServerType,
   Target
 } from '@sasjs/utils'
+import { ServerTypeError } from '@sasjs/utils/error'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import { setConstants } from '..'
@@ -56,7 +57,7 @@ describe('utils', () => {
 
   describe('millisecondsToDdHhMmSs', () => {
     it('should throw an error if not supported type was provided', () => {
-      const error = new Error('Not supported attribute type.')
+      const error = new ServerTypeError([ServerType.Sas9, ServerType.SasViya])
 
       expect(() => millisecondsToDdHhMmSs(undefined as any)).toThrow(error)
     })

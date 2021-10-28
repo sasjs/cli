@@ -20,7 +20,8 @@ import jsdom, { JSDOM } from 'jsdom'
 import { sasjsout } from './internal/sasjsout'
 import { adjustIframeScript } from './internal/adjustIframeScript'
 import { encode } from 'js-base64'
-import { StreamConfig } from '@sasjs/utils/types/config'
+import { StreamConfig } from '@sasjs/utils/types'
+import { ServerTypeError } from '@sasjs/utils/error'
 import uniqBy from 'lodash.uniqby'
 
 const permittedServerTypes = {
@@ -206,7 +207,7 @@ async function createAssetsServicesNested(
           source: fullFileName,
           target: assetServiceUrl
         })
-      } else {
+      } else if (target.serverType === ServerType.Sas9) {
         const fileName = await generateAssetService(
           sourcePath,
           filePath,
@@ -356,9 +357,7 @@ function getAssetPath(
   fileName: string
 ) {
   if (!permittedServerTypes.hasOwnProperty(serverType.toUpperCase())) {
-    throw new Error(
-      'Unsupported server type. Supported types are SAS9 and SASVIYA'
-    )
+    throw new ServerTypeError([ServerType.Sas9, ServerType.SasViya])
   }
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS

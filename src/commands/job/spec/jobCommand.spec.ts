@@ -1,5 +1,5 @@
 import path from 'path'
-import * as executeModule from '../internal/execute'
+import * as viyaExecuteModule from '../internal/execute/viya'
 import { JobCommand } from '../jobCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
@@ -20,6 +20,7 @@ const output = './jobOutput.json'
 const statusFile = './status/file.txt'
 const source = './macros.json'
 const projectFolder = __dirname
+
 describe('JobCommand', () => {
   beforeAll(async () => {
     process.projectDir = projectFolder
@@ -32,7 +33,7 @@ describe('JobCommand', () => {
   it('should parse sasjs job execute command', async () => {
     await executeCommandWrapper([jobPath])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({ jobPath })
     )
   })
@@ -40,7 +41,7 @@ describe('JobCommand', () => {
   it('should pass wait as true if log flag with value is present', async () => {
     await executeCommandWrapper([jobPath, '--log', log])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -52,7 +53,7 @@ describe('JobCommand', () => {
   it('should pass path for log file and wait to true if log flag without value is present', async () => {
     await executeCommandWrapper([jobPath, '--log'])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -64,7 +65,7 @@ describe('JobCommand', () => {
   it('should pass wait as true if returnStatusOnly flag is present', async () => {
     await executeCommandWrapper([jobPath, '--returnStatusOnly'])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -92,7 +93,7 @@ describe('JobCommand', () => {
       '--streamLog'
     ])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -126,7 +127,7 @@ describe('JobCommand', () => {
       '--streamLog'
     ])
 
-    expect(executeModule.executeJobViya).toHaveBeenCalledWith(
+    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
       ...executeCalledWith({
         jobPath,
         waitForJob: true,
@@ -179,7 +180,7 @@ describe('JobCommand', () => {
 
   it('should log the error and return the error code when execution is unsuccessful', async () => {
     jest
-      .spyOn(executeModule, 'executeJobViya')
+      .spyOn(viyaExecuteModule, 'executeJobViya')
       .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
     const returnCode = await executeCommandWrapper([jobPath])
@@ -191,10 +192,10 @@ describe('JobCommand', () => {
 
 const setupMocks = () => {
   jest.resetAllMocks()
-  jest.mock('../execute')
+  jest.mock('../internal/execute')
   jest.mock('../../../utils/config')
   jest
-    .spyOn(executeModule, 'executeJobViya')
+    .spyOn(viyaExecuteModule, 'executeJobViya')
     .mockImplementation(() => Promise.resolve())
 
   jest
