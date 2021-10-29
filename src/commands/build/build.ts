@@ -188,6 +188,12 @@ async function getCreateWebServiceScript(serverType: ServerType) {
         `${getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
+    // FIXME: use sasjs/mv_createwebservice.sas ones created
+    case ServerType.Sasjs:
+      return await readFile(
+        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
+      )
+
     default:
       throw new ServerTypeError()
   }
