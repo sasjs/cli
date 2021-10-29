@@ -101,10 +101,9 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
 
-  if (target.serverType !== ServerType.Sasjs) {
-    const createWebServiceScript = await getCreateWebServiceScript(serverType)
-    buildConfig += `${createWebServiceScript}\n`
-  }
+  const createWebServiceScript = await getCreateWebServiceScript(serverType)
+
+  buildConfig += `${createWebServiceScript}\n`
 
   // dependencyFilePaths contains the dependencies of each buildConfig file
   let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
