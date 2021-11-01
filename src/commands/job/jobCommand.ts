@@ -125,7 +125,7 @@ export class JobCommand extends TargetCommand {
           return ReturnCode.InvalidCommand
 
         return this.parsed.subCommand === JobSubCommand.Execute
-          ? await this.executeJobSasjs(sasjs)
+          ? await this.executeJobSasjs(sasjs, target)
           : ReturnCode.InvalidCommand
       default:
         process.logger?.error(
@@ -136,10 +136,12 @@ export class JobCommand extends TargetCommand {
     }
   }
 
-  async executeJobSasjs(sasjs: SASjs) {
+  async executeJobSasjs(sasjs: SASjs, target: Target) {
+    const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
+
     const returnCode = await executeJobSasjs(
       sasjs,
-      this.parsed.jobPath as string,
+      jobPath,
       this.parsed.log as string
     )
       .then(() => ReturnCode.Success)
