@@ -305,7 +305,8 @@ async function deployToSasjs(target: Target, sasjs?: SASjs) {
     ? sasjs
     : new SASjs({
         serverType: target.serverType,
-        serverUrl: target.serverUrl
+        serverUrl: target.serverUrl,
+        appLoc: target.appLoc
       })
 
   const result = await sasjs.deployToSASjs(payload).catch((err) => {
