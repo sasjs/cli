@@ -203,9 +203,12 @@ async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+    // FIXME: use sasjs/mv_createfile.sas ones created
+    case ServerType.Sasjs:
+      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
 
     default:
-      throw new ServerTypeError([ServerType.SasViya])
+      throw new ServerTypeError([ServerType.SasViya, ServerType.Sasjs])
   }
 }
 
@@ -216,17 +219,21 @@ function getWebServiceScriptInvocation(
   encoded: boolean = false
 ) {
   const loc = filePath === '' ? 'services' : 'tests'
+  const encodedParam = encoded ? ', intype=BASE64' : ''
 
   switch (serverType) {
     case ServerType.SasViya:
-      const encodedParam = encoded ? ', intype=BASE64' : ''
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
         : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+    case ServerType.Sasjs:
+      return isSASFile
+        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     default:
-      throw new ServerTypeError([ServerType.SasViya, ServerType.Sas9])
+      throw new ServerTypeError()
   }
 }
 
