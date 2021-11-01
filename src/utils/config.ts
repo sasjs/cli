@@ -776,7 +776,7 @@ const getPrecedenceOfHttpsAgentOptionsAndContent = async (
     httpsAgentOptions.ca = await readFile(httpsAgentOptions.caPath)
   }
   if (httpsAgentOptions.keyPath) {
-    httpsAgentOptions.ca = await readFile(httpsAgentOptions.keyPath)
+    httpsAgentOptions.key = await readFile(httpsAgentOptions.keyPath)
   }
   if (httpsAgentOptions.certPath) {
     httpsAgentOptions.cert = await readFile(httpsAgentOptions.certPath)
