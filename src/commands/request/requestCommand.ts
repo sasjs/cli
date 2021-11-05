@@ -55,7 +55,7 @@ export class RequestCommand extends TargetCommand {
           alias: 'o',
           description:
             'path where output of the finished job execution will be saved.'
-        },
+        }
       },
       syntax,
       usage,

@@ -9,7 +9,11 @@ import {
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError, getAbsolutePath, parseLogLines } from '../../utils/utils'
+import {
+  displaySasjsRunnerError,
+  getAbsolutePath,
+  parseLogLines
+} from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import { saveLog } from '../../utils/saveLog'
 
@@ -146,7 +150,7 @@ export async function runSasJob(
           logData = err.error.details.result
         }
       }
-      
+
       if (jobPath) {
         await saveLog(logData, logFile, jobPath, false)
       }
@@ -158,35 +162,30 @@ export async function runSasJob(
       }
     })
 
-    if (output) {
-      try {
-        const outputJson = JSON.stringify(result, null, 2)
+  if (output) {
+    try {
+      const outputJson = JSON.stringify(result, null, 2)
 
-        if (typeof output === 'string') {
-          const currentDirPath = path.isAbsolute(output)
-            ? ''
-            : process.projectDir
-          const outputPath = path.join(
-            currentDirPath,
-            /\.[a-z]{3,4}$/i.test(output)
-              ? output
-              : path.join(output, 'output.json')
-          )
+      if (typeof output === 'string') {
+        const currentDirPath = path.isAbsolute(output) ? '' : process.projectDir
+        const outputPath = path.join(
+          currentDirPath,
+          /\.[a-z]{3,4}$/i.test(output)
+            ? output
+            : path.join(output, 'output.json')
+        )
 
-          let folderPath = outputPath.split(path.sep)
-          folderPath.pop()
-          const parentFolderPath = folderPath.join(path.sep)
+        let folderPath = outputPath.split(path.sep)
+        folderPath.pop()
+        const parentFolderPath = folderPath.join(path.sep)
 
-          if (!(await folderExists(parentFolderPath)))
-            await createFolder(parentFolderPath)
+        if (!(await folderExists(parentFolderPath)))
+          await createFolder(parentFolderPath)
 
-          await createFile(outputPath, outputJson)
-        }
+        await createFile(outputPath, outputJson)
       }
-      catch(err: any) {
-
-      }
-    }
+    } catch (err: any) {}
+  }
 
   return result
 }
