@@ -1,8 +1,9 @@
 import { ServerType } from '@sasjs/utils'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { displayError, getAuthConfig } from '../../utils'
+import { displayError, getAuthConfig, prefixAppLoc } from '../../utils'
 import { runSasJob } from './request'
+import { getLogFilePath } from '../../utils/getLogFilePath'
 
 const syntax = 'request <sasProgramPath> [options]'
 const usage =
@@ -42,7 +43,19 @@ export class RequestCommand extends TargetCommand {
           alias: 'c',
           description:
             'The path to a json file containting the config to be used when executing a request.'
-        }
+        },
+        log: {
+          type: 'string',
+          alias: 'l',
+          description:
+            'Path where the log of the finished job will be saved. If used, -w is implied.'
+        },
+        output: {
+          type: 'string',
+          alias: 'o',
+          description:
+            'path where output of the finished job execution will be saved.'
+        },
       },
       syntax,
       usage,
@@ -53,6 +66,13 @@ export class RequestCommand extends TargetCommand {
 
   public async execute() {
     const { target, isLocal } = await this.getTargetInfo()
+    const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
+    const log = getLogFilePath(this.parsed.log, jobPath || '')
+    const output = (this.parsed.output as string)?.length
+      ? (this.parsed.output as string)
+      : (this.parsed.output as string)?.length === 0
+      ? true
+      : false
 
     const authConfig =
       target.serverType === ServerType.SasViya
@@ -67,7 +87,10 @@ export class RequestCommand extends TargetCommand {
       sasProgramPath as string,
       data as string,
       config as string,
-      authConfig
+      authConfig,
+      log,
+      jobPath,
+      output
     )
       .then(() => {
         return ReturnCode.Success

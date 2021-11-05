@@ -9,7 +9,9 @@ import {
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
+import { displaySasjsRunnerError, getAbsolutePath, parseLogLines } from '../../utils/utils'
+import { fetchLogFileContent } from '../shared/fetchLogFileContent'
+import { saveLog } from '../../utils/saveLog'
 
 export async function runSasJob(
   target: Target,
@@ -17,7 +19,10 @@ export async function runSasJob(
   sasJobLocation: string,
   dataFilePath?: string,
   configFilePath?: string,
-  authConfig?: AuthConfig
+  authConfig?: AuthConfig,
+  logFile?: string,
+  jobPath?: string | null,
+  output?: string | boolean
 ) {
   let dataJson: any = {}
   let configJson: any = {}
@@ -70,6 +75,8 @@ export async function runSasJob(
     configJson.password = decodeFromBase64(configJson.password)
   }
 
+  configJson.debug = 131
+
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     allowInsecureRequests: target.allowInsecureRequests,
@@ -120,14 +127,66 @@ export async function runSasJob(
       result = true
       displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
     })
-    .catch((err) => {
+    .catch(async (err) => {
       result = err
+
+      let logData: string = ''
+
+      if (authConfig && err && err.logUrl) {
+        logData = JSON.stringify(
+          await fetchLogFileContent(
+            sasjs,
+            authConfig.access_token,
+            err.logUrl,
+            100000
+          )
+        )
+      } else {
+        if (err.error && err.error && err.error.details) {
+          logData = err.error.details.result
+        }
+      }
+      
+      if (jobPath) {
+        await saveLog(logData, logFile, jobPath, false)
+      }
 
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
       } else {
-        displayError(err, 'An error occurred while executing the request.')
+        displayError('', 'An error occurred while executing the request.')
       }
     })
+
+    if (output) {
+      try {
+        const outputJson = JSON.stringify(result, null, 2)
+
+        if (typeof output === 'string') {
+          const currentDirPath = path.isAbsolute(output)
+            ? ''
+            : process.projectDir
+          const outputPath = path.join(
+            currentDirPath,
+            /\.[a-z]{3,4}$/i.test(output)
+              ? output
+              : path.join(output, 'output.json')
+          )
+
+          let folderPath = outputPath.split(path.sep)
+          folderPath.pop()
+          const parentFolderPath = folderPath.join(path.sep)
+
+          if (!(await folderExists(parentFolderPath)))
+            await createFolder(parentFolderPath)
+
+          await createFile(outputPath, outputJson)
+        }
+      }
+      catch(err: any) {
+
+      }
+    }
+
   return result
 }

@@ -4,6 +4,7 @@ import path from 'path'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
+import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { execute } from './execute'
 
@@ -168,21 +169,6 @@ export class JobCommand extends TargetCommand {
 
     return returnCode
   }
-}
-
-const getLogFilePath = (logArg: unknown, jobPath: string) => {
-  if (logArg === undefined) {
-    return undefined
-  }
-
-  if (logArg) {
-    const currentDirPath = path.isAbsolute(logArg as string)
-      ? ''
-      : process.projectDir
-    return path.join(currentDirPath, logArg as string)
-  }
-  const logFileName = `${jobPath.split('/').slice(-1).pop()}.log`
-  return path.join(process.projectDir, logFileName)
 }
 
 const getStatusFilePath = (statusFileArg: unknown) => {
