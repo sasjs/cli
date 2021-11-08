@@ -115,13 +115,12 @@ export async function runSasJob(
 
         return error
       }
-      
+
       await writeOutput(outputPathParam, output, isLocal)
 
       result = true
     })
-    .catch(async (err) => { 
-
+    .catch(async (err) => {
       let logData: string = ''
 
       if (authConfig && err && err.logUrl) {
@@ -152,12 +151,12 @@ export async function runSasJob(
       } else {
         displayError('', 'An error occurred while executing the request.')
       }
-      
+
       await writeOutput(outputPathParam, err, isLocal)
 
       result = err
     })
-  
+
   return result
 }
 
@@ -168,11 +167,12 @@ export async function runSasJob(
  * @param isLocal is local target, othervise it is global
  * @returns output path for the file created
  */
-const writeOutput = async (outputPathParam: string | undefined, output: any, isLocal: boolean) => {
-  let outputPath = path.join(
-    process.projectDir,
-    isLocal ? '/sasjsbuild' : ''
-  )
+const writeOutput = async (
+  outputPathParam: string | undefined,
+  output: any,
+  isLocal: boolean
+) => {
+  let outputPath = path.join(process.projectDir, isLocal ? '/sasjsbuild' : '')
 
   let outputFilename: string | undefined
 
@@ -187,7 +187,7 @@ const writeOutput = async (outputPathParam: string | undefined, output: any, isL
   }
 
   if (outputFilename) {
-    outputPath += `/${outputFilename}` 
+    outputPath += `/${outputFilename}`
   } else {
     outputPath += '/output.json'
   }

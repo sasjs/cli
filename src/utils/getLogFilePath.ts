@@ -13,8 +13,9 @@ export const getLogFilePath = (logArg: unknown, jobPath: string) => {
   }
 
   const logFileName = `${jobPath.split('/').slice(-1).pop()}.log`
- 
-  if (logArg === '') return path.join(process.projectDir, 'sasjsbuild', logFileName)
+
+  if (logArg === '')
+    return path.join(process.projectDir, 'sasjsbuild', logFileName)
 
   return path.join(process.projectDir, logFileName)
 }
