@@ -72,12 +72,8 @@ export class RequestCommand extends TargetCommand {
   public async execute() {
     const { target, isLocal } = await this.getTargetInfo()
     const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
-    const log = getLogFilePath(this.parsed.log, jobPath || '')
-    const output = (this.parsed.output as string)?.length
-      ? (this.parsed.output as string)
-      : (this.parsed.output as string)?.length === 0
-      ? true
-      : false
+    const log = getLogFilePath(this.parsed.log || '', jobPath || '')
+    const output = (this.parsed.output as string) || undefined
 
     const authConfig =
       target.serverType === ServerType.SasViya

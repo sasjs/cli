@@ -26,7 +26,7 @@ export async function runSasJob(
   authConfig?: AuthConfig,
   logFile?: string,
   jobPath?: string | null,
-  output?: string | boolean
+  outputPathParam?: string | undefined
 ) {
   let dataJson: any = {}
   let configJson: any = {}
@@ -115,24 +115,12 @@ export async function runSasJob(
 
         return error
       }
+      
+      await writeOutput(outputPathParam, output, isLocal)
 
-      let outputPath = path.join(
-        process.projectDir,
-        isLocal ? '/sasjsbuild' : ''
-      )
-
-      if (!(await folderExists(outputPath))) {
-        await createFolder(outputPath)
-      }
-
-      outputPath += '/output.json'
-
-      await createFile(outputPath, output)
       result = true
-      displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
     })
-    .catch(async (err) => {
-      result = err
+    .catch(async (err) => { 
 
       let logData: string = ''
 
@@ -149,6 +137,10 @@ export async function runSasJob(
         if (err.error && err.error && err.error.details) {
           logData = err.error.details.result
         }
+
+        if (err.result) {
+          logData = err.result
+        }
       }
 
       if (jobPath) {
@@ -160,32 +152,55 @@ export async function runSasJob(
       } else {
         displayError('', 'An error occurred while executing the request.')
       }
+      
+      await writeOutput(outputPathParam, err, isLocal)
+
+      result = err
     })
+  
+  return result
+}
 
-  if (output) {
-    try {
-      const outputJson = JSON.stringify(result, null, 2)
+/**
+ * Writes output to the file
+ * @param outputPathParam path to output file
+ * @param output data to be written to output file
+ * @param isLocal is local target, othervise it is global
+ * @returns output path for the file created
+ */
+const writeOutput = async (outputPathParam: string | undefined, output: any, isLocal: boolean) => {
+  let outputPath = path.join(
+    process.projectDir,
+    isLocal ? '/sasjsbuild' : ''
+  )
 
-      if (typeof output === 'string') {
-        const currentDirPath = path.isAbsolute(output) ? '' : process.projectDir
-        const outputPath = path.join(
-          currentDirPath,
-          /\.[a-z]{3,4}$/i.test(output)
-            ? output
-            : path.join(output, 'output.json')
-        )
+  let outputFilename: string | undefined
 
-        let folderPath = outputPath.split(path.sep)
-        folderPath.pop()
-        const parentFolderPath = folderPath.join(path.sep)
-
-        if (!(await folderExists(parentFolderPath)))
-          await createFolder(parentFolderPath)
-
-        await createFile(outputPath, outputJson)
-      }
-    } catch (err: any) {}
+  if (outputPathParam && typeof outputPathParam === 'string') {
+    let outputPathArr = outputPathParam.split('/')
+    outputFilename = outputPathArr.pop()
+    outputPath = outputPathArr.join('/')
   }
 
-  return result
+  if (!(await folderExists(outputPath))) {
+    await createFolder(outputPath)
+  }
+
+  if (outputFilename) {
+    outputPath += `/${outputFilename}` 
+  } else {
+    outputPath += '/output.json'
+  }
+
+  let outputString = ''
+
+  if (typeof output === 'object') {
+    outputString = JSON.stringify(output)
+  } else {
+    outputString = output
+  }
+
+  await createFile(outputPath, outputString)
+
+  displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
 }
