@@ -177,6 +177,8 @@ const writeOutput = async (
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
+    outputPathParam = path.join(process.projectDir, outputPathParam || '')
+
     let outputPathArr = outputPathParam.split('/')
     outputFilename = outputPathArr.pop()
     outputPath = outputPathArr.join('/')
