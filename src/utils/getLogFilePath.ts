@@ -1,7 +1,7 @@
 import path from 'path'
 
 export const getLogFilePath = (logArg: unknown, jobPath: string) => {
-  if (logArg === undefined) {
+  if (logArg === undefined || !jobPath || jobPath === '') {
     return undefined
   }
 
@@ -14,8 +14,7 @@ export const getLogFilePath = (logArg: unknown, jobPath: string) => {
 
   const logFileName = `${jobPath.split('/').slice(-1).pop()}.log`
 
-  if (logArg === '')
-    return path.join(process.projectDir, 'sasjsbuild', logFileName)
+  if (logArg === '') return path.join(process.projectDir, logFileName)
 
   return path.join(process.projectDir, logFileName)
 }

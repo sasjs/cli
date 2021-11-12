@@ -236,9 +236,7 @@ describe('sasjs request without compute API', () => {
         jobPath
       )
     ).toResolve()
-    const rawLogDataStats = statSync(
-      `${process.projectDir}/sasjsbuild/${target.name}.log`
-    )
+    const rawLogDataStats = statSync(`${process.projectDir}/${target.name}.log`)
     const rawDataStats = statSync(`${process.projectDir}/output.json`)
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
@@ -408,9 +406,7 @@ describe('sasjs request with SAS9', () => {
         jobPath
       )
     ).toResolve()
-    const rawLogDataStats = statSync(
-      `${process.projectDir}/sasjsbuild/${target.name}.log`
-    )
+    const rawLogDataStats = statSync(`${process.projectDir}/${target.name}.log`)
     const rawDataStats = statSync(`${process.projectDir}/output.json`)
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
