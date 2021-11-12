@@ -7,7 +7,7 @@ import { getLogFilePath } from '../../utils/getLogFilePath'
 
 const syntax = 'request <sasProgramPath> [options]'
 const usage =
-  'sasjs request <sasProgramPath> --data <path-to-datafile> --config <path-to-configfile> --target <target-name>'
+  'sasjs request <sasProgramPath> --data <path-to-datafile> --config <path-to-configfile> --target <target-name> --output <path-to-outputfile> --log <path-to-logfile>'
 const description =
   `Lets the user run a SAS job against a specified target.\n` +
   `The target can exist either in the local project configuration or in the global .sasjsrc file.`
