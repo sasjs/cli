@@ -1,6 +1,11 @@
 import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
-import { SasAuthResponse, ServerType, Target } from '@sasjs/utils/types'
+import {
+  SasAuthResponse,
+  ServerType,
+  Target,
+  HttpsAgentOptions
+} from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
@@ -12,7 +17,6 @@ import {
 } from './internal/input'
 import { TargetScope } from '../../types/targetScope'
 import { saveConfig } from './internal/saveConfig'
-import { HttpsAgentOptions } from '@sasjs/utils/types/httpsAgentOptions'
 
 /**
  * Creates a .env file for the specified target.
