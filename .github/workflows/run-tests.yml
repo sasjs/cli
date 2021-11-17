@@ -49,6 +49,9 @@ jobs:
       - name: Install Doxygen
         run: sudo apt-get install doxygen
 
+      - name: Check npm audit
+        run: npm audit --production --audit-level=low
+
       - name: Install dependencies
         run: npm ci
 
