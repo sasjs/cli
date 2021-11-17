@@ -1,7 +1,7 @@
-import { displayError, displaySuccess } from '../../utils/displayResult'
-import { isJsonFile } from '../../utils/file'
-import { parseLogLines } from '../../utils/utils'
-import { fetchLogFileContent } from '../shared/fetchLogFileContent'
+import { displayError, displaySuccess } from '../../../../utils/displayResult'
+import { isJsonFile } from '../../../../utils/file'
+import { parseLogLines } from '../../../../utils/utils'
+import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
 import path from 'path'
 import SASjs, {
   Link,
@@ -19,9 +19,9 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { ReturnCode } from '../../types/command'
-import { contextName } from '../../utils'
-import { saveLog } from '../../utils/saveLog'
+import { terminateProcess, contextName } from '../../../../utils/'
+import { ReturnCode } from '../../../../types/command'
+import { saveLog } from '../utils'
 
 /**
  * Triggers existing job for execution.
@@ -38,7 +38,7 @@ import { saveLog } from '../../utils/saveLog'
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
  */
-export async function execute(
+export async function executeJobViya(
   sasjs: SASjs,
   authConfig: AuthConfig,
   jobPath: string,
@@ -308,12 +308,4 @@ async function displayStatus(
     await createFile(statusFile, status)
     if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusFile}`)
   }
-}
-
-const terminateProcess = (status: number) => {
-  process.logger?.info(
-    `Process will be terminated with the status code ${status}.`
-  )
-
-  process.exit(status)
 }

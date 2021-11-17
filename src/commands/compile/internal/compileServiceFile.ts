@@ -1,7 +1,7 @@
-import { Target, ServerType } from '@sasjs/utils/types'
-
 import { getMacroCorePath } from '../../../utils/config'
 import { createFile, readFile } from '@sasjs/utils'
+import { Target, ServerType } from '@sasjs/utils/types'
+import { ServerTypeError } from '@sasjs/utils/error'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
 
@@ -56,10 +56,11 @@ export async function getPreCodeForServicePack(serverType: ServerType) {
         '  %mend;\n'
       break
 
+    case ServerType.Sasjs:
+      break
+
     default:
-      throw new Error(
-        `Invalid server type: valid options are 'SASVIYA' and 'SAS9'.`
-      )
+      throw new ServerTypeError()
   }
 
   content +=

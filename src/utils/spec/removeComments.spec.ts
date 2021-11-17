@@ -81,7 +81,7 @@ export const sampleSasProgram = `/**
   @author Allan Bowe
   @source https://github.com/sasjs/core
 
-  <h4> Dependencies </h4>
+  <h4> SAS Macros </h4>
   @li mf_abort.sas
   @li mf_getuniquefileref.sas
   @li mf_getuniquelibref.sas
