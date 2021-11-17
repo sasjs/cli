@@ -3,7 +3,7 @@
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> Dependencies </h4>
+  <h4> SAS Macros </h4>
   @li mf_abort.sas
   @li mf_existds.sas
 
