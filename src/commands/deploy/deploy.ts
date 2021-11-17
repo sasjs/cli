@@ -64,11 +64,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
 
   const deployScripts = await getDeployScripts(target)
 
-  if (
-    deployScripts.length === 0 &&
-    !target.deployConfig?.deployServicePack &&
-    target.serverType !== ServerType.Sasjs
-  ) {
+  if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
     throw new Error(
       `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
     )
