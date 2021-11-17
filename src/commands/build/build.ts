@@ -5,10 +5,11 @@ import {
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
-  asyncForEach
+  asyncForEach,
+  Target,
+  ServerType,
+  StreamConfig
 } from '@sasjs/utils'
-import { Target, ServerType } from '@sasjs/utils/types'
-import { StreamConfig } from '@sasjs/utils/types/config'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { removeComments, chunk } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
