@@ -89,7 +89,7 @@ export async function compile(target: Target, forceCompile = false) {
     process.logger?.error('Test flow compilation has failed.')
   )
 
-  if (target.serverType !== ServerType.Sasjs) await compileWeb(target)
+  await compileWeb(target)
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
