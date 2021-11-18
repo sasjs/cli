@@ -19,7 +19,7 @@ import {
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig } from '@sasjs/utils/types'
+import { Target, StreamConfig, ServerType } from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllJobFolders } from './internal/getAllJobFolders'

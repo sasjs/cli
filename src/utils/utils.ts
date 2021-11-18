@@ -428,3 +428,11 @@ export function prefixAppLoc(appLoc = '', path = '') {
 }
 
 export const isWindows = () => process.platform === 'win32'
+
+export const terminateProcess = (status: number) => {
+  process.logger?.info(
+    `Process will be terminated with the status code ${status}.`
+  )
+
+  process.exit(status)
+}
