@@ -1,6 +1,6 @@
 import path from 'path'
 import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
-import * as internalModule from '../internal/config'
+import * as internalModule from '@sasjs/utils/sasjsCli'
 import {
   generateTestTarget,
   createTestMinimalApp,

@@ -13,14 +13,17 @@ import {
   folderExists,
   deleteFolder,
   listFilesAndSubFoldersInFolder,
-  pathSepEscaped
+  pathSepEscaped,
+  SASJsFileType,
+  getAbsolutePath,
+  isTestFile,
+  testFileRegExp
 } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 import { getPreCodeForServicePack } from './compileServiceFile'
-import { getAbsolutePath } from '../../../utils/utils'
 
 const testsBuildFolder = () =>
   path.join(process.currentDir, 'sasjsbuild', 'tests')
@@ -39,7 +42,7 @@ export async function compileTestFile(
     getAbsolutePath(filePath, process.projectDir),
     await getMacroFolders(target),
     await getProgramFolders(target),
-    'test'
+    SASJsFileType.test
   )
 
   const preCode = await getPreCodeForServicePack(target.serverType)
@@ -109,10 +112,6 @@ export async function copyTestMacroFiles(folderAbsolutePath: string) {
     }
   })
 }
-
-export const testFileRegExp = /\.test\.(\d+\.)?sas$/i
-
-export const isTestFile = (fileName: string) => testFileRegExp.test(fileName)
 
 export const compileTestFlow = async (target: Target) => {
   const { buildDestinationFolder, buildDestinationTestFolder } =

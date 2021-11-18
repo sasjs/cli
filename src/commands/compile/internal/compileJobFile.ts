@@ -1,6 +1,6 @@
 import { Target } from '@sasjs/utils/types'
 
-import { createFile } from '@sasjs/utils'
+import { createFile, SASJsFileType } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 
 export async function compileJobFile(
@@ -15,7 +15,7 @@ export async function compileJobFile(
     filePath,
     macroFolders,
     programFolders,
-    'job'
+    SASJsFileType.job
   )
   dependencies = `${programVar ? programVar + '\n' : ''}${dependencies}`
 

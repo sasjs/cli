@@ -4,12 +4,10 @@ import {
   inExistingProject,
   diff,
   setupGitIgnore,
-  chunk,
   arrToObj,
   checkNodeVersion,
   getAdapterInstance,
   displaySasjsRunnerError,
-  getAbsolutePath,
   loadEnvVariables
 } from '../utils'
 import { mockProcessExit } from '../test'
@@ -20,7 +18,9 @@ import {
   readFile,
   generateTimestamp,
   ServerType,
-  Target
+  Target,
+  chunk,
+  getAbsolutePath
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'

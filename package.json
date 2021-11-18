@@ -56,7 +56,7 @@
     "@sasjs/adapter": "2.11.4",
     "@sasjs/core": "2.45.2",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.31.0",
+    "@sasjs/utils": "file:../utils/build/sasjs-utils-5.0.0.tgz",
     "chalk": "4.1.2",
     "csv-stringify": "5.6.5",
     "dotenv": "10.0.0",

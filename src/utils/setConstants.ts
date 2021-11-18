@@ -1,7 +1,7 @@
 import path from 'path'
 import { getInstalledPath } from 'get-installed-path'
 import { getLocalOrGlobalConfig } from './config'
-import { getAbsolutePath } from './utils'
+import { getAbsolutePath } from '@sasjs/utils'
 
 export const contextName = 'sasjs cli compute context'
 

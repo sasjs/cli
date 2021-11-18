@@ -1,7 +1,7 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
-import { findTargetInConfiguration, getAuthConfig } from '../../utils/config'
+import { getAuthConfig } from '../../utils/config'
 import {
   readFile,
   createFile,
@@ -9,14 +9,11 @@ import {
   Target,
   generateTimestamp,
   ServerType,
-  decodeFromBase64
+  decodeFromBase64,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { compileSingleFile } from '../'
-import {
-  displayError,
-  displaySasjsRunnerError,
-  getAbsolutePath
-} from '../../utils/'
+import { displayError, displaySasjsRunnerError } from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
