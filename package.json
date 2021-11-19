@@ -20,7 +20,7 @@
     "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
-    "prepare": "husky install"
+    "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true"
   },
   "release": {
     "branches": [
@@ -74,8 +74,6 @@
   "devDependencies": {
     "@babel/preset-env": "7.15.6",
     "@babel/preset-typescript": "7.15.0",
-    "@commitlint/cli": "^14.1.0",
-    "@commitlint/config-angular": "^14.1.0",
     "@types/find": "0.2.1",
     "@types/get-installed-path": "4.0.1",
     "@types/jest": "27.0.2",
@@ -88,7 +86,6 @@
     "@types/xml": "1.0.6",
     "babel-jest": "27.2.4",
     "copyfiles": "2.4.1",
-    "husky": "^7.0.4",
     "jest": "27.2.4",
     "jest-cli": "27.3.1",
     "jest-extended": "1.1.0",
