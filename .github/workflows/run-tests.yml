@@ -52,7 +52,7 @@ jobs:
       - name: Check npm audit
         run: npm audit --production --audit-level=low
 
-      - name: Install production dependencies (fail if any error)
+      - name: Install production dependencies (fail if any warning)
         run: sh ./npm-production-install.sh
 
       - name: Install dependencies
