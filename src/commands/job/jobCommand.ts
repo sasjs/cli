@@ -5,7 +5,7 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { getAuthConfig } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
-import { execute } from './execute'
+import { executeJobViya, executeJobSasjs } from './internal/execute'
 
 enum JobSubCommand {
   Execute = 'execute'
@@ -89,39 +89,72 @@ export class JobCommand extends TargetCommand {
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-    if (target.serverType !== ServerType.SasViya) {
-      process.logger?.error(
-        `This command is only supported for SAS Viya targets.\nPlease try again with a different target.`
-      )
-      return ReturnCode.InternalError
+    let sasjs
+
+    switch (target.serverType) {
+      case ServerType.SasViya:
+        sasjs = new SASjs({
+          serverUrl: target.serverUrl,
+          allowInsecureRequests: target.allowInsecureRequests,
+          appLoc: target.appLoc,
+          serverType: target.serverType,
+          debug: true
+        })
+
+        const authConfig = await getAuthConfig(target).catch((err) => {
+          process.logger?.error(
+            'Unable to execute job. Error fetching auth config: ',
+            err
+          )
+          return null
+        })
+
+        if (!authConfig) return ReturnCode.InternalError
+
+        return this.parsed.subCommand === JobSubCommand.Execute
+          ? await this.executeJobViya(target, sasjs, authConfig)
+          : ReturnCode.InvalidCommand
+
+      case ServerType.Sasjs:
+        sasjs = new SASjs({
+          serverType: target.serverType,
+          serverUrl: target.serverUrl
+        })
+
+        if (typeof this.parsed.jobPath !== 'string')
+          return ReturnCode.InvalidCommand
+
+        return this.parsed.subCommand === JobSubCommand.Execute
+          ? await this.executeJobSasjs(sasjs, target)
+          : ReturnCode.InvalidCommand
+      default:
+        process.logger?.error(
+          `This command is only supported for SAS Viya targets.\nPlease try again with a different target.`
+        )
+
+        return ReturnCode.InternalError
     }
-
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
-      appLoc: target.appLoc,
-      serverType: target.serverType,
-      debug: true
-    })
-
-    const authConfig = await getAuthConfig(target).catch((err) => {
-      process.logger?.error(
-        'Unable to execute job. Error fetching auth config: ',
-        err
-      )
-      return null
-    })
-
-    if (!authConfig) {
-      return ReturnCode.InternalError
-    }
-
-    return this.parsed.subCommand === JobSubCommand.Execute
-      ? await this.executeJob(target, sasjs, authConfig)
-      : ReturnCode.InvalidCommand
   }
 
-  async executeJob(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
+  async executeJobSasjs(sasjs: SASjs, target: Target) {
+    const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
+
+    const returnCode = await executeJobSasjs(
+      sasjs,
+      jobPath,
+      this.parsed.log as string
+    )
+      .then(() => ReturnCode.Success)
+      .catch((err) => {
+        process.logger?.error('Error executing job: ', err)
+
+        return ReturnCode.InternalError
+      })
+
+    return returnCode
+  }
+
+  async executeJobViya(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
     let wait = (this.parsed.wait as boolean) || !!log
@@ -144,7 +177,7 @@ export class JobCommand extends TargetCommand {
       )
     }
 
-    const returnCode = await execute(
+    const returnCode = await executeJobViya(
       sasjs,
       authConfig,
       jobPath,

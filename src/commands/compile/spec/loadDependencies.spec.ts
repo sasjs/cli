@@ -21,7 +21,7 @@ const fakeInit = `/**
   @brief this file is called with every service
   @details  This file is included in *every* service, *after* the macros and *before* the service code.
 
-  <h4> Dependencies </h4>
+  <h4> SAS Macros </h4>
   @li mf_abort.sas
 
 **/
@@ -37,7 +37,7 @@ const fakeTerm = `/**
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> Dependencies </h4>
+  <h4> SAS Macros </h4>
   @li mf_abort.sas
   @li mf_existds.sas
 
@@ -225,8 +225,8 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load dependencies for a job <h4> Dependencies </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
+    test('it should load dependencies for a job <h4> SAS Macros </h4>', async () => {
+      jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
       Promise.resolve({
         content: `\n* JobInit start;\n${fakeInit}\n* JobInit end;`,
         filePath: ''
