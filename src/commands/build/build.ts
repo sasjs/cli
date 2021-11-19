@@ -1,13 +1,16 @@
 import path from 'path'
-import { Target, ServerType, StreamConfig } from '@sasjs/utils/types'
 import {
   readFile,
   base64EncodeFile,
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
-  asyncForEach
+  asyncForEach,
+  Target,
+  ServerType,
+  StreamConfig
 } from '@sasjs/utils'
+import { ServerTypeError } from '@sasjs/utils/error'
 import { removeComments, chunk } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
 import {
@@ -59,6 +62,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
     `${buildTerm}\n${buildInit}`,
     macroFolders
   )
+
   const dependenciesContent = await getDependencies(dependencyFilePaths)
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
@@ -66,8 +70,8 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const { folderContent, folderContentJSON } = await getFolderContent(
     serverType
   )
-  finalSasFileContent += `\n${folderContent}`
 
+  finalSasFileContent += `\n${folderContent}`
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {
@@ -97,7 +101,9 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   let buildConfig = ''
   const { serverType, appLoc } = target
   const macroFolders = await getMacroFolders(target)
+
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
+
   buildConfig += `${createWebServiceScript}\n`
 
   // dependencyFilePaths contains the dependencies of each buildConfig file
@@ -183,10 +189,14 @@ async function getCreateWebServiceScript(serverType: ServerType) {
         `${getMacroCorePath()}/meta/mm_createwebservice.sas`
       )
 
-    default:
-      throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
+    // FIXME: use sasjs/mv_createwebservice.sas ones created
+    case ServerType.Sasjs:
+      return await readFile(
+        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
       )
+
+    default:
+      throw new ServerTypeError()
   }
 }
 
@@ -194,11 +204,12 @@ async function getCreateFileScript(serverType: ServerType) {
   switch (serverType) {
     case ServerType.SasViya:
       return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+    // FIXME: use sasjs/mv_createfile.sas ones created
+    case ServerType.Sasjs:
+      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
 
     default:
-      throw new Error(
-        `Invalid server type: valid option is ${ServerType.SasViya}`
-      )
+      throw new ServerTypeError([ServerType.SasViya, ServerType.Sasjs])
   }
 }
 
@@ -209,19 +220,21 @@ function getWebServiceScriptInvocation(
   encoded: boolean = false
 ) {
   const loc = filePath === '' ? 'services' : 'tests'
+  const encodedParam = encoded ? ', intype=BASE64' : ''
 
   switch (serverType) {
     case ServerType.SasViya:
-      const encodedParam = encoded ? ', intype=BASE64' : ''
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
         : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
       return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+    case ServerType.Sasjs:
+      return isSASFile
+        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
     default:
-      throw new Error(
-        `Invalid server type: valid options are ${ServerType.SasViya} and ${ServerType.Sas9}`
-      )
+      throw new ServerTypeError()
   }
 }
 
@@ -378,10 +391,14 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(
-  serverType,
-  isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
-)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(
+        serverType,
+        isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
+      )
+    : ''
+}
 filename sascode clear;
 `
 }
@@ -404,7 +421,11 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${getWebServiceScriptInvocation(serverType, undefined, false, true)}
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(serverType, undefined, false, true)
+    : ''
+}
 filename filecode clear;
 `
 }

@@ -1,6 +1,6 @@
 import { Target } from '@sasjs/utils'
 import { contextName } from '../../../utils'
-import { getContextName } from '../execute'
+import { getContextName } from '../internal/execute'
 
 describe('getContextName', () => {
   it('should return the context name if specified in the target', async () => {

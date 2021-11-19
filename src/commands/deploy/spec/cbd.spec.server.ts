@@ -1,7 +1,10 @@
 import { fileExists, copy, readFile, StreamConfig } from '@sasjs/utils'
-import dotenv from 'dotenv'
 import path from 'path'
-import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
+import { Target, generateTimestamp } from '@sasjs/utils'
+import {
+  findTargetInConfiguration,
+  removeFromGlobalConfig
+} from '../../../utils/config'
 import * as configUtils from '../../../utils/config'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
@@ -12,7 +15,7 @@ import {
 } from '../../../utils/test'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
-import { contextName } from '../../../utils'
+import { generateTarget, copyJobsAndServices } from './utils'
 
 describe('sasjs cbd with global config', () => {
   let target: Target
@@ -212,54 +215,3 @@ describe('sasjs cbd having stream app', () => {
     )
   })
 })
-
-const generateTarget = (isLocal: boolean) => {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-cbd-${timestamp}`
-
-  const authConfig = isLocal
-    ? undefined
-    : {
-        client: process.env.CLIENT as string,
-        secret: process.env.SECRET as string,
-        access_token: process.env.ACCESS_TOKEN as string,
-        refresh_token: process.env.REFRESH_TOKEN as string
-      }
-
-  return new Target({
-    name: targetName,
-    serverType: ServerType.SasViya,
-    serverUrl: process.env.VIYA_SERVER_URL as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName,
-    serviceConfig: {
-      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    jobConfig: {
-      jobFolders: ['sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    authConfig,
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: ['']
-    }
-  })
-}
-
-const copyJobsAndServices = async (appName: string) => {
-  await copy(
-    path.join(__dirname, 'testJob'),
-    path.join(__dirname, appName, 'sasjs', 'testJob')
-  )
-  await copy(
-    path.join(__dirname, 'testServices'),
-    path.join(__dirname, appName, 'sasjs', 'testServices')
-  )
-}
