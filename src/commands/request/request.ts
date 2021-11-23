@@ -1,5 +1,5 @@
 import path from 'path'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { SASjsRequest } from '@sasjs/adapter/node'
 import {
   readFile,
   folderExists,
@@ -16,6 +16,7 @@ import {
 } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import { saveLog } from '../../utils/saveLog'
+import { getLogFilePath } from '../../utils/getLogFilePath'
 
 export async function runSasJob(
   target: Target,
@@ -79,20 +80,21 @@ export async function runSasJob(
     configJson.password = decodeFromBase64(configJson.password)
   }
 
-  configJson.debug = 131
-
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
     contextName: target.contextName,
-    useComputeApi: false
+    useComputeApi: false,
+    debug: true
   })
 
   if (!dataJson) dataJson = null
 
   let result
+  let isError = false
+
   await sasjs
     .request(
       sasJobLocation,
@@ -121,30 +123,7 @@ export async function runSasJob(
       result = true
     })
     .catch(async (err) => {
-      let logData: string = ''
-
-      if (authConfig && err && err.logUrl) {
-        logData = JSON.stringify(
-          await fetchLogFileContent(
-            sasjs,
-            authConfig.access_token,
-            err.logUrl,
-            100000
-          )
-        )
-      } else {
-        if (err.error && err.error && err.error.details) {
-          logData = err.error.details.result
-        }
-
-        if (err.result) {
-          logData = err.result
-        }
-      }
-
-      if (jobPath) {
-        await saveLog(logData, logFile, jobPath, false)
-      }
+      isError = true
 
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
@@ -156,6 +135,22 @@ export async function runSasJob(
 
       result = err
     })
+
+  const sasRequests: SASjsRequest[] = sasjs
+    .getSasRequests()
+    .sort(
+      (a: SASjsRequest, b: SASjsRequest) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    )
+  const currentRequestLog = sasRequests.find(
+    (x) => x.serviceLink === sasJobLocation
+  )
+
+  if (currentRequestLog && ((logFile && jobPath) || isError)) {
+    if (!logFile) logFile = getLogFilePath('', jobPath || '')
+
+    await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
+  }
 
   return result
 }
