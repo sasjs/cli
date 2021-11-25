@@ -37,7 +37,8 @@ describe('compileTestFile', () => {
     ...temp.toJson(),
     jobConfig: {
       jobFolders: [path.join('sasjs', 'jobs')]
-    }
+    },
+    macroFolders: ['sasjs/macros']
   })
   let sasjsPath: string
   let testBody: string
@@ -124,6 +125,7 @@ describe('compileTestFile', () => {
       await testContent(path.join('jobs', 'jobs', 'testJob.test.sas'))
       await testContent(path.join('testsetup.sas'))
       await testContent(path.join('testteardown.sas'))
+      await testContent(path.join('macros', 'testMacro.test.sas'))
     })
   })
 
@@ -180,6 +182,7 @@ describe('compileTestFile', () => {
       const expectedTestFlow = {
         tests: [
           ['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/'),
+          ['tests', 'macros', 'testMacro.test.sas'].join('/'),
           ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
             '/'
           ),
@@ -234,6 +237,11 @@ describe('compileTestFile', () => {
           'standalone'
         ],
         [
+          ['tests', 'macros', 'testMacro.test.sas'].join('/'),
+          'test',
+          'standalone'
+        ],
+        [
           ['tests', 'services', 'services', 'admin', 'random.test.sas'].join(
             '/'
           ),
@@ -256,10 +264,10 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(14)
-      expect(process.logger.info).toHaveBeenNthCalledWith(12, `Test coverage:`)
+      expect(process.logger.info).toHaveBeenCalledTimes(15)
+      expect(process.logger.info).toHaveBeenNthCalledWith(13, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
-        13,
+        14,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
       expect(process.logger.info).toHaveBeenLastCalledWith(
@@ -297,6 +305,10 @@ const copyTestFiles = async (appName: string) => {
   await copy(
     path.join(__dirname, 'testFiles', 'jobs'),
     path.join(__dirname, appName, 'sasjs', 'jobs')
+  )
+  await copy(
+    path.join(__dirname, 'testFiles', 'macros'),
+    path.join(__dirname, appName, 'sasjs', 'macros')
   )
 }
 
