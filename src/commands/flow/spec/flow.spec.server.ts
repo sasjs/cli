@@ -33,7 +33,6 @@ describe('sasjs flow', () => {
   const target: Target = generateTarget()
   const sasjs: SASjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType
   })

@@ -29,10 +29,12 @@ export async function runSasJob(
   jobPath?: string | null,
   outputPathParam?: string | undefined
 ) {
-  let dataJson: any = {}
+  let dataJson: any = null
   let configJson: any = {}
 
   if (dataFilePath) {
+    dataJson = {}
+
     if (dataFilePath.split('.').slice(-1)[0] !== 'json') {
       throw new Error('Provided data file must be valid json.')
     }
@@ -82,15 +84,12 @@ export async function runSasJob(
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType,
     contextName: target.contextName,
     useComputeApi: false,
     debug: true
   })
-
-  if (!dataJson) dataJson = null
 
   let result
   let isError = false
@@ -105,24 +104,30 @@ export async function runSasJob(
       },
       authConfig
     )
-    .then(async (res) => {
+    .then(async (res: any) => {
+      if (res?.errorCode) isError = true
+
       if (res?.result) res = res.result
 
       let output
 
-      try {
-        output = JSON.stringify(res, null, 2)
-      } catch (error) {
-        displayError(error, 'Result parsing failed.')
+      if (typeof res !== 'object') {
+        try {
+          output = JSON.stringify(res, null, 2)
+        } catch (error) {
+          displayError(error, 'Result parsing failed.')
 
-        return error
+          return error
+        }
+      } else {
+        output = res
       }
 
       await writeOutput(outputPathParam, output, isLocal)
 
       result = true
     })
-    .catch(async (err) => {
+    .catch(async (err: any) => {
       isError = true
 
       if (err && err.errorCode === 404) {
@@ -136,12 +141,7 @@ export async function runSasJob(
       result = err
     })
 
-  const sasRequests: SASjsRequest[] = sasjs
-    .getSasRequests()
-    .sort(
-      (a: SASjsRequest, b: SASjsRequest) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
+  const sasRequests: SASjsRequest[] = sasjs.getSasRequests()
   const currentRequestLog = sasRequests.find(
     (x) => x.serviceLink === sasJobLocation
   )
@@ -197,7 +197,13 @@ const writeOutput = async (
     outputString = output
   }
 
-  await createFile(outputPath, outputString)
+  if (outputString) {
+    await createFile(outputPath, outputString)
 
-  displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+    displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+  } else {
+    displayError(
+      `There was a problem with writing output file. Data not present.`
+    )
+  }
 }

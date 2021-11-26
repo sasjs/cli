@@ -190,7 +190,6 @@ export async function getAndValidateSasViyaFields(
     const sasjs = new SASjs({
       serverUrl,
       serverType: ServerType.SasViya,
-      allowInsecureRequests: insecure,
       debug: process.logger?.logLevel === LogLevel.Debug
     })
     let contexts: any[] = []

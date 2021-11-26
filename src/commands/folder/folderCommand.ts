@@ -76,7 +76,6 @@ export class FolderCommand extends TargetCommand {
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -187,7 +186,6 @@ export class FolderCommand extends TargetCommand {
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
       appLoc: target.appLoc,
       serverType: target.serverType
     })

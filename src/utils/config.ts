@@ -604,7 +604,6 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   if (isAccessTokenExpiring(access_token)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
       serverType: target.serverType
     })
 
@@ -668,7 +667,6 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
       serverType: target.serverType
     })
 

@@ -84,7 +84,6 @@ export const removeTestServerFolder = async (
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
     appLoc: target.appLoc,
     serverType: target.serverType
   })

@@ -117,7 +117,6 @@ export const getTokens = async (
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
-    allowInsecureRequests: insecure,
     debug: process.logger?.logLevel === LogLevel.Debug
   })
   const authResponse: SasAuthResponse = await getNewAccessToken(
