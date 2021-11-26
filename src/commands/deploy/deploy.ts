@@ -135,7 +135,7 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
     useComputeApi: true
   })
@@ -192,7 +192,7 @@ async function deployToSasViya(
           .map((i: { line: string }) => i.line)
           .join(os.EOL)
       : JSON.stringify(executionResult.log).replace(/\\n/g, os.EOL)
-  } catch (e) {
+  } catch (e: any) {
     process.logger?.error(
       `An error occurred when parsing the execution response: ${e.message}`
     )
@@ -249,7 +249,7 @@ async function deployToSas9(
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
     serverType: target.serverType
   })

@@ -1,6 +1,11 @@
 import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
-import { SasAuthResponse, ServerType, Target } from '@sasjs/utils/types'
+import {
+  SasAuthResponse,
+  ServerType,
+  Target,
+  HttpsAgentOptions
+} from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
@@ -26,7 +31,13 @@ export const addCredential = async (
   insecure: boolean,
   targetScope: TargetScope
 ): Promise<Target> => {
-  insecure = insecure || target.allowInsecureRequests
+  const httpsAgentOptions = insecure
+    ? {
+        ...target.httpsAgentOptions,
+        allowInsecureRequests: true,
+        rejectUnauthorized: false
+      }
+    : target.httpsAgentOptions
 
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
@@ -45,7 +56,7 @@ export const addCredential = async (
       target,
       client,
       secret,
-      insecure
+      httpsAgentOptions
     )
 
     if (targetScope === TargetScope.Local) {
@@ -112,12 +123,12 @@ export const getTokens = async (
   target: Target,
   client: string,
   secret: string,
-  insecure: boolean = false
+  httpsAgentOptions?: HttpsAgentOptions
 ): Promise<SasAuthResponse> => {
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
-    allowInsecureRequests: insecure,
+    httpsAgentOptions,
     debug: process.logger?.logLevel === LogLevel.Debug
   })
   const authResponse: SasAuthResponse = await getNewAccessToken(

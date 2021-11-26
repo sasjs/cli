@@ -4,6 +4,7 @@ import { Target, ServerType } from '@sasjs/utils/types'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
+import { isTestFile } from './compileTestFile'
 
 export async function compileServiceFile(
   target: Target,
@@ -16,7 +17,8 @@ export async function compileServiceFile(
     target,
     filePath,
     macroFolders,
-    programFolders
+    programFolders,
+    isTestFile(filePath) ? 'test' : undefined
   )
 
   const serverType = await getServerType(target)

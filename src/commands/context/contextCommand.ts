@@ -147,7 +147,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -188,7 +188,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -223,7 +223,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -269,7 +269,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -311,7 +311,7 @@ export class ContextCommand extends TargetCommand {
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
