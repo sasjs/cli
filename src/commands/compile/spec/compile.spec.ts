@@ -5,7 +5,9 @@ import {
   readFile,
   fileExists,
   deleteFolder,
-  generateTimestamp
+  generateTimestamp,
+  createFile,
+  folderExists
 } from '@sasjs/utils'
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
@@ -52,6 +54,34 @@ describe('sasjs compile', () => {
 
   afterAll(async () => {
     await removeTestApp(homedir, sharedAppName)
+  })
+
+  it('it should compile project from sub folder', async () => {
+    const serviceFolder = path.join(
+      process.projectDir,
+      'sasjs',
+      'services',
+      'admin'
+    )
+    const testFile = 'dostuff.test.sas'
+    const wrongSasjsBuildFolder = path.join(serviceFolder, 'sasjsbuild')
+    const correctSasjsBuildFolder = path.join(process.currentDir, 'sasjsbuild')
+    const correctBuildFile = path.join(
+      correctSasjsBuildFolder,
+      'tests',
+      'services',
+      'admin',
+      testFile
+    )
+
+    await createFile(path.join(serviceFolder, testFile), '')
+
+    process.currentDir = serviceFolder
+
+    await expect(compileModule.compile(target)).toResolve()
+    await expect(folderExists(wrongSasjsBuildFolder)).resolves.toEqual(false)
+    await expect(folderExists(correctSasjsBuildFolder)).resolves.toEqual(true)
+    await expect(fileExists(correctBuildFile)).resolves.toEqual(true)
   })
 
   it('should compile an uncompiled project', async () => {

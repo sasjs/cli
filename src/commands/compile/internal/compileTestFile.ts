@@ -22,8 +22,9 @@ import { getProgramFolders, getMacroFolders } from '../../../utils/config'
 import { getPreCodeForServicePack } from './compileServiceFile'
 import { getAbsolutePath } from '../../../utils/utils'
 
-const testsBuildFolder = () =>
-  path.join(process.currentDir, 'sasjsbuild', 'tests')
+const testsBuildFolder = () => {
+  return path.join(process.projectDir, 'sasjsbuild', 'tests')
+}
 
 const getFileName = (filePath: string) => path.parse(filePath).base
 
