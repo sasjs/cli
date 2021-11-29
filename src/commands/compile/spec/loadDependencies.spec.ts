@@ -7,7 +7,7 @@ import {
   ServerType,
   SASJsFileType
 } from '@sasjs/utils'
-import * as internalModule from '@sasjs/utils/sasjsCli'
+import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
   generateTestTarget,
   createTestMinimalApp,
