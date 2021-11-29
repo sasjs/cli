@@ -40,7 +40,7 @@ describe('sasjs job execute', () => {
 
     sasjs = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType,
       debug: true
@@ -376,7 +376,7 @@ describe('sasjs job execute', () => {
   it('should terminate the process if server could not get session status', async () => {
     const adapter = new SASjs({
       serverUrl: target.serverUrl,
-      allowInsecureRequests: target.allowInsecureRequests,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })

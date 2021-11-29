@@ -33,7 +33,7 @@ export async function deployToSasViyaWithServicePack(
   }
 
   const sasjs = new SASjs({
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
     serverType: target.serverType,
     serverUrl: target.serverUrl,

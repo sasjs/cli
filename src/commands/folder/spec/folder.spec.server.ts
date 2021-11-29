@@ -12,7 +12,7 @@ describe('sasjs folder operations', () => {
   const target: Target = generateTarget()
   const sasjs: SASjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
     serverType: target.serverType
   })

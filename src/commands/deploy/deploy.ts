@@ -132,7 +132,7 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
     useComputeApi: true
   })
@@ -246,7 +246,7 @@ async function deployToSas9(
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
-    allowInsecureRequests: target.allowInsecureRequests,
+    httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
     serverType: target.serverType
   })
