@@ -11,7 +11,7 @@ import {
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
-  asyncForEach,
+  asyncForEach
 } from '@sasjs/utils'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { removeComments } from '../../utils/utils'
@@ -109,7 +109,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
 
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
   const macroCorePath = getMacroCorePath()
-  
+
   buildConfig += `${createWebServiceScript}\n`
 
   // dependencyFilePaths contains the dependencies of each buildConfig file

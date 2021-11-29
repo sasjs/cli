@@ -225,8 +225,8 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-    test('it should load dependencies for a job <h4> SAS Macros </h4>', async () => {
-      jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
+  test('it should load dependencies for a job <h4> SAS Macros </h4>', async () => {
+    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
       Promise.resolve({
         content: `\n* JobInit start;\n${fakeInit}\n* JobInit end;`,
         filePath: ''
