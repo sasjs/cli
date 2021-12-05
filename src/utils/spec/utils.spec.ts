@@ -8,7 +8,8 @@ import {
   checkNodeVersion,
   getAdapterInstance,
   displaySasjsRunnerError,
-  loadEnvVariables
+  loadEnvVariables,
+  createReactApp
 } from '../utils'
 import { mockProcessExit } from '../test'
 import {
@@ -20,7 +21,10 @@ import {
   ServerType,
   Target,
   chunk,
-  getAbsolutePath
+  getAbsolutePath,
+  createFolder,
+  folderExists,
+  deleteFolder
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import path from 'path'
@@ -329,6 +333,22 @@ describe('utils', () => {
     it('should load the environment variables from provided file', async () => {
       await loadEnvVariables(fileName)
       expect(process.env.TEST).toBe('this is test variable')
+    })
+  })
+
+  describe('createReactApp', () => {
+    it('should create React app', async () => {
+      const reactFolder = 'react-seed-app'
+
+      const reactFolderPath = path.join(__dirname, reactFolder)
+      const sasjsFolderPath = path.join(reactFolderPath, 'sasjs')
+
+      await createFolder(reactFolderPath)
+
+      await expect(createReactApp(reactFolderPath)).toResolve()
+      await expect(folderExists(sasjsFolderPath)).resolves.toEqual(true)
+
+      await deleteFolder(reactFolderPath)
     })
   })
 })
