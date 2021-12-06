@@ -1,17 +1,21 @@
 import path from 'path'
 import {
+  Target,
+  ServerType,
+  StreamConfig,
+  chunk,
+  getDependencyPaths,
+  isTestFile,
   readFile,
   base64EncodeFile,
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
-  asyncForEach,
-  Target,
-  ServerType,
-  StreamConfig
+  asyncForEach
 } from '@sasjs/utils'
 import { ServerTypeError } from '@sasjs/utils/error'
-import { removeComments, chunk } from '../../utils/utils'
+import { removeComments } from '../../utils/utils'
+
 import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
@@ -22,8 +26,6 @@ import {
 import { compile } from '../compile/compile'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import { getDependencyPaths } from '../shared/dependencies'
-import { isTestFile } from '../compile/internal/compileTestFile'
 import { ServicePack, ServicePackMember } from '../../types'
 
 export async function build(target: Target) {
@@ -58,9 +60,12 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const buildInit = await getBuildInit(target)
   const buildTerm = await getBuildTerm(target)
 
+  const macroCorePath = getMacroCorePath()
+
   const dependencyFilePaths = await getDependencyPaths(
     `${buildTerm}\n${buildInit}`,
-    macroFolders
+    macroFolders,
+    macroCorePath
   )
 
   const dependenciesContent = await getDependencies(dependencyFilePaths)
@@ -103,11 +108,16 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const macroFolders = await getMacroFolders(target)
 
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
+  const macroCorePath = getMacroCorePath()
 
   buildConfig += `${createWebServiceScript}\n`
 
   // dependencyFilePaths contains the dependencies of each buildConfig file
-  let dependencyFilePaths = await getDependencyPaths(buildConfig, macroFolders)
+  let dependencyFilePaths = await getDependencyPaths(
+    buildConfig,
+    macroFolders,
+    macroCorePath
+  )
 
   if (target.serverType === ServerType.SasViya && streamWeb) {
     // In Viya the mv_createfile.sas program is used to deploy the content as
@@ -118,7 +128,8 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     buildConfig += `${createFileScript}\n`
     const dependencyFilePathsForCreateFile = await getDependencyPaths(
       createFileScript,
-      macroFolders
+      macroFolders,
+      macroCorePath
     )
 
     // The gsubScript is used to perform the replacement of the appLoc within
@@ -130,7 +141,8 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     buildConfig += `${gsubScript}\n`
     const dependencyFilePathsForGsubScript = await getDependencyPaths(
       gsubScript,
-      macroFolders
+      macroFolders,
+      macroCorePath
     )
 
     dependencyFilePaths = [

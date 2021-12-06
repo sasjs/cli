@@ -9,15 +9,16 @@ import {
   fileExists,
   readFile,
   Target,
-  Configuration
+  Configuration,
+  LogLevel,
+  getAbsolutePath
 } from '@sasjs/utils'
 
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
 
-import { LogLevel } from '@sasjs/utils/logger'
-import { isWindows, getAbsolutePath } from '../../utils'
+import { isWindows } from '../../utils'
 
 /**
  * Generates documentation(Doxygen)

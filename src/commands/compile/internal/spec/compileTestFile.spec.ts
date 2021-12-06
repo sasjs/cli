@@ -1,4 +1,4 @@
-import { isTestFile, moveTestFile, compileTestFlow } from '../compileTestFile'
+import { moveTestFile, compileTestFlow } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -9,7 +9,8 @@ import {
   createFile,
   generateTimestamp,
   deleteFolder,
-  ServerType
+  ServerType,
+  isTestFile
 } from '@sasjs/utils'
 import {
   removeTestApp,

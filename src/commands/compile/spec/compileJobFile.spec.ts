@@ -1,6 +1,6 @@
 import path from 'path'
 import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
-import * as internalModule from '../internal/config'
+import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
   generateTestTarget,
   createTestMinimalApp,
@@ -75,13 +75,13 @@ describe('compileJobFile', () => {
   })
 
   test('it should compile and create file', async () => {
-    jest.spyOn(internalModule, 'getJobInit').mockImplementation(() =>
+    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
       Promise.resolve({
         content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
         filePath: ''
       })
     )
-    jest.spyOn(internalModule, 'getJobTerm').mockImplementation(() =>
+    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
       Promise.resolve({
         content: `\n* JobTerm start;\n${fakeJobTerm}\n* JobTerm end;`,
         filePath: ''

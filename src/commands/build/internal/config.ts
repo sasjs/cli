@@ -1,8 +1,6 @@
 import path from 'path'
-import { Target } from '@sasjs/utils/types'
+import { Target, readFile, getAbsolutePath } from '@sasjs/utils'
 import { getConfiguration } from '../../../utils/config'
-import { getAbsolutePath } from '../../../utils/utils'
-import { readFile } from '@sasjs/utils'
 
 export const getBuildInit = async (target: Target) => {
   const { buildSourceFolder } = process.sasjsConstants

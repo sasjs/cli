@@ -1,4 +1,4 @@
-import { getList } from '../../../utils/file'
+import { getList } from '@sasjs/utils'
 
 /**
  * Returns list of Outputs and populates Map of Nodes
