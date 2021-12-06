@@ -349,6 +349,6 @@ describe('utils', () => {
       await expect(folderExists(sasjsFolderPath)).resolves.toEqual(true)
 
       await deleteFolder(reactFolderPath)
-    })
+    }, 600000)
   })
 })
