@@ -18,7 +18,6 @@ describe('sasjs servicepack', () => {
       name: targetName,
       serverType: ServerType.SasViya,
       serverUrl: process.env.VIYA_SERVER_URL as string,
-      allowInsecureRequests: false,
       appLoc: `/Public/app/cli-tests/${targetName}`,
       contextName,
       authConfig: {

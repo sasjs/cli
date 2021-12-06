@@ -147,7 +147,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -188,7 +188,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -223,11 +223,8 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-
-      appLoc: target.appLoc,
-      serverType: target.serverType
+      httpsAgentOptions: target.httpsAgentOptions,
     })
-    const config = await this.getConfig().catch((err) => {
       process.logger?.error(
         `Unable to edit context. Error fetching context configuration from ${this.parsed.source}: `,
         err
@@ -269,7 +266,7 @@ export class ContextCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })
@@ -311,7 +308,7 @@ export class ContextCommand extends TargetCommand {
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
-
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })

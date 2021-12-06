@@ -5,13 +5,13 @@ import {
   folderExists,
   createFile,
   createFolder,
-  decodeFromBase64
+  decodeFromBase64,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
 import {
   displaySasjsRunnerError,
-  getAbsolutePath,
   parseLogLines
 } from '../../utils/utils'
 import { fetchLogFileContent } from '../shared/fetchLogFileContent'
@@ -84,6 +84,7 @@ export async function runSasJob(
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
+    httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
     serverType: target.serverType,
     contextName: target.contextName,

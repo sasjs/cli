@@ -70,6 +70,7 @@ export class FlowCommand extends TargetCommand {
 
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
+      httpsAgentOptions: target.httpsAgentOptions,
       appLoc: target.appLoc,
       serverType: target.serverType
     })

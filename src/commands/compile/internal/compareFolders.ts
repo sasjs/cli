@@ -1,9 +1,9 @@
 import {
   folderExists,
   listSubFoldersInFolder,
-  listFilesInFolder
+  listFilesInFolder,
+  isTestFile
 } from '@sasjs/utils'
-import { isTestFile } from './compileTestFile'
 
 export const compareFolders = async (
   sourcePath: string,

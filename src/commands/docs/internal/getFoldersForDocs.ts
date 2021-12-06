@@ -1,7 +1,4 @@
-import path from 'path'
-
-import { Target, Configuration } from '@sasjs/utils/types'
-import { getAbsolutePath } from '../../../utils/utils'
+import { Target, Configuration, getAbsolutePath } from '@sasjs/utils'
 
 /**
  * Returns list of folders for documentation( macroCore / macros / SAS programs/ services / jobs )

@@ -1,6 +1,5 @@
 import shelljs from 'shelljs'
 import path from 'path'
-import os from 'os'
 import ora from 'ora'
 import {
   fileExists,
@@ -290,15 +289,6 @@ export async function executeShellScript(
   })
 }
 
-export function chunk(text: string, maxLength = 220) {
-  if (text.length <= maxLength) {
-    return [text]
-  }
-  return (text.match(new RegExp('.{1,' + maxLength + '}', 'g')) || []).filter(
-    (m) => !!m
-  )
-}
-
 /**
  * Extracts plain text job log from fetched json log
  * @param {object} logJson
@@ -360,6 +350,7 @@ export function getAdapterInstance(target: Target): SASjs {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
+    httpsAgentOptions: target.httpsAgentOptions,
     contextName: target.contextName,
     useComputeApi: true,
     debug: process.env.LOG_LEVEL === LogLevel.Debug
@@ -390,11 +381,6 @@ parmcards4;
     `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
   )
 }
-
-export const getAbsolutePath = (providedPath: string, relativePath: string) =>
-  path.isAbsolute(providedPath) || /^~/.exec(providedPath)
-    ? path.normalize(providedPath.replace(/^~/, os.homedir()))
-    : path.join(relativePath, providedPath)
 
 export const loadEnvVariables = async (fileName: string) => {
   const envFileExistsInCurrentPath = await fileExists(
