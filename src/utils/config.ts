@@ -9,9 +9,11 @@ import {
   createFile,
   fileExists,
   AuthConfig,
-  SasAuthResponse
+  SasAuthResponse,
+  getAbsolutePath,
+  StreamConfig,
+  HttpsAgentOptions
 } from '@sasjs/utils'
-import { StreamConfig } from '@sasjs/utils/types/config'
 import {
   isAccessTokenExpiring,
   isRefreshTokenExpiring,
@@ -21,8 +23,7 @@ import {
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
-import { getAbsolutePath, loadEnvVariables } from './utils'
-import { HttpsAgentOptions } from '@sasjs/utils/types/httpsAgentOptions'
+import { loadEnvVariables } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {

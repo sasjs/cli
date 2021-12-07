@@ -2,11 +2,7 @@ import path from 'path'
 import os from 'os'
 import SASjs from '@sasjs/adapter/node'
 import { getAuthConfig, getStreamConfig } from '../../utils/config'
-import {
-  displaySasjsRunnerError,
-  executeShellScript,
-  getAbsolutePath
-} from '../../utils/utils'
+import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
   readFile,
   createFile,
@@ -15,7 +11,8 @@ import {
   StreamConfig,
   asyncForEach,
   AuthConfig,
-  decodeFromBase64
+  decodeFromBase64,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'

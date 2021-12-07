@@ -15,7 +15,8 @@ import {
   folderExists,
   copy,
   asyncForEach,
-  listFilesAndSubFoldersInFolder
+  listFilesAndSubFoldersInFolder,
+  isTestFile
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
@@ -29,8 +30,7 @@ import { compileJobFile } from './internal/compileJobFile'
 import {
   compileTestFile,
   compileTestFlow,
-  copyTestMacroFiles,
-  isTestFile
+  copyTestMacroFiles
 } from './internal/compileTestFile'
 import {
   getDestinationServicePath,

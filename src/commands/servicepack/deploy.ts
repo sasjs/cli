@@ -1,7 +1,6 @@
 import path from 'path'
 import { displayError, displaySuccess } from '../../utils/displayResult'
-import { Target } from '@sasjs/utils'
-import { getAbsolutePath } from '../../utils/utils'
+import { Target, getAbsolutePath } from '@sasjs/utils'
 import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
 
 export async function servicePackDeploy(

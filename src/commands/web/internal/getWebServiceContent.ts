@@ -1,5 +1,4 @@
-import { ServerType } from '@sasjs/utils'
-import { chunk } from '../../../utils'
+import { ServerType, chunk } from '@sasjs/utils'
 import { sasjsout } from './sasjsout'
 
 export const getWebServiceContent = async (

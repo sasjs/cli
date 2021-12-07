@@ -1,6 +1,5 @@
-import { Target } from '@sasjs/utils'
+import { Target, getAbsolutePath } from '@sasjs/utils'
 import { getLocalOrGlobalConfig } from '../../../utils/config'
-import { getAbsolutePath } from '../../../utils/utils'
 
 export async function getAllServiceFolders(target: Target) {
   const { configuration } = await getLocalOrGlobalConfig()

@@ -1,6 +1,6 @@
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { displayError, getAbsolutePath } from '../../utils'
+import { displayError } from '../../utils'
 import { compile } from './compile'
 import path from 'path'
 import {
@@ -8,6 +8,7 @@ import {
   getDestinationServicePath
 } from './internal/getDestinationPath'
 import { compileSingleFile } from './compileSingleFile'
+import { getAbsolutePath } from '@sasjs/utils'
 
 enum CompileSubCommand {
   Job = 'job',

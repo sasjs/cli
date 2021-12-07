@@ -1,4 +1,3 @@
-import { chunk, getAbsolutePath } from '../../utils/utils'
 import {
   readFile,
   fileExists,
@@ -7,7 +6,9 @@ import {
   createFile,
   deleteFolder,
   ServerType,
-  Target
+  Target,
+  chunk,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { getStreamConfig } from '../../utils/config'
 import path from 'path'

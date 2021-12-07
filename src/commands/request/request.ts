@@ -5,11 +5,12 @@ import {
   folderExists,
   createFile,
   createFolder,
-  decodeFromBase64
+  decodeFromBase64,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError, getAbsolutePath } from '../../utils/utils'
+import { displaySasjsRunnerError } from '../../utils/utils'
 
 export async function runSasJob(
   target: Target,
