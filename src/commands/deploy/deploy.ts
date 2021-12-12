@@ -1,6 +1,6 @@
 import path from 'path'
 import os from 'os'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { JobExecutionError } from '@sasjs/adapter/node'
 import { getAuthConfig, getStreamConfig } from '../../utils/config'
 import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
 import {
@@ -252,16 +252,27 @@ async function deployToSas9(
   })
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
-    .catch((err) => {
-      process.logger?.log(formatErrorString(err))
+    .catch(async (err) => {
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
+      } else if (err instanceof JobExecutionError) {
+        process.logger?.error('Deployment completed with errors.')
+        const errorLogPath = path.join(
+          logFilePath || process.cwd(),
+          `${path.basename(deployScript).replace('.sas', '')}.error.log`
+        )
+        await createFile(
+          errorLogPath,
+          err.result
+        )
+        process.logger?.info(`Error log is available at ${errorLogPath}`)
+        throw new Error()
+      } else {
+        process.logger?.error(formatErrorString(err))
       }
     })
 
-  if (!executionResult) {
-    process.logger?.error('Error getting execution log')
-  } else if (logFilePath) {
+  if (executionResult && logFilePath) {
     await createFile(
       path.join(
         logFilePath,
