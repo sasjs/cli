@@ -259,7 +259,7 @@ async function deployToSas9(
         process.logger?.error('Deployment completed with errors.')
         const errorLogPath = path.join(
           logFilePath || process.cwd(),
-          `${path.basename(deployScript).replace('.sas', '')}.error.log`
+          `${path.basename(deployScript).replace('.sas', '')}.log`
         )
         await createFile(
           errorLogPath,
