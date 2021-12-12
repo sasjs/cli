@@ -261,10 +261,7 @@ async function deployToSas9(
           logFilePath || process.cwd(),
           `${path.basename(deployScript).replace('.sas', '')}.log`
         )
-        await createFile(
-          errorLogPath,
-          err.result
-        )
+        await createFile(errorLogPath, err.result)
         process.logger?.info(`Error log is available at ${errorLogPath}`)
         throw new Error()
       } else {
