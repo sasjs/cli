@@ -20,6 +20,7 @@ describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`
   const viyaTargetName = `test-viya-${generateTimestamp()}`
   const sas9TargetName = `test-sas9-${generateTimestamp()}`
+  const sasjsTargetName = `test-sasjs-${generateTimestamp()}`
   let globalTestTarget: Target
 
   beforeAll(async () => {
@@ -66,6 +67,35 @@ describe('addTarget', () => {
           target: new Target(commonFields)
         })
       )
+
+    await expect(addTarget(false)).resolves.toEqual(true)
+
+    await verifyTarget(commonFields, true)
+  })
+
+  it('should create a SASJS target in the local sasjsconfig.json file', async () => {
+    const commonFields: CommonFields = {
+      scope: TargetScope.Local,
+      serverType: ServerType.Sasjs,
+      name: sasjsTargetName,
+      appLoc: '/Public/app',
+      serverUrl: process.env.SAS9_SERVER_URL as string,
+      existingTarget: {} as TargetJson
+    }
+    jest
+      .spyOn(inputModule, 'getCommonFields')
+      .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
+      Promise.resolve({
+        serverName: 'testServer',
+        repositoryName: 'testRepo',
+        userName: 'tstusr',
+        password: 'Some_Random_Password'
+      })
+    )
 
     await expect(addTarget(false)).resolves.toEqual(true)
 
@@ -180,6 +210,43 @@ describe('addTarget', () => {
       scope: TargetScope.Local,
       serverType: ServerType.Sas9,
       name: 'sas9',
+      appLoc: '/Public/app/new/location/2',
+      serverUrl: process.env.VIYA_SERVER_URL as string,
+      existingTarget: target
+    }
+    jest
+      .spyOn(inputModule, 'getCommonFields')
+      .mockImplementation(() => Promise.resolve(commonFields))
+    jest
+      .spyOn(inputModule, 'getIsDefault')
+      .mockImplementation(() => Promise.resolve(false))
+    jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
+      Promise.resolve({
+        serverName: 'testServer',
+        repositoryName: 'testRepo',
+        userName: 'tstusr',
+        password: 'Some_Random_Password'
+      })
+    )
+
+    await expect(addTarget(false)).resolves.toEqual(true)
+
+    await verifyTarget(commonFields, true)
+  })
+
+  it('should update a SASJS target in the local sasjsconfig.json file', async () => {
+    const { buildSourceFolder } = process.sasjsConstants
+    const config = await getConfiguration(
+      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
+    )
+    const target: TargetJson = (config!.targets || []).find(
+      (t: TargetJson) => t.name === 'sasjs'
+    ) as TargetJson
+
+    const commonFields: CommonFields = {
+      scope: TargetScope.Local,
+      serverType: ServerType.Sasjs,
+      name: 'sasjs',
       appLoc: '/Public/app/new/location/2',
       serverUrl: process.env.VIYA_SERVER_URL as string,
       existingTarget: target

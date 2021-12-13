@@ -13,7 +13,8 @@ import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
   getCredentialsInputForViya,
-  getCredentialsInputSas9
+  getCredentialsInputSas9,
+  getCredentialsInputSasjs
 } from './internal/input'
 import { TargetScope } from '../../types/targetScope'
 import { saveConfig } from './internal/saveConfig'
@@ -49,55 +50,84 @@ export const addCredential = async (
     process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   }
 
-  if (target.serverType === ServerType.SasViya) {
-    const { client, secret } = await getCredentialsInputForViya(target.name)
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      {
+        const { client, secret } = await getCredentialsInputForViya(target.name)
 
-    const { access_token, refresh_token } = await getTokens(
-      target,
-      client,
-      secret,
-      httpsAgentOptions
-    )
+        const { access_token, refresh_token } = await getTokens(
+          target,
+          client,
+          secret,
+          httpsAgentOptions
+        )
 
-    if (targetScope === TargetScope.Local) {
-      await createEnvFileForViya(
-        target.name,
-        client,
-        secret,
-        access_token,
-        refresh_token
+        if (targetScope === TargetScope.Local) {
+          await createEnvFileForViya(
+            target.name,
+            client,
+            secret,
+            access_token,
+            refresh_token
+          )
+        } else {
+          target = new Target({
+            ...target.toJson(false),
+            authConfig: { client, secret, access_token, refresh_token }
+          })
+        }
+      }
+      break
+    case ServerType.Sas9:
+      {
+        const { userName, password } = await getCredentialsInputSas9(
+          target,
+          targetScope
+        )
+
+        if (targetScope === TargetScope.Local) {
+          await createEnvFileForSas9(target.name, userName, password)
+        } else {
+          target = new Target({
+            ...target.toJson(false),
+            authConfigSas9: { userName, password }
+          })
+        }
+      }
+      break
+    case ServerType.Sasjs:
+      {
+        const { client } = await getCredentialsInputSasjs(target)
+
+        const { access_token, refresh_token } = await getTokens(
+          target,
+          client,
+          '',
+          httpsAgentOptions
+        )
+
+        if (targetScope === TargetScope.Local) {
+          await createEnvFileForSasjs(
+            target.name,
+            client,
+            access_token,
+            refresh_token
+          )
+        } else {
+          target = new Target({
+            ...target.toJson(false),
+            authConfig: { client, secret: '', access_token, refresh_token }
+          })
+        }
+      }
+      break
+    default:
+      throw new Error(
+        'Target contains invalid serverType. Possible types could be SASVIYA, SAS9 and SASJS'
       )
-    } else {
-      target = new Target({
-        ...target.toJson(false),
-        authConfig: { client, secret, access_token, refresh_token }
-      })
-    }
-
-    const filePath = await saveConfig(targetScope, target, false, false)
-    process.logger?.info(`Target configuration has been saved to ${filePath} .`)
-  } else if (target.serverType === ServerType.Sas9) {
-    const { userName, password } = await getCredentialsInputSas9(
-      target,
-      targetScope
-    )
-
-    if (targetScope === TargetScope.Local) {
-      await createEnvFileForSas9(target.name, userName, password)
-    } else {
-      target = new Target({
-        ...target.toJson(false),
-        authConfigSas9: { userName, password }
-      })
-    }
-
-    const filePath = await saveConfig(targetScope, target, false, false)
-    process.logger?.info(`Target configuration has been saved to ${filePath} .`)
-  } else {
-    throw new Error(
-      'Target contains invalid serverType. Possible types could be SASVIYA and SAS9.'
-    )
   }
+  const filePath = await saveConfig(targetScope, target, false, false)
+  process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   return target
 }
 
@@ -118,32 +148,33 @@ export const validateTargetName = (targetName: string): string => {
 
   return targetName
 }
-
 export const getTokens = async (
   target: Target,
   client: string,
   secret: string,
   httpsAgentOptions?: HttpsAgentOptions
-): Promise<SasAuthResponse> => {
+) => {
   const adapter = new SASjs({
     serverUrl: target.serverUrl,
     serverType: target.serverType,
     httpsAgentOptions,
     debug: process.logger?.logLevel === LogLevel.Debug
   })
-  const authResponse: SasAuthResponse = await getNewAccessToken(
+  const { access_token, refresh_token } = await getNewAccessToken(
     adapter,
     client,
     secret,
     target
   ).catch((e) => {
     process.logger?.error(
-      `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID and Client Secret and try again.\n`
+      `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID ${
+        target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
+      }and try again.\n`
     )
     throw e
   })
 
-  return authResponse
+  return { access_token, refresh_token }
 }
 
 export const createEnvFileForViya = async (
@@ -165,6 +196,18 @@ export const createEnvFileForSas9 = async (
   password: string
 ): Promise<void> => {
   const envFileContent = `SAS_USERNAME=${userName}\nSAS_PASSWORD=${password}\n`
+  const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+  await createFile(envFilePath, envFileContent)
+  process.logger?.success(`Environment file saved at ${envFilePath}`)
+}
+
+export const createEnvFileForSasjs = async (
+  targetName: string,
+  client: string,
+  accessToken: string,
+  refreshToken: string
+): Promise<void> => {
+  const envFileContent = `CLIENT=${client}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
   await createFile(envFilePath, envFileContent)
   process.logger?.success(`Environment file saved at ${envFilePath}`)

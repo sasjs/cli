@@ -67,11 +67,19 @@ async function getAndValidateServerType(): Promise<ServerType> {
     'Please choose either option 1 or 2.',
     [
       { title: '1. SAS Viya', value: 1 },
-      { title: '2. SAS 9', value: 2 }
+      { title: '2. SAS 9', value: 2 },
+      { title: '3. SAS JS', value: 3 }
     ]
   )
 
-  return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
+  switch (serverType) {
+    case 1:
+      return ServerType.SasViya
+    case 2:
+      return ServerType.Sas9
+    default:
+      return ServerType.Sasjs
+  }
 }
 
 export async function getAndValidateServerUrl(target?: TargetJson) {
@@ -102,7 +110,12 @@ async function getAndValidateTargetName(
     return true
   }
 
-  const defaultName = serverType === ServerType.SasViya ? 'viya' : 'sas9'
+  const defaultName =
+    serverType === ServerType.SasViya
+      ? 'viya'
+      : serverType === ServerType.Sas9
+      ? 'sas9'
+      : 'server'
 
   const targetName = await getString(
     'Please enter a target name: ',
@@ -267,6 +280,15 @@ export const getCredentialsInputForViya = async (targetName: string) => {
   )
 
   return { client, secret }
+}
+
+export const getCredentialsInputSasjs = async (target: Target) => {
+  const client = await getString(
+    'Please enter your Client ID: ',
+    (v) => !!v || 'Client ID is required.',
+    getDefaultValues(target.name).client
+  )
+  return { client }
 }
 
 export const getCredentialsInputSas9 = async (
