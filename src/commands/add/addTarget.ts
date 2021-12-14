@@ -4,7 +4,8 @@ import {
   getCommonFields,
   getAndValidateSasViyaFields,
   getAndValidateSas9Fields,
-  getIsDefault
+  getIsDefault,
+  getAndValidateSasjsFields
 } from './internal/input'
 import { saveConfig } from './internal/saveConfig'
 import { addCredential, createEnvFileForSas9 } from './addCredential'
@@ -34,41 +35,59 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
-  if (serverType === ServerType.Sas9) {
-    const { serverName, repositoryName, userName, password } =
-      await getAndValidateSas9Fields(target, scope)
-    targetJson = {
-      ...targetJson,
-      serverName,
-      repositoryName
-    }
-    if (scope === TargetScope.Local) {
-      createEnvFileForSas9(name, userName, password)
-    } else {
+  switch (serverType) {
+    case ServerType.Sas9:
+      const { serverName, repositoryName, userName, password } =
+        await getAndValidateSas9Fields(target, scope)
       targetJson = {
         ...targetJson,
-        authConfigSas9: { userName, password }
+        serverName,
+        repositoryName
       }
-    }
-  } else {
-    const { contextName, target: updatedTarget } =
-      await getAndValidateSasViyaFields(
+      if (scope === TargetScope.Local) {
+        createEnvFileForSas9(name, userName, password)
+      } else {
+        targetJson = {
+          ...targetJson,
+          authConfigSas9: { userName, password }
+        }
+      }
+
+      break
+    case ServerType.SasViya:
+      const { contextName, target: updatedViyaTarget } =
+        await getAndValidateSasViyaFields(
+          target,
+          scope,
+          serverUrl,
+          insecure,
+          addCredential
+        )
+
+      targetJson = {
+        contextName,
+        deployConfig: {
+          deployServicePack: true,
+          deployScripts: []
+        }
+      }
+
+      targetJson = { ...updatedViyaTarget.toJson(false), ...targetJson }
+
+      break
+    case ServerType.Sasjs:
+      const { target: updatedSasjsTarget } = await getAndValidateSasjsFields(
         target,
         scope,
-        serverUrl,
         insecure,
         addCredential
       )
-
-    targetJson = {
-      contextName,
-      deployConfig: {
-        deployServicePack: true,
-        deployScripts: []
-      }
-    }
-
-    targetJson = { ...updatedTarget.toJson(false), ...targetJson }
+      targetJson = updatedSasjsTarget.toJson(false)
+      break
+    default:
+      throw new Error(
+        'Target contains invalid serverType. Possible types could be SASVIYA, SAS9 and SASJS'
+      )
   }
 
   const isDefault = await getIsDefault()

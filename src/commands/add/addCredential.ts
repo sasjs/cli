@@ -1,11 +1,6 @@
 import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
-import {
-  SasAuthResponse,
-  ServerType,
-  Target,
-  HttpsAgentOptions
-} from '@sasjs/utils/types'
+import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
 
 import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'

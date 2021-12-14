@@ -177,6 +177,9 @@ export async function getAndValidateSas9Fields(
   return { serverName, repositoryName, userName, password }
 }
 
+export const shouldAuthenticate = async () =>
+  getConfirmation('Would you like to authenticate against this target?', true)
+
 export async function getAndValidateSasViyaFields(
   target: Target,
   scope: TargetScope,
@@ -192,12 +195,8 @@ export async function getAndValidateSasViyaFields(
   target: Target
 }> {
   let contextName = 'SAS Job Execution compute context'
-  const shouldAuthenticate = await getConfirmation(
-    'Would you like to authenticate against this target?',
-    true
-  )
 
-  if (shouldAuthenticate) {
+  if (await shouldAuthenticate()) {
     target = await authenticateCallback(target, insecure, scope)
 
     const httpsAgentOptions = insecure
@@ -248,6 +247,23 @@ export async function getAndValidateSasViyaFields(
     contextName,
     target
   }
+}
+export async function getAndValidateSasjsFields(
+  target: Target,
+  scope: TargetScope,
+  insecure: boolean,
+  authenticateCallback: (
+    target: Target,
+    insecure: boolean,
+    targetScope: TargetScope
+  ) => Promise<Target>
+): Promise<{
+  target: Target
+}> {
+  if (await shouldAuthenticate())
+    target = await authenticateCallback(target, insecure, scope)
+
+  return { target }
 }
 
 async function getAndValidateAppLoc(

@@ -20,7 +20,7 @@ describe('addTarget', () => {
   const appName = `cli-tests-add-${generateTimestamp()}`
   const viyaTargetName = `test-viya-${generateTimestamp()}`
   const sas9TargetName = `test-sas9-${generateTimestamp()}`
-  const sasjsTargetName = `test-sasjs-${generateTimestamp()}`
+  const sasjsTargetName = `test-server-${generateTimestamp()}`
   let globalTestTarget: Target
 
   beforeAll(async () => {
@@ -79,7 +79,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sasjs,
       name: sasjsTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SAS9_SERVER_URL as string,
+      serverUrl: process.env.SASJS_SERVER_URL as string,
       existingTarget: {} as TargetJson
     }
     jest
@@ -88,14 +88,13 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getIsDefault')
       .mockImplementation(() => Promise.resolve(false))
-    jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
-      Promise.resolve({
-        serverName: 'testServer',
-        repositoryName: 'testRepo',
-        userName: 'tstusr',
-        password: 'Some_Random_Password'
-      })
-    )
+    jest
+      .spyOn(inputModule, 'getAndValidateSasjsFields')
+      .mockImplementation(() =>
+        Promise.resolve({
+          target: new Target(commonFields)
+        })
+      )
 
     await expect(addTarget(false)).resolves.toEqual(true)
 
@@ -239,17 +238,17 @@ describe('addTarget', () => {
     const config = await getConfiguration(
       path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
     )
-    const target: TargetJson = (config!.targets || []).find(
-      (t: TargetJson) => t.name === 'sasjs'
+    const targetJson: TargetJson = (config!.targets || []).find(
+      (t: TargetJson) => t.name === 'server'
     ) as TargetJson
 
     const commonFields: CommonFields = {
       scope: TargetScope.Local,
       serverType: ServerType.Sasjs,
-      name: 'sasjs',
+      name: 'server',
       appLoc: '/Public/app/new/location/2',
-      serverUrl: process.env.VIYA_SERVER_URL as string,
-      existingTarget: target
+      serverUrl: process.env.SASJS_SERVER_URL as string,
+      existingTarget: targetJson
     }
     jest
       .spyOn(inputModule, 'getCommonFields')
@@ -257,14 +256,13 @@ describe('addTarget', () => {
     jest
       .spyOn(inputModule, 'getIsDefault')
       .mockImplementation(() => Promise.resolve(false))
-    jest.spyOn(inputModule, 'getAndValidateSas9Fields').mockImplementation(() =>
-      Promise.resolve({
-        serverName: 'testServer',
-        repositoryName: 'testRepo',
-        userName: 'tstusr',
-        password: 'Some_Random_Password'
-      })
-    )
+    jest
+      .spyOn(inputModule, 'getAndValidateSasjsFields')
+      .mockImplementation(() =>
+        Promise.resolve({
+          target: new Target({ ...targetJson, ...commonFields })
+        })
+      )
 
     await expect(addTarget(false)).resolves.toEqual(true)
 
