@@ -35,13 +35,23 @@ export const updateAllTags = async (
 
   const styleTags = getStyleTags(parsedHtml)
   const faviconTags = getFaviconTags(parsedHtml)
-  const imgTags = getImgTags(parsedHtml)
+  const linkTags = [...styleTags, ...faviconTags]
 
-  const tags = [...styleTags, ...faviconTags, ...imgTags]
-  tags.forEach((tag) => {
+  linkTags.forEach((tag) => {
     try {
       updateLinkTag(tag, assetPathMap)
     } catch (error) {
+      console.log(tag, error)
+      assetsNotFound.push(error as Error)
+    }
+  })
+
+  const imgTags = getImgTags(parsedHtml)
+  imgTags.forEach((tag) => {
+    try {
+      updateLinkTag(tag, assetPathMap, 'image')
+    } catch (error) {
+      console.log(tag, error)
       assetsNotFound.push(error as Error)
     }
   })

@@ -35,7 +35,7 @@ describe('updateLinkTag', () => {
       target: sasProgramPath
     })
 
-    updateLinkTag(imgTag, assetPathMap)
+    updateLinkTag(imgTag, assetPathMap, 'image')
     expect(imgTag.getAttribute('src')).toEqual(sasProgramPath)
   })
 })

@@ -1,9 +1,10 @@
 export const updateLinkTag = (
   linkTag: HTMLLinkElement | HTMLImageElement,
-  assetPathMap: { source: string; target: string }[]
+  assetPathMap: { source: string; target: string }[],
+  tagType: 'link' | 'image' = 'link'
 ) => {
   const linkSourcePath =
-    linkTag instanceof HTMLLinkElement
+    tagType === 'link'
       ? linkTag.getAttribute('href')
       : linkTag.getAttribute('src')
 
@@ -22,7 +23,7 @@ export const updateLinkTag = (
     throw new Error(`Unable to find file: ${linkSourcePath}`)
   }
 
-  linkTag instanceof HTMLLinkElement
+  tagType === 'link'
     ? linkTag.setAttribute('href', assetPath.target)
     : linkTag.setAttribute('src', assetPath.target)
 }
