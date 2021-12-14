@@ -1,8 +1,13 @@
 import { JSDOM } from 'jsdom'
 import { asyncForEach, ServerType } from '@sasjs/utils'
-import { getFaviconTags, getLinkTags, getScriptTags } from './getTags'
+import {
+  getFaviconTags,
+  getImgTags,
+  getStyleTags,
+  getScriptTags
+} from './getTags'
 import { updateScriptTag } from './updateScriptTag'
-import { updateLinkHref } from './updateLinkHref'
+import { updateLinkTag } from './updateLinkTag'
 
 interface paramsType {
   webSourcePathFull: string
@@ -28,19 +33,14 @@ export const updateAllTags = async (
     ).catch((e) => assetsNotFound.push(e))
   })
 
-  const linkTags = getLinkTags(parsedHtml)
-  linkTags.forEach((linkTag) => {
-    try {
-      updateLinkHref(linkTag, assetPathMap)
-    } catch (error) {
-      assetsNotFound.push(error as Error)
-    }
-  })
-
+  const styleTags = getStyleTags(parsedHtml)
   const faviconTags = getFaviconTags(parsedHtml)
-  faviconTags.forEach((faviconTag) => {
+  const imgTags = getImgTags(parsedHtml)
+
+  const tags = [...styleTags, ...faviconTags, ...imgTags]
+  tags.forEach((tag) => {
     try {
-      updateLinkHref(faviconTag, assetPathMap)
+      updateLinkTag(tag, assetPathMap)
     } catch (error) {
       assetsNotFound.push(error as Error)
     }

@@ -1,0 +1,28 @@
+export const updateLinkTag = (
+  linkTag: HTMLLinkElement | HTMLImageElement,
+  assetPathMap: { source: string; target: string }[]
+) => {
+  const linkSourcePath =
+    linkTag instanceof HTMLLinkElement
+      ? linkTag.getAttribute('href')
+      : linkTag.getAttribute('src')
+
+  if (!linkSourcePath) return
+
+  const isUrl =
+    linkSourcePath.startsWith('http') || linkSourcePath.startsWith('//')
+  if (isUrl) return
+
+  const assetPath = assetPathMap.find(
+    (entry) =>
+      entry.source === linkSourcePath || `./${entry.source}` === linkSourcePath
+  )
+
+  if (!assetPath?.target) {
+    throw new Error(`Unable to find file: ${linkSourcePath}`)
+  }
+
+  linkTag instanceof HTMLLinkElement
+    ? linkTag.setAttribute('href', assetPath.target)
+    : linkTag.setAttribute('src', assetPath.target)
+}
