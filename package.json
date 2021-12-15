@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "3.0.0",
-    "@sasjs/core": "2.45.2",
+    "@sasjs/core": "2.54.1",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.34.1",
     "chalk": "4.1.2",
@@ -91,7 +91,7 @@
     "jest-extended": "1.1.0",
     "nodemon": "2.0.13",
     "semantic-release": "17.4.7",
-    "ts-jest": "27.0.5",
+    "ts-jest": "27.1.1",
     "ts-node": "10.2.1",
     "tslib": "2.3.1",
     "typescript": "4.3.5",
