@@ -496,10 +496,7 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
   } as StreamConfig
 }
 
-export function getMacroCorePath() {
-  const { macroCorePath } = process.sasjsConstants
-  return macroCorePath
-}
+export const getMacroCorePath = () => process.sasjsConstants.macroCorePath
 
 /**
  * Sanitizes app location string.
@@ -607,8 +604,6 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     )
   }
 
-  let authConfig: SasAuthResponse
-
   if (isAccessTokenExpiring(access_token)) {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
@@ -616,14 +611,15 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       serverType: target.serverType
     })
 
+    let tokens
     if (isRefreshTokenExpiring(refresh_token)) {
-      authConfig = await getNewAccessToken(sasjs, client, secret, target)
+      tokens = await getNewAccessToken(sasjs, client, secret, target)
     } else {
-      authConfig = await refreshTokens(sasjs, client, secret, refresh_token!)
+      tokens = await refreshTokens(sasjs, client, secret, refresh_token!)
     }
 
-    access_token = authConfig?.access_token || access_token
-    refresh_token = authConfig?.refresh_token || refresh_token
+    access_token = tokens?.access_token || access_token
+    refresh_token = tokens?.refresh_token || refresh_token
   }
 
   return {
@@ -722,15 +718,15 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
         ? undefined
         : refreshToken
 
-    let authConfig
+    let tokens
 
     if (isRefreshTokenExpiring(refreshToken)) {
-      authConfig = await getNewAccessToken(sasjs, client, secret, target)
+      tokens = await getNewAccessToken(sasjs, client, secret, target)
     } else {
-      authConfig = await refreshTokens(sasjs, client, secret, refreshToken!)
+      tokens = await refreshTokens(sasjs, client, secret, refreshToken!)
     }
 
-    accessToken = authConfig?.access_token
+    accessToken = tokens?.access_token
   }
 
   return accessToken

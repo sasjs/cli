@@ -18,6 +18,14 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.png'
       contenttype='image/png' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=JPG %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpg'
+      contenttype='image/jpg' lrecl=2000000 recfm=n;
+  %end;
+  %else %if &type=JPEG %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpeg'
+      contenttype='image/jpeg' lrecl=2000000 recfm=n;
+  %end;
   %else %if &type=ICO %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ico'
       contenttype='image/vnd.microsoft.icon' lrecl=2000000 recfm=n;
@@ -50,6 +58,12 @@ export const sasjsout = `
   %end;
   %else %if &type=PNG %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/png));
+  %end;
+  %else %if &type=JPG %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpg));
+  %end;
+  %else %if &type=JPEG %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpeg));
   %end;
   %else %if &type=ICO %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
@@ -107,7 +121,7 @@ export const sasjsout = `
 
 /* stream byte by byte */
 /* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=ICO or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG
+%if &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG
 %then %do;
   data _null_;
     length filein 8 fileout 8;

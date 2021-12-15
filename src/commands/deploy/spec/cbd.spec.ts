@@ -1,11 +1,12 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target, generateTimestamp } from '@sasjs/utils'
+import { ServerType, Target, generateTimestamp, readFile } from '@sasjs/utils'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
 import { createLocalTarget, updateLocalTarget } from './utils'
 import { findTargetInConfiguration } from '../../../utils/config'
+import { removeComments } from '../../../utils'
 
 describe('sasjs cbd with server type SASJS', () => {
   let target: Target
@@ -52,6 +53,16 @@ describe('sasjs cbd with server type SASJS', () => {
     await expect(build(customTarget)).toResolve()
     await deploy(customTarget, true, sasjs)
 
+    const { macroCorePath } = process.sasjsConstants
+
+    const mf_getuser = await readFile(`${macroCorePath}/base/mf_getuser.sas`)
+    const mp_jsonout = await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
+    const ms_webout = await readFile(`${macroCorePath}/server/ms_webout.sas`)
+    const webout =
+      '  %macro webout(action,ds,dslabel=,fmt=);\n' +
+      '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
+      '  %mend;\n'
+
     expect(sasjs.deployToSASjs).toHaveBeenCalledWith({
       members: [
         {
@@ -65,12 +76,18 @@ describe('sasjs cbd with server type SASJS', () => {
                 {
                   name: 'appinit',
                   type: 'service',
-                  code: '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
+                  code: removeComments(
+                    `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
+                      '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
+                  )
                 },
                 {
                   name: 'getdata',
                   type: 'service',
-                  code: '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
+                  code: removeComments(
+                    `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
+                      '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
+                  )
                 }
               ]
             }

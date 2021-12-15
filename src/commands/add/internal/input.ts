@@ -67,11 +67,19 @@ async function getAndValidateServerType(): Promise<ServerType> {
     'Please choose either option 1 or 2.',
     [
       { title: '1. SAS Viya', value: 1 },
-      { title: '2. SAS 9', value: 2 }
+      { title: '2. SAS 9', value: 2 },
+      { title: '3. SAS JS', value: 3 }
     ]
   )
 
-  return serverType === 1 ? ServerType.SasViya : ServerType.Sas9
+  switch (serverType) {
+    case 1:
+      return ServerType.SasViya
+    case 2:
+      return ServerType.Sas9
+    default:
+      return ServerType.Sasjs
+  }
 }
 
 export async function getAndValidateServerUrl(target?: TargetJson) {
@@ -102,7 +110,12 @@ async function getAndValidateTargetName(
     return true
   }
 
-  const defaultName = serverType === ServerType.SasViya ? 'viya' : 'sas9'
+  const defaultName =
+    serverType === ServerType.SasViya
+      ? 'viya'
+      : serverType === ServerType.Sas9
+      ? 'sas9'
+      : 'server'
 
   const targetName = await getString(
     'Please enter a target name: ',
@@ -164,6 +177,9 @@ export async function getAndValidateSas9Fields(
   return { serverName, repositoryName, userName, password }
 }
 
+export const shouldAuthenticate = async () =>
+  getConfirmation('Would you like to authenticate against this target?', true)
+
 export async function getAndValidateSasViyaFields(
   target: Target,
   scope: TargetScope,
@@ -179,12 +195,8 @@ export async function getAndValidateSasViyaFields(
   target: Target
 }> {
   let contextName = 'SAS Job Execution compute context'
-  const shouldAuthenticate = await getConfirmation(
-    'Would you like to authenticate against this target?',
-    true
-  )
 
-  if (shouldAuthenticate) {
+  if (await shouldAuthenticate()) {
     target = await authenticateCallback(target, insecure, scope)
 
     const httpsAgentOptions = insecure
@@ -236,6 +248,23 @@ export async function getAndValidateSasViyaFields(
     target
   }
 }
+export async function getAndValidateSasjsFields(
+  target: Target,
+  scope: TargetScope,
+  insecure: boolean,
+  authenticateCallback: (
+    target: Target,
+    insecure: boolean,
+    targetScope: TargetScope
+  ) => Promise<Target>
+): Promise<{
+  target: Target
+}> {
+  if (await shouldAuthenticate())
+    target = await authenticateCallback(target, insecure, scope)
+
+  return { target }
+}
 
 async function getAndValidateAppLoc(
   targetName: string,
@@ -267,6 +296,15 @@ export const getCredentialsInputForViya = async (targetName: string) => {
   )
 
   return { client, secret }
+}
+
+export const getCredentialsInputSasjs = async (target: Target) => {
+  const client = await getString(
+    'Please enter your Client ID: ',
+    (v) => !!v || 'Client ID is required.',
+    getDefaultValues(target.name).client
+  )
+  return { client }
 }
 
 export const getCredentialsInputSas9 = async (

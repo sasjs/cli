@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "3.0.0",
-    "@sasjs/core": "2.45.2",
+    "@sasjs/core": "2.54.1",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.34.1",
     "chalk": "4.1.2",

@@ -6,7 +6,10 @@ export const reactAppFiles: Folder = {
     { fileName: 'package.json' },
     { fileName: 'package-lock.json' },
     { fileName: 'tsconfig.json' },
-    { fileName: 'README.md' }
+    { fileName: 'README.md' },
+    { fileName: 'webpack.common.js' },
+    { fileName: 'webpack.dev.js' },
+    { fileName: 'webpack.prod.js' }
   ],
   subFolders: [
     {
@@ -35,12 +38,9 @@ export const reactAppFiles: Folder = {
       folderName: 'src',
       files: [
         { fileName: 'App.scss' },
-        { fileName: 'cached_data.ts' },
         { fileName: 'index.scss' },
         { fileName: 'index.tsx' },
-        { fileName: 'logo.svg' },
-        { fileName: 'react-app-env.d.ts' },
-        { fileName: 'serviceWorker.ts' }
+        { fileName: 'logo.svg' }
       ],
       subFolders: [
         {

@@ -1,10 +1,15 @@
-import { getString, SasAuthResponse, Target } from '@sasjs/utils'
+import { getString, ServerType, Target } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
 import SASjs from '@sasjs/adapter/node'
 
-export function getAuthUrl(serverUrl: string, clientId: string) {
-  return `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
-}
+export const getAuthUrl = (
+  serverType: ServerType,
+  serverUrl: string,
+  clientId: string
+) =>
+  serverType === ServerType.Sasjs
+    ? `${serverUrl}/#/SASjsLogon?client_id=${clientId}&response_type=code`
+    : `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
 
 export async function getAuthCode(authUrl: string) {
   const logger = process.logger || console
@@ -61,14 +66,14 @@ export async function refreshTokens(
   clientId: string,
   clientSecret: string,
   refreshToken: string
-): Promise<SasAuthResponse> {
-  const authResponse = await sasjsInstance.refreshTokens(
+) {
+  const { access_token, refresh_token } = await sasjsInstance.refreshTokens(
     clientId,
     clientSecret,
     refreshToken
   )
 
-  return authResponse
+  return { access_token, refresh_token }
 }
 
 export async function getNewAccessToken(
@@ -76,14 +81,14 @@ export async function getNewAccessToken(
   clientId: string,
   clientSecret: string,
   target: Target
-): Promise<SasAuthResponse> {
-  const authUrl = getAuthUrl(target.serverUrl, clientId)
+) {
+  const authUrl = getAuthUrl(target.serverType, target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
-  const authResponse = await sasjsInstance.getAccessToken(
+  const { access_token, refresh_token } = await sasjsInstance.getAccessToken(
     clientId,
     clientSecret,
     authCode
   )
 
-  return authResponse
+  return { access_token, refresh_token }
 }
