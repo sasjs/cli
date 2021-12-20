@@ -161,6 +161,8 @@ export async function runTest(
 
     const printTestUrl = () => process.logger.info(`Test URL: ${testUrl}`)
 
+    printTestUrl()
+
     await sasjs
       .request(
         sasJobLocation,
@@ -213,8 +215,6 @@ export async function runTest(
         }
 
         if (!res.result?.test_results) lineBreak = false
-
-        printTestUrl()
 
         if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
