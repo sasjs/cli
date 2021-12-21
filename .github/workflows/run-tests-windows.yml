@@ -56,5 +56,6 @@ jobs:
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
           SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
