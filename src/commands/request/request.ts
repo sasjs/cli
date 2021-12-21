@@ -11,10 +11,8 @@ import {
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
 import {
-  displaySasjsRunnerError,
-  parseLogLines
+  displaySasjsRunnerError
 } from '../../utils/utils'
-import { fetchLogFileContent } from '../shared/fetchLogFileContent'
 import { saveLog } from '../../utils/saveLog'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 
@@ -168,16 +166,16 @@ const writeOutput = async (
   output: any,
   isLocal: boolean
 ) => {
-  let outputPath = path.join(process.projectDir, isLocal ? '/sasjsbuild' : '')
+  let outputPath = path.join(process.projectDir, isLocal ? 'sasjsbuild' : '')
 
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
     outputPathParam = path.join(process.projectDir, outputPathParam || '')
 
-    let outputPathArr = outputPathParam.split('/')
+    let outputPathArr = outputPathParam.split(path.sep)
     outputFilename = outputPathArr.pop()
-    outputPath = outputPathArr.join('/')
+    outputPath = outputPathArr.join(path.sep)
   }
 
   if (!(await folderExists(outputPath))) {
@@ -185,9 +183,9 @@ const writeOutput = async (
   }
 
   if (outputFilename) {
-    outputPath += `/${outputFilename}`
+    outputPath += `${path.sep}${outputFilename}`
   } else {
-    outputPath += '/output.json'
+    outputPath += `${path.sep}output.json`
   }
 
   let outputString = ''

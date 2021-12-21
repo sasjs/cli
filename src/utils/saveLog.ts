@@ -15,7 +15,7 @@ export const saveLog = async (
   } else {
     logPath = path.join(
       process.projectDir,
-      `${jobPath.split('/').slice(-1).pop()}.log`
+      `${jobPath.split(path.sep).slice(-1).pop()}.log`
     )
   }
 
