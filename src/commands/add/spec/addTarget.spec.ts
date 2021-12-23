@@ -79,7 +79,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sasjs,
       name: sasjsTargetName,
       appLoc: '/Public/app',
-      serverUrl: process.env.SASJS_SERVER_URL as string,
+      serverUrl: process.env.SASJS_SERVER_URL || '',
       existingTarget: {} as TargetJson
     }
     jest
@@ -247,7 +247,7 @@ describe('addTarget', () => {
       serverType: ServerType.Sasjs,
       name: 'server',
       appLoc: '/Public/app/new/location/2',
-      serverUrl: process.env.SASJS_SERVER_URL as string,
+      serverUrl: process.env.SASJS_SERVER_URL || '',
       existingTarget: targetJson
     }
     jest

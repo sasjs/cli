@@ -1,6 +1,5 @@
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { isJsonFile } from '../../../../utils/file'
-import { parseLogLines } from '../../../../utils/utils'
 import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
 import path from 'path'
 import SASjs, {
@@ -160,15 +159,6 @@ export async function executeJobViya(
     const sessionLink = submittedJob.links.find(
       (l: Link) => l.method === 'GET' && l.rel === 'self'
     ).href
-
-    if (!returnStatusOnly) {
-      displaySuccess(
-        (waitForJob
-          ? `Job located at '${jobPath}' has been executed.\nJob details`
-          : `Job session`) +
-          ` can be found at ${target.serverUrl + sessionLink}`
-      )
-    }
 
     if (output || logFile) {
       try {
