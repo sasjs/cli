@@ -166,7 +166,7 @@ const writeOutput = async (
   output: any,
   isLocal: boolean
 ) => {
-  let outputPath = path.join(process.projectDir, isLocal ? 'sasjsbuild' : '')
+  let outputPath = path.join(process.projectDir, isLocal ? '' : '')
 
   let outputFilename: string | undefined
 
