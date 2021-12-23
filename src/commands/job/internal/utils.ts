@@ -20,7 +20,7 @@ export const saveLog = async (
     )
   }
 
-  let folderPath = logPath.split(path.sep)
+  const folderPath = logPath.split(path.sep)
   folderPath.pop()
   const parentFolderPath = folderPath.join(path.sep)
 
@@ -28,9 +28,9 @@ export const saveLog = async (
     await createFolder(parentFolderPath)
   }
 
-  let logLines = typeof logData === 'object' ? parseLogLines(logData) : logData
+  const logLines =
+    typeof logData === 'object' ? parseLogLines(logData) : logData
 
-  process.logger?.info(`Creating log file at ${logPath} .`)
   await createFile(logPath, logLines)
 
   if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)

@@ -23,12 +23,6 @@ export const fetchLogFileContent = async (
   const loglimit = logCount < 10000 ? logCount : 10000
   let start = 0
   do {
-    process.logger?.info(
-      `Fetching logs from line no: ${start + 1} to ${
-        start + loglimit
-      } of ${logCount}.`
-    )
-
     const logChunkJson = JSON.parse(
       (await sasjs.fetchLogFileContent(
         `${logUrl}?start=${start}&limit=${loglimit}`,

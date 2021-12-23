@@ -87,11 +87,7 @@ function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  const gitBranch = repoUrl.includes('template_sasonly')
-    ? 'master'
-    : repoUrl.includes('template_jobs')
-    ? 'master'
-    : 'main'
+  const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
 
   shelljs.exec(
     `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
