@@ -224,7 +224,10 @@ export class ContextCommand extends TargetCommand {
     const sasjs = new SASjs({
       serverUrl: target.serverUrl,
       httpsAgentOptions: target.httpsAgentOptions,
+      appLoc: target.appLoc,
+      serverType: target.serverType
     })
+    const config = await this.getConfig().catch((err) => {
       process.logger?.error(
         `Unable to edit context. Error fetching context configuration from ${this.parsed.source}: `,
         err
