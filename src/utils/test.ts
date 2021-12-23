@@ -88,7 +88,7 @@ export const removeTestServerFolder = async (
     appLoc: target.appLoc,
     serverType: target.serverType
   })
-  
+
   const accessToken = process.env.ACCESS_TOKEN as string
   await deleteServerFolder(folderPath, sasjs, accessToken)
 }

@@ -10,9 +10,7 @@ import {
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import {
-  displaySasjsRunnerError
-} from '../../utils/utils'
+import { displaySasjsRunnerError } from '../../utils/utils'
 import { saveLog } from '../../utils/saveLog'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 
