@@ -8,7 +8,8 @@ import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { executeJobViya, executeJobSasjs } from './internal/execute'
 
 enum JobSubCommand {
-  Execute = 'execute'
+  Execute = 'execute',
+  Exec = 'exec'
 }
 
 const syntax = 'job <subCommand> <jobPath> [options]'
@@ -74,10 +75,15 @@ const executeParseOptions = {
 }
 
 export class JobCommand extends TargetCommand {
+  private jobSubCommands: any[]
+
   constructor(args: string[]) {
+    const jobSubCommands: string[] = (<any>Object).values(JobSubCommand)
     const subCommand = args[3]
-    const parseOptions =
-      subCommand === JobSubCommand.Execute ? executeParseOptions : {}
+    const parseOptions = jobSubCommands.includes(subCommand)
+      ? executeParseOptions
+      : {}
+
     super(args, {
       parseOptions,
       usage,
@@ -85,6 +91,8 @@ export class JobCommand extends TargetCommand {
       examples,
       syntax
     })
+
+    this.jobSubCommands = jobSubCommands
   }
 
   public async execute() {
@@ -111,7 +119,7 @@ export class JobCommand extends TargetCommand {
 
         if (!authConfig) return ReturnCode.InternalError
 
-        return this.parsed.subCommand === JobSubCommand.Execute
+        return this.jobSubCommands.includes(this.parsed.subCommand)
           ? await this.executeJobViya(target, sasjs, authConfig)
           : ReturnCode.InvalidCommand
 
@@ -124,7 +132,7 @@ export class JobCommand extends TargetCommand {
         if (typeof this.parsed.jobPath !== 'string')
           return ReturnCode.InvalidCommand
 
-        return this.parsed.subCommand === JobSubCommand.Execute
+        return this.jobSubCommands.includes(this.parsed.subCommand)
           ? await this.executeJobSasjs(sasjs, target)
           : ReturnCode.InvalidCommand
       default:
