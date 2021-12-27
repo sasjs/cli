@@ -172,6 +172,7 @@ describe('sasjs compile single file', () => {
   describe('job', () => {
     beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
+      console.log(`🤖[compile.spec.ts]🤖`, 175)
       await createTestJobsApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileJobFile, 'compileJobFile')
