@@ -250,6 +250,87 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     resultsXml = resultsXml.replace(/testcase id="[^ ]*"/gm, `testcase id=""`)
 
     expect(resultsXml).toEqual(expectedResultsXml)
+
+    const coverageLcovPath = path.join(resultsFolderPath, 'coverage.lcov')
+
+    await expect(fileExists(coverageLcovPath)).resolves.toEqual(true)
+
+    const expectedCoverageLcov = `TN:testsetup.sas
+SF:standalone
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:exampleprogram.test.sas
+SF:jobs/jobs/exampleprogram.sas
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:standalone.test.sas
+SF:standalone
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:examplemacro.test.sas
+SF:standalone
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:shouldFail.test.sas
+SF:standalone
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:dostuff.test.0.sas
+SF:services/admin/dostuff.sas
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:dostuff.test.1.sas
+SF:services/admin/dostuff.sas
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record
+TN:testteardown.sas
+SF:standalone
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record`
+
+    const coverageLcov = await readFile(coverageLcovPath)
+
+    expect(coverageLcov).toEqual(expectedCoverageLcov)
   })
 
   it('should execute filtered tests and create result CSV, XML and JSON files using custom source and output locations', async () => {
