@@ -48,7 +48,6 @@ export const createTestJobsApp = async (
   appName: string
 ) => {
   process.projectDir = parentFolder
-  console.log(`🤖[test.ts]🤖`, 51)
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir

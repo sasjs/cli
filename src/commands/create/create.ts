@@ -16,13 +16,11 @@ import { createFileStructure } from '../shared/createFileStructure'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
 export async function create(parentFolderName: string, appType: string) {
-  console.log(`🤖[create.ts]🤖`, 19)
   process.logger?.info('Creating folders and files...')
   if (parentFolderName !== '.') {
     await createFolder(path.join(process.projectDir, parentFolderName))
   }
 
-  console.log(`🤖[create.ts]🤖`, appType)
   if (appType === 'react') {
     await createReactApp(path.join(process.projectDir, parentFolderName))
   } else if (appType === 'angular') {
@@ -30,7 +28,6 @@ export async function create(parentFolderName: string, appType: string) {
   } else if (appType === 'minimal') {
     await createMinimalApp(path.join(process.projectDir, parentFolderName))
   } else if (appType) {
-    console.log(`🤖[create.ts]🤖`, 33)
     await createTemplateApp(
       path.join(process.projectDir, parentFolderName),
       appType

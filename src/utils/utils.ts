@@ -61,28 +61,18 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
-    console.log(`🤖[createTemplateApp]🤖`, createTemplateApp)
-    console.log(
-      `🤖[git ls-remote https://username:password@github.com/sasjs/template_${template}.git]🤖`,
-      `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`
-    )
     const { stdout, stderr, code } = shelljs.exec(
       `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
       { silent: true }
     )
-    console.log(`🤖[stderr]🤖`, stderr)
 
     if (stderr.includes('Repository not found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
     }
 
-    console.log(`🤖[stdout]🤖`, stdout)
-
     if (!stdout) {
       return reject(new Error(`Unable to fetch template "${template}"`))
     }
-
-    console.log(`🤖[createTemplateApp]🤖`, 85)
 
     createApp(folderPath, `https://github.com/sasjs/template_${template}.git`)
     return resolve()
@@ -94,14 +84,10 @@ function createApp(
   repoUrl: string,
   installDependencies = true
 ) {
-  console.log(`🤖[createApp - folderPath]🤖`, folderPath)
-  console.log(`🤖[createApp - repoUrl]🤖`, repoUrl)
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
   const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
-
-  console.log(`🤖[gitBranch]🤖`, gitBranch)
 
   shelljs.exec(
     `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
