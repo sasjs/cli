@@ -251,13 +251,21 @@ const executeCommandWrapper = async (
   additionalParams: string[],
   checkTarget = true
 ) => {
-  const args = [...defaultArgs, ...additionalParams]
+  let subCommand = 'execute'
+  const args = [...defaultArgs, ...additionalParams].map((arg: string) => {
+    if (arg === 'execute') {
+      arg = Math.random() > 0.5 ? 'exec' : arg
+      subCommand = arg
+    }
+
+    return arg
+  })
 
   const command = new JobCommand(args)
   const returnCode = await command.execute()
 
   expect(command.name).toEqual('job')
-  expect(command.subCommand).toEqual('execute')
+  expect(command.subCommand).toEqual(subCommand)
 
   if (checkTarget) {
     const targetInfo = await command.getTargetInfo()
