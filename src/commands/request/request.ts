@@ -102,7 +102,7 @@ export async function runSasJob(
       authConfig
     )
     .then(async (res: any) => {
-      if (res?.errorCode) isError = true
+      if (res && res.errorCode || res.error) isError = true
 
       if (res?.result) res = res.result
 
