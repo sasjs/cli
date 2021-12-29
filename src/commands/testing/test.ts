@@ -2,7 +2,8 @@ import {
   saveLog,
   saveResultJson,
   saveResultCsv,
-  saveResultXml
+  saveResultXml,
+  saveCoverageLcov
 } from './internal/saveOutput'
 import {
   TestFlow,
@@ -279,6 +280,8 @@ export async function runTest(
 
   const { csvData, csvPath } = await saveResultCsv(outDirectory, result)
 
+  const coverageReportPath = await saveCoverageLcov(outDirectory, flow)
+
   const resultTable: any = {}
 
   if (Array.isArray(csvData)) {
@@ -331,5 +334,9 @@ export async function runTest(
   ${jsonPath}
   ${csvPath}
   ${xmlPath}`
+  )
+  displaySuccess(
+    `Tests coverage report:
+  ${coverageReportPath}`
   )
 }

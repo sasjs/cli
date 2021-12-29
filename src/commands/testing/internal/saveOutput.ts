@@ -1,5 +1,11 @@
 import path from 'path'
-import { createFile, generateTimestamp } from '@sasjs/utils'
+import {
+  asyncForEach,
+  createFile,
+  fileExists,
+  generateTimestamp,
+  testFileRegExp
+} from '@sasjs/utils'
 import { sasFileRegExp } from '../../../utils/file'
 import { displayError } from '../../../utils/displayResult'
 import stringify from 'csv-stringify'
@@ -219,6 +225,41 @@ export const saveResultXml = async (
   const xmlString = xml(resultXml, { declaration: true, indent: '  ' })
 
   await createFile(filePath, xmlString)
+
+  return filePath
+}
+
+export const saveCoverageLcov = async (
+  outDirectory: string,
+  tests: string[]
+) => {
+  const testsPrefixRegExp = new RegExp(`^tests/`)
+  const coverageReport: string[] = []
+
+  const coveringFile = async (filePath: string) =>
+    (await fileExists(
+      path.join(process.sasjsConstants.buildDestinationFolder, filePath)
+    ))
+      ? filePath
+      : 'standalone'
+
+  await asyncForEach(tests, async (test: string) =>
+    coverageReport.push(`TN:${test.split('/').pop()}
+SF:${await coveringFile(
+      test.replace(testsPrefixRegExp, '').replace(testFileRegExp, '.sas')
+    )}
+FNF:1
+FNH:1
+LF:1
+LH:1
+BRF:1
+BRH:1
+end_of_record`)
+  )
+
+  const filePath = path.join(outDirectory, 'coverage.lcov')
+
+  await createFile(filePath, coverageReport.join('\n'))
 
   return filePath
 }
