@@ -233,7 +233,7 @@ export const saveCoverageLcov = async (
   outDirectory: string,
   tests: string[]
 ) => {
-  const testsPrefixRegExp = new RegExp(`^tests${path.sep}`)
+  const testsPrefixRegExp = new RegExp(`^tests/`)
   const coverageReport: string[] = []
 
   const coveringFile = async (filePath: string) =>
@@ -244,7 +244,7 @@ export const saveCoverageLcov = async (
       : 'standalone'
 
   await asyncForEach(tests, async (test: string) =>
-    coverageReport.push(`TN:${test.split(path.sep).pop()}
+    coverageReport.push(`TN:${test.split('/').pop()}
 SF:${await coveringFile(
       test.replace(testsPrefixRegExp, '').replace(testFileRegExp, '.sas')
     )}
