@@ -59,8 +59,8 @@ describe('sasjs cbd with server type SASJS', () => {
     const mp_jsonout = await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
     const ms_webout = await readFile(`${macroCorePath}/server/ms_webout.sas`)
     const webout =
-      '  %macro webout(action,ds,dslabel=,fmt=);\n' +
-      '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt)\n' +
+      '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL);\n' +
+      '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt,missing=&missing)\n' +
       '  %mend;\n'
 
     expect(sasjs.deployToSASjs).toHaveBeenCalledWith({
@@ -78,7 +78,7 @@ describe('sasjs cbd with server type SASJS', () => {
                   type: 'service',
                   code: removeComments(
                     `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                      '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
+                    '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
                   )
                 },
                 {
@@ -86,7 +86,7 @@ describe('sasjs cbd with server type SASJS', () => {
                   type: 'service',
                   code: removeComments(
                     `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                      '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
+                    '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n*Service Variables end;\n* Dependencies start;\n* Dependencies end;\n* Programs start;\n*Programs end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
                   )
                 }
               ]
