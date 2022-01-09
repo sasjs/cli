@@ -15,6 +15,8 @@ const target = new Target({
 const sasProgramPath = 'path/to/soure.sas'
 const dataFilePath = 'path/to/data.json'
 const configFilePath = 'path/to/config.json'
+const outputPath = './output.txt'
+const logPath = './log.txt'
 describe('RequestCommand', () => {
   beforeAll(async () => {
     await setConstants()
@@ -41,6 +43,9 @@ describe('RequestCommand', () => {
       sasProgramPath,
       undefined,
       undefined,
+      undefined,
+      undefined,
+      null,
       undefined
     )
   })
@@ -87,7 +92,10 @@ describe('RequestCommand', () => {
       sasProgramPath,
       undefined,
       undefined,
-      mockAuthConfig
+      mockAuthConfig,
+      undefined,
+      null,
+      undefined
     )
   })
 
@@ -101,7 +109,11 @@ describe('RequestCommand', () => {
       '--data',
       dataFilePath,
       '--config',
-      configFilePath
+      configFilePath,
+      '--output',
+      outputPath,
+      '--log',
+      logPath
     ]
 
     const command = new RequestCommand(args)
@@ -118,7 +130,10 @@ describe('RequestCommand', () => {
       sasProgramPath,
       dataFilePath,
       configFilePath,
-      undefined
+      undefined,
+      undefined,
+      null,
+      outputPath
     )
   })
 
@@ -132,7 +147,11 @@ describe('RequestCommand', () => {
       '-d',
       dataFilePath,
       '-c',
-      configFilePath
+      configFilePath,
+      '-o',
+      outputPath,
+      '-l',
+      logPath
     ]
 
     const command = new RequestCommand(args)
@@ -149,7 +168,10 @@ describe('RequestCommand', () => {
       sasProgramPath,
       dataFilePath,
       configFilePath,
-      undefined
+      undefined,
+      undefined,
+      null,
+      outputPath
     )
   })
 

@@ -1,5 +1,5 @@
 import path from 'path'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { SASjsRequest } from '@sasjs/adapter/node'
 import {
   readFile,
   folderExists,
@@ -11,6 +11,8 @@ import {
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import { saveLog } from '../../utils/saveLog'
+import { getLogFilePath } from '../../utils/getLogFilePath'
 
 export async function runSasJob(
   target: Target,
@@ -18,12 +20,17 @@ export async function runSasJob(
   sasJobLocation: string,
   dataFilePath?: string,
   configFilePath?: string,
-  authConfig?: AuthConfig
+  authConfig?: AuthConfig,
+  logFile?: string,
+  jobPath?: string | null,
+  outputPathParam?: string | undefined
 ) {
-  let dataJson: any = {}
+  let dataJson: any = null
   let configJson: any = {}
 
   if (dataFilePath) {
+    dataJson = {}
+
     if (dataFilePath.split('.').slice(-1)[0] !== 'json') {
       throw new Error('Provided data file must be valid json.')
     }
@@ -77,12 +84,13 @@ export async function runSasJob(
     appLoc: target.appLoc,
     serverType: target.serverType,
     contextName: target.contextName,
-    useComputeApi: false
+    useComputeApi: false,
+    debug: true
   })
 
-  if (!dataJson) dataJson = null
-
   let result
+  let isError = false
+
   await sasjs
     .request(
       sasJobLocation,
@@ -93,42 +101,106 @@ export async function runSasJob(
       },
       authConfig
     )
-    .then(async (res) => {
+    .then(async (res: any) => {
+      if ((res && res.errorCode) || res.error) isError = true
+
       if (res?.result) res = res.result
 
       let output
 
-      try {
-        output = JSON.stringify(res, null, 2)
-      } catch (error) {
-        displayError(error, 'Result parsing failed.')
+      if (typeof res !== 'object') {
+        try {
+          output = JSON.stringify(res, null, 2)
+        } catch (error) {
+          displayError(error, 'Result parsing failed.')
 
-        return error
+          return error
+        }
+      } else {
+        output = res
       }
 
-      let outputPath = path.join(
-        process.projectDir,
-        isLocal ? '/sasjsbuild' : ''
-      )
+      await writeOutput(outputPathParam, output, isLocal)
 
-      if (!(await folderExists(outputPath))) {
-        await createFolder(outputPath)
-      }
-
-      outputPath += '/output.json'
-
-      await createFile(outputPath, output)
       result = true
-      displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
     })
-    .catch((err) => {
-      result = err
+    .catch(async (err: any) => {
+      isError = true
 
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
       } else {
-        displayError(err, 'An error occurred while executing the request.')
+        displayError('', 'An error occurred while executing the request.')
       }
+
+      await writeOutput(outputPathParam, err, isLocal)
+
+      result = err
     })
+
+  const sasRequests: SASjsRequest[] = sasjs.getSasRequests()
+  const currentRequestLog = sasRequests.find(
+    (x) => x.serviceLink === sasJobLocation
+  )
+
+  if (currentRequestLog && ((logFile && jobPath) || isError)) {
+    if (!logFile) logFile = getLogFilePath('', jobPath || '')
+
+    await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
+  }
+
   return result
+}
+
+/**
+ * Writes output to the file
+ * @param outputPathParam path to output file
+ * @param output data to be written to output file
+ * @param isLocal is local target, othervise it is global
+ * @returns output path for the file created
+ */
+const writeOutput = async (
+  outputPathParam: string | undefined,
+  output: any,
+  isLocal: boolean
+) => {
+  let outputPath = path.join(process.projectDir, isLocal ? '' : '')
+
+  let outputFilename: string | undefined
+
+  if (outputPathParam && typeof outputPathParam === 'string') {
+    outputPathParam = path.join(process.projectDir, outputPathParam || '')
+
+    let outputPathArr = outputPathParam.split(path.sep)
+    outputFilename = outputPathArr.pop()
+    outputPath = outputPathArr.join(path.sep)
+  }
+
+  if (!(await folderExists(outputPath))) {
+    await createFolder(outputPath)
+  }
+
+  if (outputFilename) {
+    outputPath += `${path.sep}${outputFilename}`
+  } else {
+    outputPath += `${path.sep}output.json`
+  }
+
+  let outputString = ''
+
+  if (typeof output === 'object') {
+    outputString = JSON.stringify(output)
+  } else {
+    outputString = output
+  }
+
+  if (outputString) {
+    await createFile(outputPath, outputString)
+
+    displaySuccess(`Request finished. Output is stored at '${outputPath}'`)
+  } else {
+    displayError(
+      `There was a problem with writing output file. Data not present.`
+    )
+  }
 }
