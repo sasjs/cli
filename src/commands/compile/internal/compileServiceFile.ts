@@ -42,8 +42,11 @@ export async function getPreCodeForServicePack(serverType: ServerType) {
         '/* so we provide instead as __program */\n' +
         '%global __program _program;\n' +
         '%let _program=%sysfunc(coalescec(&__program,&_program));\n' +
-        '%macro webout(action,ds,dslabel=,fmt=,missing=NULL);\n' +
-        '%mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt,missing=&missing)\n' +
+        '%macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO);\n' +
+        '  %mv_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
+        '    ,missing=&missing\n' +
+        '    ,showmeta=&showmeta\n' +
+        '  )' +
         '%mend;\n'
       break
 
@@ -52,8 +55,11 @@ export async function getPreCodeForServicePack(serverType: ServerType) {
       content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
       content += await readFile(`${macroCorePath}/meta/mm_webout.sas`)
       content +=
-        '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL);\n' +
-        '    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt,missing=&missing)\n' +
+        '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO);\n' +
+        '    %mm_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
+        '      ,missing=&missing\n' +
+        '      ,showmeta=&showmeta\n' +
+        '    )' +
         '  %mend;\n'
       break
 
@@ -62,8 +68,11 @@ export async function getPreCodeForServicePack(serverType: ServerType) {
       content += await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
       content += await readFile(`${macroCorePath}/server/ms_webout.sas`)
       content +=
-        '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL);\n' +
-        '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt,missing=&missing)\n' +
+        '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO);\n' +
+        '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
+        '      ,missing=&missing\n' +
+        '      ,showmeta=&showmeta\n' +
+        '    )' +
         '  %mend;\n'
       break
 
