@@ -2,7 +2,8 @@ import {
   saveLog,
   saveResultJson,
   saveResultCsv,
-  saveResultXml
+  saveResultXml,
+  saveCoverageLcov
 } from './internal/saveOutput'
 import {
   TestFlow,
@@ -161,6 +162,8 @@ export async function runTest(
 
     const printTestUrl = () => process.logger.info(`Test URL: ${testUrl}`)
 
+    printTestUrl()
+
     await sasjs
       .request(
         sasJobLocation,
@@ -213,8 +216,6 @@ export async function runTest(
         }
 
         if (!res.result?.test_results) lineBreak = false
-
-        printTestUrl()
 
         if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
@@ -279,6 +280,8 @@ export async function runTest(
 
   const { csvData, csvPath } = await saveResultCsv(outDirectory, result)
 
+  const coverageReportPath = await saveCoverageLcov(outDirectory, flow)
+
   const resultTable: any = {}
 
   if (Array.isArray(csvData)) {
@@ -331,5 +334,9 @@ export async function runTest(
   ${jsonPath}
   ${csvPath}
   ${xmlPath}`
+  )
+  displaySuccess(
+    `Tests coverage report:
+  ${coverageReportPath}`
   )
 }

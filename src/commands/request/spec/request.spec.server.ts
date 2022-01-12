@@ -18,7 +18,9 @@ import { getAuthConfig } from '../../../utils/config'
 import { runSasJob } from '../request'
 import { build } from '../../build/build'
 import { deploy } from '../../deploy/deploy'
-import { contextName } from '../../../utils'
+import { contextName, prefixAppLoc } from '../../../utils'
+import { getLogFilePath } from '../../../utils/getLogFilePath'
+import { statSync } from 'fs'
 
 const sampleDataJson = {
   table1: [
@@ -173,6 +175,73 @@ describe('sasjs request without compute API', () => {
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
   })
+
+  it(`should execute service 'sendArr' with absolute path with output path`, async () => {
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        dataPathRel,
+        undefined,
+        authConfig,
+        undefined,
+        undefined,
+        './myoutput.json'
+      )
+    ).toResolve()
+    const rawData = await readFile(`${process.projectDir}/myoutput.json`)
+    const output = JSON.parse(rawData)
+
+    expect(output.table1).toEqual(expectedDataArr.table1)
+    expect(output.table2).toEqual(expectedDataArr.table2)
+  })
+
+  it(`should execute service 'err' with absolute path with log path`, async () => {
+    const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
+    const log = getLogFilePath('./mylog.txt', jobPath || '')
+
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/err`,
+        dataPathRel,
+        undefined,
+        authConfig,
+        log,
+        jobPath
+      )
+    ).toResolve()
+    const rawLogDataStats = statSync(`${process.projectDir}/mylog.txt`)
+    const rawDataStats = statSync(`${process.projectDir}/output.json`)
+
+    expect(rawLogDataStats.size).toBeGreaterThan(10)
+    expect(rawDataStats.size).toBeGreaterThan(10)
+  })
+
+  it(`should execute service 'err' with absolute path with default log path`, async () => {
+    const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
+    const log = getLogFilePath('', jobPath || '')
+
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/err`,
+        dataPathRel,
+        undefined,
+        authConfig,
+        log,
+        jobPath
+      )
+    ).toResolve()
+    const rawLogDataStats = statSync(`${process.projectDir}/${target.name}.log`)
+    const rawDataStats = statSync(`${process.projectDir}/output.json`)
+
+    expect(rawLogDataStats.size).toBeGreaterThan(10)
+    expect(rawDataStats.size).toBeGreaterThan(10)
+  })
 })
 
 describe('sasjs request with SAS9', () => {
@@ -275,6 +344,73 @@ describe('sasjs request with SAS9', () => {
 
     expect(output.table1).toEqual(expectedDataObj.table1)
     expect(output.table2).toEqual(expectedDataObj.table2)
+  })
+
+  it(`should execute service 'sendArr' with absolute path with output path`, async () => {
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        dataPathRel,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        './myoutput.json'
+      )
+    ).toResolve()
+    const rawData = await readFile(`${process.projectDir}/myoutput.json`)
+    const output = JSON.parse(rawData)
+
+    expect(output.table1).toEqual(expectedDataArr.table1)
+    expect(output.table2).toEqual(expectedDataArr.table2)
+  })
+
+  it(`should execute service 'err' with absolute path with log path`, async () => {
+    const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
+    const log = getLogFilePath('./mylog.txt', jobPath || '')
+
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/err`,
+        dataPathRel,
+        undefined,
+        undefined,
+        log,
+        jobPath
+      )
+    ).toResolve()
+    const rawLogDataStats = statSync(`${process.projectDir}/mylog.txt`)
+    const rawDataStats = statSync(`${process.projectDir}/output.json`)
+
+    expect(rawLogDataStats.size).toBeGreaterThan(10)
+    expect(rawDataStats.size).toBeGreaterThan(10)
+  })
+
+  it(`should execute service 'err' with absolute path with default log path`, async () => {
+    const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
+    const log = getLogFilePath('', jobPath || '')
+
+    await expect(
+      runSasJob(
+        target,
+        false,
+        `/Public/app/cli-tests/${target.name}/services/runRequest/err`,
+        dataPathRel,
+        undefined,
+        undefined,
+        log,
+        jobPath
+      )
+    ).toResolve()
+    const rawLogDataStats = statSync(`${process.projectDir}/${target.name}.log`)
+    const rawDataStats = statSync(`${process.projectDir}/output.json`)
+
+    expect(rawLogDataStats.size).toBeGreaterThan(10)
+    expect(rawDataStats.size).toBeGreaterThan(10)
   })
 })
 
