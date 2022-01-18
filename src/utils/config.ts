@@ -455,6 +455,27 @@ export async function getProgramFolders(target: Target) {
   return [...new Set(programFolders)]
 }
 
+export async function getBinaryFolders(target: Target) {
+  let binaryFolders: string[] = []
+
+  const localConfig = await getLocalConfig().catch(() => null)
+
+  if (localConfig?.binaryFolders) {
+    binaryFolders = binaryFolders.concat(localConfig.binaryFolders)
+  }
+
+  if (target?.binaryFolders) {
+    binaryFolders = binaryFolders.concat(target.binaryFolders)
+  }
+
+  const { buildSourceFolder } = process.sasjsConstants
+  binaryFolders = binaryFolders.map((binaryFolder) =>
+    getAbsolutePath(binaryFolder, buildSourceFolder)
+  )
+
+  return [...new Set(binaryFolders)]
+}
+
 /**
  * Returns SAS macro folders from configuration.
  * This list includes both common and target-specific folders.

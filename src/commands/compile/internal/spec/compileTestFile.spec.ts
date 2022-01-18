@@ -90,7 +90,7 @@ describe('compileTestFile', () => {
           Object.values(target.testConfig!.macroVars)[0]
         };
 
-*Test Variables end;`)
+* Test Variables end;`)
         const testInit = replaceLineBreaks(`* TestInit start;
 /**
   @file
@@ -112,7 +112,7 @@ describe('compileTestFile', () => {
 %put testing, termed;
 * TestTerm end;`)
 
-        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y);`
+        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL<br>  ,showmeta=NO<br>);`
 
         expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
         expect(testFileContent.indexOf(testInit)).toBeGreaterThan(-1)
