@@ -160,7 +160,7 @@ const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
 %let macrovar2=macro ${type.toLowerCase()} value target 2;
 %let macrovar3=macro ${type.toLowerCase()} value target 3;
 
-*${type} Variables end;`
+* ${type} Variables end;`
 
 describe('loadDependencies', () => {
   const appName = `cli-tests-load-dependencies-${generateTimestamp()}`

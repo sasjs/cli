@@ -17,6 +17,7 @@ export async function compileJobFile(
     programFolders,
     isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.job
   )
+
   dependencies = `${programVar ? programVar + '\n' : ''}${dependencies}`
 
   await createFile(filePath, dependencies)

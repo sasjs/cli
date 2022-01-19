@@ -49,10 +49,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.3.1",
-    "@sasjs/core": "^3.9.1",
+    "@sasjs/adapter": "3.4.1",
+    "@sasjs/core": "3.10.0",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.34.1",
+    "@sasjs/utils": "2.35.0",
     "chalk": "4.1.2",
     "csv-stringify": "5.6.5",
     "dotenv": "10.0.0",
@@ -67,7 +67,7 @@
     "node-graphviz": "0.1.0",
     "ora": "5.4.1",
     "rimraf": "3.0.2",
-    "shelljs": "0.8.4",
+    "shelljs": "0.8.5",
     "xml": "1.0.1",
     "yargs": "17.2.1"
   },

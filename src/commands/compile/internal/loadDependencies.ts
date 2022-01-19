@@ -4,7 +4,7 @@ import {
   SASJsFileType,
   loadDependenciesFile
 } from '@sasjs/utils'
-import { getLocalOrGlobalConfig } from '../../../utils/config'
+import { getLocalOrGlobalConfig, getBinaryFolders } from '../../../utils/config'
 
 export async function loadDependencies(
   target: Target,
@@ -18,6 +18,7 @@ export async function loadDependencies(
   const fileContent = await readFile(filePath)
   const { configuration } = await getLocalOrGlobalConfig()
   const { buildSourceFolder, macroCorePath } = process.sasjsConstants
+  const binaryFolders = await getBinaryFolders(target)
 
   headerSyntaxNotices(fileContent)
   return await loadDependenciesFile({
@@ -29,7 +30,8 @@ export async function loadDependencies(
     macroFolders,
     programFolders,
     buildSourceFolder,
-    macroCorePath
+    macroCorePath,
+    binaryFolders
   })
 }
 
