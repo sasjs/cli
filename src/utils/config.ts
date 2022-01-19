@@ -664,7 +664,9 @@ export const saveTokens = async (
       new Target(targetJson),
       globalConfig.defaultTarget === targetName
     )
-    process.logger?.success(`Target saved to global .sasjsrc file at ~/.sasjsrc.`)
+    process.logger?.success(
+      `Target saved to global .sasjsrc file at ~/.sasjsrc.`
+    )
   }
 }
 
