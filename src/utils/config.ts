@@ -9,7 +9,6 @@ import {
   createFile,
   fileExists,
   AuthConfig,
-  SasAuthResponse,
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions
@@ -620,6 +619,13 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
 
     access_token = tokens?.access_token || access_token
     refresh_token = tokens?.refresh_token || refresh_token
+    await saveTokens(
+      target.name,
+      client,
+      secret,
+      access_token,
+      refresh_token || ''
+    )
   }
 
   return {
@@ -627,6 +633,38 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     refresh_token: refresh_token!,
     client,
     secret
+  }
+}
+
+export const saveTokens = async (
+  targetName: string,
+  client: string,
+  secret: string,
+  access_token: string,
+  refresh_token: string
+): Promise<void> => {
+  const localConfig = await getLocalConfig()
+  const isLocalTarget = localConfig.targets?.some((t) => t.name === targetName)
+  if (isLocalTarget) {
+    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n`
+    const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+    await createFile(envFilePath, envFileContent)
+    process.logger?.success(`Environment file saved at ${envFilePath}`)
+  } else {
+    const globalConfig = await getGlobalRcFile()
+    const target = globalConfig.targets?.find(
+      (t: Target) => t.name === targetName
+    )
+    if (!target) {
+      throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
+    }
+    const targetJson = target.toJson()
+    targetJson.authConfig = { client, secret, access_token, refresh_token }
+    await saveToGlobalConfig(
+      new Target(targetJson),
+      globalConfig.defaultTarget === targetName
+    )
+    process.logger?.success(`Target saved to global .sasjsrc file at ~/.sasjsrc.`)
   }
 }
 
