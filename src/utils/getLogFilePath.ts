@@ -11,7 +11,7 @@ export const getLogFilePath = (logArg: unknown, jobPath: string) => {
     return path.join(currentDirPath, logArg as string)
   }
 
-  const logFileName = `${jobPath.split(path.sep).slice(-1).pop()}.log`
+  const logFileName = `${jobPath.split('/').slice(-1).pop()}.log`
 
   return path.join(process.projectDir, logFileName)
 }
