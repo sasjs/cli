@@ -232,12 +232,14 @@ export async function printHelpText() {
     {
       name: 'request',
       title:
-        'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>',
+        'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName> -l <path/to/log> -o <path/to/output>',
       description: [
         `lets`,
         `the user run a SAS job against a specified target.`,
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
-        `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`
+        `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`,
+        `<path/to/log> - if provided, log file will be stored to the provided location. If not provided, log will be stored in the execution path if error occurs.`,
+        `<path/to/output> - if provided, output file will be stored to the provided location. If not provided output will be stored in the execution path.`
       ]
     },
     {
