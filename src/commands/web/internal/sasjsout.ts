@@ -14,17 +14,10 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.css'
       contenttype='text/css';
   %end;
-  %else %if &type=PNG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.png'
-      contenttype='image/png' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=JPG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpg'
-      contenttype='image/jpg' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=JPEG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpeg'
-      contenttype='image/jpeg' lrecl=2000000 recfm=n;
+  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      name="_webout.%lowcase(&type)"
+      contenttype="image/%lowcase(&type)" lrecl=2000000 recfm=n;
   %end;
   %else %if &type=ICO %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ico'
@@ -46,6 +39,14 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ogg'
       contenttype='audio/ogg' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      contenttype="font/%lowcase(&contenttype)";
+  %end;
+  %else %if &type=MP4 %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      contenttype="video/mp4";
+  %end;
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
@@ -56,14 +57,8 @@ export const sasjsout = `
   %else %if &type=CSS or &type=CSS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
   %end;
-  %else %if &type=PNG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/png));
-  %end;
-  %else %if &type=JPG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpg));
-  %end;
-  %else %if &type=JPEG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpeg));
+  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,image/%lowcase(&type)));
   %end;
   %else %if &type=ICO %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
@@ -79,6 +74,12 @@ export const sasjsout = `
   %end;
   %else %if &type=OGG %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
+  %end;
+  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&contenttype)));
+  %end;
+  %else %if &type=MP4 %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,video/mp4));
   %end;
 %end;
 %if &type=HTML %then %do;
@@ -119,9 +120,13 @@ export const sasjsout = `
   %let fref=_sjs;
 %end;
 
-/* stream byte by byte */
-/* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG
+/**
+  * In SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1
+  * metadata - so in this case, decode and stream byte by byte.
+  * */
+%if &type=GIF or &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3
+or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG or &type=WOFF
+or &type=WOFF2 or &type=TTF or &type=MP4
 %then %do;
   data _null_;
     length filein 8 fileout 8;
