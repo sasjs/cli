@@ -41,7 +41,7 @@ export const sasjsout = `
   %end;
   %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
-      contenttype="font/%lowcase(&contenttype)";
+      contenttype="font/%lowcase(&type)";
   %end;
   %else %if &type=MP4 %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
@@ -76,7 +76,7 @@ export const sasjsout = `
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
   %end;
   %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&contenttype)));
+    %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&type)));
   %end;
   %else %if &type=MP4 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,video/mp4));
