@@ -1,7 +1,6 @@
 # SASjs CLI
 [![npm package][npm-image]][npm-url]
 [![Github Workflow][githubworkflow-image]][githubworkflow-url]
-[![Dependency Status][dependency-image]][dependency-url]
 [![npm](https://img.shields.io/npm/dt/@sasjs/cli)]()
 ![Snyk Vulnerabilities for npm package](https://img.shields.io/snyk/vulnerabilities/npm/@sasjs/cli)
 [![License](https://img.shields.io/apm/l/atomic-design-ui.svg)](/LICENSE)
@@ -15,8 +14,6 @@
 [npm-url]:http://npmjs.org/package/@sasjs/cli
 [githubworkflow-image]:https://github.com/sasjs/cli/actions/workflows/run-tests.yml/badge.svg
 [githubworkflow-url]:https://github.com/sasjs/cli/blob/main/.github/workflows/run-tests.yml
-[dependency-image]:https://david-dm.org/sasjs/cli.svg
-[dependency-url]:https://github.com/sasjs/cli/blob/main/package.json
 
 `@sasjs/cli` is a Command-Line Interface to assist with creating, building, and deploying Data Science projects and HTML5 Web Applications on the SAS platform (both SAS 9 and Viya). Features include:
 
