@@ -1,7 +1,7 @@
 export const updateLinkTag = (
-  linkTag: HTMLLinkElement | HTMLImageElement,
+  linkTag: HTMLLinkElement | HTMLSourceElement | HTMLImageElement,
   assetPathMap: { source: string; target: string }[],
-  tagType: 'link' | 'image' = 'link'
+  tagType: 'link' | 'src' = 'link'
 ) => {
   const linkSourcePath =
     tagType === 'link'

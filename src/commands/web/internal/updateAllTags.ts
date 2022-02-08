@@ -4,10 +4,13 @@ import {
   getFaviconTags,
   getImgTags,
   getStyleTags,
-  getScriptTags
+  getScriptTags,
+  getSourceTags,
+  getStyleInPageTags
 } from './getTags'
 import { updateScriptTag } from './updateScriptTag'
 import { updateLinkTag } from './updateLinkTag'
+import { updateStyleTag } from './updateStyleTag'
 
 interface paramsType {
   webSourcePathFull: string
@@ -33,11 +36,24 @@ export const updateAllTags = async (
     ).catch((e) => assetsNotFound.push(e))
   })
 
-  const styleTags = getStyleTags(parsedHtml)
-  const faviconTags = getFaviconTags(parsedHtml)
-  const linkTags = [...styleTags, ...faviconTags]
+  const styleExternalTags = getStyleTags(parsedHtml)
+  const styleInPageTags = getStyleInPageTags(parsedHtml)
+  const styleTags = [...styleExternalTags, ...styleInPageTags]
+  await asyncForEach(
+    styleTags,
+    async (tag: HTMLStyleElement | HTMLStyleElement) => {
+      await updateStyleTag(
+        tag,
+        webSourcePathFull,
+        destinationPath,
+        serverType,
+        assetPathMap
+      ).catch((e) => assetsNotFound.push(e))
+    }
+  )
 
-  linkTags.forEach((tag) => {
+  const faviconTags = getFaviconTags(parsedHtml)
+  faviconTags.forEach((tag) => {
     try {
       updateLinkTag(tag, assetPathMap)
     } catch (error) {
@@ -47,9 +63,11 @@ export const updateAllTags = async (
   })
 
   const imgTags = getImgTags(parsedHtml)
-  imgTags.forEach((tag) => {
+  const sourceTags = getSourceTags(parsedHtml)
+  const srcTags = [...imgTags, ...sourceTags]
+  srcTags.forEach((tag) => {
     try {
-      updateLinkTag(tag, assetPathMap, 'image')
+      updateLinkTag(tag, assetPathMap, 'src')
     } catch (error) {
       console.log(tag, error)
       assetsNotFound.push(error as Error)

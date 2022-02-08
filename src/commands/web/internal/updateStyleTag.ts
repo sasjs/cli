@@ -3,14 +3,14 @@ import { createFile, readFile, ServerType } from '@sasjs/utils'
 import { encode } from 'js-base64'
 import { getWebServiceContent } from './getWebServiceContent'
 
-export const updateScriptTag = async (
-  tag: HTMLScriptElement,
+export const updateStyleTag = async (
+  tag: HTMLStyleElement | HTMLLinkElement,
   webSourcePathFull: string,
   destinationPath: string,
   serverType: ServerType,
   assetPathMap: { source: string; target: string }[]
 ) => {
-  const scriptPath = tag.getAttribute('src')
+  const scriptPath = tag.getAttribute('href')
 
   if (scriptPath) {
     const isUrl = scriptPath.startsWith('http') || scriptPath.startsWith('//')
@@ -28,7 +28,7 @@ export const updateScriptTag = async (
       } else {
         const serviceContent = await getWebServiceContent(
           encode(content),
-          'JS',
+          'CSS',
           serverType
         )
         await createFile(
@@ -41,7 +41,7 @@ export const updateScriptTag = async (
       }
 
       tag.setAttribute(
-        'src',
+        'href',
         assetPathMap.find(
           (entry) =>
             entry.source === scriptPath || `./${entry.source}` === scriptPath
@@ -60,6 +60,8 @@ const modifyLinksInContent = (
   _content: string,
   assetPathMap: { source: string; target: string }[]
 ) => {
+  console.log('_content', _content)
+  console.log('assetPathMap', assetPathMap)
   let content = _content
   assetPathMap.forEach((pathEntry) => {
     content = content.replace(
@@ -67,5 +69,6 @@ const modifyLinksInContent = (
       pathEntry.target
     )
   })
+  console.log('content', content)
   return content
 }

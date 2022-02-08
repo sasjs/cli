@@ -90,7 +90,7 @@ describe('updateScriptTag', () => {
     expect(content2).toEqual(expect.stringContaining(`put '${script2Base64}`))
   })
 
-  it(`should update links in js file`, async () => {
+  it(`should update links in js script`, async () => {
     const sourcePath = path.join(__dirname, 'testFiles')
     const gameTestFilePath = path.join(sourcePath, 'script3.js')
 

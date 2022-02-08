@@ -1,0 +1,9 @@
+@font-face {
+  font-family: myFirstFont;
+  src: url(assets/fa-solid-900.ttf);
+}
+
+h2 {
+  font-family: myFirstFont;
+  color: darkgreen;
+}
