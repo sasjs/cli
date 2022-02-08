@@ -32,7 +32,7 @@ describe('updateScriptTag', () => {
   })
 
   it(`should create program for SAS9 having base64 encoded content`, async () => {
-    const scriptTag: HTMLLinkElement = document.createElement('link')
+    const scriptTag: HTMLScriptElement = document.createElement('script')
 
     const sourcePath = path.join(__dirname, 'testFiles')
     const target = { serverType: ServerType.Sas9 } as any as Target
@@ -89,4 +89,126 @@ describe('updateScriptTag', () => {
     const content2 = await readFile(sasProgramScript2Path)
     expect(content2).toEqual(expect.stringContaining(`put '${script2Base64}`))
   })
+
+  it(`should update links in js file`, async () => {
+    const sourcePath = path.join(__dirname, 'testFiles')
+    const gameTestFilePath = path.join(sourcePath, 'script3.js')
+
+    const target = { serverType: ServerType.SasViya } as any as Target
+
+    const assetPathMap = [...gameJSSpriteLinks, ...gameJSSoundLinks]
+
+    const scriptTag: HTMLScriptElement = document.createElement('script')
+    scriptTag.innerHTML = await readFile(gameTestFilePath)
+
+    await updateScriptTag(
+      scriptTag,
+      sourcePath,
+      destinationPath,
+      target.serverType,
+      assetPathMap
+    )
+
+    const updatedContent = scriptTag.innerHTML
+
+    gameJSSpriteLinks.forEach((link) =>
+      expect(updatedContent).toContain(link.target)
+    )
+    gameJSSoundLinks.forEach((link) =>
+      expect(updatedContent).toContain(link.target)
+    )
+  })
 })
+
+const gameJSSpriteLinks = [
+  {
+    source: 'sprites/enemy.png',
+    target: 'link-to-compiled-webv/sprites/enemy.png'
+  },
+  {
+    source: 'sprites/enemyr.png',
+    target: 'link-to-compiled-webv/sprites/enemyr.png'
+  },
+  {
+    source: 'sprites/items.png',
+    target: 'link-to-compiled-webv/sprites/items.png'
+  },
+  {
+    source: 'sprites/player.png',
+    target: 'link-to-compiled-webv/sprites/player.png'
+  },
+  {
+    source: 'sprites/playerl.png',
+    target: 'link-to-compiled-webv/sprites/playerl.png'
+  },
+  {
+    source: 'sprites/tiles.png',
+    target: 'link-to-compiled-webv/sprites/tiles.png'
+  }
+]
+const gameJSSoundLinks = [
+  {
+    source: 'sounds/aboveground_bgm.ogg',
+    target: 'link-to-compiled-webv/sounds/aboveground_bgm.ogg'
+  },
+  {
+    source: 'sounds/breakblock.wav',
+    target: 'link-to-compiled-webv/sounds/breakblock.wav'
+  },
+  {
+    source: 'sounds/bump.wav',
+    target: 'link-to-compiled-webv/sounds/bump.wav'
+  },
+  {
+    source: 'sounds/coin.wav',
+    target: 'link-to-compiled-webv/sounds/coin.wav'
+  },
+  {
+    source: 'sounds/fireball.wav',
+    target: 'link-to-compiled-webv/sounds/fireball.wav'
+  },
+  {
+    source: 'sounds/flagpole.wav',
+    target: 'link-to-compiled-webv/sounds/flagpole.wav'
+  },
+  {
+    source: 'sounds/itemAppear.wav',
+    target: 'link-to-compiled-webv/sounds/itemAppear.wav'
+  },
+  {
+    source: 'sounds/jump-small.wav',
+    target: 'link-to-compiled-webv/sounds/jump-small.wav'
+  },
+  {
+    source: 'sounds/jump-super.wav',
+    target: 'link-to-compiled-webv/sounds/jump-super.wav'
+  },
+  {
+    source: 'sounds/kick.wav',
+    target: 'link-to-compiled-webv/sounds/kick.wav'
+  },
+  {
+    source: 'sounds/mariodie.wav',
+    target: 'link-to-compiled-webv/sounds/mariodie.wav'
+  },
+  {
+    source: 'sounds/pipe.wav',
+    target: 'link-to-compiled-webv/sounds/pipe.wav'
+  },
+  {
+    source: 'sounds/powerup.wav',
+    target: 'link-to-compiled-webv/sounds/powerup.wav'
+  },
+  {
+    source: 'sounds/stage_clear.wav',
+    target: 'link-to-compiled-webv/sounds/stage_clear.wav'
+  },
+  {
+    source: 'sounds/stomp.wav',
+    target: 'link-to-compiled-webv/sounds/stomp.wav'
+  },
+  {
+    source: 'sounds/underground_bgm.ogg',
+    target: 'link-to-compiled-webv/sounds/underground_bgm.ogg'
+  }
+]
