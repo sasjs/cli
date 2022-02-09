@@ -8,6 +8,7 @@ import {
   SASJsFileType
 } from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
+import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
   generateTestTarget,
   createTestMinimalApp,
@@ -160,7 +161,7 @@ const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
 %let macrovar2=macro ${type.toLowerCase()} value target 2;
 %let macrovar3=macro ${type.toLowerCase()} value target 3;
 
-*${type} Variables end;`
+* ${type} Variables end;`
 
 describe('loadDependencies', () => {
   const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
@@ -195,18 +196,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a service with <h4> Dependencies </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
@@ -226,18 +216,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> SAS Macros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
@@ -257,18 +236,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a service with <h4> SAS MAcros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -288,18 +256,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load dependencies for a job <h4> SAS MAcros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -319,18 +276,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load programs for a service with <h4> SAS Programs </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
@@ -350,18 +296,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load programs for a job <h4> SAS Programs </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
@@ -381,18 +316,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load programs for a service with <h4> SAS Includes </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -412,18 +336,7 @@ describe('loadDependencies', () => {
   })
 
   test('it should load programs for a job <h4> SAS Includes </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -443,18 +356,7 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a job having jobInit's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -480,18 +382,7 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a job having jobTerm's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeJobInit}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit2, fakeJobInit)
 
     const dependencies = await loadDependencies(
       target,
@@ -516,18 +407,7 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a service having serviceInit's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
@@ -553,18 +433,7 @@ describe('loadDependencies', () => {
   })
 
   test("it should load dependencies for a service having serviceTerm's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeJobInit}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeInit2, fakeJobInit)
 
     const dependencies = await loadDependencies(
       target,

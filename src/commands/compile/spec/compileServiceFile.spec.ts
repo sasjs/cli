@@ -1,6 +1,7 @@
 import path from 'path'
 import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
+import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
   generateTestTarget,
   createTestMinimalApp,
@@ -78,18 +79,7 @@ describe('compileServiceFile', () => {
   })
 
   test('it should compile and create file', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeJobTerm}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+    mockGetProgram(internalModule, fakeJobInit, fakeJobTerm)
 
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')

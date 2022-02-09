@@ -29,7 +29,7 @@ export const saveLog = async (
   const logPath = path.join(
     outDirectory,
     'logs',
-    test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') + '.log'
+    test.replace(sasFileRegExp, '').split('/').slice(1).join('_') + '.log'
   )
 
   await createFile(logPath, log)

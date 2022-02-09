@@ -299,9 +299,11 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
 
   const packageJson = JSON.parse(packageJsonContent)
 
-  expect(packageJson.dependencies).toEqual(
-    expect.objectContaining({ '@sasjs/core': expect.anything() })
-  )
+  expect(
+    parentFolderName.includes('minimal')
+      ? packageJson.devDependencies
+      : packageJson.dependencies
+  ).toEqual(expect.objectContaining({ '@sasjs/core': expect.anything() }))
 }
 
 export const removeAllTargetsFromConfigs = async () => {
