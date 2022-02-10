@@ -60,8 +60,6 @@ const modifyLinksInContent = (
   _content: string,
   assetPathMap: { source: string; target: string }[]
 ) => {
-  console.log('_content', _content)
-  console.log('assetPathMap', assetPathMap)
   let content = _content
   assetPathMap.forEach((pathEntry) => {
     content = content.replace(
@@ -69,6 +67,5 @@ const modifyLinksInContent = (
       pathEntry.target
     )
   })
-  console.log('content', content)
   return content
 }

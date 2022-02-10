@@ -57,7 +57,6 @@ export const updateAllTags = async (
     try {
       updateLinkTag(tag, assetPathMap)
     } catch (error) {
-      console.log(tag, error)
       assetsNotFound.push(error as Error)
     }
   })
@@ -69,7 +68,6 @@ export const updateAllTags = async (
     try {
       updateLinkTag(tag, assetPathMap, 'src')
     } catch (error) {
-      console.log(tag, error)
       assetsNotFound.push(error as Error)
     }
   })
