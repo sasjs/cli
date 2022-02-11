@@ -72,7 +72,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   const logFilePath = buildDestinationFolder
 
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target, sasjs)
+    await deployToSasjs(target, isLocal, sasjs)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -285,7 +285,7 @@ async function deployToSas9(
   }
 }
 
-async function deployToSasjs(target: Target, sasjs?: SASjs) {
+async function deployToSasjs(target: Target, isLocal: boolean, sasjs?: SASjs) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -294,17 +294,16 @@ async function deployToSasjs(target: Target, sasjs?: SASjs) {
   const jsonContent = await readFile(finalFilePathJSON)
   const payload = JSON.parse(jsonContent)
 
-  sasjs = sasjs
-    ? sasjs
-    : new SASjs({
-        serverType: target.serverType,
-        serverUrl: target.serverUrl,
-        appLoc: target.appLoc
-      })
+  let authConfig
+  if (!sasjs) {
+    ;({ sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal))
+  }
 
-  const result = await sasjs.deployToSASjs(payload).catch((err) => {
-    process.logger?.error(err)
-  })
+  const result = await sasjs
+    .deployToSASjs(payload, undefined, authConfig)
+    .catch((err) => {
+      process.logger?.error(err)
+    })
 
   if (result?.status === 'failure') {
     process.logger?.error(result.message)
