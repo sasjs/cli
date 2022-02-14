@@ -343,8 +343,7 @@ async function deployToSasjs(target: Target, isLocal: boolean, sasjs?: SASjs) {
       appLoc: target.appLoc,
       serverType: target.serverType,
       httpsAgentOptions: target.httpsAgentOptions,
-      debug: true,
-      useComputeApi: true
+      debug: true
     })
 
     try {
