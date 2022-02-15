@@ -338,7 +338,17 @@ async function deployToSasjs(target: Target, isLocal: boolean, sasjs?: SASjs) {
 
   let authConfig
   if (!sasjs) {
-    ;({ sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal))
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      appLoc: target.appLoc,
+      serverType: target.serverType,
+      httpsAgentOptions: target.httpsAgentOptions,
+      debug: true
+    })
+
+    try {
+      authConfig = await getAuthConfig(target)
+    } catch (e) {}
   }
 
   const result = await sasjs
