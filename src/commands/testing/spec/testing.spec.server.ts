@@ -100,11 +100,7 @@ end_of_record`
   describe('SASVIYA', () => {
     const target: Target = generateTarget()
     const testUrl = (test: string) =>
-      `${target.serverUrl}/${
-        target.serverType === ServerType.SasViya
-          ? 'SASJobExecution'
-          : 'SASStoredProcess'
-      }/?_program=/Public/app/cli-tests/${
+      `${target.serverUrl}/SASJobExecution/?_program=/Public/app/cli-tests/${
         target.name
       }/tests/${test}&_debug=2477&_contextName=${encodeURIComponent(
         target.contextName
@@ -544,6 +540,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
+      const testDescription = 'random test description'
+      const testResult = 'PASS'
       const expectedResultsJson = {
         sasjs_test_meta: [
           {
@@ -554,8 +552,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('testsetup')
@@ -570,8 +568,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('jobs/jobs/exampleprogram.test')
@@ -586,8 +584,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('jobs/jobs/standalone.test')
@@ -602,8 +600,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('macros/examplemacro.test')
@@ -618,8 +616,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('macros/shouldFail.test')
@@ -634,8 +632,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('services/admin/dostuff.test.0')
@@ -645,8 +643,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('services/admin/dostuff.test.1')
@@ -661,8 +659,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: 'random test description',
-                    TEST_RESULT: 'PASS'
+                    TEST_DESCRIPTION: testDescription,
+                    TEST_RESULT: testResult
                   }
                 ],
                 test_url: testUrl('testteardown')
@@ -672,28 +670,28 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         ]
       }
       const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
-testsetup,tests/testsetup.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+testsetup,tests/testsetup.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'testsetup'
       )}
-exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'jobs/jobs/exampleprogram.test'
       )}
-standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'jobs/jobs/standalone.test'
       )}
-examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'macros/examplemacro.test'
       )}
-shouldFail,tests/macros/shouldFail.test.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+shouldFail,tests/macros/shouldFail.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'macros/shouldFail.test'
       )}
-dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'services/admin/dostuff.test.0'
       )}
-dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'services/admin/dostuff.test.1'
       )}
-testteardown,tests/testteardown.sas,sasjs_test_id,PASS,random test description,${testUrlLink(
+testteardown,tests/testteardown.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
         'testteardown'
       )}
 `
@@ -704,14 +702,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,PASS,random test description,$
           _webout:
             '{"test_results":\r\n' +
             '[\r\n' +
-            '{"TEST_DESCRIPTION":"random test description" ,"TEST_RESULT":"PASS" }\r\n' +
+            `{"TEST_DESCRIPTION":"${testDescription}" ,"TEST_RESULT":"${testResult}" }\r\n` +
             ']}',
           log:
             '1                                          The SAS System             11:42 Friday, February 11, 2022\r\n' +
             '\r\n' +
             'NOTE: Copyright (c) 2016 by SAS Institute Inc., Cary, NC, USA. \r\n' +
-            'NOTE: SAS (r) Proprietary Software 9.4 (TS1M6) \r\n' +
-            '      Licensed to ANALYTIUM LTD- PARTNER LICENCE DATA MANAGER CLIENT, Site 70221619.\r\n' +
             'NOTE: This session is executing on the X64_10PRO  platform.\r\n',
           message: 'success'
         })
