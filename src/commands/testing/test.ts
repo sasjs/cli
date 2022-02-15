@@ -32,7 +32,8 @@ export async function runTest(
   target: Target,
   testRegExps: string[] = [],
   outDirectory?: string,
-  flowSourcePath?: string
+  flowSourcePath?: string,
+  sasjs?: SASjs
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -83,15 +84,17 @@ export async function runTest(
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    debug: true,
-    contextName: target.contextName,
-    useComputeApi: false
-  })
+  sasjs =
+    sasjs ||
+    new SASjs({
+      serverUrl: target.serverUrl,
+      httpsAgentOptions: target.httpsAgentOptions,
+      appLoc: target.appLoc,
+      serverType: target.serverType,
+      debug: true,
+      contextName: target.contextName,
+      useComputeApi: false
+    })
 
   let authConfig: AuthConfig, username: string, password: string
   if (target.serverType === ServerType.SasViya) {
@@ -164,30 +167,24 @@ export async function runTest(
 
     printTestUrl()
 
-    await sasjs
-      .request(
-        sasJobLocation,
-        {},
-        { username, password },
-        () => {
-          displayError(null, 'Login callback called. Request failed.')
-        },
-        authConfig,
-        ['log']
-      )
-      .then(async (res) => {
-        let lineBreak = true
+    if (target.serverType === ServerType.Sasjs) {
+      const sasjsResponse = await sasjs!.executeJobSASjs({
+        _program: sasJobLocation,
+        _debug: 131
+      })
 
-        if (!res.result) {
-          displayError(
-            {},
-            `Job did not return a response, to debug click ${testUrl}`
-          )
+      if ((sasjsResponse as any)._webout) {
+        let webout
 
-          printCodeExample()
+        try {
+          webout = JSON.parse((sasjsResponse as any)._webout)
+        } catch (error) {
+          return Promise.reject(`SASjs Server responded with invalid json`)
+        }
 
-          lineBreak = false
+        const testResults = webout.test_results
 
+        if (testResults) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -197,7 +194,7 @@ export async function runTest(
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: TestResultStatus.notProvided,
+              result: testResults,
               test_url: testUrl
             })
           } else {
@@ -207,69 +204,122 @@ export async function runTest(
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: TestResultStatus.notProvided,
+                  result: testResults,
                   test_url: testUrl
                 }
               ]
             })
           }
         }
+      }
+    } else {
+      await sasjs!
+        .request(
+          sasJobLocation,
+          {},
+          { username, password },
+          () => {
+            displayError(null, 'Login callback called. Request failed.')
+          },
+          authConfig,
+          ['log']
+        )
+        .then(async (res) => {
+          let lineBreak = true
 
-        if (!res.result?.test_results) lineBreak = false
+          if (!res.result) {
+            displayError(
+              {},
+              `Job did not return a response, to debug click ${testUrl}`
+            )
 
-        if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
+            printCodeExample()
 
-        if (res.result?.test_results) {
-          const existingTestTarget = result.sasjs_test_meta.find(
-            (testResult: TestDescription) =>
-              testResult.test_target === testTarget
-          )
+            lineBreak = false
 
-          if (existingTestTarget) {
-            existingTestTarget.results.push({
-              test_loc: test,
-              sasjs_test_id: testId,
-              result: res.result.test_results,
-              test_url: testUrl
-            })
+            const existingTestTarget = result.sasjs_test_meta.find(
+              (testResult: TestDescription) =>
+                testResult.test_target === testTarget
+            )
+
+            if (existingTestTarget) {
+              existingTestTarget.results.push({
+                test_loc: test,
+                sasjs_test_id: testId,
+                result: TestResultStatus.notProvided,
+                test_url: testUrl
+              })
+            } else {
+              result.sasjs_test_meta.push({
+                test_target: testTarget,
+                results: [
+                  {
+                    test_loc: test,
+                    sasjs_test_id: testId,
+                    result: TestResultStatus.notProvided,
+                    test_url: testUrl
+                  }
+                ]
+              })
+            }
+          }
+
+          if (!res.result?.test_results) lineBreak = false
+
+          if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
+
+          if (res.result?.test_results) {
+            const existingTestTarget = result.sasjs_test_meta.find(
+              (testResult: TestDescription) =>
+                testResult.test_target === testTarget
+            )
+
+            if (existingTestTarget) {
+              existingTestTarget.results.push({
+                test_loc: test,
+                sasjs_test_id: testId,
+                result: res.result.test_results,
+                test_url: testUrl
+              })
+            } else {
+              result.sasjs_test_meta.push({
+                test_target: testTarget,
+                results: [
+                  {
+                    test_loc: test,
+                    sasjs_test_id: testId,
+                    result: res.result.test_results,
+                    test_url: testUrl
+                  }
+                ]
+              })
+            }
           } else {
-            result.sasjs_test_meta.push({
-              test_target: testTarget,
-              results: [
-                {
-                  test_loc: test,
-                  sasjs_test_id: testId,
-                  result: res.result.test_results,
-                  test_url: testUrl
-                }
-              ]
-            })
+            displayError(
+              {},
+              `'test_results' not found in server response, to debug click ${testUrl}`
+            )
+
+            printCodeExample()
           }
-        } else {
-          displayError(
-            {},
-            `'test_results' not found in server response, to debug click ${testUrl}`
-          )
+        })
+        .catch(async (err) => {
+          printTestUrl()
 
-          printCodeExample()
-        }
-      })
-      .catch(async (err) => {
-        printTestUrl()
+          if (err && err.errorCode === 404) {
+            displaySasjsRunnerError(username)
+          } else {
+            displayError(
+              {},
+              `An error occurred while executing the request. Job location: ${sasJobLocation}`
+            )
+          }
 
-        if (err && err.errorCode === 404) {
-          displaySasjsRunnerError(username)
-        } else {
-          displayError(
-            {},
-            `An error occurred while executing the request. Job location: ${sasJobLocation}`
-          )
-        }
-
-        if (err?.error?.details?.result) {
-          await saveLog(outDirectory!, test, err.error.details.result)
-        }
-      })
+          if (err?.error?.details?.result) {
+            await saveLog(outDirectory!, test, err.error.details.result)
+          }
+        })
+    }
   })
 
   const jsonPath = await saveResultJson(outDirectory, result)
