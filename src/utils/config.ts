@@ -12,7 +12,8 @@ import {
   SasAuthResponse,
   getAbsolutePath,
   StreamConfig,
-  HttpsAgentOptions
+  HttpsAgentOptions,
+  ServerType
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -619,10 +620,12 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       : secret
 
   if (!secret) {
-    throw new Error(
-      `Client secret was not found.
+    if (target.serverType === ServerType.Sasjs) secret = ''
+    else
+      throw new Error(
+        `Client secret was not found.
         Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
-    )
+      )
   }
 
   if (isAccessTokenExpiring(access_token)) {
