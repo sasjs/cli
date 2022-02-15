@@ -227,24 +227,22 @@ async function getCreateFileScript(serverType: ServerType) {
 
 function getWebServiceScriptInvocation(
   serverType: ServerType,
-  filePath = '',
   isSASFile: boolean = true,
   encoded: boolean = false
 ) {
-  const loc = filePath === '' ? 'services' : 'tests'
   const encodedParam = encoded ? ', intype=BASE64' : ''
 
   switch (serverType) {
     case ServerType.SasViya:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
-      return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+      return `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
     case ServerType.Sasjs:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     default:
       throw new ServerTypeError()
   }
@@ -269,7 +267,7 @@ async function getFolderContent(serverType: ServerType): Promise<{
   let folderContentJSON: ServicePack = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
-      path.join(buildDestinationFolder, subFolder),
+      buildDestinationFolder,
       path.join(buildDestinationFolder, subFolder),
       serverType
     )
@@ -295,26 +293,15 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 async function getContentFor(
   rootDirectory: string,
   folderPath: string,
-  serverType: ServerType,
-  testPath: string | undefined = undefined
+  serverType: ServerType
 ): Promise<{ content: string; contentJSON: ServicePackMember }> {
   const folderName = path.basename(folderPath)
-  if (!testPath && folderName === 'tests') {
-    testPath = ''
-  }
 
-  const isRootDir = folderPath === rootDirectory
-  let content = `\n%let path=${
-    isRootDir
-      ? ''
-      : testPath !== undefined
-      ? testPath
-      : folderPath
-          .replace(rootDirectory, '')
-          .substr(1)
-          .split(path.sep)
-          .join('/')
-  };\n`
+  let content = `\n%let path=${folderPath
+    .replace(rootDirectory, '')
+    .substr(1)
+    .split(path.sep)
+    .join('/')};\n`
 
   const contentJSON: ServicePackMember = {
     name: folderName,
@@ -329,12 +316,7 @@ async function getContentFor(
 
     if (isSasFile(file)) {
       const fileContent = await readFile(filePath)
-      const transformedContent = getServiceText(
-        file,
-        fileContent,
-        serverType,
-        testPath
-      )
+      const transformedContent = getServiceText(file, fileContent, serverType)
       content += `\n${transformedContent}\n`
 
       contentJSON.members!.push({
@@ -367,12 +349,7 @@ async function getContentFor(
       await getContentFor(
         rootDirectory,
         path.join(folderPath, subFolder),
-        serverType,
-        testPath !== undefined
-          ? testPath === ''
-            ? subFolder
-            : `${testPath}/${subFolder}`
-          : undefined
+        serverType
       )
 
     contentJSON.members!.push(childContentJSON)
@@ -385,8 +362,7 @@ async function getContentFor(
 function getServiceText(
   serviceFileName: string,
   fileContent: string,
-  serverType: ServerType,
-  testPath: string | undefined
+  serverType: ServerType
 ) {
   const serviceName = serviceFileName.replace(/.sas$/, '')
   const sourceCodeLines = getLines(removeComments(fileContent))
@@ -405,10 +381,7 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(
-        serverType,
-        isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
-      )
+    ? getWebServiceScriptInvocation(serverType)
     : ''
 }
 filename sascode clear;
@@ -435,7 +408,7 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, undefined, false, true)
+    ? getWebServiceScriptInvocation(serverType, false, true)
     : ''
 }
 filename filecode clear;
