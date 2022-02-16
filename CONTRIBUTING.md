@@ -20,7 +20,7 @@ npm link
 npm start
 ```
 
-The `npm start` script watches for changes in the source files and automatically rebuilds them.  Once done, you can use `npm unlink` from the repository to unlink it.
+The `npm start` script watches for changes in the source files and automatically rebuilds them.  Once done, you can use `npm unlink` from the repository to unlink it.  If this doesn't work, you can try: `npm rm -g @sasjs/cli`.
 
 ## Development Notes
 
