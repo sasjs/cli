@@ -97,23 +97,32 @@ export async function runTest(
     })
 
   let authConfig: AuthConfig, username: string, password: string
-  if (target.serverType === ServerType.SasViya) {
-    authConfig = await getAuthConfig(target)
-  }
-  if (target.serverType === ServerType.Sas9) {
-    if (target.authConfigSas9) {
-      username = target.authConfigSas9.userName
-      password = target.authConfigSas9.password
-    } else {
-      username = process.env.SAS_USERNAME as string
-      password = process.env.SAS_PASSWORD as string
-    }
-    if (!username || !password) {
-      const { sas9CredentialsError } = process.sasjsConstants
-      throw new Error(sas9CredentialsError)
-    }
 
-    password = decodeFromBase64(password)
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      authConfig = await getAuthConfig(target)
+      break
+
+    case ServerType.Sas9:
+      if (target.authConfigSas9) {
+        username = target.authConfigSas9.userName
+        password = target.authConfigSas9.password
+      } else {
+        username = process.env.SAS_USERNAME as string
+        password = process.env.SAS_PASSWORD as string
+      }
+      if (!username || !password) {
+        const { sas9CredentialsError } = process.sasjsConstants
+        throw new Error(sas9CredentialsError)
+      }
+      password = decodeFromBase64(password)
+      break
+
+    case ServerType.Sasjs:
+      try {
+        authConfig = await getAuthConfig(target)
+      } catch (e) {}
+      break
   }
 
   const result: TestResults = {
@@ -163,24 +172,30 @@ export async function runTest(
 
     printTestUrl()
 
-    if (target.serverType === ServerType.Sasjs) {
-      const sasjsResponse = await sasjs!.executeJobSASjs({
-        _program: sasJobLocation,
-        _debug: 131
-      })
+    await sasjs!
+      .request(
+        sasJobLocation,
+        {},
+        { username, password },
+        () => {
+          displayError(null, 'Login callback called. Request failed.')
+        },
+        authConfig,
+        ['log']
+      )
+      .then(async (res) => {
+        let lineBreak = true
 
-      if ((sasjsResponse as any)._webout) {
-        let webout
+        if (!res.result) {
+          displayError(
+            {},
+            `Job did not return a response, to debug click ${testUrl}`
+          )
 
-        try {
-          webout = JSON.parse((sasjsResponse as any)._webout)
-        } catch (error) {
-          return Promise.reject(`SASjs Server responded with invalid json`)
-        }
+          printCodeExample()
 
-        const testResults = webout.test_results
+          lineBreak = false
 
-        if (testResults) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -190,7 +205,7 @@ export async function runTest(
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: testResults,
+              result: TestResultStatus.notProvided,
               test_url: testUrl
             })
           } else {
@@ -200,122 +215,69 @@ export async function runTest(
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: testResults,
+                  result: TestResultStatus.notProvided,
                   test_url: testUrl
                 }
               ]
             })
           }
         }
-      }
-    } else {
-      await sasjs!
-        .request(
-          sasJobLocation,
-          {},
-          { username, password },
-          () => {
-            displayError(null, 'Login callback called. Request failed.')
-          },
-          authConfig,
-          ['log']
-        )
-        .then(async (res) => {
-          let lineBreak = true
 
-          if (!res.result) {
-            displayError(
-              {},
-              `Job did not return a response, to debug click ${testUrl}`
-            )
+        if (!res.result?.test_results) lineBreak = false
 
-            printCodeExample()
+        if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
-            lineBreak = false
+        if (res.result?.test_results) {
+          const existingTestTarget = result.sasjs_test_meta.find(
+            (testResult: TestDescription) =>
+              testResult.test_target === testTarget
+          )
 
-            const existingTestTarget = result.sasjs_test_meta.find(
-              (testResult: TestDescription) =>
-                testResult.test_target === testTarget
-            )
-
-            if (existingTestTarget) {
-              existingTestTarget.results.push({
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: TestResultStatus.notProvided,
-                test_url: testUrl
-              })
-            } else {
-              result.sasjs_test_meta.push({
-                test_target: testTarget,
-                results: [
-                  {
-                    test_loc: test,
-                    sasjs_test_id: testId,
-                    result: TestResultStatus.notProvided,
-                    test_url: testUrl
-                  }
-                ]
-              })
-            }
-          }
-
-          if (!res.result?.test_results) lineBreak = false
-
-          if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
-
-          if (res.result?.test_results) {
-            const existingTestTarget = result.sasjs_test_meta.find(
-              (testResult: TestDescription) =>
-                testResult.test_target === testTarget
-            )
-
-            if (existingTestTarget) {
-              existingTestTarget.results.push({
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: res.result.test_results,
-                test_url: testUrl
-              })
-            } else {
-              result.sasjs_test_meta.push({
-                test_target: testTarget,
-                results: [
-                  {
-                    test_loc: test,
-                    sasjs_test_id: testId,
-                    result: res.result.test_results,
-                    test_url: testUrl
-                  }
-                ]
-              })
-            }
+          if (existingTestTarget) {
+            existingTestTarget.results.push({
+              test_loc: test,
+              sasjs_test_id: testId,
+              result: res.result.test_results,
+              test_url: testUrl
+            })
           } else {
-            displayError(
-              {},
-              `'test_results' not found in server response, to debug click ${testUrl}`
-            )
-
-            printCodeExample()
+            result.sasjs_test_meta.push({
+              test_target: testTarget,
+              results: [
+                {
+                  test_loc: test,
+                  sasjs_test_id: testId,
+                  result: res.result.test_results,
+                  test_url: testUrl
+                }
+              ]
+            })
           }
-        })
-        .catch(async (err) => {
-          printTestUrl()
+        } else if (target.serverType !== ServerType.Sasjs) {
+          displayError(
+            {},
+            `'test_results' not found in server response, to debug click ${testUrl}`
+          )
 
-          if (err && err.errorCode === 404) {
-            displaySasjsRunnerError(username)
-          } else {
-            displayError(
-              {},
-              `An error occurred while executing the request. Job location: ${sasJobLocation}`
-            )
-          }
+          printCodeExample()
+        }
+      })
+      .catch(async (err) => {
+        printTestUrl()
 
-          if (err?.error?.details?.result) {
-            await saveLog(outDirectory!, test, err.error.details.result)
-          }
-        })
-    }
+        if (err && err.errorCode === 404) {
+          displaySasjsRunnerError(username)
+        } else {
+          displayError(
+            {},
+            `An error occurred while executing the request. Job location: ${sasJobLocation}`
+          )
+        }
+
+        if (err?.error?.details?.result) {
+          await saveLog(outDirectory!, test, err.error.details.result)
+        }
+      })
   })
 
   const jsonPath = await saveResultJson(outDirectory, result)
