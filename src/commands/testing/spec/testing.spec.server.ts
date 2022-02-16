@@ -1,5 +1,5 @@
 import path from 'path'
-import { runTest } from '../test'
+import { runTest, getTestUrl } from '../test'
 import { TestDescription, TestResult } from '../../../types'
 import {
   Logger,
@@ -515,16 +515,14 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
   describe('SASJS', () => {
     const sasjs = new (<jest.Mock<SASjs>>SASjs)()
     const target: Target = generateTarget(ServerType.Sasjs)
+
+    let t = `/Public/app/cli-tests/${target.name}/tests/${test}`
+
     const testUrl = (test: string) =>
-      `${target.serverUrl}/${
-        target.serverType === ServerType.SasViya
-          ? 'SASJobExecution'
-          : 'SASStoredProcess'
-      }/?_program=/Public/app/cli-tests/${
-        target.name
-      }/tests/${test}&_debug=2477&_contextName=${encodeURIComponent(
-        target.contextName
-      )}`
+      `${getTestUrl(
+        target,
+        `/Public/app/cli-tests/${target.name}/tests/${test}`
+      )}&_contextName=${encodeURIComponent(target.contextName)}`
     const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
 
     beforeAll(async () => {

@@ -151,13 +151,7 @@ export async function runTest(
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
 
-    let testUrl = `${target.serverUrl}/${
-      target.serverType === ServerType.SasViya
-        ? 'SASJobExecution'
-        : target.serverType === ServerType.Sas9
-        ? 'SASStoredProcess'
-        : 'SASjsApi/stp/execute'
-    }/?_program=${sasJobLocation}&_debug=2477`
+    let testUrl = getTestUrl(target, sasJobLocation)
 
     if (target.contextName) {
       testUrl = `${testUrl}&_contextName=${encodeURIComponent(
@@ -392,3 +386,12 @@ export async function runTest(
   ${coverageReportPath}`
   )
 }
+
+export const getTestUrl = (target: Target, jobLocation: string) =>
+  `${target.serverUrl}/${
+    target.serverType === ServerType.SasViya
+      ? 'SASJobExecution'
+      : target.serverType === ServerType.Sas9
+      ? 'SASStoredProcess'
+      : 'SASjsApi/stp/execute'
+  }/?_program=${jobLocation}&_debug=2477`
