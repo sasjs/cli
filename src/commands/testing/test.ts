@@ -154,7 +154,9 @@ export async function runTest(
     let testUrl = `${target.serverUrl}/${
       target.serverType === ServerType.SasViya
         ? 'SASJobExecution'
-        : 'SASStoredProcess'
+        : target.serverType === ServerType.Sas9
+        ? 'SASStoredProcess'
+        : 'SASjsApi/stp/execute'
     }/?_program=${sasJobLocation}&_debug=2477`
 
     if (target.contextName) {
