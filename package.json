@@ -15,7 +15,6 @@
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --runInBand --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
-    "semantic-release": "semantic-release -d",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true && npm run checkNodeVersion -s"
@@ -47,7 +46,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.5.1",
+    "@sasjs/adapter": "3.6.1",
     "@sasjs/core": "4.9.0",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.36.0",
@@ -88,7 +87,6 @@
     "jest-cli": "27.4.7",
     "jest-extended": "1.1.0",
     "nodemon": "2.0.15",
-    "semantic-release": "17.4.7",
     "ts-jest": "27.1.2",
     "ts-node": "10.4.0",
     "tslib": "2.3.1",
