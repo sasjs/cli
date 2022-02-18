@@ -21,7 +21,6 @@ import {
 import { contextName } from '../../../utils'
 import dotenv from 'dotenv'
 import { build, deploy } from '../..'
-import SASjs from '@sasjs/adapter/node'
 
 describe('sasjs test', () => {
   const expectedCoverageLcov = `TN:testsetup.sas
@@ -513,10 +512,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
   })
 
   describe('SASJS', () => {
-    const sasjs = new (<jest.Mock<SASjs>>SASjs)()
     const target: Target = generateTarget(ServerType.Sasjs)
-
-    let t = `/Public/app/cli-tests/${target.name}/tests/${test}`
 
     const testUrl = (test: string) =>
       `${getTestUrl(
@@ -529,6 +525,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       await createTestApp(__dirname, target.name)
       await copyTestFiles(target.name)
       await build(target)
+      await deploy(target, false)
 
       process.logger = new Logger(LogLevel.Off)
     })
@@ -538,8 +535,6 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
-      const testDescription = 'random test description'
-      const testResult = 'PASS'
       const expectedResultsJson = {
         sasjs_test_meta: [
           {
@@ -548,12 +543,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
               {
                 test_loc: 'tests/testsetup.sas',
                 sasjs_test_id: '',
-                result: [
-                  {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
-                  }
-                ],
+                result: 'not provided',
                 test_url: testUrl('testsetup')
               }
             ]
@@ -564,12 +554,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
               {
                 test_loc: 'tests/jobs/jobs/exampleprogram.test.sas',
                 sasjs_test_id: '',
-                result: [
-                  {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
-                  }
-                ],
+                result: 'not provided',
                 test_url: testUrl('jobs/jobs/exampleprogram.test')
               }
             ]
@@ -580,12 +565,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
               {
                 test_loc: 'tests/jobs/jobs/standalone.test.sas',
                 sasjs_test_id: '',
-                result: [
-                  {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
-                  }
-                ],
+                result: 'not provided',
                 test_url: testUrl('jobs/jobs/standalone.test')
               }
             ]
@@ -598,8 +578,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
+                    TEST_DESCRIPTION: 'examplemacro test.1 description',
+                    TEST_RESULT: 'PASS'
                   }
                 ],
                 test_url: testUrl('macros/examplemacro.test')
@@ -612,12 +592,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
               {
                 test_loc: 'tests/macros/shouldFail.test.sas',
                 sasjs_test_id: '',
-                result: [
-                  {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
-                  }
-                ],
+                result: 'not provided',
                 test_url: testUrl('macros/shouldFail.test')
               }
             ]
@@ -630,8 +605,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
+                    TEST_DESCRIPTION: 'dostuff 0 test description',
+                    TEST_RESULT: 'FAIL'
                   }
                 ],
                 test_url: testUrl('services/admin/dostuff.test.0')
@@ -641,8 +616,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
                 sasjs_test_id: '',
                 result: [
                   {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
+                    TEST_DESCRIPTION: 'dostuff 1 test description',
+                    TEST_RESULT: 'PASS'
                   }
                 ],
                 test_url: testUrl('services/admin/dostuff.test.1')
@@ -655,12 +630,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
               {
                 test_loc: 'tests/testteardown.sas',
                 sasjs_test_id: '',
-                result: [
-                  {
-                    TEST_DESCRIPTION: testDescription,
-                    TEST_RESULT: testResult
-                  }
-                ],
+                result: 'not provided',
                 test_url: testUrl('testteardown')
               }
             ]
@@ -668,50 +638,33 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         ]
       }
       const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
-testsetup,tests/testsetup.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testsetup'
       )}
-exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+exampleprogram,tests/jobs/jobs/exampleprogram.test.sas,sasjs_test_id,not provided,,${testUrlLink(
         'jobs/jobs/exampleprogram.test'
       )}
-standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+standalone,tests/jobs/jobs/standalone.test.sas,sasjs_test_id,not provided,,${testUrlLink(
         'jobs/jobs/standalone.test'
       )}
-examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+examplemacro,tests/macros/examplemacro.test.sas,sasjs_test_id,PASS,examplemacro test.1 description,${testUrlLink(
         'macros/examplemacro.test'
       )}
-shouldFail,tests/macros/shouldFail.test.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+shouldFail,tests/macros/shouldFail.test.sas,sasjs_test_id,not provided,,${testUrlLink(
         'macros/shouldFail.test'
       )}
-dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 test description,${testUrlLink(
         'services/admin/dostuff.test.0'
       )}
-dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 test description,${testUrlLink(
         'services/admin/dostuff.test.1'
       )}
-testteardown,tests/testteardown.sas,sasjs_test_id,${testResult},${testDescription},${testUrlLink(
+testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testteardown'
       )}
 `
 
-      jest.spyOn(sasjs, 'executeJobSASjs').mockImplementation(() =>
-        Promise.resolve({
-          status: 'success',
-          _webout:
-            '{"test_results":\r\n' +
-            '[\r\n' +
-            `{"TEST_DESCRIPTION":"${testDescription}" ,"TEST_RESULT":"${testResult}" }\r\n` +
-            ']}',
-          log:
-            '1                                          The SAS System             11:42 Friday, February 11, 2022\r\n' +
-            '\r\n' +
-            'NOTE: Copyright (c) 2016 by SAS Institute Inc., Cary, NC, USA. \r\n' +
-            'NOTE: This session is executing on the X64_10PRO  platform.\r\n',
-          message: 'success'
-        })
-      )
-
-      await runTest(target, undefined, undefined, undefined, sasjs)
+      await runTest(target, undefined, undefined, undefined)
 
       const resultsFolderPath = path.join(
         __dirname,
@@ -758,35 +711,41 @@ testteardown,tests/testteardown.sas,sasjs_test_id,${testResult},${testDescriptio
       let resultsXml = await readFile(resultsXmlPath)
 
       const expectedResultsXml = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<testsuites id="" name=\"SASjs Test Meta\" tests=\"8\" failures=\"0\">
-  <testsuite id=\"testsetup\" name=\"testsetup\" tests=\"1\" failures=\"0\">
+<testsuites id="" name=\"SASjs Test Meta\" tests=\"8\" failures=\"6\">
+  <testsuite id=\"testsetup\" name=\"testsetup\" tests=\"1\" failures=\"1\">
     <testcase id="">
+      <failure>Status was not provided</failure>
     </testcase>
   </testsuite>
-  <testsuite id=\"exampleprogram\" name=\"exampleprogram\" tests=\"1\" failures=\"0\">
+  <testsuite id=\"exampleprogram\" name=\"exampleprogram\" tests=\"1\" failures=\"1\">
     <testcase id="">
+      <failure>Status was not provided</failure>
     </testcase>
   </testsuite>
-  <testsuite id=\"standalone\" name=\"standalone\" tests=\"1\" failures=\"0\">
+  <testsuite id=\"standalone\" name=\"standalone\" tests=\"1\" failures=\"1\">
     <testcase id="">
+      <failure>Status was not provided</failure>
     </testcase>
   </testsuite>
   <testsuite id=\"examplemacro\" name=\"examplemacro\" tests=\"1\" failures=\"0\">
     <testcase id=\"\">
     </testcase>
   </testsuite>
-  <testsuite id=\"shouldFail\" name=\"shouldFail\" tests=\"1\" failures=\"0\">
-    <testcase id=\"\">
+  <testsuite id="shouldFail" name="shouldFail" tests="1" failures="1">
+    <testcase id="">
+      <failure>Status was not provided</failure>
     </testcase>
   </testsuite>
-  <testsuite id=\"dostuff\" name=\"dostuff\" tests=\"2\" failures=\"0\">
+  <testsuite id=\"dostuff\" name=\"dostuff\" tests=\"2\" failures=\"1\">
     <testcase id="">
+      <failure>Description: dostuff 0 test description</failure>
     </testcase>
     <testcase id="">
     </testcase>
   </testsuite>
-  <testsuite id=\"testteardown\" name=\"testteardown\" tests=\"1\" failures=\"0\">
+  <testsuite id="testteardown" name="testteardown" tests="1" failures="1">
     <testcase id="">
+      <failure>Status was not provided</failure>
     </testcase>
   </testsuite>
 </testsuites>`
@@ -814,7 +773,7 @@ function generateTarget(serverType = ServerType.SasViya): Target {
   dotenv.config()
 
   const timestamp = generateTimestamp()
-  const targetName = `cli-tests-test-command-${timestamp}`
+  const targetName = `cli-tests-test-command-${serverType}-${timestamp}`
 
   return new Target({
     name: targetName,

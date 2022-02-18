@@ -32,8 +32,7 @@ export async function runTest(
   target: Target,
   testRegExps: string[] = [],
   outDirectory?: string,
-  flowSourcePath?: string,
-  sasjs?: SASjs
+  flowSourcePath?: string
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -84,17 +83,15 @@ export async function runTest(
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
-  sasjs =
-    sasjs ||
-    new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType,
-      debug: true,
-      contextName: target.contextName,
-      useComputeApi: false
-    })
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    httpsAgentOptions: target.httpsAgentOptions,
+    appLoc: target.appLoc,
+    serverType: target.serverType,
+    debug: true,
+    contextName: target.contextName,
+    useComputeApi: false
+  })
 
   let authConfig: AuthConfig, username: string, password: string
 
@@ -172,6 +169,84 @@ export async function runTest(
 
     printTestUrl()
 
+    const handleRes = async (res: any) => {
+      let lineBreak = true
+
+      if (!res.result) {
+        displayError(
+          {},
+          `Job did not return a response, to debug click ${testUrl}`
+        )
+
+        printCodeExample()
+
+        lineBreak = false
+
+        const existingTestTarget = result.sasjs_test_meta.find(
+          (testResult: TestDescription) => testResult.test_target === testTarget
+        )
+
+        if (existingTestTarget) {
+          existingTestTarget.results.push({
+            test_loc: test,
+            sasjs_test_id: testId,
+            result: TestResultStatus.notProvided,
+            test_url: testUrl
+          })
+        } else {
+          result.sasjs_test_meta.push({
+            test_target: testTarget,
+            results: [
+              {
+                test_loc: test,
+                sasjs_test_id: testId,
+                result: TestResultStatus.notProvided,
+                test_url: testUrl
+              }
+            ]
+          })
+        }
+      }
+
+      if (!res.result?.test_results) lineBreak = false
+
+      if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
+
+      if (res.result?.test_results) {
+        const existingTestTarget = result.sasjs_test_meta.find(
+          (testResult: TestDescription) => testResult.test_target === testTarget
+        )
+
+        if (existingTestTarget) {
+          existingTestTarget.results.push({
+            test_loc: test,
+            sasjs_test_id: testId,
+            result: res.result.test_results,
+            test_url: testUrl
+          })
+        } else {
+          result.sasjs_test_meta.push({
+            test_target: testTarget,
+            results: [
+              {
+                test_loc: test,
+                sasjs_test_id: testId,
+                result: res.result.test_results,
+                test_url: testUrl
+              }
+            ]
+          })
+        }
+      } else if (target.serverType !== ServerType.Sasjs) {
+        displayError(
+          {},
+          `'test_results' not found in server response, to debug click ${testUrl}`
+        )
+
+        printCodeExample()
+      }
+    }
+
     await sasjs!
       .request(
         sasJobLocation,
@@ -183,86 +258,12 @@ export async function runTest(
         authConfig,
         ['log']
       )
-      .then(async (res) => {
-        let lineBreak = true
-
-        if (!res.result) {
-          displayError(
-            {},
-            `Job did not return a response, to debug click ${testUrl}`
-          )
-
-          printCodeExample()
-
-          lineBreak = false
-
-          const existingTestTarget = result.sasjs_test_meta.find(
-            (testResult: TestDescription) =>
-              testResult.test_target === testTarget
-          )
-
-          if (existingTestTarget) {
-            existingTestTarget.results.push({
-              test_loc: test,
-              sasjs_test_id: testId,
-              result: TestResultStatus.notProvided,
-              test_url: testUrl
-            })
-          } else {
-            result.sasjs_test_meta.push({
-              test_target: testTarget,
-              results: [
-                {
-                  test_loc: test,
-                  sasjs_test_id: testId,
-                  result: TestResultStatus.notProvided,
-                  test_url: testUrl
-                }
-              ]
-            })
-          }
-        }
-
-        if (!res.result?.test_results) lineBreak = false
-
-        if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
-
-        if (res.result?.test_results) {
-          const existingTestTarget = result.sasjs_test_meta.find(
-            (testResult: TestDescription) =>
-              testResult.test_target === testTarget
-          )
-
-          if (existingTestTarget) {
-            existingTestTarget.results.push({
-              test_loc: test,
-              sasjs_test_id: testId,
-              result: res.result.test_results,
-              test_url: testUrl
-            })
-          } else {
-            result.sasjs_test_meta.push({
-              test_target: testTarget,
-              results: [
-                {
-                  test_loc: test,
-                  sasjs_test_id: testId,
-                  result: res.result.test_results,
-                  test_url: testUrl
-                }
-              ]
-            })
-          }
-        } else if (target.serverType !== ServerType.Sasjs) {
-          displayError(
-            {},
-            `'test_results' not found in server response, to debug click ${testUrl}`
-          )
-
-          printCodeExample()
-        }
-      })
+      .then(handleRes)
       .catch(async (err) => {
+        if (err.error?.message === 'Error: invalid Json string') {
+          await handleRes({})
+          return
+        }
         printTestUrl()
 
         if (err && err.errorCode === 404) {
