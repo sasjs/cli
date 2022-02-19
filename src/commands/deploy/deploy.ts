@@ -79,7 +79,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   const logFilePath = buildDestinationFolder
 
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target, isLocal, sasjs)
+    await deployToSasjs(target, sasjs)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -323,11 +323,9 @@ async function deployToSas9(
 /**
  * Deploys app to `SASJS` server.
  * @param {Target} target- the target having deploy configuration.
- * @param {boolean} isLocal- flag indicating if specified target is
- * from local sasjsconfig or global sasjsconfig file.
  * @param {object} sasjs - optional configuration object of SAS adapter.
  */
-async function deployToSasjs(target: Target, isLocal: boolean, sasjs?: SASjs) {
+async function deployToSasjs(target: Target, sasjs?: SASjs) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
