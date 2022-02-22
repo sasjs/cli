@@ -247,7 +247,6 @@ export async function runTest(
       }
     }
 
-    console.log('going to run ', sasJobLocation)
     await sasjs!
       .request(
         sasJobLocation,
@@ -261,7 +260,6 @@ export async function runTest(
       )
       .then(handleRes)
       .catch(async (err) => {
-        console.log('CATCH', sasJobLocation)
         if (err.error?.message === 'Error: invalid Json string') {
           await handleRes({})
           return
