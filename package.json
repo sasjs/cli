@@ -47,7 +47,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.7.2",
+    "@sasjs/adapter": "3.7.3",
     "@sasjs/core": "4.9.2",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.36.0",
