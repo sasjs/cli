@@ -90,7 +90,7 @@ export async function runTest(
     serverType: target.serverType,
     debug: true,
     contextName: target.contextName,
-    useComputeApi: false
+    useComputeApi: target.serverType === ServerType.Sasjs ? undefined : false
   })
 
   let authConfig: AuthConfig, username: string, password: string
@@ -247,6 +247,7 @@ export async function runTest(
       }
     }
 
+    console.log('going to run ', sasJobLocation)
     await sasjs!
       .request(
         sasJobLocation,
@@ -260,6 +261,7 @@ export async function runTest(
       )
       .then(handleRes)
       .catch(async (err) => {
+        console.log('CATCH', sasJobLocation)
         if (err.error?.message === 'Error: invalid Json string') {
           await handleRes({})
           return
