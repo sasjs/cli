@@ -90,7 +90,7 @@ export async function runTest(
     serverType: target.serverType,
     debug: true,
     contextName: target.contextName,
-    useComputeApi: target.serverType === ServerType.Sasjs ? undefined : false
+    useComputeApi: false
   })
 
   let authConfig: AuthConfig, username: string, password: string
