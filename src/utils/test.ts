@@ -104,7 +104,7 @@ export const generateTestTarget = (
   },
   serverType = ServerType.SasViya,
   jobConfig: JobConfig = {
-    jobFolders: [path.join('sasjs', 'jobs')],
+    jobFolders: [],
     initProgram: '',
     termProgram: '',
     macroVars: {}
