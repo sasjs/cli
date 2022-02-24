@@ -29,7 +29,7 @@ import { compiledFilesCustom1 } from './fileStructures/compiledFilesCustom1'
 import { builtFiles } from './fileStructures/builtFiles'
 import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
-import { ServiceConfig } from '@sasjs/utils/types/config'
+import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
@@ -102,7 +102,13 @@ export const generateTestTarget = (
     termProgram: '',
     macroVars: {}
   },
-  serverType = ServerType.SasViya
+  serverType = ServerType.SasViya,
+  jobConfig: JobConfig = {
+    jobFolders: [],
+    initProgram: '',
+    termProgram: '',
+    macroVars: {}
+  }
 ) => {
   dotenv.config()
 
@@ -120,12 +126,9 @@ export const generateTestTarget = (
       access_token: process.env.ACCESS_TOKEN,
       refresh_token: process.env.REFRESH_TOKEN
     },
-    jobConfig: {
-      jobFolders: []
-    },
+    jobConfig,
     serviceConfig,
     testConfig: {
-      testFolders: ['tests'],
       initProgram: path.join('tests', 'testinit.sas'),
       termProgram: path.join('tests', 'testterm.sas'),
       macroVars: {
