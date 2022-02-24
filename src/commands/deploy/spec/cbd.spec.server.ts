@@ -1,10 +1,6 @@
 import { fileExists, copy, readFile, StreamConfig } from '@sasjs/utils'
 import path from 'path'
 import { Target, generateTimestamp } from '@sasjs/utils'
-import {
-  findTargetInConfiguration,
-  removeFromGlobalConfig
-} from '../../../utils/config'
 import * as configUtils from '../../../utils/config'
 import * as getDeployScriptsModule from '../internal/getDeployScripts'
 import {
