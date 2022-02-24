@@ -310,27 +310,22 @@ async function deployToSas9(
     ? executionResult.result
     : executionResult
 
-  await createFile(
-    path.join(logFolder, `${deployScriptName.replace('.sas', '')}.log`),
-    logContent ?? ''
+  const logFilePath = path.join(
+    logFolder,
+    `${deployScriptName.replace('.sas', '')}.log`
   )
+  await createFile(logFilePath, logContent ?? '')
 
   if (completedWithError) {
     process.logger?.error(
-      `Deployment failed with errors! Log is available at ${path.join(
-        logFolder,
-        `${deployScriptName.replace('.sas', '')}.log`
-      )}`
+      `Deployment failed with errors! Log is available at ${logFilePath}`
     )
 
     throw new Error(`Deployment failed.`)
   }
 
   process.logger?.success(
-    `Deployment completed! Log is available at ${path.join(
-      logFolder,
-      `${deployScriptName.replace('.sas', '')}.log`
-    )}`
+    `Deployment completed! Log is available at ${logFilePath}`
   )
 
   if (streamConfig?.streamWeb) {
