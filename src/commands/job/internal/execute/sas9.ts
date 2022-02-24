@@ -19,7 +19,7 @@ import { saveLog } from '../utils'
  * @param {object} config - An object containing the username and password for authentication.
  * @param {string} jobPath - Location of the Stored Process in SAS metadata (_program).
  * @param {string | undefined} logFile - If provided, the CLI will write the log here.
- * @param {string | string} output - If provided, and valid JSON is returned (ie using the SASjs macros), it will be written to this file location.
+ * @param {string | undefined} output - If provided, and valid JSON is returned (ie using the SASjs macros), it will be written to this file location.
  * @param {string | undefined} source - An optional path to a JSON file containing input macro variables.
  */
 export async function executeJobSas9(
