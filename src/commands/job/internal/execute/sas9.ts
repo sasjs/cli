@@ -14,13 +14,13 @@ import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { saveLog } from '../utils'
 
 /**
- * Triggers existing job for execution.
- * @param {object} sasjs - configuration object of SASJS adapter.
- * @param {object} config - an object containing username and password for authentication.
- * @param {string} jobPath - location of the job on SAS Drive.
- * @param {string | undefined} logFile - flag indicating if CLI should save log to provided file path.
- * @param {boolean | string} output - flag indicating if CLI should print out job output.
- * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
+ * Triggers an existing Stored Process for execution as a "job".  See online documentation here: https://cli.sasjs.io/job/
+ * @param {object} sasjs - Configuration object of the SASJS adapter.
+ * @param {object} config - An object containing the username and password for authentication.
+ * @param {string} jobPath - Location of the Stored Process in SAS metadata (_program).
+ * @param {string | undefined} logFile - If provided, the CLI will write the log here.
+ * @param {boolean | string} output - If provided, and valid JSON is returned (ie using the SASjs macros), it will be written to this file location.
+ * @param {string | undefined} source - An optional path to a JSON file containing input macro variables.
  */
 export async function executeJobSas9(
   sasjs: SASjs,
