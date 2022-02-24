@@ -47,7 +47,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "file:../adapter/build/sasjs-adapter-5.0.0.tgz",
+    "@sasjs/adapter": "3.7.6",
     "@sasjs/core": "4.9.3",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.36.0",
