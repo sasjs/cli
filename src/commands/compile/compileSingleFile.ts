@@ -82,7 +82,8 @@ export async function compileSingleFile(
         destinationPath,
         macroFolders,
         programFolders,
-        programVar
+        programVar,
+        {}
       )
       break
     case subCommands.job:

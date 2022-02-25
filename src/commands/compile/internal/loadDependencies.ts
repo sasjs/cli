@@ -11,13 +11,15 @@ export async function loadDependencies(
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  type: SASJsFileType
+  type: SASJsFileType,
+  compileTree?: any
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
   const fileContent = await readFile(filePath)
   const { configuration } = await getLocalOrGlobalConfig()
-  const { buildSourceFolder, macroCorePath } = process.sasjsConstants
+  const { buildSourceFolder, buildDestinationFolder, macroCorePath } =
+    process.sasjsConstants
   const binaryFolders = await getBinaryFolders(target)
 
   headerSyntaxNotices(fileContent)
@@ -31,7 +33,9 @@ export async function loadDependencies(
     programFolders,
     buildSourceFolder,
     macroCorePath,
-    binaryFolders
+    binaryFolders,
+    buildDestinationFolder,
+    compileTree
   })
 }
 

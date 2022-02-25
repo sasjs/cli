@@ -37,8 +37,12 @@ const subCommandParseOptions = {
   output: { type: 'string', alias: 'o' }
 }
 
+let compileStart: any
 export class CompileCommand extends TargetCommand {
   constructor(args: string[]) {
+    compileStart = Date.now()
+    console.log(`🤖[compilation started]🤖`, Date.now())
+
     let parseOptions = {}
     const subCommand = args[3]
     if (
@@ -93,6 +97,8 @@ export class CompileCommand extends TargetCommand {
 
     return await compile(target, true)
       .then(() => {
+        console.log(`🤖[Compilation completed]🤖`, Date.now())
+        console.log(`🤖[compilation took: ]🤖`, Date.now() - compileStart)
         process.logger?.success(
           `Services have been successfully compiled!\nThe compile output is located in the ${buildDestinationFolder} directory.`
         )

@@ -10,14 +10,16 @@ export async function compileServiceFile(
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  programVar: string = ''
+  programVar: string = '',
+  compileTree: any
 ) {
   let dependencies = await loadDependencies(
     target,
     filePath,
     macroFolders,
     programFolders,
-    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service
+    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service,
+    compileTree
   )
 
   const serverType = await getServerType(target)

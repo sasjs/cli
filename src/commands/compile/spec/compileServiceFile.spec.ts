@@ -94,7 +94,9 @@ describe('compileServiceFile', () => {
         target,
         destinationPath,
         [path.join(__dirname, './macros')],
-        [path.join(__dirname, './'), path.join(__dirname, './services')]
+        [path.join(__dirname, './'), path.join(__dirname, './services')],
+        undefined,
+        {}
       )
     ).toResolve()
 
