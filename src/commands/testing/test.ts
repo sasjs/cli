@@ -172,7 +172,9 @@ export async function runTest(
     const handleRes = async (res: any) => {
       let lineBreak = true
 
-      if (!res.result) {
+      const test_results = res.result?.test_results
+
+      if (!test_results) {
         displayError(
           {},
           `Job did not return a response, to debug click ${testUrl}`
@@ -207,8 +209,6 @@ export async function runTest(
           })
         }
       }
-
-      if (!res.result?.test_results) lineBreak = false
 
       if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
