@@ -102,18 +102,16 @@ export class JobCommand extends TargetCommand {
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-    let sasjs
+    let sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      httpsAgentOptions: target.httpsAgentOptions,
+      appLoc: target.appLoc,
+      serverType: target.serverType,
+      debug: true
+    })
 
     switch (target.serverType) {
       case ServerType.SasViya:
-        sasjs = new SASjs({
-          serverUrl: target.serverUrl,
-          httpsAgentOptions: target.httpsAgentOptions,
-          appLoc: target.appLoc,
-          serverType: target.serverType,
-          debug: true
-        })
-
         const authConfig = await getAuthConfig(target).catch((err) => {
           process.logger?.error(
             'Unable to execute job. Error fetching auth config: ',
@@ -128,18 +126,6 @@ export class JobCommand extends TargetCommand {
           ? await this.executeJobViya(target, sasjs, authConfig)
           : ReturnCode.InvalidCommand
 
-      case ServerType.Sasjs:
-        sasjs = new SASjs({
-          serverType: target.serverType,
-          serverUrl: target.serverUrl
-        })
-
-        if (typeof this.parsed.jobPath !== 'string')
-          return ReturnCode.InvalidCommand
-
-        return this.jobSubCommands.includes(this.parsed.subCommand)
-          ? await this.executeJobSasjs(sasjs, target)
-          : ReturnCode.InvalidCommand
       case ServerType.Sas9:
         let username: any
         let password: any
@@ -151,20 +137,28 @@ export class JobCommand extends TargetCommand {
           password = process.env.SAS_PASSWORD
         }
         if (!username || !password) {
+          process.logger?.error(
+            'Unable to execute job. username and password not found'
+          )
           return ReturnCode.InternalError
         }
         password = decodeFromBase64(password)
 
-        sasjs = new SASjs({
-          serverUrl: target.serverUrl,
-          httpsAgentOptions: target.httpsAgentOptions,
-          appLoc: target.appLoc,
-          serverType: target.serverType,
-          debug: true
-        })
-
         return this.jobSubCommands.includes(this.parsed.subCommand)
           ? await this.executeJobSas9(sasjs, target, { username, password })
+          : ReturnCode.InvalidCommand
+
+      case ServerType.Sasjs:
+        sasjs = new SASjs({
+          serverType: target.serverType,
+          serverUrl: target.serverUrl
+        })
+
+        if (typeof this.parsed.jobPath !== 'string')
+          return ReturnCode.InvalidCommand
+
+        return this.jobSubCommands.includes(this.parsed.subCommand)
+          ? await this.executeJobSasjs(sasjs, target)
           : ReturnCode.InvalidCommand
 
       default:
