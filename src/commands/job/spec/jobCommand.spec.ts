@@ -196,12 +196,12 @@ describe('JobCommand', () => {
     })
   })
 
-  describe.only('for server type sas9', () => {
+  describe('for server type sas9', () => {
     beforeEach(() => {
       setupMocksForSAS9()
     })
 
-    it.only('should return the error code when user credentials are not found', async () => {
+    it('should return the error code when user credentials are not found', async () => {
       const username = process.env.SAS_USERNAME
       const password = process.env.SAS_PASSWORD
       process.env.SAS_USERNAME = ''
