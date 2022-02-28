@@ -1,17 +1,41 @@
 import path from 'path'
 import * as viyaExecuteModule from '../internal/execute/viya'
+import * as sas9ExecuteModule from '../internal/execute/sas9'
+import SASjs from '@sasjs/adapter/node'
 import { JobCommand } from '../jobCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
+import * as SasjsUtilsFilesModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
+import * as utilsModule from '../internal/utils'
+import { saveLog } from '../../../utils/saveLog'
 
 const defaultArgs = ['node', 'sasjs', 'job', 'execute']
-const target = new Target({
+const targetViya = new Target({
   name: 'test',
   appLoc: '/Public/test/',
   serverType: ServerType.SasViya,
   contextName: 'test context'
 })
+
+const target9 = new Target({
+  name: 'test',
+  appLoc: '/Public/test/',
+  serverType: ServerType.Sas9,
+  contextName: 'test context',
+  authConfigSas9: {
+    userName: 'testUser',
+    password: 'password'
+  }
+})
+
+const sas9TargetWithoutAuthConfig = new Target({
+  name: 'test',
+  appLoc: '/Public/test/',
+  serverType: ServerType.Sas9,
+  contextName: 'test context'
+})
+
 const authConfig = {}
 const jobFileName = 'someJob'
 const jobPath = `/Public/folder/${jobFileName}`
@@ -26,171 +50,249 @@ describe('JobCommand', () => {
     process.projectDir = projectFolder
   })
 
-  beforeEach(() => {
-    setupMocks()
-  })
+  describe('for server type viya', () => {
+    beforeEach(() => {
+      setupMocksForViya()
+    })
 
-  it('should parse sasjs job execute command', async () => {
-    await executeCommandWrapper([jobPath])
+    it('should parse sasjs job execute command', async () => {
+      await executeCommandWrapper([jobPath])
 
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({ jobPath })
-    )
-  })
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({ jobPath })
+      )
+    })
 
-  it('should pass wait as true if log flag with value is present', async () => {
-    await executeCommandWrapper([jobPath, '--log', log])
+    it('should pass wait as true if log flag with value is present', async () => {
+      await executeCommandWrapper([jobPath, '--log', log])
 
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({
-        jobPath,
-        waitForJob: true,
-        logFile: path.join(projectFolder, log)
-      })
-    )
-  })
-
-  it('should pass path for log file and wait to true if log flag without value is present', async () => {
-    await executeCommandWrapper([jobPath, '--log'])
-
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({
-        jobPath,
-        waitForJob: true,
-        logFile: path.join(process.projectDir, `${jobFileName}.log`)
-      })
-    )
-  })
-
-  it('should pass wait as true if returnStatusOnly flag is present', async () => {
-    await executeCommandWrapper([jobPath, '--returnStatusOnly'])
-
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({
-        jobPath,
-        waitForJob: true,
-        returnStatusOnly: true
-      })
-    )
-  })
-
-  it('should parse sasjs job execute command with all arguments', async () => {
-    await executeCommandWrapper([
-      jobPath,
-      '--target',
-      'test',
-      '--log',
-      log,
-      '--output',
-      output,
-      '--statusFile',
-      statusFile,
-      '--source',
-      source,
-      '--returnStatusOnly',
-      '--ignoreWarnings',
-      '--wait',
-      '--streamLog'
-    ])
-
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({
-        jobPath,
-        waitForJob: true,
-        output,
-        logFile: path.join(projectFolder, log),
-        statusFile: path.join(projectFolder, statusFile),
-        returnStatusOnly: true,
-        ignoreWarnings: true,
-        source,
-        streamLog: true
-      })
-    )
-  })
-
-  it('should parse a sasjs job execute command with all shorthand arguments', async () => {
-    await executeCommandWrapper([
-      jobPath,
-      '-t',
-      'test',
-      '-l',
-      log,
-      '-o',
-      output,
-      '--statusFile',
-      statusFile,
-      '-s',
-      source,
-      '-r',
-      '-i',
-      '-w',
-      '--streamLog'
-    ])
-
-    expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
-      ...executeCalledWith({
-        jobPath,
-        waitForJob: true,
-        output,
-        logFile: path.join(projectFolder, log),
-        statusFile: path.join(projectFolder, statusFile),
-        returnStatusOnly: true,
-        ignoreWarnings: true,
-        source,
-        streamLog: true
-      })
-    )
-  })
-
-  it('should log success and return the success code when execution is successful', async () => {
-    const returnCode = await executeCommandWrapper([jobPath])
-
-    expect(returnCode).toEqual(ReturnCode.Success)
-  })
-
-  it('should return the error code when target is not SASVIYA', async () => {
-    jest
-      .spyOn(configUtils, 'findTargetInConfiguration')
-      .mockImplementation(() =>
-        Promise.resolve({
-          target: new Target({
-            ...target.toJson(),
-            serverType: ServerType.Sas9
-          }),
-          isLocal: true
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({
+          jobPath,
+          waitForJob: true,
+          logFile: path.join(projectFolder, log)
         })
       )
+    })
 
-    const returnCode = await executeCommandWrapper([jobPath], false)
+    it('should pass path for log file and wait to true if log flag without value is present', async () => {
+      await executeCommandWrapper([jobPath, '--log'])
 
-    expect(returnCode).toEqual(ReturnCode.InternalError)
-    expect(process.logger.error).toHaveBeenCalled()
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({
+          jobPath,
+          waitForJob: true,
+          logFile: path.join(process.projectDir, `${jobFileName}.log`)
+        })
+      )
+    })
+
+    it('should pass wait as true if returnStatusOnly flag is present', async () => {
+      await executeCommandWrapper([jobPath, '--returnStatusOnly'])
+
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({
+          jobPath,
+          waitForJob: true,
+          returnStatusOnly: true
+        })
+      )
+    })
+
+    it('should parse sasjs job execute command with all arguments', async () => {
+      await executeCommandWrapper([
+        jobPath,
+        '--target',
+        'test',
+        '--log',
+        log,
+        '--output',
+        output,
+        '--statusFile',
+        statusFile,
+        '--source',
+        source,
+        '--returnStatusOnly',
+        '--ignoreWarnings',
+        '--wait',
+        '--streamLog'
+      ])
+
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({
+          jobPath,
+          waitForJob: true,
+          output,
+          logFile: path.join(projectFolder, log),
+          statusFile: path.join(projectFolder, statusFile),
+          returnStatusOnly: true,
+          ignoreWarnings: true,
+          source,
+          streamLog: true
+        })
+      )
+    })
+
+    it('should parse a sasjs job execute command with all shorthand arguments', async () => {
+      await executeCommandWrapper([
+        jobPath,
+        '-t',
+        'test',
+        '-l',
+        log,
+        '-o',
+        output,
+        '--statusFile',
+        statusFile,
+        '-s',
+        source,
+        '-r',
+        '-i',
+        '-w',
+        '--streamLog'
+      ])
+
+      expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
+        ...executeCalledWith({
+          jobPath,
+          waitForJob: true,
+          output,
+          logFile: path.join(projectFolder, log),
+          statusFile: path.join(projectFolder, statusFile),
+          returnStatusOnly: true,
+          ignoreWarnings: true,
+          source,
+          streamLog: true
+        })
+      )
+    })
+
+    it('should log success and return the success code when execution is successful', async () => {
+      const returnCode = await executeCommandWrapper([jobPath])
+
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
+
+    it('should return the error code when getting Auth Config is unsuccessful', async () => {
+      jest
+        .spyOn(configUtils, 'getAuthConfig')
+        .mockImplementation(() => Promise.reject(new Error('Test Error')))
+
+      const returnCode = await executeCommandWrapper([jobPath])
+
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should log the error and return the error code when execution is unsuccessful', async () => {
+      jest
+        .spyOn(viyaExecuteModule, 'executeJobViya')
+        .mockImplementation(() => Promise.reject(new Error('Test Error')))
+
+      const returnCode = await executeCommandWrapper([jobPath])
+
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
   })
 
-  it('should return the error code when getting Auth Config is unsuccessful', async () => {
-    jest
-      .spyOn(configUtils, 'getAuthConfig')
-      .mockImplementation(() => Promise.reject(new Error('Test Error')))
+  describe('for server type sas9', () => {
+    beforeEach(() => {
+      setupMocksForSAS9()
+    })
 
-    const returnCode = await executeCommandWrapper([jobPath])
+    it('should return the error code when user credentials are not found', async () => {
+      jest
+        .spyOn(configUtils, 'findTargetInConfiguration')
+        .mockImplementation(() =>
+          Promise.resolve({
+            target: sas9TargetWithoutAuthConfig,
+            isLocal: true
+          })
+        )
 
-    expect(returnCode).toEqual(ReturnCode.InternalError)
-    expect(process.logger.error).toHaveBeenCalled()
-  })
+      const returnCode = await executeCommandWrapper([jobPath])
 
-  it('should log the error and return the error code when execution is unsuccessful', async () => {
-    jest
-      .spyOn(viyaExecuteModule, 'executeJobViya')
-      .mockImplementation(() => Promise.reject(new Error('Test Error')))
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
 
-    const returnCode = await executeCommandWrapper([jobPath])
+    it('should log success and return the success code when execution is successful', async () => {
+      jest
+        .spyOn(sas9ExecuteModule, 'executeJobSas9')
+        .mockImplementation(() => Promise.resolve())
+      const returnCode = await executeCommandWrapper([jobPath])
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
 
-    expect(returnCode).toEqual(ReturnCode.InternalError)
-    expect(process.logger.error).toHaveBeenCalled()
+    it('should log the error and return the error code when execution is unsuccessful', async () => {
+      jest
+        .spyOn(sas9ExecuteModule, 'executeJobSas9')
+        .mockImplementation(() => Promise.reject(new Error('Test Error')))
+
+      const returnCode = await executeCommandWrapper([jobPath])
+
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should log success and return the success code with source argument', async () => {
+      const returnCode = await executeCommandWrapper([
+        jobPath,
+        '--source',
+        'testSource/source.json'
+      ])
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
+
+    it('should log the error and return the error code when source argument is provide but source file does not exists', async () => {
+      const returnCode = await executeCommandWrapper([
+        jobPath,
+        '--source',
+        'source.json'
+      ])
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should log the error and return the error code when source argument is provide but source does not contain valid macroVars', async () => {
+      const returnCode = await executeCommandWrapper([
+        jobPath,
+        '--source',
+        'testSource/invalid.json'
+      ])
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+      expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should log success and return the success code with log argument', async () => {
+      jest
+        .spyOn(utilsModule, 'saveLog')
+        .mockImplementation(() => Promise.resolve())
+
+      const returnCode = await executeCommandWrapper([
+        jobPath,
+        '--log',
+        'sample.log'
+      ])
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
+
+    it('should log success and return the success code with output argument', async () => {
+      jest
+        .spyOn(SasjsUtilsFilesModule, 'createFile')
+        .mockImplementation(() => Promise.resolve())
+      const returnCode = await executeCommandWrapper([
+        jobPath,
+        '--output',
+        'output.json'
+      ])
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
   })
 })
 
-const setupMocks = () => {
+const setupMocksForViya = () => {
   jest.resetAllMocks()
   jest.mock('../internal/execute')
   jest.mock('../../../utils/config')
@@ -200,11 +302,33 @@ const setupMocks = () => {
 
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
-    .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+    .mockImplementation(() =>
+      Promise.resolve({ target: targetViya, isLocal: true })
+    )
 
   jest
     .spyOn(configUtils, 'getAuthConfig')
     .mockImplementation(() => Promise.resolve(authConfig as AuthConfig))
+
+  process.logger = new Logger(LogLevel.Off)
+  jest.spyOn(process.logger, 'error')
+}
+
+const setupMocksForSAS9 = () => {
+  jest.resetAllMocks()
+  jest.mock('../internal/execute')
+  jest.spyOn(SASjs.prototype, 'request').mockImplementation(() =>
+    Promise.resolve({
+      status: 200,
+      result: { data: 'test data' },
+      log: 'test log'
+    })
+  )
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(() =>
+      Promise.resolve({ target: target9, isLocal: true })
+    )
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'error')
@@ -236,7 +360,7 @@ const executeCalledWith = ({
   expect.anything(),
   authConfig,
   jobPath,
-  target,
+  targetViya,
   waitForJob,
   output,
   logFile,
@@ -247,10 +371,7 @@ const executeCalledWith = ({
   streamLog
 ]
 
-const executeCommandWrapper = async (
-  additionalParams: string[],
-  checkTarget = true
-) => {
+const executeCommandWrapper = async (additionalParams: string[]) => {
   let subCommand = 'execute'
   const args = [...defaultArgs, ...additionalParams].map((arg: string) => {
     if (arg === 'execute') {
@@ -266,12 +387,6 @@ const executeCommandWrapper = async (
 
   expect(command.name).toEqual('job')
   expect(command.subCommand).toEqual(subCommand)
-
-  if (checkTarget) {
-    const targetInfo = await command.getTargetInfo()
-    expect(targetInfo.target).toEqual(target)
-    expect(targetInfo.isLocal).toBeTrue()
-  }
 
   return returnCode
 }
