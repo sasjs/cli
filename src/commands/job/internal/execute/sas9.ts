@@ -33,6 +33,9 @@ export async function executeJobSas9(
   let macroVars: MacroVars | null = null
 
   if (source) {
+    const currentDirPath = path.isAbsolute(source) ? '' : process.projectDir
+    source = path.join(currentDirPath, source)
+
     if (!isJsonFile(source)) throw 'Source file has to be JSON.'
 
     await fileExists(source).catch((_) => {
