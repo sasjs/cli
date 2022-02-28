@@ -196,12 +196,16 @@ describe('JobCommand', () => {
     })
   })
 
-  describe('for server type sas9', () => {
+  describe.only('for server type sas9', () => {
     beforeEach(() => {
       setupMocksForSAS9()
     })
 
-    it('should return the error code when user credentials are not found', async () => {
+    it.only('should return the error code when user credentials are not found', async () => {
+      const username = process.env.SAS_USERNAME
+      const password = process.env.SAS_PASSWORD
+      process.env.SAS_USERNAME = ''
+      process.env.SAS_PASSWORD = ''
       jest
         .spyOn(configUtils, 'findTargetInConfiguration')
         .mockImplementation(() =>
@@ -215,6 +219,9 @@ describe('JobCommand', () => {
 
       expect(returnCode).toEqual(ReturnCode.InternalError)
       expect(process.logger.error).toHaveBeenCalled()
+
+      process.env.SAS_USERNAME = username
+      process.env.SAS_PASSWORD = password
     })
 
     it('should log success and return the success code when execution is successful', async () => {
