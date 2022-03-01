@@ -84,11 +84,14 @@ export async function getNewAccessToken(
 ) {
   const authUrl = getAuthUrl(target.serverType, target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
-  const { access_token, refresh_token } = await sasjsInstance.getAccessToken(
-    clientId,
-    clientSecret,
-    authCode
-  )
+  const { access_token, refresh_token } = await sasjsInstance
+    .getAccessToken(clientId, clientSecret, authCode)
+    .then((res) => {
+      const { access_token, refresh_token } = res
+      if (access_token && refresh_token) return res
+
+      throw res
+    })
 
   return { access_token, refresh_token }
 }
