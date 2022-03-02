@@ -162,9 +162,7 @@ export const getTokens = async (
     target
   ).catch((e) => {
     process.logger?.error(
-      `An error has occurred while validating your credentials: `,
-      e,
-      `\nPlease check your Client ID ${
+      `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID ${
         target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
       }and try again.\n`
     )
