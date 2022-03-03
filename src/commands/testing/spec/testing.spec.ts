@@ -13,11 +13,7 @@ import {
   readFile,
   generateTimestamp
 } from '@sasjs/utils'
-import {
-  createTestApp,
-  removeTestApp,
-  removeTestServerFolder
-} from '../../../utils/test'
+import { createTestApp, removeTestApp } from '../../../utils/test'
 import { contextName } from '../../../utils/setConstants'
 import dotenv from 'dotenv'
 import { build } from '../..'
@@ -123,10 +119,6 @@ end_of_record`
     })
 
     afterAll(async () => {
-      await removeTestServerFolder(
-        `/Public/app/cli-tests/${target.name}`,
-        target
-      )
       await removeTestApp(__dirname, target.name)
     })
 

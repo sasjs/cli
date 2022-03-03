@@ -146,9 +146,10 @@ export async function runTest(
   }
 
   await asyncForEach(flow, async (test) => {
+    const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
     const sasJobLocation = [
       target.appLoc,
-      test.replace(sasFileRegExp, '')
+      test.replace(pathSepRegExp, '/').replace(sasFileRegExp, '')
     ].join('/')
 
     const testTarget = test
