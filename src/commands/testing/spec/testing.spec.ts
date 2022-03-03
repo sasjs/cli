@@ -18,9 +18,13 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
-import { contextName } from '../../../utils'
+import { contextName } from '../../../utils/setConstants'
 import dotenv from 'dotenv'
-import { build, deploy } from '../..'
+import { build } from '../..'
+import SASjs, { SASjsConfig } from '@sasjs/adapter/node'
+
+import * as sasJsModules from '../../../utils/createSASjsInstance'
+import { testResponses } from './mockedAdapter/testResponses'
 
 describe('sasjs test', () => {
   const expectedCoverageLcov = `TN:testsetup.sas
@@ -110,9 +114,12 @@ end_of_record`
       await createTestApp(__dirname, target.name)
       await copyTestFiles(target.name)
       await build(target)
-      await deploy(target, false)
 
       process.logger = new Logger(LogLevel.Off)
+    })
+
+    beforeEach(() => {
+      setupMocksForSASVIYA()
     })
 
     afterAll(async () => {
@@ -525,9 +532,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       await createTestApp(__dirname, target.name)
       await copyTestFiles(target.name)
       await build(target)
-      await deploy(target, false)
 
       process.logger = new Logger(LogLevel.Off)
+    })
+
+    beforeEach(() => {
+      setupMocksForSASJS()
     })
 
     afterAll(async () => {
@@ -840,4 +850,42 @@ const copyTestFiles = async (appName: string) => {
     path.join(__dirname, 'testMacros'),
     path.join(__dirname, appName, 'sasjs', 'macros')
   )
+}
+
+const setupMocksForSASVIYA = () => {
+  jest
+    .spyOn(sasJsModules, 'createSASjsInstance')
+    .mockImplementation((config: Partial<SASjsConfig>) => {
+      return {
+        request: async (sasJob: string) => {
+          const testName = sasJob.split('/').pop() || ''
+
+          if (testName === 'shouldFail.test') {
+            throw {
+              errorCode: 404,
+              error: { details: { result: 'some log from server' } }
+            }
+          }
+
+          return {
+            result: { test_results: testResponses[testName] },
+            log: 'some log from server'
+          }
+        }
+      } as unknown as SASjs
+    })
+}
+
+const setupMocksForSASJS = () => {
+  jest
+    .spyOn(sasJsModules, 'createSASjsInstance')
+    .mockImplementation((config: Partial<SASjsConfig>) => {
+      return {
+        request: async (sasJob: string) => {
+          const testName = sasJob.split('/').pop() || ''
+          const test_results = testResponses[testName]
+          return { result: { test_results } }
+        }
+      } as unknown as SASjs
+    })
 }
