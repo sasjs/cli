@@ -379,10 +379,11 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${serverType !== ServerType.Sasjs
-      ? getWebServiceScriptInvocation(serverType)
-      : ''
-    }
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(serverType)
+    : ''
+}
 filename sascode clear;
 `
 }
@@ -405,10 +406,11 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${serverType !== ServerType.Sasjs
-      ? getWebServiceScriptInvocation(serverType, false, true)
-      : ''
-    }
+${
+  serverType !== ServerType.Sasjs
+    ? getWebServiceScriptInvocation(serverType, false, true)
+    : ''
+}
 filename filecode clear;
 `
 }
