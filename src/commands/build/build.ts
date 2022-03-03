@@ -136,7 +136,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     // the deployed index.html file.  This only happens when deploying using the
     // SAS Program (build.sas) approach.
     const gsubScript = await readFile(
-      `${getMacroCorePath()}/base/mp_gsubfile.sas`
+      `${getMacroCorePath()}/base/mp_replace.sas`
     )
     buildConfig += `${gsubScript}\n`
     const dependencyFilePathsForGsubScript = await getDependencyPaths(
@@ -379,11 +379,10 @@ data _null_;
 file sascode;
 ${content}\n
 run;
-${
-  serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType)
-    : ''
-}
+${serverType !== ServerType.Sasjs
+      ? getWebServiceScriptInvocation(serverType)
+      : ''
+    }
 filename sascode clear;
 `
 }
@@ -406,11 +405,10 @@ data _null_;
 file filecode;
 ${content}\n
 run;
-${
-  serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, false, true)
-    : ''
-}
+${serverType !== ServerType.Sasjs
+      ? getWebServiceScriptInvocation(serverType, false, true)
+      : ''
+    }
 filename filecode clear;
 `
 }
