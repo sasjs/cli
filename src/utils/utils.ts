@@ -369,10 +369,10 @@ parmcards4;
 %mend sasjs_runner;
 %sasjs_runner()
 ;;;;
-%mm_createwebservice(path=/User Folders/&sysuserid/My Folder/sasjs,name=runner)
+%mm_createwebservice(path=/User Folders/&_metauser/My Folder/sasjs,name=runner)
 `
 
-  const message = `The SASjs runner was not found in your user folder at /User Folders/${username}/My Folder/sasjs/runner.`
+  const message = `The SASjs runner was not found in your user folder at /User Folders/&_metauser/My Folder/sasjs/runner.`
   displayError(message, 'An error occurred while executing the request.')
   process.logger?.info(
     `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
