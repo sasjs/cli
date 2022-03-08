@@ -23,10 +23,10 @@ import {
   decodeFromBase64,
   Target
 } from '@sasjs/utils'
-import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import { createSASjsInstance } from '../../utils/createSASjsInstance'
 
 export async function runTest(
   target: Target,
@@ -83,7 +83,7 @@ export async function runTest(
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
-  const sasjs = new SASjs({
+  const sasjs = createSASjsInstance({
     serverUrl: target.serverUrl,
     httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
@@ -146,9 +146,10 @@ export async function runTest(
   }
 
   await asyncForEach(flow, async (test) => {
+    const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
     const sasJobLocation = [
       target.appLoc,
-      test.replace(sasFileRegExp, '')
+      test.replace(pathSepRegExp, '/').replace(sasFileRegExp, '')
     ].join('/')
 
     const testTarget = test
@@ -169,84 +170,6 @@ export async function runTest(
 
     printTestUrl()
 
-    const handleRes = async (res: any) => {
-      let lineBreak = true
-
-      const test_results = res.result?.test_results
-
-      if (!test_results) {
-        displayError(
-          {},
-          `Job did not return a response, to debug click ${testUrl}`
-        )
-
-        printCodeExample()
-
-        lineBreak = false
-
-        const existingTestTarget = result.sasjs_test_meta.find(
-          (testResult: TestDescription) => testResult.test_target === testTarget
-        )
-
-        if (existingTestTarget) {
-          existingTestTarget.results.push({
-            test_loc: test,
-            sasjs_test_id: testId,
-            result: TestResultStatus.notProvided,
-            test_url: testUrl
-          })
-        } else {
-          result.sasjs_test_meta.push({
-            test_target: testTarget,
-            results: [
-              {
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: TestResultStatus.notProvided,
-                test_url: testUrl
-              }
-            ]
-          })
-        }
-      }
-
-      if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
-
-      if (res.result?.test_results) {
-        const existingTestTarget = result.sasjs_test_meta.find(
-          (testResult: TestDescription) => testResult.test_target === testTarget
-        )
-
-        if (existingTestTarget) {
-          existingTestTarget.results.push({
-            test_loc: test,
-            sasjs_test_id: testId,
-            result: res.result.test_results,
-            test_url: testUrl
-          })
-        } else {
-          result.sasjs_test_meta.push({
-            test_target: testTarget,
-            results: [
-              {
-                test_loc: test,
-                sasjs_test_id: testId,
-                result: res.result.test_results,
-                test_url: testUrl
-              }
-            ]
-          })
-        }
-      } else if (target.serverType !== ServerType.Sasjs) {
-        displayError(
-          {},
-          `'test_results' not found in server response, to debug click ${testUrl}`
-        )
-
-        printCodeExample()
-      }
-    }
-
     await sasjs!
       .request(
         sasJobLocation,
@@ -258,15 +181,89 @@ export async function runTest(
         authConfig,
         ['log']
       )
-      .then(handleRes)
-      .catch(async (err) => {
-        if (err.error?.message === 'Error: invalid Json string') {
-          await handleRes({})
-          return
+      .then(async (res: any) => {
+        let lineBreak = true
+
+        const test_results = res.result?.test_results
+
+        if (!test_results) {
+          displayError(
+            {},
+            `Job did not return a response, to debug click ${testUrl}`
+          )
+
+          printCodeExample()
+
+          lineBreak = false
+
+          const existingTestTarget = result.sasjs_test_meta.find(
+            (testResult: TestDescription) =>
+              testResult.test_target === testTarget
+          )
+
+          if (existingTestTarget) {
+            existingTestTarget.results.push({
+              test_loc: test,
+              sasjs_test_id: testId,
+              result: TestResultStatus.notProvided,
+              test_url: testUrl
+            })
+          } else {
+            result.sasjs_test_meta.push({
+              test_target: testTarget,
+              results: [
+                {
+                  test_loc: test,
+                  sasjs_test_id: testId,
+                  result: TestResultStatus.notProvided,
+                  test_url: testUrl
+                }
+              ]
+            })
+          }
         }
+
+        if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
+
+        if (test_results) {
+          const existingTestTarget = result.sasjs_test_meta.find(
+            (testResult: TestDescription) =>
+              testResult.test_target === testTarget
+          )
+
+          if (existingTestTarget) {
+            existingTestTarget.results.push({
+              test_loc: test,
+              sasjs_test_id: testId,
+              result: test_results,
+              test_url: testUrl
+            })
+          } else {
+            result.sasjs_test_meta.push({
+              test_target: testTarget,
+              results: [
+                {
+                  test_loc: test,
+                  sasjs_test_id: testId,
+                  result: test_results,
+                  test_url: testUrl
+                }
+              ]
+            })
+          }
+        } else if (target.serverType !== ServerType.Sasjs) {
+          displayError(
+            {},
+            `'test_results' not found in server response, to debug click ${testUrl}`
+          )
+
+          printCodeExample()
+        }
+      })
+      .catch(async (err) => {
         printTestUrl()
 
-        if (err && err.errorCode === 404) {
+        if (err?.errorCode === 404) {
           displaySasjsRunnerError(username)
         } else {
           displayError(
