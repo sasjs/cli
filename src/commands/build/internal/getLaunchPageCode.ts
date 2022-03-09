@@ -35,7 +35,7 @@ data _null_;
   put rc=;
 run;
 
-%mp_gsubfile(file=&local_file, patternvar=compiled_apploc, replacevar=apploc)
+%mp_replace(infile="&local_file", findvar=compiled_apploc, replacevar=apploc)
 
 data _null_;
   rc=fcopy('_homeout','_homein');
