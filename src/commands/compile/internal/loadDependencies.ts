@@ -16,7 +16,17 @@ export async function loadDependencies(
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
-  const fileContent = await readFile(filePath)
+  let fileContent = ''
+
+  if (compileTree && Object.keys(compileTree).length) {
+    const leaf = compileTree.getLeaf(filePath)
+
+    if (leaf) fileContent = leaf.content
+    else fileContent = await readFile(filePath)
+  } else {
+    fileContent = await readFile(filePath)
+  }
+
   const { configuration } = await getLocalOrGlobalConfig()
   const { buildSourceFolder, buildDestinationFolder, macroCorePath } =
     process.sasjsConstants
