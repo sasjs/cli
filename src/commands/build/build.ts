@@ -76,7 +76,10 @@ async function createFinalSasFiles(target: Target) {
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {
-    if (target.serverType !== ServerType.Sasjs) {
+    if (
+      target.serverType === ServerType.SasViya ||
+      target.serverType === ServerType.Sas9
+    ) {
       finalSasFileContent += getLaunchPageCode(
         target.serverType,
         streamConfig.streamServiceName
