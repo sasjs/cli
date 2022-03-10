@@ -10,7 +10,8 @@ import {
   generateTimestamp,
   deleteFolder,
   ServerType,
-  isTestFile
+  isTestFile,
+  DependencyHeader
 } from '@sasjs/utils'
 import {
   removeTestApp,
@@ -96,7 +97,7 @@ describe('compileTestFile', () => {
   @file
   @brief setting up the test
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
 **/
 
 %put testing, init;
@@ -106,7 +107,7 @@ describe('compileTestFile', () => {
   @file
   @brief ending the test
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
 **/
 
 %put testing, termed;

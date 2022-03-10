@@ -1,5 +1,10 @@
 import path from 'path'
-import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
+import {
+  Target,
+  generateTimestamp,
+  ServerType,
+  DependencyHeader
+} from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
@@ -20,10 +25,10 @@ const fakeJobInit = `/**
   The path to this file should be listed in the \`jobInit\` property of the
   sasjsconfig file.
 
-  <h4> SAS Programs </h4>
+  ${DependencyHeader.Macro}
   @li test.sas TEST
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li examplemacro.sas
 
 **/
@@ -37,7 +42,7 @@ const fakeJobTerm = `/**
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
   @li mf_existds.sas
 

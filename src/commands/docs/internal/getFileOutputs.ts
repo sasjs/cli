@@ -1,4 +1,4 @@
-import { getList } from '@sasjs/utils'
+import { DependencyHeader, getList } from '@sasjs/utils'
 
 /**
  * Returns list of Outputs and populates Map of Nodes
@@ -9,7 +9,7 @@ export function getFileOutputs(
   fileContent: string,
   paramNodes: Map<string, { edges: string[]; label: string }>
 ) {
-  const fileOutputs = getList('<h4> Data Outputs </h4>', fileContent)
+  const fileOutputs = getList(DependencyHeader.DataInput, fileContent)
     .map((output) => output.toUpperCase())
     .filter((output) => !output.endsWith('.DLL'))
 
