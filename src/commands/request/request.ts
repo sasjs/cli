@@ -107,8 +107,10 @@ export async function runSasJob(
         return
       }
 
-      if (res?.result) res = res.result
-      await writeOutput(outputPathParam, res, isLocal)
+      let output = ''
+      if (res?.result) output = res.result
+      await writeOutput(outputPathParam, output, isLocal)
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
     })
     .catch(async (err: any) => {
