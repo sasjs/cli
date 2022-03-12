@@ -89,7 +89,6 @@ export async function runSasJob(
   })
 
   let result
-  let isError = false
 
   await sasjs
     .request(
@@ -102,54 +101,46 @@ export async function runSasJob(
       authConfig
     )
     .then(async (res: any) => {
-      if ((res && res.errorCode) || res.error) isError = true
-
-      if (res?.result) res = res.result
-
-      let output
-
-      if (typeof res !== 'object') {
-        try {
-          output = JSON.stringify(res, null, 2)
-        } catch (error) {
-          displayError(error, 'Result parsing failed.')
-
-          return error
-        }
-      } else {
-        output = res
+      if ((res && res.errorCode) || res.error) {
+        displayError('Request finished with errors.')
+        await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+        return
       }
 
+      let output = ''
+      if (res?.result) output = res.result
       await writeOutput(outputPathParam, output, isLocal)
-
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
     })
     .catch(async (err: any) => {
-      isError = true
-
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
       } else {
-        displayError('', 'An error occurred while executing the request.')
+        displayError(err, 'An error occurred while executing the request.')
       }
-
-      await writeOutput(outputPathParam, err, isLocal)
-
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = err
     })
 
+  return result
+}
+
+const saveLogFile = async (
+  sasjs: SASjs,
+  sasJobLocation: string,
+  logFile: string | undefined,
+  jobPath?: string | null
+) => {
   const sasRequests: SASjsRequest[] = sasjs.getSasRequests()
   const currentRequestLog = sasRequests.find(
     (x) => x.serviceLink === sasJobLocation
   )
 
-  if (currentRequestLog && ((logFile && jobPath) || isError)) {
+  if (currentRequestLog && jobPath) {
     if (!logFile) logFile = getLogFilePath('', jobPath || '')
-
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
   }
-
-  return result
 }
 
 /**
@@ -189,7 +180,12 @@ const writeOutput = async (
   let outputString = ''
 
   if (typeof output === 'object') {
-    outputString = JSON.stringify(output)
+    try {
+      outputString = JSON.stringify(output, null, 2)
+    } catch (error) {
+      displayError(error, 'Result parsing failed.')
+      return
+    }
   } else {
     outputString = output
   }
