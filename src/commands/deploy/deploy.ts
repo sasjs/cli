@@ -31,7 +31,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
   ) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
     )
@@ -241,7 +241,7 @@ async function deployToSasViya(
   }
 
   if (streamConfig?.streamWeb) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
@@ -329,7 +329,7 @@ async function deployToSas9(
   )
 
   if (streamConfig?.streamWeb) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
@@ -385,7 +385,7 @@ async function deployToSasjs(
   }
 
   if (streamConfig?.streamWeb) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     const webAppStreamUrl = `${target.serverUrl}/AppStream${appLoc}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
