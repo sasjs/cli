@@ -262,9 +262,9 @@ async function compileWeb(target: Target) {
       )
       .catch((err) => {
         process.logger?.error(
-          'An error has occurred when compiling web app services.'
+          'An error has occurred when compiling web app services.',
+          err.toString()
         )
-        throw err
       })
   }
 }
