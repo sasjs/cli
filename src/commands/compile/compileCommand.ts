@@ -101,7 +101,7 @@ export class CompileCommand extends TargetCommand {
         )
         return ReturnCode.Success
       })
-      .catch(err => {
+      .catch((err) => {
         displayError(err, 'An error has occurred when compiling services.')
         return ReturnCode.InternalError
       })
@@ -116,13 +116,13 @@ export class CompileCommand extends TargetCommand {
       this.source,
       output
     )
-      .then(res => {
+      .then((res) => {
         process.logger?.success(
           `Source has been successfully compiled!\nThe compiled output is located at: ${res.destinationPath}`
         )
         return ReturnCode.Success
       })
-      .catch(err => {
+      .catch((err) => {
         displayError(err, 'Error compiling source.')
         return ReturnCode.InternalError
       })

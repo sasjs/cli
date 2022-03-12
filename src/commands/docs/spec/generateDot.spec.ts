@@ -212,6 +212,6 @@ const verifyCustomDotFiles = async (docsFolder: string) => {
 
 function findEdge(edges: any[], tail: any, head: any) {
   return edges.find(
-    edge => edge.tail === tail._gvid && edge.head === head._gvid
+    (edge) => edge.tail === tail._gvid && edge.head === head._gvid
   )
 }

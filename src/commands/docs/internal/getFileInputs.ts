@@ -12,10 +12,10 @@ export function getFileInputs(
   paramNodes: Map<string, { edges: string[]; label: string }>
 ) {
   const fileInputs = getList(DependencyHeader.DataInput, fileContent)
-    .map(input => input.toUpperCase())
-    .filter(input => !input.endsWith('.DLL'))
+    .map((input) => input.toUpperCase())
+    .filter((input) => !input.endsWith('.DLL'))
 
-  fileInputs.forEach(inputParam => {
+  fileInputs.forEach((inputParam) => {
     inputParam = inputParam.toUpperCase()
     const paramNode = paramNodes.get(inputParam)
     if (paramNode) {
