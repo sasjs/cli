@@ -9,11 +9,11 @@ export function getFileOutputs(
   fileContent: string,
   paramNodes: Map<string, { edges: string[]; label: string }>
 ) {
-  const fileOutputs = getList(DependencyHeader.DataInput, fileContent)
-    .map((output) => output.toUpperCase())
-    .filter((output) => !output.endsWith('.DLL'))
+  const fileOutputs = getList(DependencyHeader.DataOutput, fileContent)
+    .map(output => output.toUpperCase())
+    .filter(output => !output.endsWith('.DLL'))
 
-  fileOutputs.forEach((outputParam) => {
+  fileOutputs.forEach(outputParam => {
     if (!paramNodes.has(outputParam))
       paramNodes.set(outputParam, {
         edges: [],

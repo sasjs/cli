@@ -25,7 +25,7 @@ const fakeJobInit = `/**
   The path to this file should be listed in the \`jobInit\` property of the
   sasjsconfig file.
 
-  ${DependencyHeader.Macro}
+  ${DependencyHeader.DeprecatedInclude}
   @li test.sas TEST
 
   ${DependencyHeader.Macro}

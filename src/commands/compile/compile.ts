@@ -48,7 +48,7 @@ export async function compile(target: Target, forceCompile = false) {
     return
   }
 
-  await compileModule.copyFilesToBuildFolder(target).catch((error) => {
+  await compileModule.copyFilesToBuildFolder(target).catch(error => {
     process.logger?.error('Project compilation has failed.')
     throw error
   })
@@ -88,7 +88,7 @@ export async function compile(target: Target, forceCompile = false) {
     }
   }
 
-  await compileTestFlow(target).catch((err) =>
+  await compileTestFlow(target).catch(err =>
     process.logger?.error('Test flow compilation has failed.')
   )
 
@@ -112,7 +112,7 @@ export async function copyFilesToBuildFolder(target: Target) {
       await copy(serviceFolder, destinationPath)
     })
 
-    await asyncForEach(jobFolders, async (jobFolder) => {
+    await asyncForEach(jobFolders, async jobFolder => {
       const destinationPath = getDestinationJobPath(jobFolder)
       await copy(jobFolder, destinationPath)
     })
@@ -134,15 +134,15 @@ export async function compileJobsServicesTests(target: Target) {
     const testTearDown = await getTestTearDown(target)
 
     if (testSetUp)
-      await compileTestFile(target, testSetUp, '', true, false).catch((err) =>
+      await compileTestFile(target, testSetUp, '', true, false).catch(err =>
         process.logger?.error('Test set up compilation has failed.')
       )
     if (testTearDown)
-      await compileTestFile(target, testTearDown, '', true, false).catch(
-        (err) => process.logger?.error('Test tear down compilation has failed.')
+      await compileTestFile(target, testTearDown, '', true, false).catch(err =>
+        process.logger?.error('Test tear down compilation has failed.')
       )
 
-    await asyncForEach(serviceFolders, async (serviceFolder) => {
+    await asyncForEach(serviceFolders, async serviceFolder => {
       await compileServiceFolder(
         target,
         serviceFolder,
@@ -151,7 +151,7 @@ export async function compileJobsServicesTests(target: Target) {
       )
     })
 
-    await asyncForEach(jobFolders, async (jobFolder) => {
+    await asyncForEach(jobFolders, async jobFolder => {
       await compileJobFolder(target, jobFolder, macroFolders, programFolders)
     })
   } catch (error) {
@@ -181,9 +181,7 @@ const compileServiceFolder = async (
 ) => {
   const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
-  console.log(`🤖[subFolders]🤖`, subFolders)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
-  console.log(`🤖[filesNamesInPath]🤖`, filesNamesInPath)
   const { buildDestinationFolder } = process.sasjsConstants
 
   const compileTreePath = path.join(
@@ -193,7 +191,7 @@ const compileServiceFolder = async (
 
   const compileTree = new CompileTree(compileTreePath)
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  await asyncForEach(filesNamesInPath, async fileName => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(filePath)) await compileTestFile(target, filePath, '', false)
@@ -209,14 +207,12 @@ const compileServiceFolder = async (
     }
   })
 
-  await asyncForEach(subFolders, async (subFolder) => {
+  await asyncForEach(subFolders, async subFolder => {
     const fileNames = await listFilesInFolder(
       path.join(serviceFolder, subFolder)
     )
 
-    console.log(`🤖[fileNames]🤖`, fileNames)
-
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(fileNames, async fileName => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath)) {
@@ -247,7 +243,7 @@ const compileJobFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  await asyncForEach(filesNamesInPath, async fileName => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(fileName)) {
@@ -257,10 +253,10 @@ const compileJobFolder = async (
     }
   })
 
-  await asyncForEach(subFolders, async (subFolder) => {
+  await asyncForEach(subFolders, async subFolder => {
     const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
 
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(fileNames, async fileName => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath))
@@ -289,7 +285,7 @@ async function compileWeb(target: Target) {
       .then(() =>
         process.logger?.success(`Web app services have been compiled.`)
       )
-      .catch((err) => {
+      .catch(err => {
         process.logger?.error(
           'An error has occurred when compiling web app services.'
         )

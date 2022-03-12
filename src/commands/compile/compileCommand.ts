@@ -41,7 +41,6 @@ let compileStart: any
 export class CompileCommand extends TargetCommand {
   constructor(args: string[]) {
     compileStart = Date.now()
-    console.log(`🤖[compilation started]🤖`, Date.now())
 
     let parseOptions = {}
     const subCommand = args[3]
@@ -97,14 +96,12 @@ export class CompileCommand extends TargetCommand {
 
     return await compile(target, true)
       .then(() => {
-        console.log(`🤖[Compilation completed]🤖`, Date.now())
-        console.log(`🤖[compilation took: ]🤖`, Date.now() - compileStart)
         process.logger?.success(
           `Services have been successfully compiled!\nThe compile output is located in the ${buildDestinationFolder} directory.`
         )
         return ReturnCode.Success
       })
-      .catch((err) => {
+      .catch(err => {
         displayError(err, 'An error has occurred when compiling services.')
         return ReturnCode.InternalError
       })
@@ -119,13 +116,13 @@ export class CompileCommand extends TargetCommand {
       this.source,
       output
     )
-      .then((res) => {
+      .then(res => {
         process.logger?.success(
           `Source has been successfully compiled!\nThe compiled output is located at: ${res.destinationPath}`
         )
         return ReturnCode.Success
       })
-      .catch((err) => {
+      .catch(err => {
         displayError(err, 'Error compiling source.')
         return ReturnCode.InternalError
       })
