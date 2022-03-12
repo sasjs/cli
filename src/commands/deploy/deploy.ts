@@ -285,6 +285,8 @@ async function deployToSas9(
     appLoc: target.appLoc,
     serverType: target.serverType
   })
+
+  let completedWithError = false
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch((err) => {
@@ -292,31 +294,44 @@ async function deployToSas9(
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
       }
+      completedWithError = true
+      return err
     })
 
-  if (executionResult) {
-    if (logFolder) {
-      await createFile(
-        path.join(logFolder, `${deployScriptName.replace('.sas', '')}.log`),
-        executionResult ?? ''
-      )
-      process.logger?.success(
-        `Deployment completed! Log is available at ${path.join(
-          logFolder,
-          `${deployScriptName.replace('.sas', '')}.log`
-        )}`
-      )
-    } else {
-      process.logger?.error('Unable to create log file.')
-    }
+  if (!executionResult) {
+    return process.logger?.error('Error getting execution log')
+  }
 
-    if (streamConfig?.streamWeb) {
-      const appLoc = target.appLoc.replace(/\ /g, '%20')
-      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
-      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
-    }
-  } else {
-    process.logger?.error('Error getting execution log')
+  if (!logFolder) {
+    return process.logger?.error('Unable to create log file.')
+  }
+
+  const logContent = completedWithError
+    ? executionResult.result
+    : executionResult
+
+  const logFilePath = path.join(
+    logFolder,
+    `${deployScriptName.replace('.sas', '')}.log`
+  )
+  await createFile(logFilePath, logContent ?? '')
+
+  if (completedWithError) {
+    process.logger?.error(
+      `Deployment failed with errors! Log is available at ${logFilePath}`
+    )
+
+    throw new Error(`Deployment failed.`)
+  }
+
+  process.logger?.success(
+    `Deployment completed! Log is available at ${logFilePath}`
+  )
+
+  if (streamConfig?.streamWeb) {
+    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
+    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }
 

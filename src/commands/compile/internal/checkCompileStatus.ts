@@ -1,7 +1,6 @@
 import { Target, asyncForEach, folderExists } from '@sasjs/utils'
 import { compareFolders } from './compareFolders'
-import { getAllJobFolders } from './getAllJobFolders'
-import { getAllServiceFolders } from './getAllServiceFolders'
+import { getAllFolders, SasFileType } from './getAllFolders'
 import {
   getDestinationJobPath,
   getDestinationServicePath
@@ -48,7 +47,7 @@ export async function checkCompileStatus(
  * @returns an object containing a boolean `areServiceFoldersMatching` and a list of reasons if not matching.
  */
 const checkServiceFolders = async (target: Target, exceptions?: string[]) => {
-  const serviceFolders = await getAllServiceFolders(target)
+  const serviceFolders = await getAllFolders(target, SasFileType.Service)
 
   let areServiceFoldersMatching = true
   const reasons: string[] = []
@@ -76,7 +75,7 @@ const checkServiceFolders = async (target: Target, exceptions?: string[]) => {
  * @returns an object containing a boolean `areJobFoldersMatching` and a list of reasons if not matching.
  */
 const checkJobFolders = async (target: Target, exceptions?: string[]) => {
-  const jobFolders = await getAllJobFolders(target)
+  const jobFolders = await getAllFolders(target, SasFileType.Job)
 
   let areJobFoldersMatching = true
   const reasons: string[] = []

@@ -24,8 +24,7 @@ import { isSasFile } from '../../utils/file'
 import { Target, StreamConfig } from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
-import { getAllJobFolders } from './internal/getAllJobFolders'
-import { getAllServiceFolders } from './internal/getAllServiceFolders'
+import { getAllFolders, SasFileType } from './internal/getAllFolders'
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
 import {
@@ -103,17 +102,20 @@ export async function copyFilesToBuildFolder(target: Target) {
   process.logger?.info(`Copying files to ${buildDestinationFolder} .`)
 
   try {
-    const serviceFolders = await getAllServiceFolders(target)
-    const jobFolders = await getAllJobFolders(target)
+    const serviceFolders = await getAllFolders(target, SasFileType.Service)
+
+    const jobFolders = await getAllFolders(target, SasFileType.Job)
 
     // REFACTOR
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
       const destinationPath = getDestinationServicePath(serviceFolder)
+
       await copy(serviceFolder, destinationPath)
     })
 
     await asyncForEach(jobFolders, async jobFolder => {
       const destinationPath = getDestinationJobPath(jobFolder)
+
       await copy(jobFolder, destinationPath)
     })
   } catch (error) {
@@ -126,8 +128,8 @@ export async function copyFilesToBuildFolder(target: Target) {
 
 export async function compileJobsServicesTests(target: Target) {
   try {
-    const serviceFolders = await getAllServiceFolders(target)
-    const jobFolders = await getAllJobFolders(target)
+    const serviceFolders = await getAllFolders(target, SasFileType.Service)
+    const jobFolders = await getAllFolders(target, SasFileType.Job)
     const macroFolders = await getMacroFolders(target)
     const programFolders = await getProgramFolders(target)
     const testSetUp = await getTestSetUp(target)

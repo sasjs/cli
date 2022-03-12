@@ -89,7 +89,7 @@ export async function getAndValidateServerUrl(target?: TargetJson) {
     target?.serverUrl
   )
 
-  return serverUrl
+  return serverUrl.replace(/\/$/, '')
 }
 
 async function getAndValidateTargetName(
