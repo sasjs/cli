@@ -3,9 +3,12 @@ import {
   readFile,
   SASJsFileType,
   loadDependenciesFile,
-  DependencyHeader
+  DependencyHeader,
+  CompileTree
 } from '@sasjs/utils'
 import { getLocalOrGlobalConfig, getBinaryFolders } from '../../../utils/config'
+import path from 'path'
+import dotenv from 'dotenv'
 
 export async function loadDependencies(
   target: Target,
@@ -13,7 +16,7 @@ export async function loadDependencies(
   macroFolders: string[],
   programFolders: string[],
   type: SASJsFileType,
-  compileTree?: any
+  compileTree: CompileTree
 ) {
   process.logger?.info(`Loading dependencies for ${filePath}`)
 
@@ -80,3 +83,11 @@ const headerSyntaxNotices = (fileContent: string) => {
       )
   }
 }
+
+export const getCompileTree = (target: Target): CompileTree =>
+  new CompileTree(
+    path.join(
+      process.sasjsConstants.buildDestinationFolder,
+      `${target?.name}_compileTree.json`
+    )
+  )

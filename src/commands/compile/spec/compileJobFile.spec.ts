@@ -15,6 +15,7 @@ import {
 } from '../../../utils/test'
 import { compileJobFile } from '../internal/compileJobFile'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
+import { getCompileTree } from '../internal/loadDependencies'
 
 const fakeJobInit = `/**
   @file
@@ -86,9 +87,9 @@ describe('compileJobFile', () => {
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
     const destinationPath = path.join(buildPath, 'service.sas')
+    const compileTree = getCompileTree(target)
 
     await createFolder(buildPath)
-
     await copy(filePath, destinationPath)
 
     await expect(
@@ -96,7 +97,9 @@ describe('compileJobFile', () => {
         target,
         destinationPath,
         [path.join(__dirname, './macros')],
-        [path.join(__dirname, './'), path.join(__dirname, './services')]
+        [path.join(__dirname, './'), path.join(__dirname, './services')],
+        undefined,
+        compileTree
       )
     ).toResolve()
 

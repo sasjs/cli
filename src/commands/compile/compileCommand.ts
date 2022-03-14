@@ -37,11 +37,8 @@ const subCommandParseOptions = {
   output: { type: 'string', alias: 'o' }
 }
 
-let compileStart: any
 export class CompileCommand extends TargetCommand {
   constructor(args: string[]) {
-    compileStart = Date.now()
-
     let parseOptions = {}
     const subCommand = args[3]
     if (

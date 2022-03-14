@@ -6,7 +6,8 @@ import {
   ServiceConfig,
   ServerType,
   SASJsFileType,
-  DependencyHeader
+  DependencyHeader,
+  CompileTree
 } from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
@@ -16,7 +17,8 @@ import {
   removeTestApp,
   updateConfig
 } from '../../../utils/test'
-import { loadDependencies } from '../internal/loadDependencies'
+import { setConstants } from '../../../utils'
+import { loadDependencies, getCompileTree } from '../internal/loadDependencies'
 
 const fakeInit = `/**
   @file serviceinit.sas
@@ -182,8 +184,13 @@ describe('loadDependencies', () => {
     jobConfig: jobConfig(false),
     serviceConfig: serviceConfig(false)
   })
+  let compileTree: CompileTree
 
   beforeAll(async () => {
+    await setConstants()
+
+    compileTree = getCompileTree(target)
+
     await createTestMinimalApp(__dirname, target.name)
 
     await updateConfig({
@@ -204,7 +211,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -224,7 +232,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -244,7 +253,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -264,7 +274,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -284,7 +295,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -304,7 +316,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -324,7 +337,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -344,7 +358,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -364,7 +379,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -390,7 +406,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -415,7 +432,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -441,7 +459,8 @@ describe('loadDependencies', () => {
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
