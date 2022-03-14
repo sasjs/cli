@@ -31,7 +31,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
   ) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
     )
@@ -78,8 +78,10 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
 
   const logFilePath = buildDestinationFolder
 
+  const streamConfig = await getStreamConfig(target)
+
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target, sasjs)
+    await deployToSasjs(target, sasjs, streamConfig)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -94,8 +96,6 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
         const linesToExecute = deployScriptContent
           .replace(/\r\n/g, '\n')
           .split('\n')
-
-        const streamConfig = await getStreamConfig(target)
 
         const deployScriptName = path.basename(deployScript)
         if (target.serverType === ServerType.SasViya) {
@@ -241,7 +241,7 @@ async function deployToSasViya(
   }
 
   if (streamConfig?.streamWeb) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
@@ -329,7 +329,7 @@ async function deployToSas9(
   )
 
   if (streamConfig?.streamWeb) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
@@ -340,7 +340,11 @@ async function deployToSas9(
  * @param {Target} target- the target having deploy configuration.
  * @param {object} sasjs - optional configuration object of SAS adapter.
  */
-async function deployToSasjs(target: Target, sasjs?: SASjs) {
+async function deployToSasjs(
+  target: Target,
+  sasjs?: SASjs,
+  streamConfig?: StreamConfig
+) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -378,6 +382,12 @@ async function deployToSasjs(target: Target, sasjs?: SASjs) {
         `Payload example:\n${JSON.stringify(result.example, null, 2)}`
       )
     }
+  }
+
+  if (streamConfig?.streamWeb) {
+    const appLoc = encodeURI(target.appLoc)
+    const webAppStreamUrl = `${target.serverUrl}/AppStream${appLoc}`
+    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }
 

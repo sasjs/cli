@@ -39,10 +39,6 @@ async function createFinalSasFiles(target: Target) {
 
   const streamConfig = await getStreamConfig(target)
 
-  await createFinalSasFile(target, streamConfig)
-}
-
-async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const streamWeb = streamConfig.streamWeb ?? false
   const { buildConfig, serverType, name } = target
   const macroFolders = await getMacroFolders(target)
@@ -80,10 +76,15 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {
-    finalSasFileContent += getLaunchPageCode(
-      target.serverType,
-      streamConfig.streamServiceName
-    )
+    if (
+      target.serverType === ServerType.SasViya ||
+      target.serverType === ServerType.Sas9
+    ) {
+      finalSasFileContent += getLaunchPageCode(
+        target.serverType,
+        streamConfig.streamServiceName
+      )
+    }
   }
 
   finalSasFileContent = removeComments(finalSasFileContent)
