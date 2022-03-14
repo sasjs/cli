@@ -108,8 +108,27 @@ export async function runSasJob(
       }
 
       let output = ''
-      if (res?.result) output = res.result
-      await writeOutput(outputPathParam, output, isLocal)
+
+      if (res?.result) res = res.result
+      // In sasjs request debug is always on, meaning the response object always contains the log
+      // This log goes to a seperate .log file, and should not be added to the output file (*.json)
+      // Therefore, we delete it now from the result object
+      else if (res?.log) delete res.log
+
+      // Sometimes res.result contains the log (eg when there is a SAS error)
+      // Here we make sure that the content in the output file (*.json) will be in json format
+      if (typeof res === 'string') {
+        try {
+          output = JSON.parse(res)
+        } catch (error) {
+          displayError('Error parsing response. JSON is expected.')
+        }
+      } else {
+        output = res
+      }
+
+      if (!!output) await writeOutput(outputPathParam, output, isLocal)
+
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
     })
@@ -117,7 +136,9 @@ export async function runSasJob(
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
       } else {
-        displayError(err, 'An error occurred while executing the request.')
+        const error: any = {}
+        if (err.message) error.message = err.message
+        displayError(error, 'An error occurred while executing the request.')
       }
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = err
