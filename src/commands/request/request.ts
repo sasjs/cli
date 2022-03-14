@@ -110,7 +110,6 @@ export async function runSasJob(
       let output = ''
 
       if (res?.result) res = res.result
-    
       // In sasjs request debug is always on, meaning the response object always contains the log
       // This log goes to a seperate .log file, and should not be added to the output file (*.json)
       // Therefore, we delete it now from the result object
