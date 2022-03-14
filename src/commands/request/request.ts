@@ -108,8 +108,27 @@ export async function runSasJob(
       }
 
       let output = ''
-      if (res?.result) output = res.result
-      await writeOutput(outputPathParam, output, isLocal)
+
+      if (res?.result) {
+        res = res.result
+      } else if (res?.log) {
+        delete res.log
+      }
+
+      if (typeof res === 'string') {
+        try {
+          output = JSON.parse(res)
+        } catch (error) {
+          displayError('Error parsing response. JSON is expected.')
+        }
+      } else {
+        output = res
+      }
+
+      if (!!output) {
+        await writeOutput(outputPathParam, output, isLocal)
+      }
+
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
     })
