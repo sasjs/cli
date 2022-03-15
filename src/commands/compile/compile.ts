@@ -16,7 +16,8 @@ import {
   copy,
   asyncForEach,
   listFilesAndSubFoldersInFolder,
-  isTestFile
+  isTestFile,
+  CompileTree
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
@@ -35,6 +36,7 @@ import {
   getDestinationServicePath,
   getDestinationJobPath
 } from './internal/getDestinationPath'
+import { getCompileTree } from './internal/loadDependencies'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])
@@ -51,7 +53,9 @@ export async function compile(target: Target, forceCompile = false) {
     throw error
   })
 
-  await compileModule.compileJobsServicesTests(target)
+  const compileTree = getCompileTree(target)
+
+  await compileModule.compileJobsServicesTests(target, compileTree)
 
   let macroFolders: string[] = await getMacroFolders(target)
 
@@ -78,7 +82,9 @@ export async function compile(target: Target, forceCompile = false) {
           target,
           path.join(buildMacroTestFolder, macroTestFile),
           macroFolders,
-          programFolders
+          programFolders,
+          undefined,
+          compileTree
         )
       )
     }
@@ -123,7 +129,10 @@ export async function copyFilesToBuildFolder(target: Target) {
   }
 }
 
-export async function compileJobsServicesTests(target: Target) {
+export async function compileJobsServicesTests(
+  target: Target,
+  compileTree: CompileTree
+) {
   try {
     const serviceFolders = await getAllFolders(target, SasFileType.Service)
     const jobFolders = await getAllFolders(target, SasFileType.Job)
@@ -146,12 +155,19 @@ export async function compileJobsServicesTests(target: Target) {
         target,
         serviceFolder,
         macroFolders,
-        programFolders
+        programFolders,
+        compileTree
       )
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
-      await compileJobFolder(target, jobFolder, macroFolders, programFolders)
+      await compileJobFolder(
+        target,
+        jobFolder,
+        macroFolders,
+        programFolders,
+        compileTree
+      )
     })
   } catch (error) {
     process.logger?.error(
@@ -176,7 +192,8 @@ const compileServiceFolder = async (
   target: Target,
   serviceFolder: string,
   macroFolders: string[],
-  programFolders: string[]
+  programFolders: string[],
+  compileTree: CompileTree
 ) => {
   const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
@@ -187,7 +204,14 @@ const compileServiceFolder = async (
 
     if (isTestFile(filePath)) await compileTestFile(target, filePath, '', false)
     else {
-      await compileServiceFile(target, filePath, macroFolders, programFolders)
+      await compileServiceFile(
+        target,
+        filePath,
+        macroFolders,
+        programFolders,
+        undefined,
+        compileTree
+      )
     }
   })
 
@@ -202,17 +226,27 @@ const compileServiceFolder = async (
       if (isTestFile(filePath)) {
         await compileTestFile(target, filePath, '', false)
       } else {
-        await compileServiceFile(target, filePath, macroFolders, programFolders)
+        await compileServiceFile(
+          target,
+          filePath,
+          macroFolders,
+          programFolders,
+          undefined,
+          compileTree
+        )
       }
     })
   })
+
+  compileTree.saveTree()
 }
 
 const compileJobFolder = async (
   target: Target,
   jobFolder: string,
   macroFolders: string[],
-  programFolders: string[]
+  programFolders: string[],
+  compileTree: CompileTree
 ) => {
   const destinationPath = getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
@@ -224,7 +258,14 @@ const compileJobFolder = async (
     if (isTestFile(fileName)) {
       await compileTestFile(target, filePath, '', false)
     } else {
-      await compileJobFile(target, filePath, macroFolders, programFolders)
+      await compileJobFile(
+        target,
+        filePath,
+        macroFolders,
+        programFolders,
+        undefined,
+        compileTree
+      )
     }
   })
 
@@ -237,7 +278,14 @@ const compileJobFolder = async (
       if (isTestFile(filePath))
         await compileTestFile(target, filePath, '', false)
       else {
-        await compileJobFile(target, filePath, macroFolders, programFolders)
+        await compileJobFile(
+          target,
+          filePath,
+          macroFolders,
+          programFolders,
+          undefined,
+          compileTree
+        )
       }
     })
   })

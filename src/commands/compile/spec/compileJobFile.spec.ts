@@ -1,5 +1,10 @@
 import path from 'path'
-import { Target, generateTimestamp, ServerType } from '@sasjs/utils'
+import {
+  Target,
+  generateTimestamp,
+  ServerType,
+  DependencyHeader
+} from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
@@ -10,6 +15,7 @@ import {
 } from '../../../utils/test'
 import { compileJobFile } from '../internal/compileJobFile'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
+import { getCompileTree } from '../internal/loadDependencies'
 
 const fakeJobInit = `/**
   @file
@@ -20,10 +26,10 @@ const fakeJobInit = `/**
   The path to this file should be listed in the \`jobInit\` property of the
   sasjsconfig file.
 
-  <h4> SAS Programs </h4>
+  ${DependencyHeader.DeprecatedInclude}
   @li test.sas TEST
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li examplemacro.sas
 
 **/
@@ -37,7 +43,7 @@ const fakeJobTerm = `/**
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
   @li mf_existds.sas
 
@@ -81,9 +87,9 @@ describe('compileJobFile', () => {
     const filePath = path.join(__dirname, './service.sas')
     const buildPath = path.join(process.projectDir, 'sasjsbuild')
     const destinationPath = path.join(buildPath, 'service.sas')
+    const compileTree = getCompileTree(target)
 
     await createFolder(buildPath)
-
     await copy(filePath, destinationPath)
 
     await expect(
@@ -91,7 +97,9 @@ describe('compileJobFile', () => {
         target,
         destinationPath,
         [path.join(__dirname, './macros')],
-        [path.join(__dirname, './'), path.join(__dirname, './services')]
+        [path.join(__dirname, './'), path.join(__dirname, './services')],
+        undefined,
+        compileTree
       )
     ).toResolve()
 

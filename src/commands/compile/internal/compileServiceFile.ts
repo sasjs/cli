@@ -1,5 +1,5 @@
 import { getMacroCorePath } from '../../../utils/config'
-import { createFile, readFile, isTestFile } from '@sasjs/utils'
+import { createFile, readFile, isTestFile, CompileTree } from '@sasjs/utils'
 import { Target, ServerType, SASJsFileType } from '@sasjs/utils/types'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { loadDependencies } from './loadDependencies'
@@ -10,14 +10,16 @@ export async function compileServiceFile(
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  programVar: string = ''
+  programVar: string = '',
+  compileTree: CompileTree
 ) {
   let dependencies = await loadDependencies(
     target,
     filePath,
     macroFolders,
     programFolders,
-    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service
+    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service,
+    compileTree
   )
 
   const serverType = await getServerType(target)

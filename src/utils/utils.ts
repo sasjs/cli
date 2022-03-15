@@ -8,7 +8,8 @@ import {
   readFile,
   copy,
   LogLevel,
-  Target
+  Target,
+  isWindows
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
@@ -408,8 +409,6 @@ export function prefixAppLoc(appLoc = '', path = '') {
     .map((p) => (/^\//.test(p) ? p : `${appLoc}/${p}`))
     .join(' ')
 }
-
-export const isWindows = () => process.platform === 'win32'
 
 export const terminateProcess = (status: number) => {
   process.logger?.info(

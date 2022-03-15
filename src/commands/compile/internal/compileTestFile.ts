@@ -20,7 +20,7 @@ import {
   testFileRegExp,
   Configuration
 } from '@sasjs/utils'
-import { loadDependencies } from './loadDependencies'
+import { loadDependencies, getCompileTree } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import {
@@ -43,12 +43,15 @@ export async function compileTestFile(
   saveToRoot: boolean = true,
   removeOriginalFile = true
 ) {
+  const compileTree = getCompileTree(target)
+
   let dependencies = await loadDependencies(
     target,
     getAbsolutePath(filePath, process.projectDir),
     await getMacroFolders(target),
     await getProgramFolders(target),
-    SASJsFileType.test
+    SASJsFileType.test,
+    compileTree
   )
 
   const preCode = await getPreCodeForServicePack(target.serverType)
