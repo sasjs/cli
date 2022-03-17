@@ -8,7 +8,6 @@ import {
 } from '@sasjs/utils'
 import { getLocalOrGlobalConfig, getBinaryFolders } from '../../../utils/config'
 import path from 'path'
-import dotenv from 'dotenv'
 
 export async function loadDependencies(
   target: Target,
