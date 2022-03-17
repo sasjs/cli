@@ -421,7 +421,7 @@ export const terminateProcess = (status: number) => {
 
 /**
  * This function checks whether the current directory, or any of the parent
- * directories, are part of a SASjs project.  This is done by testing for 
+ * directories, are part of a SASjs project.  This is done by testing for
  * the existence of a ./sasjs/sasjsconfig.json file.
  *
  * @returns boolean
