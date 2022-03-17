@@ -55,7 +55,14 @@ const expectedDataObj = {
 }
 
 const getOutputJson = async () =>
-  JSON.parse(await readFile(path.join(process.projectDir, 'output.json')))
+  JSON.parse(
+    await readFile(
+      path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'output.json'
+      )
+    )
+  )
 
 describe('sasjs request without compute API', () => {
   const appName = 'cli-tests-request-' + generateTimestamp()
@@ -92,6 +99,7 @@ describe('sasjs request without compute API', () => {
   afterAll(async () => {
     await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
+    console.log('after all')
   })
 
   beforeEach(async () => {
@@ -214,7 +222,12 @@ describe('sasjs request without compute API', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(path.join(process.projectDir, 'output.json'))
+    const rawDataStats = statSync(
+      path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'output.json'
+      )
+    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
     expect(rawDataStats.size).toBeGreaterThan(10)
@@ -242,7 +255,12 @@ describe('sasjs request without compute API', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(path.join(process.projectDir, 'output.json'))
+    const rawDataStats = statSync(
+      path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'output.json'
+      )
+    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
     expect(rawDataStats.size).toBeGreaterThan(10)
@@ -386,7 +404,12 @@ describe('sasjs request with SAS9', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(path.join(process.projectDir, 'output.json'))
+    const rawDataStats = statSync(
+      path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'output.json'
+      )
+    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
     expect(rawDataStats.size).toBeGreaterThan(10)
@@ -412,7 +435,12 @@ describe('sasjs request with SAS9', () => {
       )
     ).toResolve()
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(path.join(process.projectDir, 'output.json'))
+    const rawDataStats = statSync(
+      path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'output.json'
+      )
+    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
     expect(rawDataStats.size).toBeGreaterThan(10)
