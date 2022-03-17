@@ -238,8 +238,8 @@ export async function printHelpText() {
         `the user run a SAS job against a specified target.`,
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
         `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`,
-        `<path/to/log> - Location in which to store the log file. If not provided AND current execution path is sasjs project, it will be saved in sasjsresults else in the execution path`,
-        `<path/to/output> - Location to store the output file. If not provided AND current location is sasjs project, a file named output.json will be saved in the sasjsresults folder else in execution path.`
+        `<path/to/log> - Location in which to store the log file. If not provided AND current directory is a sasjs project, it will be saved in sasjsresults else in the current directory`,
+        `<path/to/output> - Location to store the output file. If not provided AND current directory is a sasjs project, a file named output.json will be saved in the sasjsresults folder else in current directory.`
       ]
     },
     {
