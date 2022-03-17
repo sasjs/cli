@@ -102,6 +102,8 @@ export async function compileSingleFile(
       break
   }
 
+  await compileTree.saveTree()
+
   return { destinationPath }
 }
 

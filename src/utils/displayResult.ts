@@ -7,7 +7,7 @@ export function displaySuccess(message: string) {
 export function displayError(err: any, errorMessage: string = '') {
   if (errorMessage) errorMessage = `${errorMessage}\n`
 
-  if (err !== undefined) {
+  if (err) {
     let failureDetails = ''
 
     if (err.hasOwnProperty('error')) {

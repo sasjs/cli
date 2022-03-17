@@ -11,7 +11,6 @@ import {
   deleteFolder,
   ServerType,
   isTestFile,
-  DependencyHeader,
   Configuration
 } from '@sasjs/utils'
 import {
@@ -94,9 +93,13 @@ describe('compileTestFile', () => {
 
 * Test Variables end;`)
         const testInit = replaceLineBreaks(`* TestInit start;
+
+
 %put testing, init;
 * TestInit end;`)
         const testTerm = replaceLineBreaks(`* TestTerm start;
+
+
 %put testing, termed;
 * TestTerm end;`)
 
