@@ -1,6 +1,7 @@
 import path from 'path'
+import { isSASjsProject } from './utils'
 
-export const getLogFilePath = (logArg: unknown, jobPath: string) => {
+export const getLogFilePath = async (logArg: unknown, jobPath: string) => {
   if (logArg === undefined || !jobPath || jobPath === '') return undefined
 
   if (logArg) {
@@ -12,6 +13,10 @@ export const getLogFilePath = (logArg: unknown, jobPath: string) => {
   }
 
   const logFileName = `${jobPath.split('/').slice(-1).pop()}.log`
-
-  return path.join(process.projectDir, logFileName)
+  return (await isSASjsProject())
+    ? path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        logFileName
+      )
+    : path.join(process.projectDir, logFileName)
 }

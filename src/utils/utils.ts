@@ -418,3 +418,29 @@ export const terminateProcess = (status: number) => {
 
   process.exit(status)
 }
+
+/**
+ * this function checks if the current directory is sasjs project or in sasjs project
+ * @returns boolean
+ */
+export const isSASjsProject = async () => {
+  let i = 1
+  let currentLocation = process.projectDir
+
+  const maxLevels = currentLocation.split(path.sep).length
+
+  while (i <= maxLevels) {
+    if (
+      (await folderExists(path.join(currentLocation, 'sasjs'))) &&
+      (await fileExists(
+        path.join(currentLocation, 'sasjs', 'sasjsconfig.json')
+      ))
+    ) {
+      return true
+    } else {
+      currentLocation = path.join(currentLocation, '..')
+      i++
+    }
+  }
+  return false
+}

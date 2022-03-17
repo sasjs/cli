@@ -73,7 +73,7 @@ export class RequestCommand extends TargetCommand {
     const { target, isLocal } = await this.getTargetInfo()
     const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
     const log = this.parsed.log
-      ? getLogFilePath(this.parsed.log || '', jobPath || '')
+      ? await getLogFilePath(this.parsed.log || '', jobPath || '')
       : undefined
     const output = (this.parsed.output as string) || undefined
 

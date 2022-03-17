@@ -198,7 +198,7 @@ describe('sasjs request without compute API', () => {
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = getLogFilePath('./mylog.txt', jobPath || '') as string
+    const log = (await getLogFilePath('./mylog.txt', jobPath || '')) as string
 
     await expect(
       runSasJob(
@@ -226,7 +226,7 @@ describe('sasjs request without compute API', () => {
       'services/runRequest/err'
     ) as string
 
-    const log = getLogFilePath('', jobPath || '') as string
+    const log = (await getLogFilePath('', jobPath || '')) as string
 
     await expect(
       runSasJob(
@@ -370,7 +370,7 @@ describe('sasjs request with SAS9', () => {
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = getLogFilePath('./mylog.txt', jobPath || '') as string
+    const log = (await getLogFilePath('./mylog.txt', jobPath || '')) as string
 
     await expect(
       runSasJob(
@@ -397,7 +397,7 @@ describe('sasjs request with SAS9', () => {
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = getLogFilePath('', jobPath || '') as string
+    const log = (await getLogFilePath('', jobPath || '')) as string
 
     await expect(
       runSasJob(

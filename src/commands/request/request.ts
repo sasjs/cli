@@ -10,7 +10,7 @@ import {
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError } from '../../utils/utils'
+import { displaySasjsRunnerError, isSASjsProject } from '../../utils/utils'
 import { saveLog } from '../../utils/saveLog'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 
@@ -159,7 +159,7 @@ const saveLogFile = async (
   )
 
   if (currentRequestLog && jobPath) {
-    if (!logFile) logFile = getLogFilePath('', jobPath || '')
+    if (!logFile) logFile = await getLogFilePath('', jobPath || '')
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
   }
 }
@@ -176,8 +176,9 @@ const writeOutput = async (
   output: any,
   isLocal: boolean
 ) => {
-  let outputPath = path.join(process.projectDir, isLocal ? '' : '')
-
+  let outputPath = (await isSASjsProject())
+    ? process.sasjsConstants.buildDestinationResultsFolder
+    : path.join(process.projectDir, isLocal ? '' : '')
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
