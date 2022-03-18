@@ -91,19 +91,22 @@ function createApp(
   const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
 
   shelljs.exec(
-    `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
+    `cd "${folderPath}" && git clone --recurse-submodules --depth 1 -b ${gitBranch} ${repoUrl} .`,
     { silent: true }
   )
 
   shelljs.rm('-rf', path.join(folderPath, '.git'))
 
   spinner.stop()
+
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
     spinner.start()
+
     shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
+
     spinner.stop()
   }
 }
