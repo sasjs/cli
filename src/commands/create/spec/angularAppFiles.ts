@@ -125,6 +125,11 @@ export const angularAppFiles: Folder = {
           subFolders: []
         }
       ]
+    },
+    {
+      folderName: 'docs',
+      files: [{ fileName: 'index.html' }],
+      subFolders: []
     }
   ]
 }

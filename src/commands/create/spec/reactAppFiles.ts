@@ -76,6 +76,17 @@ export const reactAppFiles: Folder = {
           subFolders: []
         }
       ]
+    },
+    {
+      folderName: 'public',
+      files: [],
+      subFolders: [
+        {
+          folderName: 'docs',
+          files: [{ fileName: 'index.html' }],
+          subFolders: []
+        }
+      ]
     }
   ]
 }
