@@ -238,7 +238,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )}
 `
 
-      await runTest(target)
+      await runTest(target, undefined, undefined, undefined, true)
 
       const resultsFolderPath = path.join(
         __dirname,
@@ -417,7 +417,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         target,
         ['jobs/standalone', 'shouldFail', 'services/admin/dostuff.test.0'],
         outputFolder,
-        movedTestFlow
+        movedTestFlow,
+        true
       )
 
       const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
@@ -666,7 +667,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )}
 `
 
-      await runTest(target, undefined, undefined, undefined)
+      await runTest(target, undefined, undefined, undefined, true)
 
       const resultsFolderPath = path.join(
         __dirname,
@@ -767,6 +768,62 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       const coverageLcov = await readFile(coverageLcovPath)
 
       expect(coverageLcov).toEqual(expectedCoverageLcov)
+    })
+  })
+
+  describe('General', () => {
+    const target: Target = generateTarget(ServerType.SasViya)
+
+    const testUrl = (test: string) =>
+      `${getTestUrl(
+        target,
+        `/Public/app/cli-tests/${target.name}/tests/${test}`
+      )}&_contextName=${encodeURIComponent(target.contextName)}`
+    const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
+
+    beforeAll(async () => {
+      await createTestApp(__dirname, target.name)
+      await copyTestFiles(target.name)
+      await build(target)
+
+      process.logger = new Logger(LogLevel.Off)
+    })
+
+    beforeEach(() => {
+      setupMocksForSASVIYA()
+    })
+
+    afterAll(async () => {
+      await removeTestApp(__dirname, target.name)
+    })
+
+    it('should fail on tests failing', async () => {
+      const error = await runTest(
+        target,
+        undefined,
+        undefined,
+        undefined
+      ).catch((err: any) => {
+        return err
+      })
+
+      expect(error).toEqual(
+        '5 tests failed to complete!\n 5 tests completed with failures!'
+      )
+    })
+
+    it('should not throw error on tests failing', async () => {
+      const error = await runTest(
+        target,
+        undefined,
+        undefined,
+        undefined,
+        true
+      ).catch((err: any) => {
+        return err
+      })
+
+      expect(error).toBeUndefined()
     })
   })
 })

@@ -32,7 +32,8 @@ export async function runTest(
   target: Target,
   testRegExps: string[] = [],
   outDirectory?: string,
-  flowSourcePath?: string
+  flowSourcePath?: string,
+  ignoreFail?: boolean
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -345,6 +346,24 @@ export async function runTest(
     `Tests coverage report:
   ${coverageReportPath}`
   )
+
+  if (!ignoreFail) {
+    const failedTestsCount = testsCount - testsWithResultsCount
+    const testsWithoutResultCount = testsCount - testsWithResultsCount
+    let errorMessage: string | undefined
+
+    if (testsWithoutResultCount > 0)
+      errorMessage = `${testsWithoutResultCount} ${
+        testsWithoutResultCount === 1 ? 'test' : 'tests'
+      } failed to complete!`
+
+    if (failedTestsCount > 0)
+      errorMessage += `\n ${failedTestsCount} ${
+        failedTestsCount === 1 ? 'test' : 'tests'
+      } completed with failures!`
+
+    if (errorMessage) return Promise.reject(errorMessage)
+  }
 }
 
 export const getTestUrl = (target: Target, jobLocation: string) =>

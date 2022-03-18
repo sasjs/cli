@@ -5,17 +5,17 @@ import { runTest } from './test'
 
 const syntax = 'test [filteringString..]'
 const usage =
-  'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name>'
+  'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --ignoreFail'
 const description = 'Triggers SAS unit tests.'
 const examples: CommandExample[] = [
   {
     command:
-      'sasjs test jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name>',
+      'sasjs test jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --ignoreFail',
     description: ''
   },
   {
     command:
-      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name>',
+      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name> --iF',
     description: ''
   }
 ]
@@ -33,6 +33,13 @@ export class TestCommand extends TargetCommand {
           type: 'string',
           alias: 's',
           description: 'Test flow located at source will be executed.'
+        },
+        ignoreFail: {
+          type: 'boolean',
+          default: false,
+          alias: 'iF',
+          description:
+            'If present, CLI will return exit code 0 even if tests are failing.'
         }
       },
       syntax,
@@ -45,13 +52,14 @@ export class TestCommand extends TargetCommand {
   public async execute() {
     const { target } = await this.getTargetInfo()
 
-    const { filteringString, outDirectory, source } = this.parsed
+    const { filteringString, outDirectory, source, ignoreFail } = this.parsed
 
     return await runTest(
       target,
       filteringString as string[],
       outDirectory as string,
-      source as string
+      source as string,
+      ignoreFail as boolean
     )
       .then(() => {
         return ReturnCode.Success

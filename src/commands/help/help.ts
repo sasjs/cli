@@ -321,11 +321,12 @@ export async function printHelpText() {
       title: 'test',
       description: [
         `Triggers SAS unit tests.`,
-        `[2spaces]command example: sasjs test <filteringString> --source <testFlowPath> --outDirectory <folderPath> -t <targetName>`,
+        `[2spaces]command example: sasjs test <filteringString> --source <testFlowPath> --outDirectory <folderPath> -t <targetName> --ignoreFail`,
         ``,
         `[2spaces]NOTE: Providing <filteringString> is optional. If not present, all tests mentioned in test flow file will be executed.`,
         `[2spaces]NOTE: Providing source flag is optional. If not present, CLI will use test flow located at sasjsbuild/testFlow.json.`,
-        `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`
+        `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`,
+        `[2spaces]NOTE: Providing ignore fail (--ignoreFail or -iF) flag is optional. If present CLI will return exit code 0 even if tests are failing. Useful when the requirement is not to make CI Pipeline fail.`
       ]
     }
   ]
