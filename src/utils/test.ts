@@ -6,7 +6,9 @@ import {
   fileExists,
   folderExists,
   readFile,
-  asyncForEach
+  asyncForEach,
+  listFilesAndSubFoldersInFolder,
+  pathSepEscaped
 } from '@sasjs/utils'
 import { deleteFolder as deleteServerFolder } from '../commands/folder/delete'
 import {
@@ -515,4 +517,17 @@ const verifyCompile = async (
     const re = new RegExp(`%macro ${macro}`)
     expect(re.test(compiledContent)).toEqual(true)
   })
+}
+
+export const verifyGitNotPresent = async (folder: string) => {
+  const gitFolderOrModules = (
+    await listFilesAndSubFoldersInFolder(folder, true)
+  ).filter(
+    (sub: string) =>
+      /\.git$/.test(sub) ||
+      new RegExp(`\.git${pathSepEscaped}`).test(sub) ||
+      /\.gitmodules/.test(sub)
+  )
+
+  expect(gitFolderOrModules.length).toEqual(0)
 }

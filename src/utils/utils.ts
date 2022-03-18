@@ -95,7 +95,15 @@ function createApp(
     { silent: true }
   )
 
-  shelljs.rm('-rf', path.join(folderPath, '.git'))
+  deleteGitFolder(folderPath)
+
+  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+
+  if (repoUrl.includes('react-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'public', 'docs'))
+  } else if (repoUrl.includes('angular-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'docs'))
+  }
 
   spinner.stop()
 
@@ -110,6 +118,9 @@ function createApp(
     spinner.stop()
   }
 }
+
+const deleteGitFolder = (folderPath: string) =>
+  shelljs.rm('-rf', path.join(folderPath, '.git'))
 
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
@@ -171,14 +182,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
     )
 
     process.logger?.success('.gitignore file has been created.')
-  }
-
-  const folderPath = path.join(process.projectDir, folderName)
-  const gitDirectoryExists = await folderExists(path.join(folderPath, '.git'))
-  if (!gitDirectoryExists) {
-    shelljs.exec(`cd ${folderName} && git init`, {
-      silent: true
-    })
   }
 }
 
