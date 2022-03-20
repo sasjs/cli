@@ -194,7 +194,7 @@ export class JobCommand extends TargetCommand {
     config: { username: string; password: string }
   ) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
-    const log = await getLogFilePath(this.parsed.log, jobPath)
+    const log = getLogFilePath(this.parsed.log, jobPath)
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
       : undefined
@@ -221,7 +221,7 @@ export class JobCommand extends TargetCommand {
 
   async executeJobViya(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
-    const log = await getLogFilePath(this.parsed.log, jobPath)
+    const log = getLogFilePath(this.parsed.log, jobPath)
     let wait = (this.parsed.wait as boolean) || !!log
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
