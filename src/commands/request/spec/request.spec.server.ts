@@ -14,6 +14,7 @@ import {
   removeTestApp,
   removeTestServerFolder
 } from '../../../utils/test'
+import * as timeStampUtils from '@sasjs/utils/time'
 import { getAuthConfig } from '../../../utils/config'
 import { runSasJob } from '../request'
 import { build } from '../../build/build'
@@ -54,17 +55,18 @@ const expectedDataObj = {
   ]
 }
 
-const getOutputJson = async () =>
+const getOutputJson = async (fileName: string) =>
   JSON.parse(
     await readFile(
       path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'output.json'
+        'requests',
+        fileName
       )
     )
   )
 
-describe('sasjs request without compute API', () => {
+describe.only('sasjs request without compute API', () => {
   const appName = 'cli-tests-request-' + generateTimestamp()
   const target: Target = generateTestTarget(
     appName,
@@ -99,7 +101,6 @@ describe('sasjs request without compute API', () => {
   afterAll(async () => {
     await removeTestServerFolder(target.appLoc, target)
     await removeTestApp(__dirname, target.name)
-    console.log('after all')
   })
 
   beforeEach(async () => {
@@ -114,6 +115,11 @@ describe('sasjs request without compute API', () => {
   })
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -125,11 +131,20 @@ describe('sasjs request without compute API', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -141,11 +156,20 @@ describe('sasjs request without compute API', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 
   it(`should execute service 'sendArr' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -157,11 +181,20 @@ describe('sasjs request without compute API', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -173,8 +206,12 @@ describe('sasjs request without compute API', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 
   it(`should execute service 'sendArr' with absolute path with output path`, async () => {
@@ -202,6 +239,11 @@ describe('sasjs request without compute API', () => {
   })
 
   it(`should execute service 'err' with absolute path with log path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
@@ -225,7 +267,8 @@ describe('sasjs request without compute API', () => {
     const rawDataStats = statSync(
       path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'output.json'
+        'requests',
+        outputFilename
       )
     )
 
@@ -234,12 +277,17 @@ describe('sasjs request without compute API', () => {
   })
 
   it(`should execute service 'err' with absolute path with default log path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
     ) as string
 
-    const log = (await getLogFilePath('', jobPath || '')) as string
+    const log = getLogFilePath('', jobPath || '') as string
 
     await expect(
       runSasJob(
@@ -258,7 +306,8 @@ describe('sasjs request without compute API', () => {
     const rawDataStats = statSync(
       path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'output.json'
+        'requests',
+        outputFilename
       )
     )
 
@@ -314,6 +363,11 @@ describe('sasjs request with SAS9', () => {
   })
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -323,11 +377,20 @@ describe('sasjs request with SAS9', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -337,26 +400,48 @@ describe('sasjs request with SAS9', () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 
   it(`should execute service 'sendArr' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(target, false, 'services/runRequest/sendArr', dataPathRel)
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(target, false, 'services/runRequest/sendObj', dataPathRel)
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 
   it(`should execute service 'sendArr' with absolute path with output path`, async () => {
@@ -384,6 +469,11 @@ describe('sasjs request with SAS9', () => {
   })
 
   it(`should execute service 'err' with absolute path with log path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
@@ -407,7 +497,8 @@ describe('sasjs request with SAS9', () => {
     const rawDataStats = statSync(
       path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'output.json'
+        'requests',
+        outputFilename
       )
     )
 
@@ -416,6 +507,11 @@ describe('sasjs request with SAS9', () => {
   })
 
   it(`should execute service 'err' with absolute path with default log path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
@@ -438,7 +534,8 @@ describe('sasjs request with SAS9', () => {
     const rawDataStats = statSync(
       path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'output.json'
+        'requests',
+        outputFilename
       )
     )
 
@@ -500,6 +597,11 @@ describe(`sasjs request with compute API`, () => {
   })
 
   it(`should execute service 'sendArr' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -511,11 +613,20 @@ describe(`sasjs request with compute API`, () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with absolute path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -527,11 +638,20 @@ describe(`sasjs request with compute API`, () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 
   it(`should execute service 'sendArr' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendArr-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -543,11 +663,20 @@ describe(`sasjs request with compute API`, () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataArr.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataArr.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataArr.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataArr.table2
+    )
   })
 
   it(`should execute service 'sendObj' with relative path`, async () => {
+    const timestamp = generateTimestamp()
+    jest
+      .spyOn(timeStampUtils, 'generateTimestamp')
+      .mockImplementationOnce(() => timestamp)
+    const outputFilename = `sendObj-${timestamp}.json`
     await expect(
       runSasJob(
         target,
@@ -559,7 +688,11 @@ describe(`sasjs request with compute API`, () => {
       )
     ).toResolve()
 
-    expect((await getOutputJson()).table1).toEqual(expectedDataObj.table1)
-    expect((await getOutputJson()).table2).toEqual(expectedDataObj.table2)
+    expect((await getOutputJson(outputFilename)).table1).toEqual(
+      expectedDataObj.table1
+    )
+    expect((await getOutputJson(outputFilename)).table2).toEqual(
+      expectedDataObj.table2
+    )
   })
 })
