@@ -66,7 +66,7 @@ const getOutputJson = async (fileName: string) =>
     )
   )
 
-describe.only('sasjs request without compute API', () => {
+describe('sasjs request without compute API', () => {
   const appName = 'cli-tests-request-' + generateTimestamp()
   const target: Target = generateTestTarget(
     appName,
