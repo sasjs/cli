@@ -178,7 +178,6 @@ const saveLogFile = async (
  * Writes output to the file
  * @param outputPathParam path to output file
  * @param output data to be written to output file
- * @param isLocal is local target, othervise it is global
  * @param sasJobLocation is used for output file name when outputPathParam is undefined
  * @returns output path for the file created
  */
