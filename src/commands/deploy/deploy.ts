@@ -339,6 +339,7 @@ async function deployToSas9(
  * Deploys app to `SASJS` server.
  * @param {Target} target- the target having deploy configuration.
  * @param {object} sasjs - optional configuration object of SAS adapter.
+ * @param {object} streamConfig - optional config for deploying streaming app.
  */
 async function deployToSasjs(
   target: Target,
@@ -369,7 +370,7 @@ async function deployToSasjs(
   }
 
   const result = await sasjs
-    .deployToSASjs(payload, undefined, authConfig)
+    .deployToSASjs(payload, undefined, streamConfig, authConfig)
     .catch((err) => {
       process.logger?.error(err)
     })
@@ -384,9 +385,8 @@ async function deployToSasjs(
     }
   }
 
-  if (streamConfig?.streamWeb) {
-    const appLoc = encodeURI(target.appLoc)
-    const webAppStreamUrl = `${target.serverUrl}/AppStream${appLoc}`
+  if (streamConfig?.streamWeb && result?.streamServiceName) {
+    const webAppStreamUrl = `${target.serverUrl}/AppStream/${result.streamServiceName}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }
