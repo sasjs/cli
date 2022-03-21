@@ -65,7 +65,7 @@ export async function runTest(
 
   if (testFlow.testSetUp) flow.push(testFlow.testSetUp)
 
-  if (testFlow.tests)
+  if (testFlow.tests) {
     flow = [
       ...flow,
       ...testFlow.tests.filter((test: string) => {
@@ -80,6 +80,7 @@ export async function runTest(
         return match
       })
     ]
+  }
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
@@ -98,8 +99,8 @@ export async function runTest(
   switch (target.serverType) {
     case ServerType.SasViya:
       authConfig = await getAuthConfig(target)
-      break
 
+      break
     case ServerType.Sas9:
       if (target.authConfigSas9) {
         username = target.authConfigSas9.userName
@@ -108,17 +109,20 @@ export async function runTest(
         username = process.env.SAS_USERNAME as string
         password = process.env.SAS_PASSWORD as string
       }
+
       if (!username || !password) {
         const { sas9CredentialsError } = process.sasjsConstants
         throw new Error(sas9CredentialsError)
       }
-      password = decodeFromBase64(password)
-      break
 
+      password = decodeFromBase64(password)
+
+      break
     case ServerType.Sasjs:
       try {
         authConfig = await getAuthConfig(target)
-      } catch (e) {}
+      } catch (e) {} // FIXME: handle error properly
+
       break
   }
 
