@@ -88,10 +88,20 @@ function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
+  // FIXME
+  // const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
+
+  // shelljs.exec(
+  //   `cd "${folderPath}" && git clone --recurse-submodules --depth 1 -b ${gitBranch} ${repoUrl} .`,
+  //   { silent: true }
+  // )
+
+  console.log(
+    `cd "${folderPath}" && git clone --recurse-submodules --depth 1 -b cli-issue-1167 ${repoUrl} .`
+  )
 
   shelljs.exec(
-    `cd "${folderPath}" && git clone --recurse-submodules --depth 1 -b ${gitBranch} ${repoUrl} .`,
+    `cd "${folderPath}" && git clone --recurse-submodules --depth 1 -b cli-issue-1167 ${repoUrl} .`,
     { silent: true }
   )
 
