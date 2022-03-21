@@ -1,5 +1,11 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target, generateTimestamp, readFile } from '@sasjs/utils'
+import {
+  ServerType,
+  Target,
+  generateTimestamp,
+  readFile,
+  StreamConfig
+} from '@sasjs/utils'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
@@ -66,6 +72,13 @@ describe('sasjs cbd with server type SASJS', () => {
       '    )' +
       '  %mend;\n'
 
+    const streamConfig: StreamConfig = {
+      assetPaths: [],
+      streamServiceName: 'clickme',
+      streamWeb: false,
+      streamWebFolder: '',
+      webSourcePath: ''
+    }
     expect(sasjs.deployToSASjs).toHaveBeenCalledWith(
       {
         members: [
@@ -100,6 +113,7 @@ describe('sasjs cbd with server type SASJS', () => {
         ]
       },
       undefined,
+      streamConfig,
       undefined
     )
   })
