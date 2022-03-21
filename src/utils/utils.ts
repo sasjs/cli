@@ -417,3 +417,32 @@ export const terminateProcess = (status: number) => {
 
   process.exit(status)
 }
+
+/**
+ * This function checks whether the current directory, or any of the parent
+ * directories, are part of a SASjs project.  This is done by testing for
+ * the existence of a ./sasjs/sasjsconfig.json file.
+ *
+ * @returns boolean
+ */
+export const isSASjsProject = async () => {
+  let i = 1
+  let currentLocation = process.projectDir
+
+  const maxLevels = currentLocation.split(path.sep).length
+
+  while (i <= maxLevels) {
+    if (
+      (await folderExists(path.join(currentLocation, 'sasjs'))) &&
+      (await fileExists(
+        path.join(currentLocation, 'sasjs', 'sasjsconfig.json')
+      ))
+    ) {
+      return true
+    } else {
+      currentLocation = path.join(currentLocation, '..')
+      i++
+    }
+  }
+  return false
+}
