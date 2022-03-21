@@ -15,7 +15,7 @@ const examples: CommandExample[] = [
   },
   {
     command:
-      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name> --iF',
+      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name> --if',
     description: ''
   }
 ]
@@ -37,7 +37,7 @@ export class TestCommand extends TargetCommand {
         ignoreFail: {
           type: 'boolean',
           default: false,
-          alias: 'iF',
+          alias: 'if',
           description:
             'If present, CLI will return exit code 0 even if tests are failing.'
         }

@@ -66,7 +66,7 @@ describe('TestCommand', () => {
       'path-to-out',
       '-s',
       'path-to-source',
-      '--iF'
+      '--if'
     ]
 
     const command = new TestCommand(args)

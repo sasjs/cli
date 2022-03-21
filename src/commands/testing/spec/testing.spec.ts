@@ -798,17 +798,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should fail on tests failing', async () => {
-      const error = await runTest(
-        target,
-        undefined,
-        undefined,
-        undefined
-      ).catch((err: any) => {
+      const error = await runTest(target).catch((err: any) => {
         return err
       })
 
       expect(error).toEqual(
-        '5 tests failed to complete!\n 5 tests completed with failures!'
+        '5 tests failed to complete!\n 1 test completed with failures!'
       )
     })
 

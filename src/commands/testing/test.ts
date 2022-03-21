@@ -348,7 +348,7 @@ export async function runTest(
   )
 
   if (!ignoreFail) {
-    const failedTestsCount = testsCount - testsWithResultsCount
+    const failedTestsCount = testsWithResultsCount - passedTestsCount
     const testsWithoutResultCount = testsCount - testsWithResultsCount
     let errorMessage: string | undefined
 
