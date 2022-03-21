@@ -239,16 +239,11 @@ describe('sasjs request without compute API', () => {
   })
 
   it(`should execute service 'err' with absolute path with log path`, async () => {
-    const timestamp = generateTimestamp()
-    jest
-      .spyOn(timeStampUtils, 'generateTimestamp')
-      .mockImplementationOnce(() => timestamp)
-    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = (await getLogFilePath('./mylog.txt', jobPath || '')) as string
+    const log = getLogFilePath('./mylog.txt', jobPath || '') as string
 
     await expect(
       runSasJob(
@@ -264,24 +259,11 @@ describe('sasjs request without compute API', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(
-      path.join(
-        process.sasjsConstants.buildDestinationResultsFolder,
-        'requests',
-        outputFilename
-      )
-    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
-    expect(rawDataStats.size).toBeGreaterThan(10)
   })
 
   it(`should execute service 'err' with absolute path with default log path`, async () => {
-    const timestamp = generateTimestamp()
-    jest
-      .spyOn(timeStampUtils, 'generateTimestamp')
-      .mockImplementationOnce(() => timestamp)
-    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
@@ -303,16 +285,8 @@ describe('sasjs request without compute API', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(
-      path.join(
-        process.sasjsConstants.buildDestinationResultsFolder,
-        'requests',
-        outputFilename
-      )
-    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
-    expect(rawDataStats.size).toBeGreaterThan(10)
   })
 })
 
@@ -469,16 +443,11 @@ describe('sasjs request with SAS9', () => {
   })
 
   it(`should execute service 'err' with absolute path with log path`, async () => {
-    const timestamp = generateTimestamp()
-    jest
-      .spyOn(timeStampUtils, 'generateTimestamp')
-      .mockImplementationOnce(() => timestamp)
-    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = (await getLogFilePath('./mylog.txt', jobPath || '')) as string
+    const log = getLogFilePath('./mylog.txt', jobPath || '') as string
 
     await expect(
       runSasJob(
@@ -494,29 +463,16 @@ describe('sasjs request with SAS9', () => {
     ).toResolve()
 
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(
-      path.join(
-        process.sasjsConstants.buildDestinationResultsFolder,
-        'requests',
-        outputFilename
-      )
-    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
-    expect(rawDataStats.size).toBeGreaterThan(10)
   })
 
   it(`should execute service 'err' with absolute path with default log path`, async () => {
-    const timestamp = generateTimestamp()
-    jest
-      .spyOn(timeStampUtils, 'generateTimestamp')
-      .mockImplementationOnce(() => timestamp)
-    const outputFilename = `err-${timestamp}.json`
     const jobPath = prefixAppLoc(
       target.appLoc,
       'services/runRequest/err'
     ) as string
-    const log = (await getLogFilePath('', jobPath || '')) as string
+    const log = getLogFilePath('', jobPath || '') as string
 
     await expect(
       runSasJob(
@@ -531,16 +487,8 @@ describe('sasjs request with SAS9', () => {
       )
     ).toResolve()
     const rawLogDataStats = statSync(log)
-    const rawDataStats = statSync(
-      path.join(
-        process.sasjsConstants.buildDestinationResultsFolder,
-        'requests',
-        outputFilename
-      )
-    )
 
     expect(rawLogDataStats.size).toBeGreaterThan(10)
-    expect(rawDataStats.size).toBeGreaterThan(10)
   })
 })
 
