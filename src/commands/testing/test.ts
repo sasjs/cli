@@ -348,6 +348,16 @@ export async function runTest(
   )
 
   if (!ignoreFail) {
+    /**
+     * When running tests there are 2 types of outcomes
+     * Test provided result (FAIL or PASS)
+     * Test did not provide any result
+     * 
+     * In this section we want to write tests that did not succeed
+     * For better UX we want to separate them and write for example:
+     * 1 Test failed to complete
+     * 1 Test completed with failures
+     */
     const failedTestsCount = testsWithResultsCount - passedTestsCount
     const testsWithoutResultCount = testsCount - testsWithResultsCount
     let errorMessage: string | undefined
