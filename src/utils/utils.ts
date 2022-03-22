@@ -94,6 +94,7 @@ function createApp(
     .exec(`git version`, { silent: true })
     .stdout.match(/(?<!git version)\d+\.\d+\.\d+/) || '')[0].replace(/\./g, '')
 
+  // NOTE: git version 2.13 and greater are using '--recurse-submodules' instead of '--recurse'
   shelljs.exec(
     `cd "${folderPath}" && git clone --recurse${
       parseInt(gitVersion) > 2130 ? '-submodules' : ''
