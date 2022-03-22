@@ -18,7 +18,8 @@ import {
   getAbsolutePath,
   isTestFile,
   testFileRegExp,
-  Configuration
+  Configuration,
+  CompileTree
 } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
@@ -41,14 +42,16 @@ export async function compileTestFile(
   filePath: string,
   testVar: string = '',
   saveToRoot: boolean = true,
-  removeOriginalFile = true
+  removeOriginalFile = true,
+  compileTree: CompileTree
 ) {
   let dependencies = await loadDependencies(
     target,
     getAbsolutePath(filePath, process.projectDir),
     await getMacroFolders(target),
     await getProgramFolders(target),
-    SASJsFileType.test
+    SASJsFileType.test,
+    compileTree
   )
 
   const preCode = await getPreCodeForServicePack(target.serverType)

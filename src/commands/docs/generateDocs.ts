@@ -11,14 +11,12 @@ import {
   Target,
   Configuration,
   LogLevel,
-  getAbsolutePath
+  getAbsolutePath,
+  isWindows
 } from '@sasjs/utils'
-
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
-
-import { isWindows } from '../../utils'
 
 /**
  * Generates documentation(Doxygen)
@@ -163,16 +161,13 @@ export async function generateDocs(
 
 function setVariableCmd(params: any): string {
   let command = ''
-  const isWin = isWindows()
-  if (isWin) {
-    for (const param in params) {
-      command += `set ${param}=${params[param]} && `
-    }
+
+  if (isWindows()) {
+    for (const param in params) command += `set ${param}=${params[param]} && `
   } else {
-    for (const param in params) {
-      command += `${param}='${params[param]}' `
-    }
+    for (const param in params) command += `${param}='${params[param]}' `
   }
+
   return command
 }
 

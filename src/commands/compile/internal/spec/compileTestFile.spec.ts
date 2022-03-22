@@ -93,22 +93,12 @@ describe('compileTestFile', () => {
 
 * Test Variables end;`)
         const testInit = replaceLineBreaks(`* TestInit start;
-/**
-  @file
-  @brief setting up the test
 
-  <h4> SAS Macros </h4>
-**/
 
 %put testing, init;
 * TestInit end;`)
         const testTerm = replaceLineBreaks(`* TestTerm start;
-/**
-  @file
-  @brief ending the test
 
-  <h4> SAS Macros </h4>
-**/
 
 %put testing, termed;
 * TestTerm end;`)

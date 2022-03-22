@@ -11,6 +11,7 @@ import {
 import { compileServiceFile } from './internal/compileServiceFile'
 import { compileJobFile } from './internal/compileJobFile'
 import { identifySasFile } from './internal/identifySasFile'
+import { getCompileTree } from './internal/loadDependencies'
 
 export async function compileSingleFile(
   target: Target,
@@ -74,6 +75,7 @@ export async function compileSingleFile(
   const programVar = insertProgramVar
     ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};\n${psMaxOption}`
     : `${psMaxOption}`
+  const compileTree = getCompileTree(target)
 
   switch (subCommand) {
     case subCommands.service:
@@ -82,7 +84,8 @@ export async function compileSingleFile(
         destinationPath,
         macroFolders,
         programFolders,
-        programVar
+        programVar,
+        compileTree
       )
       break
     case subCommands.job:
@@ -91,12 +94,15 @@ export async function compileSingleFile(
         destinationPath,
         macroFolders,
         programFolders,
-        programVar
+        programVar,
+        compileTree
       )
       break
     default:
       break
   }
+
+  await compileTree.saveTree()
 
   return { destinationPath }
 }
