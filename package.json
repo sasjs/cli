@@ -67,7 +67,7 @@
     "rimraf": "3.0.2",
     "shelljs": "0.8.5",
     "xml": "1.0.1",
-    "yargs": "17.2.1"
+    "yargs": "17.4.0"
   },
   "devDependencies": {
     "@babel/preset-env": "7.15.6",
