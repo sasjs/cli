@@ -1,6 +1,10 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { verifyFolder, verifyPackageJsonContent } from '../../../utils/test'
+import {
+  verifyFolder,
+  verifyPackageJsonContent,
+  verifyGitNotPresent
+} from '../../../utils/test'
 import { createFolder, deleteFolder, generateTimestamp } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
 import { minimalAppFiles } from './minimalAppFiles'
@@ -73,6 +77,7 @@ describe('sasjs create', () => {
     await expect(create('.', 'react')).toResolve()
 
     await verifyCreateWeb('.', 'react')
+    await verifyGitNotPresent(process.projectDir)
   })
 
   it(`should set up a react app in a given folder`, async () => {
@@ -87,6 +92,7 @@ describe('sasjs create', () => {
     await expect(create('test-react-app', 'react')).toResolve()
 
     await verifyCreateWeb('test-react-app', 'react')
+    await verifyGitNotPresent(process.projectDir)
   })
 
   it(`should set up a minimal app in a given folder`, async () => {
@@ -115,6 +121,7 @@ describe('sasjs create', () => {
     await expect(create('test-angular-app', 'angular')).toResolve()
 
     await verifyCreateWeb('test-angular-app', 'angular')
+    await verifyGitNotPresent(process.projectDir)
   })
 
   it(`should fail with an unknown app type 'xyz'`, async () => {
@@ -149,6 +156,7 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
 
 const verifyCreate = async (parentFolderName: string, appType: string) => {
   let fileStructure
+
   if (appType === 'sasonly') {
     fileStructure = {
       folderName: parentFolderName,
@@ -169,6 +177,7 @@ const verifyCreate = async (parentFolderName: string, appType: string) => {
       files: [{ fileName: 'README.md' }]
     }
   }
+
   await verifyFolder(fileStructure)
   await verifyPackageJsonContent(parentFolderName)
 }

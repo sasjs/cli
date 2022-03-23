@@ -90,23 +90,44 @@ function createApp(
 
   const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
 
+  const gitVersion: string = (shelljs
+    .exec(`git version`, { silent: true })
+    .stdout.match(/(?<!git version)\d+\.\d+\.\d+/) || '')[0].replace(/\./g, '')
+
+  // NOTE: git version 2.13 and greater are using '--recurse-submodules' instead of '--recurse' attribute to clone submodules
   shelljs.exec(
-    `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
+    `cd "${folderPath}" && git clone --recurse${
+      parseInt(gitVersion) > 2130 ? '-submodules' : ''
+    } --depth 1 -b ${gitBranch} ${repoUrl} .`,
     { silent: true }
   )
 
-  shelljs.rm('-rf', path.join(folderPath, '.git'))
+  deleteGitFolder(folderPath)
+
+  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+
+  if (repoUrl.includes('react-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'public', 'docs'))
+  } else if (repoUrl.includes('angular-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'docs'))
+  }
 
   spinner.stop()
+
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
     spinner.start()
+
     shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
+
     spinner.stop()
   }
 }
+
+const deleteGitFolder = (folderPath: string) =>
+  shelljs.rm('-rf', path.join(folderPath, '.git'))
 
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
@@ -168,14 +189,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
     )
 
     process.logger?.success('.gitignore file has been created.')
-  }
-
-  const folderPath = path.join(process.projectDir, folderName)
-  const gitDirectoryExists = await folderExists(path.join(folderPath, '.git'))
-  if (!gitDirectoryExists) {
-    shelljs.exec(`cd ${folderName} && git init`, {
-      silent: true
-    })
   }
 }
 
