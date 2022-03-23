@@ -20,8 +20,6 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
   const { scope, serverType, name, appLoc, serverUrl, existingTarget } =
     await getCommonFields()
 
-  const saveWithDefaultValues = !existingTarget
-
   let targetJson: any = {
     ...existingTarget,
     name,
@@ -31,7 +29,7 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
   }
 
   const target = new Target(targetJson)
-  let filePath = await saveConfig(scope, target, false, saveWithDefaultValues)
+  let filePath = await saveConfig(scope, target, false, false)
 
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
 
@@ -65,11 +63,7 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
         )
 
       targetJson = {
-        contextName,
-        deployConfig: {
-          deployServicePack: true,
-          deployScripts: []
-        }
+        contextName
       }
 
       targetJson = { ...updatedViyaTarget.toJson(false), ...targetJson }
@@ -92,12 +86,7 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
 
   const isDefault = await getIsDefault()
 
-  filePath = await saveConfig(
-    scope,
-    new Target(targetJson),
-    isDefault,
-    saveWithDefaultValues
-  )
+  filePath = await saveConfig(scope, new Target(targetJson), isDefault, false)
 
   process.logger?.info(`Target configuration has been saved to ${filePath}`)
   return true
