@@ -217,6 +217,12 @@ const compileServiceFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
+  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(serviceFolder, fileName)))) {
+      filesNamesInPath.splice(i, 1)
+    }
+  })
+
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
