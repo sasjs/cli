@@ -206,6 +206,7 @@ async function recreateBuildFolder() {
   await createFolder(buildDestinationFolder)
 }
 
+// REFACTOR: combine compileServiceFolder and compileJobFolder
 const compileServiceFolder = async (
   target: Target,
   serviceFolder: string,
@@ -216,6 +217,14 @@ const compileServiceFolder = async (
   const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
+
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(serviceFolder, fileName)))) {
+      filesNamesInPath.splice(i, 1)
+    }
+  })
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
@@ -277,6 +286,14 @@ const compileJobFolder = async (
   const destinationPath = getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
+
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(jobFolder, fileName)))) {
+      filesNamesInPath.splice(i, 1)
+    }
+  })
 
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
