@@ -218,6 +218,8 @@ const compileServiceFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
   await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
     if (!(await fileExists(path.join(serviceFolder, fileName)))) {
       filesNamesInPath.splice(i, 1)
@@ -285,6 +287,8 @@ const compileJobFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
   await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
     if (!(await fileExists(path.join(jobFolder, fileName)))) {
       filesNamesInPath.splice(i, 1)
