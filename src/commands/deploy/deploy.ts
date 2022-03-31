@@ -12,7 +12,8 @@ import {
   asyncForEach,
   AuthConfig,
   decodeFromBase64,
-  getAbsolutePath
+  getAbsolutePath,
+  ServicePackSASjs
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
@@ -352,7 +353,7 @@ async function deployToSasjs(
     `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
-  const payload = JSON.parse(jsonContent)
+  const payload: ServicePackSASjs = JSON.parse(jsonContent)
 
   let authConfig
   if (!sasjs) {
@@ -370,7 +371,7 @@ async function deployToSasjs(
   }
 
   const result = await sasjs
-    .deployToSASjs(payload, undefined, streamConfig, authConfig)
+    .deployToSASjs(payload, undefined, authConfig)
     .catch((err) => {
       process.logger?.error(err)
     })
