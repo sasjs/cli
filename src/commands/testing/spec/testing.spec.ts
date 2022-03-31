@@ -1,6 +1,6 @@
 import path from 'path'
 import { runTest, getTestUrl } from '../test'
-import { TestDescription, TestResult } from '../../../types'
+import { TestDescription, TestResult, TestResultStatus } from '../../../types'
 import {
   Logger,
   LogLevel,
@@ -18,11 +18,11 @@ import { contextName } from '../../../utils/setConstants'
 import dotenv from 'dotenv'
 import { build } from '../..'
 import SASjs, { SASjsConfig } from '@sasjs/adapter/node'
-
 import * as sasJsModules from '../../../utils/createSASjsInstance'
 import { testResponses } from './mockedAdapter/testResponses'
 import * as fileModule from '@sasjs/utils/file'
 import * as utilsModule from '@sasjs/utils/utils'
+import chalk from 'chalk'
 
 describe('sasjs test', () => {
   const expectedCoverageLcov = `TN:testsetup.sas
@@ -772,12 +772,14 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should FAIL test suit if any test has status FAIL', async () => {
+      const testService = 'notexisting'
+
       jest.spyOn(process.logger, 'table')
       jest.spyOn(utilsModule, 'uuidv4').mockImplementation(() => 'uuidv4')
       jest.spyOn(fileModule, 'readFile').mockImplementation(() =>
         Promise.resolve(`{
   "tests": [
-    "tests/macros/notexisting.test.sas"
+    "tests/macros/${testService}.test.sas"
   ],
   "testSetUp": "",
   "testTearDown": ""
@@ -787,7 +789,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       await runTest(target, undefined, undefined, undefined)
 
       expect(process.logger.table).toHaveBeenCalledWith(
-        [['uuidv4', 'notexisting', '\x1B[91mFAIL\x1B[39m']],
+        [['uuidv4', testService, chalk.redBright(TestResultStatus.fail)]],
         { head: ['SASjs Test ID', 'Test Target', 'Test Suite Result'] }
       )
     })
