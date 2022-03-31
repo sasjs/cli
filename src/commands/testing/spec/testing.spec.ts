@@ -21,6 +21,8 @@ import SASjs, { SASjsConfig } from '@sasjs/adapter/node'
 
 import * as sasJsModules from '../../../utils/createSASjsInstance'
 import { testResponses } from './mockedAdapter/testResponses'
+import * as fileModule from '@sasjs/utils/file'
+import * as utilsModule from '@sasjs/utils/utils'
 
 describe('sasjs test', () => {
   const expectedCoverageLcov = `TN:testsetup.sas
@@ -767,6 +769,27 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       const coverageLcov = await readFile(coverageLcovPath)
 
       expect(coverageLcov).toEqual(expectedCoverageLcov)
+    })
+
+    it('should FAIL test suit if any test has status FAIL', async () => {
+      jest.spyOn(process.logger, 'table')
+      jest.spyOn(utilsModule, 'uuidv4').mockImplementation(() => 'uuidv4')
+      jest.spyOn(fileModule, 'readFile').mockImplementation(() =>
+        Promise.resolve(`{
+  "tests": [
+    "tests/macros/notexisting.test.sas"
+  ],
+  "testSetUp": "",
+  "testTearDown": ""
+}`)
+      )
+
+      await runTest(target, undefined, undefined, undefined)
+
+      expect(process.logger.table).toHaveBeenCalledWith(
+        [['uuidv4', 'notexisting', '\x1B[91mFAIL\x1B[39m']],
+        { head: ['SASjs Test ID', 'Test Target', 'Test Suite Result'] }
+      )
     })
   })
 })

@@ -48,3 +48,12 @@ export interface TestResult {
 export interface TestResults {
   sasjs_test_meta: TestDescription[]
 }
+
+export interface TestResultCsv {
+  test_target: string
+  test_loc: string
+  sasjs_test_id: string
+  test_suite_result: TestResultStatus.pass | TestResultStatus.fail
+  test_description: string
+  test_url: string
+}
