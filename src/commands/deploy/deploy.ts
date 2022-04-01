@@ -203,12 +203,16 @@ async function deployToSasViya(
 
   const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
 
-  const executionResult = await sasjs.executeScriptSASViya(
-    deployScriptName,
-    linesToExecute,
-    contextName,
-    authConfig
-  )
+  const executionResult = await sasjs
+    .executeScriptSASViya(
+      deployScriptName,
+      linesToExecute,
+      contextName,
+      authConfig
+    )
+    .catch((err: any) => {
+      process.logger.error('executeScriptSASViya Error', err)
+    })
 
   let log
   try {
@@ -372,7 +376,7 @@ async function deployToSasjs(
   const result = await sasjs
     .deployToSASjs(payload, undefined, streamConfig, authConfig)
     .catch((err) => {
-      process.logger?.error(err)
+      process.logger?.error('deployToSASjs Error', err)
     })
 
   if (result?.status === 'failure') {

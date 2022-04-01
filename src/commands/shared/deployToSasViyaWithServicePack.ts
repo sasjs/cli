@@ -40,13 +40,11 @@ export async function deployToSasViyaWithServicePack(
     useComputeApi: true
   })
 
-  await sasjs.deployServicePack(
-    jsonObject,
-    undefined,
-    undefined,
-    access_token,
-    isForced
-  )
+  await sasjs
+    .deployServicePack(jsonObject, undefined, undefined, access_token, isForced)
+    .catch((err: any) => {
+      process.logger.error('deployServicePack error', err)
+    })
 
   return jsonObject
 }
