@@ -330,7 +330,8 @@ export const updateTarget = async (
   targetName: string,
   isLocal: boolean = true
 ): Promise<Target> => {
-  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+  let config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+
   if (config?.targets) {
     const targetIndex = config.targets.findIndex(
       (t: TargetJson) => t.name === targetName
@@ -340,13 +341,32 @@ export const updateTarget = async (
         ...config.targets[targetIndex],
         ...targetJson
       })
+
+      config = {
+        ...config,
+        targets: config.targets.map((target: Target) => ({
+          ...target,
+          serverUrl:
+            process.env[
+              `${
+                target.serverType === ServerType.SasViya
+                  ? 'VIYA'
+                  : target.serverType
+              }_SERVER_URL`
+            ]
+        }))
+      }
+
       isLocal
         ? await saveLocalConfigFile(JSON.stringify(config, null, 2))
         : await saveGlobalRcFile(JSON.stringify(config, null, 2))
+
       return new Target(config.targets[targetIndex])
     }
+
     throw `Unable to find Target: ${targetName}`
   }
+
   throw `Unable to find Target: ${targetName}`
 }
 
