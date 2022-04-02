@@ -2,10 +2,8 @@ import path from 'path'
 import {
   Target,
   ServerType,
-  StreamConfig,
   chunk,
   getDependencyPaths,
-  isTestFile,
   readFile,
   base64EncodeFile,
   listSubFoldersInFolder,
@@ -26,7 +24,12 @@ import {
 import { compile } from '../compile/compile'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import { ServicePack, ServicePackMember } from '../../types'
+import {
+  FileTree,
+  FolderMember,
+  MemberType,
+  ServicePackSASjs
+} from '@sasjs/utils/types'
 
 export async function build(target: Target) {
   await compile(target)
@@ -72,6 +75,11 @@ async function createFinalSasFiles(target: Target) {
     serverType
   )
 
+  const servicePackSASjs: ServicePackSASjs = {
+    appLoc: target.appLoc,
+    fileTree: folderContentJSON
+  }
+
   finalSasFileContent += `\n${folderContent}`
   finalSasFileContent += `\n${buildTerm}`
 
@@ -84,6 +92,10 @@ async function createFinalSasFiles(target: Target) {
         target.serverType,
         streamConfig.streamServiceName
       )
+    } else if (target.serverType === ServerType.Sasjs) {
+      servicePackSASjs.streamLogo = streamConfig.streamLogo
+      servicePackSASjs.streamServiceName = streamConfig.streamServiceName
+      servicePackSASjs.streamWebFolder = streamConfig.streamWebFolder
     }
   }
 
@@ -94,10 +106,12 @@ async function createFinalSasFiles(target: Target) {
   process.logger?.success(`File ${finalFilePath} has been created.`)
 
   process.logger?.debug(`Creating file ${finalFilePathJSON} .`)
-  await createFile(
-    finalFilePathJSON,
-    JSON.stringify(folderContentJSON, null, 1)
-  )
+
+  const servicePack =
+    target.serverType === ServerType.Sasjs
+      ? servicePackSASjs
+      : folderContentJSON
+  await createFile(finalFilePathJSON, JSON.stringify(servicePack, null, 1))
   process.logger?.success(`File ${finalFilePathJSON} has been created.`)
 }
 
@@ -259,13 +273,13 @@ function getWebServiceScriptInvocation(
  */
 async function getFolderContent(serverType: ServerType): Promise<{
   folderContent: string
-  folderContentJSON: ServicePack
+  folderContentJSON: FileTree
 }> {
   const { buildDestinationFolder } = process.sasjsConstants
   const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
-  let folderContentJSON: ServicePack = { members: [] }
+  const folderContentJSON: FileTree = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
       buildDestinationFolder,
@@ -295,7 +309,7 @@ async function getContentFor(
   rootDirectory: string,
   folderPath: string,
   serverType: ServerType
-): Promise<{ content: string; contentJSON: ServicePackMember }> {
+): Promise<{ content: string; contentJSON: FolderMember }> {
   const folderName = path.basename(folderPath)
 
   let content = `\n%let path=${folderPath
@@ -304,9 +318,9 @@ async function getContentFor(
     .split(path.sep)
     .join('/')};\n`
 
-  const contentJSON: ServicePackMember = {
+  const contentJSON: FolderMember = {
     name: folderName,
-    type: 'folder',
+    type: MemberType.folder,
     members: []
   }
 
@@ -322,7 +336,7 @@ async function getContentFor(
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
-        type: 'service',
+        type: MemberType.service,
         code: removeComments(fileContent)
       })
     } else {
@@ -337,7 +351,7 @@ async function getContentFor(
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
-        type: 'file',
+        type: MemberType.file,
         code: fileContentEncoded
       })
     }
