@@ -257,7 +257,7 @@
           }
         },
         "deployConfig": {
-          "deployServicePack": true,
+          "deployServicePack": false,
           "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
         },
         "serviceConfig": {
