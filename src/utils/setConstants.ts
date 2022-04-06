@@ -21,14 +21,9 @@ export const setConstants = async () => {
   const homeDir = require('os').homedir()
   const getMacroCoreGlobalPath = async () => {
     try {
-      const sasjsPath = await getInstalledPath('@sasjs/cli')
-      const macroCoreGlobal = path.join(
-        sasjsPath,
-        'node_modules',
-        '@sasjs',
-        'core'
-      )
-      return macroCoreGlobal
+      // sasjs/core is a part of sasjs/cli which is installed globally,
+      // must look into local dependencies
+      return await getInstalledPath('@sasjs/core', { local: true })
     } catch (e) {
       throw 'Please install SASjs cli `npm i -g @sasjs/cli`'
     }
