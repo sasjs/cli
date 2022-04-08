@@ -787,39 +787,12 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
 }`)
       )
 
-      await runTest(target, undefined, undefined, undefined)
+      await runTest(target, undefined, undefined, undefined, true)
 
       expect(process.logger.table).toHaveBeenCalledWith(
         [['uuidv4', testService, chalk.redBright(TestResultStatus.fail)]],
         { head: ['SASjs Test ID', 'Test Target', 'Test Suite Result'] }
       )
-    })
-  })
-
-  describe('General', () => {
-    const target: Target = generateTarget(ServerType.SasViya)
-
-    const testUrl = (test: string) =>
-      `${getTestUrl(
-        target,
-        `/Public/app/cli-tests/${target.name}/tests/${test}`
-      )}&_contextName=${encodeURIComponent(target.contextName)}`
-    const testUrlLink = (test: string) => `"=HYPERLINK(""${testUrl(test)}"")"`
-
-    beforeAll(async () => {
-      await createTestApp(__dirname, target.name)
-      await copyTestFiles(target.name)
-      await build(target)
-
-      process.logger = new Logger(LogLevel.Off)
-    })
-
-    beforeEach(() => {
-      setupMocksForSASVIYA()
-    })
-
-    afterAll(async () => {
-      await removeTestApp(__dirname, target.name)
     })
 
     it('should fail on tests failing', async () => {
@@ -828,7 +801,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       })
 
       expect(error).toEqual(
-        '5 tests failed to complete!\n 1 test completed with failures!'
+        '6 tests completed with failures!'
       )
     })
 

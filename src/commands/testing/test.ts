@@ -397,15 +397,15 @@ export async function runTest(
      */
     const failedTestsCount = testsWithResultsCount - passedTestsCount
     const testsWithoutResultCount = testsCount - testsWithResultsCount
-    let errorMessage: string | undefined
+    let errorMessage: string = ''
 
     if (testsWithoutResultCount > 0)
       errorMessage = `${testsWithoutResultCount} ${
         testsWithoutResultCount === 1 ? 'test' : 'tests'
-      } failed to complete!`
+      } failed to complete!\n`
 
     if (failedTestsCount > 0)
-      errorMessage += `\n ${failedTestsCount} ${
+      errorMessage += `${failedTestsCount} ${
         failedTestsCount === 1 ? 'test' : 'tests'
       } completed with failures!`
 
