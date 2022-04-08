@@ -12,12 +12,15 @@ import {
   asyncForEach,
   AuthConfig,
   decodeFromBase64,
-  getAbsolutePath
+  getAbsolutePath,
+  ServicePackSASjs,
+  FileTree,
+  FolderMember,
+  MemberType
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
 import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
-import { ServicePack } from '../../types'
 
 /**
  * Deploys app to serverUrl/appLoc mentioned in specified target.
@@ -42,20 +45,22 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
       `${target.name}.json`
     )
 
-    const jsonObject: ServicePack = await deployToSasViyaWithServicePack(
+    const jsonObject: FileTree = await deployToSasViyaWithServicePack(
       finalFilePathJSON,
       target,
       isLocal,
       true
     )
 
+    const servicesFolder = jsonObject?.members.find<FolderMember>(
+      (member): member is FolderMember =>
+        member?.name === 'services' && member?.type === MemberType.folder
+    )
+
     const webIndexFileName: string =
-      jsonObject?.members
-        .find(
-          (member: any) =>
-            member?.name === 'services' && member?.type === 'folder'
-        )
-        ?.members?.find((member: any) => member?.type === 'file')?.name ?? ''
+      servicesFolder?.members?.find(
+        (member: any) => member?.type === MemberType.file
+      )?.name ?? ''
 
     process.logger?.success('Build pack has been successfully deployed.')
 
@@ -356,7 +361,7 @@ async function deployToSasjs(
     `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
-  const payload = JSON.parse(jsonContent)
+  const payload: ServicePackSASjs = JSON.parse(jsonContent)
 
   let authConfig
   if (!sasjs) {
@@ -374,7 +379,7 @@ async function deployToSasjs(
   }
 
   const result = await sasjs
-    .deployToSASjs(payload, undefined, streamConfig, authConfig)
+    .deployToSASjs(payload, undefined, authConfig)
     .catch((err) => {
       process.logger?.error('deployToSASjs Error', err)
     })
