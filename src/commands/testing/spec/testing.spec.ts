@@ -800,9 +800,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         return err
       })
 
-      expect(error).toEqual(
-        '6 tests completed with failures!'
-      )
+      expect(error).toEqual('6 tests completed with failures!')
     })
 
     it('should not throw error on tests failing', async () => {
