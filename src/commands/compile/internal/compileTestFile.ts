@@ -29,7 +29,7 @@ import {
   getMacroFolders,
   getLocalOrGlobalConfig
 } from '../../../utils/config'
-import { getPreCodeForServicePack } from './compileServiceFile'
+import { getPreCodeForServicePack } from './compileFile'
 
 const testsBuildFolder = () => {
   return path.join(process.projectDir, 'sasjsbuild', 'tests')

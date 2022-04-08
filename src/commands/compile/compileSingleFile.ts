@@ -6,10 +6,10 @@ import {
   deleteFolder,
   createFolder,
   copy,
-  getAbsolutePath
+  getAbsolutePath,
+  SASJsFileType
 } from '@sasjs/utils'
-import { compileServiceFile } from './internal/compileServiceFile'
-import { compileJobFile } from './internal/compileJobFile'
+import { compileFile } from './internal/compileFile'
 import { identifySasFile } from './internal/identifySasFile'
 import { getCompileTree } from './internal/loadDependencies'
 
@@ -76,26 +76,34 @@ export async function compileSingleFile(
     ? `%let _program=${target.appLoc}/${subCommand}s/${leafFolderName}/${sourceFileNameWithoutExt};\n${psMaxOption}`
     : `${psMaxOption}`
   const compileTree = getCompileTree(target)
+  const sourceFolder = sourcePath
+    .split(path.sep)
+    .slice(0, sourcePath.split(path.sep).length - 1)
+    .join(path.sep)
 
   switch (subCommand) {
     case subCommands.service:
-      await compileServiceFile(
+      await compileFile(
         target,
         destinationPath,
         macroFolders,
         programFolders,
         programVar,
-        compileTree
+        compileTree,
+        SASJsFileType.service,
+        sourceFolder
       )
       break
     case subCommands.job:
-      await compileJobFile(
+      await compileFile(
         target,
         destinationPath,
         macroFolders,
         programFolders,
         programVar,
-        compileTree
+        compileTree,
+        SASJsFileType.job,
+        sourceFolder
       )
       break
     default:
