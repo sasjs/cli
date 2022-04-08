@@ -6,13 +6,13 @@ import {
   createFile,
   createFolder,
   decodeFromBase64,
-  getAbsolutePath
+  getAbsolutePath,
+  generateTimestamp
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError } from '../../utils/utils'
+import { displaySasjsRunnerError, isSASjsProject } from '../../utils/utils'
 import { saveLog } from '../../utils/saveLog'
-import { getLogFilePath } from '../../utils/getLogFilePath'
 
 export async function runSasJob(
   target: Target,
@@ -127,7 +127,7 @@ export async function runSasJob(
         output = res
       }
 
-      if (!!output) await writeOutput(outputPathParam, output, isLocal)
+      if (!!output) await writeOutput(outputPathParam, output, sasJobLocation)
 
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
@@ -159,7 +159,17 @@ const saveLogFile = async (
   )
 
   if (currentRequestLog && jobPath) {
-    if (!logFile) logFile = getLogFilePath('', jobPath || '')
+    if (!logFile) {
+      const logPath = (await isSASjsProject())
+        ? path.join(
+            process.sasjsConstants.buildDestinationResultsFolder,
+            'requests'
+          )
+        : process.projectDir
+      const timestamp = generateTimestamp()
+      const filename = sasJobLocation.split(path.sep).pop()
+      logFile = path.join(logPath, `${filename}-${timestamp}.log`)
+    }
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
   }
 }
@@ -168,16 +178,20 @@ const saveLogFile = async (
  * Writes output to the file
  * @param outputPathParam path to output file
  * @param output data to be written to output file
- * @param isLocal is local target, othervise it is global
+ * @param sasJobLocation is used for output file name when outputPathParam is undefined
  * @returns output path for the file created
  */
 const writeOutput = async (
   outputPathParam: string | undefined,
   output: any,
-  isLocal: boolean
+  sasJobLocation: string
 ) => {
-  let outputPath = path.join(process.projectDir, isLocal ? '' : '')
-
+  let outputPath = (await isSASjsProject())
+    ? path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'requests'
+      )
+    : process.projectDir
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
@@ -195,7 +209,9 @@ const writeOutput = async (
   if (outputFilename) {
     outputPath += `${path.sep}${outputFilename}`
   } else {
-    outputPath += `${path.sep}output.json`
+    const timestamp = generateTimestamp()
+    const filename = sasJobLocation.split(path.sep).pop()
+    outputPath += `${path.sep}${filename}-${timestamp}.json`
   }
 
   let outputString = ''

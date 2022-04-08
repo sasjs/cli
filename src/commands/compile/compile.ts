@@ -90,6 +90,8 @@ export async function compile(target: Target, forceCompile = false) {
     }
   }
 
+  await compileTree.saveTree()
+
   await compileTestFlow(target).catch((err) =>
     process.logger?.error('Test flow compilation has failed.')
   )
@@ -141,14 +143,30 @@ export async function compileJobsServicesTests(
     const testSetUp = await getTestSetUp(target)
     const testTearDown = await getTestTearDown(target)
 
-    if (testSetUp)
-      await compileTestFile(target, testSetUp, '', true, false).catch((err) =>
+    if (testSetUp) {
+      await compileTestFile(
+        target,
+        testSetUp,
+        '',
+        true,
+        false,
+        compileTree
+      ).catch((err) =>
         process.logger?.error('Test set up compilation has failed.')
       )
-    if (testTearDown)
-      await compileTestFile(target, testTearDown, '', true, false).catch(
-        (err) => process.logger?.error('Test tear down compilation has failed.')
+    }
+    if (testTearDown) {
+      await compileTestFile(
+        target,
+        testTearDown,
+        '',
+        true,
+        false,
+        compileTree
+      ).catch((err) =>
+        process.logger?.error('Test tear down compilation has failed.')
       )
+    }
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
       await compileServiceFolder(
@@ -188,6 +206,7 @@ async function recreateBuildFolder() {
   await createFolder(buildDestinationFolder)
 }
 
+// REFACTOR: combine compileServiceFolder and compileJobFolder
 const compileServiceFolder = async (
   target: Target,
   serviceFolder: string,
@@ -199,11 +218,20 @@ const compileServiceFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(serviceFolder, fileName)))) {
+      filesNamesInPath.splice(i, 1)
+    }
+  })
+
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
-    if (isTestFile(filePath)) await compileTestFile(target, filePath, '', false)
-    else {
+    if (isTestFile(filePath)) {
+      await compileTestFile(target, filePath, '', false, undefined, compileTree)
+    } else {
       await compileServiceFile(
         target,
         filePath,
@@ -224,7 +252,14 @@ const compileServiceFolder = async (
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath)) {
-        await compileTestFile(target, filePath, '', false)
+        await compileTestFile(
+          target,
+          filePath,
+          '',
+          false,
+          undefined,
+          compileTree
+        )
       } else {
         await compileServiceFile(
           target,
@@ -252,11 +287,19 @@ const compileJobFolder = async (
   const subFolders = await listSubFoldersInFolder(destinationPath)
   const filesNamesInPath = await listFilesInFolder(destinationPath)
 
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(jobFolder, fileName)))) {
+      filesNamesInPath.splice(i, 1)
+    }
+  })
+
   await asyncForEach(filesNamesInPath, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(fileName)) {
-      await compileTestFile(target, filePath, '', false)
+      await compileTestFile(target, filePath, '', false, undefined, compileTree)
     } else {
       await compileJobFile(
         target,
@@ -276,7 +319,14 @@ const compileJobFolder = async (
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath))
-        await compileTestFile(target, filePath, '', false)
+        await compileTestFile(
+          target,
+          filePath,
+          '',
+          false,
+          undefined,
+          compileTree
+        )
       else {
         await compileJobFile(
           target,

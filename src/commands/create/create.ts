@@ -39,10 +39,9 @@ export async function create(parentFolderName: string, appType: string) {
   if (!appType) {
     await setupNpmProject(parentFolderName)
   }
+
   await setupGitIgnore(parentFolderName)
-
   await setupDoxygen(parentFolderName)
-
   await createReadme(parentFolderName)
 
   const lintConfigPath = path.join(
@@ -50,6 +49,8 @@ export async function create(parentFolderName: string, appType: string) {
     parentFolderName,
     '.sasjslint'
   )
-  if (!(await fileExists(lintConfigPath)))
+
+  if (!(await fileExists(lintConfigPath))) {
     await createLintConfigFile(parentFolderName)
+  }
 }

@@ -18,9 +18,10 @@ import {
   getAbsolutePath,
   isTestFile,
   testFileRegExp,
-  Configuration
+  Configuration,
+  CompileTree
 } from '@sasjs/utils'
-import { loadDependencies, getCompileTree } from './loadDependencies'
+import { loadDependencies } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
 import {
@@ -41,10 +42,9 @@ export async function compileTestFile(
   filePath: string,
   testVar: string = '',
   saveToRoot: boolean = true,
-  removeOriginalFile = true
+  removeOriginalFile = true,
+  compileTree: CompileTree
 ) {
-  const compileTree = getCompileTree(target)
-
   let dependencies = await loadDependencies(
     target,
     getAbsolutePath(filePath, process.projectDir),

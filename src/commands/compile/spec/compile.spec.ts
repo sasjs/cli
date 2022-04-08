@@ -551,11 +551,13 @@ describe('sasjs compile outside project', () => {
   describe('without global config', () => {
     beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
+
       await saveGlobalRcFile('')
-      process.projectDir = ''
       await setConstants()
 
+      process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
+
       await createFolder(process.currentDir)
     })
 
@@ -584,6 +586,34 @@ describe('sasjs compile outside project', () => {
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
+    })
+
+    it('should compile without duplicates', async () => {
+      const testServicePath = path.join('services', 'admin', 'test.sas')
+      const appPath = path.join(__dirname, appName)
+
+      await createTestApp(__dirname, appName)
+      await createFile(
+        path.join(appPath, 'sasjs', 'targets', 'viya', testServicePath),
+        ''
+      )
+
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        '-t',
+        'viya'
+      ])
+      await command.executeCompile()
+
+      const compiledTestService = await readFile(
+        path.join(appPath, 'sasjsbuild', testServicePath)
+      )
+
+      expect(
+        compiledTestService.match(/^\*\sService start;$/gm)?.length
+      ).toEqual(1)
     })
   })
 })

@@ -1,5 +1,11 @@
 import SASjs from '@sasjs/adapter/node'
-import { ServerType, Target, generateTimestamp, readFile } from '@sasjs/utils'
+import {
+  ServerType,
+  Target,
+  generateTimestamp,
+  readFile,
+  StreamConfig
+} from '@sasjs/utils'
 import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
@@ -66,38 +72,48 @@ describe('sasjs cbd with server type SASJS', () => {
       '    )' +
       '  %mend;\n'
 
+    const streamConfig: StreamConfig = {
+      assetPaths: [],
+      streamServiceName: 'clickme',
+      streamWeb: false,
+      streamWebFolder: '',
+      webSourcePath: ''
+    }
     expect(sasjs.deployToSASjs).toHaveBeenCalledWith(
       {
-        members: [
-          {
-            name: 'services',
-            type: 'folder',
-            members: [
-              {
-                name: 'common',
-                type: 'folder',
-                members: [
-                  {
-                    name: 'appinit',
-                    type: 'service',
-                    code: removeComments(
-                      `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                        '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
-                    )
-                  },
-                  {
-                    name: 'getdata',
-                    type: 'service',
-                    code: removeComments(
-                      `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                        '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
-                    )
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        appLoc: target.appLoc,
+        fileTree: {
+          members: [
+            {
+              name: 'services',
+              type: 'folder',
+              members: [
+                {
+                  name: 'common',
+                  type: 'folder',
+                  members: [
+                    {
+                      name: 'appinit',
+                      type: 'service',
+                      code: removeComments(
+                        `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
+                          '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
+                      )
+                    },
+                    {
+                      name: 'getdata',
+                      type: 'service',
+                      code: removeComments(
+                        `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
+                          '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
+                      )
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
       },
       undefined,
       undefined

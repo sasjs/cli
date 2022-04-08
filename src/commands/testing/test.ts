@@ -9,7 +9,8 @@ import {
   TestFlow,
   TestResults,
   TestResultStatus,
-  TestDescription
+  TestDescription,
+  TestResultCsv
 } from '../../types'
 import { sasFileRegExp } from '../../utils/file'
 import { getAuthConfig } from '../../utils/config'
@@ -27,6 +28,8 @@ import path from 'path'
 import chalk from 'chalk'
 import { displaySasjsRunnerError } from '../../utils/utils'
 import { createSASjsInstance } from '../../utils/createSASjsInstance'
+
+// interface
 
 export async function runTest(
   target: Target,
@@ -66,7 +69,7 @@ export async function runTest(
 
   if (testFlow.testSetUp) flow.push(testFlow.testSetUp)
 
-  if (testFlow.tests)
+  if (testFlow.tests) {
     flow = [
       ...flow,
       ...testFlow.tests.filter((test: string) => {
@@ -81,6 +84,7 @@ export async function runTest(
         return match
       })
     ]
+  }
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
@@ -99,8 +103,8 @@ export async function runTest(
   switch (target.serverType) {
     case ServerType.SasViya:
       authConfig = await getAuthConfig(target)
-      break
 
+      break
     case ServerType.Sas9:
       if (target.authConfigSas9) {
         username = target.authConfigSas9.userName
@@ -109,17 +113,20 @@ export async function runTest(
         username = process.env.SAS_USERNAME as string
         password = process.env.SAS_PASSWORD as string
       }
+
       if (!username || !password) {
         const { sas9CredentialsError } = process.sasjsConstants
         throw new Error(sas9CredentialsError)
       }
-      password = decodeFromBase64(password)
-      break
 
+      password = decodeFromBase64(password)
+
+      break
     case ServerType.Sasjs:
       try {
         authConfig = await getAuthConfig(target)
-      } catch (e) {}
+      } catch (e) {} // FIXME: handle error properly
+
       break
   }
 
@@ -252,7 +259,10 @@ export async function runTest(
               ]
             })
           }
-        } else if (target.serverType !== ServerType.Sasjs) {
+        } else if (
+          target.serverType === ServerType.SasViya ||
+          target.serverType === ServerType.Sas9
+        ) {
           displayError(
             {},
             `'test_results' not found in server response, to debug click ${testUrl}`
@@ -292,13 +302,40 @@ export async function runTest(
   const resultTable: any = {}
 
   if (Array.isArray(csvData)) {
-    csvData.forEach(
-      (item: any) =>
-        (resultTable[item.sasjs_test_id] = {
-          test_target: item.test_target,
-          test_suite_result: item.test_suite_result
-        })
+    const testSuites = csvData.reduce(
+      (acc: TestResultCsv[], item: TestResultCsv) => {
+        if (
+          !acc.filter(
+            (i: TestResultCsv) => i.sasjs_test_id === item.sasjs_test_id
+          ).length
+        )
+          acc.push(item)
+
+        return acc
+      },
+      []
     )
+
+    testSuites.forEach((test: TestResultCsv) => {
+      const passedTests = csvData.filter(
+        (item: TestResultCsv) =>
+          item.sasjs_test_id === test.sasjs_test_id &&
+          item.test_suite_result === TestResultStatus.pass
+      )
+      const failedTests = csvData.filter(
+        (item: TestResultCsv) =>
+          item.sasjs_test_id === test.sasjs_test_id &&
+          item.test_suite_result === TestResultStatus.fail
+      )
+
+      resultTable[test.sasjs_test_id] = {
+        test_target: test.test_target,
+        test_suite_result:
+          passedTests.length && !failedTests.length
+            ? TestResultStatus.pass
+            : TestResultStatus.fail
+      }
+    })
   }
 
   process.logger?.table(

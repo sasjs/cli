@@ -16,5 +16,15 @@ export const testResponses: { [key: string]: any } = {
       TEST_DESCRIPTION: 'examplemacro test.1 description',
       TEST_RESULT: 'PASS'
     }
+  ],
+  'notexisting.test': [
+    {
+      TEST_DESCRIPTION: 'examplemacro test.1 description',
+      TEST_RESULT: 'PASS'
+    },
+    {
+      TEST_DESCRIPTION: 'examplemacro test.1 description',
+      TEST_RESULT: 'FAIL'
+    }
   ]
 }

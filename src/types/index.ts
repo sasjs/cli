@@ -11,7 +11,7 @@ export {
   TestResultStatus,
   TestDescription,
   TestResult,
-  TestResultDescription
+  TestResultDescription,
+  TestResultCsv
 } from './testing'
 export { Flow, FlowWave, FlowWaveJob } from './flow'
-export { ServicePack, ServicePackMember } from './servicePack'
