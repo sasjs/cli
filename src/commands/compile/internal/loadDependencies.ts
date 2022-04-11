@@ -35,6 +35,7 @@ export async function loadDependencies(
   const binaryFolders = await getBinaryFolders(target)
 
   headerSyntaxNotices(fileContent)
+
   return await loadDependenciesFile({
     fileContent,
     filePath,

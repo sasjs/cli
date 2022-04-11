@@ -9,7 +9,6 @@ import {
   createFile,
   fileExists,
   AuthConfig,
-  SasAuthResponse,
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions,
