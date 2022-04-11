@@ -1,18 +1,19 @@
-import { Configuration, readFile, ServerType, Target } from '@sasjs/utils'
+import { Configuration } from '@sasjs/utils'
 import path from 'path'
 import * as configUtils from '../config'
 import { setConstants } from '../setConstants'
+import * as fileModule from '@sasjs/utils/file'
 
 describe('setConstants', () => {
   let config: Configuration
 
   beforeAll(async () => {
     ;({ config } = JSON.parse(
-      await readFile(path.join(__dirname, '..', '..', 'config.json'))
+      await fileModule.readFile(path.join(__dirname, '..', '..', 'config.json'))
     ))
   })
 
-  test('should set contants inside appFolder', async () => {
+  test('should set constants inside appFolder', async () => {
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(async () =>
@@ -21,6 +22,11 @@ describe('setConstants', () => {
           isLocal: true
         })
       )
+
+    jest
+      .spyOn(fileModule, 'folderExists')
+      .mockImplementation(() => Promise.resolve(true))
+
     process.projectDir = ['some', 'app', 'folder'].join(path.sep)
 
     await setConstants()
@@ -28,7 +34,7 @@ describe('setConstants', () => {
     verifySasjsConstants(process.projectDir)
   })
 
-  test('should set contants outside appFolder', async () => {
+  test('should set constants outside appFolder', async () => {
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(async () =>
@@ -77,11 +83,11 @@ const verifySasjsConstants = (appFolder?: string) => {
   expect(sasjsConstants.buildDestinationTestFolder).toEqual(
     [prefixAppFolder, 'sasjsbuild', 'tests'].join(path.sep)
   )
-  if (appFolder)
+  if (appFolder) {
     expect(sasjsConstants.macroCorePath).toEqual(
       [prefixAppFolder, 'node_modules', '@sasjs', 'core'].join(path.sep)
     )
-  else
+  } else {
     expect(sasjsConstants.macroCorePath).toEqual(
       expect.toEndWith(
         [
@@ -94,4 +100,5 @@ const verifySasjsConstants = (appFolder?: string) => {
         ].join(path.sep)
       )
     )
+  }
 }
