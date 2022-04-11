@@ -2,7 +2,7 @@ import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
 import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
 
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { CertificateError } from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
 import { createFile } from '@sasjs/utils'
 import {
@@ -161,11 +161,17 @@ export const getTokens = async (
     secret,
     target
   ).catch((e) => {
-    process.logger?.error(
-      `An error has occurred while validating your credentials: ${e}\nPlease check your Client ID ${
-        target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
-      }and try again.\n`
-    )
+    const errorMessage = `An error has occurred while validating your credentials: ${e}`
+    const checkCredentialsMessage = `Please check your Client ID ${
+      target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
+    }and try again.\n`
+
+    const errorMessageToDisplay =
+      e instanceof CertificateError
+        ? errorMessage
+        : `${errorMessage}\n${checkCredentialsMessage}`
+
+    process.logger?.error(errorMessageToDisplay)
     throw e
   })
 

@@ -19,20 +19,6 @@ export const setConstants = async () => {
     configuration?.buildConfig?.buildResultsFolder ||
     (isLocal ? 'sasjsresults' : '.sasjs/sasjsresults')
   const homeDir = require('os').homedir()
-  const getMacroCoreGlobalPath = async () => {
-    try {
-      const sasjsPath = await getInstalledPath('@sasjs/cli')
-      const macroCoreGlobal = path.join(
-        sasjsPath,
-        'node_modules',
-        '@sasjs',
-        'core'
-      )
-      return macroCoreGlobal
-    } catch (e) {
-      throw 'Please install SASjs cli `npm i -g @sasjs/cli`'
-    }
-  }
 
   const buildSourceFolder = path.join(isLocal ? process.projectDir : homeDir)
   const buildSourceDbFolder = path.join(
@@ -53,8 +39,10 @@ export const setConstants = async () => {
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
   const macroCorePath = isLocal
-    ? path.join(buildSourceFolder, 'node_modules', '@sasjs/core')
-    : await getMacroCoreGlobalPath()
+    ? // use @sasjs/core from app's dependencies
+      path.join(buildSourceFolder, 'node_modules', '@sasjs/core')
+    : // use @sasjs/core from @sasjs/cli's dependencies
+      await getInstalledPath('@sasjs/core', { local: true })
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
     isLocal ? process.projectDir : homeDir
