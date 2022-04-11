@@ -89,16 +89,7 @@ const verifySasjsConstants = (appFolder?: string) => {
     )
   } else {
     expect(sasjsConstants.macroCorePath).toEqual(
-      expect.toEndWith(
-        [
-          'node_modules',
-          '@sasjs',
-          'cli',
-          'node_modules',
-          '@sasjs',
-          'core'
-        ].join(path.sep)
-      )
+      expect.toEndWith(['cli', 'node_modules', '@sasjs', 'core'].join(path.sep))
     )
   }
 }
