@@ -459,3 +459,18 @@ export const isSASjsProject = async () => {
   }
   return false
 }
+
+export const getNodeModulePath = async (module: string): Promise<string> => {
+  const localPath = path.join(process.cwd(), 'node_modules', module)
+
+  if (await folderExists(localPath)) return localPath
+
+  const globalPath = path.join(
+    shelljs.exec(`npm root -g`, { silent: true }).stdout.replace(/\n/, ''),
+    module
+  )
+
+  if (await folderExists(globalPath)) return globalPath
+
+  return ''
+}
