@@ -1,7 +1,7 @@
 import path from 'path'
-import { getInstalledPath } from 'get-installed-path'
 import { getLocalOrGlobalConfig } from './config'
-import { folderExists, getAbsolutePath } from '@sasjs/utils'
+import { getNodeModulePath } from './utils'
+import { getAbsolutePath } from '@sasjs/utils'
 
 export const contextName = 'sasjs cli compute context'
 
@@ -19,21 +19,6 @@ export const setConstants = async () => {
     configuration?.buildConfig?.buildResultsFolder ||
     (isLocal ? 'sasjsresults' : '.sasjs/sasjsresults')
   const homeDir = require('os').homedir()
-
-  const getMacroCoreGlobalPath = async () => {
-    try {
-      const sasjsPath = await getInstalledPath('@sasjs/cli')
-      const macroCoreGlobal = path.join(
-        sasjsPath,
-        'node_modules',
-        '@sasjs',
-        'core'
-      )
-      return macroCoreGlobal
-    } catch (e) {
-      throw 'Please install SASjs cli `npm i -g @sasjs/cli`'
-    }
-  }
 
   const buildSourceFolder = path.join(isLocal ? process.projectDir : homeDir)
   const buildSourceDbFolder = path.join(
@@ -53,16 +38,14 @@ export const setConstants = async () => {
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
-  const buildSourceCorePath = path.join(
-    buildSourceFolder,
-    'node_modules',
-    '@sasjs/core'
-  )
-  const macroCorePath = isLocal
-    ? (await folderExists(buildSourceCorePath))
-      ? buildSourceCorePath
-      : await getMacroCoreGlobalPath()
-    : await getMacroCoreGlobalPath()
+  const macroCorePath = await getNodeModulePath('@sasjs/core')
+
+  if (!macroCorePath) {
+    process.logger?.warn(
+      `Couldn't locate @sasjs/core path. Please run 'npm install @sasjs/core@latest' to install it locally or 'npm install -g @sasjs/core@latest' to install it globally.`
+    )
+  }
+
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
     isLocal ? process.projectDir : homeDir

@@ -14,6 +14,9 @@ describe('setConstants', () => {
   })
 
   test('should set constants inside appFolder', async () => {
+    const appFolder = ['some', 'app', 'folder'].join(path.sep)
+    process.projectDir = appFolder
+
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(async () =>
@@ -23,11 +26,11 @@ describe('setConstants', () => {
         })
       )
 
+    jest.spyOn(process, 'cwd').mockImplementation(() => appFolder)
+
     jest
       .spyOn(fileModule, 'folderExists')
       .mockImplementation(() => Promise.resolve(true))
-
-    process.projectDir = ['some', 'app', 'folder'].join(path.sep)
 
     await setConstants()
 
@@ -83,6 +86,7 @@ const verifySasjsConstants = (appFolder?: string) => {
   expect(sasjsConstants.buildDestinationTestFolder).toEqual(
     [prefixAppFolder, 'sasjsbuild', 'tests'].join(path.sep)
   )
+
   if (appFolder) {
     expect(sasjsConstants.macroCorePath).toEqual(
       [prefixAppFolder, 'node_modules', '@sasjs', 'core'].join(path.sep)
