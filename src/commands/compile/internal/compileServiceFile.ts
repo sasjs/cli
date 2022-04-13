@@ -1,4 +1,3 @@
-import { getMacroCorePath } from '../../../utils/config'
 import { createFile, readFile, isTestFile, CompileTree } from '@sasjs/utils'
 import { Target, ServerType, SASJsFileType } from '@sasjs/utils/types'
 import { ServerTypeError } from '@sasjs/utils/error'
@@ -32,7 +31,7 @@ export async function compileServiceFile(
 
 export async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   switch (serverType) {
     case ServerType.SasViya:

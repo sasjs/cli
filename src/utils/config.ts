@@ -525,8 +525,6 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
   } as StreamConfig
 }
 
-export const getMacroCorePath = () => process.sasjsConstants.macroCorePath
-
 /**
  * Sanitizes app location string.
  * @param {string} appLoc - app location
