@@ -1,6 +1,6 @@
 import path from 'path'
 import { getLocalOrGlobalConfig } from './config'
-import { getNodeModulePath } from './utils'
+import { getCliNodeModulePath } from './utils'
 import { getAbsolutePath } from '@sasjs/utils'
 
 export const contextName = 'sasjs cli compute context'
@@ -38,13 +38,7 @@ export const setConstants = async () => {
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
-  const macroCorePath = await getNodeModulePath('@sasjs/core')
-
-  if (!macroCorePath) {
-    process.logger?.warn(
-      `Couldn't locate @sasjs/core path. Please run 'npm install @sasjs/core@latest' to install it locally or 'npm install -g @sasjs/core@latest' to install it globally.`
-    )
-  }
+  const macroCorePath = await getCliNodeModulePath('@sasjs/core')
 
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
