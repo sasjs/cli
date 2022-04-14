@@ -9,7 +9,6 @@ import {
   createFile,
   fileExists,
   AuthConfig,
-  SasAuthResponse,
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions,
@@ -525,8 +524,6 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
     ...target?.streamConfig
   } as StreamConfig
 }
-
-export const getMacroCorePath = () => process.sasjsConstants.macroCorePath
 
 /**
  * Sanitizes app location string.

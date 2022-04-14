@@ -459,3 +459,25 @@ export const isSASjsProject = async () => {
   }
   return false
 }
+
+export const getCliNodeModulePath = async (module: string): Promise<string> => {
+  const cliDepsPath = path.join('@sasjs', 'cli', 'node_modules')
+  const localPath = path.join(
+    process.cwd(),
+    'node_modules',
+    cliDepsPath,
+    module
+  )
+
+  if (await folderExists(localPath)) return localPath
+
+  const globalPath = path.join(
+    shelljs.exec(`npm root -g`, { silent: true }).stdout.replace(/\n/, ''),
+    cliDepsPath,
+    module
+  )
+
+  if (await folderExists(globalPath)) return globalPath
+
+  return ''
+}
