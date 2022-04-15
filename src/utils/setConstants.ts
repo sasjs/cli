@@ -1,6 +1,6 @@
 import path from 'path'
 import { getLocalOrGlobalConfig } from './config'
-import { getCliNodeModulePath } from './utils'
+import { getNodeModulePath } from './utils'
 import { getAbsolutePath } from '@sasjs/utils'
 
 export const contextName = 'sasjs cli compute context'
@@ -38,7 +38,7 @@ export const setConstants = async () => {
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
-  const macroCorePath = await getCliNodeModulePath('@sasjs/core')
+  const macroCorePath = await getNodeModulePath('@sasjs/core')
 
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
