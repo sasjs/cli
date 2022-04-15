@@ -13,7 +13,33 @@ describe('setConstants', () => {
     ))
   })
 
-  test('should set constants inside appFolder', async () => {
+  test('should set constants inside appFolder when @sasjs/core dependency is present', async () => {
+    const appFolder = ['some', 'app', 'folder'].join(path.sep)
+    process.projectDir = appFolder
+
+    jest
+      .spyOn(configUtils, 'getLocalOrGlobalConfig')
+      .mockImplementation(async () =>
+        Promise.resolve({
+          configuration: config,
+          isLocal: true
+        })
+      )
+
+    jest.spyOn(process, 'cwd').mockImplementation(() => appFolder)
+
+    const hasSasjsCore = true
+
+    jest
+      .spyOn(fileModule, 'folderExists')
+      .mockImplementation((path: string) => Promise.resolve(hasSasjsCore))
+
+    await setConstants()
+
+    verifySasjsConstants(process.projectDir, hasSasjsCore)
+  })
+
+  test('should set constants inside appFolder when @sasjs/core dependency is not present', async () => {
     const appFolder = ['some', 'app', 'folder'].join(path.sep)
     process.projectDir = appFolder
 
@@ -30,7 +56,11 @@ describe('setConstants', () => {
 
     jest
       .spyOn(fileModule, 'folderExists')
-      .mockImplementation(() => Promise.resolve(true))
+      .mockImplementation((folderPath: string) =>
+        Promise.resolve(
+          folderPath !== path.join(appFolder, 'node_modules', '@sasjs', 'core')
+        )
+      )
 
     await setConstants()
 
@@ -53,7 +83,7 @@ describe('setConstants', () => {
   })
 })
 
-const verifySasjsConstants = (appFolder?: string) => {
+const verifySasjsConstants = (appFolder?: string, hasSasjsCore = false) => {
   const prefixAppFolder = appFolder ?? require('os').homedir()
 
   const { sasjsConstants } = process
@@ -87,7 +117,9 @@ const verifySasjsConstants = (appFolder?: string) => {
     [prefixAppFolder, 'sasjsbuild', 'tests'].join(path.sep)
   )
 
-  const corePath = path.join('cli', 'node_modules', '@sasjs', 'core')
+  const corePath = hasSasjsCore
+    ? 'core'
+    : path.join('cli', 'node_modules', '@sasjs', 'core')
 
   if (appFolder) {
     expect(sasjsConstants.macroCorePath).toEqual(
