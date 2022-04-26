@@ -6,7 +6,7 @@ export async function executeJobSasjs(
   sasjs: SASjs,
   jobPath: string,
   logFile: string | undefined,
-  authConfig: AuthConfig | undefined
+  authConfig?: AuthConfig
 ) {
   const result = await sasjs.executeJobSASjs(
     {
