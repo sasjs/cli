@@ -91,13 +91,7 @@ export async function runSasJob(
   let result
 
   await sasjs
-    .request(
-      sasJobLocation,
-      dataJson,
-      configJson,
-      undefined,
-      authConfig
-    )
+    .request(sasJobLocation, dataJson, configJson, undefined, authConfig)
     .then(async (res: any) => {
       if ((res && res.errorCode) || res.error) {
         displayError('Request finished with errors.')
@@ -142,7 +136,7 @@ export async function runSasJob(
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = err
     })
-    
+
   return result
 }
 

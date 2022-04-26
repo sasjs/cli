@@ -78,8 +78,8 @@ export class RequestCommand extends TargetCommand {
     const output = (this.parsed.output as string) || undefined
 
     let authConfig
-    
-    switch(target.serverType) {
+
+    switch (target.serverType) {
       case ServerType.SasViya: {
         authConfig = await getAuthConfig(target)
         break
@@ -87,7 +87,7 @@ export class RequestCommand extends TargetCommand {
       case ServerType.Sasjs: {
         try {
           authConfig = await getAuthConfig(target)
-        } catch(e) {}
+        } catch (e) {}
         break
       }
     }

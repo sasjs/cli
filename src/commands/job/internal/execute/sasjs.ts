@@ -8,9 +8,12 @@ export async function executeJobSasjs(
   logFile: string | undefined,
   authConfig: AuthConfig | undefined
 ) {
-  const result = await sasjs.executeJobSASjs({
-    _program: jobPath
-  }, authConfig)
+  const result = await sasjs.executeJobSASjs(
+    {
+      _program: jobPath
+    },
+    authConfig
+  )
 
   if (result) {
     if (result.status === 'success') {

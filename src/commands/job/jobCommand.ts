@@ -160,7 +160,7 @@ export class JobCommand extends TargetCommand {
 
         try {
           authConfig = await getAuthConfig(target)
-        } catch(e) {}
+        } catch (e) {}
 
         return this.jobSubCommands.includes(this.parsed.subCommand)
           ? await this.executeJobSasjs(sasjs, target, authConfig)
@@ -175,7 +175,11 @@ export class JobCommand extends TargetCommand {
     }
   }
 
-  async executeJobSasjs(sasjs: SASjs, target: Target, authConfig: AuthConfig | undefined) {
+  async executeJobSasjs(
+    sasjs: SASjs,
+    target: Target,
+    authConfig: AuthConfig | undefined
+  ) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
 
     const returnCode = await executeJobSasjs(
