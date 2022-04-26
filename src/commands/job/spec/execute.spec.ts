@@ -107,7 +107,8 @@ describe('executeJobSasjs', () => {
     await executeJobSasjs(
       sasjs,
       'test/job',
-      path.join(process.projectDir, 'logs')
+      path.join(process.projectDir, 'logs'),
+      undefined
     )
 
     expect(sasjs.executeJobSASjs).toHaveBeenCalledWith({ _program: 'test/job' })

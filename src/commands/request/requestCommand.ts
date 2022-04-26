@@ -77,10 +77,20 @@ export class RequestCommand extends TargetCommand {
       : undefined
     const output = (this.parsed.output as string) || undefined
 
-    const authConfig =
-      target.serverType === ServerType.SasViya
-        ? await getAuthConfig(target)
-        : undefined
+    let authConfig
+    
+    switch(target.serverType) {
+      case ServerType.SasViya: {
+        authConfig = await getAuthConfig(target)
+        break
+      }
+      case ServerType.Sasjs: {
+        try {
+          authConfig = await getAuthConfig(target)
+        } catch(e) {}
+        break
+      }
+    }
 
     const { sasProgramPath, data, config } = this.parsed
 

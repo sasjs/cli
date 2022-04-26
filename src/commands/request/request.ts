@@ -95,9 +95,7 @@ export async function runSasJob(
       sasJobLocation,
       dataJson,
       configJson,
-      () => {
-        displayError(null, 'Login callback called. Request failed.')
-      },
+      undefined,
       authConfig
     )
     .then(async (res: any) => {
@@ -138,12 +136,13 @@ export async function runSasJob(
       } else {
         const error: any = {}
         if (err.message) error.message = err.message
-        displayError(error, 'An error occurred while executing the request.')
+        if (err.error.message) error.message = err.error.message
+        displayError(error, `An error occurred while executing the request.`)
       }
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = err
     })
-
+    
   return result
 }
 

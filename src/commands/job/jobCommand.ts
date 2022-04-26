@@ -109,15 +109,16 @@ export class JobCommand extends TargetCommand {
       serverType: target.serverType,
       debug: true
     })
+    let authConfig: AuthConfig | undefined
 
     switch (target.serverType) {
       case ServerType.SasViya:
-        const authConfig = await getAuthConfig(target).catch((err) => {
+        authConfig = await getAuthConfig(target).catch((err) => {
           process.logger?.error(
             'Unable to execute job. Error fetching auth config: ',
             err
           )
-          return null
+          return undefined
         })
 
         if (!authConfig) return ReturnCode.InternalError
@@ -157,8 +158,12 @@ export class JobCommand extends TargetCommand {
         if (typeof this.parsed.jobPath !== 'string')
           return ReturnCode.InvalidCommand
 
+        try {
+          authConfig = await getAuthConfig(target)
+        } catch(e) {}
+
         return this.jobSubCommands.includes(this.parsed.subCommand)
-          ? await this.executeJobSasjs(sasjs, target)
+          ? await this.executeJobSasjs(sasjs, target, authConfig)
           : ReturnCode.InvalidCommand
 
       default:
@@ -170,13 +175,14 @@ export class JobCommand extends TargetCommand {
     }
   }
 
-  async executeJobSasjs(sasjs: SASjs, target: Target) {
+  async executeJobSasjs(sasjs: SASjs, target: Target, authConfig: AuthConfig | undefined) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
 
     const returnCode = await executeJobSasjs(
       sasjs,
       jobPath,
-      this.parsed.log as string
+      this.parsed.log as string,
+      authConfig
     )
       .then(() => ReturnCode.Success)
       .catch((err) => {
