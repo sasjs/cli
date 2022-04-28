@@ -41,10 +41,10 @@ jobs:
           sudo apt-key add openvpn-repo-pkg-key.pub
           sudo wget -O /etc/apt/sources.list.d/openvpn3.list https://swupdate.openvpn.net/community/openvpn3/repos/openvpn3-focal.list
           sudo apt update
-          sudo apt install openvpn3
+          sudo apt install openvpn3=16~beta+focal
 
       - name: Start Open VPN 3
-        run: openvpn3 session-start --config-path .github/vpn/config.ovpn
+        run: openvpn3 session-start --config .github/vpn/config.ovpn
 
       - name: Install Doxygen
         run: sudo apt-get install doxygen
