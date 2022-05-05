@@ -118,7 +118,7 @@ function createApp(
     spinner.text = 'Installing dependencies...'
     spinner.start()
 
-    shelljs.exec(`cd "${folderPath}" && npm install`, {
+    shelljs.exec(`cd "${folderPath}" && git init && npm install`, {
       silent: true
     })
 
