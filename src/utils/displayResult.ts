@@ -45,5 +45,7 @@ export function displayError(err: any, errorMessage: string = '') {
       process.logger?.error(err.stack || '')
     }
     return `${errorMessage}${failureDetails}`
+  } else {
+    if (errorMessage) process.logger?.error(errorMessage)
   }
 }
