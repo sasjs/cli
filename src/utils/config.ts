@@ -9,7 +9,6 @@ import {
   createFile,
   fileExists,
   AuthConfig,
-  SasAuthResponse,
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions,
@@ -297,6 +296,11 @@ export async function saveToGlobalConfig(
 ) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson(saveWithDefaultValues)
+
+  if (targetJson.httpsAgentOptions?.ca) {
+    targetJson.httpsAgentOptions.ca = undefined
+  }
+
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
@@ -391,6 +395,11 @@ export async function saveToLocalConfig(
   saveWithDefaultValues: boolean = true
 ) {
   const targetJson = target.toJson(saveWithDefaultValues)
+
+  if (targetJson.httpsAgentOptions?.ca) {
+    targetJson.httpsAgentOptions.ca = undefined
+  }
+
   let config = await getLocalConfig()
   if (config) {
     if (config?.targets?.length) {
@@ -515,8 +524,6 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
     ...target?.streamConfig
   } as StreamConfig
 }
-
-export const getMacroCorePath = () => process.sasjsConstants.macroCorePath
 
 /**
  * Sanitizes app location string.
@@ -792,7 +799,11 @@ const getPrecedenceOfHttpsAgentOptionsAndContent = async (
   })
 
   if (httpsAgentOptions.caPath) {
-    httpsAgentOptions.ca = await readFile(httpsAgentOptions.caPath)
+    const rootCas = require('ssl-root-cas')
+
+    rootCas.addFile(path.resolve(httpsAgentOptions.caPath))
+
+    httpsAgentOptions.ca = rootCas
   }
   if (httpsAgentOptions.keyPath) {
     httpsAgentOptions.key = await readFile(httpsAgentOptions.keyPath)

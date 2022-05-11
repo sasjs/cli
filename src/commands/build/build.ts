@@ -17,7 +17,6 @@ import { removeComments } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
-  getMacroCorePath,
   getMacroFolders,
   getStreamConfig
 } from '../../utils/config'
@@ -59,7 +58,7 @@ async function createFinalSasFiles(target: Target) {
   const buildInit = await getBuildInit(target)
   const buildTerm = await getBuildTerm(target)
 
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   const dependencyFilePaths = await getDependencyPaths(
     `${buildTerm}\n${buildInit}`,
@@ -123,7 +122,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const macroFolders = await getMacroFolders(target)
 
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   buildConfig += `${createWebServiceScript}\n`
 
@@ -151,7 +150,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     // the deployed index.html file.  This only happens when deploying using the
     // SAS Program (build.sas) approach.
     const gsubScript = await readFile(
-      `${getMacroCorePath()}/base/mp_replace.sas`
+      `${process.sasjsConstants.macroCorePath}/base/mp_replace.sas`
     )
     buildConfig += `${gsubScript}\n`
     const dependencyFilePathsForGsubScript = await getDependencyPaths(
@@ -205,22 +204,18 @@ ${buildConfig}
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {
+  const { macroCorePath } = process.sasjsConstants
+
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/viya/mv_createwebservice.sas`)
 
     case ServerType.Sas9:
-      return await readFile(
-        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/meta/mm_createwebservice.sas`)
 
     // FIXME: use sasjs/mv_createwebservice.sas ones created
     case ServerType.Sasjs:
-      return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/viya/mv_createwebservice.sas`)
 
     default:
       throw new ServerTypeError()
@@ -228,12 +223,14 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 }
 
 async function getCreateFileScript(serverType: ServerType) {
+  const { macroCorePath } = process.sasjsConstants
+
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+      return await readFile(`${macroCorePath}/viya/mv_createfile.sas`)
     // FIXME: use sasjs/mv_createfile.sas ones created
     case ServerType.Sasjs:
-      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+      return await readFile(`${macroCorePath}/viya/mv_createfile.sas`)
 
     default:
       throw new ServerTypeError([ServerType.SasViya, ServerType.Sasjs])
