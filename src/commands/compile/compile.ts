@@ -21,12 +21,12 @@ import {
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig } from '@sasjs/utils/types'
+import { Target, StreamConfig, SASJsFileType } from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllFolders, SasFileType } from './internal/getAllFolders'
-import { compileServiceFile } from './internal/compileServiceFile'
-import { compileJobFile } from './internal/compileJobFile'
+import { compileFile } from './internal/compileFile'
+
 import {
   compileTestFile,
   compileTestFlow,
@@ -77,15 +77,19 @@ export async function compile(target: Target, forceCompile = false) {
         await listFilesAndSubFoldersInFolder(buildMacroTestFolder)
       ).filter(isSasFile)
 
-      await asyncForEach(macroTestFiles, async (macroTestFile: string) =>
-        compileServiceFile(
-          target,
-          path.join(buildMacroTestFolder, macroTestFile),
-          macroFolders,
-          programFolders,
-          undefined,
-          compileTree
-        )
+      await asyncForEach(
+        macroTestFiles,
+        async (macroTestFile: string) =>
+          await compileFile(
+            target,
+            path.join(buildMacroTestFolder, macroTestFile),
+            macroFolders,
+            programFolders,
+            undefined,
+            compileTree,
+            SASJsFileType.service,
+            ''
+          )
       )
     }
   }
@@ -232,21 +236,22 @@ const compileServiceFolder = async (
     if (isTestFile(filePath)) {
       await compileTestFile(target, filePath, '', false, undefined, compileTree)
     } else {
-      await compileServiceFile(
+      await compileFile(
         target,
         filePath,
         macroFolders,
         programFolders,
         undefined,
-        compileTree
+        compileTree,
+        SASJsFileType.service,
+        serviceFolder
       )
     }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await listFilesInFolder(
-      path.join(serviceFolder, subFolder)
-    )
+    const sourceFolder = path.join(serviceFolder, subFolder)
+    const fileNames = await listFilesInFolder(sourceFolder)
 
     await asyncForEach(fileNames, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
@@ -261,13 +266,15 @@ const compileServiceFolder = async (
           compileTree
         )
       } else {
-        await compileServiceFile(
+        await compileFile(
           target,
           filePath,
           macroFolders,
           programFolders,
           undefined,
-          compileTree
+          compileTree,
+          SASJsFileType.service,
+          sourceFolder
         )
       }
     })
@@ -301,18 +308,21 @@ const compileJobFolder = async (
     if (isTestFile(fileName)) {
       await compileTestFile(target, filePath, '', false, undefined, compileTree)
     } else {
-      await compileJobFile(
+      await compileFile(
         target,
         filePath,
         macroFolders,
         programFolders,
         undefined,
-        compileTree
+        compileTree,
+        SASJsFileType.job,
+        jobFolder
       )
     }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
+    const sourcePath = path.join(jobFolder, subFolder)
     const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
 
     await asyncForEach(fileNames, async (fileName) => {
@@ -328,13 +338,15 @@ const compileJobFolder = async (
           compileTree
         )
       else {
-        await compileJobFile(
+        await compileFile(
           target,
           filePath,
           macroFolders,
           programFolders,
           undefined,
-          compileTree
+          compileTree,
+          SASJsFileType.job,
+          sourcePath
         )
       }
     })

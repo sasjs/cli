@@ -3,28 +3,37 @@ import { Target, ServerType, SASJsFileType } from '@sasjs/utils/types'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
+import path from 'path'
 
-export async function compileServiceFile(
+export async function compileFile(
   target: Target,
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
   programVar: string = '',
-  compileTree: CompileTree
+  compileTree: CompileTree,
+  fileType: SASJsFileType,
+  sourceFolder: string
 ) {
   let dependencies = await loadDependencies(
     target,
-    filePath,
+    sourceFolder
+      ? path.join(sourceFolder, filePath.split(path.sep).pop()!)
+      : filePath,
     macroFolders,
     programFolders,
-    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service,
+    isTestFile(filePath) ? SASJsFileType.test : fileType,
     compileTree
   )
 
-  const serverType = await getServerType(target)
-  const preCode = await getPreCodeForServicePack(serverType)
+  if (fileType === SASJsFileType.service) {
+    const serverType = await getServerType(target)
+    const preCode = await getPreCodeForServicePack(serverType)
 
-  dependencies = `${programVar}\n${preCode}\n${dependencies}`
+    dependencies = `${programVar}\n${preCode}\n${dependencies}`
+  } else {
+    dependencies = `${programVar ? programVar + '\n' : ''}${dependencies}`
+  }
 
   await createFile(filePath, dependencies)
 }
