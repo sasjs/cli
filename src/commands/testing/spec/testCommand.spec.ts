@@ -42,7 +42,7 @@ describe('TestCommand', () => {
       'path-to-out',
       '--source',
       'path-to-source',
-      '--ignoreFail'
+      '--force'
     ]
 
     const command = new TestCommand(args)
@@ -66,7 +66,7 @@ describe('TestCommand', () => {
       'path-to-out',
       '-s',
       'path-to-source',
-      '--if'
+      '-f'
     ]
 
     const command = new TestCommand(args)

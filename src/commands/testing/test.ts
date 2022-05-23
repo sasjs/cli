@@ -36,7 +36,7 @@ export async function runTest(
   testRegExps: string[] = [],
   outDirectory?: string,
   flowSourcePath?: string,
-  ignoreFail?: boolean
+  force?: boolean
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -384,7 +384,7 @@ export async function runTest(
   ${coverageReportPath}`
   )
 
-  if (!ignoreFail) {
+  if (!force) {
     /**
      * When running tests there are 2 types of outcomes
      * Test provided result (FAIL or PASS)

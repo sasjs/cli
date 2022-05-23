@@ -5,17 +5,17 @@ import { runTest } from './test'
 
 const syntax = 'test [filteringString..]'
 const usage =
-  'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --ignoreFail'
+  'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --force'
 const description = 'Triggers SAS unit tests.'
 const examples: CommandExample[] = [
   {
     command:
-      'sasjs test jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --ignoreFail',
+      'sasjs test jobs/standalone1 jobs/standalone2 --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --force',
     description: ''
   },
   {
     command:
-      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> --t <target-name> --if',
+      'sasjs test jobs/standalone1 jobs/standalone2 -s <test-flow-path> --out <folder-path> -t <target-name> -f',
     description: ''
   }
 ]
@@ -27,19 +27,19 @@ export class TestCommand extends TargetCommand {
         outDirectory: {
           type: 'string',
           alias: 'out',
-          description: 'Path to output folder for tests resuls.'
+          description: 'Path to output folder for tests results.'
         },
         source: {
           type: 'string',
           alias: 's',
           description: 'Test flow located at source will be executed.'
         },
-        ignoreFail: {
+        force: {
           type: 'boolean',
           default: false,
-          alias: 'if',
+          alias: 'f',
           description:
-            'If present, CLI will return exit code 0 even if tests are failing.'
+            'If present, CLI will force command to finish running all tests and will not return an error code even when some are failing.'
         }
       },
       syntax,
@@ -52,14 +52,14 @@ export class TestCommand extends TargetCommand {
   public async execute() {
     const { target } = await this.getTargetInfo()
 
-    const { filteringString, outDirectory, source, ignoreFail } = this.parsed
+    const { filteringString, outDirectory, source, force } = this.parsed
 
     return await runTest(
       target,
       filteringString as string[],
       outDirectory as string,
       source as string,
-      ignoreFail as boolean
+      force as boolean
     )
       .then(() => {
         return ReturnCode.Success
