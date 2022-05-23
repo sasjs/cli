@@ -35,8 +35,7 @@ export class DeployCommand extends TargetCommand {
       })
       .catch((err) => {
         process.logger?.error(
-          'An error has occurred when deploying services: ',
-          err
+          `An error has occurred when deploying services: ${err}`
         )
         return ReturnCode.InternalError
       })
