@@ -17,7 +17,9 @@ export async function compileFile(
 ) {
   let dependencies = await loadDependencies(
     target,
-    filePath,
+    sourceFolder
+      ? path.join(sourceFolder, filePath.split(path.sep).pop()!)
+      : filePath,
     macroFolders,
     programFolders,
     isTestFile(filePath) ? SASJsFileType.test : fileType,
