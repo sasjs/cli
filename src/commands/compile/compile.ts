@@ -220,17 +220,17 @@ const compileServiceFolder = async (
 ) => {
   const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await listFilesInFolder(destinationPath)
+  const sourceFiles = await listFilesInFolder(serviceFolder)
 
   // Checks if file in sasjsbuild folder exists in source folder.
   // If not, it means that the file shouldn't be compiled.
-  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+  await asyncForEach(sourceFiles, async (fileName: string, i: number) => {
     if (!(await fileExists(path.join(serviceFolder, fileName)))) {
-      filesNamesInPath.splice(i, 1)
+      sourceFiles.splice(i, 1)
     }
   })
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  await asyncForEach(sourceFiles, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(filePath)) {
@@ -251,9 +251,9 @@ const compileServiceFolder = async (
 
   await asyncForEach(subFolders, async (subFolder) => {
     const sourceFolder = path.join(serviceFolder, subFolder)
-    const fileNames = await listFilesInFolder(sourceFolder)
+    const sourceFiles = await listFilesInFolder(sourceFolder)
 
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(sourceFiles, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath)) {
@@ -292,17 +292,17 @@ const compileJobFolder = async (
 ) => {
   const destinationPath = getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await listFilesInFolder(destinationPath)
+  const sourceFiles = await listFilesInFolder(destinationPath)
 
   // Checks if file in sasjsbuild folder exists in source folder.
   // If not, it means that the file shouldn't be compiled.
-  await asyncForEach(filesNamesInPath, async (fileName: string, i: number) => {
+  await asyncForEach(sourceFiles, async (fileName: string, i: number) => {
     if (!(await fileExists(path.join(jobFolder, fileName)))) {
-      filesNamesInPath.splice(i, 1)
+      sourceFiles.splice(i, 1)
     }
   })
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  await asyncForEach(sourceFiles, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(fileName)) {
@@ -323,9 +323,9 @@ const compileJobFolder = async (
 
   await asyncForEach(subFolders, async (subFolder) => {
     const sourcePath = path.join(jobFolder, subFolder)
-    const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
+    const sourceFiles = await listFilesInFolder(sourcePath)
 
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(sourceFiles, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath))
