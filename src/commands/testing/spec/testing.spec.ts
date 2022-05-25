@@ -240,7 +240,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )}
 `
 
-      await runTest(target)
+      await runTest(target, undefined, undefined, undefined, true)
 
       const resultsFolderPath = path.join(
         __dirname,
@@ -419,7 +419,8 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         target,
         ['jobs/standalone', 'shouldFail', 'services/admin/dostuff.test.0'],
         outputFolder,
-        movedTestFlow
+        movedTestFlow,
+        true
       )
 
       const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
@@ -668,7 +669,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )}
 `
 
-      await runTest(target, undefined, undefined, undefined)
+      await runTest(target, undefined, undefined, undefined, true)
 
       const resultsFolderPath = path.join(
         __dirname,
@@ -786,12 +787,34 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
 }`)
       )
 
-      await runTest(target, undefined, undefined, undefined)
+      await runTest(target, undefined, undefined, undefined, true)
 
       expect(process.logger.table).toHaveBeenCalledWith(
         [['uuidv4', testService, chalk.redBright(TestResultStatus.fail)]],
         { head: ['SASjs Test ID', 'Test Target', 'Test Suite Result'] }
       )
+    })
+
+    it('should fail on tests failing', async () => {
+      const error = await runTest(target).catch((err: any) => {
+        return err
+      })
+
+      expect(error).toEqual('6 tests completed with failures!')
+    })
+
+    it('should not throw error on tests failing', async () => {
+      const error = await runTest(
+        target,
+        undefined,
+        undefined,
+        undefined,
+        true
+      ).catch((err: any) => {
+        return err
+      })
+
+      expect(error).toBeUndefined()
     })
   })
 })

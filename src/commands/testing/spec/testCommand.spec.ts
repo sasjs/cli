@@ -41,7 +41,8 @@ describe('TestCommand', () => {
       '--outDirectory',
       'path-to-out',
       '--source',
-      'path-to-source'
+      'path-to-source',
+      '--force'
     ]
 
     const command = new TestCommand(args)
@@ -64,7 +65,8 @@ describe('TestCommand', () => {
       '--out',
       'path-to-out',
       '-s',
-      'path-to-source'
+      'path-to-source',
+      '-f'
     ]
 
     const command = new TestCommand(args)
@@ -86,7 +88,8 @@ describe('TestCommand', () => {
       target,
       undefined,
       undefined,
-      undefined
+      undefined,
+      false
     )
   })
 

@@ -35,7 +35,8 @@ export async function runTest(
   target: Target,
   testRegExps: string[] = [],
   outDirectory?: string,
-  flowSourcePath?: string
+  flowSourcePath?: string,
+  force?: boolean
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -382,6 +383,34 @@ export async function runTest(
     `Tests coverage report:
   ${coverageReportPath}`
   )
+
+  if (!force) {
+    /**
+     * When running tests there are 2 types of outcomes
+     * Test provided result (FAIL or PASS)
+     * Test did not provide any result
+     *
+     * In this section we want to write tests that did not succeed
+     * For better UX we want to separate them and write for example:
+     * 1 Test failed to complete
+     * 1 Test completed with failures
+     */
+    const failedTestsCount = testsWithResultsCount - passedTestsCount
+    const testsWithoutResultCount = testsCount - testsWithResultsCount
+    let errorMessage: string = ''
+
+    if (testsWithoutResultCount > 0)
+      errorMessage = `${testsWithoutResultCount} ${
+        testsWithoutResultCount === 1 ? 'test' : 'tests'
+      } failed to complete!\n`
+
+    if (failedTestsCount > 0)
+      errorMessage += `${failedTestsCount} ${
+        failedTestsCount === 1 ? 'test' : 'tests'
+      } completed with failures!`
+
+    if (errorMessage) return Promise.reject(errorMessage)
+  }
 }
 
 export const getTestUrl = (target: Target, jobLocation: string) =>
