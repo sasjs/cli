@@ -119,8 +119,8 @@ export const sasjsout = `
         in1=substr(infile,1,spos1+7);
         in2=subpad(infile,spos1+8,length(infile)-8);
         in2=substr(in2,index(in2,'"'));
-        infile=cats(in1,"NEWAPPLOC",in2);
-        put "new apploc:  " infile=;
+        infile=cats(in1,appLoc,in2);
+        putlog "new apploc:  " infile=;
       end;
       /* find & replace serverType in HTML attributes */
       spos2=index(upcase(infile),'SERVERTYPE="');
@@ -128,12 +128,12 @@ export const sasjsout = `
         in1=substr(infile,1,spos2+11);
         in2=subpad(infile,spos2+13,length(infile)-13);
         in2=substr(in2,index(in2,'"'));
-        if symexist('sasjsprocessmode') then infile=cats(in1,"SAS9",in2);
+        if symexist('sasjsprocessmode') then infile=cats(in1,"SASJS",in2);
         else if "&sysprocessmode"="SAS Object Server" 
         or "&sysprocessmode"= "SAS Compute Server"
         then infile=cats(in1,"SASVIYA",in2);
-        else infile=cats(in1,"SASJS",in2);
-        put "new servertype:  " infile=;
+        else infile=cats(in1,"SAS9",in2);
+        putlog "new servertype:  " infile=;
       end;
       /* find & replace serverUrl in HTML attributes */
       spos3=index(upcase(infile),'SERVERURL="');
@@ -142,7 +142,7 @@ export const sasjsout = `
         in2=subpad(infile,spos3+12,length(infile)-12);
         in2=substr(in2,index(in2,'"'));
         infile=catx(' ',in1,in2);
-        put "new serverUrl:  " infile=;
+        putlog "new serverUrl:  " infile=;
       end;
       if sum(spos1,spos2,spos3)>0 then put infile;
       else do;
