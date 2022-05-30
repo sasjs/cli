@@ -112,12 +112,12 @@ export const sasjsout = `
     end;
     else do;
       /* More recently, SASjs apps avoid inline JS to allow strict CSP */
-      length infile $32767;
+      length infile in1 in2 $32767;
       infile=cats(_infile_);
       spos1=index(upcase(infile),'APPLOC="');
       if spos1>0 then do;
         in1=substr(infile,1,spos1+7);
-        in2=subpad(infile,spos1+8,length(infile)-8);
+        in2=subpad(infile,spos1+8);
         in2=substr(in2,index(in2,'"'));
         infile=cats(in1,appLoc,in2);
         putlog "new apploc:  " infile=;
@@ -126,10 +126,10 @@ export const sasjsout = `
       spos2=index(upcase(infile),'SERVERTYPE="');
       if spos2>0 then do;
         in1=substr(infile,1,spos2+11);
-        in2=subpad(infile,spos2+13,length(infile)-13);
+        in2=subpad(infile,spos2+12);
         in2=substr(in2,index(in2,'"'));
         if symexist('sasjsprocessmode') then infile=cats(in1,"SASJS",in2);
-        else if "&sysprocessmode"="SAS Object Server" 
+        else if "&sysprocessmode"="SAS Object Server"
         or "&sysprocessmode"= "SAS Compute Server"
         then infile=cats(in1,"SASVIYA",in2);
         else infile=cats(in1,"SAS9",in2);
@@ -139,9 +139,9 @@ export const sasjsout = `
       spos3=index(upcase(infile),'SERVERURL="');
       if spos3>0 then do;
         in1=substr(infile,1,spos3+10);
-        in2=subpad(infile,spos3+12,length(infile)-12);
+        in2=subpad(infile,spos3+11);
         in2=substr(in2,index(in2,'"'));
-        infile=catx(' ',in1,in2);
+        infile=cats(in1,in2);
         putlog "new serverUrl:  " infile=;
       end;
       if sum(spos1,spos2,spos3)>0 then put infile;
