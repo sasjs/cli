@@ -107,14 +107,49 @@ export const sasjsout = `
       if symexist('_metaperson') then put '    serverType: "SAS9" ,';
       else put '    serverType: "SASVIYA" ,';
     end;
-    else if find(_infile_,' hostUrl: ') then do;
+    else if find(_infile_,' serverUrl: ') then do;
       /* nothing - we are streaming, so remove to default as hostname */
     end;
     else do;
-      length newline $32767;
-      /* during SAS9 compilation, dependencies are assigned three slashes /// */
-      newline=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
-      put newline;
+      /* More recently, SASjs apps avoid inline JS to allow strict CSP */
+      length infile in1 in2 $32767;
+      infile=cats(_infile_);
+      spos1=index(upcase(infile),'APPLOC="');
+      if spos1>0 then do;
+        in1=substr(infile,1,spos1+7);
+        in2=subpad(infile,spos1+8);
+        in2=substr(in2,index(in2,'"'));
+        infile=cats(in1,appLoc,in2);
+        putlog "new apploc:  " infile=;
+      end;
+      /* find & replace serverType in HTML attributes */
+      spos2=index(upcase(infile),'SERVERTYPE="');
+      if spos2>0 then do;
+        in1=substr(infile,1,spos2+11);
+        in2=subpad(infile,spos2+12);
+        in2=substr(in2,index(in2,'"'));
+        if symexist('sasjsprocessmode') then infile=cats(in1,"SASJS",in2);
+        else if "&sysprocessmode"="SAS Object Server"
+        or "&sysprocessmode"= "SAS Compute Server"
+        then infile=cats(in1,"SASVIYA",in2);
+        else infile=cats(in1,"SAS9",in2);
+        putlog "new servertype:  " infile=;
+      end;
+      /* find & replace serverUrl in HTML attributes */
+      spos3=index(upcase(infile),'SERVERURL="');
+      if spos3>0 then do;
+        in1=substr(infile,1,spos3+10);
+        in2=subpad(infile,spos3+11);
+        in2=substr(in2,index(in2,'"'));
+        infile=cats(in1,in2);
+        putlog "new serverUrl:  " infile=;
+      end;
+      if sum(spos1,spos2,spos3)>0 then put infile;
+      else do;
+        /* during SAS9 sasjs compile, dependencies get three slashes /// */
+        infile=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
+        put infile;
+      end;
     end;
   run;
   %let fref=_sjs;
