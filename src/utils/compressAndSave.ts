@@ -1,6 +1,12 @@
 import path from 'path'
 import AdmZip from 'adm-zip'
 
+/**
+ * Creates a zip file.
+ * Having single JSON file in it.
+ * @param {string} saveTo - full path to save the file.
+ * @param {string} contents - contents of JSON file.
+ */
 export const compressAndSave = async (saveTo: string, contents: string) => {
   const zip = new AdmZip()
 
