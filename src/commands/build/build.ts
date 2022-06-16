@@ -29,6 +29,7 @@ import {
   MemberType,
   ServicePackSASjs
 } from '@sasjs/utils/types'
+import { compressAndSave } from '../../utils/compressAndSave'
 
 export async function build(target: Target) {
   await compile(target)
@@ -51,6 +52,10 @@ async function createFinalSasFiles(target: Target) {
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
+  const finalFilePathZipped = path.join(
+    buildDestinationFolder,
+    `${name}.json.zip`
+  )
   const buildInfo = await getBuildInfo(target, streamWeb)
 
   finalSasFileContent += `\n${buildInfo}`
@@ -112,6 +117,13 @@ async function createFinalSasFiles(target: Target) {
       : folderContentJSON
   await createFile(finalFilePathJSON, JSON.stringify(servicePack, null, 1))
   process.logger?.success(`File ${finalFilePathJSON} has been created.`)
+
+  process.logger?.debug(`Creating file ${finalFilePathZipped} .`)
+  await compressAndSave(
+    finalFilePathZipped,
+    JSON.stringify(servicePack, null, 1)
+  )
+  process.logger?.success(`File ${finalFilePathZipped} has been created.`)
 }
 
 async function getBuildInfo(target: Target, streamWeb: boolean) {
