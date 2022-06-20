@@ -40,7 +40,11 @@ export function diff(a: any[], b: any[]) {
 
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/react-seed-app',
+      'https://github.com/sasjs/docs'
+    )
 
     return resolve()
   })
@@ -48,14 +52,22 @@ export async function createReactApp(folderPath: string): Promise<void> {
 
 export async function createAngularApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/angular-seed-app.git')
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/angular-seed-app',
+      'https://github.com/sasjs/docs'
+    )
     return resolve()
   })
 }
 
 export async function createMinimalApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/minimal-seed-app.git')
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/minimal-seed-app',
+      'https://github.com/sasjs/docs'
+    )
     return resolve()
   })
 }
@@ -75,42 +87,43 @@ export async function createTemplateApp(folderPath: string, template: string) {
       return reject(new Error(`Unable to fetch template "${template}"`))
     }
 
-    createApp(folderPath, `https://github.com/sasjs/template_${template}.git`)
+    createApp(
+      folderPath,
+      `https://github.com/sasjs/template_${template}.git`,
+      'https://github.com/sasjs/docs'
+    )
     return resolve()
   })
 }
 
+/**
+ * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
+ * @param folderPath full path of the directory where desired seed app will be created
+ * @param repoUrl sasjs/{seed-app} repo url
+ * @param docsUrl sasjs/docs repo url
+ * @params installDependencies whether or not to do `npm install`
+ */
 function createApp(
   folderPath: string,
   repoUrl: string,
+  docsUrl: string,
   installDependencies = true
 ) {
+  //In past we used GIT to clone the repos. But many users potentially won't have GIT installed.
+  //So we will use shell tools to set up the apps.
+  const zipPath = '/archive/refs/heads/main.zip'
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
+  shelljs.exec(`wget ${repoUrl}${zipPath}`)
+  shelljs.exec(`unzip main.zip`)
+  shelljs.exec(`cp -r ./*-main/. ${folderPath}`)
+  shelljs.exec(`rm -rf ./*-main`)
+  shelljs.exec(`rm -rf ./main.zip`)
 
-  const gitVersion: string = (shelljs
-    .exec(`git version`, { silent: true })
-    .stdout.match(/(?<!git version)\d+\.\d+\.\d+/) || '')[0].replace(/\./g, '')
-
-  // NOTE: git version 2.13 and greater are using '--recurse-submodules' instead of '--recurse' attribute to clone submodules
-  shelljs.exec(
-    `cd "${folderPath}" && git clone --recurse${
-      parseInt(gitVersion) > 2130 ? '-submodules' : ''
-    } --depth 1 -b ${gitBranch} ${repoUrl} .`,
-    { silent: true }
-  )
-
-  deleteGitFolder(folderPath)
+  loadDocsSubmodule(docsUrl, folderPath, zipPath)
 
   shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
-
-  if (repoUrl.includes('react-seed-app')) {
-    deleteGitFolder(path.join(folderPath, 'public', 'docs'))
-  } else if (repoUrl.includes('angular-seed-app')) {
-    deleteGitFolder(path.join(folderPath, 'docs'))
-  }
 
   spinner.stop()
 
@@ -118,12 +131,30 @@ function createApp(
     spinner.text = 'Installing dependencies...'
     spinner.start()
 
-    shelljs.exec(`cd "${folderPath}" && git init && npm install`, {
+    shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
 
     spinner.stop()
   }
+}
+
+/**
+ * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
+ * @param docsUrl sasjs/docs repo url
+ * @param folderPath full path to the newly created folder that contains the seed app
+ * @param zipPath fixed path of where github puts zip for repo download
+ */
+const loadDocsSubmodule = (
+  docsUrl: string,
+  folderPath: string,
+  zipPath: string
+) => {
+  shelljs.exec(`wget ${docsUrl}${zipPath}`)
+  shelljs.exec(`unzip main.zip`)
+  shelljs.exec(`cp -r ./*-main/. ${folderPath}/docs`)
+  shelljs.exec(`rm -rf ./*-main`)
+  shelljs.exec(`rm -rf ./main.zip`)
 }
 
 const deleteGitFolder = (folderPath: string) =>
