@@ -37,6 +37,7 @@ import {
   getDestinationJobPath
 } from './internal/getDestinationPath'
 import { getCompileTree } from './internal/loadDependencies'
+import { copySyncFolder } from './internal/copySyncFolder'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])
@@ -101,6 +102,8 @@ export async function compile(target: Target, forceCompile = false) {
   )
 
   await compileWeb(target)
+
+  await syncFolder(target)
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
@@ -376,5 +379,17 @@ async function compileWeb(target: Target) {
           err.toString()
         )
       })
+  }
+}
+
+const syncFolder = async (target: Target) => {
+  const { configuration } = await getLocalOrGlobalConfig()
+
+  if (configuration.syncFolder) {
+    await copySyncFolder(configuration.syncFolder)
+  }
+
+  if (target.syncFolder) {
+    await copySyncFolder(target.syncFolder)
   }
 }
