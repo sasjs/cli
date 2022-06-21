@@ -2,13 +2,13 @@ import { copy, folderExists, getAbsolutePath } from '@sasjs/utils'
 
 export const copySyncFolder = async (syncFolder: string) => {
   const { buildSourceFolder, buildDestinationFolder } = process.sasjsConstants
-  const mocksFolder = getAbsolutePath(syncFolder, buildSourceFolder)
+  const syncFolderPath = getAbsolutePath(syncFolder, buildSourceFolder)
 
-  process.logger?.info(`Syncing files from ${mocksFolder} .`)
+  process.logger?.info(`Syncing files from ${syncFolderPath} .`)
 
-  if (!(await folderExists(mocksFolder))) {
-    process.logger?.error(`${mocksFolder} doesn't exist.`)
+  if (!(await folderExists(syncFolderPath))) {
+    process.logger?.error(`${syncFolderPath} doesn't exist.`)
     return
   }
-  await copy(mocksFolder, buildDestinationFolder)
+  await copy(syncFolderPath, buildDestinationFolder)
 }
