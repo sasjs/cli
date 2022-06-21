@@ -10,7 +10,8 @@ import {
   generateTimestamp,
   deleteFolder,
   ServerType,
-  isTestFile
+  isTestFile,
+  Configuration
 } from '@sasjs/utils'
 import {
   removeTestApp,
@@ -90,29 +91,19 @@ describe('compileTestFile', () => {
           Object.values(target.testConfig!.macroVars)[0]
         };
 
-*Test Variables end;`)
+* Test Variables end;`)
         const testInit = replaceLineBreaks(`* TestInit start;
-/**
-  @file
-  @brief setting up the test
 
-  <h4> SAS Macros </h4>
-**/
 
 %put testing, init;
 * TestInit end;`)
         const testTerm = replaceLineBreaks(`* TestTerm start;
-/**
-  @file
-  @brief ending the test
 
-  <h4> SAS Macros </h4>
-**/
 
 %put testing, termed;
 * TestTerm end;`)
 
-        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y);`
+        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL<br>  ,showmeta=NO<br>);`
 
         expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
         expect(testFileContent.indexOf(testInit)).toBeGreaterThan(-1)
@@ -274,6 +265,48 @@ describe('compileTestFile', () => {
       expect(process.logger.info).toHaveBeenLastCalledWith(
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
+    })
+
+    it('should log a warning is testFolders was used in root or target configuration', async () => {
+      const testTarget = {
+        name: 'viya',
+        serverUrl: '',
+        serverType: ServerType.SasViya,
+        appLoc: '/Public/sasjs/jobs',
+        macroFolders: [],
+        programFolders: [],
+        binaryFolders: [],
+        testConfig: {
+          testSetUp: '',
+          testTearDown: '',
+          macroVars: {},
+          initProgram: '',
+          termProgram: '',
+          testFolders: ['tests']
+        }
+      }
+      const testConfig = {
+        macroFolders: ['macros'],
+        testConfig: {
+          testFolders: ['tests']
+        },
+        defaultTarget: 'viya',
+        targets: [testTarget]
+      }
+      const expectedWarn = `'testFolders' is not supported 'testConfig' entry, please use 'serviceFolders' entry in 'serviceConfig' or 'jobFolders' entry in 'jobConfig'.`
+
+      jest.spyOn(process.logger, 'warn')
+
+      compileTestFlow(testTarget as unknown as Target)
+
+      expect(process.logger.warn).toHaveBeenCalledWith(expectedWarn)
+
+      compileTestFlow(
+        testTarget as unknown as Target,
+        testConfig as unknown as Configuration
+      )
+
+      expect(process.logger.warn).toHaveBeenCalledWith(expectedWarn)
     })
   })
 })

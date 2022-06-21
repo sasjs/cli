@@ -5,23 +5,27 @@ import {
   JobConfig,
   ServiceConfig,
   ServerType,
-  SASJsFileType
+  SASJsFileType,
+  DependencyHeader,
+  CompileTree
 } from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
+import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
   generateTestTarget,
   createTestMinimalApp,
   removeTestApp,
   updateConfig
 } from '../../../utils/test'
-import { loadDependencies } from '../internal/loadDependencies'
+import { setConstants } from '../../../utils'
+import { loadDependencies, getCompileTree } from '../internal/loadDependencies'
 
 const fakeInit = `/**
   @file serviceinit.sas
   @brief this file is called with every service
   @details  This file is included in *every* service, *after* the macros and *before* the service code.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
 
 **/
@@ -37,7 +41,7 @@ const fakeTerm = `/**
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
   @li mf_existds.sas
 
@@ -50,7 +54,7 @@ const fakeInit2 = `/**
   @brief this file is called with every service
   @details  This file is included in *every* service, *after* the macros and *before* the service code.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
 
 **/
@@ -66,7 +70,7 @@ const fakeTerm2 = `/**
   @brief this file is called at the end of every service
   @details  This file is included at the *end* of every service.
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li mf_abort.sas
   @li mf_existds.sas
 
@@ -83,10 +87,10 @@ const fakeJobInit = `/**
   The path to this file should be listed in the \`jobInit\` property of the
   sasjsconfig file.
 
-  <h4> SAS Programs </h4>
+  ${DependencyHeader.DeprecatedInclude}
   @li test.sas TEST
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li examplemacro.sas
 
 **/
@@ -104,10 +108,10 @@ const fakeJobInit2 = `/**
   The path to this file should be listed in the \`jobInit\` property of the
   sasjsconfig file.
 
-  <h4> SAS Includes </h4>
+  ${DependencyHeader.Include}
   @li test.sas TEST
 
-  <h4> SAS Macros </h4>
+  ${DependencyHeader.Macro}
   @li examplemacro.sas
 
 **/
@@ -160,7 +164,7 @@ const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
 %let macrovar2=macro ${type.toLowerCase()} value target 2;
 %let macrovar3=macro ${type.toLowerCase()} value target 3;
 
-*${type} Variables end;`
+* ${type} Variables end;`
 
 describe('loadDependencies', () => {
   const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
@@ -180,8 +184,13 @@ describe('loadDependencies', () => {
     jobConfig: jobConfig(false),
     serviceConfig: serviceConfig(false)
   })
+  let compileTree: CompileTree
 
   beforeAll(async () => {
+    await setConstants()
+
+    compileTree = getCompileTree(target)
+
     await createTestMinimalApp(__dirname, target.name)
 
     await updateConfig({
@@ -194,26 +203,16 @@ describe('loadDependencies', () => {
     await removeTestApp(__dirname, target.name)
   })
 
-  test('it should load dependencies for a service with <h4> Dependencies </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a service with ${DependencyHeader.DeprecatedMacro}`, async () => {
+    mockGetProgram(internalModule, fakeInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -225,26 +224,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load dependencies for a job <h4> SAS Macros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a job ${DependencyHeader.Macro}`, async () => {
+    mockGetProgram(internalModule, fakeInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -256,26 +245,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load dependencies for a service with <h4> SAS MAcros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a service with ${DependencyHeader.Macro}`, async () => {
+    mockGetProgram(internalModule, fakeInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -287,26 +266,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load dependencies for a job <h4> SAS MAcros </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a job ${DependencyHeader.Macro}`, async () => {
+    mockGetProgram(internalModule, fakeInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [],
       [],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -318,26 +287,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load programs for a service with <h4> SAS Programs </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load programs for a service with ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -349,26 +308,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load programs for a job <h4> SAS Programs </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load programs for a job ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -380,26 +329,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load programs for a service with <h4> SAS Includes </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load programs for a service with ${DependencyHeader.Include}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -411,26 +350,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test('it should load programs for a job <h4> SAS Includes </h4>', async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load programs for a job ${DependencyHeader.Include}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit2, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -442,26 +371,16 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
-  test("it should load dependencies for a job having jobInit's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeJobInit}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeTerm2}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a job having jobInit's ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -479,26 +398,16 @@ describe('loadDependencies', () => {
     )
   })
 
-  test("it should load dependencies for a job having jobTerm's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobInit start;\n${fakeInit2}\n* JobInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* JobTerm start;\n${fakeJobInit}\n* JobTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a job having jobTerm's ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeInit2, fakeJobInit)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.job
+      SASJsFileType.job,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Job'))
@@ -515,26 +424,16 @@ describe('loadDependencies', () => {
     )
   })
 
-  test("it should load dependencies for a service having serviceInit's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeJobInit}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeTerm2}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a service having serviceInit's ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeJobInit, fakeTerm2)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))
@@ -552,26 +451,16 @@ describe('loadDependencies', () => {
     )
   })
 
-  test("it should load dependencies for a service having serviceTerm's <h4> SAS Programs </h4>", async () => {
-    jest.spyOn(internalModule, 'getInit').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceInit start;\n${fakeInit2}\n* ServiceInit end;`,
-        filePath: ''
-      })
-    )
-    jest.spyOn(internalModule, 'getTerm').mockImplementation(() =>
-      Promise.resolve({
-        content: `\n* ServiceTerm start;\n${fakeJobInit}\n* ServiceTerm end;`,
-        filePath: ''
-      })
-    )
+  test(`it should load dependencies for a service having serviceTerm's ${DependencyHeader.DeprecatedInclude}`, async () => {
+    mockGetProgram(internalModule, fakeInit2, fakeJobInit)
 
     const dependencies = await loadDependencies(
       target,
       path.join(__dirname, './service.sas'),
       [path.join(__dirname, './macros')],
       [path.join(__dirname, './'), path.join(__dirname, './services')],
-      SASJsFileType.service
+      SASJsFileType.service,
+      compileTree
     )
 
     expect(dependencies).toStartWith(compiledVars('Service'))

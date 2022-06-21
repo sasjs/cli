@@ -4,6 +4,7 @@ import {
   folderExists,
   createFolder,
   createFile,
+  copy,
   deleteFolder,
   ServerType,
   Target,
@@ -36,9 +37,6 @@ export async function createWebAppServices(target: Target) {
     streamConfig
   )
 
-  process.logger?.info(
-    `Compiling web app services for target ${target.name}...`
-  )
   await createBuildDestinationFolder()
 
   const destinationPath = path.join(
@@ -46,6 +44,17 @@ export async function createWebAppServices(target: Target) {
     streamConfig.streamWebFolder
   )
   await createTargetDestinationFolder(destinationPath)
+
+  // For server type SASjs, just need to copy webSourcePath
+  // to streamWebFolder, no need to create service files.
+  if (target.serverType === ServerType.Sasjs) {
+    process.logger?.info(`Copying web app files for target ${target.name}...`)
+    await copy(webSourcePathFull, destinationPath)
+    return
+  }
+  process.logger?.info(
+    `Compiling web app services for target ${target.name}...`
+  )
 
   const assetPathMap = await createAssetServices(
     target,

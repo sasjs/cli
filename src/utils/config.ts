@@ -11,7 +11,8 @@ import {
   AuthConfig,
   getAbsolutePath,
   StreamConfig,
-  HttpsAgentOptions
+  HttpsAgentOptions,
+  ServerType
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -295,6 +296,11 @@ export async function saveToGlobalConfig(
 ) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson(saveWithDefaultValues)
+
+  if (targetJson.httpsAgentOptions?.ca) {
+    targetJson.httpsAgentOptions.ca = undefined
+  }
+
   if (globalConfig) {
     if (globalConfig.targets && globalConfig.targets.length) {
       const existingTargetIndex = globalConfig.targets.findIndex(
@@ -389,6 +395,11 @@ export async function saveToLocalConfig(
   saveWithDefaultValues: boolean = true
 ) {
   const targetJson = target.toJson(saveWithDefaultValues)
+
+  if (targetJson.httpsAgentOptions?.ca) {
+    targetJson.httpsAgentOptions.ca = undefined
+  }
+
   let config = await getLocalConfig()
   if (config) {
     if (config?.targets?.length) {
@@ -454,6 +465,27 @@ export async function getProgramFolders(target: Target) {
   return [...new Set(programFolders)]
 }
 
+export async function getBinaryFolders(target: Target) {
+  let binaryFolders: string[] = []
+
+  const localConfig = await getLocalConfig().catch(() => null)
+
+  if (localConfig?.binaryFolders) {
+    binaryFolders = binaryFolders.concat(localConfig.binaryFolders)
+  }
+
+  if (target?.binaryFolders) {
+    binaryFolders = binaryFolders.concat(target.binaryFolders)
+  }
+
+  const { buildSourceFolder } = process.sasjsConstants
+  binaryFolders = binaryFolders.map((binaryFolder) =>
+    getAbsolutePath(binaryFolder, buildSourceFolder)
+  )
+
+  return [...new Set(binaryFolders)]
+}
+
 /**
  * Returns SAS macro folders from configuration.
  * This list includes both common and target-specific folders.
@@ -461,18 +493,16 @@ export async function getProgramFolders(target: Target) {
  */
 export async function getMacroFolders(target?: Target) {
   let macroFolders: string[] = []
-
   const { configuration: localConfig } = await getLocalOrGlobalConfig()
 
-  if (localConfig?.macroFolders) {
-    macroFolders = localConfig.macroFolders
-  }
+  if (target?.macroFolders) macroFolders = target.macroFolders
 
-  if (target?.macroFolders) {
-    macroFolders = target.macroFolders.concat(macroFolders)
+  if (localConfig?.macroFolders) {
+    macroFolders = localConfig.macroFolders.concat(macroFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
+
   macroFolders = macroFolders.map((macroFolder) =>
     getAbsolutePath(macroFolder, buildSourceFolder)
   )
@@ -494,8 +524,6 @@ export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
     ...target?.streamConfig
   } as StreamConfig
 }
-
-export const getMacroCorePath = () => process.sasjsConstants.macroCorePath
 
 /**
  * Sanitizes app location string.
@@ -597,10 +625,12 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       : secret
 
   if (!secret) {
-    throw new Error(
-      `Client secret was not found.
+    if (target.serverType === ServerType.Sasjs) secret = ''
+    else
+      throw new Error(
+        `Client secret was not found.
         Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
-    )
+      )
   }
 
   if (isAccessTokenExpiring(access_token)) {
@@ -810,7 +840,11 @@ const getPrecedenceOfHttpsAgentOptionsAndContent = async (
   })
 
   if (httpsAgentOptions.caPath) {
-    httpsAgentOptions.ca = await readFile(httpsAgentOptions.caPath)
+    const rootCas = require('ssl-root-cas')
+
+    rootCas.addFile(path.resolve(httpsAgentOptions.caPath))
+
+    httpsAgentOptions.ca = rootCas
   }
   if (httpsAgentOptions.keyPath) {
     httpsAgentOptions.key = await readFile(httpsAgentOptions.keyPath)

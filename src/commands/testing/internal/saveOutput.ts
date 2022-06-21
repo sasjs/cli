@@ -14,7 +14,8 @@ import {
   TestResult,
   TestResultDescription,
   TestResults,
-  TestResultStatus
+  TestResultStatus,
+  TestResultCsv
 } from '../../../types'
 import xml from 'xml'
 
@@ -29,7 +30,7 @@ export const saveLog = async (
   const logPath = path.join(
     outDirectory,
     'logs',
-    test.replace(sasFileRegExp, '').split(path.sep).slice(1).join('_') + '.log'
+    test.replace(sasFileRegExp, '').split('/').slice(1).join('_') + '.log'
   )
 
   await createFile(logPath, log)
@@ -75,29 +76,30 @@ export const saveResultCsv = async (
       test_url: 'test_url'
     }
   }
-): Promise<{ csvData: {}[]; csvPath: string }> => {
-  const csvData: {}[] = result.sasjs_test_meta.flatMap((resTarget: any) =>
-    resTarget.results.flatMap((res: TestResult) => {
-      let item: any = {
-        test_target: resTarget.test_target,
-        test_loc: res.test_loc,
-        sasjs_test_id: res.sasjs_test_id,
-        test_url: `=HYPERLINK("${res.test_url}")`
-      }
-
-      if (Array.isArray(res.result)) {
-        item = res.result.map((r: TestResultDescription) => ({
+): Promise<{ csvData: TestResultCsv[]; csvPath: string }> => {
+  const csvData: TestResultCsv[] = result.sasjs_test_meta.flatMap(
+    (resTarget: any) =>
+      resTarget.results.flatMap((res: TestResult) => {
+        let item: any = {
           test_target: resTarget.test_target,
           test_loc: res.test_loc,
           sasjs_test_id: res.sasjs_test_id,
-          test_suite_result: r.TEST_RESULT,
-          test_description: r.TEST_DESCRIPTION,
           test_url: `=HYPERLINK("${res.test_url}")`
-        }))
-      } else item.test_suite_result = res.result
+        }
 
-      return item
-    })
+        if (Array.isArray(res.result)) {
+          item = res.result.map((r: TestResultDescription) => ({
+            test_target: resTarget.test_target,
+            test_loc: res.test_loc,
+            sasjs_test_id: res.sasjs_test_id,
+            test_suite_result: r.TEST_RESULT,
+            test_description: r.TEST_DESCRIPTION,
+            test_url: `=HYPERLINK("${res.test_url}")`
+          }))
+        } else item.test_suite_result = res.result
+
+        return item
+      })
   )
 
   return new Promise((resolve, reject) =>

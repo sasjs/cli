@@ -16,17 +16,17 @@ import {
   copy,
   asyncForEach,
   listFilesAndSubFoldersInFolder,
-  isTestFile
+  isTestFile,
+  CompileTree
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig, ServerType } from '@sasjs/utils/types'
+import { Target, StreamConfig, SASJsFileType } from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
-import { getAllJobFolders } from './internal/getAllJobFolders'
-import { getAllServiceFolders } from './internal/getAllServiceFolders'
-import { compileServiceFile } from './internal/compileServiceFile'
-import { compileJobFile } from './internal/compileJobFile'
+import { getAllFolders, SasFileType } from './internal/getAllFolders'
+import { compileFile } from './internal/compileFile'
+
 import {
   compileTestFile,
   compileTestFlow,
@@ -36,6 +36,7 @@ import {
   getDestinationServicePath,
   getDestinationJobPath
 } from './internal/getDestinationPath'
+import { getCompileTree } from './internal/loadDependencies'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])
@@ -52,7 +53,9 @@ export async function compile(target: Target, forceCompile = false) {
     throw error
   })
 
-  await compileModule.compileJobsServicesTests(target)
+  const compileTree = getCompileTree(target)
+
+  await compileModule.compileJobsServicesTests(target, compileTree)
 
   let macroFolders: string[] = await getMacroFolders(target)
 
@@ -74,16 +77,24 @@ export async function compile(target: Target, forceCompile = false) {
         await listFilesAndSubFoldersInFolder(buildMacroTestFolder)
       ).filter(isSasFile)
 
-      await asyncForEach(macroTestFiles, async (macroTestFile: string) =>
-        compileServiceFile(
-          target,
-          path.join(buildMacroTestFolder, macroTestFile),
-          macroFolders,
-          programFolders
-        )
+      await asyncForEach(
+        macroTestFiles,
+        async (macroTestFile: string) =>
+          await compileFile(
+            target,
+            path.join(buildMacroTestFolder, macroTestFile),
+            macroFolders,
+            programFolders,
+            undefined,
+            compileTree,
+            SASJsFileType.service,
+            ''
+          )
       )
     }
   }
+
+  await compileTree.saveTree()
 
   await compileTestFlow(target).catch((err) =>
     process.logger?.error('Test flow compilation has failed.')
@@ -100,17 +111,20 @@ export async function copyFilesToBuildFolder(target: Target) {
   process.logger?.info(`Copying files to ${buildDestinationFolder} .`)
 
   try {
-    const serviceFolders = await getAllServiceFolders(target)
-    const jobFolders = await getAllJobFolders(target)
+    const serviceFolders = await getAllFolders(target, SasFileType.Service)
+
+    const jobFolders = await getAllFolders(target, SasFileType.Job)
 
     // REFACTOR
     await asyncForEach(serviceFolders, async (serviceFolder: string) => {
       const destinationPath = getDestinationServicePath(serviceFolder)
+
       await copy(serviceFolder, destinationPath)
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
       const destinationPath = getDestinationJobPath(jobFolder)
+
       await copy(jobFolder, destinationPath)
     })
   } catch (error) {
@@ -121,35 +135,61 @@ export async function copyFilesToBuildFolder(target: Target) {
   }
 }
 
-export async function compileJobsServicesTests(target: Target) {
+export async function compileJobsServicesTests(
+  target: Target,
+  compileTree: CompileTree
+) {
   try {
-    const serviceFolders = await getAllServiceFolders(target)
-    const jobFolders = await getAllJobFolders(target)
+    const serviceFolders = await getAllFolders(target, SasFileType.Service)
+    const jobFolders = await getAllFolders(target, SasFileType.Job)
     const macroFolders = await getMacroFolders(target)
     const programFolders = await getProgramFolders(target)
     const testSetUp = await getTestSetUp(target)
     const testTearDown = await getTestTearDown(target)
 
-    if (testSetUp)
-      await compileTestFile(target, testSetUp, '', true, false).catch((err) =>
+    if (testSetUp) {
+      await compileTestFile(
+        target,
+        testSetUp,
+        '',
+        true,
+        false,
+        compileTree
+      ).catch((err) =>
         process.logger?.error('Test set up compilation has failed.')
       )
-    if (testTearDown)
-      await compileTestFile(target, testTearDown, '', true, false).catch(
-        (err) => process.logger?.error('Test tear down compilation has failed.')
+    }
+    if (testTearDown) {
+      await compileTestFile(
+        target,
+        testTearDown,
+        '',
+        true,
+        false,
+        compileTree
+      ).catch((err) =>
+        process.logger?.error('Test tear down compilation has failed.')
       )
+    }
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
       await compileServiceFolder(
         target,
         serviceFolder,
         macroFolders,
-        programFolders
+        programFolders,
+        compileTree
       )
     })
 
     await asyncForEach(jobFolders, async (jobFolder) => {
-      await compileJobFolder(target, jobFolder, macroFolders, programFolders)
+      await compileJobFolder(
+        target,
+        jobFolder,
+        macroFolders,
+        programFolders,
+        compileTree
+      )
     })
   } catch (error) {
     process.logger?.error(
@@ -170,72 +210,144 @@ async function recreateBuildFolder() {
   await createFolder(buildDestinationFolder)
 }
 
+// REFACTOR: combine compileServiceFolder and compileJobFolder
 const compileServiceFolder = async (
   target: Target,
   serviceFolder: string,
   macroFolders: string[],
-  programFolders: string[]
+  programFolders: string[],
+  compileTree: CompileTree
 ) => {
   const destinationPath = getDestinationServicePath(serviceFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await listFilesInFolder(destinationPath)
+  const sourceFiles = await listFilesInFolder(serviceFolder)
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(sourceFiles, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(serviceFolder, fileName)))) {
+      sourceFiles.splice(i, 1)
+    }
+  })
+
+  await asyncForEach(sourceFiles, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
-    if (isTestFile(filePath)) await compileTestFile(target, filePath, '', false)
-    else {
-      await compileServiceFile(target, filePath, macroFolders, programFolders)
+    if (isTestFile(filePath)) {
+      await compileTestFile(target, filePath, '', false, undefined, compileTree)
+    } else {
+      await compileFile(
+        target,
+        filePath,
+        macroFolders,
+        programFolders,
+        undefined,
+        compileTree,
+        SASJsFileType.service,
+        serviceFolder
+      )
     }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await listFilesInFolder(
-      path.join(serviceFolder, subFolder)
-    )
+    const sourceFolder = path.join(serviceFolder, subFolder)
+    const sourceFiles = await listFilesInFolder(sourceFolder)
 
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(sourceFiles, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath)) {
-        await compileTestFile(target, filePath, '', false)
+        await compileTestFile(
+          target,
+          filePath,
+          '',
+          false,
+          undefined,
+          compileTree
+        )
       } else {
-        await compileServiceFile(target, filePath, macroFolders, programFolders)
+        await compileFile(
+          target,
+          filePath,
+          macroFolders,
+          programFolders,
+          undefined,
+          compileTree,
+          SASJsFileType.service,
+          sourceFolder
+        )
       }
     })
   })
+
+  compileTree.saveTree()
 }
 
 const compileJobFolder = async (
   target: Target,
   jobFolder: string,
   macroFolders: string[],
-  programFolders: string[]
+  programFolders: string[],
+  compileTree: CompileTree
 ) => {
   const destinationPath = getDestinationJobPath(jobFolder)
   const subFolders = await listSubFoldersInFolder(destinationPath)
-  const filesNamesInPath = await listFilesInFolder(destinationPath)
+  const sourceFiles = await listFilesInFolder(destinationPath)
 
-  await asyncForEach(filesNamesInPath, async (fileName) => {
+  // Checks if file in sasjsbuild folder exists in source folder.
+  // If not, it means that the file shouldn't be compiled.
+  await asyncForEach(sourceFiles, async (fileName: string, i: number) => {
+    if (!(await fileExists(path.join(jobFolder, fileName)))) {
+      sourceFiles.splice(i, 1)
+    }
+  })
+
+  await asyncForEach(sourceFiles, async (fileName) => {
     const filePath = path.join(destinationPath, fileName)
 
     if (isTestFile(fileName)) {
-      await compileTestFile(target, filePath, '', false)
+      await compileTestFile(target, filePath, '', false, undefined, compileTree)
     } else {
-      await compileJobFile(target, filePath, macroFolders, programFolders)
+      await compileFile(
+        target,
+        filePath,
+        macroFolders,
+        programFolders,
+        undefined,
+        compileTree,
+        SASJsFileType.job,
+        jobFolder
+      )
     }
   })
 
   await asyncForEach(subFolders, async (subFolder) => {
-    const fileNames = await listFilesInFolder(path.join(jobFolder, subFolder))
+    const sourcePath = path.join(jobFolder, subFolder)
+    const sourceFiles = await listFilesInFolder(sourcePath)
 
-    await asyncForEach(fileNames, async (fileName) => {
+    await asyncForEach(sourceFiles, async (fileName) => {
       const filePath = path.join(destinationPath, subFolder, fileName)
 
       if (isTestFile(filePath))
-        await compileTestFile(target, filePath, '', false)
+        await compileTestFile(
+          target,
+          filePath,
+          '',
+          false,
+          undefined,
+          compileTree
+        )
       else {
-        await compileJobFile(target, filePath, macroFolders, programFolders)
+        await compileFile(
+          target,
+          filePath,
+          macroFolders,
+          programFolders,
+          undefined,
+          compileTree,
+          SASJsFileType.job,
+          sourcePath
+        )
       }
     })
   })
@@ -260,9 +372,9 @@ async function compileWeb(target: Target) {
       )
       .catch((err) => {
         process.logger?.error(
-          'An error has occurred when compiling web app services.'
+          'An error has occurred when compiling web app services.',
+          err.toString()
         )
-        throw err
       })
   }
 }

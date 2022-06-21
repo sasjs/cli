@@ -2,10 +2,8 @@ import path from 'path'
 import {
   Target,
   ServerType,
-  StreamConfig,
   chunk,
   getDependencyPaths,
-  isTestFile,
   readFile,
   base64EncodeFile,
   listSubFoldersInFolder,
@@ -19,14 +17,19 @@ import { removeComments } from '../../utils/utils'
 import { isSasFile } from '../../utils/file'
 import {
   getLocalConfig,
-  getMacroCorePath,
   getMacroFolders,
   getStreamConfig
 } from '../../utils/config'
 import { compile } from '../compile/compile'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import { ServicePack, ServicePackMember } from '../../types'
+import {
+  FileTree,
+  FolderMember,
+  MemberType,
+  ServicePackSASjs
+} from '@sasjs/utils/types'
+import { compressAndSave } from '../../utils/compressAndSave'
 
 export async function build(target: Target) {
   await compile(target)
@@ -39,10 +42,6 @@ async function createFinalSasFiles(target: Target) {
 
   const streamConfig = await getStreamConfig(target)
 
-  await createFinalSasFile(target, streamConfig)
-}
-
-async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const streamWeb = streamConfig.streamWeb ?? false
   const { buildConfig, serverType, name } = target
   const macroFolders = await getMacroFolders(target)
@@ -53,6 +52,10 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   let finalSasFileContent = ''
   const finalFilePath = path.join(buildDestinationFolder, buildOutputFileName)
   const finalFilePathJSON = path.join(buildDestinationFolder, `${name}.json`)
+  const finalFilePathZipped = path.join(
+    buildDestinationFolder,
+    `${name}.json.zip`
+  )
   const buildInfo = await getBuildInfo(target, streamWeb)
 
   finalSasFileContent += `\n${buildInfo}`
@@ -60,7 +63,7 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   const buildInit = await getBuildInit(target)
   const buildTerm = await getBuildTerm(target)
 
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   const dependencyFilePaths = await getDependencyPaths(
     `${buildTerm}\n${buildInit}`,
@@ -76,14 +79,28 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
     serverType
   )
 
+  const servicePackSASjs: ServicePackSASjs = {
+    appLoc: target.appLoc,
+    fileTree: folderContentJSON
+  }
+
   finalSasFileContent += `\n${folderContent}`
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {
-    finalSasFileContent += getLaunchPageCode(
-      target.serverType,
-      streamConfig.streamServiceName
-    )
+    if (
+      target.serverType === ServerType.SasViya ||
+      target.serverType === ServerType.Sas9
+    ) {
+      finalSasFileContent += getLaunchPageCode(
+        target.serverType,
+        streamConfig.streamServiceName
+      )
+    } else if (target.serverType === ServerType.Sasjs) {
+      servicePackSASjs.streamLogo = streamConfig.streamLogo
+      servicePackSASjs.streamServiceName = streamConfig.streamServiceName
+      servicePackSASjs.streamWebFolder = streamConfig.streamWebFolder
+    }
   }
 
   finalSasFileContent = removeComments(finalSasFileContent)
@@ -93,11 +110,20 @@ async function createFinalSasFile(target: Target, streamConfig: StreamConfig) {
   process.logger?.success(`File ${finalFilePath} has been created.`)
 
   process.logger?.debug(`Creating file ${finalFilePathJSON} .`)
-  await createFile(
-    finalFilePathJSON,
-    JSON.stringify(folderContentJSON, null, 1)
-  )
+
+  const servicePack =
+    target.serverType === ServerType.Sasjs
+      ? servicePackSASjs
+      : folderContentJSON
+  await createFile(finalFilePathJSON, JSON.stringify(servicePack, null, 1))
   process.logger?.success(`File ${finalFilePathJSON} has been created.`)
+
+  process.logger?.debug(`Creating file ${finalFilePathZipped} .`)
+  await compressAndSave(
+    finalFilePathZipped,
+    JSON.stringify(servicePack, null, 1)
+  )
+  process.logger?.success(`File ${finalFilePathZipped} has been created.`)
 }
 
 async function getBuildInfo(target: Target, streamWeb: boolean) {
@@ -108,7 +134,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   const macroFolders = await getMacroFolders(target)
 
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   buildConfig += `${createWebServiceScript}\n`
 
@@ -136,7 +162,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     // the deployed index.html file.  This only happens when deploying using the
     // SAS Program (build.sas) approach.
     const gsubScript = await readFile(
-      `${getMacroCorePath()}/base/mp_gsubfile.sas`
+      `${process.sasjsConstants.macroCorePath}/base/mp_replace.sas`
     )
     buildConfig += `${gsubScript}\n`
     const dependencyFilePathsForGsubScript = await getDependencyPaths(
@@ -190,22 +216,18 @@ ${buildConfig}
 }
 
 async function getCreateWebServiceScript(serverType: ServerType) {
+  const { macroCorePath } = process.sasjsConstants
+
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/viya/mv_createwebservice.sas`)
 
     case ServerType.Sas9:
-      return await readFile(
-        `${getMacroCorePath()}/meta/mm_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/meta/mm_createwebservice.sas`)
 
     // FIXME: use sasjs/mv_createwebservice.sas ones created
     case ServerType.Sasjs:
-      return await readFile(
-        `${getMacroCorePath()}/viya/mv_createwebservice.sas`
-      )
+      return await readFile(`${macroCorePath}/viya/mv_createwebservice.sas`)
 
     default:
       throw new ServerTypeError()
@@ -213,12 +235,14 @@ async function getCreateWebServiceScript(serverType: ServerType) {
 }
 
 async function getCreateFileScript(serverType: ServerType) {
+  const { macroCorePath } = process.sasjsConstants
+
   switch (serverType) {
     case ServerType.SasViya:
-      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+      return await readFile(`${macroCorePath}/viya/mv_createfile.sas`)
     // FIXME: use sasjs/mv_createfile.sas ones created
     case ServerType.Sasjs:
-      return await readFile(`${getMacroCorePath()}/viya/mv_createfile.sas`)
+      return await readFile(`${macroCorePath}/viya/mv_createfile.sas`)
 
     default:
       throw new ServerTypeError([ServerType.SasViya, ServerType.Sasjs])
@@ -227,24 +251,22 @@ async function getCreateFileScript(serverType: ServerType) {
 
 function getWebServiceScriptInvocation(
   serverType: ServerType,
-  filePath = '',
   isSASFile: boolean = true,
   encoded: boolean = false
 ) {
-  const loc = filePath === '' ? 'services' : 'tests'
   const encodedParam = encoded ? ', intype=BASE64' : ''
 
   switch (serverType) {
     case ServerType.SasViya:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
-      return `%mm_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
+      return `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
     case ServerType.Sasjs:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/${loc}/&path, name=&service, code=sascode ,replace=yes)`
-        : `%mv_createfile(path=&appLoc/${loc}/&path, name=&filename, inref=filecode${encodedParam})`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     default:
       throw new ServerTypeError()
   }
@@ -260,16 +282,16 @@ function getWebServiceScriptInvocation(
  */
 async function getFolderContent(serverType: ServerType): Promise<{
   folderContent: string
-  folderContentJSON: ServicePack
+  folderContentJSON: FileTree
 }> {
   const { buildDestinationFolder } = process.sasjsConstants
   const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
 
   let folderContent = ''
-  let folderContentJSON: ServicePack = { members: [] }
+  const folderContentJSON: FileTree = { members: [] }
   await asyncForEach(buildSubFolders, async (subFolder) => {
     const { content, contentJSON } = await getContentFor(
-      path.join(buildDestinationFolder, subFolder),
+      buildDestinationFolder,
       path.join(buildDestinationFolder, subFolder),
       serverType
     )
@@ -295,30 +317,19 @@ async function getDependencies(filePaths: string[]): Promise<string> {
 async function getContentFor(
   rootDirectory: string,
   folderPath: string,
-  serverType: ServerType,
-  testPath: string | undefined = undefined
-): Promise<{ content: string; contentJSON: ServicePackMember }> {
+  serverType: ServerType
+): Promise<{ content: string; contentJSON: FolderMember }> {
   const folderName = path.basename(folderPath)
-  if (!testPath && folderName === 'tests') {
-    testPath = ''
-  }
 
-  const isRootDir = folderPath === rootDirectory
-  let content = `\n%let path=${
-    isRootDir
-      ? ''
-      : testPath !== undefined
-      ? testPath
-      : folderPath
-          .replace(rootDirectory, '')
-          .substr(1)
-          .split(path.sep)
-          .join('/')
-  };\n`
+  let content = `\n%let path=${folderPath
+    .replace(rootDirectory, '')
+    .substr(1)
+    .split(path.sep)
+    .join('/')};\n`
 
-  const contentJSON: ServicePackMember = {
+  const contentJSON: FolderMember = {
     name: folderName,
-    type: 'folder',
+    type: MemberType.folder,
     members: []
   }
 
@@ -329,17 +340,12 @@ async function getContentFor(
 
     if (isSasFile(file)) {
       const fileContent = await readFile(filePath)
-      const transformedContent = getServiceText(
-        file,
-        fileContent,
-        serverType,
-        testPath
-      )
+      const transformedContent = getServiceText(file, fileContent, serverType)
       content += `\n${transformedContent}\n`
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
-        type: 'service',
+        type: MemberType.service,
         code: removeComments(fileContent)
       })
     } else {
@@ -354,7 +360,7 @@ async function getContentFor(
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
-        type: 'file',
+        type: MemberType.file,
         code: fileContentEncoded
       })
     }
@@ -367,12 +373,7 @@ async function getContentFor(
       await getContentFor(
         rootDirectory,
         path.join(folderPath, subFolder),
-        serverType,
-        testPath !== undefined
-          ? testPath === ''
-            ? subFolder
-            : `${testPath}/${subFolder}`
-          : undefined
+        serverType
       )
 
     contentJSON.members!.push(childContentJSON)
@@ -385,8 +386,7 @@ async function getContentFor(
 function getServiceText(
   serviceFileName: string,
   fileContent: string,
-  serverType: ServerType,
-  testPath: string | undefined
+  serverType: ServerType
 ) {
   const serviceName = serviceFileName.replace(/.sas$/, '')
   const sourceCodeLines = getLines(removeComments(fileContent))
@@ -405,10 +405,7 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(
-        serverType,
-        isTestFile(serviceFileName) && testPath ? `${testPath}` : ''
-      )
+    ? getWebServiceScriptInvocation(serverType)
     : ''
 }
 filename sascode clear;
@@ -435,7 +432,7 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, undefined, false, true)
+    ? getWebServiceScriptInvocation(serverType, false, true)
     : ''
 }
 filename filecode clear;

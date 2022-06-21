@@ -25,8 +25,7 @@ import {
 } from '../../../utils/test'
 import * as compileModule from '../compile'
 import { compileSingleFile } from '../compileSingleFile'
-import * as compileJobFile from '../internal/compileJobFile'
-import * as compileServiceFile from '../internal/compileServiceFile'
+import * as compileFile from '../internal/compileFile'
 import { setConstants } from '../../../utils'
 import { CompileCommand } from '../compileCommand'
 
@@ -174,7 +173,7 @@ describe('sasjs compile single file', () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestJobsApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
-      jest.spyOn(compileJobFile, 'compileJobFile')
+      jest.spyOn(compileFile, 'compileFile')
     })
 
     it('should compile single file', async () => {
@@ -190,7 +189,7 @@ describe('sasjs compile single file', () => {
       await expect(
         compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
-      expect(compileJobFile.compileJobFile).toHaveBeenCalled()
+      expect(compileFile.compileFile).toHaveBeenCalled()
     })
 
     it('should compile single file with absolute path', async () => {
@@ -206,7 +205,7 @@ describe('sasjs compile single file', () => {
       await expect(
         compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
-      expect(compileJobFile.compileJobFile).toHaveBeenCalled()
+      expect(compileFile.compileFile).toHaveBeenCalled()
     })
   })
 
@@ -215,7 +214,7 @@ describe('sasjs compile single file', () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
       await createTestApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
-      jest.spyOn(compileServiceFile, 'compileServiceFile')
+      jest.spyOn(compileFile, 'compileFile')
     })
 
     it('should compile single file', async () => {
@@ -231,8 +230,9 @@ describe('sasjs compile single file', () => {
       await expect(
         compileSingleFile(target, 'service', command.source, output)
       ).toResolve()
-      expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
+      expect(compileFile.compileFile).toHaveBeenCalled()
     })
+
     it('should compile single file with absolute path', async () => {
       const command = new CompileCommand([
         'node',
@@ -242,11 +242,29 @@ describe('sasjs compile single file', () => {
         '-s',
         `${process.projectDir}/sasjs/services/common/example.sas`
       ])
+
       const output = await command.output
+
       await expect(
         compileSingleFile(target, 'service', command.source, output)
       ).toResolve()
-      expect(compileServiceFile.compileServiceFile).toHaveBeenCalled()
+      expect(compileFile.compileFile).toHaveBeenCalled()
+    })
+
+    it('should compile service without duplicates', async () => {
+      const compiledPath = path.join(
+        process.projectDir,
+        'sasjsbuild',
+        'services',
+        'admin',
+        'dostuff.sas'
+      )
+
+      await compileModule.compile(target)
+
+      const compiledService = await readFile(compiledPath)
+
+      expect(compiledService.match(/%macro mv_webout/g)!.length).toEqual(1)
     })
   })
 })
@@ -551,11 +569,13 @@ describe('sasjs compile outside project', () => {
   describe('without global config', () => {
     beforeEach(async () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
+
       await saveGlobalRcFile('')
-      process.projectDir = ''
       await setConstants()
 
+      process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
+
       await createFolder(process.currentDir)
     })
 
@@ -584,6 +604,34 @@ describe('sasjs compile outside project', () => {
       ).rejects.toEqual(
         `Unable to locate dependencies: ${dependencies.join(', ')}`
       )
+    })
+
+    it('should compile without duplicates', async () => {
+      const testServicePath = path.join('services', 'admin', 'test.sas')
+      const appPath = path.join(__dirname, appName)
+
+      await createTestApp(__dirname, appName)
+      await createFile(
+        path.join(appPath, 'sasjs', 'targets', 'viya', testServicePath),
+        ''
+      )
+
+      const command = new CompileCommand([
+        'node',
+        'sasjs',
+        'compile',
+        '-t',
+        'viya'
+      ])
+      await command.executeCompile()
+
+      const compiledTestService = await readFile(
+        path.join(appPath, 'sasjsbuild', testServicePath)
+      )
+
+      expect(
+        compiledTestService.match(/^\*\sService start;$/gm)?.length
+      ).toEqual(1)
     })
   })
 })

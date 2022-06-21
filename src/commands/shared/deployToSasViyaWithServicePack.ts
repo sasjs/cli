@@ -1,6 +1,13 @@
 import SASjs from '@sasjs/adapter/node'
-import { readFile, Target } from '@sasjs/utils'
-import { ServicePack, ServicePackMember } from '../../types'
+import {
+  FileMember,
+  FileTree,
+  FolderMember,
+  MemberType,
+  readFile,
+  ServiceMember,
+  Target
+} from '@sasjs/utils'
 import { decode } from 'js-base64'
 import { getAccessToken } from '../../utils'
 
@@ -9,10 +16,10 @@ export async function deployToSasViyaWithServicePack(
   target: Target,
   isLocal: boolean,
   isForced: boolean = false
-): Promise<ServicePack> {
+): Promise<FileTree> {
   const jsonContent = await readFile(jsonFilePath)
 
-  let jsonObject: ServicePack
+  let jsonObject: FileTree
 
   try {
     jsonObject = JSON.parse(jsonContent)
@@ -40,19 +47,20 @@ export async function deployToSasViyaWithServicePack(
     useComputeApi: true
   })
 
-  await sasjs.deployServicePack(
-    jsonObject,
-    undefined,
-    undefined,
-    access_token,
-    isForced
-  )
+  await sasjs
+    .deployServicePack(jsonObject, undefined, undefined, access_token, isForced)
+    .catch((err: any) => {
+      process.logger.error('deployServicePack error', err)
+      throw new Error('Deploy service pack error')
+    })
 
   return jsonObject
 }
 
-const populateCodeInServicePack = (json: ServicePack | ServicePackMember) =>
-  json?.members?.forEach((member: ServicePackMember) => {
-    if (member.type === 'file') member.code = decode(member.code!)
-    if (member.type === 'folder') populateCodeInServicePack(member)
-  })
+const populateCodeInServicePack = (json: FileTree) =>
+  json?.members?.forEach(
+    (member: FolderMember | ServiceMember | FileMember) => {
+      if (member.type === MemberType.file) member.code = decode(member.code!)
+      if (member.type === MemberType.folder) populateCodeInServicePack(member)
+    }
+  )

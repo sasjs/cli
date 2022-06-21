@@ -14,17 +14,10 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.css'
       contenttype='text/css';
   %end;
-  %else %if &type=PNG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.png'
-      contenttype='image/png' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=JPG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpg'
-      contenttype='image/jpg' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=JPEG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.jpeg'
-      contenttype='image/jpeg' lrecl=2000000 recfm=n;
+  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      name="_webout.%lowcase(&type)"
+      contenttype="image/%lowcase(&type)" lrecl=2000000 recfm=n;
   %end;
   %else %if &type=ICO %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ico'
@@ -46,6 +39,14 @@ export const sasjsout = `
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ogg'
       contenttype='audio/ogg' lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      contenttype="font/%lowcase(&type)";
+  %end;
+  %else %if &type=MP4 %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      contenttype="video/mp4";
+  %end;
 %end;
 %else %do;
   %if &type=JS or &type=JS64 %then %do;
@@ -56,14 +57,8 @@ export const sasjsout = `
   %else %if &type=CSS or &type=CSS64 %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
   %end;
-  %else %if &type=PNG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/png));
-  %end;
-  %else %if &type=JPG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpg));
-  %end;
-  %else %if &type=JPEG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/jpeg));
+  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,image/%lowcase(&type)));
   %end;
   %else %if &type=ICO %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
@@ -79,6 +74,12 @@ export const sasjsout = `
   %end;
   %else %if &type=OGG %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
+  %end;
+  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&type)));
+  %end;
+  %else %if &type=MP4 %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,video/mp4));
   %end;
 %end;
 %if &type=HTML %then %do;
@@ -106,22 +107,61 @@ export const sasjsout = `
       if symexist('_metaperson') then put '    serverType: "SAS9" ,';
       else put '    serverType: "SASVIYA" ,';
     end;
-    else if find(_infile_,' hostUrl: ') then do;
+    else if find(_infile_,' serverUrl: ') then do;
       /* nothing - we are streaming, so remove to default as hostname */
     end;
     else do;
-      length newline $32767;
-      /* during SAS9 compilation, dependencies are assigned three slashes /// */
-      newline=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
-      put newline;
+      /* More recently, SASjs apps avoid inline JS to allow strict CSP */
+      length infile in1 in2 $32767;
+      infile=cats(_infile_);
+      spos1=index(upcase(infile),'APPLOC="');
+      if spos1>0 then do;
+        in1=substr(infile,1,spos1+7);
+        in2=subpad(infile,spos1+8);
+        in2=substr(in2,index(in2,'"'));
+        infile=cats(in1,appLoc,in2);
+        putlog "new apploc:  " infile=;
+      end;
+      /* find & replace serverType in HTML attributes */
+      spos2=index(upcase(infile),'SERVERTYPE="');
+      if spos2>0 then do;
+        in1=substr(infile,1,spos2+11);
+        in2=subpad(infile,spos2+12);
+        in2=substr(in2,index(in2,'"'));
+        if symexist('sasjsprocessmode') then infile=cats(in1,"SASJS",in2);
+        else if "&sysprocessmode"="SAS Object Server"
+        or "&sysprocessmode"= "SAS Compute Server"
+        then infile=cats(in1,"SASVIYA",in2);
+        else infile=cats(in1,"SAS9",in2);
+        putlog "new servertype:  " infile=;
+      end;
+      /* find & replace serverUrl in HTML attributes */
+      spos3=index(upcase(infile),'SERVERURL="');
+      if spos3>0 then do;
+        in1=substr(infile,1,spos3+10);
+        in2=subpad(infile,spos3+11);
+        in2=substr(in2,index(in2,'"'));
+        infile=cats(in1,in2);
+        putlog "new serverUrl:  " infile=;
+      end;
+      if sum(spos1,spos2,spos3)>0 then put infile;
+      else do;
+        /* during SAS9 sasjs compile, dependencies get three slashes /// */
+        infile=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
+        put infile;
+      end;
     end;
   run;
   %let fref=_sjs;
 %end;
 
-/* stream byte by byte */
-/* in SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1 metadata */
-%if &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3 or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG
+/**
+  * In SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1
+  * metadata - so in this case, decode and stream byte by byte.
+  * */
+%if &type=GIF or &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3
+or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG or &type=WOFF
+or &type=WOFF2 or &type=TTF or &type=MP4
 %then %do;
   data _null_;
     length filein 8 fileout 8;

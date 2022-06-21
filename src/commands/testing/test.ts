@@ -9,7 +9,8 @@ import {
   TestFlow,
   TestResults,
   TestResultStatus,
-  TestDescription
+  TestDescription,
+  TestResultCsv
 } from '../../types'
 import { sasFileRegExp } from '../../utils/file'
 import { getAuthConfig } from '../../utils/config'
@@ -23,16 +24,19 @@ import {
   decodeFromBase64,
   Target
 } from '@sasjs/utils'
-import SASjs from '@sasjs/adapter/node'
 import path from 'path'
 import chalk from 'chalk'
 import { displaySasjsRunnerError } from '../../utils/utils'
+import { createSASjsInstance } from '../../utils/createSASjsInstance'
+
+// interface
 
 export async function runTest(
   target: Target,
   testRegExps: string[] = [],
   outDirectory?: string,
-  flowSourcePath?: string
+  flowSourcePath?: string,
+  force?: boolean
 ) {
   if (outDirectory) outDirectory = path.join(process.currentDir, outDirectory)
   else outDirectory = process.sasjsConstants.buildDestinationResultsFolder
@@ -65,7 +69,7 @@ export async function runTest(
 
   if (testFlow.testSetUp) flow.push(testFlow.testSetUp)
 
-  if (testFlow.tests)
+  if (testFlow.tests) {
     flow = [
       ...flow,
       ...testFlow.tests.filter((test: string) => {
@@ -80,10 +84,11 @@ export async function runTest(
         return match
       })
     ]
+  }
 
   if (testFlow.testTearDown) flow.push(testFlow.testTearDown)
 
-  const sasjs = new SASjs({
+  const sasjs = createSASjsInstance({
     serverUrl: target.serverUrl,
     httpsAgentOptions: target.httpsAgentOptions,
     appLoc: target.appLoc,
@@ -94,23 +99,35 @@ export async function runTest(
   })
 
   let authConfig: AuthConfig, username: string, password: string
-  if (target.serverType === ServerType.SasViya) {
-    authConfig = await getAuthConfig(target)
-  }
-  if (target.serverType === ServerType.Sas9) {
-    if (target.authConfigSas9) {
-      username = target.authConfigSas9.userName
-      password = target.authConfigSas9.password
-    } else {
-      username = process.env.SAS_USERNAME as string
-      password = process.env.SAS_PASSWORD as string
-    }
-    if (!username || !password) {
-      const { sas9CredentialsError } = process.sasjsConstants
-      throw new Error(sas9CredentialsError)
-    }
 
-    password = decodeFromBase64(password)
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      authConfig = await getAuthConfig(target)
+
+      break
+    case ServerType.Sas9:
+      if (target.authConfigSas9) {
+        username = target.authConfigSas9.userName
+        password = target.authConfigSas9.password
+      } else {
+        username = process.env.SAS_USERNAME as string
+        password = process.env.SAS_PASSWORD as string
+      }
+
+      if (!username || !password) {
+        const { sas9CredentialsError } = process.sasjsConstants
+        throw new Error(sas9CredentialsError)
+      }
+
+      password = decodeFromBase64(password)
+
+      break
+    case ServerType.Sasjs:
+      try {
+        authConfig = await getAuthConfig(target)
+      } catch (e) {} // FIXME: handle error properly
+
+      break
   }
 
   const result: TestResults = {
@@ -137,9 +154,10 @@ export async function runTest(
   }
 
   await asyncForEach(flow, async (test) => {
+    const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
     const sasJobLocation = [
       target.appLoc,
-      test.replace(sasFileRegExp, '')
+      test.replace(pathSepRegExp, '/').replace(sasFileRegExp, '')
     ].join('/')
 
     const testTarget = test
@@ -148,11 +166,7 @@ export async function runTest(
       .replace(/(.test)?(.\d+)?(.sas)?$/i, '')
     const testId = uuidv4()
 
-    let testUrl = `${target.serverUrl}/${
-      target.serverType === ServerType.SasViya
-        ? 'SASJobExecution'
-        : 'SASStoredProcess'
-    }/?_program=${sasJobLocation}&_debug=2477`
+    let testUrl = getTestUrl(target, sasJobLocation)
 
     if (target.contextName) {
       testUrl = `${testUrl}&_contextName=${encodeURIComponent(
@@ -164,7 +178,7 @@ export async function runTest(
 
     printTestUrl()
 
-    await sasjs
+    await sasjs!
       .request(
         sasJobLocation,
         {},
@@ -175,10 +189,12 @@ export async function runTest(
         authConfig,
         ['log']
       )
-      .then(async (res) => {
+      .then(async (res: any) => {
         let lineBreak = true
 
-        if (!res.result) {
+        const test_results = res.result?.test_results
+
+        if (!test_results) {
           displayError(
             {},
             `Job did not return a response, to debug click ${testUrl}`
@@ -215,11 +231,9 @@ export async function runTest(
           }
         }
 
-        if (!res.result?.test_results) lineBreak = false
-
         if (res.log) await saveLog(outDirectory!, test, res.log, lineBreak)
 
-        if (res.result?.test_results) {
+        if (test_results) {
           const existingTestTarget = result.sasjs_test_meta.find(
             (testResult: TestDescription) =>
               testResult.test_target === testTarget
@@ -229,7 +243,7 @@ export async function runTest(
             existingTestTarget.results.push({
               test_loc: test,
               sasjs_test_id: testId,
-              result: res.result.test_results,
+              result: test_results,
               test_url: testUrl
             })
           } else {
@@ -239,13 +253,16 @@ export async function runTest(
                 {
                   test_loc: test,
                   sasjs_test_id: testId,
-                  result: res.result.test_results,
+                  result: test_results,
                   test_url: testUrl
                 }
               ]
             })
           }
-        } else {
+        } else if (
+          target.serverType === ServerType.SasViya ||
+          target.serverType === ServerType.Sas9
+        ) {
           displayError(
             {},
             `'test_results' not found in server response, to debug click ${testUrl}`
@@ -257,7 +274,7 @@ export async function runTest(
       .catch(async (err) => {
         printTestUrl()
 
-        if (err && err.errorCode === 404) {
+        if (err?.errorCode === 404) {
           displaySasjsRunnerError(username)
         } else {
           displayError(
@@ -285,13 +302,40 @@ export async function runTest(
   const resultTable: any = {}
 
   if (Array.isArray(csvData)) {
-    csvData.forEach(
-      (item: any) =>
-        (resultTable[item.sasjs_test_id] = {
-          test_target: item.test_target,
-          test_suite_result: item.test_suite_result
-        })
+    const testSuites = csvData.reduce(
+      (acc: TestResultCsv[], item: TestResultCsv) => {
+        if (
+          !acc.filter(
+            (i: TestResultCsv) => i.sasjs_test_id === item.sasjs_test_id
+          ).length
+        )
+          acc.push(item)
+
+        return acc
+      },
+      []
     )
+
+    testSuites.forEach((test: TestResultCsv) => {
+      const passedTests = csvData.filter(
+        (item: TestResultCsv) =>
+          item.sasjs_test_id === test.sasjs_test_id &&
+          item.test_suite_result === TestResultStatus.pass
+      )
+      const failedTests = csvData.filter(
+        (item: TestResultCsv) =>
+          item.sasjs_test_id === test.sasjs_test_id &&
+          item.test_suite_result === TestResultStatus.fail
+      )
+
+      resultTable[test.sasjs_test_id] = {
+        test_target: test.test_target,
+        test_suite_result:
+          passedTests.length && !failedTests.length
+            ? TestResultStatus.pass
+            : TestResultStatus.fail
+      }
+    })
   }
 
   process.logger?.table(
@@ -339,4 +383,41 @@ export async function runTest(
     `Tests coverage report:
   ${coverageReportPath}`
   )
+
+  if (!force) {
+    /**
+     * When running tests there are 2 types of outcomes
+     * Test provided result (FAIL or PASS)
+     * Test did not provide any result
+     *
+     * In this section we want to write tests that did not succeed
+     * For better UX we want to separate them and write for example:
+     * 1 Test failed to complete
+     * 1 Test completed with failures
+     */
+    const failedTestsCount = testsWithResultsCount - passedTestsCount
+    const testsWithoutResultCount = testsCount - testsWithResultsCount
+    let errorMessage: string = ''
+
+    if (testsWithoutResultCount > 0)
+      errorMessage = `${testsWithoutResultCount} ${
+        testsWithoutResultCount === 1 ? 'test' : 'tests'
+      } failed to complete!\n`
+
+    if (failedTestsCount > 0)
+      errorMessage += `${failedTestsCount} ${
+        failedTestsCount === 1 ? 'test' : 'tests'
+      } completed with failures!`
+
+    if (errorMessage) return Promise.reject(errorMessage)
+  }
 }
+
+export const getTestUrl = (target: Target, jobLocation: string) =>
+  `${target.serverUrl}/${
+    target.serverType === ServerType.SasViya
+      ? 'SASJobExecution'
+      : target.serverType === ServerType.Sas9
+      ? 'SASStoredProcess'
+      : 'SASjsApi/stp/execute'
+  }/?_program=${jobLocation}&_debug=2477`

@@ -177,7 +177,7 @@ describe('AddCommand - cred', () => {
     expect(returnCode).toEqual(ReturnCode.InternalError)
     expect(process.logger.error).toHaveBeenCalledWith(
       'Error adding credentials: ',
-      new Error('Test Error')
+      new Error('Test Error').toString()
     )
   })
 

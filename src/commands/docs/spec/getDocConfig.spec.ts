@@ -1,6 +1,5 @@
 import { Configuration, Target } from '@sasjs/utils'
 import { Constants } from '../../../constants'
-import { setConstants } from '../../../utils'
 import { getDocConfig } from '../internal/getDocConfig'
 
 const UNCErrorMessage = `UNC paths are not supported.

@@ -5,7 +5,8 @@ export const builtFiles = (buildFileName: string): Folder => {
     folderName: 'sasjsbuild',
     files: [
       { fileName: `${buildFileName}.sas` },
-      { fileName: `${buildFileName}.json` }
+      { fileName: `${buildFileName}.json` },
+      { fileName: `${buildFileName}.json.zip` }
     ],
     subFolders: [
       {

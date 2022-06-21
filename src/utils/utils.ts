@@ -8,7 +8,8 @@ import {
   readFile,
   copy,
   LogLevel,
-  Target
+  Target,
+  isWindows
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
@@ -89,23 +90,44 @@ function createApp(
 
   const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
 
+  const gitVersion: string = (shelljs
+    .exec(`git version`, { silent: true })
+    .stdout.match(/(?<!git version)\d+\.\d+\.\d+/) || '')[0].replace(/\./g, '')
+
+  // NOTE: git version 2.13 and greater are using '--recurse-submodules' instead of '--recurse' attribute to clone submodules
   shelljs.exec(
-    `cd "${folderPath}" && git clone --depth 1 -b ${gitBranch} ${repoUrl} .`,
+    `cd "${folderPath}" && git clone --recurse${
+      parseInt(gitVersion) > 2130 ? '-submodules' : ''
+    } --depth 1 -b ${gitBranch} ${repoUrl} .`,
     { silent: true }
   )
 
-  shelljs.rm('-rf', path.join(folderPath, '.git'))
+  deleteGitFolder(folderPath)
+
+  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+
+  if (repoUrl.includes('react-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'public', 'docs'))
+  } else if (repoUrl.includes('angular-seed-app')) {
+    deleteGitFolder(path.join(folderPath, 'docs'))
+  }
 
   spinner.stop()
+
   if (installDependencies) {
     spinner.text = 'Installing dependencies...'
     spinner.start()
-    shelljs.exec(`cd "${folderPath}" && npm install`, {
+
+    shelljs.exec(`cd "${folderPath}" && git init && npm install`, {
       silent: true
     })
+
     spinner.stop()
   }
 }
+
+const deleteGitFolder = (folderPath: string) =>
+  shelljs.rm('-rf', path.join(folderPath, '.git'))
 
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
@@ -167,14 +189,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
     )
 
     process.logger?.success('.gitignore file has been created.')
-  }
-
-  const folderPath = path.join(process.projectDir, folderName)
-  const gitDirectoryExists = await folderExists(path.join(folderPath, '.git'))
-  if (!gitDirectoryExists) {
-    shelljs.exec(`cd ${folderName} && git init`, {
-      silent: true
-    })
   }
 }
 
@@ -270,8 +284,9 @@ export async function executeShellScript(
   logFilePath: string
 ) {
   return new Promise(async (resolve, reject) => {
-    const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
+    const shellCommand = isWindows() ? `sh ${filePath}` : `bash ${filePath}`
     const result = shelljs.exec(shellCommand, { silent: true })
+
     if (result.code) {
       process.logger?.error(`Error: ${result.stderr}`)
       reject(result.code)
@@ -368,10 +383,10 @@ parmcards4;
 %mend sasjs_runner;
 %sasjs_runner()
 ;;;;
-%mm_createwebservice(path=/User Folders/&sysuserid/My Folder/sasjs,name=runner)
+%mm_createwebservice(path=/User Folders/&_metauser/My Folder/sasjs,name=runner)
 `
 
-  const message = `The SASjs runner was not found in your user folder at /User Folders/${username}/My Folder/sasjs/runner.`
+  const message = `The SASjs runner was not found in your user folder at /User Folders/&_metauser/My Folder/sasjs/runner.`
   displayError(message, 'An error occurred while executing the request.')
   process.logger?.info(
     `Please deploy the SASjs runner by running the code below and try again:\n${sasjsRunnerCode}`
@@ -408,12 +423,69 @@ export function prefixAppLoc(appLoc = '', path = '') {
     .join(' ')
 }
 
-export const isWindows = () => process.platform === 'win32'
-
 export const terminateProcess = (status: number) => {
   process.logger?.info(
     `Process will be terminated with the status code ${status}.`
   )
 
   process.exit(status)
+}
+
+/**
+ * This function checks whether the current directory, or any of the parent
+ * directories, are part of a SASjs project.  This is done by testing for
+ * the existence of a ./sasjs/sasjsconfig.json file.
+ *
+ * @returns boolean
+ */
+export const isSASjsProject = async () => {
+  let i = 1
+  let currentLocation = process.projectDir
+
+  const maxLevels = currentLocation.split(path.sep).length
+
+  while (i <= maxLevels) {
+    if (
+      (await folderExists(path.join(currentLocation, 'sasjs'))) &&
+      (await fileExists(
+        path.join(currentLocation, 'sasjs', 'sasjsconfig.json')
+      ))
+    ) {
+      return true
+    } else {
+      currentLocation = path.join(currentLocation, '..')
+      i++
+    }
+  }
+  return false
+}
+
+export const getNodeModulePath = async (module: string): Promise<string> => {
+  // Check if module is present in project's dependencies
+  const projectPath = path.join(process.cwd(), 'node_modules', module)
+
+  if (await folderExists(projectPath)) return projectPath
+
+  // Check if module is present in @sasjs/cli located in project's dependencies
+  const cliDepsPath = path.join('@sasjs', 'cli', 'node_modules')
+  const cliLocalPath = path.join(
+    process.cwd(),
+    'node_modules',
+    cliDepsPath,
+    module
+  )
+
+  if (await folderExists(cliLocalPath)) return cliLocalPath
+
+  // Check if module is present in global @sasjs/cli
+  const cliGlobalPath = path.join(
+    shelljs.exec(`npm root -g`, { silent: true }).stdout.replace(/\n/, ''),
+    cliDepsPath,
+    module
+  )
+
+  if (await folderExists(cliGlobalPath)) return cliGlobalPath
+
+  // Return default value
+  return ''
 }

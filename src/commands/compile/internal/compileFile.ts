@@ -1,36 +1,57 @@
-import { getMacroCorePath } from '../../../utils/config'
-import { createFile, readFile, isTestFile } from '@sasjs/utils'
+import { createFile, readFile, isTestFile, CompileTree } from '@sasjs/utils'
 import { Target, ServerType, SASJsFileType } from '@sasjs/utils/types'
 import { ServerTypeError } from '@sasjs/utils/error'
 import { loadDependencies } from './loadDependencies'
 import { getServerType } from './getServerType'
+import path from 'path'
 
-export async function compileServiceFile(
+/**
+ * Compiles file dependencies.
+ * @param {Target} target - SAS server configuration.
+ * @param {string} filePath - file path of the file to be compiled.
+ * @param {string[]} macroFolders - macro folders paths.
+ * @param {string[]} programFolders - program folders paths.
+ * @param {string} programVar - program variable.
+ * @param {object} compileTree - compilation tree that stores used compilation assets.
+ * @param {SASJsFileType} fileType - sasjs file type.
+ * @param {string} sourceFolder - folder path of the source folder.
+ */
+export async function compileFile(
   target: Target,
   filePath: string,
   macroFolders: string[],
   programFolders: string[],
-  programVar: string = ''
+  programVar: string = '',
+  compileTree: CompileTree,
+  fileType: SASJsFileType,
+  sourceFolder: string
 ) {
   let dependencies = await loadDependencies(
     target,
-    filePath,
+    sourceFolder
+      ? path.join(sourceFolder, filePath.split(path.sep).pop()!)
+      : filePath,
     macroFolders,
     programFolders,
-    isTestFile(filePath) ? SASJsFileType.test : SASJsFileType.service
+    isTestFile(filePath) ? SASJsFileType.test : fileType,
+    compileTree
   )
 
-  const serverType = await getServerType(target)
-  const preCode = await getPreCodeForServicePack(serverType)
+  if (fileType === SASJsFileType.service) {
+    const serverType = await getServerType(target)
+    const preCode = await getPreCodeForServicePack(serverType)
 
-  dependencies = `${programVar}\n${preCode}\n${dependencies}`
+    dependencies = `${programVar}\n${preCode}\n${dependencies}`
+  } else {
+    dependencies = `${programVar ? programVar + '\n' : ''}${dependencies}`
+  }
 
   await createFile(filePath, dependencies)
 }
 
 export async function getPreCodeForServicePack(serverType: ServerType) {
   let content = ''
-  const macroCorePath = getMacroCorePath()
+  const { macroCorePath } = process.sasjsConstants
 
   switch (serverType) {
     case ServerType.SasViya:

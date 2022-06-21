@@ -12,19 +12,29 @@ import {
   asyncForEach,
   AuthConfig,
   decodeFromBase64,
-  getAbsolutePath
+  getAbsolutePath,
+  ServicePackSASjs,
+  FileTree,
+  FolderMember,
+  MemberType
 } from '@sasjs/utils'
 import { isSasFile, isShellScript } from '../../utils/file'
 import { getDeployScripts } from './internal/getDeployScripts'
 import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
-import { ServicePack } from '../../types'
 
+/**
+ * Deploys app to serverUrl/appLoc mentioned in specified target.
+ * @param {Target} target- the target having deploy configuration.
+ * @param {boolean} isLocal- flag indicating if specified target is
+ * from local sasjsconfig or global sasjsconfig file.
+ * @param {object} sasjs - optional configuration object of SAS adapter.
+ */
 export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   if (
     target.serverType === ServerType.SasViya &&
     target.deployConfig?.deployServicePack
   ) {
-    const appLoc = target.appLoc.replace(/\ /g, '%20')
+    const appLoc = encodeURI(target.appLoc)
     process.logger?.info(
       `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
     )
@@ -35,20 +45,22 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
       `${target.name}.json`
     )
 
-    const jsonObject: ServicePack = await deployToSasViyaWithServicePack(
+    const jsonObject: FileTree = await deployToSasViyaWithServicePack(
       finalFilePathJSON,
       target,
       isLocal,
       true
     )
 
+    const servicesFolder = jsonObject?.members.find<FolderMember>(
+      (member): member is FolderMember =>
+        member?.name === 'services' && member?.type === MemberType.folder
+    )
+
     const webIndexFileName: string =
-      jsonObject?.members
-        .find(
-          (member: any) =>
-            member?.name === 'services' && member?.type === 'folder'
-        )
-        ?.members?.find((member: any) => member?.type === 'file')?.name ?? ''
+      servicesFolder?.members?.find(
+        (member: any) => member?.type === MemberType.file
+      )?.name ?? ''
 
     process.logger?.success('Build pack has been successfully deployed.')
 
@@ -71,8 +83,10 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
 
   const logFilePath = buildDestinationFolder
 
+  const streamConfig = await getStreamConfig(target)
+
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target, sasjs)
+    await deployToSasjs(target, sasjs, streamConfig)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -82,17 +96,16 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
           `Processing SAS file ${path.basename(deployScript)} ...`
         )
         // get content of file
-        const deployScriptFile = await readFile(deployScriptPath)
+        const deployScriptContent = await readFile(deployScriptPath)
         // split into lines
-        const linesToExecute = deployScriptFile
+        const linesToExecute = deployScriptContent
           .replace(/\r\n/g, '\n')
           .split('\n')
 
-        const streamConfig = await getStreamConfig(target)
-
+        const deployScriptName = path.basename(deployScript)
         if (target.serverType === ServerType.SasViya) {
           await deployToSasViya(
-            deployScript,
+            deployScriptName,
             target,
             isLocal,
             linesToExecute,
@@ -101,7 +114,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
           )
         } else {
           await deployToSas9(
-            deployScript,
+            deployScriptName,
             target,
             linesToExecute,
             logFilePath,
@@ -127,6 +140,14 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   }
 }
 
+/**
+ * Returns configuration object of SAS Adapter and authentication configuration
+ * @param {Target} target- the target to get auth configuration from.
+ * @param {boolean} isLocal- flag indicating if specified target is
+ * from local sasjsconfig or global sasjsconfig file.
+ * @returns an object containing a SAS Adapter configuration object `sasjs`
+ * and auth configuration `authConfig`.
+ */
 async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
@@ -153,16 +174,28 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
   }
 }
 
+/**
+ * Deploys app to `SASVIYA` server through deployScript.
+ * @param {string} deployScriptName- name of deploy script.
+ * @param {Target} target- the target having deploy configuration.
+ * @param {boolean} isLocal- flag indicating if specified target is
+ * from local sasjsconfig or global sasjsconfig file.
+ * @param {string[]} linesToExecute - array of SAS code lines of deploy script to execute.
+ * @param {string} logFolder - optional path to log folder,
+ * log file name will be <deploy-script-name>.log
+ * @param {object} streamConfig - optional configuration object of StreamConfig
+ * for printing web app url on console.
+ */
 async function deployToSasViya(
-  deployScript: string,
+  deployScriptName: string,
   target: Target,
   isLocal: boolean,
   linesToExecute: string[],
-  logFilePath: string | null,
+  logFolder?: string,
   streamConfig?: StreamConfig
 ) {
   process.logger?.info(
-    `Sending ${path.basename(deployScript)} to SAS server for execution.`
+    `Sending ${deployScriptName} to SAS server for execution.`
   )
 
   const contextName = target.contextName
@@ -175,12 +208,16 @@ async function deployToSasViya(
 
   const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
 
-  const executionResult = await sasjs.executeScriptSASViya(
-    path.basename(deployScript),
-    linesToExecute,
-    contextName,
-    authConfig
-  )
+  const executionResult = await sasjs
+    .executeScriptSASViya(
+      deployScriptName,
+      linesToExecute,
+      contextName,
+      authConfig
+    )
+    .catch((err: any) => {
+      process.logger.error('executeScriptSASViya Error', err)
+    })
 
   let log
   try {
@@ -197,36 +234,43 @@ async function deployToSasViya(
     log = executionResult
   }
 
-  if (logFilePath) {
+  if (logFolder) {
     await createFile(
-      path.join(
-        logFilePath,
-        `${path.basename(deployScript).replace('.sas', '')}.log`
-      ),
+      path.join(logFolder, `${deployScriptName.replace('.sas', '')}.log`),
       log
     )
     process.logger?.success(
       `Deployment completed! Log is available at ${path.join(
-        logFilePath,
-        `${path.basename(deployScript).replace('.sas', '')}.log`
+        logFolder,
+        `${deployScriptName.replace('.sas', '')}.log`
       )}`
     )
-
-    if (streamConfig?.streamWeb) {
-      const appLoc = target.appLoc.replace(/\ /g, '%20')
-      const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
-      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
-    }
   } else {
     process.logger?.error('Unable to create log file.')
   }
+
+  if (streamConfig?.streamWeb) {
+    const appLoc = encodeURI(target.appLoc)
+    const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
+    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
+  }
 }
 
+/**
+ * Deploys app to `SAS9` server through deployScript.
+ * @param {string} deployScriptName- name of deploy script.
+ * @param {Target} target- the target having deploy configuration.
+ * @param {string[]} linesToExecute - array of SAS code lines of deploy script to execute.
+ * @param {string} logFolder - optional path to log folder,
+ * log file name will be <deploy-script-name>.log
+ * @param {object} streamConfig - optional configuration object of StreamConfig
+ * for printing web app url on console.
+ */
 async function deployToSas9(
-  deployScript: string,
+  deployScriptName: string,
   target: Target,
   linesToExecute: string[],
-  logFilePath: string | null,
+  logFolder?: string,
   streamConfig?: StreamConfig
 ) {
   let username: any
@@ -250,6 +294,8 @@ async function deployToSas9(
     appLoc: target.appLoc,
     serverType: target.serverType
   })
+
+  let completedWithError = false
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch((err) => {
@@ -257,54 +303,86 @@ async function deployToSas9(
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(username)
       }
+      completedWithError = true
+      return err
     })
 
   if (!executionResult) {
-    process.logger?.error('Error getting execution log')
-  } else if (logFilePath) {
-    await createFile(
-      path.join(
-        logFilePath,
-        `${path.basename(deployScript).replace('.sas', '')}.log`
-      ),
-      executionResult ?? ''
+    return process.logger?.error('Error getting execution log')
+  }
+
+  if (!logFolder) {
+    return process.logger?.error('Unable to create log file.')
+  }
+
+  const logContent = completedWithError
+    ? executionResult.result
+    : executionResult
+
+  const logFilePath = path.join(
+    logFolder,
+    `${deployScriptName.replace('.sas', '')}.log`
+  )
+  await createFile(logFilePath, logContent ?? '')
+
+  if (completedWithError) {
+    process.logger?.error(
+      `Deployment failed with errors! Log is available at ${logFilePath}`
     )
-    process.logger?.success(
-      `Deployment completed! Log is available at ${path.join(
-        logFilePath,
-        `${path.basename(deployScript).replace('.sas', '')}.log`
-      )}`
-    )
-    if (streamConfig?.streamWeb) {
-      const appLoc = target.appLoc.replace(/\ /g, '%20')
-      const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
-      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
-    }
-  } else {
-    process.logger?.error('Unable to create log file.')
+
+    throw new Error(`Deployment failed.`)
+  }
+
+  process.logger?.success(
+    `Deployment completed! Log is available at ${logFilePath}`
+  )
+
+  if (streamConfig?.streamWeb) {
+    const appLoc = encodeURI(target.appLoc)
+    const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
+    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }
 
-async function deployToSasjs(target: Target, sasjs?: SASjs) {
+/**
+ * Deploys app to `SASJS` server.
+ * @param {Target} target- the target having deploy configuration.
+ * @param {object} sasjs - optional configuration object of SAS adapter.
+ * @param {object} streamConfig - optional config for deploying streaming app.
+ */
+async function deployToSasjs(
+  target: Target,
+  sasjs?: SASjs,
+  streamConfig?: StreamConfig
+) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
     `${target.name}.json`
   )
   const jsonContent = await readFile(finalFilePathJSON)
-  const payload = JSON.parse(jsonContent)
+  const payload: ServicePackSASjs = JSON.parse(jsonContent)
 
-  sasjs = sasjs
-    ? sasjs
-    : new SASjs({
-        serverType: target.serverType,
-        serverUrl: target.serverUrl,
-        appLoc: target.appLoc
-      })
+  let authConfig
+  if (!sasjs) {
+    sasjs = new SASjs({
+      serverUrl: target.serverUrl,
+      appLoc: target.appLoc,
+      serverType: target.serverType,
+      httpsAgentOptions: target.httpsAgentOptions,
+      debug: true
+    })
 
-  const result = await sasjs.deployToSASjs(payload).catch((err) => {
-    process.logger?.error(err)
-  })
+    try {
+      authConfig = await getAuthConfig(target)
+    } catch (e) {}
+  }
+
+  const result = await sasjs
+    .deployToSASjs(payload, undefined, authConfig)
+    .catch((err) => {
+      process.logger?.error('deployToSASjs Error', err)
+    })
 
   if (result?.status === 'failure') {
     process.logger?.error(result.message)
@@ -314,6 +392,11 @@ async function deployToSasjs(target: Target, sasjs?: SASjs) {
         `Payload example:\n${JSON.stringify(result.example, null, 2)}`
       )
     }
+  }
+
+  if (streamConfig?.streamWeb && result?.streamServiceName) {
+    const webAppStreamUrl = `${target.serverUrl}/AppStream/${result.streamServiceName}`
+    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }
 

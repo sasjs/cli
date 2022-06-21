@@ -6,7 +6,9 @@ import {
   fileExists,
   folderExists,
   readFile,
-  asyncForEach
+  asyncForEach,
+  listFilesAndSubFoldersInFolder,
+  pathSepEscaped
 } from '@sasjs/utils'
 import { deleteFolder as deleteServerFolder } from '../commands/folder/delete'
 import {
@@ -29,7 +31,7 @@ import { compiledFilesCustom1 } from './fileStructures/compiledFilesCustom1'
 import { builtFiles } from './fileStructures/builtFiles'
 import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
-import { ServiceConfig } from '@sasjs/utils/types/config'
+import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
@@ -102,7 +104,13 @@ export const generateTestTarget = (
     termProgram: '',
     macroVars: {}
   },
-  serverType = ServerType.SasViya
+  serverType = ServerType.SasViya,
+  jobConfig: JobConfig = {
+    jobFolders: [],
+    initProgram: '',
+    termProgram: '',
+    macroVars: {}
+  }
 ) => {
   dotenv.config()
 
@@ -120,12 +128,9 @@ export const generateTestTarget = (
       access_token: process.env.ACCESS_TOKEN,
       refresh_token: process.env.REFRESH_TOKEN
     },
-    jobConfig: {
-      jobFolders: []
-    },
+    jobConfig,
     serviceConfig,
     testConfig: {
-      testFolders: ['tests'],
       initProgram: path.join('tests', 'testinit.sas'),
       termProgram: path.join('tests', 'testterm.sas'),
       macroVars: {
@@ -299,9 +304,11 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
 
   const packageJson = JSON.parse(packageJsonContent)
 
-  expect(packageJson.dependencies).toEqual(
-    expect.objectContaining({ '@sasjs/core': expect.anything() })
-  )
+  expect(
+    parentFolderName.includes('minimal')
+      ? packageJson.devDependencies
+      : packageJson.dependencies
+  ).toEqual(expect.objectContaining({ '@sasjs/core': expect.anything() }))
 }
 
 export const removeAllTargetsFromConfigs = async () => {
@@ -323,7 +330,8 @@ export const updateTarget = async (
   targetName: string,
   isLocal: boolean = true
 ): Promise<Target> => {
-  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+  let config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+
   if (config?.targets) {
     const targetIndex = config.targets.findIndex(
       (t: TargetJson) => t.name === targetName
@@ -333,13 +341,32 @@ export const updateTarget = async (
         ...config.targets[targetIndex],
         ...targetJson
       })
+
+      config = {
+        ...config,
+        targets: config.targets.map((target: Target) => ({
+          ...target,
+          serverUrl:
+            process.env[
+              `${
+                target.serverType === ServerType.SasViya
+                  ? 'VIYA'
+                  : target.serverType
+              }_SERVER_URL`
+            ]
+        }))
+      }
+
       isLocal
         ? await saveLocalConfigFile(JSON.stringify(config, null, 2))
         : await saveGlobalRcFile(JSON.stringify(config, null, 2))
+
       return new Target(config.targets[targetIndex])
     }
+
     throw `Unable to find Target: ${targetName}`
   }
+
   throw `Unable to find Target: ${targetName}`
 }
 
@@ -510,4 +537,17 @@ const verifyCompile = async (
     const re = new RegExp(`%macro ${macro}`)
     expect(re.test(compiledContent)).toEqual(true)
   })
+}
+
+export const verifyGitNotPresent = async (folder: string) => {
+  const gitFolderOrModules = (
+    await listFilesAndSubFoldersInFolder(folder, true)
+  ).filter(
+    (sub: string) =>
+      /\.git$/.test(sub) ||
+      new RegExp(`\.git${pathSepEscaped}`).test(sub) ||
+      /\.gitmodules/.test(sub)
+  )
+
+  expect(gitFolderOrModules.length).toEqual(0)
 }

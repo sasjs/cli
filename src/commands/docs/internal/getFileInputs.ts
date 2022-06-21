@@ -1,4 +1,4 @@
-import { getList } from '@sasjs/utils'
+import { getList, DependencyHeader } from '@sasjs/utils'
 
 /**
  * Returns list of Inputs and populates Map of Nodes
@@ -11,7 +11,7 @@ export function getFileInputs(
   fileContent: string,
   paramNodes: Map<string, { edges: string[]; label: string }>
 ) {
-  const fileInputs = getList('<h4> Data Inputs </h4>', fileContent)
+  const fileInputs = getList(DependencyHeader.DataInput, fileContent)
     .map((input) => input.toUpperCase())
     .filter((input) => !input.endsWith('.DLL'))
 

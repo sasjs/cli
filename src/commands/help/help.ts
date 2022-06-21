@@ -232,12 +232,14 @@ export async function printHelpText() {
     {
       name: 'request',
       title:
-        'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName>',
+        'request <sasProgramPath> -d <path/to/datafile> -c <path/to/configfile> -t <targetName> -l <path/to/log> -o <path/to/output>',
       description: [
         `lets`,
         `the user run a SAS job against a specified target.`,
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
-        `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`
+        `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`,
+        `<path/to/log> - Location in which to store the log file. If not provided AND current directory is a sasjs project, it will be saved in sasjsresults else in the current directory`,
+        `<path/to/output> - Location to store the output file. If not provided AND current directory is a sasjs project, an output file  will be saved in the sasjsresults folder else in current directory.`
       ]
     },
     {
@@ -319,11 +321,12 @@ export async function printHelpText() {
       title: 'test',
       description: [
         `Triggers SAS unit tests.`,
-        `[2spaces]command example: sasjs test <filteringString> --source <testFlowPath> --outDirectory <folderPath> -t <targetName>`,
+        `[2spaces]command example: sasjs test <filteringString> --source <testFlowPath> --outDirectory <folderPath> -t <targetName> --force`,
         ``,
         `[2spaces]NOTE: Providing <filteringString> is optional. If not present, all tests mentioned in test flow file will be executed.`,
         `[2spaces]NOTE: Providing source flag is optional. If not present, CLI will use test flow located at sasjsbuild/testFlow.json.`,
-        `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`
+        `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`,
+        `[2spaces]NOTE: Providing force (--force or -f) flag is optional. If present, CLI will force command to finish running all tests and will not return an error code even when some are failing. Useful when the requirement is not to make CI Pipeline fail.`
       ]
     }
   ]

@@ -6,13 +6,13 @@ import {
   createFile,
   createFolder,
   decodeFromBase64,
-  getAbsolutePath
+  getAbsolutePath,
+  generateTimestamp
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError } from '../../utils/utils'
+import { displaySasjsRunnerError, isSASjsProject } from '../../utils/utils'
 import { saveLog } from '../../utils/saveLog'
-import { getLogFilePath } from '../../utils/getLogFilePath'
 
 export async function runSasJob(
   target: Target,
@@ -89,83 +89,102 @@ export async function runSasJob(
   })
 
   let result
-  let isError = false
 
   await sasjs
-    .request(
-      sasJobLocation,
-      dataJson,
-      configJson,
-      () => {
-        displayError(null, 'Login callback called. Request failed.')
-      },
-      authConfig
-    )
+    .request(sasJobLocation, dataJson, configJson, undefined, authConfig)
     .then(async (res: any) => {
-      if ((res && res.errorCode) || res.error) isError = true
+      if ((res && res.errorCode) || res.error) {
+        displayError('Request finished with errors.')
+        await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+        return
+      }
+
+      let output = ''
 
       if (res?.result) res = res.result
+      // In sasjs request debug is always on, meaning the response object always contains the log
+      // This log goes to a seperate .log file, and should not be added to the output file (*.json)
+      // Therefore, we delete it now from the result object
+      else if (res?.log) delete res.log
 
-      let output
-
-      if (typeof res !== 'object') {
+      // Sometimes res.result contains the log (eg when there is a SAS error)
+      // Here we make sure that the content in the output file (*.json) will be in json format
+      if (typeof res === 'string') {
         try {
-          output = JSON.stringify(res, null, 2)
+          output = JSON.parse(res)
         } catch (error) {
-          displayError(error, 'Result parsing failed.')
-
-          return error
+          displayError('Error parsing response. JSON is expected.')
         }
       } else {
         output = res
       }
 
-      await writeOutput(outputPathParam, output, isLocal)
+      if (!!output) await writeOutput(outputPathParam, output, sasJobLocation)
 
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = true
     })
     .catch(async (err: any) => {
-      isError = true
-
       if (err && err.errorCode === 404) {
         displaySasjsRunnerError(configJson.username)
       } else {
-        displayError('', 'An error occurred while executing the request.')
+        const error: any = {}
+        if (err.message) error.message = err.message
+        if (err.error.message) error.message = err.error.message
+        displayError(error, `An error occurred while executing the request.`)
       }
-
-      await writeOutput(outputPathParam, err, isLocal)
-
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
       result = err
     })
 
+  return result
+}
+
+const saveLogFile = async (
+  sasjs: SASjs,
+  sasJobLocation: string,
+  logFile: string | undefined,
+  jobPath?: string | null
+) => {
   const sasRequests: SASjsRequest[] = sasjs.getSasRequests()
   const currentRequestLog = sasRequests.find(
     (x) => x.serviceLink === sasJobLocation
   )
 
-  if (currentRequestLog && ((logFile && jobPath) || isError)) {
-    if (!logFile) logFile = getLogFilePath('', jobPath || '')
-
+  if (currentRequestLog && jobPath) {
+    if (!logFile) {
+      const logPath = (await isSASjsProject())
+        ? path.join(
+            process.sasjsConstants.buildDestinationResultsFolder,
+            'requests'
+          )
+        : process.projectDir
+      const timestamp = generateTimestamp()
+      const filename = sasJobLocation.split(path.sep).pop()
+      logFile = path.join(logPath, `${filename}-${timestamp}.log`)
+    }
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
   }
-
-  return result
 }
 
 /**
  * Writes output to the file
  * @param outputPathParam path to output file
  * @param output data to be written to output file
- * @param isLocal is local target, othervise it is global
+ * @param sasJobLocation is used for output file name when outputPathParam is undefined
  * @returns output path for the file created
  */
 const writeOutput = async (
   outputPathParam: string | undefined,
   output: any,
-  isLocal: boolean
+  sasJobLocation: string
 ) => {
-  let outputPath = path.join(process.projectDir, isLocal ? '' : '')
-
+  let outputPath = (await isSASjsProject())
+    ? path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'requests'
+      )
+    : process.projectDir
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
@@ -183,13 +202,20 @@ const writeOutput = async (
   if (outputFilename) {
     outputPath += `${path.sep}${outputFilename}`
   } else {
-    outputPath += `${path.sep}output.json`
+    const timestamp = generateTimestamp()
+    const filename = sasJobLocation.split(path.sep).pop()
+    outputPath += `${path.sep}${filename}-${timestamp}.json`
   }
 
   let outputString = ''
 
   if (typeof output === 'object') {
-    outputString = JSON.stringify(output)
+    try {
+      outputString = JSON.stringify(output, null, 2)
+    } catch (error) {
+      displayError(error, 'Result parsing failed.')
+      return
+    }
   } else {
     outputString = output
   }

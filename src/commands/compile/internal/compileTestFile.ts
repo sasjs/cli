@@ -17,13 +17,19 @@ import {
   SASJsFileType,
   getAbsolutePath,
   isTestFile,
-  testFileRegExp
+  testFileRegExp,
+  Configuration,
+  CompileTree
 } from '@sasjs/utils'
 import { loadDependencies } from './loadDependencies'
 import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
-import { getProgramFolders, getMacroFolders } from '../../../utils/config'
-import { getPreCodeForServicePack } from './compileServiceFile'
+import {
+  getProgramFolders,
+  getMacroFolders,
+  getLocalOrGlobalConfig
+} from '../../../utils/config'
+import { getPreCodeForServicePack } from './compileFile'
 
 const testsBuildFolder = () => {
   return path.join(process.projectDir, 'sasjsbuild', 'tests')
@@ -36,14 +42,16 @@ export async function compileTestFile(
   filePath: string,
   testVar: string = '',
   saveToRoot: boolean = true,
-  removeOriginalFile = true
+  removeOriginalFile = true,
+  compileTree: CompileTree
 ) {
   let dependencies = await loadDependencies(
     target,
     getAbsolutePath(filePath, process.projectDir),
     await getMacroFolders(target),
     await getProgramFolders(target),
-    SASJsFileType.test
+    SASJsFileType.test,
+    compileTree
   )
 
   const preCode = await getPreCodeForServicePack(target.serverType)
@@ -114,7 +122,19 @@ export async function copyTestMacroFiles(folderAbsolutePath: string) {
   })
 }
 
-export const compileTestFlow = async (target: Target) => {
+export const compileTestFlow = async (
+  target: Target,
+  config?: Configuration
+) => {
+  if (
+    target.testConfig &&
+    Object.keys(target.testConfig).includes('testFolders')
+  ) {
+    process.logger.warn(
+      `'testFolders' is not supported 'testConfig' entry, please use 'serviceFolders' entry in 'serviceConfig' or 'jobFolders' entry in 'jobConfig'.`
+    )
+  }
+
   const { buildDestinationFolder, buildDestinationTestFolder } =
     process.sasjsConstants
 
@@ -123,9 +143,13 @@ export const compileTestFlow = async (target: Target) => {
       await listFilesAndSubFoldersInFolder(buildDestinationTestFolder)
     ).map((file) => path.join('tests', file))
 
+    config = config || (await (await getLocalOrGlobalConfig()).configuration)
+
     const testFlow: TestFlow = { tests: [] }
-    const testSetUp = target.testConfig?.testSetUp
-    const testTearDown = target.testConfig?.testTearDown
+    const testSetUp =
+      target.testConfig?.testSetUp || config.testConfig?.testSetUp
+    const testTearDown =
+      target.testConfig?.testTearDown || config.testConfig?.testTearDown
 
     if (testFiles.length) {
       if (testSetUp) {
@@ -160,6 +184,8 @@ export const compileTestFlow = async (target: Target) => {
     )
 
     await printTestCoverage(testFlow, buildDestinationFolder, target)
+
+    return Promise.resolve(testFlow)
   }
 }
 

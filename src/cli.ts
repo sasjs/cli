@@ -4,9 +4,9 @@ import { parse } from './types/command/parse'
 
 export async function cli(args: string[]) {
   await setProjectDir(args)
+  await instantiateLogger()
   await setConstants()
   await loadProjectEnvVariables()
-  await instantiateLogger()
 
   const command = parse(args)
   const returnCode = await command.execute()

@@ -82,7 +82,7 @@ export class AddCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
-        process.logger?.error('Error adding credentials: ', err)
+        process.logger?.error('Error adding credentials: ', err.toString())
         return ReturnCode.InternalError
       })
   }

@@ -2,7 +2,7 @@ import { Folder } from '../../../types'
 import { findTargetInConfiguration } from '../../../utils/config'
 import { createTestApp, removeTestApp, verifyFolder } from '../../../utils/test'
 import { asyncForEach, generateTimestamp } from '@sasjs/utils'
-import * as getAllServiceFoldersModule from '../internal/getAllServiceFolders'
+import * as getAllFoldersModule from '../internal/getAllFolders'
 import * as compileModule from '../compile'
 
 describe('copyFilesToBuildFolder', () => {
@@ -24,11 +24,9 @@ describe('copyFilesToBuildFolder', () => {
   })
 
   it('should throw an error when one occurs during copying', async () => {
-    jest
-      .spyOn(getAllServiceFoldersModule, 'getAllServiceFolders')
-      .mockImplementation(() => {
-        throw new Error('Test Error')
-      })
+    jest.spyOn(getAllFoldersModule, 'getAllFolders').mockImplementation(() => {
+      throw new Error('Test Error')
+    })
     const { target } = await findTargetInConfiguration('viya')
 
     await expect(
