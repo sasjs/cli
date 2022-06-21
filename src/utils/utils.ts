@@ -127,13 +127,17 @@ function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
+  //Get repo zip, assuming main branch is called `main`
   const { stdout, stderr, code } = shelljs.exec(
     `wget ${repoUrl}${fullZipPath}`,
     { silent: true }
   )
-
+  
+  // If doesn't exist, we try again, but with master.zip for the zip name.
+  // Since that's the name generated from branch name.
   if (stderr.includes('404: Not Found') || code) {
     zipName = 'master.zip'
+
     const { stdout, stderr, code } = shelljs.exec(
       `wget ${repoUrl}${zipPath}${zipName}`,
       { silent: true }
@@ -155,10 +159,8 @@ function createApp(
   shelljs.exec(`rm -rf ./*${zipWithoutExtension}`, { silent: true })
   shelljs.exec(`rm -rf ./${zipName}`, { silent: true })
 
-  if (!repoUrl.includes('template')) {
-    loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
-    shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
-  }
+  loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
 
   spinner.stop()
 
