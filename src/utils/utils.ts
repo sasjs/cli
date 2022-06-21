@@ -39,11 +39,14 @@ export function diff(a: any[], b: any[]) {
 }
 
 export async function createReactApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
+  return new Promise(async (resolve, reject) => {
     createApp(
       folderPath,
       'https://github.com/sasjs/react-seed-app',
-      'https://github.com/sasjs/docs'
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
     )
 
     return resolve()
@@ -51,22 +54,28 @@ export async function createReactApp(folderPath: string): Promise<void> {
 }
 
 export async function createAngularApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
+  return new Promise(async (resolve, reject) => {
     createApp(
       folderPath,
       'https://github.com/sasjs/angular-seed-app',
-      'https://github.com/sasjs/docs'
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
     )
     return resolve()
   })
 }
 
 export async function createMinimalApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
+  return new Promise(async (resolve, reject) => {
     createApp(
       folderPath,
       'https://github.com/sasjs/minimal-seed-app',
-      'https://github.com/sasjs/docs'
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
     )
     return resolve()
   })
@@ -86,7 +95,10 @@ export async function createTemplateApp(folderPath: string, template: string) {
     createApp(
       folderPath,
       `https://github.com/sasjs/template_${template}`,
-      'https://github.com/sasjs/docs'
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
     )
     return resolve()
   })
@@ -104,23 +116,49 @@ function createApp(
   folderPath: string,
   repoUrl: string,
   docsUrl: string,
+  errorCallback: (err: string) => void,
   installDependencies = true
 ) {
   //In past we used GIT to clone the repos. But many users potentially won't have GIT installed.
   //So we will use shell tools to set up the apps.
-  const zipPath = '/archive/refs/heads/main.zip'
+  let zipName = 'main.zip'
+  const zipPath = `/archive/refs/heads/`
+  const fullZipPath = `${zipPath}${zipName}`
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  shelljs.exec(`wget ${repoUrl}${zipPath}`)
-  shelljs.exec(`unzip main.zip`)
-  shelljs.exec(`cp -r ./*-main/. ${folderPath}`)
-  shelljs.exec(`rm -rf ./*-main`)
-  shelljs.exec(`rm -rf ./main.zip`)
+  const { stdout, stderr, code } = shelljs.exec(
+    `wget ${repoUrl}${fullZipPath}`,
+    { silent: true }
+  )
 
-  loadDocsSubmodule(docsUrl, folderPath, zipPath)
+  if (stderr.includes('404: Not Found') || code) {
+    zipName = 'master.zip'
+    const { stdout, stderr, code } = shelljs.exec(
+      `wget ${repoUrl}${zipPath}${zipName}`,
+      { silent: true }
+    )
 
-  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+    if (stderr.includes('404: Not Found') || code) {
+      errorCallback(`${repoUrl}${zipPath} is not SASjs repository!`)
+
+      return
+    }
+  }
+
+  const zipWithoutExtension = zipName.replace('.zip', '')
+
+  shelljs.exec(`unzip ${zipName}`, { silent: true })
+  shelljs.exec(`cp -r ./*${zipWithoutExtension}/. ${folderPath}`, {
+    silent: true
+  })
+  shelljs.exec(`rm -rf ./*${zipWithoutExtension}`, { silent: true })
+  shelljs.exec(`rm -rf ./${zipName}`, { silent: true })
+
+  if (!repoUrl.includes('template')) {
+    loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+    shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+  }
 
   spinner.stop()
 
@@ -142,20 +180,20 @@ function createApp(
  * @param folderPath full path to the newly created folder that contains the seed app
  * @param zipPath fixed path of where github puts zip for repo download
  */
-const loadDocsSubmodule = (
+const loadDocsSubmodule = async (
   docsUrl: string,
   folderPath: string,
   zipPath: string
 ) => {
-  shelljs.exec(`wget ${docsUrl}${zipPath}`)
-  shelljs.exec(`unzip main.zip`)
-  shelljs.exec(`cp -r ./*-main/. ${folderPath}/docs`)
-  shelljs.exec(`rm -rf ./*-main`)
-  shelljs.exec(`rm -rf ./main.zip`)
-}
+  let docsFolderPath = `${folderPath}/public/docs` //We first look if docs submodule is inside `public` folder. (react-seed-app for example)
+  if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` //If not, we load submodule in root
 
-const deleteGitFolder = (folderPath: string) =>
-  shelljs.rm('-rf', path.join(folderPath, '.git'))
+  shelljs.exec(`wget ${docsUrl}${zipPath}`, { silent: true })
+  shelljs.exec(`unzip main.zip`, { silent: true })
+  shelljs.exec(`cp -r ./*-main/. ${docsFolderPath}`, { silent: true })
+  shelljs.exec(`rm -rf ./*-main`, { silent: true })
+  shelljs.exec(`rm -rf ./main.zip`, { silent: true })
+}
 
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
