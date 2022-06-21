@@ -75,21 +75,17 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     const { stdout, stderr, code } = shelljs.exec(
-      `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
+      `wget https://username:password@github.com/sasjs/template_${template}`,
       { silent: true }
     )
 
-    if (stderr.includes('Repository not found') || code) {
+    if (stderr.includes('404: Not Found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
-    }
-
-    if (!stdout) {
-      return reject(new Error(`Unable to fetch template "${template}"`))
     }
 
     createApp(
       folderPath,
-      `https://github.com/sasjs/template_${template}.git`,
+      `https://github.com/sasjs/template_${template}`,
       'https://github.com/sasjs/docs'
     )
     return resolve()
@@ -97,7 +93,8 @@ export async function createTemplateApp(folderPath: string, template: string) {
 }
 
 /**
- * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
+ * This function will first download / unzip the target app from repoUrl, then download / unzip the sasjs/docs repo into a subdirectory named 'docs'.
+ * Finally, if installDependencies is true, the npm install command will be executed.
  * @param folderPath full path of the directory where desired seed app will be created
  * @param repoUrl sasjs/{seed-app} repo url
  * @param docsUrl sasjs/docs repo url
@@ -221,37 +218,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
 
     process.logger?.success('.gitignore file has been created.')
   }
-}
-
-export async function setupGhooks(folderName: string) {
-  const folderPath = path.join(process.projectDir, folderName)
-
-  process.logger?.info('Installing ghooks')
-  shelljs.exec(`cd "${folderPath}" && npm i ghooks --save-dev`, {
-    silent: true
-  })
-
-  try {
-    const packageJsonPath = path.join(folderPath, 'package.json')
-    const packageJsonContent = await readFile(packageJsonPath)
-    const packageJson = JSON.parse(packageJsonContent)
-
-    if (!packageJson.config) packageJson.config = {}
-
-    if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
-
-    let preCommitCmd = 'sasjs lint'
-    if (packageJson.config.ghooks['pre-commit']) {
-      preCommitCmd = ' && sasjs lint'
-    } else {
-      packageJson.config.ghooks['pre-commit'] = ''
-    }
-
-    if (!/sasjs lint/.test(packageJson.config.ghooks['pre-commit']))
-      packageJson.config.ghooks['pre-commit'] += preCommitCmd
-
-    await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
-  } catch (e) {}
 }
 
 export async function setupDoxygen(folderPath: string): Promise<void> {
