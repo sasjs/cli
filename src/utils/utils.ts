@@ -132,7 +132,7 @@ function createApp(
     `wget ${repoUrl}${fullZipPath}`,
     { silent: true }
   )
-  
+
   // If doesn't exist, we try again, but with master.zip for the zip name.
   // Since that's the name generated from branch name.
   if (stderr.includes('404: Not Found') || code) {
