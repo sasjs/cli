@@ -130,7 +130,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   // The buildConfig variable contains the files for which we are fetching
   // dependencies, eg mv_createwebservice.sas and mv_createfile.sas
   let buildConfig = ''
-  const { serverType, appLoc } = target
+  const { serverType, appLoc, serverName } = target
   const macroFolders = await getMacroFolders(target)
 
   const createWebServiceScript = await getCreateWebServiceScript(serverType)
@@ -197,6 +197,8 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
 
 %global appLoc serverName;
 %let compiled_apploc=${appLoc};
+
+${serverType === ServerType.Sas9 ? `%let serverName=${serverName};` : ''}
 
 %let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
 
