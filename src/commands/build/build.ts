@@ -262,7 +262,7 @@ function getWebServiceScriptInvocation(
         ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
         : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
-      return `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+      return `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode, server=&serverName, replace=yes)`
     case ServerType.Sasjs:
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
