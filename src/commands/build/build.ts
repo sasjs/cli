@@ -195,7 +195,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   *
   */
 
-%global appLoc;
+%global appLoc serverName;
 %let compiled_apploc=${appLoc};
 
 %let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
