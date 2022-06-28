@@ -8,10 +8,11 @@ export const getWebServiceContent = async (
 ) => {
   let lines = [contentBase64]
 
-  // Encode to base64 *.js and *.css files if target server type is SAS 9.
+  // Encode to base64 *.svg, *.js and *.css files if target server type is SAS 9.
   const typesToEncode: { [key: string]: string } = {
     JS: 'JS64',
-    CSS: 'CSS64'
+    CSS: 'CSS64',
+    SVG: 'SVG64'
   }
 
   let serviceContent = `${sasjsout()}\nfilename sasjs temp lrecl=99999999;
