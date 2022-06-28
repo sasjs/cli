@@ -1,4 +1,108 @@
 export const sasjsout = () => `
+/* this macro is derived from: https://core.sasjs.io/mp__replace_8sas.html */
+options mprint;
+%macro mp_replace(infile,
+  findvar=,
+  replacevar=,
+  outfile=0
+)/*/STORE SOURCE*/;
+
+%local inref outref dttm ds1 rc;
+/* create filerefs */
+%let rc=%sysfunc(filename(inref,,temp,lrecl=200));
+%let rc=%sysfunc(filename(outref,,temp,lrecl=200));
+
+%if &outfile=0 %then %let outfile=&infile;
+
+/* uniquely named 32 char datasets */
+%let ds1=all%substr(%sysfunc(compress(%sysfunc(uuidgen()),-)),1,29);
+%let ds2=start%substr(%sysfunc(compress(%sysfunc(uuidgen()),-)),1,27);
+
+/* START */
+%let dttm=%sysfunc(datetime());
+
+filename &inref &infile lrecl=1 recfm=n;
+
+data &ds1;
+  infile &inref;
+  input sourcechar $char1. @@;
+  format sourcechar hex2.;
+run;
+
+data &ds2;
+  /* set find string to length in bytes to cover trailing spaces */
+  length string $ %length(%superq(&findvar));
+  string =symget("&findvar");
+  drop string;
+
+  firstchar=char(string,1);
+  findlen=lengthm(string); /* <- for trailing bytes */
+
+  do _N_=1 to nobs;
+    set &ds1 nobs=nobs point=_N_;
+    if sourcechar=firstchar then do;
+      pos=1;
+      s=0;
+      do point=_N_ to min(_N_ + findlen -1,nobs);
+        set &ds1 point=point;
+        if sourcechar=char(string, pos) then s + 1;
+        else goto _leave_;
+        pos+1;
+      end;
+      _leave_:
+      if s=findlen then do;
+        START =_N_;
+        _N_ =_N_+ s - 1;
+        STOP =_N_;
+        output;
+      end;
+    end;
+  end;
+  stop;
+  keep START STOP;
+run;
+
+data &ds1;
+  declare hash HS(dataset:"&ds2(keep=start)");
+  HS.defineKey("start");
+  HS.defineDone();
+  declare hash HE(dataset:"&ds2(keep=stop)");
+  HE.defineKey("stop");
+  HE.defineDone();
+  do until(eof);
+    set &ds1 end=eof curobs =n;
+    start = ^HS.check(key:n);
+    stop  = ^HE.check(key:n);
+    length strt $ 1;
+    strt =put(start,best. -L);
+    retain out 1;
+    if out   then output;
+    if start then out=0;
+    if stop  then out=1;
+  end;
+  stop;
+  keep sourcechar strt;
+run;
+
+filename &outref &outfile recfm=n;
+
+data _null_;
+  length replace $ %length(%superq(&replacevar));
+  replace=symget("&replacevar");
+  file &outref;
+  do until(eof);
+    set &ds1 end=eof;
+    if strt ="1" then put replace char.;
+    else put sourcechar char1.;
+  end;
+  stop;
+run;
+
+/* END */
+%put &sysmacroname took %sysevalf(%sysfunc(datetime())-&dttm) seconds to run;
+
+%mend mp_replace;
+
 %macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
 %if "&sysprocessmode"="SAS Compute Server" %then %do;
@@ -90,9 +194,9 @@ export const sasjsout = () => `
   through the datastep.  This could of course be re-written using LUA, removing
   the length restriction.  Pull requests are welcome!
   */
-  filename _sjs temp;
+  filename _sjsout temp;
   data _null_;
-    file _sjs lrecl=32767 encoding='utf-8';
+    file _sjsout lrecl=32767 encoding='utf-8';
     infile &fref lrecl=32767;
     input;
     length appLoc expanded_path $1048;
@@ -152,21 +256,20 @@ export const sasjsout = () => `
       end;
     end;
   run;
-  %let fref=_sjs;
+  %let fref=_sjsout;
 %end;
+%else %if &type=JS64 or &type=CSS64 %then %do;
+  options nobomfile;
+  %let fvar=${process.sasjsConstants.sas9GUID};
+  %let stgfile="%sysfunc(pathname(work))/stgfile.txt";
+  %let newfile="%sysfunc(pathname(work))/newfile.txt";
 
-/**
-  * In SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1
-  * metadata - so in this case, decode and stream byte by byte.
-  * */
-%if &type=GIF or &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3
-or &type=JS64 or &type=CSS64 or &type=WAV or &type=OGG or &type=WOFF
-or &type=WOFF2 or &type=TTF or &type=MP4
-%then %do;
+  /* convert from base64 */
+  filename _out64 &stgfile encoding='utf-8';
   data _null_;
     length filein 8 fileout 8;
     filein = fopen("&fref",'I',4,'B');
-    fileout = fopen("_webout",'A',1,'B');
+    fileout = fopen("_out64",'A',1,'B');
     char= '20'x;
     do while(fread(filein)=0);
       length raw $4 ;
@@ -180,20 +283,58 @@ or &type=WOFF2 or &type=TTF or &type=MP4
     rc = fclose(filein);
     rc = fclose(fileout);
   run;
-%end;
-%else %do;
+
+  /* get appLoc from _program */
   data _null_;
-    length filein 8 fileid 8;
-    filein = fopen("&fref",'I',1,'B');
-    fileid = fopen("_webout",'A',1,'B');
-    rec = '20'x;
+    pgm="&_program";
+    appLoc=substr(pgm,1,find(pgm,'/services/')-1);
+    call symputx('apploc',appLoc);
+  run;
+  %put &=fvar;
+  %put &=apploc;
+  /* replace the GUID with appLoc */
+  %mp_replace(&stgfile,
+    findvar=fvar,
+    replacevar=apploc,
+    outfile=&newfile
+  )
+  filename &fref &newfile encoding='utf-8';
+%end;
+
+
+/**
+  * In SAS9, JS & CSS files are base64 encoded to avoid UTF8 issues in WLATIN1
+  * metadata - so in this case, decode and stream byte by byte.
+  * */
+%if &type=GIF or &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3
+or &type=WAV or &type=OGG or &type=WOFF or &type=WOFF2 or &type=TTF or &type=MP4
+%then %do;
+  data _null_;
+    length filein 8 fileout 8;
+    filein = fopen("&fref",'I',4,'B');
+    fileout = fopen("_webout",'A',1,'B');
+    char = '20'x;
     do while(fread(filein)=0);
-      rc = fget(filein,rec,1);
-      rc = fput(fileid, rec);
-      rc =fwrite(fileid);
+      length raw $4 ;
+      do i=1 to 4;
+        rc=fget(filein,char,1);
+        substr(raw,i,1)=char;
+      end;
+      rc = fput(fileout, input(raw,$base64X4.));
+      rc = fwrite(fileout);
     end;
     rc = fclose(filein);
-    rc = fclose(fileid);
+    rc = fclose(fileout);
   run;
 %end;
-%mend;`
+%else %do;
+  %put streaming to _webout;
+  data _null_;
+    infile &fref lrecl=1 recfm=n;
+    file _webout mod lrecl=1 recfm=n;
+    input sourcechar $char1. @@;
+    format sourcechar hex2.;
+    put sourcechar char1. @@;
+  run;
+%end;
+%mend sasjsout;`
