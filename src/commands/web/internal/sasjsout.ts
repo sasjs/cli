@@ -105,95 +105,43 @@ run;
 
 %macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
-%if "&sysprocessmode"="SAS Compute Server" %then %do;
-  %if &type=HTML %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name="_webout.json"
-      contenttype="text/html";
-  %end;
-  %else %if &type=JS or &type=JS64 %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.js'
-      contenttype='application/javascript';
-  %end;
-  %else %if &type=CSS or &type=CSS64 %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.css'
-      contenttype='text/css';
-  %end;
-  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
-      name="_webout.%lowcase(&type)"
-      contenttype="image/%lowcase(&type)" lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=SVG or &type=SVG64 %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
-      name="_webout.svg"
-      contenttype="image/svg+xml" lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=ICO %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ico'
-      contenttype='image/vnd.microsoft.icon' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=JSON %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.json'
-      contenttype='application/json' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=MP3 %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.mp3'
-      contenttype='audio/mpeg' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=WAV %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.wav'
-      contenttype='audio/x-wav' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=OGG %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ogg'
-      contenttype='audio/ogg' lrecl=2000000 recfm=n;
-  %end;
-  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
-      contenttype="font/%lowcase(&type)";
-  %end;
-  %else %if &type=MP4 %then %do;
-    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
-      contenttype="video/mp4";
-  %end;
+
+%if &type=JS or &type=JS64 %then %do;
+  %let rc=%sysfunc(stpsrv_header(
+    Content-type,application/javascript%str(;)charset=UTF-8
+  ));
 %end;
-%else %do;
-  %if &type=JS or &type=JS64 %then %do;
-    %let rc=%sysfunc(stpsrv_header(
-      Content-type,application/javascript%str(;)charset=UTF-8
-    ));
-  %end;
-  %else %if &type=CSS or &type=CSS64 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
-  %end;
-  %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/%lowcase(&type)));
-  %end;
-  %else %if &type=SVG or &type=SVG64 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/svg+xml));
-  %end;
-  %else %if &type=ICO %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
-  %end;
-  %else %if &type=JSON %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,application/json));
-  %end;
-  %else %if &type=MP3 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,audio/mpeg));
-  %end;
-  %else %if &type=WAV %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,audio/x-wav));
-  %end;
-  %else %if &type=OGG %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
-  %end;
-  %else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&type)));
-  %end;
-  %else %if &type=MP4 %then %do;
-    %let rc=%sysfunc(stpsrv_header(Content-type,video/mp4));
-  %end;
+%else %if &type=CSS or &type=CSS64 %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,text/css));
 %end;
+%else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,image/%lowcase(&type)));
+%end;
+%else %if &type=SVG or &type=SVG64 %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,image/svg+xml));
+%end;
+%else %if &type=ICO %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
+%end;
+%else %if &type=JSON %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,application/json));
+%end;
+%else %if &type=MP3 %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,audio/mpeg));
+%end;
+%else %if &type=WAV %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,audio/x-wav));
+%end;
+%else %if &type=OGG %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,audio/ogg));
+%end;
+%else %if &type=WOFF or &type=WOFF2 or &type=TTF %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,font/%lowcase(&type)));
+%end;
+%else %if &type=MP4 %then %do;
+  %let rc=%sysfunc(stpsrv_header(Content-type,video/mp4));
+%end;
+
 %if &type=HTML %then %do;
   /*
   We need to perform some substitutions -eg to get the APPLOC and SERVERTYPE.
@@ -216,8 +164,7 @@ run;
     end;
     if find(_infile_,' appLoc: ') then put '    appLoc: ' apploc:$quote1048. ',';
     else if find(_infile_,' serverType: ') then do;
-      if symexist('_metaperson') then put '    serverType: "SAS9" ,';
-      else put '    serverType: "SASVIYA" ,';
+      put '    serverType: "SAS9" ,';
     end;
     else if find(_infile_,' serverUrl: ') then do;
       /* nothing - we are streaming, so remove to default as hostname */
@@ -240,11 +187,7 @@ run;
         in1=substr(infile,1,spos2+11);
         in2=subpad(infile,spos2+12);
         in2=substr(in2,index(in2,'"'));
-        if symexist('sasjsprocessmode') then infile=cats(in1,"SASJS",in2);
-        else if "&sysprocessmode"="SAS Object Server"
-        or "&sysprocessmode"= "SAS Compute Server"
-        then infile=cats(in1,"SASVIYA",in2);
-        else infile=cats(in1,"SAS9",in2);
+        infile=cats(in1,"SAS9",in2);
         putlog "new servertype:  " infile=;
       end;
       /* find & replace serverUrl in HTML attributes */
