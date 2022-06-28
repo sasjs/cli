@@ -123,6 +123,11 @@ run;
       name="_webout.%lowcase(&type)"
       contenttype="image/%lowcase(&type)" lrecl=2000000 recfm=n;
   %end;
+  %else %if &type=SVG or &type=SVG64 %then %do;
+    filename _webout filesrvc parenturi="&SYS_JES_JOB_URI"
+      name="_webout.svg"
+      contenttype="image/svg+xml" lrecl=2000000 recfm=n;
+  %end;
   %else %if &type=ICO %then %do;
     filename _webout filesrvc parenturi="&SYS_JES_JOB_URI" name='_webout.ico'
       contenttype='image/vnd.microsoft.icon' lrecl=2000000 recfm=n;
@@ -163,6 +168,9 @@ run;
   %end;
   %else %if &type=PNG or &type=GIF or &type=JPEG or &type=JPG %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/%lowcase(&type)));
+  %end;
+  %else %if &type=SVG or &type=SVG64 %then %do;
+    %let rc=%sysfunc(stpsrv_header(Content-type,image/svg+xml));
   %end;
   %else %if &type=ICO %then %do;
     %let rc=%sysfunc(stpsrv_header(Content-type,image/vnd.microsoft.icon));
@@ -288,7 +296,7 @@ run;
   data _null_;
     pgm="&_program";
     appLoc=substr(pgm,1,find(pgm,'/services/')-1);
-    call symputx('apploc',appLoc);
+    call symputx('apploc',cats(appLoc,'/services/'));
   run;
   %put &=fvar;
   %put &=apploc;
@@ -308,6 +316,7 @@ run;
   * */
 %if &type=GIF or &type=PNG or &type=JPG or &type=JPEG or &type=ICO or &type=MP3
 or &type=WAV or &type=OGG or &type=WOFF or &type=WOFF2 or &type=TTF or &type=MP4
+or &type=SVG64
 %then %do;
   data _null_;
     length filein 8 fileout 8;
