@@ -256,13 +256,16 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(15)
+      const totalCalls = 16
+
+      expect(process.logger.info).toHaveBeenCalledTimes(totalCalls)
       expect(process.logger.info).toHaveBeenNthCalledWith(13, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
         14,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
-      expect(process.logger.info).toHaveBeenLastCalledWith(
+      expect(process.logger.info).toHaveBeenNthCalledWith(
+        totalCalls - 1,
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
     })
