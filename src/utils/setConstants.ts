@@ -57,6 +57,8 @@ export const setConstants = async () => {
   const invalidSasError =
     'Url specified does not contain a valid sas program. Please provide valid url.'
 
+  const sas9GUID = 'pZKd6F95jECvRQlN0LCfdA=='
+
   process.sasjsConstants = {
     buildSourceFolder,
     buildSourceDbFolder,
@@ -71,6 +73,7 @@ export const setConstants = async () => {
     macroCorePath,
     contextName,
     sas9CredentialsError,
-    invalidSasError
+    invalidSasError,
+    sas9GUID
   }
 }

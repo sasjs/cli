@@ -1,4 +1,4 @@
-export const sasjsout = `
+export const sasjsout = () => `
 %macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
 %if "&sysprocessmode"="SAS Compute Server" %then %do;
@@ -146,8 +146,8 @@ export const sasjsout = `
       end;
       if sum(spos1,spos2,spos3)>0 then put infile;
       else do;
-        /* during SAS9 sasjs compile, dependencies get three slashes /// */
-        infile=tranwrd(_infile_,'?_PROGRAM=///',cats(expanded_path));
+        /* during SAS9 sasjs compile, dependencies get static GUID */
+        infile=tranwrd(_infile_,'?_PROGRAM=${process.sasjsConstants.sas9GUID}',cats(expanded_path));
         put infile;
       end;
     end;

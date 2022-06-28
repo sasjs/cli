@@ -14,7 +14,7 @@ export const getWebServiceContent = async (
     CSS: 'CSS64'
   }
 
-  let serviceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;
+  let serviceContent = `${sasjsout()}\nfilename sasjs temp lrecl=99999999;
 data _null_;
 file sasjs;
 `

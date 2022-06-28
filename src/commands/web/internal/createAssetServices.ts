@@ -157,6 +157,7 @@ const getAssetPath = (
   streamWebFolder: string,
   fileName: string
 ) => {
+  const { sas9GUID } = process.sasjsConstants
   const storedProcessPath =
     // the appLoc is inserted dynamically by SAS
     // using three forward slashes as a marker
@@ -164,6 +165,6 @@ const getAssetPath = (
     // for Viya, fileName is a FILE, with replacement in build.sas only
     serverType === ServerType.SasViya
       ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=///${streamWebFolder}`
+      : `/SASStoredProcess/?_PROGRAM=${sas9GUID}${streamWebFolder}`
   return `${storedProcessPath}/${fileName}`
 }

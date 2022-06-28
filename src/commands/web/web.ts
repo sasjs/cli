@@ -167,7 +167,7 @@ async function createClickMeService(
   fileName: string
 ) {
   const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
-  let clickMeServiceContent = `${sasjsout}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
+  let clickMeServiceContent = `${sasjsout()}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 
   lines.forEach((line) => {
     const chunkedLines = chunk(line)
