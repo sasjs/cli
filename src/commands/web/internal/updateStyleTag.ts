@@ -2,13 +2,15 @@ import path from 'path'
 import { createFile, readFile, ServerType } from '@sasjs/utils'
 import { encode } from 'js-base64'
 import { getWebServiceContent } from './getWebServiceContent'
+import { AssetPathMap } from './createAssetServices'
+import { modifyLinksInContent } from './modifyLinksInContent'
 
 export const updateStyleTag = async (
   tag: HTMLStyleElement | HTMLLinkElement,
   webSourcePathFull: string,
   destinationPath: string,
   serverType: ServerType,
-  assetPathMap: { source: string; target: string }[]
+  assetPathMap: AssetPathMap[]
 ) => {
   const scriptPath = tag.getAttribute('href')
 
@@ -34,7 +36,7 @@ export const updateStyleTag = async (
         await createFile(
           path.join(
             destinationPath,
-            `${scriptPath.replace(/\.js$/, '-js')}.sas`
+            `${scriptPath.replace(/\.css$/, '-css')}.sas`
           ),
           serviceContent
         )
@@ -54,18 +56,4 @@ export const updateStyleTag = async (
 
     tag.innerHTML = content
   }
-}
-
-const modifyLinksInContent = (
-  _content: string,
-  assetPathMap: { source: string; target: string }[]
-) => {
-  let content = _content
-  assetPathMap.forEach((pathEntry) => {
-    content = content.replace(
-      new RegExp(pathEntry.source, 'g'),
-      pathEntry.target
-    )
-  })
-  return content
 }

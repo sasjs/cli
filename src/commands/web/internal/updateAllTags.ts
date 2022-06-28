@@ -11,14 +11,20 @@ import {
 import { updateScriptTag } from './updateScriptTag'
 import { updateLinkTag } from './updateLinkTag'
 import { updateStyleTag } from './updateStyleTag'
+import { AssetPathMap } from './createAssetServices'
 
 interface paramsType {
   webSourcePathFull: string
   destinationPath: string
   serverType: ServerType
-  assetPathMap: { source: string; target: string }[]
+  assetPathMap: AssetPathMap[]
 }
 
+/**
+ * Updates HTML Tags with correct link.
+ * Also updates contents to update included asset references
+ * @param {JSDOM} parsedHtml- DOMWindow for index.html
+ */
 export const updateAllTags = async (
   parsedHtml: JSDOM,
   { webSourcePathFull, destinationPath, serverType, assetPathMap }: paramsType

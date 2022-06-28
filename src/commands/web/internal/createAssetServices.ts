@@ -8,6 +8,7 @@ import {
   folderExists,
   listFilesInFolder,
   listSubFoldersInFolder,
+  readFile,
   ServerType,
   StreamConfig,
   Target
@@ -15,13 +16,25 @@ import {
 import uniqBy from 'lodash.uniqby'
 import { getWebServiceContent } from './getWebServiceContent'
 
+export interface AssetPathMap {
+  source: string
+  target: string
+}
+
+/**
+ * Creates all the asset services for web streaming.
+ * Also prepares an asset-path Map based on server type.
+ * @param {Target} target- the target to create asset service.
+ * @param {string} destinationPath- the location of web streaming files.
+ * @param {StreamConfig} streamConfig- stream configuration to be used.
+ * @returns {AssetPathMap[]} list of all the sources specified along server based paths.
+ */
 export const createAssetServices = async (
   target: Target,
   destinationPath: string,
-  streamConfig: StreamConfig
-): Promise<{ source: string; target: string }[]> => {
-  const { webSourcePath, streamWebFolder, assetPaths } = streamConfig
-  const assetPathMap: { source: string; target: string }[] = []
+  { webSourcePath, streamWebFolder, assetPaths }: StreamConfig
+): Promise<AssetPathMap[]> => {
+  const assetPathMap: AssetPathMap[] = []
 
   await asyncForEach(
     [path.join(process.projectDir, webSourcePath), ...(assetPaths ?? [])],
@@ -51,13 +64,22 @@ export const createAssetServices = async (
   return uniqBy(assetPathMap, 'source')
 }
 
+/**
+ * Creates all the asset services for web streaming for a specific folder.
+ * Also prepares an asset-path Map based on server type.
+ * @param {Target} target- the target to create asset service.
+ * @param {string} streamWebFolder- the location of web streaming files.
+ * @param {string} fullAssetPath- path of the specific folder used to create all services for.
+ * @param {string} destinationPath- path of the destination folder for services.
+ * @returns {AssetPathMap[]} list of all the sources specified along server based paths.
+ */
 const createAssetsServicesNested = async (
   target: Target,
   streamWebFolder: string,
   fullAssetPath: string,
   destinationPath: string
-) => {
-  const assetPathMap: { source: string; target: string }[] = []
+): Promise<AssetPathMap[]> => {
+  const assetPathMap: AssetPathMap[] = []
   const filePaths = await listFilesInFolder(fullAssetPath)
   await asyncForEach(filePaths, async (filePath) => {
     const fullFileName = path.basename(filePath)
@@ -107,13 +129,12 @@ const createAssetsServicesNested = async (
 
     await createFolder(destinationPathNested)
 
-    const assetFolderMap: { source: string; target: string }[] =
-      await createAssetsServicesNested(
-        target,
-        `${streamWebFolder}/${folderName}`,
-        fullAssetPathNested,
-        destinationPathNested
-      )
+    const assetFolderMap: AssetPathMap[] = await createAssetsServicesNested(
+      target,
+      `${streamWebFolder}/${folderName}`,
+      fullAssetPathNested,
+      destinationPathNested
+    )
     assetFolderMap.forEach((entry) => {
       assetPathMap.push({
         source: `${folderName}/${entry.source}`,

@@ -2,13 +2,15 @@ import path from 'path'
 import { createFile, readFile, ServerType } from '@sasjs/utils'
 import { encode } from 'js-base64'
 import { getWebServiceContent } from './getWebServiceContent'
+import { AssetPathMap } from './createAssetServices'
+import { modifyLinksInContent } from './modifyLinksInContent'
 
 export const updateScriptTag = async (
   tag: HTMLScriptElement,
   webSourcePathFull: string,
   destinationPath: string,
   serverType: ServerType,
-  assetPathMap: { source: string; target: string }[]
+  assetPathMap: AssetPathMap[]
 ) => {
   const scriptPath = tag.getAttribute('src')
 
@@ -54,18 +56,4 @@ export const updateScriptTag = async (
 
     tag.innerHTML = content
   }
-}
-
-const modifyLinksInContent = (
-  _content: string,
-  assetPathMap: { source: string; target: string }[]
-) => {
-  let content = _content
-  assetPathMap.forEach((pathEntry) => {
-    content = content.replace(
-      new RegExp(pathEntry.source, 'g'),
-      pathEntry.target
-    )
-  })
-  return content
 }
