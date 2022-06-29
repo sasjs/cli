@@ -1,7 +1,7 @@
 import path from 'path'
 import { createFile, readFile, ServerType } from '@sasjs/utils'
 import { encode } from 'js-base64'
-import { getWebServiceContent } from './getWebServiceContent'
+import { getWebServiceContent } from './sas9'
 import { AssetPathMap } from './createAssetServices'
 import { modifyLinksInContent } from './modifyLinksInContent'
 
@@ -25,21 +25,29 @@ export const updateStyleTag = async (
 
       const content = modifyLinksInContent(_content, assetPathMap)
 
-      if (serverType === ServerType.SasViya) {
-        await createFile(path.join(destinationPath, scriptPath), content)
-      } else {
-        const serviceContent = await getWebServiceContent(
-          encode(content),
-          'CSS',
-          serverType
-        )
-        await createFile(
-          path.join(
-            destinationPath,
-            `${scriptPath.replace(/\.css$/, '-css')}.sas`
-          ),
-          serviceContent
-        )
+      switch (serverType) {
+        case ServerType.SasViya:
+          await createFile(path.join(destinationPath, scriptPath), content)
+          break
+
+        case ServerType.Sas9:
+          const serviceContent = await getWebServiceContent(
+            encode(content),
+            'CSS'
+          )
+          await createFile(
+            path.join(
+              destinationPath,
+              `${scriptPath.replace(/\.css$/, '-css')}.sas`
+            ),
+            serviceContent
+          )
+          break
+
+        default:
+          throw new Error(
+            `Server Type: ${serverType} is not supported for updating style tag.`
+          )
       }
 
       tag.setAttribute(

@@ -1,10 +1,15 @@
-import { ServerType, chunk } from '@sasjs/utils'
-import { sasjsout } from './sasjsout'
+import { chunk } from '@sasjs/utils'
+import { sasjsout } from '../sasjsout'
 
+/**
+ * Prepares service code for SAS9 server only.
+ * @param {string} contentBase64 source code in base64.
+ * @param {string} type extension of source code's file in uppercase.
+ * @returns {string} service contents of provided source code.
+ */
 export const getWebServiceContent = async (
   contentBase64: string,
-  type = 'JS',
-  serverType: ServerType
+  type = 'JS'
 ) => {
   let lines = [contentBase64]
 
@@ -39,10 +44,8 @@ file sasjs;
     }
   })
 
-  if (serverType === ServerType.Sas9 && typesToEncode.hasOwnProperty(type)) {
+  if (typesToEncode.hasOwnProperty(type)) {
     serviceContent += `\nrun;\n%sasjsout(${typesToEncode[type]})`
-  } else {
-    serviceContent += `\nrun;\n%sasjsout(${type})`
   }
 
   return serviceContent
