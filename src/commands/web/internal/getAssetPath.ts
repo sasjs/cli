@@ -8,12 +8,12 @@ export const getAssetPath = (
 ) => {
   const { sas9GUID } = process.sasjsConstants
   const storedProcessPath =
-    // the appLoc is inserted dynamically by SAS
-    // using three forward slashes as a marker
-    // for SAS 9 fileName is a program, with replacement in sasjsout.ts
-    // for Viya, fileName is a FILE, with replacement in build.sas only
+    // the appLoc is inserted dynamically
+    // for SAS 9 files are Base 64 encoded into STPs, with
+    //   dynamic runtime replacement of appLoc (see sasjsout.ts)
+    // for Viya, fileName is a FILE, with replacement harcoded in build.sas
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_FILE=${appLoc}/services/${streamWebFolder}`
-      : `/SASStoredProcess/?_PROGRAM=${sas9GUID}/${streamWebFolder}`
-  return `${storedProcessPath}/${fileName}`
+      ? `/SASJobExecution?_FILE=${appLoc}/services`
+      : `/SASStoredProcess/?_PROGRAM=${sas9GUID}`
+  return `${storedProcessPath}/${streamWebFolder}/${fileName}`
 }
