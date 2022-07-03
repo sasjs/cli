@@ -22,7 +22,9 @@ import * as sasJsModules from '../../../utils/createSASjsInstance'
 import { testResponses } from './mockedAdapter/testResponses'
 import * as fileModule from '@sasjs/utils/file'
 import * as utilsModule from '@sasjs/utils/utils'
+import * as configUtils from '../../../utils/config'
 import chalk from 'chalk'
+import { mockAuthConfig } from '../../context/spec/mocks'
 
 describe('sasjs test', () => {
   const expectedCoverageLcov = `TN:testsetup.sas
@@ -893,6 +895,10 @@ const copyTestFiles = async (appName: string) => {
 }
 
 const setupMocksForSASVIYA = () => {
+  jest
+    .spyOn(configUtils, 'getAuthConfig')
+    .mockImplementation(() => Promise.resolve(mockAuthConfig))
+
   jest
     .spyOn(sasJsModules, 'createSASjsInstance')
     .mockImplementation((config: Partial<SASjsConfig>) => {

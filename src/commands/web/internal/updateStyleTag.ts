@@ -1,14 +1,16 @@
 import path from 'path'
 import { createFile, readFile, ServerType } from '@sasjs/utils'
 import { encode } from 'js-base64'
-import { getWebServiceContent } from './getWebServiceContent'
+import { getWebServiceContent } from './sas9'
+import { AssetPathMap } from './createAssetServices'
+import { modifyLinksInContent } from './modifyLinksInContent'
 
 export const updateStyleTag = async (
   tag: HTMLStyleElement | HTMLLinkElement,
   webSourcePathFull: string,
   destinationPath: string,
   serverType: ServerType,
-  assetPathMap: { source: string; target: string }[]
+  assetPathMap: AssetPathMap[]
 ) => {
   const scriptPath = tag.getAttribute('href')
 
@@ -23,21 +25,29 @@ export const updateStyleTag = async (
 
       const content = modifyLinksInContent(_content, assetPathMap)
 
-      if (serverType === ServerType.SasViya) {
-        await createFile(path.join(destinationPath, scriptPath), content)
-      } else {
-        const serviceContent = await getWebServiceContent(
-          encode(content),
-          'CSS',
-          serverType
-        )
-        await createFile(
-          path.join(
-            destinationPath,
-            `${scriptPath.replace(/\.js$/, '-js')}.sas`
-          ),
-          serviceContent
-        )
+      switch (serverType) {
+        case ServerType.SasViya:
+          await createFile(path.join(destinationPath, scriptPath), content)
+          break
+
+        case ServerType.Sas9:
+          const serviceContent = await getWebServiceContent(
+            encode(content),
+            'CSS'
+          )
+          await createFile(
+            path.join(
+              destinationPath,
+              `${scriptPath.replace(/\.css$/, '-css')}.sas`
+            ),
+            serviceContent
+          )
+          break
+
+        default:
+          throw new Error(
+            `Server Type: ${serverType} is not supported for updating style tag.`
+          )
       }
 
       tag.setAttribute(
@@ -54,18 +64,4 @@ export const updateStyleTag = async (
 
     tag.innerHTML = content
   }
-}
-
-const modifyLinksInContent = (
-  _content: string,
-  assetPathMap: { source: string; target: string }[]
-) => {
-  let content = _content
-  assetPathMap.forEach((pathEntry) => {
-    content = content.replace(
-      new RegExp(pathEntry.source, 'g'),
-      pathEntry.target
-    )
-  })
-  return content
 }

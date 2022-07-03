@@ -1,6 +1,8 @@
+import { AssetPathMap } from './createAssetServices'
+
 export const updateLinkTag = (
   linkTag: HTMLLinkElement | HTMLSourceElement | HTMLImageElement,
-  assetPathMap: { source: string; target: string }[],
+  assetPathMap: AssetPathMap[],
   tagType: 'link' | 'src' = 'link'
 ) => {
   const linkSourcePath =
