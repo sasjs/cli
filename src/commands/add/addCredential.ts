@@ -4,6 +4,7 @@ import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
 
 import SASjs, { CertificateError } from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
+import { isServerRunningInServerMode } from '../../utils'
 import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
@@ -92,6 +93,13 @@ export const addCredential = async (
       break
     case ServerType.Sasjs:
       {
+        if (!(await isServerRunningInServerMode(target))) {
+          process.logger.info(
+            'No need to authenticate against the sasjs server running in desktop mode.'
+          )
+          return target
+        }
+
         const { client } = await getCredentialsInputSasjs(target)
 
         const { access_token, refresh_token } = await getTokens(

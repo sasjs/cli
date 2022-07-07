@@ -1,6 +1,7 @@
 import shelljs from 'shelljs'
 import path from 'path'
 import ora from 'ora'
+import axios from 'axios'
 import {
   fileExists,
   folderExists,
@@ -488,4 +489,15 @@ export const getNodeModulePath = async (module: string): Promise<string> => {
 
   // Return default value
   return ''
+}
+
+export const isServerRunningInServerMode = async (target: Target) => {
+  try {
+    const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
+    if (res.data.mode === 'server') return true
+  } catch (error) {
+    const message = `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
+    displayError(error, message)
+    throw new Error(message)
+  }
 }
