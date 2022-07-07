@@ -494,7 +494,7 @@ export const getNodeModulePath = async (module: string): Promise<string> => {
 export const isServerRunningInServerMode = async (target: Target) => {
   try {
     const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
-    if (res.data.mode === 'server') return true
+    return res.data.mode === 'server'
   } catch (error) {
     const message = `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
     displayError(error, message)
