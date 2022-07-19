@@ -98,7 +98,7 @@ describe('addTarget', () => {
         })
       )
     jest
-      .spyOn(utilsModule, 'isServerRunningInServerMode')
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
       .mockImplementation(() => Promise.resolve(true))
 
     await expect(addTarget(false)).resolves.toEqual(true)
@@ -271,7 +271,7 @@ describe('addTarget', () => {
         })
       )
     jest
-      .spyOn(utilsModule, 'isServerRunningInServerMode')
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
       .mockImplementation(() => Promise.resolve(true))
 
     await expect(addTarget(false)).resolves.toEqual(true)

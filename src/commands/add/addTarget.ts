@@ -10,7 +10,7 @@ import {
 } from './internal/input'
 import { saveConfig } from './internal/saveConfig'
 import { addCredential, createEnvFileForSas9 } from './addCredential'
-import { isServerRunningInServerMode } from '../../utils'
+import { isSasJsServerInServerMode } from '../../utils'
 
 /**
  * Creates new target/ updates current target(if found) for either local config or global config file.
@@ -72,7 +72,7 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
 
       break
     case ServerType.Sasjs:
-      if (await isServerRunningInServerMode(target)) {
+      if (await isSasJsServerInServerMode(target)) {
         const { target: updatedSasjsTarget } = await getAndValidateSasjsFields(
           target,
           scope,

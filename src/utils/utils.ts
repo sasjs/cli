@@ -491,7 +491,7 @@ export const getNodeModulePath = async (module: string): Promise<string> => {
   return ''
 }
 
-export const isServerRunningInServerMode = async (target: Target) => {
+export const isSasJsServerInServerMode = async (target: Target) => {
   try {
     const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
     return res.data.mode === 'server'
