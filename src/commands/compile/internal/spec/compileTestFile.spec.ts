@@ -103,7 +103,7 @@ describe('compileTestFile', () => {
 %put testing, termed;
 * TestTerm end;`)
 
-        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL<br>  ,showmeta=NO<br>);`
+        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL<br>  ,showmeta=N`
 
         expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
         expect(testFileContent.indexOf(testInit)).toBeGreaterThan(-1)
@@ -256,13 +256,16 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      expect(process.logger.info).toHaveBeenCalledTimes(15)
+      const totalCalls = 16
+
+      expect(process.logger.info).toHaveBeenCalledTimes(totalCalls)
       expect(process.logger.info).toHaveBeenNthCalledWith(13, `Test coverage:`)
       expect(process.logger.info).toHaveBeenNthCalledWith(
         14,
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
-      expect(process.logger.info).toHaveBeenLastCalledWith(
+      expect(process.logger.info).toHaveBeenNthCalledWith(
+        totalCalls - 1,
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
     })

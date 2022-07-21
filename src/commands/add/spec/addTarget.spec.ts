@@ -2,6 +2,7 @@ import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
+import * as utilsModule from '../../../utils/utils'
 import { addTarget } from '../addTarget'
 import {
   getConfiguration,
@@ -96,6 +97,9 @@ describe('addTarget', () => {
           target: new Target(commonFields)
         })
       )
+    jest
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
+      .mockImplementation(() => Promise.resolve(true))
 
     await expect(addTarget(false)).resolves.toEqual(true)
 
@@ -266,6 +270,9 @@ describe('addTarget', () => {
           target: new Target({ ...targetJson, ...commonFields })
         })
       )
+    jest
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
+      .mockImplementation(() => Promise.resolve(true))
 
     await expect(addTarget(false)).resolves.toEqual(true)
 

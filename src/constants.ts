@@ -13,4 +13,5 @@ export interface Constants {
   contextName: string
   sas9CredentialsError: string
   invalidSasError: string
+  sas9GUID: string
 }
