@@ -1,4 +1,4 @@
-import shelljs from 'shelljs'
+import shelljs, { ShellString } from 'shelljs'
 import path from 'path'
 import ora from 'ora'
 import axios from 'axios'
@@ -15,6 +15,7 @@ import {
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
 import dotenv from 'dotenv'
+import AdmZip from 'adm-zip'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -84,9 +85,8 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
-    const { stdout, stderr, code } = shelljs.exec(
-      `wget https://username:password@github.com/sasjs/template_${template}`,
-      { silent: true }
+    const { stdout, stderr, code } = downloadFile(
+      `https://username:password@github.com/sasjs/template_${template}`
     )
 
     if (stderr.includes('404: Not Found') || code) {
@@ -129,19 +129,15 @@ function createApp(
   spinner.start()
 
   //Get repo zip, assuming main branch is called `main`
-  const { stdout, stderr, code } = shelljs.exec(
-    `wget ${repoUrl}${fullZipPath}`,
-    { silent: true }
-  )
+  const { stdout, stderr, code } = downloadFile(`${repoUrl}${fullZipPath}`)
 
   // If doesn't exist, we try again, but with master.zip for the zip name.
   // Since that's the name generated from branch name.
   if (stderr.includes('404: Not Found') || code) {
     zipName = 'master.zip'
 
-    const { stdout, stderr, code } = shelljs.exec(
-      `wget ${repoUrl}${zipPath}${zipName}`,
-      { silent: true }
+    const { stdout, stderr, code } = downloadFile(
+      `${repoUrl}${zipPath}${zipName}`
     )
 
     if (stderr.includes('404: Not Found') || code) {
@@ -153,12 +149,12 @@ function createApp(
 
   const zipWithoutExtension = zipName.replace('.zip', '')
 
-  shelljs.exec(`unzip ${zipName}`, { silent: true })
-  shelljs.exec(`cp -r ./*${zipWithoutExtension}/. ${folderPath}`, {
-    silent: true
-  })
-  shelljs.exec(`rm -rf ./*${zipWithoutExtension}`, { silent: true })
-  shelljs.exec(`rm -rf ./${zipName}`, { silent: true })
+  const zip = new AdmZip(zipName)
+  zip.extractAllTo(`./`, true)
+
+  shelljs.cp('-r', `./*${zipWithoutExtension}/.`, folderPath)
+  shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
+  shelljs.rm('-rf', [`./${zipName}`])
 
   loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
   shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
@@ -191,11 +187,22 @@ const loadDocsSubmodule = async (
   let docsFolderPath = `${folderPath}/public/docs` //We first look if docs submodule is inside `public` folder. (react-seed-app for example)
   if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` //If not, we load submodule in root
 
-  shelljs.exec(`wget ${docsUrl}${zipPath}`, { silent: true })
-  shelljs.exec(`unzip main.zip`, { silent: true })
-  shelljs.exec(`cp -r ./*-main/. ${docsFolderPath}`, { silent: true })
-  shelljs.exec(`rm -rf ./*-main`, { silent: true })
-  shelljs.exec(`rm -rf ./main.zip`, { silent: true })
+  downloadFile(`${docsUrl}${zipPath}`)
+
+  const zip = new AdmZip('main.zip')
+  zip.extractAllTo('./', true)
+
+  shelljs.cp('-r', `./*-main/.`, docsFolderPath)
+  shelljs.rm('-rf', [`./*-main`])
+  shelljs.rm('-rf', [`./main.zip`])
+}
+
+function downloadFile(url: string): ShellString {
+  if (isWindows()) {
+    return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
+  } else {
+    return shelljs.exec(`wget ${url}`, { silent: true })
+  }
 }
 
 export async function setupNpmProject(folderName: string): Promise<void> {
