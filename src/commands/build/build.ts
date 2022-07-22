@@ -320,16 +320,6 @@ async function getFolderContent(serverType: ServerType): Promise<{
   return { folderContent, folderContentJSON }
 }
 
-async function getDependencies(filePaths: string[]): Promise<string> {
-  let dependenciesContent: string[] = []
-  await asyncForEach([...new Set(filePaths)], async (filePath) => {
-    const depFileContent = await readFile(filePath)
-    dependenciesContent.push(depFileContent)
-  })
-
-  return dependenciesContent.join('\n')
-}
-
 async function getContentFor(
   rootDirectory: string,
   folderPath: string,
