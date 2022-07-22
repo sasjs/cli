@@ -22,10 +22,9 @@ export async function loadDependencies(
   let fileContent = ''
 
   if (compileTree && Object.keys(compileTree).length) {
-    const leaf = compileTree.getLeaf(filePath)
+    fileContent = await compileTree.getDepContent(filePath)
 
-    if (leaf) fileContent = leaf.content
-    else fileContent = await readFile(filePath)
+    await compileTree.saveTree()
   } else {
     fileContent = await readFile(filePath)
   }
