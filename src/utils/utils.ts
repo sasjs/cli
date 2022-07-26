@@ -10,7 +10,8 @@ import {
   copy,
   LogLevel,
   Target,
-  isWindows
+  isWindows,
+  isLinux
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
@@ -198,10 +199,10 @@ const loadDocsSubmodule = async (
 }
 
 function downloadFile(url: string): ShellString {
-  if (isWindows()) {
-    return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
-  } else {
+  if (isLinux()) {
     return shelljs.exec(`wget ${url}`, { silent: true })
+  } else {
+    return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
   }
 }
 
