@@ -235,34 +235,7 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
   await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
-/**
- * Removes comments from a given block of text.
- * Should not be used with SAS code, because it is not covering all possible cases.
- * Preserves single line block comments and inline comments.
- * @param {string} text - the text to remove comments from.
- */
-export function removeComments(text: string) {
-  if (!text) return ''
 
-  let inCommentBlock = false
-  const linesWithoutComment: string[] = []
-  const lines = text
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.trimEnd())
-
-  lines.forEach((line) => {
-    if (line.includes('/*') && line.includes('*/') && !inCommentBlock) {
-      linesWithoutComment.push(line)
-    } else {
-      if (line.startsWith('/*') && !line.endsWith('*/')) inCommentBlock = true
-      if (!inCommentBlock) linesWithoutComment.push(line)
-      if (line.endsWith('*/') && inCommentBlock) inCommentBlock = false
-    }
-  })
-
-  return linesWithoutComment.filter((l) => !!l.trim()).join('\n')
-}
 
 export function getUniqServicesObj(services: string[]) {
   let returnObj: any = {}

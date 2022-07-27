@@ -19,7 +19,6 @@ import { build } from '../../build/build'
 import { deploy } from '../deploy'
 import { createLocalTarget, updateLocalTarget } from './utils'
 import { findTargetInConfiguration } from '../../../utils/config'
-import { removeComments } from '../../../utils'
 
 describe('sasjs cbd with server type SASJS', () => {
   let target: Target
