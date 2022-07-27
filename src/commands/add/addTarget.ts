@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { Target, ServerType } from '@sasjs/utils/types'
 import { TargetScope } from '../../types/targetScope'
 import {
@@ -9,6 +10,7 @@ import {
 } from './internal/input'
 import { saveConfig } from './internal/saveConfig'
 import { addCredential, createEnvFileForSas9 } from './addCredential'
+import { isSasJsServerInServerMode } from '../../utils'
 
 /**
  * Creates new target/ updates current target(if found) for either local config or global config file.
@@ -70,13 +72,16 @@ export async function addTarget(insecure: boolean): Promise<boolean> {
 
       break
     case ServerType.Sasjs:
-      const { target: updatedSasjsTarget } = await getAndValidateSasjsFields(
-        target,
-        scope,
-        insecure,
-        addCredential
-      )
-      targetJson = updatedSasjsTarget.toJson(false)
+      if (await isSasJsServerInServerMode(target)) {
+        const { target: updatedSasjsTarget } = await getAndValidateSasjsFields(
+          target,
+          scope,
+          insecure,
+          addCredential
+        )
+        targetJson = updatedSasjsTarget.toJson(false)
+      }
+
       break
     default:
       throw new Error(
