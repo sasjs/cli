@@ -4,7 +4,8 @@ import {
   SASJsFileType,
   loadDependenciesFile,
   DependencyHeader,
-  CompileTree
+  CompileTree,
+  removeHeader
 } from '@sasjs/utils'
 import { getLocalOrGlobalConfig, getBinaryFolders } from '../../../utils/config'
 import path from 'path'
@@ -22,9 +23,15 @@ export async function loadDependencies(
   let fileContent = ''
 
   if (compileTree && Object.keys(compileTree).length) {
-    fileContent = await compileTree.getDepContent(filePath)
+    if (type === SASJsFileType.file) {
+      // If file is of a generic type SASJsFileType.file, then just read the file content without header
+      fileContent = removeHeader(await readFile(filePath))
+    } else {
+      const leaf = compileTree.getLeaf(filePath)
 
-    await compileTree.saveTree()
+      if (leaf) fileContent = leaf.content
+      else fileContent = await readFile(filePath)
+    }
   } else {
     fileContent = await readFile(filePath)
   }
