@@ -281,8 +281,6 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
   await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
-
-
 export function getUniqServicesObj(services: string[]) {
   let returnObj: any = {}
   if (!services) return returnObj
