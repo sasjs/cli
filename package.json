@@ -47,10 +47,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.9.4",
+    "@sasjs/adapter": "3.10.8",
     "@sasjs/core": "4.32.2",
     "@sasjs/lint": "1.11.2",
-    "@sasjs/utils": "2.45.0",
+    "@sasjs/utils": "2.47.0",
     "adm-zip": "0.5.9",
     "chalk": "4.1.2",
     "csv-stringify": "5.6.5",

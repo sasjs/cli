@@ -3,7 +3,6 @@ import path from 'path'
 import {
   setupNpmProject,
   setupGitIgnore,
-  setupGhooks,
   setupDoxygen
 } from '../../utils/utils'
 
@@ -18,8 +17,6 @@ export async function init() {
   await setupNpmProject(parentFolderName)
 
   await setupGitIgnore(parentFolderName)
-
-  await setupGhooks(parentFolderName)
 
   await setupDoxygen(parentFolderName)
 
