@@ -9,10 +9,10 @@ import {
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
-  asyncForEach
+  asyncForEach,
+  removeHeader
 } from '@sasjs/utils'
 import { ServerTypeError } from '@sasjs/utils/error'
-import { removeComments } from '../../utils/utils'
 
 import { isSasFile } from '../../utils/file'
 import {
@@ -27,9 +27,14 @@ import {
   FileTree,
   FolderMember,
   MemberType,
-  ServicePackSASjs
+  ServicePackSASjs,
+  SASJsFileType
 } from '@sasjs/utils/types'
 import { compressAndSave } from '../../utils/compressAndSave'
+import {
+  loadDependencies,
+  getCompileTree
+} from '../compile/internal/loadDependencies'
 
 export async function build(target: Target) {
   await compile(target)
@@ -71,7 +76,11 @@ async function createFinalSasFiles(target: Target) {
     macroCorePath
   )
 
-  const dependenciesContent = await getDependencies(dependencyFilePaths)
+  const dependenciesContent = await getDepsContent(
+    dependencyFilePaths,
+    target,
+    macroFolders
+  )
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
 
@@ -103,7 +112,7 @@ async function createFinalSasFiles(target: Target) {
     }
   }
 
-  finalSasFileContent = removeComments(finalSasFileContent)
+  finalSasFileContent = removeHeader(finalSasFileContent)
 
   process.logger?.debug(`Creating file ${finalFilePath} .`)
   await createFile(finalFilePath, finalSasFileContent)
@@ -180,8 +189,13 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     ]
   }
 
-  const dependenciesContent = await getDependencies(dependencyFilePaths)
+  const dependenciesContent = await getDepsContent(
+    dependencyFilePaths,
+    target,
+    macroFolders
+  )
   const buildVars = await getBuildVars(target)
+
   return `
 /**
   * The appLoc represents the metadata or SAS Drive location of the app you
@@ -212,7 +226,7 @@ ${buildVars}
 ${dependenciesContent}
 /* system macro dependencies for build process end*/
 /* system macros for build process */
-${buildConfig}
+${removeHeader(buildConfig)}
 /* system macros for build process end */
 `
 }
@@ -306,16 +320,6 @@ async function getFolderContent(serverType: ServerType): Promise<{
   return { folderContent, folderContentJSON }
 }
 
-async function getDependencies(filePaths: string[]): Promise<string> {
-  let dependenciesContent: string[] = []
-  await asyncForEach([...new Set(filePaths)], async (filePath) => {
-    const depFileContent = await readFile(filePath)
-    dependenciesContent.push(depFileContent)
-  })
-
-  return dependenciesContent.join('\n')
-}
-
 async function getContentFor(
   rootDirectory: string,
   folderPath: string,
@@ -341,14 +345,14 @@ async function getContentFor(
     const filePath = path.join(folderPath, file)
 
     if (isSasFile(file)) {
-      const fileContent = await readFile(filePath)
+      const fileContent = removeHeader(await readFile(filePath))
       const transformedContent = getServiceText(file, fileContent, serverType)
       content += `\n${transformedContent}\n`
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: MemberType.service,
-        code: removeComments(fileContent)
+        code: removeHeader(fileContent)
       })
     } else {
       const fileContentEncoded = await base64EncodeFile(filePath)
@@ -391,7 +395,7 @@ function getServiceText(
   serverType: ServerType
 ) {
   const serviceName = serviceFileName.replace(/.sas$/, '')
-  const sourceCodeLines = getLines(removeComments(fileContent))
+  const sourceCodeLines = getLines(fileContent)
   let content = ``
   sourceCodeLines.forEach((line) => {
     const escapedLine = line.split("'").join("''")
@@ -492,4 +496,28 @@ const convertVarsToSasFormat = (vars: { [key: string]: string }): string => {
   }
 
   return varsContent
+}
+
+const getDepsContent = async (
+  deps: string[],
+  target: Target,
+  macroFolders: string[]
+) => {
+  let dependenciesContent = ''
+  const compileTree = getCompileTree(target)
+
+  await asyncForEach(deps, async (fp: string) => {
+    dependenciesContent +=
+      '\n' +
+      (await loadDependencies(
+        target,
+        fp,
+        macroFolders,
+        [],
+        SASJsFileType.file,
+        compileTree
+      ))
+  })
+
+  return dependenciesContent
 }

@@ -281,39 +281,6 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
   await copy(doxyFolderPathSource, doxyFolderPath)
 }
 
-/**
- * Removes comments from a given block of text.
- * Preserves single line block comments and inline comments.
- * @param {string} text - the text to remove comments from.
- */
-export function removeComments(text: string) {
-  if (!text) return ''
-
-  const lines = text
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.trimEnd())
-
-  const linesWithoutComment: string[] = []
-  let inCommentBlock = false
-  lines.forEach((line) => {
-    if (line.includes('/*') && line.includes('*/')) {
-      linesWithoutComment.push(line)
-    } else {
-      if (line.startsWith('/*') && !line.endsWith('*/')) {
-        inCommentBlock = true
-      }
-      if (!inCommentBlock) {
-        linesWithoutComment.push(line)
-      }
-      if (line.endsWith('*/') && !line.includes('/*') && inCommentBlock) {
-        inCommentBlock = false
-      }
-    }
-  })
-  return linesWithoutComment.filter((l) => !!l.trim()).join('\n')
-}
-
 export function getUniqServicesObj(services: string[]) {
   let returnObj: any = {}
   if (!services) return returnObj
