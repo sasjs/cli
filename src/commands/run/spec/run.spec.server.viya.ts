@@ -21,7 +21,7 @@ import {
 import { build } from '../../build/build'
 import { setConstants } from '../../../utils'
 
-describe('sasjs run', () => {
+describe('sasjs run with Viya', () => {
   let target: Target
 
   describe('runSasCode within project', () => {
@@ -49,6 +49,7 @@ describe('sasjs run', () => {
       await removeTestServerFolder(target.appLoc, target)
       await removeTestApp(__dirname, target.name)
     })
+
     it('should throw an error if file type is not *.sas', async () => {
       const file = 'test.sas.txt'
       const error = new Error(`'sasjs run' command supports only *.sas files.`)
@@ -121,50 +122,6 @@ describe('sasjs run', () => {
       )
 
       expect(logPartRegex.test(result.log)).toBeTruthy()
-    })
-  })
-
-  describe('runSasCode within vanilla js project', () => {
-    let appName: string
-    beforeEach(async () => {
-      dotenv.config()
-      appName = 'cli-tests-run-' + generateTimestamp()
-      await createTestMinimalApp(__dirname, appName)
-      target = await updateTarget(
-        {
-          appLoc: `/Public/app/cli-tests/${appName}`,
-          streamConfig: {
-            assetPaths: [],
-            streamWeb: true,
-            streamWebFolder: 'webv',
-            webSourcePath: 'src',
-            streamServiceName: 'clickme'
-          },
-          authConfig: {
-            client: process.env.CLIENT as string,
-            secret: process.env.SECRET as string,
-            access_token: process.env.ACCESS_TOKEN as string,
-            refresh_token: process.env.REFRESH_TOKEN as string
-          }
-        },
-        'viya'
-      )
-    })
-
-    afterEach(async () => {
-      await removeTestServerFolder(target.appLoc, target)
-      await removeTestApp(__dirname, appName)
-    })
-
-    it('should get the log having launch code message', async () => {
-      const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
-      await build(target)
-      const result: any = await runSasCode(
-        target,
-        'sasjsbuild/myviyadeploy.sas'
-      )
-
-      expect(result.log.includes(logPart)).toBeTruthy()
     })
   })
 
@@ -262,56 +219,47 @@ describe('sasjs run', () => {
     })
   })
 
-  describe('sasjs run with SAS9', () => {
+  describe('runSasCode within vanilla js project', () => {
+    let appName: string
     beforeEach(async () => {
-      const appName = 'cli-tests-run-sas9-' + generateTimestamp()
-      await createTestApp(__dirname, appName)
-      target = generateTestTarget(
-        appName,
-        `/Public/app/cli-tests/${appName}`,
+      dotenv.config()
+      appName = 'cli-tests-run-' + generateTimestamp()
+      await createTestMinimalApp(__dirname, appName)
+      target = await updateTarget(
         {
-          serviceFolders: ['sasjs/testServices'],
-          initProgram: '',
-          termProgram: '',
-          macroVars: {}
+          appLoc: `/Public/app/cli-tests/${appName}`,
+          streamConfig: {
+            assetPaths: [],
+            streamWeb: true,
+            streamWebFolder: 'webv',
+            webSourcePath: 'src',
+            streamServiceName: 'clickme'
+          },
+          authConfig: {
+            client: process.env.CLIENT as string,
+            secret: process.env.SECRET as string,
+            access_token: process.env.ACCESS_TOKEN as string,
+            refresh_token: process.env.REFRESH_TOKEN as string
+          }
         },
-        ServerType.Sas9
-      )
-      await copy(
-        path.join(__dirname, 'testServices'),
-        path.join(process.projectDir, 'sasjs', 'testServices')
+        'viya'
       )
     })
 
     afterEach(async () => {
       await removeTestServerFolder(target.appLoc, target)
-      await removeTestApp(__dirname, target.name)
+      await removeTestApp(__dirname, appName)
     })
 
-    it('should run a file when a relative path is provided', async () => {
-      const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
-
+    it('should get the log having launch code message', async () => {
+      const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.analytium.co.uk/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
+      await build(target)
       const result: any = await runSasCode(
         target,
-        'sasjs/testServices/logJob.sas'
+        'sasjsbuild/myviyadeploy.sas'
       )
 
-      logParts.forEach((logPart) => {
-        expect(result.log.includes(logPart)).toBeTruthy()
-      })
-    })
-
-    it('should run a file when an absolute path is provided', async () => {
-      const logParts = ['data;', 'do x=1 to 100;', 'output;', 'end;', 'run;']
-
-      const result: any = await runSasCode(
-        target,
-        `${process.projectDir}/sasjs/testServices/logJob.sas`
-      )
-
-      logParts.forEach((logPart) => {
-        expect(result.log.includes(logPart)).toBeTruthy()
-      })
+      expect(result.log.includes(logPart)).toBeTruthy()
     })
   })
 })

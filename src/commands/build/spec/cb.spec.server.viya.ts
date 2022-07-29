@@ -15,12 +15,14 @@ import {
 import { compile } from '../../compile/compile'
 import { build } from '../build'
 
-describe('sasjs compile', () => {
+describe('sasjs compile with Viya', () => {
   let target: Target
 
   beforeEach(async () => {
     const appName = 'cli-tests-cb-' + generateTimestamp()
+
     await createTestApp(__dirname, appName)
+
     target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`,
