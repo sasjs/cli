@@ -10,7 +10,7 @@ const serverTypesFiles = (types) =>
         .map((st) => `**/*spec.server.${st.replace(/\s/g, '')}.[j|t]s?(x)`)
     : ['**/*spec.server.[j|t]s?(x)']
 
-// TEST_SERVER_TYPES should be set as Github secret as a comma separated string with server types (viya,sas9,sasjs)
+// TEST_SERVER_TYPES should be set as Github secret and contain a comma separated string with server types (viya,sas9,sasjs)
 let testServerTypes = process.env.TEST_SERVER_TYPES
 
 if (!testServerTypes) testServerTypes = packageJson.testServerTypes
