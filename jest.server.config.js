@@ -1,6 +1,22 @@
 // For a detailed explanation regarding each configuration property, visit:
 // https://jestjs.io/docs/en/configuration.html
 
+const packageJson = require('./package.json')
+
+const serverTypesFiles = (types) =>
+  types
+    ? types
+        .split(',')
+        .map((st) => `**/*spec.server.${st.replace(/\s/g, '')}.[j|t]s?(x)`)
+    : ['**/*spec.server.[j|t]s?(x)']
+
+// TEST_SERVER_TYPES should be set as Github secret as a comma separated string with server types (viya,sas9,sasjs)
+let testServerTypes = process.env.TEST_SERVER_TYPES
+
+if (!testServerTypes) testServerTypes = packageJson.testServerTypes
+
+testServerTypes = serverTypesFiles(testServerTypes)
+
 module.exports = {
   testTimeout: 300000,
   // All imported modules in your tests should be mocked automatically
@@ -142,7 +158,7 @@ module.exports = {
   // testLocationInResults: false,
 
   // The glob patterns Jest uses to detect test files
-  testMatch: ['**/*spec.server.[j|t]s?(x)'],
+  testMatch: testServerTypes,
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/build/'],
