@@ -11,11 +11,9 @@ const serverTypesFiles = (types) =>
     : ['**/*spec.server.[j|t]s?(x)']
 
 // TEST_SERVER_TYPES should be set as Github secret and contain a comma separated string with server types (viya,sas9,sasjs)
-let testServerTypes = process.env.TEST_SERVER_TYPES
-
-if (!testServerTypes) testServerTypes = packageJson.testServerTypes
-
-testServerTypes = serverTypesFiles(testServerTypes)
+testServerTypes = serverTypesFiles(
+  process.env.TEST_SERVER_TYPES ?? packageJson.testServerTypes
+)
 
 module.exports = {
   testTimeout: 300000,
