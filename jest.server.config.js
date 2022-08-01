@@ -10,11 +10,6 @@ const serverTypesFiles = (types) =>
         .map((st) => `**/*spec.server.${st.replace(/\s/g, '')}.[j|t]s?(x)`)
     : ['**/*spec.server.[j|t]s?(x)']
 
-// TEST_SERVER_TYPES should be set as Github secret and contain a comma separated string with server types (viya,sas9,sasjs)
-testServerTypes = serverTypesFiles(
-  process.env.TEST_SERVER_TYPES ?? packageJson.testServerTypes
-)
-
 module.exports = {
   testTimeout: 300000,
   // All imported modules in your tests should be mocked automatically
@@ -156,7 +151,10 @@ module.exports = {
   // testLocationInResults: false,
 
   // The glob patterns Jest uses to detect test files
-  testMatch: testServerTypes,
+  // TEST_SERVER_TYPES should be set as Github secret and contain a comma separated string with server types (viya,sas9,sasjs)
+  testMatch: serverTypesFiles(
+    process.env.TEST_SERVER_TYPES ?? packageJson.testServerTypes
+  ),
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/build/'],
