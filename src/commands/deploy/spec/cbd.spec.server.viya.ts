@@ -145,11 +145,14 @@ describe('sasjs cbd with Viya', () => {
       })
 
       await build(target)
-      await expect(deploy(target, true)).rejects.toEqual(
+
+      await expect(deploy(target, true)).rejects.toThrow(
         new Error(
           `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env.${target.name} file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
         )
       )
+
+      jest.restoreAllMocks()
     })
   })
 
