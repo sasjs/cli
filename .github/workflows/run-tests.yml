@@ -97,3 +97,4 @@ jobs:
           SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+          TEST_SERVER_TYPES: ${{secrets.TEST_SERVER_TYPES}}
