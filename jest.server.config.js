@@ -10,6 +10,18 @@ const serverTypesFiles = (types) =>
         .map((st) => `**/*spec.server.${st.replace(/\s/g, '')}.[j|t]s?(x)`)
     : ['**/*spec.server.[j|t]s?(x)']
 
+console.log(
+  `🤖[process.env.TEST_SERVER_TYPES]🤖`,
+  process.env.TEST_SERVER_TYPES
+)
+console.log(`🤖[packageJson.testServerTypes]🤖`, packageJson.testServerTypes)
+console.log(
+  `🤖[serverTypesFiles(
+    process.env.TEST_SERVER_TYPES ?? packageJson.testServerTypes
+  )]🤖`,
+  serverTypesFiles(process.env.TEST_SERVER_TYPES ?? packageJson.testServerTypes)
+)
+
 module.exports = {
   testTimeout: 300000,
   // All imported modules in your tests should be mocked automatically
