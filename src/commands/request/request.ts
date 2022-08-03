@@ -160,7 +160,7 @@ const saveLogFile = async (
           )
         : process.projectDir
       const timestamp = generateTimestamp()
-      const filename = sasJobLocation.split(path.sep).pop()
+      const filename = sasJobLocation.split('/').pop()
       logFile = path.join(logPath, `${filename}-${timestamp}.log`)
     }
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
@@ -185,6 +185,7 @@ const writeOutput = async (
         'requests'
       )
     : process.projectDir
+
   let outputFilename: string | undefined
 
   if (outputPathParam && typeof outputPathParam === 'string') {
@@ -203,7 +204,8 @@ const writeOutput = async (
     outputPath += `${path.sep}${outputFilename}`
   } else {
     const timestamp = generateTimestamp()
-    const filename = sasJobLocation.split(path.sep).pop()
+    const filename = sasJobLocation.split('/').pop()
+
     outputPath += `${path.sep}${filename}-${timestamp}.json`
   }
 
