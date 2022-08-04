@@ -29,9 +29,10 @@ import {
 
 describe('sasjs request with SAS9', () => {
   const appName = 'cli-tests-request-sas9-' + generateTimestamp()
+  const locationPrefix = `/User Folders/cli-tests/${process.env.SAS_USERNAME}/`
   const target: Target = generateTestTarget(
     appName,
-    `/Public/app/cli-tests/${appName}`,
+    `${locationPrefix}${appName}`,
     {
       serviceFolders: ['sasjs/runRequest'],
       initProgram: '',
@@ -83,7 +84,7 @@ describe('sasjs request with SAS9', () => {
       runSasJob(
         target,
         false,
-        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        `${locationPrefix}${target.name}/services/runRequest/sendArr`,
         dataPathRel
       )
     ).toResolve()
@@ -106,7 +107,7 @@ describe('sasjs request with SAS9', () => {
       runSasJob(
         target,
         false,
-        `/Public/app/cli-tests/${target.name}/services/runRequest/sendObj`,
+        `${locationPrefix}${target.name}/services/runRequest/sendObj`,
         dataPathRel
       )
     ).toResolve()
@@ -160,7 +161,7 @@ describe('sasjs request with SAS9', () => {
       runSasJob(
         target,
         false,
-        `/Public/app/cli-tests/${target.name}/services/runRequest/sendArr`,
+        `${locationPrefix}${target.name}/services/runRequest/sendArr`,
         dataPathRel,
         undefined,
         undefined,
