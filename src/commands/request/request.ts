@@ -160,10 +160,11 @@ const saveLogFile = async (
           )
         : process.projectDir
       const timestamp = generateTimestamp()
-      // always use forward slash in SAS Drive 
-      const filename = sasJobLocation.split('/').pop()
+      const filename = sasJobLocation.split('/').pop() // always use forward slash in SAS Drive
+
       logFile = path.join(logPath, `${filename}-${timestamp}.log`)
     }
+
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
   }
 }
