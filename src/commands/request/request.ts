@@ -160,6 +160,7 @@ const saveLogFile = async (
           )
         : process.projectDir
       const timestamp = generateTimestamp()
+      // always use forward slash in SAS Drive 
       const filename = sasJobLocation.split('/').pop()
       logFile = path.join(logPath, `${filename}-${timestamp}.log`)
     }
