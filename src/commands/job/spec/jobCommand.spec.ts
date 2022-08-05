@@ -8,7 +8,6 @@ import * as SasjsUtilsFilesModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
 import * as utilsModule from '../internal/utils'
-import { saveLog } from '../../../utils/saveLog'
 
 const defaultArgs = ['node', 'sasjs', 'job', 'execute']
 const targetViya = new Target({

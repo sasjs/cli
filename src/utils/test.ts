@@ -23,7 +23,8 @@ import {
   saveLocalConfigFile,
   getGlobalRcFile,
   saveGlobalRcFile,
-  saveToGlobalConfig
+  saveToGlobalConfig,
+  getAccessToken
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
@@ -70,6 +71,7 @@ export const createTestMinimalApp = async (
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
+
   process.projectDir = ''
   process.currentDir = ''
   process.sasjsConstants = undefined as any as Constants
@@ -91,7 +93,8 @@ export const removeTestServerFolder = async (
     serverType: target.serverType
   })
 
-  const accessToken = process.env.ACCESS_TOKEN as string
+  const accessToken = await getAccessToken(target)
+
   await deleteServerFolder(folderPath, sasjs, accessToken)
 }
 

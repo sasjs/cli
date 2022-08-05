@@ -30,11 +30,56 @@ let target: Target
 let sasjs: SASjs
 let authConfig: AuthConfig
 
-describe('sasjs job execute', () => {
+describe('sasjs job execute with Viya', () => {
   beforeAll(async () => {
-    target = generateTarget()
+    dotenv.config()
+
+    const timestamp = generateTimestamp()
+    const targetName = `cli-tests-job-${timestamp}`
+
+    target = new Target({
+      name: targetName,
+      serverType: ServerType.SasViya,
+      serverUrl: process.env.VIYA_SERVER_URL,
+      appLoc: `/Public/app/cli-tests/${targetName}`,
+      contextName,
+      serviceConfig: {
+        serviceFolders: [
+          'sasjs/testServices',
+          'sasjs/testJob',
+          'sasjs/services'
+        ],
+        initProgram: 'sasjs/testServices/serviceinit.sas',
+        termProgram: 'sasjs/testServices/serviceterm.sas',
+        macroVars: {}
+      },
+      jobConfig: {
+        jobFolders: ['sasjs/testJob'],
+        initProgram: 'sasjs/testServices/serviceinit.sas',
+        termProgram: 'sasjs/testServices/serviceterm.sas',
+        macroVars: {}
+      },
+      authConfig: {
+        client: process.env.CLIENT as string,
+        secret: process.env.SECRET as string,
+        access_token: process.env.ACCESS_TOKEN as string,
+        refresh_token: process.env.REFRESH_TOKEN as string
+      },
+      deployConfig: {
+        deployServicePack: true,
+        deployScripts: []
+      }
+    })
+
     await createTestApp(__dirname, target.name)
-    await copyJobsAndServices(target.name)
+    await copy(
+      path.join(__dirname, 'testJob'),
+      path.join(__dirname, target.name, 'sasjs', 'testJob')
+    )
+    await copy(
+      path.join(__dirname, 'testServices'),
+      path.join(__dirname, target.name, 'sasjs', 'testServices')
+    )
     await build(target)
     await deploy(target, false)
 
@@ -409,54 +454,6 @@ describe('sasjs job execute', () => {
     expect(mockExit).toHaveBeenCalledWith(terminationCode)
   })
 })
-
-const generateTarget = (serverType = ServerType.SasViya): Target => {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-job-${timestamp}`
-  return new Target({
-    name: targetName,
-    serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    contextName,
-    serviceConfig: {
-      serviceFolders: ['sasjs/testServices', 'sasjs/testJob', 'sasjs/services'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    jobConfig: {
-      jobFolders: ['sasjs/testJob'],
-      initProgram: 'sasjs/testServices/serviceinit.sas',
-      termProgram: 'sasjs/testServices/serviceterm.sas',
-      macroVars: {}
-    },
-    authConfig: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string,
-      access_token: process.env.ACCESS_TOKEN as string,
-      refresh_token: process.env.REFRESH_TOKEN as string
-    },
-    deployConfig: {
-      deployServicePack: true,
-      deployScripts: []
-    }
-  })
-}
-
-const copyJobsAndServices = async (appName: string) => {
-  await copy(
-    path.join(__dirname, 'testJob'),
-    path.join(__dirname, appName, 'sasjs', 'testJob')
-  )
-  await copy(
-    path.join(__dirname, 'testServices'),
-    path.join(__dirname, appName, 'sasjs', 'testServices')
-  )
-}
 
 interface executeWrapperParams {
   adapter?: SASjs
