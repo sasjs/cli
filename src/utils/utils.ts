@@ -297,7 +297,8 @@ export async function executeShellScript(
   logFilePath: string
 ) {
   return new Promise(async (resolve, reject) => {
-    const result = shelljs.exec(filePath, { silent: true })
+    const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
+    const result = shelljs.exec(shellCommand, { silent: true })
 
     if (result.code) {
       process.logger?.error(`Error: ${result.stderr}`)
