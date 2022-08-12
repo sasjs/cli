@@ -48,8 +48,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.10.10",
-    "@sasjs/core": "4.32.2",
+    "@sasjs/adapter": "3.10.11",
+    "@sasjs/core": "4.35.0",
     "@sasjs/lint": "1.11.2",
     "@sasjs/utils": "2.47.0",
     "adm-zip": "0.5.9",
@@ -89,7 +89,7 @@
     "jest": "27.4.7",
     "jest-cli": "27.4.7",
     "jest-extended": "1.1.0",
-    "nodemon": "2.0.15",
+    "nodemon": "2.0.19",
     "prettier": "2.6.2",
     "ts-jest": "27.1.2",
     "ts-node": "10.4.0",
