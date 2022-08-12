@@ -80,10 +80,11 @@ describe('sasjs cbd with server type SASJS', () => {
     const mp_jsonout = await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
     const ms_webout = await readFile(`${macroCorePath}/server/ms_webout.sas`)
     const webout =
-      '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO);\n' +
+      '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO,maxobs=MAX);\n' +
       '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
       '      ,missing=&missing\n' +
       '      ,showmeta=&showmeta\n' +
+      '      ,maxobs=&maxobs\n' +
       '    )' +
       '  %mend;\n'
 
