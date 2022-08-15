@@ -103,7 +103,7 @@ describe('compileTestFile', () => {
 %put testing, termed;
 * TestTerm end;`)
 
-        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL<br>  ,showmeta=N`
+        const mvWebout = `%macro mv_webout(action,ds,fref=_mvwtemp,dslabel=,fmt=Y,stream=Y,missing=NULL`
 
         expect(testFileContent.indexOf(testVar)).toBeGreaterThan(-1)
         expect(testFileContent.indexOf(testInit)).toBeGreaterThan(-1)
