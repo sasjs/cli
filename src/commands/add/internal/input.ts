@@ -367,8 +367,9 @@ export const getDefaultValues = (targetName: string, serverType?: string) => {
       ? ''
       : process.env.SECRET
 
-  if (serverType === ServerType.Sasjs && defaultClient === '') defaultClient = 'clientID1' 
-    
+  if (serverType === ServerType.Sasjs && defaultClient === '')
+    defaultClient = 'clientID1'
+
   return { client: defaultClient, secret: defaultSecret }
 }
 
