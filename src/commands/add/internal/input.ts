@@ -302,7 +302,7 @@ export const getCredentialsInputSasjs = async (target: Target) => {
   const client = await getString(
     'Please enter your Client ID: ',
     (v) => !!v || 'Client ID is required.',
-    getDefaultValues(target.name).client
+    getDefaultValues(target.name, ServerType.Sasjs).client
   )
   return { client }
 }
@@ -351,10 +351,10 @@ export const getCredentialsInputSas9 = async (
   return { userName, password }
 }
 
-export const getDefaultValues = (targetName: string) => {
+export const getDefaultValues = (targetName: string, serverType?: string) => {
   dotenv.config({ path: path.join(process.projectDir, `.env.${targetName}`) })
 
-  const defaultClient =
+  let defaultClient =
     process.env.CLIENT === 'undefined' ||
     process.env.CLIENT === 'null' ||
     !process.env.CLIENT
@@ -366,6 +366,9 @@ export const getDefaultValues = (targetName: string) => {
     !process.env.SECRET
       ? ''
       : process.env.SECRET
+
+  if (serverType === ServerType.Sasjs && defaultClient === '')
+    defaultClient = 'clientID1'
 
   return { client: defaultClient, secret: defaultSecret }
 }
