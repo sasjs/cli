@@ -31,6 +31,21 @@ jobs:
       - name: Check doxygen version
         run: doxygen -v
 
+      - name: Create .env file for sasjs/server
+        run: |
+          touch .env
+          echo RUN_TIMES=js >> .env
+          echo NODE_PATH=node >> .env
+
+      - name: download sasjs/server package from github using curl
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/windows.zip > windows.zip
+
+      - name: unzip downloaded package
+        run: 7z x windows.zip
+
+      - name: run sasjs server
+        run: api-windows.exe
+
       - name: Install dependencies
         run: npm ci
 
@@ -56,6 +71,6 @@ jobs:
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
           SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
-          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
+          SASJS_SERVER_URL: 'http://localhost:5000'
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
