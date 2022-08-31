@@ -13,7 +13,11 @@ import {
   getAbsolutePath
 } from '@sasjs/utils'
 import { compileSingleFile } from '../'
-import { displayError, displaySasjsRunnerError } from '../../utils/'
+import {
+  displayError,
+  displaySasjsRunnerError,
+  isSasJsServerInServerMode
+} from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
@@ -32,8 +36,7 @@ export async function runSasCode(
 
   if (isUrl(filePath)) {
     ;({ isTempFile, tempFilePath: filePath } = await createFileFromUrl(
-      filePath,
-      target
+      filePath
     ))
   }
 
@@ -216,7 +219,11 @@ async function executeOnSasJS(
   target: Target,
   linesToExecute: string[]
 ) {
-  const authConfig = await getAuthConfig(target)
+  let authConfig
+  if (await isSasJsServerInServerMode(target)) {
+    authConfig = await getAuthConfig(target)
+  }
+
   const { buildDestinationResultsFolder } = process.sasjsConstants
 
   const sasjs = new SASjs({
@@ -262,7 +269,7 @@ function isUrl(filePath: string) {
   return filePath.startsWith('https://') || filePath.startsWith('http://')
 }
 
-async function createFileFromUrl(url: string, target: Target) {
+async function createFileFromUrl(url: string) {
   return await axios
     .get(url)
     .then(async (res) => {

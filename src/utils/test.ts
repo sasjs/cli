@@ -117,12 +117,16 @@ export const generateTestTarget = (
 ) => {
   dotenv.config()
 
+  let serverUrl = process.env.SASJS_SERVER_URL
+
+  if (serverType === ServerType.SasViya) serverUrl = process.env.VIYA_SERVER_URL
+
+  if (serverType === ServerType.Sas9) serverUrl = process.env.SAS9_SERVER_URL
+
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
+    serverUrl: serverUrl as string,
     contextName,
     appLoc,
     authConfig: {
