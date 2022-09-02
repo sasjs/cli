@@ -32,7 +32,7 @@ export class RunCommand extends TargetCommand {
           alias: 'c',
           default: false,
           description:
-            'Used to force a deploy, eg even if the folders / services already exist (they will then be overwritten)'
+            'Used to compile the program prior to execution. Useful for including dependent macros and includes. More info here: https://cli.sasjs.io/compile'
         }
       },
       syntax,

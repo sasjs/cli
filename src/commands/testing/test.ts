@@ -26,7 +26,10 @@ import {
 } from '@sasjs/utils'
 import path from 'path'
 import chalk from 'chalk'
-import { displaySasjsRunnerError } from '../../utils/utils'
+import {
+  displaySasjsRunnerError,
+  isSasJsServerInServerMode
+} from '../../utils/utils'
 import { createSASjsInstance } from '../../utils/createSASjsInstance'
 
 // interface
@@ -124,7 +127,9 @@ export async function runTest(
       break
     case ServerType.Sasjs:
       try {
-        authConfig = await getAuthConfig(target)
+        if (await isSasJsServerInServerMode(target)) {
+          authConfig = await getAuthConfig(target)
+        }
       } catch (e) {} // FIXME: handle error properly
 
       break
