@@ -49,6 +49,24 @@ jobs:
       - name: Install Doxygen
         run: sudo apt-get install doxygen
 
+      - name: install pm2 for process management
+        run: npm i -g pm2
+
+      - name: Create .env file for sasjs/server
+        run: |
+          touch .env
+          echo RUN_TIMES=js >> .env
+          echo NODE_PATH=node >> .env
+
+      - name: download sasjs/server package from github using curl
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
+
+      - name: unzip downloaded package
+        run: unzip linux.zip
+
+      - name: run sasjs server
+        run: pm2 start api-linux
+
       - name: Check npm audit
         run: npm audit --production --audit-level=low
 
@@ -80,7 +98,7 @@ jobs:
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
           SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
-          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
+          SASJS_SERVER_URL: 'http://localhost:5000'
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
@@ -94,7 +112,7 @@ jobs:
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
           SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
-          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
+          SASJS_SERVER_URL: http://localhost:5000
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
           TEST_SERVER_TYPES: ${{secrets.TEST_SERVER_TYPES}}

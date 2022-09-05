@@ -13,7 +13,11 @@ import {
   getAbsolutePath
 } from '@sasjs/utils'
 import { compileSingleFile } from '../'
-import { displayError, displaySasjsRunnerError } from '../../utils/'
+import {
+  displayError,
+  displaySasjsRunnerError,
+  isSasJsServerInServerMode
+} from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 
@@ -28,71 +32,53 @@ export async function runSasCode(
   filePath: string,
   compile: boolean = false
 ) {
-  let isFileCreated: boolean = false
+  let isTempFile = false
 
-  const tempFilePath = path.join(
-    process.projectDir,
-    'temp-' + Date.now() + '.sas'
-  )
-
-  if (filePath.startsWith('https://') || filePath.startsWith('http://')) {
-    await axios
-      .get(filePath)
-      .then(async (res) => {
-        const { invalidSasError } = process.sasjsConstants
-        if (typeof res.data !== 'string') {
-          throw new Error(invalidSasError)
-        }
-        const content: string = res.data.trim()
-        if (content && content.startsWith('<')) {
-          throw new Error(invalidSasError)
-        }
-        await createFile(tempFilePath, content)
-        isFileCreated = true
-      })
-      .catch((err) => {
-        throw new Error(`${err.message}\nUrl: ${filePath}`)
-      })
-  }
-  if (isFileCreated) {
-    filePath = tempFilePath
-  }
-
-  if (!/\.sas$/i.test(filePath)) {
-    throw new Error(`'sasjs run' command supports only *.sas files.`)
+  if (isUrl(filePath)) {
+    ;({ isTempFile, tempFilePath: filePath } = await createFileFromUrl(
+      filePath
+    ))
   }
 
   if (compile) {
-    const sourcefilePathParts = path.normalize(filePath).split(path.sep)
-    sourcefilePathParts.splice(-1, 1)
-    const sourceFolderPath = sourcefilePathParts.join(path.sep)
-    ;({ destinationPath: filePath } = await compileSingleFile(
-      target,
-      'identify',
-      filePath,
-      getDestinationServicePath(sourceFolderPath),
-      true
-    ))
-    process.logger?.success(`File Compiled and placed at: ${filePath} .`)
+    if (/\.sas$/i.test(filePath)) {
+      const sourcefilePathParts = path.normalize(filePath).split(path.sep)
+      sourcefilePathParts.splice(-1, 1)
+      const sourceFolderPath = sourcefilePathParts.join(path.sep)
+      ;({ destinationPath: filePath } = await compileSingleFile(
+        target,
+        'identify',
+        filePath,
+        getDestinationServicePath(sourceFolderPath),
+        true
+      ))
+      process.logger?.success(`File Compiled and placed at: ${filePath} .`)
+    } else {
+      process.logger.info(
+        'Compile flag has no effect on files with extension type other than sas'
+      )
+    }
   }
   const sasFilePath = getAbsolutePath(filePath, process.currentDir)
   const sasFileContent = await readFile(sasFilePath)
   const linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
-  if (target.serverType === ServerType.SasViya) {
-    return await executeOnSasViya(
-      filePath,
-      isFileCreated,
-      target,
-      linesToExecute
-    )
-  } else {
-    return await executeOnSas9(filePath, isFileCreated, target, linesToExecute)
+
+  let result
+  if (target.serverType === ServerType.SasViya)
+    result = await executeOnSasViya(filePath, target, linesToExecute)
+  else if (target.serverType === ServerType.Sas9)
+    result = await executeOnSas9(target, linesToExecute)
+  else result = await executeOnSasJS(filePath, target, linesToExecute)
+
+  if (isTempFile) {
+    await deleteFile(filePath)
   }
+
+  return result
 }
 
 async function executeOnSasViya(
   filePath: string,
-  isTempFile: boolean,
   target: Target,
   linesToExecute: string[]
 ) {
@@ -166,18 +152,10 @@ async function executeOnSasViya(
       isOutput ? 'Output' : 'Log'
     } file has been created at ${createdFilePath} .`
   )
-  if (isTempFile) {
-    await deleteFile(filePath)
-  }
   return { log }
 }
 
-async function executeOnSas9(
-  filePath: string,
-  isTempFile: boolean,
-  target: Target,
-  linesToExecute: string[]
-) {
+async function executeOnSas9(target: Target, linesToExecute: string[]) {
   let username: any
   let password: any
   if (target.authConfigSas9) {
@@ -233,9 +211,44 @@ async function executeOnSas9(
   )
   const createdFilePath = await createOutputFile(executionResult || '')
   process.logger?.success(`Log file has been created at ${createdFilePath} .`)
-  if (isTempFile) {
-    await deleteFile(filePath)
+  return { log: executionResult }
+}
+
+async function executeOnSasJS(
+  filePath: string,
+  target: Target,
+  linesToExecute: string[]
+) {
+  let authConfig
+  if (await isSasJsServerInServerMode(target)) {
+    authConfig = await getAuthConfig(target)
   }
+
+  const { buildDestinationResultsFolder } = process.sasjsConstants
+
+  const sasjs = new SASjs({
+    serverUrl: target.serverUrl,
+    httpsAgentOptions: target.httpsAgentOptions,
+    appLoc: target.appLoc,
+    serverType: target.serverType,
+    debug: true
+  })
+
+  const fileExtension = path.extname(filePath).slice(1)
+
+  const executionResult = await sasjs.executeScriptSASjs(
+    linesToExecute.join('\n'),
+    fileExtension,
+    authConfig
+  )
+
+  process.logger?.success('Job execution completed!')
+
+  process.logger?.info(
+    `Creating log file in ${buildDestinationResultsFolder} .`
+  )
+  const createdFilePath = await createOutputFile(executionResult || '')
+  process.logger?.success(`Log file has been created at ${createdFilePath} .`)
   return { log: executionResult }
 }
 
@@ -250,4 +263,38 @@ async function createOutputFile(log: string) {
   await createFile(outputFilePath, log)
 
   return outputFilePath
+}
+
+function isUrl(filePath: string) {
+  return filePath.startsWith('https://') || filePath.startsWith('http://')
+}
+
+async function createFileFromUrl(url: string) {
+  return await axios
+    .get(url)
+    .then(async (res) => {
+      const { invalidSasError } = process.sasjsConstants
+      if (typeof res.data !== 'string') {
+        throw new Error(invalidSasError)
+      }
+      const content: string = res.data.trim()
+      if (content && content.startsWith('<')) {
+        throw new Error(invalidSasError)
+      }
+
+      const urlWithoutQueryParams = url.split('?')[0]
+      const fileExtension = path.extname(urlWithoutQueryParams)
+
+      const tempFilePath = path.join(
+        process.projectDir,
+        `temp-${Date.now()}${fileExtension}`
+      )
+
+      await createFile(tempFilePath, content)
+
+      return { isTempFile: true, tempFilePath }
+    })
+    .catch((err) => {
+      throw new Error(`${err.message}\nUrl: ${url}`)
+    })
 }
