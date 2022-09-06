@@ -61,30 +61,14 @@ export const angularAppFiles: Folder = {
           ],
           subFolders: [
             {
-              folderName: 'components',
-              files: [],
-              subFolders: [
-                {
-                  folderName: 'login-modal',
-                  files: [
-                    { fileName: 'login-modal.component.html' },
-                    { fileName: 'login-modal.component.scss' },
-                    { fileName: 'login-modal.component.spec.ts' },
-                    { fileName: 'login-modal.component.ts' }
-                  ],
-                  subFolders: []
-                },
-                {
-                  folderName: 'requests-modal',
-                  files: [
-                    { fileName: 'requests-modal.component.html' },
-                    { fileName: 'requests-modal.component.scss' },
-                    { fileName: 'requests-modal.component.spec.ts' },
-                    { fileName: 'requests-modal.component.ts' }
-                  ],
-                  subFolders: []
-                }
-              ]
+              folderName: 'sasjs-ui',
+              files: [
+                { fileName: 'sasjs-ui.component.html' },
+                { fileName: 'sasjs-ui.component.spec.ts' },
+                { fileName: 'sasjs-ui.component.scss' },
+                { fileName: 'sasjs-ui.component.ts' }
+              ],
+              subFolders: []
             },
             {
               folderName: 'data',
