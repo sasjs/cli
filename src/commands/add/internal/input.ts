@@ -131,7 +131,7 @@ async function getAndValidateUpdateExisting(
   targetName: string
 ): Promise<{ targetJson?: TargetJson; retry: boolean }> {
   const targetJson = await findTargetInConfiguration(targetName, targetScope)
-    .then((res) => res.target.toJson())
+    .then((res) => res.target.toJson(false))
     .catch((_) => undefined)
 
   if (targetJson) {
