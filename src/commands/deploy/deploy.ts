@@ -135,6 +135,10 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
         process.logger?.success(
           `Shell script execution completed! Log is here: ${logPath}`
         )
+      } else {
+        process.logger?.error(
+          `Unable to process script located at ${deployScriptPath}`
+        )
       }
     })
   }
