@@ -27,6 +27,7 @@ import { saveLog } from '../../utils/saveLog'
  * @param {Target} target - the target to run the SAS code on.
  * @param {string} filePath - the path to the file containing SAS code.
  * @param {boolean} compile - compiles sas file present at 'filePath' before running code.
+ * @param {string} logFile - (Optional) Path to log file.
  */
 export async function runSasCode(
   target: Target,
