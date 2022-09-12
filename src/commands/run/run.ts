@@ -186,7 +186,7 @@ async function executeOnSas9(
     serverType: target.serverType,
     debug: true
   })
-  const { buildDestinationResultsFolder } = process.sasjsConstants
+  
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch(async (err) => {
