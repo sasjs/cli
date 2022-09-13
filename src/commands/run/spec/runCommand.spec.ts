@@ -12,6 +12,7 @@ const target = new Target({
   serverType: ServerType.SasViya,
   contextName: 'test context'
 })
+const sourceFilePath = 'path/to/source.json'
 const sasFilePath = 'path/to/soure.sas'
 describe('RunCommand', () => {
   beforeAll(async () => {
@@ -23,24 +24,25 @@ describe('RunCommand', () => {
   })
 
   it('should parse sasjs run command', async () => {
-    await executeCommandWrapper([sasFilePath])
+    await executeCommandWrapper([sasFilePath, '-s', sourceFilePath])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
-      false
+      false,
+      sourceFilePath
     )
   })
 
   it('should parse sasjs run command with all arguments', async () => {
-    await executeCommandWrapper([sasFilePath, '--target', 'test', '--compile'])
-    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true)
+    await executeCommandWrapper([sasFilePath, '--target', 'test', '--compile', '--source', sourceFilePath])
+    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true, sourceFilePath)
   })
 
   it('should parse a sasjs run command with all shorthand arguments', async () => {
-    await executeCommandWrapper([sasFilePath, '-t', 'test', '-c'])
+    await executeCommandWrapper([sasFilePath, '-t', 'test', '-c', '-s', sourceFilePath])
 
-    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true)
+    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true, sourceFilePath)
   })
 
   it('should log success and return the success code when execution is successful', async () => {
