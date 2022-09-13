@@ -20,6 +20,10 @@ const examples: CommandExample[] = [
   {
     command: 'sasjs run ./path/run-job.sas -t targetName -c',
     description: ''
+  },
+  {
+    command: 'sasjs run ./path/run-job.sas -t targetName -c',
+    description: ''
   }
 ]
 
@@ -33,6 +37,11 @@ export class RunCommand extends TargetCommand {
           default: false,
           description:
             'Used to compile the program prior to execution. Useful for including dependent macros and includes. More info here: https://cli.sasjs.io/compile'
+        },
+        source: {
+          type: 'string',
+          alias: 's',
+          description: 'Path to an input JSON containing job variables.'
         }
       },
       syntax,
@@ -45,9 +54,14 @@ export class RunCommand extends TargetCommand {
   public async execute() {
     const { target } = await this.getTargetInfo()
 
-    const { sasFilePath, compile } = this.parsed
+    const { sasFilePath, compile, source } = this.parsed
 
-    return await runSasCode(target, sasFilePath as string, compile as boolean)
+    return await runSasCode(
+      target,
+      sasFilePath as string,
+      compile as boolean,
+      source as string
+    )
       .then(() => {
         return ReturnCode.Success
       })

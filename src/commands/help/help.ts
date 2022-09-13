@@ -223,10 +223,11 @@ export async function printHelpText() {
     },
     {
       name: 'run',
-      title: 'run <sasFilePath> -t <targetName>',
+      title: 'run <sasFilePath> -t <targetName> --source /local/run.json',
       description: [
         `lets the user run a given SAS file against a specified target.`,
-        `The target can exist either in the local project configuration or in the global .sasjsrc file.`
+        `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
+        `Providing source flag (--source or -s) is optional. It should point to a JSON file that contains MacroVars. Cli will parse them into SAS statements and pre-append to SAS code to be run.`
       ]
     },
     {
