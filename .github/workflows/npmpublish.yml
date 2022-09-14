@@ -28,10 +28,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm config set registry https://registry.npmjs.org
+          npm config set registry http://registry.npmjs.org
           npm ci
       - name: Build Project
         run: npm run build
+
+      - name: Set NPM Registry back to https
+        run: npm config set registry https://registry.npmjs.org
+
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v2
         with:
