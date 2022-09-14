@@ -47,7 +47,9 @@ jobs:
         run: START .\api-win.exe >> run-sasjs-server.txt
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry http://registry.npmjs.org
+          npm ci
 
       - name: Check code style
         run: npm run lint
