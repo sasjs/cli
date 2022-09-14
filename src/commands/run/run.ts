@@ -21,6 +21,7 @@ import {
 } from '../../utils/'
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
+import { saveLog } from '../../utils/saveLog'
 import { parseSourceFile } from '../../utils/parseSourceFile'
 
 /**
@@ -28,11 +29,13 @@ import { parseSourceFile } from '../../utils/parseSourceFile'
  * @param {Target} target - the target to run the SAS code on.
  * @param {string} filePath - the path to the file containing SAS code.
  * @param {boolean} compile - compiles sas file present at 'filePath' before running code.
+ * @param {string} logFile - (Optional) Path to log file.
  */
 export async function runSasCode(
   target: Target,
   filePath: string,
   compile: boolean = false,
+  logFile?: string,
   source?: string
 ) {
   let isTempFile = false
@@ -75,10 +78,10 @@ export async function runSasCode(
 
   let result
   if (target.serverType === ServerType.SasViya)
-    result = await executeOnSasViya(filePath, target, linesToExecute)
+    result = await executeOnSasViya(filePath, target, linesToExecute, logFile)
   else if (target.serverType === ServerType.Sas9)
-    result = await executeOnSas9(target, linesToExecute)
-  else result = await executeOnSasJS(filePath, target, linesToExecute)
+    result = await executeOnSas9(target, linesToExecute, logFile)
+  else result = await executeOnSasJS(filePath, target, linesToExecute, logFile)
 
   if (isTempFile) {
     await deleteFile(filePath)
@@ -90,7 +93,8 @@ export async function runSasCode(
 async function executeOnSasViya(
   filePath: string,
   target: Target,
-  linesToExecute: string[]
+  linesToExecute: string[],
+  logFile: string | undefined
 ) {
   process.logger?.info(
     `Sending ${path.basename(filePath)} to SAS server for execution.`
@@ -126,8 +130,7 @@ async function executeOnSasViya(
       if (!log)
         throw new ErrorResponse('We were not able to fetch the log this time.')
 
-      const createdFilePath = await createOutputFile(log)
-      process.logger?.error(`Log file has been created at ${createdFilePath} .`)
+      await createOutputFile(log, logFile)
 
       throw new ErrorResponse('Find more error details in the log file.')
     })
@@ -156,7 +159,7 @@ async function executeOnSasViya(
       isOutput ? 'output' : 'log'
     } file in ${buildDestinationResultsFolder} .`
   )
-  const createdFilePath = await createOutputFile(log)
+  const createdFilePath = await createOutputFile(log, undefined, isOutput)
   process.logger?.success(
     `${
       isOutput ? 'Output' : 'Log'
@@ -165,7 +168,11 @@ async function executeOnSasViya(
   return { log }
 }
 
-async function executeOnSas9(target: Target, linesToExecute: string[]) {
+async function executeOnSas9(
+  target: Target,
+  linesToExecute: string[],
+  logFile: string | undefined
+) {
   let username: any
   let password: any
   if (target.authConfigSas9) {
@@ -190,20 +197,14 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
     serverType: target.serverType,
     debug: true
   })
-  const { buildDestinationResultsFolder } = process.sasjsConstants
+
   const executionResult = await sasjs
     .executeScriptSAS9(linesToExecute, username, password)
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
         let log = err.payload.log
 
-        process.logger?.info(
-          `Creating log file in ${buildDestinationResultsFolder} .`
-        )
-        const createdFilePath = await createOutputFile(log)
-        process.logger?.success(
-          `Log file has been created at ${createdFilePath} .`
-        )
+        await createOutputFile(log, logFile)
 
         throw new ErrorResponse('Find more error details in the log file.')
       } else {
@@ -216,25 +217,22 @@ async function executeOnSas9(target: Target, linesToExecute: string[]) {
 
   process.logger?.success('Job execution completed!')
 
-  process.logger?.info(
-    `Creating log file in ${buildDestinationResultsFolder} .`
-  )
-  const createdFilePath = await createOutputFile(executionResult || '')
-  process.logger?.success(`Log file has been created at ${createdFilePath} .`)
+  await createOutputFile(executionResult || '', logFile)
+
   return { log: executionResult }
 }
 
 async function executeOnSasJS(
   filePath: string,
   target: Target,
-  linesToExecute: string[]
+  linesToExecute: string[],
+  logFile: string | undefined
 ) {
   let authConfig
+
   if (await isSasJsServerInServerMode(target)) {
     authConfig = await getAuthConfig(target)
   }
-
-  const { buildDestinationResultsFolder } = process.sasjsConstants
 
   const sasjs = new SASjs({
     serverUrl: target.serverUrl,
@@ -254,25 +252,29 @@ async function executeOnSasJS(
 
   process.logger?.success('Job execution completed!')
 
-  process.logger?.info(
-    `Creating log file in ${buildDestinationResultsFolder} .`
-  )
-  const createdFilePath = await createOutputFile(executionResult || '')
-  process.logger?.success(`Log file has been created at ${createdFilePath} .`)
+  await createOutputFile(executionResult || '', logFile)
+
   return { log: executionResult }
 }
 
-async function createOutputFile(log: string) {
+async function createOutputFile(
+  log: string,
+  logFilePath?: string,
+  silent?: boolean
+) {
   const timestamp = generateTimestamp()
   const { buildDestinationResultsFolder } = process.sasjsConstants
-  const outputFilePath = path.join(
-    buildDestinationResultsFolder,
-    `sasjs-run-${timestamp}.log`
-  )
 
-  await createFile(outputFilePath, log)
+  if (!logFilePath) {
+    logFilePath = path.join(
+      buildDestinationResultsFolder,
+      `sasjs-run-${timestamp}.log`
+    )
+  }
 
-  return outputFilePath
+  await saveLog(log || '', logFilePath, '', false, silent)
+
+  return logFilePath
 }
 
 function isUrl(filePath: string) {

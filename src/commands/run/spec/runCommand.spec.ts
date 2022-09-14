@@ -14,6 +14,7 @@ const target = new Target({
 })
 const sourceFilePath = 'path/to/source.json'
 const sasFilePath = 'path/to/soure.sas'
+const logFilePath = 'path/to/log.log'
 describe('RunCommand', () => {
   beforeAll(async () => {
     await setConstants()
@@ -24,25 +25,52 @@ describe('RunCommand', () => {
   })
 
   it('should parse sasjs run command', async () => {
-    await executeCommandWrapper([sasFilePath, '-s', sourceFilePath])
+    await executeCommandWrapper([sasFilePath, '--log', logFilePath, '-s', sourceFilePath])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       false,
+      logFilePath,
       sourceFilePath
     )
   })
 
   it('should parse sasjs run command with all arguments', async () => {
-    await executeCommandWrapper([sasFilePath, '--target', 'test', '--compile', '--source', sourceFilePath])
-    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true, sourceFilePath)
+    await executeCommandWrapper([
+      sasFilePath,
+      '--target',
+      'test',
+      '--compile',
+      '--log',
+      logFilePath
+    , '--source', 
+    sourceFilePath])
+    expect(runModule.runSasCode).toHaveBeenCalledWith(
+      target,
+      sasFilePath,
+      true,
+      logFilePath,
+      sourceFilePath)
   })
 
   it('should parse a sasjs run command with all shorthand arguments', async () => {
-    await executeCommandWrapper([sasFilePath, '-t', 'test', '-c', '-s', sourceFilePath])
+    await executeCommandWrapper([
+      sasFilePath,
+      '-t',
+      'test',
+      '-c',
+      '-l',
+      logFilePath,
+      '-s',
+      sourceFilePath])
 
-    expect(runModule.runSasCode).toHaveBeenCalledWith(target, sasFilePath, true, sourceFilePath)
+    expect(runModule.runSasCode).toHaveBeenCalledWith(
+      target,
+      sasFilePath,
+      true,
+      logFilePath,
+      sourceFilePath)
   })
 
   it('should log success and return the success code when execution is successful', async () => {
