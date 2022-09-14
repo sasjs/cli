@@ -25,7 +25,13 @@ describe('RunCommand', () => {
   })
 
   it('should parse sasjs run command', async () => {
-    await executeCommandWrapper([sasFilePath, '--log', logFilePath, '-s', sourceFilePath])
+    await executeCommandWrapper([
+      sasFilePath,
+      '--log',
+      logFilePath,
+      '-s',
+      sourceFilePath
+    ])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
@@ -43,15 +49,17 @@ describe('RunCommand', () => {
       'test',
       '--compile',
       '--log',
-      logFilePath
-    , '--source', 
-    sourceFilePath])
+      logFilePath,
+      '--source',
+      sourceFilePath
+    ])
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       true,
       logFilePath,
-      sourceFilePath)
+      sourceFilePath
+    )
   })
 
   it('should parse a sasjs run command with all shorthand arguments', async () => {
@@ -63,14 +71,16 @@ describe('RunCommand', () => {
       '-l',
       logFilePath,
       '-s',
-      sourceFilePath])
+      sourceFilePath
+    ])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       true,
       logFilePath,
-      sourceFilePath)
+      sourceFilePath
+    )
   })
 
   it('should log success and return the success code when execution is successful', async () => {

@@ -223,7 +223,8 @@ export async function printHelpText() {
     },
     {
       name: 'run',
-      title: 'run <sasFilePath> -t <targetName> --source /local/run.json -l <log/file/path>',
+      title:
+        'run <sasFilePath> -t <targetName> --source /local/run.json -l <log/file/path>',
       description: [
         `lets the user run a given SAS file against a specified target.`,
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,

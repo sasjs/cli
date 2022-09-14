@@ -27,7 +27,8 @@ const examples: CommandExample[] = [
     description: ''
   },
   {
-    command: 'sasjs run ./path/run-job.sas -t targetName --source ./path/source.json',
+    command:
+      'sasjs run ./path/run-job.sas -t targetName --source ./path/source.json',
     description: ''
   }
 ]

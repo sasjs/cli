@@ -1,11 +1,6 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import {
-  MacroVars,
-  createFile,
-  createFolder,
-  folderExists
-} from '@sasjs/utils'
+import { MacroVars, createFile, createFolder, folderExists } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { saveLog } from '../utils'
 import { parseSourceFile } from '../../../../utils/parseSourceFile'
