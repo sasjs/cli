@@ -38,16 +38,18 @@ jobs:
           echo NODE_PATH=node >> .env
 
       - name: download sasjs/server package from github using curl
-        run: curl -L https://github.com/sasjs/server/releases/latest/download/windows.zip > windows.zip
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/windows.zip --output windows.zip
 
       - name: unzip downloaded package
-        run: 7z x windows.zip
+        run: npx extract-zip windows.zip
 
-      - name: run sasjs server
-        run: api-windows.exe
+      - name: run sasjs server in background
+        run: START .\api-win.exe >> run-sasjs-server.txt
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry http://registry.npmjs.org
+          npm ci
 
       - name: Check code style
         run: npm run lint
@@ -60,6 +62,9 @@ jobs:
 
       - name: npm prefix for user
         run: echo prefix=C:\npm\prefix >> ~\.npmrc
+
+      - name: Sasjs Server started
+        run: cat run-sasjs-server.txt
 
       - name: Run mocked tests
         run: npm run test:mocked
