@@ -11,7 +11,8 @@ import {
   LogLevel,
   Target,
   isWindows,
-  isLinux
+  isLinux,
+  MacroVars
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
@@ -325,6 +326,27 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
   }
 
   return logLines
+}
+
+/**
+ * Converts MacroVars JSON from command source param to sas statements
+ * The JSON must have the following structure:
+ *     {"macroVars": {"var1": "val1", "var2": "val2"}}
+ *
+ * @param {object} json
+ */
+export function convertToSASStatements(json: MacroVars): string {
+  let sasStatements: string = ''
+
+  for (let macroVar of Object.keys(json.macroVars)) {
+    const key = macroVar
+    const value = json.macroVars[macroVar]
+
+    const line = `%let ${key}=${value};\n`
+    sasStatements += line
+  }
+
+  return sasStatements
 }
 
 export const arrToObj = (arr: any[]): any =>

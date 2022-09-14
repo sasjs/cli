@@ -14,6 +14,7 @@ import {
 } from '@sasjs/utils'
 import { compileSingleFile } from '../'
 import {
+  convertToSASStatements,
   displayError,
   displaySasjsRunnerError,
   isSasJsServerInServerMode
@@ -21,6 +22,7 @@ import {
 import axios from 'axios'
 import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
 import { saveLog } from '../../utils/saveLog'
+import { parseSourceFile } from '../../utils/parseSourceFile'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -33,7 +35,8 @@ export async function runSasCode(
   target: Target,
   filePath: string,
   compile: boolean = false,
-  logFile?: string
+  logFile?: string,
+  source?: string
 ) {
   let isTempFile = false
 
@@ -64,7 +67,14 @@ export async function runSasCode(
   }
   const sasFilePath = getAbsolutePath(filePath, process.currentDir)
   const sasFileContent = await readFile(sasFilePath)
-  const linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
+  let linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
+
+  if (source) {
+    const macroVars = await parseSourceFile(source)
+    const macroVarStatements = convertToSASStatements(macroVars).split('\n')
+
+    linesToExecute = [...macroVarStatements, ...linesToExecute]
+  }
 
   let result
   if (target.serverType === ServerType.SasViya)

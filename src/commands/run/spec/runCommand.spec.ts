@@ -12,6 +12,7 @@ const target = new Target({
   serverType: ServerType.SasViya,
   contextName: 'test context'
 })
+const sourceFilePath = 'path/to/source.json'
 const sasFilePath = 'path/to/soure.sas'
 const logFilePath = 'path/to/log.log'
 describe('RunCommand', () => {
@@ -24,13 +25,20 @@ describe('RunCommand', () => {
   })
 
   it('should parse sasjs run command', async () => {
-    await executeCommandWrapper([sasFilePath, '--log', logFilePath])
+    await executeCommandWrapper([
+      sasFilePath,
+      '--log',
+      logFilePath,
+      '-s',
+      sourceFilePath
+    ])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       false,
-      logFilePath
+      logFilePath,
+      sourceFilePath
     )
   })
 
@@ -41,13 +49,16 @@ describe('RunCommand', () => {
       'test',
       '--compile',
       '--log',
-      logFilePath
+      logFilePath,
+      '--source',
+      sourceFilePath
     ])
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       true,
-      logFilePath
+      logFilePath,
+      sourceFilePath
     )
   })
 
@@ -58,14 +69,17 @@ describe('RunCommand', () => {
       'test',
       '-c',
       '-l',
-      logFilePath
+      logFilePath,
+      '-s',
+      sourceFilePath
     ])
 
     expect(runModule.runSasCode).toHaveBeenCalledWith(
       target,
       sasFilePath,
       true,
-      logFilePath
+      logFilePath,
+      sourceFilePath
     )
   })
 

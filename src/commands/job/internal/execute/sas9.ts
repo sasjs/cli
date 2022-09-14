@@ -1,17 +1,9 @@
 import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import {
-  MacroVars,
-  isMacroVars,
-  fileExists,
-  readFile,
-  createFile,
-  createFolder,
-  folderExists
-} from '@sasjs/utils'
-import { isJsonFile } from '../../../../utils/file'
+import { MacroVars, createFile, createFolder, folderExists } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { saveLog } from '../utils'
+import { parseSourceFile } from '../../../../utils/parseSourceFile'
 
 /**
  * Triggers an existing Stored Process for execution as a "job".  See online documentation here: https://cli.sasjs.io/job/
@@ -33,25 +25,7 @@ export async function executeJobSas9(
   let macroVars: MacroVars | null = null
 
   if (source) {
-    const currentDirPath = path.isAbsolute(source) ? '' : process.projectDir
-    source = path.join(currentDirPath, source)
-
-    if (!isJsonFile(source)) throw 'Source file has to be JSON.'
-
-    await fileExists(source).catch((_) => {
-      throw 'Error while checking if source file exists.'
-    })
-
-    source = await readFile(source).catch((_) => {
-      throw 'Error while reading source file.'
-    })
-
-    macroVars = JSON.parse(source as string) as MacroVars
-
-    if (!isMacroVars(macroVars)) {
-      throw `Provided source is not valid. An example of valid source:
-{ macroVars: { name1: 'value1', name2: 'value2' } }`
-    }
+    macroVars = await parseSourceFile(source)
   }
 
   const startTime = new Date().getTime()
