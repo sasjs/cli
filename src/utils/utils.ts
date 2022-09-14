@@ -330,6 +330,9 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
 
 /**
  * Converts MacroVars JSON from command source param to sas statements
+ * The JSON must have the following structure:
+ *     {"macroVars": {"var1": "val1", "var2": "val2"}}
+ *
  * @param {object} json
  */
 export function convertToSASStatements(json: MacroVars): string {
