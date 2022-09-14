@@ -70,8 +70,8 @@ export async function runSasCode(
   let linesToExecute = sasFileContent.replace(/\r\n/g, '\n').split('\n')
 
   if (source) {
-    let macroVars = await parseSourceFile(source)
-    let macroVarStatements = convertToSASStatements(macroVars).split('\n')
+    const macroVars = await parseSourceFile(source)
+    const macroVarStatements = convertToSASStatements(macroVars).split('\n')
 
     linesToExecute = [...macroVarStatements, ...linesToExecute]
   }
