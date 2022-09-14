@@ -27,7 +27,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry http://registry.npmjs.org
+          npm ci
       - name: Build Project
         run: npm run build
       - name: Semantic Release
