@@ -223,10 +223,11 @@ export async function printHelpText() {
     },
     {
       name: 'run',
-      title: 'run <sasFilePath> -t <targetName>',
+      title: 'run <sasFilePath> -t <targetName> -l <log/file/path>',
       description: [
         `lets the user run a given SAS file against a specified target.`,
-        `The target can exist either in the local project configuration or in the global .sasjsrc file.`
+        `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
+        `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If not present, the log is stored locally with a timestamp. If present, CLI will fetch and save the log to the specified location. If a relative location, it will be relative to the directory in which the command is invoked.`
       ]
     },
     {
