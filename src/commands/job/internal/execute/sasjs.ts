@@ -1,32 +1,32 @@
 import SASjs from '@sasjs/adapter/node'
 import { AuthConfig } from '@sasjs/utils'
-import { saveLog } from '../utils'
+import { saveLog, saveOutput } from '../utils'
 
 export async function executeJobSasjs(
   sasjs: SASjs,
   jobPath: string,
-  logFile: string | undefined,
+  logFile?: string,
+  output?: string,
   authConfig?: AuthConfig
 ) {
-  const result = await sasjs.executeJobSASjs(
+  const response = await sasjs.executeJobSASjs(
     {
       _program: jobPath
     },
     authConfig
   )
 
-  if (result) {
-    if (result.status === 'success') {
-      process.logger.success('Job executed successfully!')
+  if (response) {
+    process.logger.success('Job executed successfully!')
 
-      if (logFile && result.log) {
-        await saveLog(result.log, logFile, jobPath, false)
-      }
-    } else {
-      process.logger.error(result.message)
-      process.logger.error(JSON.stringify(result.error, null, 2))
+    if (!!logFile && response.log) {
+      await saveLog(response.log, logFile, jobPath, false)
+    }
+
+    if (!!output && response.result) {
+      await saveOutput(response.result, output, false)
     }
   }
 
-  return result
+  return response
 }
