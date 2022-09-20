@@ -182,10 +182,16 @@ export class JobCommand extends TargetCommand {
   ) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
 
+    const log = getLogFilePath(this.parsed.log, jobPath)
+    const output = (this.parsed.output as string)?.length
+      ? (this.parsed.output as string)
+      : undefined
+
     const returnCode = await executeJobSasjs(
       sasjs,
       jobPath,
-      this.parsed.log as string,
+      log,
+      output,
       authConfig
     )
       .then(() => ReturnCode.Success)
