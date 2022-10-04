@@ -1,5 +1,9 @@
 import path from 'path'
-import { listFilesInFolder, readFile, asyncForEach } from '@sasjs/utils'
+import {
+  listFilesAndSubFoldersInFolder,
+  readFile,
+  asyncForEach
+} from '@sasjs/utils'
 import { getBrief } from '../../../utils/file'
 import { getFileInputs } from './getFileInputs'
 import { getFileOutputs } from './getFileOutputs'
@@ -8,8 +12,8 @@ import { populateParamNodeTypes } from './populateParamNodeTypes'
 
 /**
  * Returns Dot-code
- * @param {string[]} folderList- dot-code will be generated against provided folderList
- * @param {string} serverUrl- prefixes with links to Libs(Inputs/Outputs)
+ * @param {string[]} folderList - dot-code will be generated against provided folderList
+ * @param {string} serverUrl - prefixes with links to Libs(Inputs/Outputs)
  */
 export async function getDotFileContent(
   folderList: string[],
@@ -22,9 +26,9 @@ export async function getDotFileContent(
 
   // Populating both Maps
   await asyncForEach(folderList, async (folder) => {
-    const filesNamesInPath = (await listFilesInFolder(folder)).filter(
-      (f: string) => f.endsWith('.sas')
-    )
+    const filesNamesInPath = (
+      await listFilesAndSubFoldersInFolder(folder)
+    ).filter((f: string) => f.endsWith('.sas'))
 
     await asyncForEach(filesNamesInPath, async (fileName) => {
       const filePath = path.join(folder, fileName)
@@ -32,8 +36,7 @@ export async function getDotFileContent(
       const fileBrief = getBrief(fileContent)
       if (fileBrief === undefined) return
 
-      fileName = fileName.toUpperCase()
-
+      fileName = fileName.split(path.sep).pop().toUpperCase()
       const fileInputs = getFileInputs(fileName, fileContent, paramNodes)
       const fileOutputs = getFileOutputs(fileContent, paramNodes)
 
