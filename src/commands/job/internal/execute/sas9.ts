@@ -2,7 +2,7 @@ import path from 'path'
 import SASjs from '@sasjs/adapter/node'
 import { MacroVars, createFile, createFolder, folderExists } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
-import { saveLog } from '../utils'
+import { saveLog, saveOutput } from '../utils'
 import { parseSourceFile } from '../../../../utils/parseSourceFile'
 
 /**
@@ -45,35 +45,7 @@ export async function executeJobSas9(
       }
 
       if (!!output && result.result) {
-        try {
-          const outputJson = JSON.stringify(result.result, null, 2)
-
-          const currentDirPath = path.isAbsolute(output)
-            ? ''
-            : process.projectDir
-          const outputPath = path.join(
-            currentDirPath,
-            /\.[a-z]{3,4}$/i.test(output)
-              ? output
-              : path.join(output, 'output.json')
-          )
-
-          let folderPath = outputPath.split(path.sep)
-          folderPath.pop()
-          const parentFolderPath = folderPath.join(path.sep)
-
-          if (!(await folderExists(parentFolderPath)))
-            await createFolder(parentFolderPath)
-
-          await createFile(outputPath, outputJson)
-
-          displaySuccess(`Output saved to: ${outputPath}`)
-        } catch (error) {
-          displayError(
-            error,
-            'An error has occurred when parsing an output of the job.'
-          )
-        }
+        saveOutput(result.result, output, false)
       }
     } else {
       process.logger.error(result.message)

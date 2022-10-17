@@ -6,6 +6,7 @@
     "build/**/*"
   ],
   "scripts": {
+    "nodeVersionMessage": "echo \u001b[33m make sure you are running node lts version \u001b[0m",
     "checkNodeVersion": "node -e \"console.log('\u001b[36m', 'Checking your Node.js version...'); if (!process.versions || !process.versions.node) { console.log('\u001b[31m', 'Error determining Node.js version. Exiting...') } if (parseInt(process.versions.node) < 14) { console.log('\u001b[31m', '❌ You must be running at least Node.js 14 to install SASjs CLI.\\nYour current version is ' + process.versions.node + '.\\nPlease install a more recent version and try again.'); process.exit(1); } else { console.log('\u001b[32m', '✅ Node.js version check passed. Continuing...'); } console.log('\u001b[0m', '');\"",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
@@ -17,7 +18,7 @@
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
-    "preinstall": "npm run checkNodeVersion -s",
+    "preinstall": "npm run nodeVersionMessage",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true"
   },
   "testServerTypes": "viya,sas9,sasjs",
@@ -48,10 +49,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "3.10.15",
-    "@sasjs/core": "4.35.3",
+    "@sasjs/adapter": "3.10.18",
+    "@sasjs/core": "4.40.0",
     "@sasjs/lint": "1.12.0",
-    "@sasjs/utils": "2.47.1",
+    "@sasjs/utils": "2.48.2",
     "adm-zip": "0.5.9",
     "chalk": "4.1.2",
     "csv-stringify": "5.6.5",
