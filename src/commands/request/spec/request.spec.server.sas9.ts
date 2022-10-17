@@ -26,6 +26,9 @@ import {
   expectedDataObj,
   getOutputJson
 } from './utils'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 describe('sasjs request with SAS9', () => {
   const appName = 'cli-tests-request-sas9-' + generateTimestamp()
