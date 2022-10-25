@@ -1,8 +1,16 @@
 import path from 'path'
 import os from 'os'
-import SASjs from '@sasjs/adapter/node'
-import { getAuthConfig, getStreamConfig } from '../../utils/config'
-import { displaySasjsRunnerError, executeShellScript } from '../../utils/utils'
+import SASjs, { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
+import {
+  getAuthConfig,
+  getStreamConfig,
+  getSASjsAndAuthConfig
+} from '../../utils/config'
+import {
+  displaySasjsRunnerError,
+  executeShellScript,
+  isSasJsServerInServerMode
+} from '../../utils/utils'
 import {
   readFile,
   createFile,
@@ -10,7 +18,6 @@ import {
   Target,
   StreamConfig,
   asyncForEach,
-  AuthConfig,
   decodeFromBase64,
   getAbsolutePath,
   ServicePackSASjs,
@@ -86,7 +93,7 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
   const streamConfig = await getStreamConfig(target)
 
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasjs(target, sasjs, streamConfig)
+    await deployToSasjs(target, streamConfig)
   } else {
     await asyncForEach(deployScripts, async (deployScript) => {
       const deployScriptPath = getAbsolutePath(deployScript, process.projectDir)
@@ -107,7 +114,6 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
           await deployToSasViya(
             deployScriptName,
             target,
-            isLocal,
             linesToExecute,
             logFilePath,
             streamConfig
@@ -145,45 +151,9 @@ export async function deploy(target: Target, isLocal: boolean, sasjs?: SASjs) {
 }
 
 /**
- * Returns configuration object of SAS Adapter and authentication configuration
- * @param {Target} target- the target to get auth configuration from.
- * @param {boolean} isLocal- flag indicating if specified target is
- * from local sasjsconfig or global sasjsconfig file.
- * @returns an object containing a SAS Adapter configuration object `sasjs`
- * and auth configuration `authConfig`.
- */
-async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    httpsAgentOptions: target.httpsAgentOptions,
-    debug: true,
-    useComputeApi: true
-  })
-
-  let authConfig: AuthConfig
-  try {
-    authConfig = await getAuthConfig(target)
-  } catch (e) {
-    throw new Error(
-      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env${
-        isLocal ? `.${target.name}` : ''
-      } file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-    )
-  }
-  return {
-    sasjs,
-    authConfig
-  }
-}
-
-/**
  * Deploys app to `SASVIYA` server through deployScript.
- * @param {string} deployScriptName- name of deploy script.
- * @param {Target} target- the target having deploy configuration.
- * @param {boolean} isLocal- flag indicating if specified target is
- * from local sasjsconfig or global sasjsconfig file.
+ * @param {string} deployScriptName - name of deploy script.
+ * @param {Target} target - the target having deploy configuration.
  * @param {string[]} linesToExecute - array of SAS code lines of deploy script to execute.
  * @param {string} logFolder - optional path to log folder,
  * log file name will be <deploy-script-name>.log
@@ -193,7 +163,6 @@ async function getSASjsAndAuthConfig(target: Target, isLocal: boolean) {
 async function deployToSasViya(
   deployScriptName: string,
   target: Target,
-  isLocal: boolean,
   linesToExecute: string[],
   logFolder?: string,
   streamConfig?: StreamConfig
@@ -210,15 +179,15 @@ async function deployToSasViya(
     )
   }
 
-  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target, isLocal)
+  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target)
 
   const executionResult = await sasjs
-    .executeScriptSASViya(
-      deployScriptName,
-      linesToExecute,
+    .executeScript({
+      fileName: deployScriptName,
+      linesOfCode: linesToExecute,
       contextName,
       authConfig
-    )
+    })
     .catch((err: any) => {
       process.logger.error('executeScriptSASViya Error', err)
     })
@@ -262,8 +231,8 @@ async function deployToSasViya(
 
 /**
  * Deploys app to `SAS9` server through deployScript.
- * @param {string} deployScriptName- name of deploy script.
- * @param {Target} target- the target having deploy configuration.
+ * @param {string} deployScriptName - name of deploy script.
+ * @param {Target} target - the target having deploy configuration.
  * @param {string[]} linesToExecute - array of SAS code lines of deploy script to execute.
  * @param {string} logFolder - optional path to log folder,
  * log file name will be <deploy-script-name>.log
@@ -277,35 +246,20 @@ async function deployToSas9(
   logFolder?: string,
   streamConfig?: StreamConfig
 ) {
-  let username: any
-  let password: any
-  if (target.authConfigSas9) {
-    username = target.authConfigSas9.userName
-    password = target.authConfigSas9.password
-  } else {
-    username = process.env.SAS_USERNAME
-    password = process.env.SAS_PASSWORD
-  }
-  if (!username || !password) {
-    const { sas9CredentialsError } = process.sasjsConstants
-    throw new Error(sas9CredentialsError)
-  }
-  password = decodeFromBase64(password)
-
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
+  const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target)
+  const userName = authConfigSas9!.userName
+  const password = decodeFromBase64(authConfigSas9!.userName)
 
   let completedWithError = false
   const executionResult = await sasjs
-    .executeScriptSAS9(linesToExecute, username, password)
+    .executeScript({
+      linesOfCode: linesToExecute,
+      authConfigSas9: { userName, password }
+    })
     .catch((err) => {
       process.logger?.log(formatErrorString(err))
       if (err && err.errorCode === 404) {
-        displaySasjsRunnerError(username)
+        displaySasjsRunnerError(userName)
       }
       completedWithError = true
       return err
@@ -350,15 +304,10 @@ async function deployToSas9(
 
 /**
  * Deploys app to `SASJS` server.
- * @param {Target} target- the target having deploy configuration.
- * @param {object} sasjs - optional configuration object of SAS adapter.
+ * @param {Target} target - the target having deploy configuration.
  * @param {object} streamConfig - optional config for deploying streaming app.
  */
-async function deployToSasjs(
-  target: Target,
-  sasjs?: SASjs,
-  streamConfig?: StreamConfig
-) {
+async function deployToSasjs(target: Target, streamConfig?: StreamConfig) {
   const { buildDestinationFolder } = process.sasjsConstants
   const finalFilePathJSON = path.join(
     buildDestinationFolder,
@@ -367,23 +316,17 @@ async function deployToSasjs(
   const jsonContent = await readFile(finalFilePathJSON)
   const payload: ServicePackSASjs = JSON.parse(jsonContent)
 
-  let authConfig
-  if (!sasjs) {
-    sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      appLoc: target.appLoc,
-      serverType: target.serverType,
-      httpsAgentOptions: target.httpsAgentOptions,
-      debug: true
-    })
+  const authConfig = (await isSasJsServerInServerMode(target))
+    ? await getAuthConfig(target)
+    : undefined
 
-    try {
-      authConfig = await getAuthConfig(target)
-    } catch (e) {}
-  }
+  console.log(326)
+  const sasjsApiClient = new SASjsApiClient(
+    new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
+  )
 
-  const result = await sasjs
-    .deployToSASjs(payload, undefined, authConfig)
+  const result = await sasjsApiClient
+    .deploy(payload, target.appLoc, authConfig)
     .catch((err) => {
       process.logger?.error('deployToSASjs Error', err)
     })

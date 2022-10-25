@@ -16,7 +16,7 @@ import { parseSourceFile } from '../../../../utils/parseSourceFile'
  */
 export async function executeJobSas9(
   sasjs: SASjs,
-  config: { username: string; password: string },
+  config: { userName: string; password: string },
   jobPath: string,
   logFile?: string,
   output?: string,

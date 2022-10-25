@@ -1,5 +1,5 @@
 import path from 'path'
-import SASjs from '@sasjs/adapter/node'
+import { SASjsApiClient } from '@sasjs/adapter/node'
 import { encode } from 'js-base64'
 import {
   ServerType,
@@ -14,6 +14,7 @@ import {
   removeTestApp,
   updateConfig
 } from '../../../utils/test'
+import * as utilsModule from '../../../utils/utils'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
@@ -38,15 +39,18 @@ describe('sasjs cbd with server type SASJS', () => {
   })
 
   it(`should deploy compile and build to sasjs/server`, async () => {
-    const sasjs = new (<jest.Mock<SASjs>>SASjs)()
-    jest.mock('@sasjs/adapter')
+    const deployMock = jest
+      .spyOn(SASjsApiClient.prototype, 'deploy')
+      .mockImplementation(() =>
+        Promise.resolve({
+          status: 'success',
+          message: 'message'
+        })
+      )
 
-    jest.spyOn(sasjs, 'deployToSASjs').mockImplementation(() =>
-      Promise.resolve({
-        status: 'success',
-        message: 'message'
-      })
-    )
+    jest
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
+      .mockImplementation(() => Promise.resolve(false))
 
     await updateConfig({
       serviceConfig: {
@@ -69,7 +73,8 @@ describe('sasjs cbd with server type SASJS', () => {
     )
 
     await expect(build(customTarget)).toResolve()
-    await deploy(customTarget, true, sasjs)
+
+    await deploy(customTarget, true)
 
     const { macroCorePath } = process.sasjsConstants
 
@@ -111,7 +116,7 @@ describe('sasjs cbd with server type SASJS', () => {
     const getCode = (file: string) =>
       `${mf_getuser}${mp_jsonout}${ms_webout}${webout}/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);${depsInserts}${file}* Service end;`
 
-    expect(sasjs.deployToSASjs).toHaveBeenCalledWith(
+    expect(deployMock).toHaveBeenCalledWith(
       {
         appLoc: target.appLoc,
         fileTree: {
@@ -151,7 +156,7 @@ describe('sasjs cbd with server type SASJS', () => {
           ]
         }
       },
-      undefined,
+      target.appLoc,
       undefined
     )
   })
