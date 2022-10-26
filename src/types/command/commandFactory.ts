@@ -20,6 +20,7 @@ import { HelpCommand } from '../../commands/help/helpCommand'
 import { JobCommand } from '../../commands/job/jobCommand'
 import { LintCommand } from '../../commands/lint/lintCommand'
 import { FlowCommand } from '../../commands/flow/flowCommand'
+import { FSCommand } from '../../commands/fs/fsCommand'
 
 export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddCommand(args)],
@@ -36,6 +37,7 @@ export const commandFactory = new Map<string, Function>([
   ['deploy', (args: string[]) => new DeployCommand(args)],
   ['doc', (args: string[]) => new DocsCommand(args)],
   ['folder', (args: string[]) => new FolderCommand(args)],
+  ['fs', (args: string[]) => new FSCommand(args)],
   ['help', (args: string[]) => new HelpCommand(args)],
   ['init', (args: string[]) => new InitCommand(args)],
   ['job', (args: string[]) => new JobCommand(args)],
