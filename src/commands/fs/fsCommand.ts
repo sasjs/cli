@@ -100,13 +100,12 @@ export class FSCommand extends TargetCommand {
     let outputPath = this.parsed.output as string
     if (this.parsed.subCommand === FsSubCommand.Compile) {
       if (!outputPath) {
-        const outputFolder = (await isSASjsProject())
-          ? path.join(
-              process.sasjsConstants.buildDestinationFolder,
-              'fs-compile',
-              generateTimestamp()
-            )
-          : process.projectDir
+        const outputFolder = path.join(
+          process.sasjsConstants.buildDestinationFolder,
+          'fs-compile',
+          generateTimestamp()
+        )
+
         const filename = 'compileProgram.sas'
         return path.join(outputFolder, filename)
       }
@@ -117,20 +116,16 @@ export class FSCommand extends TargetCommand {
     }
 
     if (!outputPath) {
-      const outputFolder = (await isSASjsProject())
-        ? path.join(
-            process.sasjsConstants.buildDestinationResultsFolder,
-            'fs',
-            generateTimestamp()
-          )
-        : process.projectDir
-
-      return outputFolder
+      return path.join(
+        process.sasjsConstants.buildDestinationResultsFolder,
+        'fs',
+        generateTimestamp()
+      )
     }
 
     if (path.isAbsolute(outputPath)) return outputPath
 
-    return path.join(process.projectDir, outputPath)
+    return path.join(process.cwd(), outputPath)
   }
 
   public async execute() {
