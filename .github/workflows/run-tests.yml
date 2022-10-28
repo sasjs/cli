@@ -32,6 +32,7 @@ jobs:
           touch .env
           echo RUN_TIMES=js >> .env
           echo NODE_PATH=node >> .env
+          echo MOCK_SERVERTYPE=sas9 >> .env
 
       - name: download sasjs/server package from github using curl
         run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
@@ -52,6 +53,12 @@ jobs:
         run: |
           npm config set registry http://registry.npmjs.org
           npm ci
+
+      - name: Deploy SAS9 Mock
+        run: |
+          cd mocks
+          npm link
+          sasjs cbd
 
       - name: Check code style
         run: npm run lint
@@ -74,7 +81,7 @@ jobs:
           SAS_USERNAME: ${{secrets.SAS_USERNAME}}
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          SAS9_SERVER_URL: 'http://localhost:5000'
           SASJS_SERVER_URL: 'http://localhost:5000'
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
@@ -88,7 +95,7 @@ jobs:
           SAS_USERNAME: ${{secrets.SAS_USERNAME}}
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          SAS9_SERVER_URL: http://localhost:5000
           SASJS_SERVER_URL: http://localhost:5000
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
