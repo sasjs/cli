@@ -12,7 +12,8 @@ import {
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions,
-  ServerType
+  ServerType,
+  AuthConfigSas9
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -660,6 +661,33 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
 }
 
 /**
+ * Gets the auth config for the specified SAS9 target.
+ * @param {Target} target - the target to get an access token for.
+ * @returns {AuthConfigSas9} - an object containing an userName and password.
+ */
+export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
+  const { userName, password } = target.authConfigSas9
+    ? {
+        userName: target.authConfigSas9.userName,
+        password: target.authConfigSas9.password
+      }
+    : {
+        userName: process.env.SAS_USERNAME,
+        password: process.env.SAS_PASSWORD
+      }
+
+  if (!userName || !password) {
+    const { sas9CredentialsError } = process.sasjsConstants
+    throw new Error(sas9CredentialsError)
+  }
+
+  return {
+    userName,
+    password
+  }
+}
+
+/**
  * Gets an access token for the specified target.
  * If the target is from the global `.sasjsrc` file,
  * the auth info should be contained in it.
@@ -854,4 +882,40 @@ export const getTestTearDown = async (target: Target) => {
   }
 
   return undefined
+}
+
+/**
+ * Returns configuration object of SAS Adapter and authentication configuration
+ * @param {Target} target - the target to get auth configuration from.
+ */
+export function getSASjs(target: Target) {
+  return new SASjs({
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType,
+    httpsAgentOptions: target.httpsAgentOptions,
+    debug: true,
+    useComputeApi: target.serverType === ServerType.SasViya
+  })
+}
+
+/**
+ * Returns configuration object of SAS Adapter and authentication configuration
+ * @param {Target} target - the target to get auth configuration from.
+ * @returns an object containing a SAS Adapter configuration object `sasjs`
+ * and auth configuration `authConfig` or `authConfigSas9`.
+ */
+export async function getSASjsAndAuthConfig(target: Target) {
+  const sasjs = getSASjs(target)
+
+  if (target.serverType === ServerType.Sas9)
+    return {
+      sasjs,
+      authConfigSas9: getAuthConfigSAS9(target)
+    }
+
+  return {
+    sasjs,
+    authConfig: await getAuthConfig(target)
+  }
 }

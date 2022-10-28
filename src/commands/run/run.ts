@@ -1,7 +1,10 @@
 import path from 'path'
-import SASjs from '@sasjs/adapter/node'
 import { ErrorResponse } from '@sasjs/adapter/node'
-import { getAuthConfig } from '../../utils/config'
+import {
+  getAuthConfig,
+  getSASjs,
+  getSASjsAndAuthConfig
+} from '../../utils/config'
 import {
   readFile,
   createFile,
@@ -15,7 +18,6 @@ import {
 import { compileSingleFile } from '../'
 import {
   convertToSASStatements,
-  displayError,
   displaySasjsRunnerError,
   isSasJsServerInServerMode
 } from '../../utils/'
@@ -76,18 +78,17 @@ export async function runSasCode(
     linesToExecute = [...macroVarStatements, ...linesToExecute]
   }
 
-  let result
-  if (target.serverType === ServerType.SasViya)
-    result = await executeOnSasViya(filePath, target, linesToExecute, logFile)
-  else if (target.serverType === ServerType.Sas9)
-    result = await executeOnSas9(target, linesToExecute, logFile)
-  else result = await executeOnSasJS(filePath, target, linesToExecute, logFile)
-
   if (isTempFile) {
     await deleteFile(filePath)
   }
 
-  return result
+  if (target.serverType === ServerType.SasViya)
+    return await executeOnSasViya(filePath, target, linesToExecute, logFile)
+
+  if (target.serverType === ServerType.Sas9)
+    return await executeOnSas9(target, linesToExecute, logFile)
+
+  return await executeOnSasJS(filePath, target, linesToExecute, logFile)
 }
 
 async function executeOnSasViya(
@@ -100,32 +101,19 @@ async function executeOnSasViya(
     `Sending ${path.basename(filePath)} to SAS server for execution.`
   )
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    debug: true,
-    useComputeApi: true
-  })
+  const { sasjs, authConfig } = await getSASjsAndAuthConfig(target)
 
-  let contextName = target.contextName
+  const contextName = target.contextName || sasjs.getSasjsConfig().contextName
 
-  if (!contextName) {
-    contextName = sasjs.getSasjsConfig().contextName
-  }
-
-  const authConfig = await getAuthConfig(target)
-
-  const executionResult = await sasjs
-    .executeScriptSASViya(
-      path.basename(filePath),
-      linesToExecute,
+  const { log } = await sasjs
+    .executeScript({
+      fileName: path.basename(filePath),
+      linesOfCode: linesToExecute,
       contextName,
       authConfig
-    )
+    })
     .catch(async (err) => {
-      let log = err.log
+      const log = err.log
 
       if (!log)
         throw new ErrorResponse('We were not able to fetch the log this time.')
@@ -135,36 +123,14 @@ async function executeOnSasViya(
       throw new ErrorResponse('Find more error details in the log file.')
     })
 
-  let log
-  let isOutput = false
-
-  try {
-    log = executionResult.log.items
-      ? executionResult.log.items.map((i: { line: string }) => i.line)
-      : executionResult.log
-  } catch (e) {
-    displayError(e, 'An error occurred when parsing the execution log')
-    process.logger?.info('The execution output will be saved to the log file.')
-
-    log = JSON.stringify(executionResult)
-
-    isOutput = true
-  }
-
   process.logger?.success('Job execution completed!')
 
   const { buildDestinationResultsFolder } = process.sasjsConstants
   process.logger?.info(
-    `Creating ${
-      isOutput ? 'output' : 'log'
-    } file in ${buildDestinationResultsFolder} .`
+    `Creating log file in ${buildDestinationResultsFolder} .`
   )
-  const createdFilePath = await createOutputFile(log, undefined, isOutput)
-  process.logger?.success(
-    `${
-      isOutput ? 'Output' : 'Log'
-    } file has been created at ${createdFilePath} .`
-  )
+  const createdFilePath = await createOutputFile(log, logFile)
+  process.logger?.success(`Log file has been created at ${createdFilePath} .`)
   return { log }
 }
 
@@ -173,43 +139,25 @@ async function executeOnSas9(
   linesToExecute: string[],
   logFile: string | undefined
 ) {
-  let username: any
-  let password: any
-  if (target.authConfigSas9) {
-    username = target.authConfigSas9.userName
-    password = target.authConfigSas9.password
-  } else {
-    username = process.env.SAS_USERNAME
-    password = process.env.SAS_PASSWORD
-  }
-
-  if (!username || !password) {
-    const { sas9CredentialsError } = process.sasjsConstants
-    throw new Error(sas9CredentialsError)
-  }
-
-  password = decodeFromBase64(password)
-
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    debug: true
-  })
+  const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target)
+  const userName = authConfigSas9!.userName
+  const password = decodeFromBase64(authConfigSas9!.password)
 
   const executionResult = await sasjs
-    .executeScriptSAS9(linesToExecute, username, password)
+    .executeScript({
+      linesOfCode: linesToExecute,
+      authConfigSas9: { userName, password }
+    })
     .catch(async (err) => {
       if (err && err.payload && err.payload.log) {
-        let log = err.payload.log
+        const log = err.payload.log
 
         await createOutputFile(log, logFile)
 
         throw new ErrorResponse('Find more error details in the log file.')
       } else {
         if (err && err.errorCode === 404) {
-          displaySasjsRunnerError(username)
+          displaySasjsRunnerError(userName)
         }
         throw err
       }
@@ -228,27 +176,18 @@ async function executeOnSasJS(
   linesToExecute: string[],
   logFile: string | undefined
 ) {
-  let authConfig
-
-  if (await isSasJsServerInServerMode(target)) {
-    authConfig = await getAuthConfig(target)
-  }
-
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    debug: true
-  })
+  const authConfig = (await isSasJsServerInServerMode(target))
+    ? await getAuthConfig(target)
+    : undefined
+  const sasjs = getSASjs(target)
 
   const fileExtension = path.extname(filePath).slice(1)
 
-  const executionResult = await sasjs.executeScriptSASjs(
-    linesToExecute.join('\n'),
-    fileExtension,
+  const executionResult = await sasjs.executeScript({
+    linesOfCode: linesToExecute,
+    runTime: fileExtension,
     authConfig
-  )
+  })
 
   process.logger?.success('Job execution completed!')
 

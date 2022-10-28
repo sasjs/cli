@@ -1,12 +1,14 @@
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { SASjsApiClient } from '@sasjs/adapter/node'
 import { deleteFile } from '@sasjs/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
 import { setConstants } from '../../../utils'
+import * as utilsModule from '../../../utils/utils'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
 const sasjs = new (<jest.Mock<SASjs>>SASjs)()
+let executeJobMock: jest.SpyInstance
 const target = new Target({
   name: 'test',
   serverType: ServerType.Sasjs,
@@ -17,7 +19,7 @@ let statusFile: string
 
 describe('executeJobViya', () => {
   beforeEach(async () => {
-    await setupMocks(ServerType.SasViya)
+    await setupMocksForViya()
   })
 
   const testFilePath = path.join(__dirname, 'test')
@@ -100,33 +102,50 @@ describe('executeJobViya', () => {
 
 describe('executeJobSasjs', () => {
   beforeEach(async () => {
-    await setupMocks(ServerType.Sasjs)
+    await setupMocksForSasjs()
   })
 
   it('should pass job pass as a _program parameter', async () => {
     await executeJobSasjs(
-      sasjs,
+      target,
       'test/job',
       path.join(process.projectDir, 'logs')
     )
 
-    expect(sasjs.executeJobSASjs).toHaveBeenCalledWith(
+    expect(executeJobMock).toHaveBeenCalledWith(
       { _program: 'test/job' },
+      target.appLoc,
       undefined
     )
   })
 })
 
-const setupMocks = async (serverType: ServerType) => {
+const setupMocksForViya = async () => {
   process.projectDir = process.cwd()
   await setConstants()
   jest.restoreAllMocks()
   jest.mock('@sasjs/adapter')
 
   jest
-    .spyOn(
-      sasjs,
-      serverType === ServerType.SasViya ? 'startComputeJob' : 'executeJobSASjs'
-    )
+    .spyOn(sasjs, 'startComputeJob')
     .mockImplementation(() => Promise.resolve())
+}
+
+const setupMocksForSasjs = async () => {
+  process.projectDir = process.cwd()
+  await setConstants()
+  jest.restoreAllMocks()
+
+  executeJobMock = jest
+    .spyOn(SASjsApiClient.prototype, 'executeJob')
+    .mockImplementation(() =>
+      Promise.resolve({
+        result: '',
+        log: ''
+      })
+    )
+
+  jest
+    .spyOn(utilsModule, 'isSasJsServerInServerMode')
+    .mockImplementation(() => Promise.resolve(false))
 }
