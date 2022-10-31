@@ -56,9 +56,11 @@ jobs:
 
       - name: Deploy SAS9 Mock
         run: |
+          npm run start:ci
           npm link
           cd mocks
           sasjs cbd
+          npm unlink
 
       - name: Check code style
         run: npm run lint
