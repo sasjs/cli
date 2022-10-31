@@ -56,8 +56,8 @@ jobs:
 
       - name: Deploy SAS9 Mock
         run: |
-          cd mocks
           npm link
+          cd mocks
           sasjs cbd
 
       - name: Check code style
