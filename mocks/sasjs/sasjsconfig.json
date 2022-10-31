@@ -5,7 +5,7 @@
   "targets": [
     {
       "name": "server",
-      "serverUrl": "http://localhost:5004",
+      "serverUrl": "http://localhost:5000",
       "serverType": "SASJS",
       "appLoc": "/User Folders/sasdemo/My Folder"
     }
