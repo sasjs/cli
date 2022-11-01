@@ -86,6 +86,7 @@ jobs:
           npm link
           cd mocks
           sasjs cbd
+          cd ../
 
       - name: Run server tests
         run: npm run test:server
