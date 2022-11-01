@@ -89,7 +89,9 @@ jobs:
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
       - name: Run server tests
-        run: npm run test:server
+        run: |
+          ls -al
+          npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
