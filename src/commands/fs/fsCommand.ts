@@ -25,8 +25,7 @@ enum FsSubCommand {
 const syntax = 'fs <subCommand> [options]'
 const usage = 'Usage: sasjs fs <subCommand> [options]'
 // TODO: update
-const description =
-  'Handles operations around file system synchronisation'
+const description = 'Handles operations around file system synchronisation'
 
 const compileCommandSyntax = 'fs <subCommand> <localFolder> [options]'
 const compileCommandUsage = 'Usage: sasjs fs compile <localFolder> [options]'
@@ -34,9 +33,9 @@ const compileCommandDescription =
   'Compiles a SAS program with the contents of a local directory'
 const compileCommandExamples: CommandExample[] = [
   {
-    command: 'sasjs fs compile <path/of/folder> --output <path/of/outputProgram>',
-    description:
-      'Compiles a SAS program with the contents of a local directory'
+    command:
+      'sasjs fs compile <path/of/folder> --output <path/of/outputProgram>',
+    description: 'Compiles a SAS program with the contents of a local directory'
   }
 ]
 
