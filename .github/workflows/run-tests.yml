@@ -54,13 +54,6 @@ jobs:
           npm config set registry http://registry.npmjs.org
           npm ci
 
-      - name: Deploy SAS9 Mock
-        run: |
-          npm run start:ci
-          npm link
-          cd mocks
-          sasjs cbd
-
       - name: Check code style
         run: npm run lint
 
@@ -86,6 +79,13 @@ jobs:
           SASJS_SERVER_URL: 'http://localhost:5000'
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+
+      - name: Deploy SAS9 Mock
+        run: |
+          npm run start:ci
+          npm link
+          cd mocks
+          sasjs cbd
 
       - name: Run server tests
         run: npm run test:server
