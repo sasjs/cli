@@ -60,7 +60,6 @@ jobs:
           npm link
           cd mocks
           sasjs cbd
-          npm unlink
 
       - name: Check code style
         run: npm run lint
@@ -89,9 +88,7 @@ jobs:
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
       - name: Run server tests
-        run: |
-          ls -al
-          npm run test:server
+        run: npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
