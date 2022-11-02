@@ -4,6 +4,5 @@ sas
 sasbuild
 sasjsbuild
 .env
-.env.*
 .DS_Store
 /coverage

@@ -80,15 +80,13 @@ jobs:
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
-      # - name: Deploy SAS9 Mock
-      #   run: |
-      #     npm run start:ci
-      #     npm link
-      #     cd mocks
-      #     sasjs cbd
-
       - name: Run server tests
-        run: npm run test:server
+        run: |
+          npm run start:ci
+          npm link
+          cd mocks
+          sasjs cbd
+          npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
