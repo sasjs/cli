@@ -137,7 +137,8 @@ describe('sasjs compile', () => {
     })
 
     const errorMessage =
-      'The following files were listed under SAS Programs but could not be found:\n' +
+      'Unable to load dependencies for: /home/mihajlo/external-projects/allan/sasjs/medjedovicm/cli/src/commands/compile/spec/services/example.sas\n' +
+      'The following files were listed under SAS Includes but could not be found:\n' +
       "1. 'doesnotexist.sas' with fileRef 'SOMEREF'\n" +
       'Please check that they exist in the folder(s) listed in the `programFolders` array in your sasjsconfig.json file.\n' +
       'Program Folders:\n' +
