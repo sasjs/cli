@@ -63,27 +63,26 @@ jobs:
       - name: Test Package Install
         run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
 
-      - name: Run smoke tests
-        run: sh ./test.sh
+      # - name: Run smoke tests
+      #   run: sh ./test.sh
 
-      - name: Run mocked tests
-        run: npm run test:mocked
-        env:
-          CI: true
-          CLIENT: ${{secrets.CLIENT}}
-          SECRET: ${{secrets.SECRET}}
-          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
-          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
-          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: 'http://localhost:5000'
-          SASJS_SERVER_URL: 'http://localhost:5000'
-          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
-          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+      # - name: Run mocked tests
+      #   run: npm run test:mocked
+      #   env:
+      #     CI: true
+      #     CLIENT: ${{secrets.CLIENT}}
+      #     SECRET: ${{secrets.SECRET}}
+      #     SAS_USERNAME: ${{secrets.SAS_USERNAME}}
+      #     SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
+      #     VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
+      #     SAS9_SERVER_URL: 'http://localhost:5000'
+      #     SASJS_SERVER_URL: 'http://localhost:5000'
+      #     ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
+      #     REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
       - name: Run server tests
         run: |
-          npm run start:ci
-          npm link
+          echo "TEST_SERVER_TYPES: ${{secrets.TEST_SERVER_TYPES}}"
           cd mocks
           sasjs cbd
           npm run test:server
