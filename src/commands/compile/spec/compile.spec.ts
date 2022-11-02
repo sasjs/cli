@@ -137,7 +137,10 @@ describe('sasjs compile', () => {
     })
 
     const errorMessage =
-      `Unable to load dependencies for: ${path.join(__dirname, 'services/example.sas')}\n` +
+      `Unable to load dependencies for: ${path.join(
+        __dirname,
+        'services/example.sas'
+      )}\n` +
       'The following files were listed under SAS Includes but could not be found:\n' +
       "1. 'doesnotexist.sas' with fileRef 'SOMEREF'\n" +
       'Please check that they exist in the folder(s) listed in the `programFolders` array in your sasjsconfig.json file.\n' +
