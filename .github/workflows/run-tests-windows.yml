@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Doxygen
         run: |
-          git clone git@github.com:sasjs/doxygen-installer.git
+          git clone https://github.com/sasjs/doxygen-installer.git
           cd doxygen-installer
           .\misc\doxygen-installer\install.bat
 
