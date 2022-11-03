@@ -22,7 +22,7 @@
     "preinstall": "npm run nodeVersionMessage",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true"
   },
-  "testServerTypes": "viya,sas9,sasjs",
+  "testServerTypes": "sasjs,sas9",
   "release": {
     "branches": [
       "main"
