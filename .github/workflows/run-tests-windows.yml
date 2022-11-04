@@ -24,6 +24,8 @@ jobs:
 
       # - name: Install Doxygen
       #   run: choco install doxygen.install
+      #
+      # `choco install doxygen.install` is unreliable
 
       - name: Install Doxygen
         run: |
