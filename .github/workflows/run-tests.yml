@@ -87,6 +87,7 @@ jobs:
           cd ..
           pm2 list
           npm run test:server
+          pm2 log
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
