@@ -85,8 +85,6 @@ jobs:
           cd mocks
           sasjs cbd
           cd ..
-          pm2 list
-          pm2 log
           npm run test:server
         env:
           CI: true
