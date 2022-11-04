@@ -95,7 +95,7 @@ jobs:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
           SECRET: ${{secrets.SECRET}}
-          SAS_USERNAME: sasdemo
+          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
           SAS9_SERVER_URL: http://localhost:5000
