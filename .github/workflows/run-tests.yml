@@ -86,8 +86,8 @@ jobs:
           sasjs cbd
           cd ..
           pm2 list
-          npm run test:server
           pm2 log
+          npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
