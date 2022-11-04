@@ -85,7 +85,7 @@ jobs:
           cd mocks
           sasjs cbd
           cd ..
-          ls sasjs_root -R
+          pm2 list
           npm run test:server
         env:
           CI: true
