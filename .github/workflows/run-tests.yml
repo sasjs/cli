@@ -85,12 +85,12 @@ jobs:
           cd mocks
           sasjs cbd
           cd ..
+          ls sasjs_root -R
 
       - name: Run server tests
         run: |
           npm run test:server || true
           pm2 log
-        continue-on-error: true
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
