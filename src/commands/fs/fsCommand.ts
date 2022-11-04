@@ -25,30 +25,29 @@ enum FsSubCommand {
 const syntax = 'fs <subCommand> [options]'
 const usage = 'Usage: sasjs fs <subCommand> [options]'
 // TODO: update
-const description =
-  'generate a SAS program that contains the contents of a local directory'
+const description = 'Handles operations around file system synchronisation'
 
 const compileCommandSyntax = 'fs <subCommand> <localFolder> [options]'
 const compileCommandUsage = 'Usage: sasjs fs compile <localFolder> [options]'
 const compileCommandDescription =
-  'generate a SAS program that contains the contents of a local directory'
+  'Compiles a SAS program with the contents of a local directory'
 const compileCommandExamples: CommandExample[] = [
   {
-    command: 'sasjs fs compile <path/of/folder> <path/of/outputProgram>',
-    description:
-      'generate a SAS program that contains the contents of a local directory'
+    command:
+      'sasjs fs compile <path/of/folder> --output <path/of/outputProgram>',
+    description: 'Compiles a SAS program with the contents of a local directory'
   }
 ]
 
 const syncCommandSyntax = 'fs <subCommand> <localFolder> <remoteFolder>'
 const syncCommandUsage = 'Usage: sasjs fs sync <localFolder> <remoteFolder>'
 const syncCommandDescription =
-  'generate a SAS program that will synchronize the remote folder with local'
+  'Synchronise the remote SAS file system with the local project folder according to the target `syncDirectories` array'
 const syncCommandExamples: CommandExample[] = [
   {
     command: 'sasjs fs sync <path/of/folder> <path/of/remote/folder>',
     description:
-      'generate a SAS program that will synchronize the remote folder with local'
+      'Synchronise the remote SAS file system with the local project folder according to the target `syncDirectories` array'
   }
 ]
 

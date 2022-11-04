@@ -8,7 +8,7 @@
   @li examplemacro.sas
   @li yetanothermacro.sas
   
-  <h4> SAS Programs </h4>
+  <h4> SAS Includes </h4>
   @li doesnotexist.sas SOMEREF
 
 **/

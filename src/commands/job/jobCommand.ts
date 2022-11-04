@@ -2,7 +2,7 @@ import { ServerType, Target, decodeFromBase64 } from '@sasjs/utils'
 import path from 'path'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getSASjsAndAuthConfig } from '../../utils'
+import { getSASjs, getSASjsAndAuthConfig } from '../../utils'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import {
@@ -157,9 +157,20 @@ export class JobCommand extends TargetCommand {
       : undefined
     const source = this.parsed.source as string
 
-    const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target)
-    const userName = authConfigSas9!.userName
-    const password = decodeFromBase64(authConfigSas9!.password)
+    const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target).catch(
+      (err) => {
+        process.logger?.error(
+          'Unable to execute job. Error fetching auth config: ',
+          err
+        )
+
+        return { sasjs: getSASjs(target), authConfigSas9: undefined }
+      }
+    )
+    if (!authConfigSas9) return ReturnCode.InternalError
+
+    const userName = authConfigSas9.userName
+    const password = decodeFromBase64(authConfigSas9.password)
 
     const returnCode = await executeJobSas9(
       sasjs,
@@ -203,14 +214,18 @@ export class JobCommand extends TargetCommand {
       )
     }
 
-    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target)
+    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
+      (err) => {
+        process.logger?.error(
+          'Unable to execute job. Error fetching auth config: ',
+          err
+        )
 
-    if (!authConfig) {
-      process.logger?.error(
-        'Unable to execute job. Error fetching auth config.'
-      )
-      return ReturnCode.InternalError
-    }
+        return { sasjs: getSASjs(target), authConfig: undefined }
+      }
+    )
+
+    if (!authConfig) return ReturnCode.InternalError
 
     const returnCode = await executeJobViya(
       sasjs,

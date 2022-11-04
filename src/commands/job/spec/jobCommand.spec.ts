@@ -174,7 +174,7 @@ describe('JobCommand', () => {
 
     it('should return the error code when getting Auth Config is unsuccessful', async () => {
       jest
-        .spyOn(configUtils, 'getAuthConfig')
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
         .mockImplementation(() => Promise.reject(new Error('Test Error')))
 
       const returnCode = await executeCommandWrapper([jobPath])
@@ -313,8 +313,13 @@ const setupMocksForViya = () => {
     )
 
   jest
-    .spyOn(configUtils, 'getAuthConfig')
-    .mockImplementation(() => Promise.resolve(authConfig as AuthConfig))
+    .spyOn(configUtils, 'getSASjsAndAuthConfig')
+    .mockImplementation((target: Target) => {
+      return Promise.resolve({
+        sasjs: configUtils.getSASjs(target),
+        authConfig: authConfig as AuthConfig
+      })
+    })
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'error')

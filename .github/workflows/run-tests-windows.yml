@@ -22,8 +22,13 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      # - name: Install Doxygen
+      #   run: choco install doxygen.install
+
       - name: Install Doxygen
-        run: choco install doxygen.install
+        run: |
+          git clone https://github.com/sasjs/doxygen-installer.git
+          .\doxygen-installer\install.bat
 
       - name: Add doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
