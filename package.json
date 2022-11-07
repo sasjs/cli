@@ -8,6 +8,7 @@
   "scripts": {
     "nodeVersionMessage": "echo \u001b[33m make sure you are running node lts version \u001b[0m",
     "checkNodeVersion": "node -e \"console.log('\u001b[36m', 'Checking your Node.js version...'); if (!process.versions || !process.versions.node) { console.log('\u001b[31m', 'Error determining Node.js version. Exiting...') } if (parseInt(process.versions.node) < 14) { console.log('\u001b[31m', '❌ You must be running at least Node.js 14 to install SASjs CLI.\\nYour current version is ' + process.versions.node + '.\\nPlease install a more recent version and try again.'); process.exit(1); } else { console.log('\u001b[32m', '✅ Node.js version check passed. Continuing...'); } console.log('\u001b[0m', '');\"",
+    "start:ci": "npm run build && npm run set:permissions",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "rimraf build && tsc -p . && npm run copy:files",
@@ -21,7 +22,7 @@
     "preinstall": "npm run nodeVersionMessage",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true"
   },
-  "testServerTypes": "viya,sas9,sasjs",
+  "testServerTypes": "sasjs,sas9",
   "release": {
     "branches": [
       "main"
@@ -78,7 +79,7 @@
     "@types/adm-zip": "0.5.0",
     "@types/find": "0.2.1",
     "@types/jest": "27.0.2",
-    "@types/jsdom": "16.2.13",
+    "@types/jsdom": "16.2.15",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
     "@types/node": "17.0.8",

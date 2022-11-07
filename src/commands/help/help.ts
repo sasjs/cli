@@ -263,6 +263,24 @@ export async function printHelpText() {
       ]
     },
     {
+      name: 'fs',
+      title: 'fs <command>',
+      description: [
+        `Handles operations around file system synchronisation.`,
+        `* ${chalk.cyanBright(
+          'sync'
+        )} - Synchronise the remote SAS file system with the local project folder according to the target 'syncDirectories' array.`,
+        `[2spaces]command example: sasjs fs sync /Public/localFolder /Public/remoteFolder`,
+        ``,
+        `* ${chalk.cyanBright(
+          'compile'
+        )} - Compiles a SAS program with the contents of a local directory.`,
+        `[2spaces]command example: sasjs fs compile /Public/folder --output ./outputProgram`,
+        ``,
+        `[2spaces]NOTE: If output flag (-o or --output) is not provided, output will be stored in './fs-compile/{timestamp}' directory relative to working directory.`
+      ]
+    },
+    {
       name: 'job',
       title: 'job <command>',
       description: [
