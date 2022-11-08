@@ -89,7 +89,7 @@ export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     const { stdout, stderr, code } = downloadFile(
       `https://username:password@github.com/sasjs/template_${template}`,
-      "response.txt"
+      'response.txt'
     )
 
     if (stderr.includes('404: Not Found') || code) {
@@ -132,7 +132,10 @@ function createApp(
   spinner.start()
 
   //Get repo zip, assuming main branch is called `main`
-  const { stdout, stderr, code } = downloadFile(`${repoUrl}${fullZipPath}`, zipName)
+  const { stdout, stderr, code } = downloadFile(
+    `${repoUrl}${fullZipPath}`,
+    zipName
+  )
 
   // If doesn't exist, we try again, but with master.zip for the zip name.
   // Since that's the name generated from branch name.
@@ -140,9 +143,9 @@ function createApp(
     zipName = 'master.zip'
 
     const { stdout, stderr, code } = downloadFile(
-      `${repoUrl}${zipPath}${zipName}`, zipName
+      `${repoUrl}${zipPath}${zipName}`,
+      zipName
     )
-
 
     if (stderr.includes('404: Not Found') || code) {
       errorCallback(`${repoUrl}${zipPath} is not SASjs repository!`)
@@ -206,7 +209,12 @@ function downloadFile(url: string, filename?: string): ShellString {
     return shelljs.exec(`wget ${url}`, { silent: true })
   } else if (isWindows()) {
     // First We set TLS12 & then we invoke request to download file.
-    return shelljs.exec(`powershell.exe "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest ${url} ${filename ? '-O ' + filename : ''}"`, { silent: true })
+    return shelljs.exec(
+      `powershell.exe "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest ${url} ${
+        filename ? '-O ' + filename : ''
+      }"`,
+      { silent: true }
+    )
   } else {
     return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
   }
