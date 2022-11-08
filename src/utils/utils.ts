@@ -88,7 +88,8 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     const { stdout, stderr, code } = downloadFile(
-      `https://username:password@github.com/sasjs/template_${template}`
+      `https://username:password@github.com/sasjs/template_${template}`,
+      "response.txt"
     )
 
     if (stderr.includes('404: Not Found') || code) {
@@ -131,7 +132,7 @@ function createApp(
   spinner.start()
 
   //Get repo zip, assuming main branch is called `main`
-  const { stdout, stderr, code } = downloadFile(`${repoUrl}${fullZipPath}`)
+  const { stdout, stderr, code } = downloadFile(`${repoUrl}${fullZipPath}`, zipName)
 
   // If doesn't exist, we try again, but with master.zip for the zip name.
   // Since that's the name generated from branch name.
@@ -139,8 +140,9 @@ function createApp(
     zipName = 'master.zip'
 
     const { stdout, stderr, code } = downloadFile(
-      `${repoUrl}${zipPath}${zipName}`
+      `${repoUrl}${zipPath}${zipName}`, zipName
     )
+
 
     if (stderr.includes('404: Not Found') || code) {
       errorCallback(`${repoUrl}${zipPath} is not SASjs repository!`)
@@ -189,7 +191,7 @@ const loadDocsSubmodule = async (
   let docsFolderPath = `${folderPath}/public/docs` //We first look if docs submodule is inside `public` folder. (react-seed-app for example)
   if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` //If not, we load submodule in root
 
-  downloadFile(`${docsUrl}${zipPath}`)
+  downloadFile(`${docsUrl}${zipPath}`, 'main.zip')
 
   const zip = new AdmZip('main.zip')
   zip.extractAllTo('./', true)
@@ -199,9 +201,12 @@ const loadDocsSubmodule = async (
   shelljs.rm('-rf', [`./main.zip`])
 }
 
-function downloadFile(url: string): ShellString {
+function downloadFile(url: string, filename?: string): ShellString {
   if (isLinux()) {
     return shelljs.exec(`wget ${url}`, { silent: true })
+  } else if (isWindows()) {
+    // First We set TLS12 & then we invoke request to download file.
+    return shelljs.exec(`powershell.exe "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest ${url} ${filename ? '-O ' + filename : ''}"`, { silent: true })
   } else {
     return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
   }
