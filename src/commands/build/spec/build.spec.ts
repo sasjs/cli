@@ -99,7 +99,7 @@ describe('sasjs build', () => {
 
 describe('getWebServiceScriptInvocation', () => {
   describe(ServerType.SasViya, () => {
-    it('should return not encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.SasViya, true, false)
       ).toEqual(
@@ -107,7 +107,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored file', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.SasViya, true, true)
       ).toEqual(
@@ -115,7 +115,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for not sas file', () => {
+    it('should return macro invocation for stored file when encoded is equal to true', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.SasViya, false, true)
       ).toEqual(
@@ -125,7 +125,7 @@ describe('getWebServiceScriptInvocation', () => {
   })
 
   describe(ServerType.Sas9, () => {
-    it('should return not encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sas9, true, false)
       ).toEqual(
@@ -133,7 +133,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored file', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sas9, true, true)
       ).toEqual(
@@ -141,17 +141,17 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for not sas file', () => {
+    it('should return macro invocation for stored file when encoded is equal to true', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sas9, false, true)
       ).toEqual(
-        '%mm_createwebservice(path=&appLoc/&path, name=&filename, code=, intype=BASE64, server=&serverName, replace=yes)'
+        '%mm_createwebservice(path=&appLoc/&path, name=&filename, code=filecode, server=&serverName, replace=yes)'
       )
     })
   })
 
   describe(ServerType.Sasjs, () => {
-    it('should return not encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sasjs, true, false)
       ).toEqual(
@@ -159,7 +159,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for sas file', () => {
+    it('should return macro invocation for stored file', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sasjs, true, true)
       ).toEqual(
@@ -167,7 +167,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return encoded web service script invocation for not sas file', () => {
+    it('should return macro invocation for stored file when encoded is equal to true', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sasjs, false, true)
       ).toEqual(
