@@ -107,7 +107,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return macro invocation for stored file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.SasViya, true, true)
       ).toEqual(
@@ -133,7 +133,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return macro invocation for stored file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sas9, true, true)
       ).toEqual(
@@ -159,7 +159,7 @@ describe('getWebServiceScriptInvocation', () => {
       )
     })
 
-    it('should return macro invocation for stored file', () => {
+    it('should return macro invocation for stored program', () => {
       expect(
         getWebServiceScriptInvocation(ServerType.Sasjs, true, true)
       ).toEqual(
