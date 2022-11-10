@@ -265,7 +265,7 @@ async function getCreateFileScript(serverType: ServerType) {
   }
 }
 
-function getWebServiceScriptInvocation(
+export function getWebServiceScriptInvocation(
   serverType: ServerType,
   isSASFile: boolean = true,
   encoded: boolean = false
@@ -275,13 +275,15 @@ function getWebServiceScriptInvocation(
   switch (serverType) {
     case ServerType.SasViya:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode,replace=yes)`
         : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     case ServerType.Sas9:
-      return `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode, server=&serverName, replace=yes)`
+      return isSASFile
+        ? `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode, server=&serverName, replace=yes)`
+        : `%mm_createwebservice(path=&appLoc/&path, name=&filename, code=${encodedParam}, server=&serverName, replace=yes)`
     case ServerType.Sasjs:
       return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode ,replace=yes)`
+        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode,replace=yes)`
         : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
     default:
       throw new ServerTypeError()
