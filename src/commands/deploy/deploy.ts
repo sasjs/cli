@@ -319,8 +319,7 @@ async function deployToSasjs(target: Target, streamConfig?: StreamConfig) {
   const authConfig = (await isSasJsServerInServerMode(target))
     ? await getAuthConfig(target)
     : undefined
-
-  console.log(326)
+  
   const sasjsApiClient = new SASjsApiClient(
     new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
   )
