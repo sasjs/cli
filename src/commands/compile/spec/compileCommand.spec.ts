@@ -51,7 +51,7 @@ describe('CompileCommand', () => {
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('')
-    expect(targetInfo.target).toEqual(target)
+    expect(JSON.stringify(targetInfo.target)).toEqual(JSON.stringify(target))
     expect(targetInfo.isLocal).toBeTrue()
   })
 
@@ -151,7 +151,7 @@ describe('CompileCommand', () => {
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('job')
-    expect(targetInfo.target).toEqual(target)
+    expect(JSON.stringify(targetInfo.target)).toEqual(JSON.stringify(target))
     expect(targetInfo.isLocal).toBeTrue()
   })
 
@@ -171,7 +171,7 @@ describe('CompileCommand', () => {
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('job')
-    expect(targetInfo.target).toEqual(target)
+    expect(JSON.stringify(targetInfo.target)).toEqual(JSON.stringify(target))
     expect(targetInfo.isLocal).toBeTrue()
   })
 
@@ -189,8 +189,16 @@ describe('CompileCommand', () => {
     const command = new CompileCommand(args)
     await command.execute()
 
+    const expectedTarget: { [key: string]: any } = {}
+
+    Object.keys(target).forEach((key: string) => {
+      expectedTarget[key] = (target as any)[key]
+    })
+
+    delete expectedTarget.getConfig
+
     expect(compileSingleFileModule.compileSingleFile).toHaveBeenCalledWith(
-      target,
+      expect.objectContaining(expectedTarget),
       'job',
       path.join(os.homedir(), 'test.sas'),
       expect.anything()
