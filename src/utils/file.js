@@ -68,7 +68,11 @@ export function isCsvFile(filePath) {
 }
 
 export function isShellScript(filePath) {
-  return path.extname(filePath) === '.sh'
+  return path.extname(filePath) === '.sh' || path.extname(filePath) === '.bat'
+}
+
+export function isPowerShellScript(filePath) {
+  return path.extname(filePath) === '.ps1'
 }
 
 export const sanitizeFileName = (fileName) =>

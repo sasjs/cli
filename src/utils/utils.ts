@@ -1,4 +1,5 @@
 import shelljs, { ShellString } from 'shelljs'
+import { PowerShell } from 'node-powershell'
 import path from 'path'
 import ora from 'ora'
 import axios from 'axios'
@@ -312,6 +313,44 @@ export async function executeShellScript(
       resolve(result.stdout)
     }
   })
+}
+
+export async function executePowerShellScript(
+  filePath: string,
+  logFilePath: string
+) {
+  const ps = new PowerShell({
+    executableOptions: {
+      '-ExecutionPolicy': 'Bypass',
+      '-NoProfile': true
+    }
+  })
+
+  const scriptCommand = PowerShell.command`. ${filePath}`
+  await ps
+    .invoke(scriptCommand)
+    .then(async (result) => {
+      if (result.hadErrors) {
+        process.logger?.error(`Error: ${result.stderr}`)
+        throw new Error('Error executing shell script:' + result.stderr)
+      }
+
+      if (logFilePath) {
+        // removed some junk characters. https://github.com/rannn505/child-shell/issues/147#issuecomment-1113799669
+        const content = result.stdout
+          ?.toString()
+          .replace(/\u001b\[\?1h\u001b\[\?1l/g, '')
+
+        await createFile(logFilePath, content ?? '')
+      }
+    })
+    .catch((error) => {
+      process.logger?.error(`Error: ${error}`)
+      throw new Error('Error executing shell script: ' + error)
+    })
+    .finally(async () => {
+      await ps.dispose()
+    })
 }
 
 /**
