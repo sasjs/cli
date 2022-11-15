@@ -51,7 +51,7 @@ describe('CompileCommand', () => {
 
     expect(command.name).toEqual('compile')
     expect(command.subCommand).toEqual('')
-    expect(targetInfo.target).toEqual(target)
+    expect(JSON.stringify(targetInfo.target)).toEqual(JSON.stringify(target))
     expect(targetInfo.isLocal).toBeTrue()
   })
 

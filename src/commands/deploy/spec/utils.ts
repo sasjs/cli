@@ -8,9 +8,12 @@ import { contextName } from '../../../utils'
 
 export const createGlobalTarget = async (serverType = ServerType.SasViya) => {
   dotenv.config()
+
   const timestamp = generateTimestamp()
   const targetName = `cli-tests-cbd-${timestamp}`
+
   await setConstants()
+
   const target = new Target({
     name: targetName,
     serverType,
@@ -42,7 +45,9 @@ export const createGlobalTarget = async (serverType = ServerType.SasViya) => {
       deployScripts: []
     }
   })
+
   await saveToGlobalConfig(target)
+
   return target
 }
 

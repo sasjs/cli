@@ -72,9 +72,7 @@ export async function findTargetInConfiguration(
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
-  if (rootDir !== process.projectDir) {
-    process.projectDir = rootDir
-  }
+  if (rootDir !== process.projectDir) process.projectDir = rootDir
 
   if (targetScope === TargetScope.Local) {
     return targetName
@@ -162,7 +160,7 @@ async function getLocalTarget(targetName: string): Promise<Target> {
           targetJson
         )
 
-      return new Target(targetJson)
+      return new Target(targetJson, localConfig)
     }
   }
 
@@ -187,19 +185,24 @@ async function getLocalFallbackTarget(): Promise<Target> {
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+
       if (!fallBackTargetJson.hasOwnProperty('serverUrl')) {
         fallBackTargetJson.serverUrl = ''
       }
+
       fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
       fallBackTargetJson.httpsAgentOptions =
         await getPrecedenceOfHttpsAgentOptionsAndContent(
           localConfig,
           fallBackTargetJson
         )
+
       await loadEnvVariables(`.env.${fallBackTargetJson.name}`)
-      return new Target(fallBackTargetJson)
+
+      return new Target(fallBackTargetJson, localConfig)
     }
   }
+
   throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
 }
 async function getGlobalTarget(targetName: string): Promise<Target> {
@@ -224,7 +227,7 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
           targetJson
         )
 
-      return new Target(targetJson)
+      return new Target(targetJson, globalConfig)
     }
   }
 
@@ -256,7 +259,7 @@ async function getGlobalFallbackTarget(): Promise<Target> {
         fallBackTargetJson
       )
 
-    return new Target(fallBackTargetJson)
+    return new Target(fallBackTargetJson, globalConfig)
   }
 
   throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
