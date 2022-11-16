@@ -1,7 +1,7 @@
 import { createFile, Target, StreamConfig } from '@sasjs/utils'
 import { getAuthConfig, getSASjs } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
-import { formatErrorString } from './'
+import { formatErrorString } from '.'
 
 /**
  * Execute deployScript on `SASJS` server.
@@ -13,7 +13,7 @@ import { formatErrorString } from './'
  * @param {object} streamConfig - optional configuration object of StreamConfig
  * for printing web app url on console.
  */
-export async function deployToSasJS(
+export async function executeDeployScriptSasjs(
   deployScriptName: string,
   target: Target,
   linesToExecute: string[],

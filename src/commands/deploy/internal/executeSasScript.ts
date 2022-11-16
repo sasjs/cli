@@ -1,6 +1,10 @@
 import path from 'path'
 import { readFile, ServerType, Target, StreamConfig } from '@sasjs/utils'
-import { deployToSasJS, deployToSas9, deployToSasViya } from './'
+import {
+  executeDeployScriptSasjs,
+  executeDeployScriptSas9,
+  executeDeployScriptSasViya
+} from './'
 
 export async function executeSasScript(
   scriptPath: string,
@@ -23,7 +27,7 @@ export async function executeSasScript(
   const linesToExecute = deployScriptContent.replace(/\r\n/g, '\n').split('\n')
 
   if (target.serverType === ServerType.SasViya) {
-    return await deployToSasViya(
+    return await executeDeployScriptSasViya(
       deployScriptName,
       target,
       linesToExecute,
@@ -33,7 +37,7 @@ export async function executeSasScript(
   }
 
   if (target.serverType === ServerType.Sas9) {
-    return await deployToSas9(
+    return await executeDeployScriptSas9(
       deployScriptName,
       target,
       linesToExecute,
@@ -43,7 +47,7 @@ export async function executeSasScript(
   }
 
   if (target.serverType === ServerType.Sasjs) {
-    await deployToSasJS(
+    await executeDeployScriptSasjs(
       deployScriptName,
       target,
       linesToExecute,

@@ -18,7 +18,7 @@ import { formatErrorString } from './'
  * @param {object} streamConfig - optional configuration object of StreamConfig
  * for printing web app url on console.
  */
-export async function deployToSas9(
+export async function executeDeployScriptSas9(
   deployScriptName: string,
   target: Target,
   linesToExecute: string[],

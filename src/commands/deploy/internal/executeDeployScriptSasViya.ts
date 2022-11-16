@@ -12,7 +12,7 @@ import { createFile, Target, StreamConfig } from '@sasjs/utils'
  * @param {object} streamConfig - optional configuration object of StreamConfig
  * for printing web app url on console.
  */
-export async function deployToSasViya(
+export async function executeDeployScriptSasViya(
   deployScriptName: string,
   target: Target,
   linesToExecute: string[],
