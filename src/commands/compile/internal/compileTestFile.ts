@@ -29,7 +29,6 @@ import {
   getMacroFolders,
   getLocalOrGlobalConfig
 } from '../../../utils/config'
-import { getPreCodeForServicePack } from './compileFile'
 
 const testsBuildFolder = () => {
   return path.join(process.projectDir, 'sasjsbuild', 'tests')
@@ -54,9 +53,7 @@ export async function compileTestFile(
     compileTree
   )
 
-  const preCode = await getPreCodeForServicePack(target.serverType)
-
-  dependencies = `${testVar ? testVar + '\n' : ''}\n${preCode}\n${dependencies}`
+  dependencies = `${testVar ? testVar + '\n' : ''}\n${dependencies}`
 
   const destinationPath = path.join(
     testsBuildFolder(),

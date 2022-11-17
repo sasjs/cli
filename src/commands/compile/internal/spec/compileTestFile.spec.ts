@@ -80,6 +80,7 @@ describe('compileTestFile', () => {
           'tests',
           filePath
         )
+
         await expect(fileExists(compiledTestFilePath)).resolves.toEqual(true)
 
         const testFileContent = replaceLineBreaks(

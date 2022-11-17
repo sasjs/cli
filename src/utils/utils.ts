@@ -187,8 +187,9 @@ const loadDocsSubmodule = async (
   folderPath: string,
   zipPath: string
 ) => {
-  let docsFolderPath = `${folderPath}/public/docs` //We first look if docs submodule is inside `public` folder. (react-seed-app for example)
-  if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` //If not, we load submodule in root
+  let docsFolderPath = `${folderPath}/public/docs` // We first look if docs submodule is inside `public` folder. (react-seed-app for example)
+
+  if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` // If not, we load submodule in root
 
   downloadFile(`${docsUrl}${zipPath}`)
 
