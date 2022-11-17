@@ -32,23 +32,11 @@ describe('getDeployScripts', () => {
     await removeFromGlobalConfig(target.name)
   })
 
-  it('should include the build output file for SAS9 when deployServicePack is true', async () => {
-    target.buildConfig!.buildOutputFileName = 'output-test.sas'
+  it('should return all deployScripts present at root level of configuration and in target', async () => {
+    const scripts = ['script1.sh', 'script2.bat', 'script3.ps1']
+    target.deployConfig?.deployScripts.push(...scripts)
     const deployScripts = await getDeployScripts(target)
-    const { buildDestinationFolder } = process.sasjsConstants
 
-    expect(deployScripts).toIncludeAllMembers([
-      path.join(buildDestinationFolder, 'output-test.sas')
-    ])
-  })
-
-  it('should should fallback to target name for the build output file name for SAS9', async () => {
-    target.buildConfig!.buildOutputFileName = ''
-    const deployScripts = await getDeployScripts(target)
-    const { buildDestinationFolder } = process.sasjsConstants
-
-    expect(deployScripts).toIncludeAllMembers([
-      path.join(buildDestinationFolder, `${target.name}.sas`)
-    ])
+    expect(deployScripts).toEqual(['sasjs/build/deployscript.sh', ...scripts])
   })
 })

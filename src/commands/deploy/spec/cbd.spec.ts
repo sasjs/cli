@@ -62,8 +62,8 @@ describe('sasjs cbd with server type SASJS', () => {
       jobConfig: undefined,
       serviceConfig: undefined,
       deployConfig: {
-        deployServicePack: false,
-        deployScripts: [`sasjsbuild/${target.name}.sas`]
+        deployServicePack: true,
+        deployScripts: []
       }
     })
 
