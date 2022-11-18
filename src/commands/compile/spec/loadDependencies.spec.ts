@@ -7,7 +7,8 @@ import {
   ServerType,
   SASJsFileType,
   DependencyHeader,
-  CompileTree
+  CompileTree,
+  capitalizeFirstChar
 } from '@sasjs/utils'
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
@@ -19,6 +20,7 @@ import {
 } from '../../../utils/test'
 import { setConstants } from '../../../utils'
 import { loadDependencies, getCompileTree } from '../internal/loadDependencies'
+import { SasFileType } from '../internal/getAllFolders'
 
 const fakeInit = `/**
   @file serviceinit.sas
@@ -158,13 +160,15 @@ const serviceConfig = (root: boolean = true): ServiceConfig => ({
       }
 })
 
-const compiledVars = (type: 'Job' | 'Service') => `* ${type} Variables start;
+const compiledVars = (
+  type: SasFileType.Job | SasFileType.Service
+) => `* ${capitalizeFirstChar(type)} Variables start;
 
 %let macrovar1=macro ${type.toLowerCase()} value configuration 1;
 %let macrovar2=macro ${type.toLowerCase()} value target 2;
 %let macrovar3=macro ${type.toLowerCase()} value target 3;
 
-* ${type} Variables end;`
+* ${capitalizeFirstChar(type)} Variables end;`
 
 describe('loadDependencies', () => {
   const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
@@ -215,7 +219,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -236,7 +240,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -257,7 +261,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -278,7 +282,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -299,7 +303,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -320,7 +324,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -341,7 +345,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -362,7 +366,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -383,7 +387,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -410,7 +414,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Job'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Job))
     expect(/\* JobInit start;/.test(dependencies)).toEqual(true)
     expect(/\* JobInit end;/.test(dependencies)).toEqual(true)
     expect(/\* JobTerm start;/.test(dependencies)).toEqual(true)
@@ -436,7 +440,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)
@@ -463,7 +467,7 @@ describe('loadDependencies', () => {
       compileTree
     )
 
-    expect(dependencies).toStartWith(compiledVars('Service'))
+    expect(dependencies).toContain(compiledVars(SasFileType.Service))
     expect(/\* ServiceInit start;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceInit end;/.test(dependencies)).toEqual(true)
     expect(/\* ServiceTerm start;/.test(dependencies)).toEqual(true)

@@ -62,8 +62,8 @@ describe('sasjs cbd with server type SASJS', () => {
       jobConfig: undefined,
       serviceConfig: undefined,
       deployConfig: {
-        deployServicePack: false,
-        deployScripts: [`sasjsbuild/${target.name}.sas`]
+        deployServicePack: true,
+        deployScripts: []
       }
     })
 
@@ -84,14 +84,13 @@ describe('sasjs cbd with server type SASJS', () => {
     )
     const mp_jsonout = await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
     const ms_webout = await readFile(`${macroCorePath}/server/ms_webout.sas`)
-    const webout =
-      '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO,maxobs=MAX);\n' +
-      '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
-      '      ,missing=&missing\n' +
-      '      ,showmeta=&showmeta\n' +
-      '      ,maxobs=&maxobs\n' +
-      '    )' +
-      '  %mend;\n'
+    const webout = `%macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO,maxobs=MAX);
+  %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt
+    ,missing=&missing
+    ,showmeta=&showmeta
+    ,maxobs=&maxobs
+  ) %mend;
+`
 
     const mocksPath = path.join(__dirname, appName, 'sasjs', 'mocks')
     const appinitJSPath = path.join(
