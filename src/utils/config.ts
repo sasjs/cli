@@ -13,7 +13,8 @@ import {
   StreamConfig,
   HttpsAgentOptions,
   ServerType,
-  AuthConfigSas9
+  AuthConfigSas9,
+  SyncDirectoryMap
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -383,6 +384,19 @@ export async function getLocalOrGlobalConfig(): Promise<{
   } catch (e) {
     return { configuration: await getGlobalRcFile(), isLocal: false }
   }
+}
+
+export async function getSyncDirectories(
+  target: Target,
+  isLocal: boolean
+): Promise<SyncDirectoryMap[]> {
+  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+
+  const rootLevelSyncDirectories: SyncDirectoryMap[] =
+    config.syncDirectories || []
+  const targetLevelSyncDirectories = target.syncDirectories || []
+
+  return [...rootLevelSyncDirectories, ...targetLevelSyncDirectories]
 }
 
 export async function saveLocalConfigFile(content: string) {

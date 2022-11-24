@@ -126,7 +126,9 @@ describe('FSCommand', () => {
 
       const returnCode = await executeCommandWrapper([
         'sync',
+        '-l',
         'localFolder',
+        '-r',
         'remoteFolder'
       ])
       expect(returnCode).toEqual(ReturnCode.Success)
@@ -178,7 +180,9 @@ describe('FSCommand', () => {
 
       const returnCode = await executeCommandWrapper([
         'sync',
+        '-l',
         'localFolder',
+        '-r',
         'remoteFolder'
       ])
       expect(returnCode).toEqual(ReturnCode.Success)
