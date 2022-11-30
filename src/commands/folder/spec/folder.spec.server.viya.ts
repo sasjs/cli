@@ -8,8 +8,23 @@ import { create } from '../create'
 import { move } from '../move'
 import { deleteFolder } from '../delete'
 
-describe('sasjs folder operations', () => {
-  const target: Target = generateTarget()
+describe('sasjs folder with Viya', () => {
+  dotenv.config()
+  const timestamp = generateTimestamp()
+  const targetName = `cli-tests-folder-${timestamp}`
+  const target: Target = new Target({
+    name: targetName,
+    appLoc: `/Public/app/cli-tests/${targetName}`,
+    serverType: ServerType.SasViya,
+    contextName,
+    serverUrl: process.env.VIYA_SERVER_URL,
+    authConfig: {
+      client: process.env.CLIENT as string,
+      secret: process.env.SECRET as string,
+      access_token: process.env.ACCESS_TOKEN as string,
+      refresh_token: process.env.REFRESH_TOKEN as string
+    }
+  })
   const sasjs: SASjs = new SASjs({
     serverUrl: target.serverUrl,
     httpsAgentOptions: target.httpsAgentOptions,
@@ -231,27 +246,6 @@ describe('sasjs folder operations', () => {
     await deleteTestFolder(testFolderPath, sasjs, authConfig.access_token)
   })
 })
-
-function generateTarget(serverType = ServerType.SasViya): Target {
-  dotenv.config()
-  const timestamp = generateTimestamp()
-  const targetName = `cli-tests-folder-${timestamp}`
-  return new Target({
-    name: targetName,
-    appLoc: `/Public/app/cli-tests/${targetName}`,
-    serverType,
-    contextName,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
-    authConfig: {
-      client: process.env.CLIENT as string,
-      secret: process.env.SECRET as string,
-      access_token: process.env.ACCESS_TOKEN as string,
-      refresh_token: process.env.REFRESH_TOKEN as string
-    }
-  })
-}
 
 const createTestFolder = async (
   testFolderPath: string,

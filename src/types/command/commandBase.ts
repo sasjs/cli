@@ -65,6 +65,7 @@ export class CommandBase implements Command {
           example.description
         ])
       )
+
     if ([...subCommandMap.keys()].includes(command)) {
       builder = (y: yargs.Argv) =>
         y

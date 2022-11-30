@@ -23,7 +23,8 @@ import {
   saveLocalConfigFile,
   getGlobalRcFile,
   saveGlobalRcFile,
-  saveToGlobalConfig
+  saveToGlobalConfig,
+  getAccessToken
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
@@ -70,6 +71,7 @@ export const createTestMinimalApp = async (
 
 export const removeTestApp = async (parentFolder: string, appName: string) => {
   await deleteFolder(path.join(parentFolder, appName))
+
   process.projectDir = ''
   process.currentDir = ''
   process.sasjsConstants = undefined as any as Constants
@@ -91,7 +93,8 @@ export const removeTestServerFolder = async (
     serverType: target.serverType
   })
 
-  const accessToken = process.env.ACCESS_TOKEN as string
+  const accessToken = await getAccessToken(target)
+
   await deleteServerFolder(folderPath, sasjs, accessToken)
 }
 
@@ -114,12 +117,16 @@ export const generateTestTarget = (
 ) => {
   dotenv.config()
 
+  let serverUrl = process.env.SASJS_SERVER_URL
+
+  if (serverType === ServerType.SasViya) serverUrl = process.env.VIYA_SERVER_URL
+
+  if (serverType === ServerType.Sas9) serverUrl = process.env.SAS9_SERVER_URL
+
   const target = new Target({
     name: targetName,
     serverType,
-    serverUrl: (serverType === ServerType.SasViya
-      ? process.env.VIYA_SERVER_URL
-      : process.env.SAS9_SERVER_URL) as string,
+    serverUrl: serverUrl as string,
     contextName,
     appLoc,
     authConfig: {

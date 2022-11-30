@@ -1,18 +1,25 @@
-import SASjs from '@sasjs/adapter/node'
+import path from 'path'
+import { SASjsApiClient } from '@sasjs/adapter/node'
+import { encode } from 'js-base64'
 import {
   ServerType,
   Target,
   generateTimestamp,
   readFile,
-  StreamConfig
+  ServiceConfig,
+  removeHeader
 } from '@sasjs/utils'
-import { createTestMinimalApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestMinimalApp,
+  removeTestApp,
+  updateConfig
+} from '../../../utils/test'
+import * as utilsModule from '../../../utils/utils'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
 import { createLocalTarget, updateLocalTarget } from './utils'
 import { findTargetInConfiguration } from '../../../utils/config'
-import { removeComments } from '../../../utils'
 
 describe('sasjs cbd with server type SASJS', () => {
   let target: Target
@@ -32,22 +39,31 @@ describe('sasjs cbd with server type SASJS', () => {
   })
 
   it(`should deploy compile and build to sasjs/server`, async () => {
-    const sasjs = new (<jest.Mock<SASjs>>SASjs)()
-    jest.mock('@sasjs/adapter')
+    const deployMock = jest
+      .spyOn(SASjsApiClient.prototype, 'deploy')
+      .mockImplementation(() =>
+        Promise.resolve({
+          status: 'success',
+          message: 'message'
+        })
+      )
 
-    jest.spyOn(sasjs, 'deployToSASjs').mockImplementation(() =>
-      Promise.resolve({
-        status: 'success',
-        message: 'message'
-      })
-    )
+    jest
+      .spyOn(utilsModule, 'isSasJsServerInServerMode')
+      .mockImplementation(() => Promise.resolve(false))
+
+    await updateConfig({
+      serviceConfig: {
+        serviceFolders: ['sasjs/services/common']
+      } as ServiceConfig
+    })
 
     await updateLocalTarget(target.name, {
       jobConfig: undefined,
       serviceConfig: undefined,
       deployConfig: {
-        deployServicePack: false,
-        deployScripts: [`sasjsbuild/${target.name}.sas`]
+        deployServicePack: true,
+        deployScripts: []
       }
     })
 
@@ -57,29 +73,49 @@ describe('sasjs cbd with server type SASJS', () => {
     )
 
     await expect(build(customTarget)).toResolve()
-    await deploy(customTarget, true, sasjs)
+
+    await deploy(customTarget, true)
 
     const { macroCorePath } = process.sasjsConstants
 
-    const mf_getuser = await readFile(`${macroCorePath}/base/mf_getuser.sas`)
+    // this macro will be in the beginning of the file and this is why file header will be removed
+    const mf_getuser = removeHeader(
+      await readFile(`${macroCorePath}/base/mf_getuser.sas`)
+    )
     const mp_jsonout = await readFile(`${macroCorePath}/base/mp_jsonout.sas`)
     const ms_webout = await readFile(`${macroCorePath}/server/ms_webout.sas`)
-    const webout =
-      '  %macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO);\n' +
-      '    %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt\n' +
-      '      ,missing=&missing\n' +
-      '      ,showmeta=&showmeta\n' +
-      '    )' +
-      '  %mend;\n'
+    const webout = `%macro webout(action,ds,dslabel=,fmt=,missing=NULL,showmeta=NO,maxobs=MAX);
+  %ms_webout(&action,ds=&ds,dslabel=&dslabel,fmt=&fmt
+    ,missing=&missing
+    ,showmeta=&showmeta
+    ,maxobs=&maxobs
+  ) %mend;
+`
 
-    const streamConfig: StreamConfig = {
-      assetPaths: [],
-      streamServiceName: 'clickme',
-      streamWeb: false,
-      streamWebFolder: '',
-      webSourcePath: ''
-    }
-    expect(sasjs.deployToSASjs).toHaveBeenCalledWith(
+    const mocksPath = path.join(__dirname, appName, 'sasjs', 'mocks')
+    const appinitJSPath = path.join(
+      mocksPath,
+      'services',
+      'common',
+      'appinit.js'
+    )
+    const getdataJSPath = path.join(
+      mocksPath,
+      'services',
+      'common',
+      'getdata.js'
+    )
+
+    const appinitJSContents = await readFile(appinitJSPath)
+    const getdataJSContents = await readFile(getdataJSPath)
+
+    const depsInserts = `\n\n* Service Variables start;\n\n\n* Service Variables end;\n* SAS Macros start;\n\n\n\n* SAS Macros end;\n* SAS Includes start;\n\n* SAS Includes end;\n* Binary Files start;\n\n* Binary Files end;\n\n    \n* Service start;\n`
+    const appinit = `/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from mydb.springs;\n\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n\n`
+    const getdata = `/**\n  @file getdata.sas\n  @brief Get Data service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\n%webout(FETCH)\n\nproc sql;\ncreate table springs as select * from mydb.springs\n  where area in (select area from work.areas);\n\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n\n`
+    const getCode = (file: string) =>
+      `${mf_getuser}${mp_jsonout}${ms_webout}${webout}/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);${depsInserts}${file}* Service end;`
+
+    expect(deployMock).toHaveBeenCalledWith(
       {
         appLoc: target.appLoc,
         fileTree: {
@@ -93,20 +129,24 @@ describe('sasjs cbd with server type SASJS', () => {
                   type: 'folder',
                   members: [
                     {
+                      name: 'appinit.js',
+                      type: 'file',
+                      code: encode(appinitJSContents)
+                    },
+                    {
                       name: 'appinit',
                       type: 'service',
-                      code: removeComments(
-                        `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                          '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\nproc sql;\ncreate table areas as select distinct area\n  from sashelp.springs;\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n* Service end;'
-                      )
+                      code: getCode(appinit)
+                    },
+                    {
+                      name: 'getdata.js',
+                      type: 'file',
+                      code: encode(getdataJSContents)
                     },
                     {
                       name: 'getdata',
                       type: 'service',
-                      code: removeComments(
-                        `${mf_getuser}${mp_jsonout}${ms_webout}${webout}` +
-                          '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n* Service Variables start;\n* Service Variables end;\n* SAS Macros start;\n* SAS Macros end;\n* SAS Includes start;\n* SAS Includes end;\n* Binary Files start;\n* Binary Files end;\n* Service start;\n%webout(FETCH)\nproc sql;\ncreate table springs as select * from sashelp.springs\n  where area in (select area from work.areas);\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n* Service end;'
-                      )
+                      code: getCode(getdata)
                     }
                   ]
                 }
@@ -115,7 +155,7 @@ describe('sasjs cbd with server type SASJS', () => {
           ]
         }
       },
-      undefined,
+      target.appLoc,
       undefined
     )
   })

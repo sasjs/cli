@@ -1,6 +1,8 @@
-import shelljs from 'shelljs'
+import shelljs, { ShellString } from 'shelljs'
+import { PowerShell } from 'node-powershell'
 import path from 'path'
 import ora from 'ora'
+import axios from 'axios'
 import {
   fileExists,
   folderExists,
@@ -9,11 +11,14 @@ import {
   copy,
   LogLevel,
   Target,
-  isWindows
+  isWindows,
+  isLinux,
+  MacroVars
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
 import dotenv from 'dotenv'
+import AdmZip from 'adm-zip'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -39,78 +44,123 @@ export function diff(a: any[], b: any[]) {
 }
 
 export async function createReactApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/react-seed-app.git')
+  return new Promise(async (resolve, reject) => {
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/react-seed-app',
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
+    )
 
     return resolve()
   })
 }
 
 export async function createAngularApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/angular-seed-app.git')
+  return new Promise(async (resolve, reject) => {
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/angular-seed-app',
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
+    )
     return resolve()
   })
 }
 
 export async function createMinimalApp(folderPath: string): Promise<void> {
-  return new Promise(async (resolve, _) => {
-    createApp(folderPath, 'https://github.com/sasjs/minimal-seed-app.git')
+  return new Promise(async (resolve, reject) => {
+    createApp(
+      folderPath,
+      'https://github.com/sasjs/minimal-seed-app',
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
+    )
     return resolve()
   })
 }
 
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
-    const { stdout, stderr, code } = shelljs.exec(
-      `git ls-remote https://username:password@github.com/sasjs/template_${template}.git`,
-      { silent: true }
+    const { stdout, stderr, code } = downloadFile(
+      `https://username:password@github.com/sasjs/template_${template}`
     )
 
-    if (stderr.includes('Repository not found') || code) {
+    if (stderr.includes('404: Not Found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
     }
 
-    if (!stdout) {
-      return reject(new Error(`Unable to fetch template "${template}"`))
-    }
-
-    createApp(folderPath, `https://github.com/sasjs/template_${template}.git`)
+    createApp(
+      folderPath,
+      `https://github.com/sasjs/template_${template}`,
+      'https://github.com/sasjs/docs',
+      (err: string) => {
+        return reject(new Error(err))
+      }
+    )
     return resolve()
   })
 }
 
+/**
+ * This function will first download / unzip the target app from repoUrl, then download / unzip the sasjs/docs repo into a subdirectory named 'docs'.
+ * Finally, if installDependencies is true, the npm install command will be executed.
+ * @param folderPath full path of the directory where desired seed app will be created
+ * @param repoUrl sasjs/{seed-app} repo url
+ * @param docsUrl sasjs/docs repo url
+ * @params installDependencies whether or not to do `npm install`
+ */
 function createApp(
   folderPath: string,
   repoUrl: string,
+  docsUrl: string,
+  errorCallback: (err: string) => void,
   installDependencies = true
 ) {
+  //In past we used GIT to clone the repos. But many users potentially won't have GIT installed.
+  //So we will use shell tools to set up the apps.
+  let zipName = 'main.zip'
+  const zipPath = `/archive/refs/heads/`
+  const fullZipPath = `${zipPath}${zipName}`
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
-  const gitBranch = repoUrl.includes('template_sasonly') ? 'master' : 'main'
+  //Get repo zip, assuming main branch is called `main`
+  const { stdout, stderr, code } = downloadFile(`${repoUrl}${fullZipPath}`)
 
-  const gitVersion: string = (shelljs
-    .exec(`git version`, { silent: true })
-    .stdout.match(/(?<!git version)\d+\.\d+\.\d+/) || '')[0].replace(/\./g, '')
+  // If doesn't exist, we try again, but with master.zip for the zip name.
+  // Since that's the name generated from branch name.
+  if (stderr.includes('404: Not Found') || code) {
+    zipName = 'master.zip'
 
-  // NOTE: git version 2.13 and greater are using '--recurse-submodules' instead of '--recurse' attribute to clone submodules
-  shelljs.exec(
-    `cd "${folderPath}" && git clone --recurse${
-      parseInt(gitVersion) > 2130 ? '-submodules' : ''
-    } --depth 1 -b ${gitBranch} ${repoUrl} .`,
-    { silent: true }
-  )
+    const { stdout, stderr, code } = downloadFile(
+      `${repoUrl}${zipPath}${zipName}`
+    )
 
-  deleteGitFolder(folderPath)
+    if (stderr.includes('404: Not Found') || code) {
+      errorCallback(`${repoUrl}${zipPath} is not SASjs repository!`)
 
-  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
-
-  if (repoUrl.includes('react-seed-app')) {
-    deleteGitFolder(path.join(folderPath, 'public', 'docs'))
-  } else if (repoUrl.includes('angular-seed-app')) {
-    deleteGitFolder(path.join(folderPath, 'docs'))
+      return
+    }
   }
+
+  const zipWithoutExtension = zipName.replace('.zip', '')
+
+  const zip = new AdmZip(zipName)
+  zip.extractAllTo(`./`, true)
+
+  shelljs.cp('-r', `./*${zipWithoutExtension}/.`, folderPath)
+  shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
+  shelljs.rm('-rf', [`./${zipName}`])
+
+  loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
 
   spinner.stop()
 
@@ -118,7 +168,7 @@ function createApp(
     spinner.text = 'Installing dependencies...'
     spinner.start()
 
-    shelljs.exec(`cd "${folderPath}" && git init && npm install`, {
+    shelljs.exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
 
@@ -126,8 +176,38 @@ function createApp(
   }
 }
 
-const deleteGitFolder = (folderPath: string) =>
-  shelljs.rm('-rf', path.join(folderPath, '.git'))
+/**
+ * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
+ * @param docsUrl sasjs/docs repo url
+ * @param folderPath full path to the newly created folder that contains the seed app
+ * @param zipPath fixed path of where github puts zip for repo download
+ */
+const loadDocsSubmodule = async (
+  docsUrl: string,
+  folderPath: string,
+  zipPath: string
+) => {
+  let docsFolderPath = `${folderPath}/public/docs` // We first look if docs submodule is inside `public` folder. (react-seed-app for example)
+
+  if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` // If not, we load submodule in root
+
+  downloadFile(`${docsUrl}${zipPath}`)
+
+  const zip = new AdmZip('main.zip')
+  zip.extractAllTo('./', true)
+
+  shelljs.cp('-r', `./*-main/.`, docsFolderPath)
+  shelljs.rm('-rf', [`./*-main`])
+  shelljs.rm('-rf', [`./main.zip`])
+}
+
+function downloadFile(url: string): ShellString {
+  if (isLinux()) {
+    return shelljs.exec(`wget ${url}`, { silent: true })
+  } else {
+    return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
+  }
+}
 
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
@@ -192,37 +272,6 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
   }
 }
 
-export async function setupGhooks(folderName: string) {
-  const folderPath = path.join(process.projectDir, folderName)
-
-  process.logger?.info('Installing ghooks')
-  shelljs.exec(`cd "${folderPath}" && npm i ghooks --save-dev`, {
-    silent: true
-  })
-
-  try {
-    const packageJsonPath = path.join(folderPath, 'package.json')
-    const packageJsonContent = await readFile(packageJsonPath)
-    const packageJson = JSON.parse(packageJsonContent)
-
-    if (!packageJson.config) packageJson.config = {}
-
-    if (!packageJson.config.ghooks) packageJson.config.ghooks = {}
-
-    let preCommitCmd = 'sasjs lint'
-    if (packageJson.config.ghooks['pre-commit']) {
-      preCommitCmd = ' && sasjs lint'
-    } else {
-      packageJson.config.ghooks['pre-commit'] = ''
-    }
-
-    if (!/sasjs lint/.test(packageJson.config.ghooks['pre-commit']))
-      packageJson.config.ghooks['pre-commit'] += preCommitCmd
-
-    await createFile(packageJsonPath, JSON.stringify(packageJson, null, 2))
-  } catch (e) {}
-}
-
 export async function setupDoxygen(folderPath: string): Promise<void> {
   const doxyFilesPath = '../doxy'
   const doxyFolderPathSource = path.join(__dirname, doxyFilesPath)
@@ -233,39 +282,6 @@ export async function setupDoxygen(folderPath: string): Promise<void> {
     'doxy'
   )
   await copy(doxyFolderPathSource, doxyFolderPath)
-}
-
-/**
- * Removes comments from a given block of text.
- * Preserves single line block comments and inline comments.
- * @param {string} text - the text to remove comments from.
- */
-export function removeComments(text: string) {
-  if (!text) return ''
-
-  const lines = text
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.trimEnd())
-
-  const linesWithoutComment: string[] = []
-  let inCommentBlock = false
-  lines.forEach((line) => {
-    if (line.includes('/*') && line.includes('*/')) {
-      linesWithoutComment.push(line)
-    } else {
-      if (line.startsWith('/*') && !line.endsWith('*/')) {
-        inCommentBlock = true
-      }
-      if (!inCommentBlock) {
-        linesWithoutComment.push(line)
-      }
-      if (line.endsWith('*/') && !line.includes('/*') && inCommentBlock) {
-        inCommentBlock = false
-      }
-    }
-  })
-  return linesWithoutComment.filter((l) => !!l.trim()).join('\n')
 }
 
 export function getUniqServicesObj(services: string[]) {
@@ -284,7 +300,7 @@ export async function executeShellScript(
   logFilePath: string
 ) {
   return new Promise(async (resolve, reject) => {
-    const shellCommand = isWindows() ? `sh ${filePath}` : `bash ${filePath}`
+    const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
     const result = shelljs.exec(shellCommand, { silent: true })
 
     if (result.code) {
@@ -300,6 +316,44 @@ export async function executeShellScript(
   })
 }
 
+export async function executePowerShellScript(
+  filePath: string,
+  logFilePath: string
+) {
+  const ps = new PowerShell({
+    executableOptions: {
+      '-ExecutionPolicy': 'Bypass',
+      '-NoProfile': true
+    }
+  })
+
+  const scriptCommand = PowerShell.command`. ${filePath}`
+  await ps
+    .invoke(scriptCommand)
+    .then(async (result) => {
+      if (result.hadErrors) {
+        process.logger?.error(`Error: ${result.stderr}`)
+        throw new Error('Error executing shell script:' + result.stderr)
+      }
+
+      if (logFilePath) {
+        // removed some junk characters. https://github.com/rannn505/child-shell/issues/147#issuecomment-1113799669
+        const content = result.stdout
+          ?.toString()
+          .replace(/\u001b\[\?1h\u001b\[\?1l/g, '')
+
+        await createFile(logFilePath, content ?? '')
+      }
+    })
+    .catch((error) => {
+      process.logger?.error(`Error: ${error}`)
+      throw new Error('Error executing shell script: ' + error)
+    })
+    .finally(async () => {
+      await ps.dispose()
+    })
+}
+
 /**
  * Extracts plain text job log from fetched json log
  * @param {object} logJson
@@ -312,6 +366,27 @@ export function parseLogLines(logJson: { items: { line: string }[] }) {
   }
 
   return logLines
+}
+
+/**
+ * Converts MacroVars JSON from command source param to sas statements
+ * The JSON must have the following structure:
+ *     {"macroVars": {"var1": "val1", "var2": "val2"}}
+ *
+ * @param {object} json
+ */
+export function convertToSASStatements(json: MacroVars): string {
+  let sasStatements: string = ''
+
+  for (let macroVar of Object.keys(json.macroVars)) {
+    const key = macroVar
+    const value = json.macroVars[macroVar]
+
+    const line = `%let ${key}=${value};\n`
+    sasStatements += line
+  }
+
+  return sasStatements
 }
 
 export const arrToObj = (arr: any[]): any =>
@@ -488,4 +563,15 @@ export const getNodeModulePath = async (module: string): Promise<string> => {
 
   // Return default value
   return ''
+}
+
+export const isSasJsServerInServerMode = async (target: Target) => {
+  try {
+    const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
+    return res.data.mode === 'server'
+  } catch (error) {
+    const message = `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
+    displayError(error, message)
+    throw new Error(message)
+  }
 }

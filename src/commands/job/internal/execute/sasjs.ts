@@ -1,32 +1,41 @@
-import SASjs from '@sasjs/adapter/node'
-import { AuthConfig } from '@sasjs/utils'
-import { saveLog } from '../utils'
+import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
+import { Target } from '@sasjs/utils'
+import { getAuthConfig, isSasJsServerInServerMode } from '../../../../utils'
+import { saveLog, saveOutput } from '../utils'
 
 export async function executeJobSasjs(
-  sasjs: SASjs,
+  target: Target,
   jobPath: string,
-  logFile: string | undefined,
-  authConfig?: AuthConfig
+  logFile?: string,
+  output?: string
 ) {
-  const result = await sasjs.executeJobSASjs(
+  const authConfig = (await isSasJsServerInServerMode(target))
+    ? await getAuthConfig(target)
+    : undefined
+
+  const sasjsApiClient = new SASjsApiClient(
+    new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
+  )
+
+  const response = await sasjsApiClient.executeJob(
     {
       _program: jobPath
     },
+    target.appLoc,
     authConfig
   )
 
-  if (result) {
-    if (result.status === 'success') {
-      process.logger.success('Job executed successfully!')
+  if (response) {
+    process.logger?.success('Job executed successfully!')
 
-      if (logFile && result.log) {
-        await saveLog(result.log, logFile, jobPath, false)
-      }
-    } else {
-      process.logger.error(result.message)
-      process.logger.error(JSON.stringify(result.error, null, 2))
+    if (!!logFile && response.log) {
+      await saveLog(response.log, logFile, jobPath, false)
+    }
+
+    if (!!output && response.result) {
+      await saveOutput(response.result, output, false)
     }
   }
 
-  return result
+  return response
 }

@@ -1,0 +1,13 @@
+{
+  "noEncodedPasswords": true,
+  "hasDoxygenHeader": true,
+  "hasMacroNameInMend": true,
+  "hasMacroParentheses": true,
+  "indentationMultiple": 2,
+  "lowerCaseFileNames": true,
+  "maxLineLength": 107,
+  "noNestedMacros": true,
+  "noSpacesInFileNames": true,
+  "noTabIndentation": true,
+  "noTrailingSpaces": true
+}

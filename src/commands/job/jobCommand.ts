@@ -1,9 +1,8 @@
-import SASjs from '@sasjs/adapter/node'
-import { AuthConfig, ServerType, Target, decodeFromBase64 } from '@sasjs/utils'
+import { ServerType, Target, decodeFromBase64 } from '@sasjs/utils'
 import path from 'path'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getAuthConfig } from '../../utils'
+import { getSASjs, getSASjsAndAuthConfig } from '../../utils'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import {
@@ -102,68 +101,24 @@ export class JobCommand extends TargetCommand {
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-    let sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType,
-      debug: true
-    })
-    let authConfig: AuthConfig | undefined
 
     switch (target.serverType) {
       case ServerType.SasViya:
-        authConfig = await getAuthConfig(target).catch((err) => {
-          process.logger?.error(
-            'Unable to execute job. Error fetching auth config: ',
-            err
-          )
-          return undefined
-        })
-
-        if (!authConfig) return ReturnCode.InternalError
-
         return this.jobSubCommands.includes(this.parsed.subCommand)
-          ? await this.executeJobViya(target, sasjs, authConfig)
+          ? await this.executeJobViya(target)
           : ReturnCode.InvalidCommand
 
       case ServerType.Sas9:
-        let username: any
-        let password: any
-        if (target.authConfigSas9) {
-          username = target.authConfigSas9.userName
-          password = target.authConfigSas9.password
-        } else {
-          username = process.env.SAS_USERNAME
-          password = process.env.SAS_PASSWORD
-        }
-        if (!username || !password) {
-          process.logger?.error(
-            'Unable to execute job. username and password not found'
-          )
-          return ReturnCode.InternalError
-        }
-        password = decodeFromBase64(password)
-
         return this.jobSubCommands.includes(this.parsed.subCommand)
-          ? await this.executeJobSas9(sasjs, target, { username, password })
+          ? await this.executeJobSas9(target)
           : ReturnCode.InvalidCommand
 
       case ServerType.Sasjs:
-        sasjs = new SASjs({
-          serverType: target.serverType,
-          serverUrl: target.serverUrl
-        })
-
         if (typeof this.parsed.jobPath !== 'string')
           return ReturnCode.InvalidCommand
 
-        try {
-          authConfig = await getAuthConfig(target)
-        } catch (e) {}
-
         return this.jobSubCommands.includes(this.parsed.subCommand)
-          ? await this.executeJobSasjs(sasjs, target, authConfig)
+          ? await this.executeJobSasjs(target)
           : ReturnCode.InvalidCommand
 
       default:
@@ -175,19 +130,15 @@ export class JobCommand extends TargetCommand {
     }
   }
 
-  async executeJobSasjs(
-    sasjs: SASjs,
-    target: Target,
-    authConfig: AuthConfig | undefined
-  ) {
+  async executeJobSasjs(target: Target) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
 
-    const returnCode = await executeJobSasjs(
-      sasjs,
-      jobPath,
-      this.parsed.log as string,
-      authConfig
-    )
+    const log = getLogFilePath(this.parsed.log, jobPath)
+    const output = (this.parsed.output as string)?.length
+      ? (this.parsed.output as string)
+      : undefined
+
+    const returnCode = await executeJobSasjs(target, jobPath, log, output)
       .then(() => ReturnCode.Success)
       .catch((err) => {
         process.logger?.error('Error executing job: ', err)
@@ -198,11 +149,7 @@ export class JobCommand extends TargetCommand {
     return returnCode
   }
 
-  async executeJobSas9(
-    sasjs: SASjs,
-    target: Target,
-    config: { username: string; password: string }
-  ) {
+  async executeJobSas9(target: Target) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
     const output = (this.parsed.output as string)?.length
@@ -210,9 +157,24 @@ export class JobCommand extends TargetCommand {
       : undefined
     const source = this.parsed.source as string
 
+    const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target).catch(
+      (err) => {
+        process.logger?.error(
+          'Unable to execute job. Error fetching auth config: ',
+          err
+        )
+
+        return { sasjs: getSASjs(target), authConfigSas9: undefined }
+      }
+    )
+    if (!authConfigSas9) return ReturnCode.InternalError
+
+    const userName = authConfigSas9.userName
+    const password = decodeFromBase64(authConfigSas9.password)
+
     const returnCode = await executeJobSas9(
       sasjs,
-      config,
+      { userName, password },
       jobPath,
       log,
       output,
@@ -229,7 +191,7 @@ export class JobCommand extends TargetCommand {
     return returnCode
   }
 
-  async executeJobViya(target: Target, sasjs: SASjs, authConfig: AuthConfig) {
+  async executeJobViya(target: Target) {
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
     let wait = (this.parsed.wait as boolean) || !!log
@@ -251,6 +213,19 @@ export class JobCommand extends TargetCommand {
         `Using the 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the sasjs job execute command.`
       )
     }
+
+    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
+      (err) => {
+        process.logger?.error(
+          'Unable to execute job. Error fetching auth config: ',
+          err
+        )
+
+        return { sasjs: getSASjs(target), authConfig: undefined }
+      }
+    )
+
+    if (!authConfig) return ReturnCode.InternalError
 
     const returnCode = await executeJobViya(
       sasjs,

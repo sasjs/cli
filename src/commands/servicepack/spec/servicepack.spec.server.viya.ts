@@ -5,7 +5,7 @@ import { contextName, setConstants } from '../../../utils'
 import { servicePackDeploy } from '../deploy'
 import { removeTestServerFolder } from '../../../utils/test'
 
-describe('sasjs servicepack', () => {
+describe('sasjs servicepack with Viya', () => {
   let target: Target
 
   beforeAll(async () => {

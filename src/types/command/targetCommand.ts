@@ -28,6 +28,7 @@ export class TargetCommand extends CommandBase {
     }
 
     const targetName = validateTargetName(this.parsed.target as string)
+
     await loadTargetEnvVariables(targetName).catch((err) => {
       process.logger?.error(
         `Error loading environment variables for target ${targetName}: `,
@@ -35,9 +36,11 @@ export class TargetCommand extends CommandBase {
       )
       process.exit(ReturnCode.InternalError)
     })
+
     return await findTargetInConfiguration(targetName)
       .then((res) => {
         this._targetInfo = res
+
         return res
       })
       .catch((err) => {

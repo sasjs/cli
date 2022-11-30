@@ -223,10 +223,13 @@ export async function printHelpText() {
     },
     {
       name: 'run',
-      title: 'run <sasFilePath> -t <targetName>',
+      title:
+        'run <sasFilePath> -t <targetName> --source /local/run.json -l <log/file/path>',
       description: [
         `lets the user run a given SAS file against a specified target.`,
-        `The target can exist either in the local project configuration or in the global .sasjsrc file.`
+        `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
+        `Providing log flag (--log or -l) is optional. If not present, the log is stored locally with a timestamp. If present, CLI will fetch and save the log to the specified location. If a relative location, it will be relative to the directory in which the command is invoked.`,
+        `Providing source flag (--source or -s) is optional. It should point to a JSON file with the following structure:  {"macroVars": {"var1": "val1", "var2": "val2"}}. These will be parsed into SAS "%let" statements and pre-append to the SAS code being run.`
       ]
     },
     {
@@ -257,6 +260,24 @@ export async function printHelpText() {
         ``,
         `* ${chalk.cyanBright('move')} - moves folder to a new location`,
         `[2spaces]command example: sasjs folder move /Public/sourceFolder /Public/targetFolder --target targetName`
+      ]
+    },
+    {
+      name: 'fs',
+      title: 'fs <command>',
+      description: [
+        `Handles operations around file system synchronisation.`,
+        `* ${chalk.cyanBright(
+          'sync'
+        )} - Synchronise the remote SAS file system with the local project folder according to the target 'syncDirectories' array.`,
+        `[2spaces]command example: sasjs fs sync /Public/localFolder /Public/remoteFolder`,
+        ``,
+        `* ${chalk.cyanBright(
+          'compile'
+        )} - Compiles a SAS program with the contents of a local directory.`,
+        `[2spaces]command example: sasjs fs compile /Public/folder --output ./outputProgram`,
+        ``,
+        `[2spaces]NOTE: If output flag (-o or --output) is not provided, output will be stored in './fs-compile/{timestamp}' directory relative to working directory.`
       ]
     },
     {

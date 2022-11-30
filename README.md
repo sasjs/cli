@@ -20,6 +20,7 @@
 - Scaffold a new SAS App in seconds (`sasjs create myApp -t jobs`)
 - Compile / Build SAS Jobs, Services & Macros _locally_ and deploy / execute _remotely_, in isolation from other developers (`sasjs cbd`)
 - No dependency on the server filesystem
+- Optionally synchronise a local folder onto the server filesystem using `sasjs fs`
 - Trigger Viya Jobs & Flows (`sasjs job execute` / `sasjs flow execute`)
 - Enforce code quality rules with `sasjs lint`
 - Generate HTML5 documentation (requires doxygen) with `sasjs doc`
@@ -77,6 +78,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/allanbowe"><img src="https://avatars.githubusercontent.com/u/4420615?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Allan Bowe</b></sub></a><br /><a href="https://github.com/sasjs/cli/commits?author=allanbowe" title="Code">💻</a> <a href="https://github.com/sasjs/cli/pulls?q=is%3Apr+reviewed-by%3Aallanbowe" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/sasjs/cli/commits?author=allanbowe" title="Tests">⚠️</a> <a href="#video-allanbowe" title="Videos">📹</a> <a href="https://github.com/sasjs/cli/commits?author=allanbowe" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/sabhas"><img src="https://avatars.githubusercontent.com/u/82647447?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Sabir Hassan</b></sub></a><br /><a href="https://github.com/sasjs/cli/commits?author=sabhas" title="Code">💻</a> <a href="https://github.com/sasjs/cli/pulls?q=is%3Apr+reviewed-by%3Asabhas" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/sasjs/cli/commits?author=sabhas" title="Tests">⚠️</a> <a href="#ideas-sabhas" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/VladislavParhomchik"><img src="https://avatars.githubusercontent.com/u/83717836?v=4?s=100" width="100px;" alt=""/><br /><sub><b>VladislavParhomchik</b></sub></a><br /><a href="https://github.com/sasjs/cli/commits?author=VladislavParhomchik" title="Tests">⚠️</a> <a href="https://github.com/sasjs/cli/pulls?q=is%3Apr+reviewed-by%3AVladislavParhomchik" title="Reviewed Pull Requests">👀</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="http://rudvfaden.github.io/"><img src="https://avatars.githubusercontent.com/u/2445577?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Rud Faden</b></sub></a><br /><a href="https://github.com/sasjs/cli/issues?q=author%3Arudvfaden" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 

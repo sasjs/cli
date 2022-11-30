@@ -21,33 +21,27 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Write VPN Files
-        run: |
-          echo "$CA_CRT" > .github/vpn/ca.crt
-          echo "$USER_CRT" > .github/vpn/user.crt
-          echo "$USER_KEY" > .github/vpn/user.key
-          echo "$TLS_KEY" > .github/vpn/tls.key
-        shell: bash
-        env:
-          CA_CRT: ${{ secrets.CA_CRT}}
-          USER_CRT: ${{ secrets.USER_CRT }}
-          USER_KEY: ${{ secrets.USER_KEY }}
-          TLS_KEY: ${{ secrets.TLS_KEY }}
-
-      - name: Install Open VPN
-        run: |
-          sudo apt install apt-transport-https
-          sudo wget https://swupdate.openvpn.net/repos/openvpn-repo-pkg-key.pub
-          sudo apt-key add openvpn-repo-pkg-key.pub
-          sudo wget -O /etc/apt/sources.list.d/openvpn3.list https://swupdate.openvpn.net/community/openvpn3/repos/openvpn3-focal.list
-          sudo apt update
-          sudo apt install openvpn3=16~beta+focal
-
-      - name: Start Open VPN 3
-        run: openvpn3 session-start --config .github/vpn/config.ovpn
-
       - name: Install Doxygen
         run: sudo apt-get install doxygen
+
+      - name: install pm2 for process management
+        run: npm i -g pm2
+
+      - name: Create .env file for sasjs/server
+        run: |
+          touch .env
+          echo RUN_TIMES=js >> .env
+          echo NODE_PATH=node >> .env
+          echo MOCK_SERVERTYPE=sas9 >> .env
+
+      - name: download sasjs/server package from github using curl
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
+
+      - name: unzip downloaded package
+        run: unzip linux.zip
+
+      - name: run sasjs server
+        run: pm2 start api-linux
 
       - name: Check npm audit
         run: npm audit --production --audit-level=low
@@ -56,7 +50,9 @@ jobs:
         run: sh ./npm-production-install.sh
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm config set registry http://registry.npmjs.org
+          npm ci
 
       - name: Check code style
         run: npm run lint
@@ -79,13 +75,21 @@ jobs:
           SAS_USERNAME: ${{secrets.SAS_USERNAME}}
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
-          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
+          SAS9_SERVER_URL: 'http://localhost:5000'
+          SASJS_SERVER_URL: 'http://localhost:5000'
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
 
+      - name: Deploy SAS9 tests
+        run: |
+          cd mocks
+          sasjs cbd
+          cd ..
+          ls sasjs_root -R
+
       - name: Run server tests
-        run: npm run test:server
+        run: |
+          npm run test:server
         env:
           CI: true
           CLIENT: ${{secrets.CLIENT}}
@@ -93,7 +97,7 @@ jobs:
           SAS_USERNAME: ${{secrets.SAS_USERNAME}}
           SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
           VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
-          SASJS_SERVER_URL: ${{secrets.SASJS_SERVER_URL}}
+          SAS9_SERVER_URL: http://localhost:5000
+          SASJS_SERVER_URL: http://localhost:5000
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}

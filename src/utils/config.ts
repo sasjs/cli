@@ -12,7 +12,9 @@ import {
   getAbsolutePath,
   StreamConfig,
   HttpsAgentOptions,
-  ServerType
+  ServerType,
+  AuthConfigSas9,
+  SyncDirectoryMap
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -71,9 +73,7 @@ export async function findTargetInConfiguration(
 ): Promise<{ target: Target; isLocal: boolean }> {
   const rootDir = await getProjectRoot()
 
-  if (rootDir !== process.projectDir) {
-    process.projectDir = rootDir
-  }
+  if (rootDir !== process.projectDir) process.projectDir = rootDir
 
   if (targetScope === TargetScope.Local) {
     return targetName
@@ -161,7 +161,7 @@ async function getLocalTarget(targetName: string): Promise<Target> {
           targetJson
         )
 
-      return new Target(targetJson)
+      return new Target(targetJson, localConfig)
     }
   }
 
@@ -186,19 +186,24 @@ async function getLocalFallbackTarget(): Promise<Target> {
         `No target was specified. Falling back to default target '${fallBackTargetJson.name}' from your local sasjsconfig.json file.`
       )
       fallBackTargetJson.appLoc = sanitizeAppLoc(fallBackTargetJson.appLoc)
+
       if (!fallBackTargetJson.hasOwnProperty('serverUrl')) {
         fallBackTargetJson.serverUrl = ''
       }
+
       fallBackTargetJson.serverUrl = urlOrigin(fallBackTargetJson.serverUrl)
       fallBackTargetJson.httpsAgentOptions =
         await getPrecedenceOfHttpsAgentOptionsAndContent(
           localConfig,
           fallBackTargetJson
         )
+
       await loadEnvVariables(`.env.${fallBackTargetJson.name}`)
-      return new Target(fallBackTargetJson)
+
+      return new Target(fallBackTargetJson, localConfig)
     }
   }
+
   throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
 }
 async function getGlobalTarget(targetName: string): Promise<Target> {
@@ -223,7 +228,7 @@ async function getGlobalTarget(targetName: string): Promise<Target> {
           targetJson
         )
 
-      return new Target(targetJson)
+      return new Target(targetJson, globalConfig)
     }
   }
 
@@ -255,7 +260,7 @@ async function getGlobalFallbackTarget(): Promise<Target> {
         fallBackTargetJson
       )
 
-    return new Target(fallBackTargetJson)
+    return new Target(fallBackTargetJson, globalConfig)
   }
 
   throw new Error(ERROR_MESSAGE().NOT_FOUND_FALLBACK)
@@ -379,6 +384,19 @@ export async function getLocalOrGlobalConfig(): Promise<{
   } catch (e) {
     return { configuration: await getGlobalRcFile(), isLocal: false }
   }
+}
+
+export async function getSyncDirectories(
+  target: Target,
+  isLocal: boolean
+): Promise<SyncDirectoryMap[]> {
+  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+
+  const rootLevelSyncDirectories: SyncDirectoryMap[] =
+    config.syncDirectories || []
+  const targetLevelSyncDirectories = target.syncDirectories || []
+
+  return [...rootLevelSyncDirectories, ...targetLevelSyncDirectories]
 }
 
 export async function saveLocalConfigFile(content: string) {
@@ -701,6 +719,33 @@ export const saveTokens = async (
 }
 
 /**
+ * Gets the auth config for the specified SAS9 target.
+ * @param {Target} target - the target to get an access token for.
+ * @returns {AuthConfigSas9} - an object containing an userName and password.
+ */
+export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
+  const { userName, password } = target.authConfigSas9
+    ? {
+        userName: target.authConfigSas9.userName,
+        password: target.authConfigSas9.password
+      }
+    : {
+        userName: process.env.SAS_USERNAME,
+        password: process.env.SAS_PASSWORD
+      }
+
+  if (!userName || !password) {
+    const { sas9CredentialsError } = process.sasjsConstants
+    throw new Error(sas9CredentialsError)
+  }
+
+  return {
+    userName,
+    password
+  }
+}
+
+/**
  * Gets an access token for the specified target.
  * If the target is from the global `.sasjsrc` file,
  * the auth info should be contained in it.
@@ -895,4 +940,40 @@ export const getTestTearDown = async (target: Target) => {
   }
 
   return undefined
+}
+
+/**
+ * Returns configuration object of SAS Adapter and authentication configuration
+ * @param {Target} target - the target to get auth configuration from.
+ */
+export function getSASjs(target: Target) {
+  return new SASjs({
+    serverUrl: target.serverUrl,
+    appLoc: target.appLoc,
+    serverType: target.serverType,
+    httpsAgentOptions: target.httpsAgentOptions,
+    debug: true,
+    useComputeApi: target.serverType === ServerType.SasViya
+  })
+}
+
+/**
+ * Returns configuration object of SAS Adapter and authentication configuration
+ * @param {Target} target - the target to get auth configuration from.
+ * @returns an object containing a SAS Adapter configuration object `sasjs`
+ * and auth configuration `authConfig` or `authConfigSas9`.
+ */
+export async function getSASjsAndAuthConfig(target: Target) {
+  const sasjs = getSASjs(target)
+
+  if (target.serverType === ServerType.Sas9)
+    return {
+      sasjs,
+      authConfigSas9: getAuthConfigSAS9(target)
+    }
+
+  return {
+    sasjs,
+    authConfig: await getAuthConfig(target)
+  }
 }
