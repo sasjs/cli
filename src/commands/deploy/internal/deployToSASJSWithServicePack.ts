@@ -1,7 +1,13 @@
 import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
 import { getAuthConfig } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
-import { readFile, Target, StreamConfig, ServicePackSASjs } from '@sasjs/utils'
+import {
+  readFile,
+  Target,
+  StreamConfig,
+  ServicePackSASjs,
+  fileExists
+} from '@sasjs/utils'
 
 /**
  * Deploys app to `SASJS` server.
@@ -13,22 +19,32 @@ export async function deployToSasjsWithServicePack(
   target: Target,
   streamConfig?: StreamConfig
 ) {
-  const jsonContent = await readFile(jsonFilePath)
-  const payload: ServicePackSASjs = JSON.parse(jsonContent)
+  const sasjsApiClient = new SASjsApiClient(
+    new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
+  )
 
   const authConfig = (await isSasJsServerInServerMode(target))
     ? await getAuthConfig(target)
     : undefined
 
-  const sasjsApiClient = new SASjsApiClient(
-    new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
-  )
+  let result
+  const zipFilePath = jsonFilePath + '.zip'
+  if (await fileExists(zipFilePath)) {
+    result = await sasjsApiClient
+      .deployZipFile(zipFilePath, authConfig)
+      .catch((err) => {
+        process.logger?.error('deployToSASjs Error', err)
+      })
+  } else {
+    const jsonContent = await readFile(jsonFilePath)
+    const payload: ServicePackSASjs = JSON.parse(jsonContent)
 
-  const result = await sasjsApiClient
-    .deploy(payload, target.appLoc, authConfig)
-    .catch((err) => {
-      process.logger?.error('deployToSASjs Error', err)
-    })
+    result = await sasjsApiClient
+      .deploy(payload, target.appLoc, authConfig)
+      .catch((err) => {
+        process.logger?.error('deployToSASjs Error', err)
+      })
+  }
 
   if (result?.status === 'failure') {
     process.logger?.error(result.message)
