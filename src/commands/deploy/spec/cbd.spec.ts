@@ -9,6 +9,7 @@ import {
   ServiceConfig,
   removeHeader
 } from '@sasjs/utils'
+import * as fileModule from '@sasjs/utils/file'
 import {
   createTestMinimalApp,
   removeTestApp,
@@ -39,6 +40,12 @@ describe('sasjs cbd with server type SASJS', () => {
   })
 
   it(`should deploy compile and build to sasjs/server`, async () => {
+    jest.spyOn(fileModule, 'fileExists').mockImplementation((filePath) => {
+      if (filePath.endsWith('.zip')) return Promise.resolve(false)
+
+      return Promise.resolve(true)
+    })
+
     const deployMock = jest
       .spyOn(SASjsApiClient.prototype, 'deploy')
       .mockImplementation(() =>
