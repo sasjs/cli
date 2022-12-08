@@ -196,100 +196,122 @@ export class FSCommand extends TargetCommand {
     for (const obj of syncDirectories) {
       const outputFolder = await this.getOutputPath()
 
-      process.logger?.info('generating program to get remote hash')
-      const program = await generateProgramToGetRemoteHash(obj.remote)
-
-      process.logger?.info('executing program to get remote hash')
-      const { log } = await executeCode(target, program)
-      await saveLog(
-        log,
-        path.join(outputFolder, 'getRemoteHash.log'),
-        '',
-        false
-      )
-
-      process.logger?.info('extracting hashes from log')
-      const remoteHashes = extractHashArray(log)
-      await createHashFile(
-        JSON.stringify(remoteHashes, null, 2),
-        path.join(outputFolder, 'hashesBeforeSync.json')
-      )
-
-      process.logger?.info('creating the hash of local folder')
-      const localHash = await getHash(obj.local)
-
-      const remoteHashMap = remoteHashes.reduce(
-        (map: { [key: string]: string }, item: any) => {
-          const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
-          map[relativePath] = item.FILE_HASH
-          return map
-        },
-        {}
-      )
-
-      if (remoteHashMap[localHash.relativePath] === localHash.hash) {
-        process.logger?.info(
-          'There are no differences between Remote and Local directory. Already synced.'
+      try {
+        process.logger?.info('generating program to get remote hash')
+        const program = await generateProgramToGetRemoteHash(obj.remote)
+        await createProgramFile(
+          program,
+          path.join(outputFolder, 'getRemoteHash.sas')
         )
-        return ReturnCode.Success
-      }
 
-      process.logger?.info('Extract differences from local and remote hash')
-      const hashedDiff = compareHashes(localHash, remoteHashMap)
-      await createHashFile(
-        JSON.stringify(hashedDiff, null, 2),
-        path.join(outputFolder, 'hashesDiff.json')
-      )
-
-      process.logger?.info('generating program to sync differences')
-      const syncProgram = await generateProgramToSyncHashDiff(
-        hashedDiff,
-        obj.remote
-      )
-
-      process.logger?.info('executing program to sync differences')
-      const { log: syncLog } = await executeCode(target, syncProgram)
-      await saveLog(syncLog, path.join(outputFolder, 'sync.log'), '', false)
-
-      const syncedHash = extractHashArray(syncLog)
-      await createHashFile(
-        JSON.stringify(syncedHash, null, 2),
-        path.join(outputFolder, 'hashesAfterSync.json')
-      )
-      const syncedHashMap = syncedHash.reduce(
-        (map: { [key: string]: string }, item: any) => {
-          const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
-          map[relativePath] = item.FILE_HASH
-          return map
-        },
-        {}
-      )
-
-      const syncedResources: string[] = []
-
-      Object.entries(syncedHashMap).forEach(([key, value]) => {
-        if (remoteHashMap[key] !== value) syncedResources.push(key)
-      })
-
-      if (syncedResources.length) {
-        process.logger?.log('The following resources were synced:')
-        syncedResources.forEach((item) => {
-          process.logger?.log(`* ${item}`)
-        })
-      }
-
-      const resourcesNotPresentLocally = findResourcesNotPresentLocally(
-        localHash,
-        syncedHashMap
-      )
-
-      if (resourcesNotPresentLocally.length) {
-        process.logger?.log(
-          'The following resources are present in remote directory but not in local:'
+        process.logger?.info('executing program to get remote hash')
+        const { log } = await executeCode(target, program)
+        await saveLog(
+          log,
+          path.join(outputFolder, 'getRemoteHash.log'),
+          '',
+          false
         )
-        resourcesNotPresentLocally.forEach((item) => {
-          process.logger?.log(`* ${item}`)
+
+        process.logger?.info('extracting hashes from log')
+        const remoteHashes = extractHashArray(log)
+        await createHashFile(
+          JSON.stringify(remoteHashes, null, 2),
+          path.join(outputFolder, 'hashesBeforeSync.json')
+        )
+
+        process.logger?.info('creating the hash of local folder')
+        const localHash = await getHash(obj.local)
+
+        const remoteHashMap = remoteHashes.reduce(
+          (map: { [key: string]: string }, item: any) => {
+            const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
+            map[relativePath] = item.FILE_HASH
+            return map
+          },
+          {}
+        )
+
+        if (remoteHashMap[localHash.relativePath] === localHash.hash) {
+          process.logger?.info(
+            'There are no differences between Remote and Local directory. Already synced.'
+          )
+          return ReturnCode.Success
+        }
+
+        process.logger?.info('Extract differences from local and remote hash')
+        const hashedDiff = compareHashes(localHash, remoteHashMap)
+        await createHashFile(
+          JSON.stringify(hashedDiff, null, 2),
+          path.join(outputFolder, 'hashesDiff.json')
+        )
+
+        process.logger?.info('generating program to sync differences')
+        const syncProgram = await generateProgramToSyncHashDiff(
+          hashedDiff,
+          obj.remote
+        )
+        await createProgramFile(
+          syncProgram,
+          path.join(outputFolder, 'syncProgram.sas')
+        )
+
+        process.logger?.info('executing program to sync differences')
+        const { log: syncLog } = await executeCode(target, syncProgram)
+        await saveLog(syncLog, path.join(outputFolder, 'sync.log'), '', false)
+
+        const syncedHash = extractHashArray(syncLog)
+        await createHashFile(
+          JSON.stringify(syncedHash, null, 2),
+          path.join(outputFolder, 'hashesAfterSync.json')
+        )
+        const syncedHashMap = syncedHash.reduce(
+          (map: { [key: string]: string }, item: any) => {
+            const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
+            map[relativePath] = item.FILE_HASH
+            return map
+          },
+          {}
+        )
+
+        const syncedResources: string[] = []
+
+        Object.entries(syncedHashMap).forEach(([key, value]) => {
+          if (remoteHashMap[key] !== value) syncedResources.push(key)
         })
+
+        if (syncedResources.length) {
+          process.logger?.log(
+            `The following resources were synced to: ${obj.remote}`
+          )
+          syncedResources.forEach((item) => {
+            process.logger?.log(`* ${item}`)
+          })
+        }
+
+        const resourcesNotPresentLocally = findResourcesNotPresentLocally(
+          localHash,
+          syncedHashMap
+        )
+
+        if (resourcesNotPresentLocally.length) {
+          process.logger?.log(
+            'The following resources are present in remote directory but not in local:'
+          )
+          resourcesNotPresentLocally.forEach((item) => {
+            process.logger?.log(`* ${item}`)
+          })
+        }
+      } catch (error: any) {
+        const logPath = path.join(outputFolder, 'error.log')
+
+        await createErrorLogFile(error, logPath)
+
+        process.logger?.error(
+          `An error has occurred. For more info see ${logPath}`
+        )
+
+        return ReturnCode.InternalError
       }
     }
 
@@ -301,4 +323,26 @@ const createHashFile = async (content: string, fileName: string) => {
   process.logger?.info(`Creating json file at ${fileName} .`)
   await createFile(fileName, content)
   process.logger?.success(`Hashes saved to  ${fileName} .`)
+}
+
+const createProgramFile = async (program: string, fileName: string) => {
+  process.logger?.info(`Creating program file at ${fileName} .`)
+  await createFile(fileName, program)
+  process.logger?.success(`Program saved to  ${fileName} .`)
+}
+
+const createErrorLogFile = async (error: any, logPath: string) => {
+  if (error.log) {
+    return await createFile(logPath, error.log)
+  }
+
+  if (error instanceof Error) {
+    return await createFile(logPath, error.toString())
+  }
+
+  if (typeof error === 'object') {
+    return await createFile(logPath, JSON.stringify(error, null, 2))
+  }
+
+  await createFile(logPath, error)
 }
