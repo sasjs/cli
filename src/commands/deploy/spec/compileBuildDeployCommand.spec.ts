@@ -97,7 +97,7 @@ describe('CompileBuildDeployCommand', () => {
     const returnCode = await command.execute()
 
     const { buildDestinationFolder } = process.sasjsConstants
-    const expectedLoggedMessage = `The project was successfully compiled using the '${target.name}' target (serverType '${target.serverType}')!\nThe compile output is located in the ${buildDestinationFolder} directory.`
+    const expectedLoggedMessage = `The project was successfully compiled for ${target.serverType} using target '${target.name}'\nThe compile output is located in the ${buildDestinationFolder} directory.`
 
     expect(returnCode).toEqual(ReturnCode.Success)
     expect(process.logger.success).toHaveBeenNthCalledWith(
