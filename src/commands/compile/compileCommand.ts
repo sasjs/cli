@@ -94,7 +94,7 @@ export class CompileCommand extends TargetCommand {
     return await compile(target, true)
       .then(() => {
         process.logger?.success(
-          `Services have been successfully compiled!\nThe compile output is located in the ${buildDestinationFolder} directory.`
+          `The project was successfully compiled for ${target.serverType} using target '${target.name}'\nThe compile output is located in the ${buildDestinationFolder} directory.`
         )
         return ReturnCode.Success
       })

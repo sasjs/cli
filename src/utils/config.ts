@@ -13,7 +13,8 @@ import {
   StreamConfig,
   HttpsAgentOptions,
   ServerType,
-  AuthConfigSas9
+  AuthConfigSas9,
+  SyncDirectoryMap
 } from '@sasjs/utils'
 import {
   isAccessTokenExpiring,
@@ -385,6 +386,19 @@ export async function getLocalOrGlobalConfig(): Promise<{
   }
 }
 
+export async function getSyncDirectories(
+  target: Target,
+  isLocal: boolean
+): Promise<SyncDirectoryMap[]> {
+  const config = isLocal ? await getLocalConfig() : await getGlobalRcFile()
+
+  const rootLevelSyncDirectories: SyncDirectoryMap[] =
+    config.syncDirectories || []
+  const targetLevelSyncDirectories = target.syncDirectories || []
+
+  return [...rootLevelSyncDirectories, ...targetLevelSyncDirectories]
+}
+
 export async function saveLocalConfigFile(content: string) {
   const configPath = path.join(process.projectDir, 'sasjs', 'sasjsconfig.json')
 
@@ -653,6 +667,13 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
 
     access_token = tokens?.access_token || access_token
     refresh_token = tokens?.refresh_token || refresh_token
+    await saveTokens(
+      target.name,
+      client,
+      secret,
+      access_token,
+      refresh_token || ''
+    )
   }
 
   return {
@@ -660,6 +681,40 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     refresh_token: refresh_token!,
     client,
     secret
+  }
+}
+
+export const saveTokens = async (
+  targetName: string,
+  client: string,
+  secret: string,
+  access_token: string,
+  refresh_token: string
+): Promise<void> => {
+  const localConfig = await getLocalConfig()
+  const isLocalTarget = localConfig.targets?.some((t) => t.name === targetName)
+  if (isLocalTarget) {
+    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n`
+    const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+    await createFile(envFilePath, envFileContent)
+    process.logger?.success(`Environment file saved at ${envFilePath}`)
+  } else {
+    const globalConfig = await getGlobalRcFile()
+    const target = globalConfig.targets?.find(
+      (t: Target) => t.name === targetName
+    )
+    if (!target) {
+      throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
+    }
+    const targetJson = target.toJson()
+    targetJson.authConfig = { client, secret, access_token, refresh_token }
+    await saveToGlobalConfig(
+      new Target(targetJson),
+      globalConfig.defaultTarget === targetName
+    )
+    process.logger?.success(
+      `Target saved to global .sasjsrc file at ~/.sasjsrc.`
+    )
   }
 }
 
@@ -896,6 +951,7 @@ export function getSASjs(target: Target) {
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType,
+    contextName: target.contextName,
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
     useComputeApi: target.serverType === ServerType.SasViya

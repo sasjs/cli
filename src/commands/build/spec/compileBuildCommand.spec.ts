@@ -90,8 +90,14 @@ describe('CompileBuildCommand', () => {
     const command = new CompileBuildCommand(args)
     const returnCode = await command.execute()
 
+    const { buildDestinationFolder } = process.sasjsConstants
+    const expectedLoggedMessage = `The project was successfully compiled for ${target.serverType} using target '${target.name}'\nThe compile output is located in the ${buildDestinationFolder} directory.`
+
     expect(returnCode).toEqual(ReturnCode.Success)
-    expect(process.logger.success).toHaveBeenCalled()
+    expect(process.logger.success).toHaveBeenNthCalledWith(
+      1,
+      expectedLoggedMessage
+    )
   })
 
   it('should log the error and return the error code when compile is unsuccessful', async () => {
