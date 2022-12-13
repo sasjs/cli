@@ -951,6 +951,7 @@ export function getSASjs(target: Target) {
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
     serverType: target.serverType,
+    contextName: target.contextName,
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
     useComputeApi: target.serverType === ServerType.SasViya
