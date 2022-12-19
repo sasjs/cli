@@ -222,7 +222,9 @@ export class FSCommand extends TargetCommand {
         )
 
         process.logger?.info('creating the hash of local folder')
-        const localHash = await getHash(getAbsolutePath(obj.local, process.projectDir))
+        const localHash = await getHash(
+          getAbsolutePath(obj.local, process.projectDir)
+        )
 
         const remoteHashMap = remoteHashes.reduce(
           (map: { [key: string]: string }, item: any) => {
