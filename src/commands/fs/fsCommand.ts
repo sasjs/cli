@@ -12,7 +12,8 @@ import {
   generateProgramToSyncHashDiff,
   getRelativePath,
   generateTimestamp,
-  SyncDirectoryMap
+  SyncDirectoryMap,
+  getAbsolutePath
 } from '@sasjs/utils'
 import { CommandOptions } from '../../types/command/commandBase'
 import { executeCode } from './internal/executeCode'
@@ -30,7 +31,7 @@ const parseOptions = {
   output: { type: 'string', alias: 'o' }
 }
 
-const compileCommandSyntax = 'fs <subCommand> <localFolder> [options]'
+const compileCommandSyntax = 'fs <subCommand> <local> [options]'
 const compileCommandUsage = 'sasjs fs compile <localFolder> [options]'
 const compileCommandDescription =
   'Compiles a SAS program with the contents of a local directory'
@@ -221,11 +222,15 @@ export class FSCommand extends TargetCommand {
         )
 
         process.logger?.info('creating the hash of local folder')
-        const localHash = await getHash(obj.local)
+        const localHash = await getHash(
+          getAbsolutePath(obj.local, process.projectDir)
+        )
 
         const remoteHashMap = remoteHashes.reduce(
           (map: { [key: string]: string }, item: any) => {
-            const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
+            const from = obj.remote.replace(/\//g, path.sep)
+            const to = (item.FILE_PATH as string).replace(/\//g, path.sep)
+            const relativePath = getRelativePath(from, to)
             map[relativePath] = item.FILE_HASH
             return map
           },
@@ -267,7 +272,9 @@ export class FSCommand extends TargetCommand {
         )
         const syncedHashMap = syncedHash.reduce(
           (map: { [key: string]: string }, item: any) => {
-            const relativePath = getRelativePath(obj.remote, item.FILE_PATH)
+            const from = obj.remote.replace(/\//g, path.sep)
+            const to = (item.FILE_PATH as string).replace(/\//g, path.sep)
+            const relativePath = getRelativePath(from, to)
             map[relativePath] = item.FILE_HASH
             return map
           },
