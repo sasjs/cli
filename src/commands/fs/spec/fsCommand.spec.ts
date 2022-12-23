@@ -6,7 +6,6 @@ import * as FSModule from '@sasjs/utils/fs'
 import * as FileModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import * as executeCodeModule from '../internal/executeCode'
-import * as extractHashArrayModule from '../internal/extractHashArray'
 
 const defaultArgs = ['node', 'sasjs', 'fs']
 
@@ -106,23 +105,19 @@ describe('FSCommand', () => {
     })
 
     it('should sync a local folder with folder on remote server', async () => {
-      jest
-        .spyOn(extractHashArrayModule, 'extractHashArray')
-        .mockImplementationOnce(() => [
-          {
-            FILE_PATH: 'mocked-file',
-            FILE_HASH: 'hashOfMockedFile'
-          }
-        ])
+      jest.spyOn(FSModule, 'extractHashArray').mockImplementationOnce(() => [
+        {
+          FILE_PATH: 'mocked-file',
+          FILE_HASH: 'hashOfMockedFile'
+        }
+      ])
 
-      jest
-        .spyOn(extractHashArrayModule, 'extractHashArray')
-        .mockImplementationOnce(() => [
-          {
-            FILE_PATH: 'synced-file',
-            FILE_HASH: 'hashOfSyncedFile'
-          }
-        ])
+      jest.spyOn(FSModule, 'extractHashArray').mockImplementationOnce(() => [
+        {
+          FILE_PATH: 'synced-file',
+          FILE_HASH: 'hashOfSyncedFile'
+        }
+      ])
 
       const returnCode = await executeCommandWrapper([
         'sync',
@@ -156,14 +151,12 @@ describe('FSCommand', () => {
     })
 
     it('should not execute sync program when local and remote folders are already in sync', async () => {
-      jest
-        .spyOn(extractHashArrayModule, 'extractHashArray')
-        .mockImplementation(() => [
-          {
-            FILE_PATH: 'mocked-file',
-            FILE_HASH: 'hashOfMockedFile'
-          }
-        ])
+      jest.spyOn(FSModule, 'extractHashArray').mockImplementation(() => [
+        {
+          FILE_PATH: 'mocked-file',
+          FILE_HASH: 'hashOfMockedFile'
+        }
+      ])
 
       jest.spyOn(FSModule, 'getHash').mockImplementation(() =>
         Promise.resolve({
