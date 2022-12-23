@@ -13,11 +13,11 @@ import {
   getRelativePath,
   generateTimestamp,
   SyncDirectoryMap,
-  getAbsolutePath
+  getAbsolutePath,
+  extractHashArray
 } from '@sasjs/utils'
 import { CommandOptions } from '../../types/command/commandBase'
 import { executeCode } from './internal/executeCode'
-import { extractHashArray } from './internal/extractHashArray'
 
 enum FsSubCommand {
   Compile = 'compile',
