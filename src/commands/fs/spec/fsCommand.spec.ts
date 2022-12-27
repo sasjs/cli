@@ -58,6 +58,58 @@ describe('FSCommand', () => {
     })
   })
 
+  describe('deploy', () => {
+    beforeEach(() => {
+      process.logger = new Logger(LogLevel.Off)
+      jest.spyOn(process.logger, 'error')
+      jest.spyOn(process.logger, 'info')
+
+      jest
+        .spyOn(configUtils, 'findTargetInConfiguration')
+        .mockImplementation(() =>
+          Promise.resolve({ target: target, isLocal: true })
+        )
+
+      jest
+        .spyOn(FSModule, 'generateCompileProgram')
+        .mockImplementation(() => Promise.resolve(''))
+
+      jest
+        .spyOn(FileModule, 'createFile')
+        .mockImplementation(() => Promise.resolve())
+
+      jest
+        .spyOn(executeCodeModule, 'executeCode')
+        .mockImplementation(() => Promise.resolve({ log: '' }))
+    })
+
+    it('should compile and deploy a local directory tree to a remote sas server', async () => {
+      jest
+        .spyOn(FileModule, 'createFile')
+        .mockImplementation(() => Promise.resolve())
+
+      const returnCode = await executeCommandWrapper([
+        'deploy',
+        'localFolder',
+        'remoteFolder'
+      ])
+      expect(returnCode).toEqual(ReturnCode.Success)
+    })
+
+    it('should return an internal error return code', async () => {
+      jest
+        .spyOn(FileModule, 'createFile')
+        .mockImplementationOnce(() => Promise.reject({}))
+
+      const returnCode = await executeCommandWrapper([
+        'deploy',
+        'localFolder',
+        'remoteFolder'
+      ])
+      expect(returnCode).toEqual(ReturnCode.InternalError)
+    })
+  })
+
   describe('sync', () => {
     beforeEach(() => {
       process.logger = new Logger(LogLevel.Off)
