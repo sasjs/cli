@@ -14,14 +14,16 @@ import {
   generateTimestamp,
   SyncDirectoryMap,
   getAbsolutePath,
-  extractHashArray
+  extractHashArray,
+  generatePathForSas
 } from '@sasjs/utils'
 import { CommandOptions } from '../../types/command/commandBase'
 import { executeCode } from './internal/executeCode'
 
 enum FsSubCommand {
   Compile = 'compile',
-  Sync = 'sync'
+  Sync = 'sync',
+  Deploy = 'deploy'
 }
 
 const syntax = 'fs <subCommand> [options]'
@@ -71,6 +73,19 @@ const syncCommandParseOptions = {
   remote: { type: 'string', alias: 'r' }
 }
 
+const deployCommandSyntax = 'fs <subCommand> <local> <remote> [options]'
+const deployCommandUsage =
+  'sasjs fs deploy <localFolder> <remoteFolder> [options]'
+const deployCommandDescription =
+  'Compiles and deploys a local directory tree with one on a remote SAS server.'
+const deployCommandExamples: CommandExample[] = [
+  {
+    command:
+      'sasjs fs deploy <path/of/folder> --output <path/of/outputProgram>',
+    description: 'deploys a SAS program with the contents of a local directory'
+  }
+]
+
 export class FSCommand extends TargetCommand {
   constructor(args: string[]) {
     const commandOptions: CommandOptions = {
@@ -88,6 +103,12 @@ export class FSCommand extends TargetCommand {
         commandOptions.usage = compileCommandUsage
         commandOptions.description = compileCommandDescription
         commandOptions.examples = compileCommandExamples
+        break
+      case FsSubCommand.Deploy:
+        commandOptions.syntax = deployCommandSyntax
+        commandOptions.usage = deployCommandUsage
+        commandOptions.description = deployCommandDescription
+        commandOptions.examples = deployCommandExamples
         break
       case FsSubCommand.Sync:
         commandOptions.syntax = syncCommandSyntax
@@ -134,7 +155,7 @@ export class FSCommand extends TargetCommand {
     if (!outputPath) {
       return path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        'fs-sync',
+        `fs-${this.parsed.subcommand}`,
         generateTimestamp()
       )
     }
@@ -149,6 +170,10 @@ export class FSCommand extends TargetCommand {
   public async execute() {
     if (this.parsed.subCommand === FsSubCommand.Compile) {
       return await this.compile()
+    }
+
+    if (this.parsed.subCommand === FsSubCommand.Deploy) {
+      return await this.deploy()
     }
 
     if (this.parsed.subCommand === FsSubCommand.Sync) {
@@ -174,6 +199,46 @@ export class FSCommand extends TargetCommand {
         displayError(err, 'An error has occurred when creating program file.')
         return ReturnCode.InternalError
       })
+  }
+
+  async deploy() {
+    const { target } = await this.getTargetInfo()
+    const remoteFolderPath = this.remoteFolder
+    const localFolderPath = this.localFolder
+    const outputFolder = await this.getOutputPath()
+
+    try {
+      process.logger?.info('generating compile program')
+      const code = await generateCompileProgram(localFolderPath)
+
+      process.logger?.info('setting fsTaregt at the start of compiled program')
+      const program = `%let fsTarget=${generatePathForSas(
+        remoteFolderPath
+      )};\n${code}`
+
+      await createProgramFile(program, path.join(outputFolder, 'deploy.sas'))
+
+      process.logger?.info('executing program to deploy a local directory tree')
+      await executeCode(target, program).then(async ({ log }) => {
+        await saveLog(log, path.join(outputFolder, 'deploy.log'), '', false)
+      })
+
+      process.logger?.success(
+        `A local directory tree has been successfully deployed to remote sas server`
+      )
+
+      return ReturnCode.Success
+    } catch (error) {
+      const logPath = path.join(outputFolder, 'error.log')
+
+      await createErrorLogFile(error, logPath)
+
+      process.logger?.error(
+        `An error has occurred. For more info see ${logPath}`
+      )
+
+      return ReturnCode.InternalError
+    }
   }
 
   async sync() {
