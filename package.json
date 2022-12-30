@@ -52,7 +52,7 @@
   "dependencies": {
     "@sasjs/adapter": "4.1.0",
     "@sasjs/core": "4.45.4",
-    "@sasjs/lint": "2.1.1",
+    "@sasjs/lint": "2.1.2",
     "@sasjs/utils": "2.51.5",
     "adm-zip": "0.5.9",
     "chalk": "4.1.2",
