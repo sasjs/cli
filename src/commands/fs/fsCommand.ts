@@ -155,7 +155,7 @@ export class FSCommand extends TargetCommand {
     if (!outputPath) {
       return path.join(
         process.sasjsConstants.buildDestinationResultsFolder,
-        `fs-${this.parsed.subcommand}`,
+        `fs-${this.parsed.subCommand}`,
         generateTimestamp()
       )
     }
