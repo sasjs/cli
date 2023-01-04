@@ -17,7 +17,7 @@ describe('LintCommand', () => {
     const command = new LintCommand(args)
 
     expect(command.name).toEqual('lint')
-    expect(command.subCommand).toEqual('')
+    expect(command.subCommand).toEqual('find')
   })
 
   it('should log success and return the success code when execution is successful', async () => {
