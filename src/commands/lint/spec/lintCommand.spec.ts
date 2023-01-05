@@ -20,6 +20,15 @@ describe('LintCommand', () => {
     expect(command.subCommand).toEqual('find')
   })
 
+  it('should parse a sasjs lint command with filter strings', () => {
+    const args = [...defaultArgs, 'lint', 'find', 'pattern1', 'pattern2']
+
+    const command = new LintCommand(args)
+
+    expect(command.name).toEqual('lint')
+    expect(command.subCommand).toEqual('find')
+  })
+
   it('should log success and return the success code when execution is successful', async () => {
     const args = [...defaultArgs, 'lint']
 
@@ -81,6 +90,15 @@ describe('LintCommand - fix', () => {
 
   it('should parse a simple sasjs lint command', () => {
     const args = [...defaultArgs, 'lint', 'fix']
+
+    const command = new LintCommand(args)
+
+    expect(command.name).toEqual('lint')
+    expect(command.subCommand).toEqual('fix')
+  })
+
+  it('should parse sasjs lint command', () => {
+    const args = [...defaultArgs, 'lint', 'fix', 'pattern1', 'pattern2']
 
     const command = new LintCommand(args)
 
