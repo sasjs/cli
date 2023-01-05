@@ -4,8 +4,8 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { CommandBase } from '../../types'
 import { displayError, displaySuccess } from '../../utils'
 
-const syntax = 'lint [subCommand]'
-const usage = 'sasjs lint [ fix | lint ]'
+const syntax = 'lint <subCommand> [filterStrings..]'
+const usage = 'sasjs lint [ find | fix | init ]'
 const description = `Provides the capability to identify, for SAS file, whether there are any ERRORs or WARNINGs present and if so, which line number they are on.`
 const examples: CommandExample[] = [
   {
@@ -15,9 +15,45 @@ const examples: CommandExample[] = [
       'All the exceptions (along with line / column numbers) will be shown in the console.'
   },
   {
+    command: 'sasjs lint find mf_a mf_b',
+    description:
+      'Lints all .sas files starting from mf_a or mf_b in the current project.\n' +
+      'All the exceptions (along with line / column numbers) will be shown in the console.'
+  },
+  {
+    command: 'sasjs lint find /home/user/project/sasjs/services/appinit.sas',
+    description:
+      'Lints only appinit.sas file present in services folder.\n' +
+      'All the exceptions (along with line / column numbers) will be shown in the console.'
+  },
+  {
+    command: 'sasjs lint find sasjs/macros',
+    description:
+      'Lints all .sas files present in sasjs/macros folder.\n' +
+      'All the exceptions (along with line / column numbers) will be shown in the console.'
+  },
+  {
     command: 'sasjs lint fix',
     description:
       'Fixes lint violations in all .sas files in the current project.\n' +
+      'All the exceptions (along with line / column numbers) will be fixed.'
+  },
+  {
+    command: 'sasjs lint fix mf_a mf_b',
+    description:
+      'Fixes lint violations in all .sas files starting from mf_a or mf_b in the current project.\n' +
+      'All the exceptions (along with line / column numbers) will be fixed.'
+  },
+  {
+    command: 'sasjs lint fix /home/user/project/sasjs/services/appinit.sas',
+    description:
+      'Fixes lint violations in only appinit.sas in services folder.\n' +
+      'All the exceptions (along with line / column numbers) will be fixed.'
+  },
+  {
+    command: 'sasjs lint fix sasjs/macros/',
+    description:
+      'Fixes lint violations in all .sas files in the macros folder.\n' +
       'All the exceptions (along with line / column numbers) will be fixed.'
   },
   {
@@ -28,6 +64,10 @@ const examples: CommandExample[] = [
 
 export class LintCommand extends CommandBase {
   constructor(args: string[]) {
+    if (args.length < 4) {
+      args.splice(3, 0, 'find')
+    }
+
     super(args, {
       syntax,
       usage,
@@ -37,7 +77,7 @@ export class LintCommand extends CommandBase {
   }
 
   public async execute() {
-    const { subCommand } = this.parsed
+    const { subCommand, filterStrings } = this.parsed
 
     if (subCommand === 'init') {
       return await initLint()
@@ -62,7 +102,7 @@ export class LintCommand extends CommandBase {
     }
 
     if (subCommand === 'fix') {
-      return await lintFix()
+      return await lintFix(filterStrings as string[])
         .then(() => ReturnCode.Success)
         .catch((err) => {
           displayError(
@@ -73,7 +113,7 @@ export class LintCommand extends CommandBase {
         })
     }
 
-    return await processLint()
+    return await processLint(filterStrings as string[])
       .then((result) => {
         if (result.errors) {
           displayError('Please fix the identified lint errors.')
