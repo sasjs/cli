@@ -195,14 +195,126 @@
   ],
   "config": {
     "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
+    "docConfig": {
+      "displayMacroCore": true,
+      "enableLineage": true,
+      "outDirectory": "",
+      "dataControllerUrl": "",
+      "doxyContent": {
+        "favIcon": "favicon.ico",
+        "footer": "new_footer.html",
+        "header": "new_header.html",
+        "layout": "DoxygenLayout.xml",
+        "logo": "logo.png",
+        "readMe": "../../README.md",
+        "stylesheet": "new_stylesheet.css",
+        "path": "./sasjs/doxy/"
+      }
+    },
+    "buildConfig": {
+      "initProgram": "sasjs/build/buildinit.sas",
+      "termProgram": "sasjs/build/buildterm.sas",
+      "buildOutputFolder": "sasjsbuild",
+      "buildResultsFolder": "sasjsresults",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
+    },
+    "deployConfig": {
+      "deployScripts": ["sasjs/build/deployscript.sh"]
+    },
+    "serviceConfig": {
+      "serviceFolders": ["sasjs/services/common", "sasjs/services/admin"],
+      "initProgram": "sasjs/build/serviceinit.sas",
+      "termProgram": "sasjs/build/serviceterm.sas",
+      "macroVars": {
+        "name": "value",
+        "numvar": "42"
+      }
+    },
     "macroFolders": ["sasjs/macros"],
-    "defaultTarget": "mytarget",
+    "programFolders": ["sasjs/programs"],
+    "binaryFolders": ["sasjs/binaries"],
+    "serverType": "SASVIYA",
     "targets": [
       {
-        "name": "mytarget",
-        "serverType": "SASJS",
-        "serverUrl": "",
-        "appLoc": "/Public/apps/myapp"
+        "name": "viya",
+        "serverType": "SASVIYA",
+        "serverUrl": "https://sas.analytium.co.uk",
+        "httpsAgentOptions": {
+          "allowInsecureRequests": false
+        },
+        "appLoc": "/Public/app",
+        "contextName": "SAS Job Execution compute context",
+        "buildConfig": {
+          "buildOutputFileName": "myviyadeploy.sas",
+          "initProgram": "sasjs/build/buildinitviya.sas",
+          "termProgram": "sasjs/targets/viya/viyabuildterm.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
+        },
+        "deployConfig": {
+          "deployServicePack": true,
+          "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
+        },
+        "serviceConfig": {
+          "serviceFolders": ["sasjs/targets/viya/services/admin"],
+          "initProgram": "sasjs/build/serviceinit.sas",
+          "termProgram": "sasjs/build/serviceinit.sas",
+          "macroVars": {
+            "name": "viyavalue",
+            "extravar": "this too"
+          }
+        },
+        "jobConfig": {
+          "jobFolders": [],
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "webv",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["sasjs/targets/viya/macros"],
+        "programFolders": []
+      },
+      {
+        "name": "sas9",
+        "serverType": "SAS9",
+        "serverUrl": "https://sas.analytium.co.uk:8343",
+        "appLoc": "/User Folders/&sysuserid/My Folder",
+        "serverName": "Foundation",
+        "repositoryName": "SASApp",
+        "buildConfig": {
+          "buildOutputFileName": "mysas9deploy.sas",
+          "initProgram": "",
+          "termProgram": "",
+          "macroVars": {}
+        },
+        "deployConfig": {
+          "deployScripts": ["sasjs/build/deploysas9.sh"],
+          "deployServicePack": false
+        },
+        "serviceConfig": {
+          "serviceFolders": ["sasjs/targets/sas9/services/admin"],
+          "initProgram": "",
+          "termProgram": "sasjs/build/servicetermother.sas",
+          "macroVars": {}
+        },
+        "streamConfig": {
+          "assetPaths": [],
+          "streamWeb": false,
+          "streamWebFolder": "web9",
+          "webSourcePath": "dist"
+        },
+        "macroFolders": ["sasjs/targets/sas9/macros"],
+        "programFolders": []
       }
     ]
   }
