@@ -152,7 +152,7 @@ describe('utils', () => {
 
       const gitIgnoreContent = await readFile(gitFilePath)
 
-      expect(gitIgnoreContent.includes('sasjsbuild/')).toEqual(true)
+      expect(gitIgnoreContent.includes('sasjsbuild')).toEqual(true)
 
       await deleteFile(gitFilePath)
     })
@@ -164,7 +164,7 @@ describe('utils', () => {
 
       await expect(setupGitIgnore(folderPath)).toResolve()
 
-      const regExp = new RegExp(`^node_modules\/\nsasjsbuild\/\n`, 'gm')
+      const regExp = new RegExp(`^node_modules\/\nsasjsbuild\n`, 'gm')
 
       gitIgnoreContent = await readFile(gitFilePath)
 
@@ -176,7 +176,7 @@ describe('utils', () => {
 
       await expect(setupGitIgnore(folderPath)).toResolve()
 
-      const regExp = new RegExp(`^sasjsbuild\/`, 'gm')
+      const regExp = new RegExp(`^sasjsbuild`, 'gm')
 
       expect(gitIgnoreContent.match(regExp)).toBeTruthy()
       expect(gitIgnoreContent.match(regExp)!.length).toEqual(1)
