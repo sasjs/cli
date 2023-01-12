@@ -225,7 +225,7 @@ function downloadFile(url: string, filename?: string): ShellString {
 export async function setupNpmProject(folderName: string): Promise<void> {
   const folderPath = path.join(process.projectDir, folderName)
   return new Promise(async (resolve, _) => {
-    const isExistingProject = await inExistingProject(folderPath)
+    const isExistingProject = await inExistingProject(folderName)
     if (!isExistingProject) {
       process.logger?.info(`Initialising NPM project in ${folderPath}`)
       shelljs.exec(`cd "${folderPath}" && npm init --yes`, {
@@ -254,22 +254,30 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
     const gitIgnoreContent = await readFile(gitIgnoreFilePath)
     let newgitIgnoreContent = gitIgnoreContent
 
-    const regExpSasjsBuild = new RegExp(`^sasjsbuild\/`, 'gm')
-    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsBuild)
-      ? newgitIgnoreContent
-      : `${newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''}sasjsbuild/\n`
+    const regExpSasjsBuild = new RegExp(`^sasjsbuild`, 'gm')
+    const regExpSasjsResults = new RegExp(`^sasjsresults`, 'gm')
+    const regExpNodeModules = new RegExp(`^node_modules`, 'gm')
+    const regExpEnv = new RegExp(`^\.env\*`, 'gm')
 
-    const regExpSasjsResults = new RegExp(`^sasjsresults\/`, 'gm')
-    newgitIgnoreContent = newgitIgnoreContent.match(regExpSasjsResults)
-      ? newgitIgnoreContent
-      : `${
-          newgitIgnoreContent ? newgitIgnoreContent + '\n' : ''
-        }sasjsresults/\n`
+    if (newgitIgnoreContent) {
+      if (!regExpSasjsBuild.test(newgitIgnoreContent)) {
+        newgitIgnoreContent += '\nsasjsbuild'
+      }
 
-    const regExpNodeModules = new RegExp(`^node_modules\/`, 'gm')
-    newgitIgnoreContent = newgitIgnoreContent.match(regExpNodeModules)
-      ? newgitIgnoreContent
-      : `${newgitIgnoreContent + '\n'}node_modules/\n`
+      if (!regExpSasjsResults.test(newgitIgnoreContent)) {
+        newgitIgnoreContent += '\nsasjsresults'
+      }
+
+      if (!regExpNodeModules.test(newgitIgnoreContent)) {
+        newgitIgnoreContent += '\nnode_modules'
+      }
+
+      if (!regExpEnv.test(newgitIgnoreContent)) {
+        newgitIgnoreContent += '\n.env*'
+      }
+    } else {
+      newgitIgnoreContent = 'node_modules\nsasjsbuild\nsasjsresults\n.env*\n'
+    }
 
     if (gitIgnoreContent !== newgitIgnoreContent) {
       await createFile(gitIgnoreFilePath, newgitIgnoreContent)
@@ -278,7 +286,7 @@ export async function setupGitIgnore(folderName: string): Promise<void> {
   } else {
     await createFile(
       gitIgnoreFilePath,
-      'node_modules/\nsasjsbuild/\nsasjsresults/\n.env*\n'
+      'node_modules\nsasjsbuild\nsasjsresults\n.env*\n'
     )
 
     process.logger?.success('.gitignore file has been created.')
