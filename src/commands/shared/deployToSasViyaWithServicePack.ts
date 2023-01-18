@@ -1,14 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-import {
-  FileMember,
-  FileTree,
-  FolderMember,
-  MemberType,
-  readFile,
-  ServiceMember,
-  Target
-} from '@sasjs/utils'
-import { decode } from 'js-base64'
+import { FileTree, MemberType, readFile, Target } from '@sasjs/utils'
 import { getAccessToken } from '../../utils'
 
 export async function deployToSasViyaWithServicePack(
@@ -57,10 +48,9 @@ export async function deployToSasViyaWithServicePack(
   return jsonObject
 }
 
-const populateCodeInServicePack = (json: FileTree) =>
-  json?.members?.forEach(
-    (member: FolderMember | ServiceMember | FileMember) => {
-      if (member.type === MemberType.file) member.code = decode(member.code!)
-      if (member.type === MemberType.folder) populateCodeInServicePack(member)
-    }
-  )
+const populateCodeInServicePack = (json: any) =>
+  json?.members?.forEach((member: any) => {
+    if (member.type === MemberType.file)
+      member.code = Buffer.from(member.code!, 'base64')
+    if (member.type === MemberType.folder) populateCodeInServicePack(member)
+  })
