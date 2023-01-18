@@ -72,7 +72,7 @@ export async function createWebAppServices(target: Target) {
     (content) => new jsdom.JSDOM(content)
   )
 
-  await updateAllTags(indexHtml, {
+  await updateAllTags(indexHtml, target, {
     webSourcePathFull,
     destinationPath,
     serverType: target.serverType,
