@@ -1,17 +1,19 @@
 import { JSDOM } from 'jsdom'
-import { asyncForEach, ServerType } from '@sasjs/utils'
+import { asyncForEach, ServerType, Target } from '@sasjs/utils'
 import {
   getFaviconTags,
   getImgTags,
   getStyleTags,
   getScriptTags,
   getSourceTags,
-  getStyleInPageTags
+  getStyleInPageTags,
+  getSasjsTags
 } from './getTags'
 import { updateScriptTag } from './updateScriptTag'
 import { updateLinkTag } from './updateLinkTag'
 import { updateStyleTag } from './updateStyleTag'
 import { AssetPathMap } from './createAssetServices'
+import { updateSasjsTag } from './updateSasjsTag'
 
 interface paramsType {
   webSourcePathFull: string
@@ -27,9 +29,15 @@ interface paramsType {
  */
 export const updateAllTags = async (
   parsedHtml: JSDOM,
+  target: Target,
   { webSourcePathFull, destinationPath, serverType, assetPathMap }: paramsType
 ) => {
   const assetsNotFound: Error[] = []
+
+  const sasjsTags = getSasjsTags(parsedHtml)
+  if (sasjsTags.length) {
+    updateSasjsTag(sasjsTags[0], target)
+  }
 
   const scriptTags = getScriptTags(parsedHtml)
   await asyncForEach(scriptTags, async (tag) => {

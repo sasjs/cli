@@ -1,5 +1,8 @@
 import { JSDOM } from 'jsdom'
 
+export const getSasjsTags = (parsedHtml: JSDOM) =>
+  Array.from(parsedHtml.window.document.getElementsByTagName('sasjs'))
+
 export const getScriptTags = (parsedHtml: JSDOM) =>
   Array.from(parsedHtml.window.document.getElementsByTagName('script'))
 
