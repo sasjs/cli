@@ -1,3 +1,5 @@
+import { ServerType } from '@sasjs/utils'
+
 export interface TestFlow {
   testSetUp?: string
   testTearDown?: string
@@ -47,6 +49,19 @@ export interface TestResult {
 }
 export interface TestResults {
   sasjs_test_meta: TestDescription[]
+  csv_result_path?: string
+  xml_result_path?: string
+  coverage_report_path?: string
+  failed_to_complete?: number
+  completed_with_failures?: number
+  tests_with_results?: string
+  tests_that_pass?: string
+  target_name?: string
+  target_server_url?: string
+  target_server_type?: ServerType
+  local_date_time?: string
+  local_user_id?: string
+  local_machine_name?: string
 }
 
 export interface TestResultCsv {

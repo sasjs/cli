@@ -127,7 +127,28 @@ end_of_record`
     })
 
     it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
+      const resultsFolderPath = path.join(
+        __dirname,
+        target.name,
+        'sasjsresults'
+      )
+      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
+      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
+      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
+      const coverageReportPath = path.join(resultsFolderPath, 'coverage.lcov')
+
       const expectedResultsJson = {
+        csv_result_path: resultsCsvPath,
+        xml_result_path: resultsXmlPath,
+        coverage_report_path: coverageReportPath,
+        tests_that_pass: '2/7 (29%)',
+        tests_with_results: '7/8 (88%)',
+        target_name: target.name,
+        target_server_url: target.serverUrl,
+        target_server_type: target.serverType,
+        local_date_time: expect.anything(),
+        local_user_id: expect.anything(),
+        local_machine_name: expect.anything(),
         sasjs_test_meta: [
           {
             test_target: 'testsetup',
@@ -218,6 +239,7 @@ end_of_record`
           }
         ]
       }
+
       const expectedResultsCsv = `test_target,test_loc,sasjs_test_id,test_suite_result,test_description,test_url
 testsetup,tests/testsetup.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testsetup'
@@ -244,19 +266,10 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
 
       await runTest(target, undefined, undefined, undefined, true)
 
-      const resultsFolderPath = path.join(
-        __dirname,
-        target.name,
-        'sasjsresults'
-      )
-      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
-
       await expect(folderExists(resultsFolderPath)).resolves.toEqual(true)
       await expect(fileExists(resultsJsonPath)).resolves.toEqual(true)
 
       const resultsJson = await readFile(resultsJsonPath)
-
-      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
 
       await expect(fileExists(resultsCsvPath)).resolves.toEqual(true)
 
@@ -281,8 +294,6 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )
 
       expect(resultsCsv).toEqual(expectedResultsCsv)
-
-      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
 
       await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
 
@@ -341,7 +352,32 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should execute filtered tests and create result CSV, XML and JSON files using custom source and output locations', async () => {
+      const outputFolder = 'customOutPut'
+      const movedTestFlow = 'movedTestFlow.json'
+
+      await copy(
+        path.join(__dirname, target.name, 'sasjsbuild', 'testFlow.json'),
+        path.join(__dirname, target.name, movedTestFlow)
+      )
+
+      const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
+      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
+      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
+      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
+      const coverageReportPath = path.join(resultsFolderPath, 'coverage.lcov')
+
       const expectedResultsJson = {
+        csv_result_path: resultsCsvPath,
+        xml_result_path: resultsXmlPath,
+        coverage_report_path: coverageReportPath,
+        tests_that_pass: '0/4 (0%)',
+        tests_with_results: '4/5 (80%)',
+        target_name: target.name,
+        target_server_url: target.serverUrl,
+        target_server_type: target.serverType,
+        local_date_time: expect.anything(),
+        local_user_id: expect.anything(),
+        local_machine_name: expect.anything(),
         sasjs_test_meta: [
           {
             test_target: 'testsetup',
@@ -409,14 +445,6 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )}
 `
 
-      const outputFolder = 'customOutPut'
-      const movedTestFlow = 'movedTestFlow.json'
-
-      await copy(
-        path.join(__dirname, target.name, 'sasjsbuild', 'testFlow.json'),
-        path.join(__dirname, target.name, movedTestFlow)
-      )
-
       await runTest(
         target,
         ['jobs/standalone', 'shouldFail', 'services/admin/dostuff.test.0'],
@@ -425,15 +453,10 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         true
       )
 
-      const resultsFolderPath = path.join(__dirname, target.name, outputFolder)
-      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
-
       await expect(folderExists(resultsFolderPath)).resolves.toEqual(true)
       await expect(fileExists(resultsJsonPath)).resolves.toEqual(true)
 
       const resultsJson = await readFile(resultsJsonPath)
-
-      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
 
       await expect(fileExists(resultsCsvPath)).resolves.toEqual(true)
 
@@ -474,8 +497,6 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       const log = await readFile(logPath)
 
       expect(log.length).toBeGreaterThan(0)
-
-      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
 
       await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
 
@@ -542,7 +563,28 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     })
 
     it('should execute tests and create result CSV, XML and JSON files using default source and output locations', async () => {
+      const resultsFolderPath = path.join(
+        __dirname,
+        target.name,
+        'sasjsresults'
+      )
+      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
+      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
+      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
+      const coverageReportPath = path.join(resultsFolderPath, 'coverage.lcov')
+
       const expectedResultsJson = {
+        csv_result_path: resultsCsvPath,
+        xml_result_path: resultsXmlPath,
+        coverage_report_path: coverageReportPath,
+        tests_that_pass: '2/8 (25%)',
+        tests_with_results: '8/8 (100%)',
+        target_name: target.name,
+        target_server_url: target.serverUrl,
+        target_server_type: target.serverType,
+        local_date_time: expect.anything(),
+        local_user_id: expect.anything(),
+        local_machine_name: expect.anything(),
         sasjs_test_meta: [
           {
             test_target: 'testsetup',
@@ -673,19 +715,10 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
 
       await runTest(target, undefined, undefined, undefined, true)
 
-      const resultsFolderPath = path.join(
-        __dirname,
-        target.name,
-        'sasjsresults'
-      )
-      const resultsJsonPath = path.join(resultsFolderPath, 'testResults.json')
-
       await expect(folderExists(resultsFolderPath)).resolves.toEqual(true)
       await expect(fileExists(resultsJsonPath)).resolves.toEqual(true)
 
       const resultsJson = await readFile(resultsJsonPath)
-
-      const resultsCsvPath = path.join(resultsFolderPath, 'testResults.csv')
 
       await expect(fileExists(resultsCsvPath)).resolves.toEqual(true)
 
@@ -710,8 +743,6 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
       )
 
       expect(resultsCsv).toEqual(expectedResultsCsv)
-
-      const resultsXmlPath = path.join(resultsFolderPath, 'testResults.xml')
 
       await expect(fileExists(resultsXmlPath)).resolves.toEqual(true)
 

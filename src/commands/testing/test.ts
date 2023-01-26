@@ -1,3 +1,4 @@
+import os from 'os'
 import {
   saveLog,
   saveResultJson,
@@ -294,15 +295,27 @@ export async function runTest(
       })
   })
 
-  const jsonPath = await saveResultJson(outDirectory, result)
+  const resultFileName = 'testResults'
+  const jsonPath = path.join(outDirectory, `${resultFileName}.json`)
+  const xmlPath = path.join(outDirectory, `${resultFileName}.xml`)
+  const csvPath = path.join(outDirectory, `${resultFileName}.csv`)
+  const coverageReportPath = path.join(outDirectory, 'coverage.lcov')
 
-  if (!jsonPath) return
+  result.local_date_time = new Date().toISOString()
+  result.local_user_id = os.userInfo().username
+  result.local_machine_name = os.hostname()
+  result.target_name = target.name
+  result.target_server_type = target.serverType
+  result.target_server_url = target.serverUrl
+  result.csv_result_path = csvPath
+  result.xml_result_path = xmlPath
+  result.coverage_report_path = coverageReportPath
 
-  const xmlPath = await saveResultXml(outDirectory, result)
+  await saveResultXml(xmlPath, result)
 
-  const { csvData, csvPath } = await saveResultCsv(outDirectory, result)
+  const csvData = await saveResultCsv(csvPath, result)
 
-  const coverageReportPath = await saveCoverageLcov(outDirectory, flow)
+  await saveCoverageLcov(coverageReportPath, flow)
 
   const resultTable: any = {}
 
@@ -359,35 +372,39 @@ export async function runTest(
   )
 
   const testsCount = flow.length
+
   const passedTestsCount = Object.values(resultTable).filter(
     (res: any) => res.test_suite_result === TestResultStatus.pass
   ).length
+
   const testsWithResultsCount = Object.values(resultTable).filter(
     (res: any) => res.test_suite_result !== TestResultStatus.notProvided
   ).length
 
-  process.logger?.info(`Tests provided results: ${
-    testsWithResultsCount + '/' + testsCount
-  } (${chalk.greenBright(
+  const resultProvidedTests = testsWithResultsCount + '/' + testsCount
+  const passedTests = passedTestsCount + '/' + testsWithResultsCount
+
+  const testsWithResultsPercentage =
     Math.round((testsWithResultsCount / testsCount) * 100 || 0) + '%'
-  )})
-  Tests that pass: ${
-    passedTestsCount + '/' + testsWithResultsCount
-  } (${chalk.greenBright(
+
+  const passingTestsPercentage =
     Math.round((passedTestsCount / testsWithResultsCount) * 100 || 0) + '%'
-  )})
+
+  result.tests_with_results = `${resultProvidedTests} (${testsWithResultsPercentage})`
+
+  result.tests_that_pass = `${passedTests} (${passingTestsPercentage})`
+
+  process.logger?.info(
+    `Tests provided results: ${resultProvidedTests} (${chalk.greenBright(
+      testsWithResultsPercentage
+    )})`
+  )
+
+  process.logger?.info(`
+  Tests that pass: ${passedTests} (${chalk.greenBright(passingTestsPercentage)})
   `)
 
-  displaySuccess(
-    `Tests execution finished. The results are stored at:
-  ${jsonPath}
-  ${csvPath}
-  ${xmlPath}`
-  )
-  displaySuccess(
-    `Tests coverage report:
-  ${coverageReportPath}`
-  )
+  let errorMessage: string = ''
 
   if (!force) {
     /**
@@ -402,7 +419,9 @@ export async function runTest(
      */
     const failedTestsCount = testsWithResultsCount - passedTestsCount
     const testsWithoutResultCount = testsCount - testsWithResultsCount
-    let errorMessage: string = ''
+
+    result.failed_to_complete = failedTestsCount
+    result.completed_with_failures = testsWithoutResultCount
 
     if (testsWithoutResultCount > 0)
       errorMessage = `${testsWithoutResultCount} ${
@@ -413,9 +432,22 @@ export async function runTest(
       errorMessage += `${failedTestsCount} ${
         failedTestsCount === 1 ? 'test' : 'tests'
       } completed with failures!`
-
-    if (errorMessage) return Promise.reject(errorMessage)
   }
+
+  await saveResultJson(jsonPath, result)
+
+  displaySuccess(
+    `Tests execution finished. The results are stored at:
+  ${jsonPath}
+  ${csvPath}
+  ${xmlPath}`
+  )
+  displaySuccess(
+    `Tests coverage report:
+  ${coverageReportPath}`
+  )
+
+  if (errorMessage) return Promise.reject(errorMessage)
 }
 
 export const getTestUrl = (target: Target, jobLocation: string) =>

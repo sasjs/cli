@@ -40,30 +40,19 @@ export const saveLog = async (
   )
 }
 
-export const saveResultJson = async (
-  outDirectory: string,
-  result: TestResults
-) => {
-  let finaleResult
-
+export const saveResultJson = async (jsonPath: string, result: TestResults) => {
   try {
-    finaleResult = JSON.stringify(result, null, 2)
+    const finaleResult = JSON.stringify(result, null, 2)
+    await createFile(jsonPath, finaleResult)
   } catch (err) {
     displayError(err, 'Error while converting test results into a string.')
 
-    return false
+    throw new Error('Error while converting test results into a string.')
   }
-
-  const filePath = path.join(outDirectory, `${resultFileName}.json`)
-
-  if (finaleResult) await createFile(filePath, finaleResult)
-  else return false
-
-  return filePath
 }
 
 export const saveResultCsv = async (
-  outDirectory: string,
+  csvPath: string,
   result: TestResults,
   options: {} = {
     header: true,
@@ -76,7 +65,7 @@ export const saveResultCsv = async (
       test_url: 'test_url'
     }
   }
-): Promise<{ csvData: TestResultCsv[]; csvPath: string }> => {
+): Promise<TestResultCsv[]> => {
   const csvData: TestResultCsv[] = result.sasjs_test_meta.flatMap(
     (resTarget: any) =>
       resTarget.results.flatMap((res: TestResult) => {
@@ -110,23 +99,16 @@ export const saveResultCsv = async (
         reject(err)
       }
 
-      const csvPath = path.join(outDirectory, `${resultFileName}.csv`)
-
       await createFile(csvPath, output).catch((err) =>
         displayError(err, 'Error while creating CSV file.')
       )
 
-      return resolve({ csvData, csvPath })
+      return resolve(csvData)
     })
   )
 }
 
-export const saveResultXml = async (
-  outDirectory: string,
-  result: TestResults
-) => {
-  const filePath = path.join(outDirectory, `${resultFileName}.xml`)
-
+export const saveResultXml = async (xmlPath: string, result: TestResults) => {
   const getFailures = (testCase: TestResult) => {
     if (Array.isArray(testCase.result)) {
       return testCase.result
@@ -226,13 +208,11 @@ export const saveResultXml = async (
 
   const xmlString = xml(resultXml, { declaration: true, indent: '  ' })
 
-  await createFile(filePath, xmlString)
-
-  return filePath
+  await createFile(xmlPath, xmlString)
 }
 
 export const saveCoverageLcov = async (
-  outDirectory: string,
+  coverageReportPath: string,
   tests: string[]
 ) => {
   const testsPrefixRegExp = new RegExp(`^tests/`)
@@ -259,9 +239,5 @@ BRH:1
 end_of_record`)
   )
 
-  const filePath = path.join(outDirectory, 'coverage.lcov')
-
-  await createFile(filePath, coverageReport.join('\n'))
-
-  return filePath
+  await createFile(coverageReportPath, coverageReport.join('\n'))
 }
