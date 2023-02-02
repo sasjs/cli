@@ -42,15 +42,22 @@ export async function executeDeployScriptSasViya(
     })
     .catch((err: any) => {
       process.logger.error('executeScriptSASViya Error', err)
+      if (err.log) return { log: err.log, completedWithError: true }
+
+      throw err
     })
 
   let log
   try {
-    log = executionResult.log.items
-      ? executionResult.log.items
-          .map((i: { line: string }) => i.line)
-          .join(os.EOL)
-      : JSON.stringify(executionResult.log).replace(/\\n/g, os.EOL)
+    if (typeof executionResult.log === 'string') {
+      log = executionResult.log
+    } else if (executionResult.log.items) {
+      log = executionResult.log.items
+        .map((i: { line: string }) => i.line)
+        .join(os.EOL)
+    } else {
+      log = JSON.stringify(executionResult.log).replace(/\\n/g, os.EOL)
+    }
   } catch (e: any) {
     process.logger?.error(
       `An error occurred when parsing the execution response: ${e.message}`
@@ -60,6 +67,12 @@ export async function executeDeployScriptSasViya(
   }
 
   await createFile(logFilePath, log)
+
+  if (executionResult.completedWithError) {
+    process.logger?.error(`Log is available at ${logFilePath}`)
+    throw new Error('Deployment process completed with error')
+  }
+
   process.logger?.success(
     `Deployment completed! Log is available at ${logFilePath}`
   )
