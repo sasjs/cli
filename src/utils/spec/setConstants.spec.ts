@@ -79,11 +79,15 @@ describe('setConstants', () => {
 
     await setConstants()
 
-    verifySasjsConstants()
+    verifySasjsConstants(undefined, false, false)
   })
 })
 
-const verifySasjsConstants = (appFolder?: string, hasSasjsCore = false) => {
+const verifySasjsConstants = (
+  appFolder?: string,
+  hasSasjsCore = false,
+  isLocal = true
+) => {
   const prefixAppFolder = appFolder ?? require('os').homedir()
 
   const { sasjsConstants } = process
@@ -93,28 +97,33 @@ const verifySasjsConstants = (appFolder?: string, hasSasjsCore = false) => {
     [prefixAppFolder, 'sasjs', 'db'].join(path.sep)
   )
   expect(sasjsConstants.buildDestinationFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild')
   )
   expect(sasjsConstants.buildDestinationServicesFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild', 'services'].join(path.sep)
+    path.join(
+      prefixAppFolder,
+      isLocal ? '' : '.sasjs',
+      'sasjsbuild',
+      'services'
+    )
   )
   expect(sasjsConstants.buildDestinationJobsFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild', 'jobs'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild', 'jobs')
   )
   expect(sasjsConstants.buildDestinationDbFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild', 'db'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild', 'db')
   )
   expect(sasjsConstants.buildDestinationDocsFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild', 'docs'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild', 'docs')
   )
   expect(sasjsConstants.buildDestinationResultsFolder).toEqual(
-    [prefixAppFolder, 'sasjsresults'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsresults')
   )
   expect(sasjsConstants.buildDestinationResultsLogsFolder).toEqual(
-    [prefixAppFolder, 'sasjsresults', 'logs'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsresults', 'logs')
   )
   expect(sasjsConstants.buildDestinationTestFolder).toEqual(
-    [prefixAppFolder, 'sasjsbuild', 'tests'].join(path.sep)
+    path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild', 'tests')
   )
 
   const corePath = hasSasjsCore

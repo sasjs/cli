@@ -36,7 +36,7 @@
             },
             {
               "fileName": "buildinitviya.sas",
-              "content": "/**\n  @file buildinitviya.sas\n  @brief this executed as part of the generation of the Viya build script\n  @details  This file is inserted *after* the build macros and *before* the service code.\n\n   For an explanation of this part, see: https://sasjs.io/sasjs/sasjs-cli/#viya-deployment-script\n\n  <h4> SAS Macros </h4>\n\n**/\n\n/*\n%put buildinit script;\n\n"
+              "content": "/**\n  @file buildinitviya.sas\n  @brief this executed as part of the generation of the Viya build script\n  @details  This file is inserted *after* the build macros and *before* the service code.\n\n   For an explanation of this part, see: https://sasjs.io/sasjs/sasjs-cli/#viya-deployment-script\n\n  <h4> SAS Macros </h4>\n\n**/\n\n%put buildinit script;\n\n"
             },
             {
               "fileName": "buildterm.sas",
@@ -195,27 +195,9 @@
   ],
   "config": {
     "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
-    "docConfig": {
-      "displayMacroCore": true,
-      "enableLineage": true,
-      "outDirectory": "",
-      "dataControllerUrl": "",
-      "doxyContent": {
-        "favIcon": "favicon.ico",
-        "footer": "new_footer.html",
-        "header": "new_header.html",
-        "layout": "DoxygenLayout.xml",
-        "logo": "logo.png",
-        "readMe": "../../README.md",
-        "stylesheet": "new_stylesheet.css",
-        "path": "./sasjs/doxy/"
-      }
-    },
     "buildConfig": {
       "initProgram": "sasjs/build/buildinit.sas",
       "termProgram": "sasjs/build/buildterm.sas",
-      "buildOutputFolder": "sasjsbuild",
-      "buildResultsFolder": "sasjsresults",
       "macroVars": {
         "name": "value",
         "numvar": "42"
@@ -236,15 +218,12 @@
     "macroFolders": ["sasjs/macros"],
     "programFolders": ["sasjs/programs"],
     "binaryFolders": ["sasjs/binaries"],
-    "serverType": "SASVIYA",
+    "defaultTarget": "viya",
     "targets": [
       {
         "name": "viya",
         "serverType": "SASVIYA",
-        "serverUrl": "https://sas.analytium.co.uk",
-        "httpsAgentOptions": {
-          "allowInsecureRequests": false
-        },
+        "serverUrl": "",
         "appLoc": "/Public/app",
         "contextName": "SAS Job Execution compute context",
         "buildConfig": {
@@ -256,10 +235,6 @@
             "extravar": "this too"
           }
         },
-        "deployConfig": {
-          "deployServicePack": true,
-          "deployScripts": ["sasjsbuild/myviyadeploy.sas"]
-        },
         "serviceConfig": {
           "serviceFolders": ["sasjs/targets/viya/services/admin"],
           "initProgram": "sasjs/build/serviceinit.sas",
@@ -269,52 +244,30 @@
             "extravar": "this too"
           }
         },
-        "jobConfig": {
-          "jobFolders": [],
-          "initProgram": "",
-          "termProgram": "",
-          "macroVars": {}
-        },
-        "streamConfig": {
-          "assetPaths": [],
-          "streamWeb": false,
-          "streamWebFolder": "webv",
-          "webSourcePath": "dist"
-        },
-        "macroFolders": ["sasjs/targets/viya/macros"],
-        "programFolders": []
+        "macroFolders": ["sasjs/targets/viya/macros"]
       },
       {
         "name": "sas9",
         "serverType": "SAS9",
-        "serverUrl": "https://sas.analytium.co.uk:8343",
+        "serverUrl": "",
         "appLoc": "/User Folders/&sysuserid/My Folder",
         "serverName": "Foundation",
         "repositoryName": "SASApp",
-        "buildConfig": {
-          "buildOutputFileName": "mysas9deploy.sas",
-          "initProgram": "",
-          "termProgram": "",
-          "macroVars": {}
-        },
         "deployConfig": {
           "deployScripts": ["sasjs/build/deploysas9.sh"],
           "deployServicePack": false
         },
         "serviceConfig": {
           "serviceFolders": ["sasjs/targets/sas9/services/admin"],
-          "initProgram": "",
-          "termProgram": "sasjs/build/servicetermother.sas",
-          "macroVars": {}
+          "termProgram": "sasjs/build/servicetermother.sas"
         },
-        "streamConfig": {
-          "assetPaths": [],
-          "streamWeb": false,
-          "streamWebFolder": "web9",
-          "webSourcePath": "dist"
-        },
-        "macroFolders": ["sasjs/targets/sas9/macros"],
-        "programFolders": []
+        "macroFolders": ["sasjs/targets/sas9/macros"]
+      },
+      {
+        "name": "sasjs",
+        "serverType": "SASJS",
+        "serverUrl": "",
+        "appLoc": "/Public/app"
       }
     ]
   }
