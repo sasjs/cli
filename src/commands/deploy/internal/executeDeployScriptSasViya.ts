@@ -69,8 +69,11 @@ export async function executeDeployScriptSasViya(
   await createFile(logFilePath, log)
 
   if (executionResult.completedWithError) {
-    process.logger?.error(`Log is available at ${logFilePath}`)
-    throw new Error('Deployment process completed with error')
+    process.logger?.error(
+      `Deployment failed with errors! Log is available at ${logFilePath}`
+    )
+
+    throw new Error(`Deployment failed.`)
   }
 
   process.logger?.success(
