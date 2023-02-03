@@ -33,7 +33,8 @@ export async function deployToSasjsWithServicePack(
     result = await sasjsApiClient
       .deployZipFile(zipFilePath, authConfig)
       .catch((err) => {
-        process.logger?.error('deployToSASjs Error', err)
+        process.logger?.error('deployServicePack error', err)
+        throw new Error('Deploy service pack error')
       })
   } else {
     const jsonContent = await readFile(jsonFilePath)
@@ -42,7 +43,8 @@ export async function deployToSasjsWithServicePack(
     result = await sasjsApiClient
       .deploy(payload, target.appLoc, authConfig)
       .catch((err) => {
-        process.logger?.error('deployToSASjs Error', err)
+        process.logger?.error('deployServicePack error', err)
+        throw new Error('Deploy service pack error')
       })
   }
 
@@ -54,6 +56,8 @@ export async function deployToSasjsWithServicePack(
         `Payload example:\n${JSON.stringify(result.example, null, 2)}`
       )
     }
+
+    throw new Error('Deploy service pack error')
   }
 
   if (streamConfig?.streamWeb && result?.streamServiceName) {
