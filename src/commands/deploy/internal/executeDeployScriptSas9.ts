@@ -27,7 +27,7 @@ export async function executeDeployScriptSas9(
 ) {
   const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target)
   const userName = authConfigSas9!.userName
-  const password = decodeFromBase64(authConfigSas9!.userName)
+  const password = decodeFromBase64(authConfigSas9!.password)
 
   let completedWithError = false
   const executionResult = await sasjs
