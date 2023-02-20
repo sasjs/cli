@@ -52,11 +52,11 @@
   "dependencies": {
     "@sasjs/adapter": "4.1.3",
     "@sasjs/core": "4.45.4",
-    "@sasjs/lint": "2.2.0",
+    "@sasjs/lint": "2.2.1",
     "@sasjs/utils": "2.52.0",
     "adm-zip": "0.5.9",
     "chalk": "4.1.2",
-    "csv-stringify": "5.6.5",
+    "csv-stringify": "6.2.4",
     "dotenv": "10.0.0",
     "esm": "3.2.25",
     "find": "0.3.0",

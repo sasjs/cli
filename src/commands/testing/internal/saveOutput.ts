@@ -8,7 +8,7 @@ import {
 } from '@sasjs/utils'
 import { sasFileRegExp } from '../../../utils/file'
 import { displayError } from '../../../utils/displayResult'
-import stringify from 'csv-stringify'
+import { stringify } from 'csv-stringify'
 import {
   TestDescription,
   TestResult,
