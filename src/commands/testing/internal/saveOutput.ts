@@ -4,11 +4,11 @@ import {
   createFile,
   fileExists,
   generateTimestamp,
-  testFileRegExp
+  testFileRegExp,
+  createCsv
 } from '@sasjs/utils'
 import { sasFileRegExp } from '../../../utils/file'
 import { displayError } from '../../../utils/displayResult'
-import { stringify } from 'csv-stringify'
 import {
   TestDescription,
   TestResult,
@@ -54,16 +54,16 @@ export const saveResultJson = async (jsonPath: string, result: TestResults) => {
 export const saveResultCsv = async (
   csvPath: string,
   result: TestResults,
-  options: {} = {
+  options = {
     header: true,
-    columns: {
-      test_target: 'test_target',
-      test_loc: 'test_loc',
-      sasjs_test_id: 'sasjs_test_id',
-      test_suite_result: 'test_suite_result',
-      test_description: 'test_description',
-      test_url: 'test_url'
-    }
+    columns: [
+      'test_target',
+      'test_loc',
+      'sasjs_test_id',
+      'test_suite_result',
+      'test_description',
+      'test_url'
+    ]
   }
 ): Promise<TestResultCsv[]> => {
   const csvData: TestResultCsv[] = result.sasjs_test_meta.flatMap(
@@ -91,21 +91,12 @@ export const saveResultCsv = async (
       })
   )
 
-  return new Promise((resolve, reject) =>
-    stringify(csvData, options || {}, async (err, output) => {
-      if (err) {
-        displayError(err, 'Error while saving CSV file')
-
-        reject(err)
-      }
-
-      await createFile(csvPath, output).catch((err) =>
-        displayError(err, 'Error while creating CSV file.')
-      )
-
-      return resolve(csvData)
+  return createCsv(csvPath, csvData, options)
+    .then(() => csvData)
+    .catch((err) => {
+      displayError(err, 'Error while creating CSV file')
+      throw err
     })
-  )
 }
 
 export const saveResultXml = async (xmlPath: string, result: TestResults) => {
