@@ -54,17 +54,14 @@ export const saveResultJson = async (jsonPath: string, result: TestResults) => {
 export const saveResultCsv = async (
   csvPath: string,
   result: TestResults,
-  options = {
-    header: true,
-    columns: [
-      'test_target',
-      'test_loc',
-      'sasjs_test_id',
-      'test_suite_result',
-      'test_description',
-      'test_url'
-    ]
-  }
+  columns = [
+    'test_target',
+    'test_loc',
+    'sasjs_test_id',
+    'test_suite_result',
+    'test_description',
+    'test_url'
+  ]
 ): Promise<TestResultCsv[]> => {
   const csvData: TestResultCsv[] = result.sasjs_test_meta.flatMap(
     (resTarget: any) =>
@@ -91,7 +88,7 @@ export const saveResultCsv = async (
       })
   )
 
-  return createCsv(csvPath, csvData, options)
+  return createCsv(csvPath, csvData, columns)
     .then(() => csvData)
     .catch((err) => {
       displayError(err, 'Error while creating CSV file')
