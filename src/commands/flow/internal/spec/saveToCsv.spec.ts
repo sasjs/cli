@@ -30,7 +30,9 @@ describe('saveToCsv', () => {
     const csvContent = await readFile(csvFilePath)
 
     expect(csvContent).toEqual(
-      expect.stringContaining('1,someFlowName,flow1 | flow2,location,success,,')
+      expect.stringContaining(
+        '1,someFlowName,"flow1 | flow2",location,success,,'
+      )
     )
   })
 

@@ -261,8 +261,7 @@ dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 tes
       )}
 testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testteardown'
-      )}
-`
+      )}`
 
       await runTest(target, undefined, undefined, undefined, true)
 
@@ -442,8 +441,7 @@ dostuff,tests/services/admin/dostuff.test.0.sas,sasjs_test_id,FAIL,dostuff 0 tes
       )}
 testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testteardown'
-      )}
-`
+      )}`
 
       await runTest(
         target,
@@ -710,8 +708,7 @@ dostuff,tests/services/admin/dostuff.test.1.sas,sasjs_test_id,PASS,dostuff 1 tes
       )}
 testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
         'testteardown'
-      )}
-`
+      )}`
 
       await runTest(target, undefined, undefined, undefined, true)
 
