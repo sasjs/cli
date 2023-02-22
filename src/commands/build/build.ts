@@ -9,6 +9,7 @@ import {
   listSubFoldersInFolder,
   listFilesInFolder,
   createFile,
+  folderExists,
   asyncForEach,
   removeHeader
 } from '@sasjs/utils'
@@ -37,7 +38,12 @@ import {
 } from '../compile/internal/loadDependencies'
 
 export async function build(target: Target) {
-  await compile(target)
+  if (
+    process.sasjsConstants.buildDestinationFolder &&
+    !(await folderExists(process.sasjsConstants.buildDestinationFolder))
+  ) {
+    await compile(target)
+  }
 
   await createFinalSasFiles(target)
 }
