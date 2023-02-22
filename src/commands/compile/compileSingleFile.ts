@@ -18,7 +18,8 @@ export async function compileSingleFile(
   subCommand: string = 'identify',
   source: string,
   output: string,
-  insertProgramVar: boolean = false
+  insertProgramVar: boolean = false,
+  currentFolder?: string
 ) {
   const subCommands = {
     job: 'job',
@@ -42,7 +43,10 @@ export async function compileSingleFile(
 
   source = source.split('/').join(path.sep)
 
-  const sourcePath = getAbsolutePath(source, process.currentDir)
+  const sourcePath = getAbsolutePath(
+    source,
+    currentFolder || process.currentDir
+  )
 
   if (!(await validateSourcePath(sourcePath))) {
     throw new Error(`Provide a path to source file (eg '${commandExample}')`)
