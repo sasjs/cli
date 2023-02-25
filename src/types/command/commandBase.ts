@@ -86,7 +86,8 @@ export class CommandBase implements Command {
       .options(parseOptions!)
       .command([syntax!, ...aliases!], description!, builder)
       .usage(usage!)
-      .strict(strict!).argv
+      .strict(strict!)
+      .parseSync()
   }
 
   public get name() {

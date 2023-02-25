@@ -1,5 +1,6 @@
 import { AuthConfig, Target } from '@sasjs/utils'
-import * as internalModule from '../internal/'
+import * as validateParamsModule from '../internal/validateParams'
+import * as executeFlowModule from '../internal/executeFlow'
 import SASjs from '@sasjs/adapter/node'
 import { execute } from '../execute'
 import { FlowWave, FlowWaveJob } from '../../../types'
@@ -110,16 +111,17 @@ describe('sasjs flow', () => {
 
 const setupMocks = (flows: { [key: string]: FlowWave }) => {
   jest.restoreAllMocks()
-  jest.mock('../internal/')
+  jest.mock('../internal/validateParams')
+  jest.mock('../internal/executeFlow')
 
-  jest.spyOn(internalModule, 'validateParams').mockImplementation(() =>
+  jest.spyOn(validateParamsModule, 'validateParams').mockImplementation(() =>
     Promise.resolve({
       terminate: false,
       flows,
       authConfig: {} as any as AuthConfig
     })
   )
-  jest.spyOn(internalModule, 'executeFlow').mockImplementation(
+  jest.spyOn(executeFlowModule, 'executeFlow').mockImplementation(
     async (
       flow: FlowWave
     ): Promise<{
@@ -139,11 +141,11 @@ const setupMocks = (flows: { [key: string]: FlowWave }) => {
 }
 
 const validateFlowExecution = (flowsExecutionOrder: FlowWave[]) => {
-  expect(internalModule.executeFlow).toHaveBeenCalledTimes(
+  expect(executeFlowModule.executeFlow).toHaveBeenCalledTimes(
     flowsExecutionOrder.length
   )
   flowsExecutionOrder.forEach((flow: FlowWave, index) => {
-    expect(internalModule.executeFlow).toHaveBeenNthCalledWith(
+    expect(executeFlowModule.executeFlow).toHaveBeenNthCalledWith(
       index + 1,
       flow,
       undefined,
