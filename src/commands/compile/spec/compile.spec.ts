@@ -274,7 +274,6 @@ describe('sasjs compile single file', () => {
 })
 
 const defaultBuildConfig: BuildConfig = {
-  buildOutputFolder: '.sasjs/sasjsbuild',
   buildOutputFileName: 'test.sas',
   initProgram: '',
   termProgram: '',
@@ -472,10 +471,8 @@ describe('sasjs compile outside project', () => {
 
       await updateConfig(
         {
-          buildConfig: {
-            ...defaultBuildConfig,
-            buildOutputFolder
-          }
+          sasjsBuildFolder: buildOutputFolder,
+          buildConfig: defaultBuildConfig
         },
         false
       )
@@ -527,10 +524,8 @@ describe('sasjs compile outside project', () => {
 
       await updateConfig(
         {
-          buildConfig: {
-            ...defaultBuildConfig,
-            buildOutputFolder: appName + '/random-folder'
-          }
+          sasjsBuildFolder: appName + '/random-folder',
+          buildConfig: defaultBuildConfig
         },
         false
       )

@@ -2,7 +2,8 @@ import { Target } from '@sasjs/utils'
 import {
   findTargetInConfiguration,
   loadTargetEnvVariables,
-  validateTargetName
+  validateTargetName,
+  updateSasjsConstants
 } from '../../utils'
 import { CommandBase, CommandOptions } from './commandBase'
 import { ReturnCode } from './returnCode'
@@ -40,7 +41,7 @@ export class TargetCommand extends CommandBase {
     return await findTargetInConfiguration(targetName)
       .then((res) => {
         this._targetInfo = res
-
+        updateSasjsConstants(res.target, res.isLocal)
         return res
       })
       .catch((err) => {
