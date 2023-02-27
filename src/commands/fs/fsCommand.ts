@@ -183,6 +183,8 @@ export class FSCommand extends TargetCommand {
   }
 
   async compile() {
+    // NOTE: call getTargetInfo() method once, so that process.sasjsConstants could be updated based on target config
+    await this.getTargetInfo()
     const folderPath = this.localFolder
     const outputPath = await this.getOutputPath()
 
