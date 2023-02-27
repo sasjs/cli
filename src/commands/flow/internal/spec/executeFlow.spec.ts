@@ -1,7 +1,9 @@
 import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { executeFlow } from '../executeFlow'
-import * as internalModule from '../'
+import * as saveLogModule from '../saveLog'
+import * as saveToCsvModule from '../saveToCsv'
+import * as normalizeFilePath from '../normalizeFilePath'
 import csvColumns from '../csvColumns'
 
 const pollOptions: PollOptions = {
@@ -28,13 +30,13 @@ describe('executeFlow', () => {
 
   beforeEach(() => {
     jest
-      .spyOn(internalModule, 'saveLog')
+      .spyOn(saveLogModule, 'saveLog')
       .mockImplementation(() => Promise.resolve(fakeLogFileName))
     jest
-      .spyOn(internalModule, 'saveToCsv')
+      .spyOn(saveToCsvModule, 'saveToCsv')
       .mockImplementation(() => Promise.resolve())
     jest
-      .spyOn(internalModule, 'normalizeFilePath')
+      .spyOn(normalizeFilePath, 'normalizeFilePath')
       .mockImplementation((filePath: string) => filePath)
   })
 
@@ -152,7 +154,7 @@ describe('executeFlow', () => {
       .spyOn(sasjs, 'startComputeJob')
       .mockImplementation(() => Promise.reject('Could not get session state.'))
     jest
-      .spyOn(internalModule, 'saveToCsv')
+      .spyOn(saveToCsvModule, 'saveToCsv')
       .mockImplementation(() => Promise.resolve())
 
     const { jobStatus, flowStatus } = await executeFlow(
@@ -184,11 +186,11 @@ describe('executeFlow', () => {
 })
 
 const validateSaveToCsv = (jobExecutionInOrder: any[]) => {
-  expect(internalModule.saveToCsv).toHaveBeenCalledTimes(
+  expect(saveToCsvModule.saveToCsv).toHaveBeenCalledTimes(
     jobExecutionInOrder.length
   )
   jobExecutionInOrder.forEach((expectedCsvData, index) => {
-    expect(internalModule.saveToCsv).toHaveBeenNthCalledWith(
+    expect(saveToCsvModule.saveToCsv).toHaveBeenNthCalledWith(
       index + 1,
       expect.anything(),
       expectedCsvData,

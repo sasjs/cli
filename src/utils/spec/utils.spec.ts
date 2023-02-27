@@ -60,9 +60,9 @@ describe('utils', () => {
 
   describe('millisecondsToDdHhMmSs', () => {
     it('should throw an error if not supported type was provided', () => {
-      const error = new Error('Not supported attribute type.')
-
-      expect(() => millisecondsToDdHhMmSs(undefined as any)).toThrow(error)
+      expect(() => millisecondsToDdHhMmSs(undefined as any)).toThrow(
+        'Not supported attribute type.'
+      )
     })
 
     it('should process negative number', () => {
