@@ -78,34 +78,6 @@ export async function compileTestFile(
   if (removeOriginalFile) await deleteFile(filePath)
 }
 
-export async function moveTestFile(filePath: string) {
-  const fileName = filePath.split(path.sep).pop() as string
-
-  if (!isTestFile(fileName)) return
-
-  const destinationPath = filePath.replace('sasjsbuild', 'sasjsbuild/tests')
-
-  const testDestinationFolder = destinationPath
-    .split(path.sep)
-    .slice(0, -1)
-    .join(path.sep)
-
-  if (!(await folderExists(testDestinationFolder))) {
-    await createFolder(testDestinationFolder)
-  }
-
-  await moveFile(filePath, destinationPath)
-
-  const sourceFolder = filePath
-    .split(path.sep)
-    .slice(0, filePath.split(path.sep).length - 1)
-    .join(path.sep)
-
-  if ((await listFilesInFolder(sourceFolder)).length === 0) {
-    await deleteFolder(sourceFolder)
-  }
-}
-
 export async function copyTestMacroFiles(folderAbsolutePath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
