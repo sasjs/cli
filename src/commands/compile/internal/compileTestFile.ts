@@ -30,10 +30,6 @@ import {
   getLocalOrGlobalConfig
 } from '../../../utils/config'
 
-const testsBuildFolder = () => {
-  return path.join(process.projectDir, 'sasjsbuild', 'tests')
-}
-
 const getFileName = (filePath: string) => path.parse(filePath).base
 
 export async function compileTestFile(
@@ -55,8 +51,15 @@ export async function compileTestFile(
 
   dependencies = `${testVar ? testVar + '\n' : ''}\n${dependencies}`
 
+  const { buildDestinationFolder, buildDestinationTestFolder } =
+    process.sasjsConstants
+
+  const buildDestinationFolderName = buildDestinationFolder
+    .split(path.sep)
+    .pop()
+
   const destinationPath = path.join(
-    testsBuildFolder(),
+    buildDestinationTestFolder,
     saveToRoot
       ? filePath.split(path.sep).pop() || ''
       : filePath
@@ -65,7 +68,7 @@ export async function compileTestFile(
             (acc: any, item: any, i: any, arr: any) =>
               acc.length
                 ? [...acc, item]
-                : arr[i - 1] === 'sasjsbuild'
+                : arr[i - 1] === buildDestinationFolderName
                 ? [...acc, item]
                 : acc,
             []
@@ -82,8 +85,14 @@ export async function copyTestMacroFiles(folderAbsolutePath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
 
+  const { buildDestinationTestFolder } = process.sasjsConstants
+
   await asyncForEach(macroTestFiles, async (file) => {
-    const destinationFile = path.join(testsBuildFolder(), 'macros', file)
+    const destinationFile = path.join(
+      buildDestinationTestFolder,
+      'macros',
+      file
+    )
 
     if (!(await fileExists(destinationFile))) {
       await copy(path.join(folderAbsolutePath, file), destinationFile)

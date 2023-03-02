@@ -178,7 +178,7 @@ describe('deploy', () => {
 
         expect(process.logger.success).toHaveBeenCalledWith(
           `Shell script execution completed! Log is here: ${path.join(
-            process.sasjsConstants.buildDestinationFolder,
+            process.sasjsConstants.buildDestinationResultsLogsFolder,
             'script.log'
           )}`
         )
@@ -207,7 +207,7 @@ describe('deploy', () => {
 
         expect(process.logger.success).toHaveBeenCalledWith(
           `Shell script execution completed! Log is here: ${path.join(
-            process.sasjsConstants.buildDestinationFolder,
+            process.sasjsConstants.buildDestinationResultsLogsFolder,
             'script.log'
           )}`
         )
@@ -236,7 +236,7 @@ describe('deploy', () => {
 
         expect(process.logger.success).toHaveBeenCalledWith(
           `PowerShell script execution completed! Log is here: ${path.join(
-            process.sasjsConstants.buildDestinationFolder,
+            process.sasjsConstants.buildDestinationResultsLogsFolder,
             'script.log'
           )}`
         )

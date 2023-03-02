@@ -8,9 +8,10 @@ import { isShellScript, isPowerShellScript } from '../../../utils/file'
 export async function executeNonSasScript(scriptPath: string) {
   const fileExtension = path.extname(scriptPath)
 
+  const { buildDestinationResultsLogsFolder } = process.sasjsConstants
+
   const logPath = path.join(
-    process.projectDir,
-    'sasjsbuild',
+    buildDestinationResultsLogsFolder,
     path.basename(scriptPath).replace(fileExtension, '.log')
   )
 
