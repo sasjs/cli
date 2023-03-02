@@ -135,21 +135,4 @@ export function getRelativePath(from, to) {
   return relativePath
 }
 
-export async function saveToDefaultLocation(filePath, data) {
-  const root = await getProjectRoot()
-
-  const destination = path.join(root, 'sasjsbuild', filePath)
-
-  getRelativePath(process.cwd(), destination)
-
-  const relativePath = getRelativePath(process.cwd(), destination)
-
-  await createFile(destination, data)
-
-  return Promise.resolve({
-    absolutePath: destination,
-    relativePath: `${relativePath}`
-  })
-}
-
 export const sasFileRegExp = /.sas$/i
