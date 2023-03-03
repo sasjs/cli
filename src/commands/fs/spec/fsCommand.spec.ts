@@ -36,6 +36,12 @@ describe('FSCommand', () => {
         .spyOn(FileModule, 'createFile')
         .mockImplementation(() => Promise.resolve())
 
+      jest
+        .spyOn(configUtils, 'findTargetInConfiguration')
+        .mockImplementation(() =>
+          Promise.resolve({ target: target, isLocal: true })
+        )
+
       const returnCode = await executeCommandWrapper([
         'compile',
         'localFolder',
@@ -49,6 +55,12 @@ describe('FSCommand', () => {
       jest
         .spyOn(FileModule, 'createFile')
         .mockImplementation(() => Promise.reject())
+
+      jest
+        .spyOn(configUtils, 'findTargetInConfiguration')
+        .mockImplementation(() =>
+          Promise.resolve({ target: target, isLocal: true })
+        )
 
       const returnCode = await executeCommandWrapper(['compile', 'localFolder'])
       expect(returnCode).toEqual(ReturnCode.InternalError)

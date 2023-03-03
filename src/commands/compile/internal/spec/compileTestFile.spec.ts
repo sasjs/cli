@@ -1,4 +1,4 @@
-import { moveTestFile, compileTestFlow } from '../compileTestFile'
+import { compileTestFlow } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -6,7 +6,6 @@ import {
   copy,
   readFile,
   fileExists,
-  createFile,
   generateTimestamp,
   deleteFolder,
   ServerType,
@@ -119,43 +118,6 @@ describe('compileTestFile', () => {
       await testContent(path.join('testsetup.sas'))
       await testContent(path.join('testteardown.sas'))
       await testContent(path.join('macros', 'testMacro.test.sas'))
-    })
-  })
-
-  describe('moveTestFile', () => {
-    it('should move service test', async () => {
-      const relativePath = path.join(
-        'services',
-        'services',
-        'admin',
-        testFileName
-      )
-      const buildPath = path.join(__dirname, appName, 'sasjsbuild')
-      const originalFilePath = path.join(buildPath, relativePath)
-      const destinationFilePath = path.join(buildPath, 'tests', relativePath)
-
-      await createFile(originalFilePath, testBody)
-
-      await moveTestFile(originalFilePath)
-
-      await expect(fileExists(originalFilePath)).resolves.toEqual(false)
-      await expect(fileExists(destinationFilePath)).resolves.toEqual(true)
-      await expect(readFile(destinationFilePath)).resolves.toEqual(testBody)
-    })
-
-    it('should move job test', async () => {
-      const relativePath = path.join('jobs', 'jobs', testFileName)
-      const buildPath = path.join(__dirname, appName, 'sasjsbuild')
-      const originalFilePath = path.join(buildPath, relativePath)
-      const destinationFilePath = path.join(buildPath, 'tests', relativePath)
-
-      await createFile(originalFilePath, testBody)
-
-      await moveTestFile(originalFilePath)
-
-      await expect(fileExists(originalFilePath)).resolves.toEqual(false)
-      await expect(fileExists(destinationFilePath)).resolves.toEqual(true)
-      await expect(readFile(destinationFilePath)).resolves.toEqual(testBody)
     })
   })
 

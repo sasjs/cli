@@ -30,10 +30,6 @@ import {
   getLocalOrGlobalConfig
 } from '../../../utils/config'
 
-const testsBuildFolder = () => {
-  return path.join(process.projectDir, 'sasjsbuild', 'tests')
-}
-
 const getFileName = (filePath: string) => path.parse(filePath).base
 
 export async function compileTestFile(
@@ -55,8 +51,15 @@ export async function compileTestFile(
 
   dependencies = `${testVar ? testVar + '\n' : ''}\n${dependencies}`
 
+  const { buildDestinationFolder, buildDestinationTestFolder } =
+    process.sasjsConstants
+
+  const buildDestinationFolderName = buildDestinationFolder
+    .split(path.sep)
+    .pop()
+
   const destinationPath = path.join(
-    testsBuildFolder(),
+    buildDestinationTestFolder,
     saveToRoot
       ? filePath.split(path.sep).pop() || ''
       : filePath
@@ -65,7 +68,7 @@ export async function compileTestFile(
             (acc: any, item: any, i: any, arr: any) =>
               acc.length
                 ? [...acc, item]
-                : arr[i - 1] === 'sasjsbuild'
+                : arr[i - 1] === buildDestinationFolderName
                 ? [...acc, item]
                 : acc,
             []
@@ -78,40 +81,18 @@ export async function compileTestFile(
   if (removeOriginalFile) await deleteFile(filePath)
 }
 
-export async function moveTestFile(filePath: string) {
-  const fileName = filePath.split(path.sep).pop() as string
-
-  if (!isTestFile(fileName)) return
-
-  const destinationPath = filePath.replace('sasjsbuild', 'sasjsbuild/tests')
-
-  const testDestinationFolder = destinationPath
-    .split(path.sep)
-    .slice(0, -1)
-    .join(path.sep)
-
-  if (!(await folderExists(testDestinationFolder))) {
-    await createFolder(testDestinationFolder)
-  }
-
-  await moveFile(filePath, destinationPath)
-
-  const sourceFolder = filePath
-    .split(path.sep)
-    .slice(0, filePath.split(path.sep).length - 1)
-    .join(path.sep)
-
-  if ((await listFilesInFolder(sourceFolder)).length === 0) {
-    await deleteFolder(sourceFolder)
-  }
-}
-
 export async function copyTestMacroFiles(folderAbsolutePath: string) {
   const macroFiles = await listFilesAndSubFoldersInFolder(folderAbsolutePath)
   const macroTestFiles = macroFiles.filter((item) => testFileRegExp.test(item))
 
+  const { buildDestinationTestFolder } = process.sasjsConstants
+
   await asyncForEach(macroTestFiles, async (file) => {
-    const destinationFile = path.join(testsBuildFolder(), 'macros', file)
+    const destinationFile = path.join(
+      buildDestinationTestFolder,
+      'macros',
+      file
+    )
 
     if (!(await fileExists(destinationFile))) {
       await copy(path.join(folderAbsolutePath, file), destinationFile)
