@@ -36,10 +36,7 @@ export async function executeDeployScriptSas9(
       authConfigSas9: { userName, password }
     })
     .catch((err) => {
-      process.logger?.log(formatErrorString(err))
-      if (err && err.errorCode === 404) {
-        displaySasjsRunnerError(userName)
-      }
+      process.logger?.error(formatErrorString(err))
       completedWithError = true
       return err
     })
