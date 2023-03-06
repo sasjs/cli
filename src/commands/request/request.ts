@@ -125,16 +125,8 @@ export async function runSasJob(
       result = true
     })
     .catch(async (err: any) => {
-      if (err && err.errorCode === 404) {
-        displaySasjsRunnerError(configJson.username)
-      } else {
-        const error: any = {}
-        if (err.message) error.message = err.message
-        if (err.error.message) error.message = err.error.message
-        displayError(error, `An error occurred while executing the request.`)
-      }
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
-      result = err
+      throw err
     })
 
   return result
