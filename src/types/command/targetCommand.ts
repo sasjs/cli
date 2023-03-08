@@ -48,7 +48,7 @@ export class TargetCommand extends CommandBase {
           ? await getLocalConfig()
           : await getGlobalRcFile()
 
-        setConstants(res.target, configuration, res.isLocal)
+        setConstants(res.isLocal, res.target, configuration)
 
         return res
       })

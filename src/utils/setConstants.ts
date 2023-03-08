@@ -5,18 +5,18 @@ import { Configuration, getAbsolutePath, Target } from '@sasjs/utils'
 export const contextName = 'sasjs cli compute context'
 
 export const setConstants = async (
-  target: Target,
-  configuration: Configuration,
-  isLocal: boolean
+  isLocal: boolean = true,
+  target?: Target,
+  configuration?: Configuration
 ) => {
   const buildOutputFolder =
-    target.sasjsBuildFolder ||
-    configuration.sasjsBuildFolder ||
+    target?.sasjsBuildFolder ||
+    configuration?.sasjsBuildFolder ||
     (isLocal ? 'sasjsbuild' : '.sasjs/sasjsbuild')
 
   const buildResultsFolder =
-    target.sasjsResultsFolder ||
-    configuration.sasjsResultsFolder ||
+    target?.sasjsResultsFolder ||
+    configuration?.sasjsResultsFolder ||
     (isLocal ? 'sasjsresults' : '.sasjs/sasjsresults')
 
   const homeDir = require('os').homedir()
