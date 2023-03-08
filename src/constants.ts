@@ -9,6 +9,7 @@ export interface Constants {
   buildDestinationResultsFolder: string
   buildDestinationResultsLogsFolder: string
   buildDestinationTestFolder: string
+  isLocal: boolean
   macroCorePath: string
   contextName: string
   sas9CredentialsError: string

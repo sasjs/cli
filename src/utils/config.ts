@@ -510,22 +510,26 @@ export async function getBinaryFolders(target: Target) {
  * @param {Target} target- the target to check macro folders for.
  */
 export async function getMacroFolders(target?: Target) {
-  let macroFolders: string[] = []
-  const { configuration: localConfig } = await getLocalOrGlobalConfig()
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
-  if (target?.macroFolders) macroFolders = target.macroFolders
+  const macroFolders: string[] = []
 
-  if (localConfig?.macroFolders) {
-    macroFolders = localConfig.macroFolders.concat(macroFolders)
+  if (target?.macroFolders) macroFolders.push(...target.macroFolders)
+
+  if (configuration?.macroFolders) {
+    macroFolders.push(...configuration.macroFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
 
-  macroFolders = macroFolders.map((macroFolder) =>
+  const macroFoldersWithAbsolutePath = macroFolders.map((macroFolder) =>
     getAbsolutePath(macroFolder, buildSourceFolder)
   )
 
-  return [...new Set(macroFolders)]
+  return [...new Set(macroFoldersWithAbsolutePath)]
 }
 
 /**

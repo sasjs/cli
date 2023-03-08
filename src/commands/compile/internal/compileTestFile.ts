@@ -27,7 +27,8 @@ import chalk from 'chalk'
 import {
   getProgramFolders,
   getMacroFolders,
-  getLocalOrGlobalConfig
+  getLocalConfig,
+  getGlobalRcFile
 } from '../../../utils/config'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
@@ -121,7 +122,10 @@ export const compileTestFlow = async (
       await listFilesAndSubFoldersInFolder(buildDestinationTestFolder)
     ).map((file) => path.join('tests', file))
 
-    config = config || (await (await getLocalOrGlobalConfig()).configuration)
+    const { isLocal } = process.sasjsConstants
+    const config: Configuration = isLocal
+      ? await getLocalConfig()
+      : await getGlobalRcFile()
 
     const testFlow: TestFlow = { tests: [] }
     const testSetUp =

@@ -5,9 +5,14 @@ import {
   loadDependenciesFile,
   DependencyHeader,
   CompileTree,
-  removeHeader
+  removeHeader,
+  Configuration
 } from '@sasjs/utils'
-import { getLocalOrGlobalConfig, getBinaryFolders } from '../../../utils/config'
+import {
+  getBinaryFolders,
+  getLocalConfig,
+  getGlobalRcFile
+} from '../../../utils/config'
 import path from 'path'
 
 export async function loadDependencies(
@@ -36,9 +41,11 @@ export async function loadDependencies(
     fileContent = await readFile(filePath)
   }
 
-  const { configuration } = await getLocalOrGlobalConfig()
-  const { buildSourceFolder, macroCorePath } = process.sasjsConstants
+  const { buildSourceFolder, macroCorePath, isLocal } = process.sasjsConstants
   const binaryFolders = await getBinaryFolders(target)
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
   headerSyntaxNotices(fileContent)
 

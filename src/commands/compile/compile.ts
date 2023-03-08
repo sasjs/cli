@@ -1,10 +1,11 @@
 import path from 'path'
 import {
-  getLocalOrGlobalConfig,
   getProgramFolders,
   getMacroFolders,
   getTestSetUp,
-  getTestTearDown
+  getTestTearDown,
+  getLocalConfig,
+  getGlobalRcFile
 } from '../../utils/config'
 import {
   listSubFoldersInFolder,
@@ -21,7 +22,12 @@ import {
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig, SASJsFileType } from '@sasjs/utils/types'
+import {
+  Target,
+  StreamConfig,
+  SASJsFileType,
+  Configuration
+} from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllFolders, SasFileType } from './internal/getAllFolders'
@@ -185,6 +191,7 @@ export async function compileJobsServicesTests(
       )
     })
 
+    console.log('jobFolders :>> ', jobFolders)
     await asyncForEach(jobFolders, async (jobFolder) => {
       await compileJobFolder(
         target,
@@ -357,7 +364,10 @@ const compileJobFolder = async (
 }
 
 async function compileWeb(target: Target) {
-  const { configuration } = await getLocalOrGlobalConfig()
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
   const streamConfig = {
     ...configuration?.streamConfig,
@@ -383,7 +393,10 @@ async function compileWeb(target: Target) {
 }
 
 const syncFolder = async (target: Target) => {
-  const { configuration } = await getLocalOrGlobalConfig()
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
   if (configuration.syncFolder) {
     await copySyncFolder(configuration.syncFolder)
