@@ -10,7 +10,7 @@ describe('getAllFolders', () => {
   let target: Target
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
     ;({ config } = JSON.parse(
       await readFile(
         path.join(__dirname, '..', '..', '..', '..', 'config.json')

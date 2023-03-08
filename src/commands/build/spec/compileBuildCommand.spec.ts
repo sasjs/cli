@@ -3,6 +3,7 @@ import * as compileModule from '../../compile/compile'
 import { CompileBuildCommand } from '../compileBuildCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
 import { setConstants } from '../../../utils'
 
@@ -16,7 +17,7 @@ describe('CompileBuildCommand', () => {
   })
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
   })
 
   beforeEach(() => {
@@ -32,6 +33,14 @@ describe('CompileBuildCommand', () => {
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+    jest
+      .spyOn(configUtils, 'getLocalConfig')
+      .mockImplementation(() => Promise.resolve({}))
+
+    jest
+      .spyOn(setConstantsUtils, 'setConstants')
+      .mockImplementation(() => Promise.resolve())
 
     process.logger = new Logger(LogLevel.Off)
     jest.spyOn(process.logger, 'success')

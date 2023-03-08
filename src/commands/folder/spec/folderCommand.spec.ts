@@ -4,6 +4,7 @@ import * as deleteModule from '../delete'
 import * as listModule from '../list'
 import { ReturnCode } from '../../../types/command'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { ServerType, Target } from '@sasjs/utils'
 import { mockAuthConfig } from './mocks'
@@ -205,6 +206,12 @@ const setupMocks = () => {
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
   jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+  jest
     .spyOn(configUtils, 'getAuthConfig')
     .mockImplementation(() => Promise.resolve(mockAuthConfig))
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 }

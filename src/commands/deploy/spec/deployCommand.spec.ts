@@ -2,6 +2,7 @@ import * as deployModule from '../deploy'
 import { DeployCommand } from '../deployCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
 
 const defaultArgs = ['node', 'sasjs']
@@ -95,6 +96,14 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'success')

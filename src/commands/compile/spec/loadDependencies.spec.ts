@@ -191,7 +191,7 @@ describe('loadDependencies', () => {
   let compileTree: CompileTree
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
 
     compileTree = getCompileTree(target)
 

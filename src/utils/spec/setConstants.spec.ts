@@ -77,7 +77,7 @@ describe('setConstants', () => {
         })
       )
 
-    await setConstants()
+    await setConstants(false)
 
     verifySasjsConstants(undefined, false, false)
   })

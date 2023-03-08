@@ -5,6 +5,7 @@ import { setConstants } from '../../../utils'
 import * as FSModule from '@sasjs/utils/fs'
 import * as FileModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import * as executeCodeModule from '../internal/executeCode'
 
 const defaultArgs = ['node', 'sasjs', 'fs']
@@ -17,8 +18,8 @@ const target = new Target({
 
 describe('FSCommand', () => {
   beforeAll(async () => {
-    await setConstants()
     process.projectDir = __dirname
+    await setConstants()
   })
 
   describe('compile', () => {
@@ -36,11 +37,7 @@ describe('FSCommand', () => {
         .spyOn(FileModule, 'createFile')
         .mockImplementation(() => Promise.resolve())
 
-      jest
-        .spyOn(configUtils, 'findTargetInConfiguration')
-        .mockImplementation(() =>
-          Promise.resolve({ target: target, isLocal: true })
-        )
+      setupMocks()
 
       const returnCode = await executeCommandWrapper([
         'compile',
@@ -56,11 +53,7 @@ describe('FSCommand', () => {
         .spyOn(FileModule, 'createFile')
         .mockImplementation(() => Promise.reject())
 
-      jest
-        .spyOn(configUtils, 'findTargetInConfiguration')
-        .mockImplementation(() =>
-          Promise.resolve({ target: target, isLocal: true })
-        )
+      setupMocks()
 
       const returnCode = await executeCommandWrapper(['compile', 'localFolder'])
       expect(returnCode).toEqual(ReturnCode.InternalError)
@@ -76,11 +69,7 @@ describe('FSCommand', () => {
       jest.spyOn(process.logger, 'error')
       jest.spyOn(process.logger, 'info')
 
-      jest
-        .spyOn(configUtils, 'findTargetInConfiguration')
-        .mockImplementation(() =>
-          Promise.resolve({ target: target, isLocal: true })
-        )
+      setupMocks()
 
       jest
         .spyOn(FSModule, 'generateCompileProgram')
@@ -131,11 +120,7 @@ describe('FSCommand', () => {
         .spyOn(FileModule, 'createFile')
         .mockImplementation(() => Promise.resolve())
 
-      jest
-        .spyOn(configUtils, 'findTargetInConfiguration')
-        .mockImplementation(() =>
-          Promise.resolve({ target: target, isLocal: true })
-        )
+      setupMocks()
 
       jest
         .spyOn(FSModule, 'generateProgramToGetRemoteHash')
@@ -256,6 +241,20 @@ describe('FSCommand', () => {
     })
   })
 })
+
+const setupMocks = () => {
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
+}
 
 const executeCommandWrapper = async (additionalParams: string[]) => {
   const args = [...defaultArgs, ...additionalParams]

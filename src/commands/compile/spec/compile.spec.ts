@@ -12,6 +12,7 @@ import {
 import { BuildConfig } from '@sasjs/utils/types/config'
 import {
   findTargetInConfiguration,
+  getGlobalRcFile,
   saveGlobalRcFile
 } from '../../../utils/config'
 import {
@@ -304,7 +305,8 @@ describe('sasjs compile outside project', () => {
         false
       )
       process.projectDir = ''
-      await setConstants()
+      const configuration = await getGlobalRcFile()
+      await setConstants(false, undefined, configuration)
 
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
@@ -346,7 +348,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.output
 
       await expect(
         compileSingleFile(
@@ -458,7 +460,7 @@ describe('sasjs compile outside project', () => {
       )
     })
 
-    it('should compile single file at absolute path in global config.buildConfig.buildOutputFolder', async () => {
+    it('should compile single file at absolute path in global config.sasjsBuildFolder', async () => {
       const buildOutputFolder = path.join(__dirname, 'random-folder', appName)
       const destinationPath = path.join(
         buildOutputFolder,
@@ -476,7 +478,8 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
-      await setConstants()
+      const configuration = await getGlobalRcFile()
+      await setConstants(false, undefined, configuration)
 
       const command = new CompileCommand([
         'node',
@@ -511,7 +514,7 @@ describe('sasjs compile outside project', () => {
       await verifyCompiledService(compiledContent, macrosToTest, false, false)
     })
 
-    it('should compile single file at relative path in global config.buildConfig.buildOutputFolder', async () => {
+    it('should compile single file at relative path in global config.sasjsBuildFolder', async () => {
       const buildOutputFolder = path.join(homedir, appName, 'random-folder')
       const destinationPath = path.join(
         buildOutputFolder,
@@ -529,7 +532,8 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
-      await setConstants()
+      const configuration = await getGlobalRcFile()
+      await setConstants(false, undefined, configuration)
 
       const command = new CompileCommand([
         'node',

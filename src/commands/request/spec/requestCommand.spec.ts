@@ -2,8 +2,8 @@ import * as requestModule from '../request'
 import { RequestCommand } from '../requestCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
-import { setConstants } from '../../../utils'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
@@ -18,10 +18,6 @@ const configFilePath = 'path/to/config.json'
 const outputPath = './output.txt'
 const logPath = './log.txt'
 describe('RequestCommand', () => {
-  beforeAll(async () => {
-    await setConstants()
-  })
-
   beforeEach(() => {
     setupMocks()
   })
@@ -209,6 +205,14 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'error')

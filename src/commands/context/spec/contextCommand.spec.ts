@@ -7,6 +7,7 @@ import { ContextCommand } from '../contextCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as fileModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
 import { mockAuthConfig, mockContext } from './mocks'
 
@@ -802,6 +803,7 @@ const setupMocks = () => {
   jest.mock('../export')
   jest.mock('../list')
   jest.mock('../../../utils/config')
+  jest.mock('../../../utils/setConstants')
 
   jest
     .spyOn(fileModule, 'readFile')
@@ -824,8 +826,15 @@ const setupMocks = () => {
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
   jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
     .spyOn(configUtils, 'getAuthConfig')
     .mockImplementation(() => Promise.resolve(mockAuthConfig))
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'success')
