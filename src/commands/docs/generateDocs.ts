@@ -8,11 +8,14 @@ import {
   deleteFolder,
   fileExists,
   readFile,
+  createFile,
+  deleteFile,
   Target,
   Configuration,
   LogLevel,
   getAbsolutePath,
-  isWindows
+  isWindows,
+  generateTimestamp
 } from '@sasjs/utils'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
@@ -102,6 +105,23 @@ export async function generateDocs(
       process.projectDir
     )
 
+  const layoutFilePath = path.join(doxyContent.path, doxyContent.layout)
+
+  const LAYOUT_FILE = await readFile(layoutFilePath).then(async (content) => {
+    if (enableLineage) return layoutFilePath
+
+    // if enableLineage is false, create a tmp layout file without lineage tab
+    const testString = `<tab type="user" url="data_lineage.svg" title="Lineage"/>`
+    const replaced = content.replace(testString, '')
+    const timeStamp = generateTimestamp()
+    const tmpFilePath = path.join(
+      doxyContent.path,
+      `${timeStamp}-DoxygenLayout.xml`
+    )
+    await createFile(tmpFilePath, replaced)
+    return tmpFilePath
+  })
+
   const doxyParams = setVariableCmd({
     DOXY_HTML_OUTPUT: newOutDirectory,
     DOXY_INPUT: `"${path.join(
@@ -115,7 +135,7 @@ export async function generateDocs(
     )}"`,
     HTML_FOOTER: path.join(doxyContent.path, doxyContent.footer),
     HTML_HEADER: path.join(doxyContent.path, doxyContent.header),
-    LAYOUT_FILE: path.join(doxyContent.path, doxyContent.layout),
+    LAYOUT_FILE,
     PROJECT_BRIEF,
     PROJECT_LOGO: path.join(doxyContent.path, doxyContent.logo),
     PROJECT_NAME
@@ -140,6 +160,13 @@ export async function generateDocs(
     }
   )
   if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.stop()
+
+  if (!enableLineage) {
+    // when enable lineage is false, we are creating a tmp DoxygenLayout.xml file
+    // this is same a original but just with removed tab for lineage
+    // therefor, we are removing this tmp file once the shell command for doxygen is completed
+    await deleteFile(LAYOUT_FILE)
+  }
 
   if (code !== 0) {
     if (stderr.startsWith('error: ')) {
