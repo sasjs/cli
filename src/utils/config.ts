@@ -487,24 +487,27 @@ export async function getProgramFolders(target: Target) {
 }
 
 export async function getBinaryFolders(target: Target) {
-  let binaryFolders: string[] = []
+  const binaryFolders: string[] = []
 
-  const localConfig = await getLocalConfig().catch(() => null)
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
-  if (localConfig?.binaryFolders) {
-    binaryFolders = binaryFolders.concat(localConfig.binaryFolders)
+  if (configuration?.binaryFolders) {
+    binaryFolders.push(...configuration.binaryFolders)
   }
 
   if (target?.binaryFolders) {
-    binaryFolders = binaryFolders.concat(target.binaryFolders)
+    binaryFolders.push(...target.binaryFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
-  binaryFolders = binaryFolders.map((binaryFolder) =>
+  const binaryFoldersWithAbsolutePath = binaryFolders.map((binaryFolder) =>
     getAbsolutePath(binaryFolder, buildSourceFolder)
   )
 
-  return [...new Set(binaryFolders)]
+  return [...new Set(binaryFoldersWithAbsolutePath)]
 }
 
 /**
@@ -541,11 +544,14 @@ export async function getMacroFolders(target?: Target) {
  * @param {Target} target- the target to check stream configuration for.
  */
 export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
-  const localConfig = await getLocalConfig()
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
   return {
     streamServiceName: 'clickme',
-    ...localConfig?.streamConfig,
+    ...configuration?.streamConfig,
     ...target?.streamConfig
   } as StreamConfig
 }
