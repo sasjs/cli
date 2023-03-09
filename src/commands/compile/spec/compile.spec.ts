@@ -307,6 +307,7 @@ describe('sasjs compile outside project', () => {
       process.projectDir = ''
       const configuration = await getGlobalRcFile()
       await setConstants(false, undefined, configuration)
+      process.sasjsConfig = configuration
 
       process.currentDir = path.join(__dirname, appName)
       await createFolder(process.currentDir)
@@ -439,6 +440,9 @@ describe('sasjs compile outside project', () => {
         },
         false
       )
+      const configuration = await getGlobalRcFile()
+      process.sasjsConfig = configuration
+
       const command = new CompileCommand([
         'node',
         'sasjs',
@@ -576,6 +580,7 @@ describe('sasjs compile outside project', () => {
       await saveGlobalRcFile('')
       await setConstants(false)
 
+      process.sasjsConfig = {}
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)
 
