@@ -574,7 +574,7 @@ describe('sasjs compile outside project', () => {
       appName = `cli-tests-compile-${generateTimestamp()}`
 
       await saveGlobalRcFile('')
-      await setConstants()
+      await setConstants(false)
 
       process.projectDir = ''
       process.currentDir = path.join(__dirname, appName)

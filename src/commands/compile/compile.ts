@@ -191,7 +191,6 @@ export async function compileJobsServicesTests(
       )
     })
 
-    console.log('jobFolders :>> ', jobFolders)
     await asyncForEach(jobFolders, async (jobFolder) => {
       await compileJobFolder(
         target,
