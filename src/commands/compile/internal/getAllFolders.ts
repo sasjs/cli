@@ -12,9 +12,7 @@ export const getAllFolders = async (
   type: SasFileType,
   rootConfig?: Configuration
 ): Promise<string[]> => {
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration =
-    rootConfig || (isLocal ? await getLocalConfig() : await getGlobalRcFile())
+  const configuration = rootConfig || process.sasjsConfig
 
   let allFolders: string[] | undefined
   let config: ServiceConfig | JobConfig | undefined

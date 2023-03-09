@@ -465,10 +465,7 @@ export async function getFolders() {
 export async function getProgramFolders(target: Target) {
   const programFolders: string[] = []
 
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   if (configuration?.programFolders) {
     programFolders.push(...configuration.programFolders)
@@ -489,10 +486,7 @@ export async function getProgramFolders(target: Target) {
 export async function getBinaryFolders(target: Target) {
   const binaryFolders: string[] = []
 
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   if (configuration?.binaryFolders) {
     binaryFolders.push(...configuration.binaryFolders)
@@ -516,10 +510,7 @@ export async function getBinaryFolders(target: Target) {
  * @param {Target} target- the target to check macro folders for.
  */
 export async function getMacroFolders(target?: Target) {
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   const macroFolders: string[] = []
 
@@ -544,10 +535,7 @@ export async function getMacroFolders(target?: Target) {
  * @param {Target} target- the target to check stream configuration for.
  */
 export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   return {
     streamServiceName: 'clickme',

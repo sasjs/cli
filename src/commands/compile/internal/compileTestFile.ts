@@ -122,10 +122,7 @@ export const compileTestFlow = async (
       await listFilesAndSubFoldersInFolder(buildDestinationTestFolder)
     ).map((file) => path.join('tests', file))
 
-    const { isLocal } = process.sasjsConstants
-    const config: Configuration = isLocal
-      ? await getLocalConfig()
-      : await getGlobalRcFile()
+    const config = process.sasjsConfig
 
     const testFlow: TestFlow = { tests: [] }
     const testSetUp =

@@ -11,10 +11,7 @@ import { getGlobalRcFile, getLocalConfig } from '../../../utils/config'
 export async function getServerType(target: Target): Promise<ServerType> {
   if (target?.serverType) return target.serverType
 
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   return configuration?.serverType
     ? configuration.serverType

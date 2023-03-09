@@ -41,11 +41,9 @@ export async function loadDependencies(
     fileContent = await readFile(filePath)
   }
 
-  const { buildSourceFolder, macroCorePath, isLocal } = process.sasjsConstants
+  const { buildSourceFolder, macroCorePath } = process.sasjsConstants
   const binaryFolders = await getBinaryFolders(target)
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   headerSyntaxNotices(fileContent)
 

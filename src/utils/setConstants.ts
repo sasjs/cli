@@ -79,7 +79,6 @@ export const setConstants = async (
     contextName,
     sas9CredentialsError,
     invalidSasError,
-    isLocal,
     sas9GUID
   }
 }

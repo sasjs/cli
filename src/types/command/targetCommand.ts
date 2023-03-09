@@ -49,6 +49,7 @@ export class TargetCommand extends CommandBase {
           : await getGlobalRcFile()
 
         await setConstants(res.isLocal, res.target, configuration)
+        process.sasjsConfig = configuration
 
         return res
       })

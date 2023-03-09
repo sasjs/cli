@@ -363,10 +363,7 @@ const compileJobFolder = async (
 }
 
 async function compileWeb(target: Target) {
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   const streamConfig = {
     ...configuration?.streamConfig,
@@ -392,10 +389,7 @@ async function compileWeb(target: Target) {
 }
 
 const syncFolder = async (target: Target) => {
-  const { isLocal } = process.sasjsConstants
-  const configuration: Configuration = isLocal
-    ? await getLocalConfig()
-    : await getGlobalRcFile()
+  const configuration = process.sasjsConfig
 
   if (configuration.syncFolder) {
     await copySyncFolder(configuration.syncFolder)
