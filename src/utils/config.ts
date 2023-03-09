@@ -463,24 +463,27 @@ export async function getFolders() {
  * @param {Target} target- the target to check program folders for.
  */
 export async function getProgramFolders(target: Target) {
-  let programFolders: string[] = []
+  const programFolders: string[] = []
 
-  const localConfig = await getLocalConfig().catch(() => null)
+  const { isLocal } = process.sasjsConstants
+  const configuration: Configuration = isLocal
+    ? await getLocalConfig()
+    : await getGlobalRcFile()
 
-  if (localConfig?.programFolders) {
-    programFolders = programFolders.concat(localConfig.programFolders)
+  if (configuration?.programFolders) {
+    programFolders.push(...configuration.programFolders)
   }
 
   if (target?.programFolders) {
-    programFolders = programFolders.concat(target.programFolders)
+    programFolders.push(...target.programFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
-  programFolders = programFolders.map((programFolder) =>
+  const programFoldersWithAbsolutePath = programFolders.map((programFolder) =>
     getAbsolutePath(programFolder, buildSourceFolder)
   )
 
-  return [...new Set(programFolders)]
+  return [...new Set(programFoldersWithAbsolutePath)]
 }
 
 export async function getBinaryFolders(target: Target) {
