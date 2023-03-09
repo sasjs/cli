@@ -520,11 +520,11 @@ export async function getMacroFolders(target?: Target) {
 
   const macroFolders: string[] = []
 
-  if (target?.macroFolders) macroFolders.push(...target.macroFolders)
-
   if (configuration?.macroFolders) {
     macroFolders.push(...configuration.macroFolders)
   }
+
+  if (target?.macroFolders) macroFolders.push(...target.macroFolders)
 
   const { buildSourceFolder } = process.sasjsConstants
 
