@@ -63,7 +63,7 @@ export class DocsCommand extends TargetCommand {
 
   async executeGenerateDocs() {
     const { target } = await this.getTargetInfo()
-    const config = await getLocalConfig()
+    const config = process.sasjsConfig
     const returnCode = await generateDocs(
       target,
       config,
@@ -85,7 +85,7 @@ export class DocsCommand extends TargetCommand {
 
   async executeGenerateDot() {
     const { target } = await this.getTargetInfo()
-    const config = await getLocalConfig()
+    const config = process.sasjsConfig
     const returnCode = await generateDot(
       target,
       config,

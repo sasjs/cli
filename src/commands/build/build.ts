@@ -488,7 +488,7 @@ function getLines(text: string): string[] {
 
 export async function getBuildVars(target: Target) {
   const targetBuildVars = target?.buildConfig?.macroVars ?? {}
-  const configuration = await getLocalConfig()
+  const configuration = process.sasjsConfig
   const commonBuildVars = configuration?.buildConfig?.macroVars ?? {}
 
   return convertVarsToSasFormat({ ...commonBuildVars, ...targetBuildVars })
