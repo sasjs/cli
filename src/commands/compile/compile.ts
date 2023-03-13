@@ -1,49 +1,42 @@
+import {
+  asyncForEach,
+  CompileTree,
+  copy,
+  createFolder,
+  deleteFolder,
+  fileExists,
+  folderExists,
+  isTestFile,
+  listFilesAndSubFoldersInFolder,
+  listFilesInFolder,
+  listSubFoldersInFolder
+} from '@sasjs/utils'
+import { SASJsFileType, StreamConfig, Target } from '@sasjs/utils/types'
 import path from 'path'
 import {
-  getProgramFolders,
   getMacroFolders,
+  getProgramFolders,
   getTestSetUp,
-  getTestTearDown,
-  getLocalConfig,
-  getGlobalRcFile
+  getTestTearDown
 } from '../../utils/config'
-import {
-  listSubFoldersInFolder,
-  listFilesInFolder,
-  fileExists,
-  deleteFolder,
-  createFolder,
-  folderExists,
-  copy,
-  asyncForEach,
-  listFilesAndSubFoldersInFolder,
-  isTestFile,
-  CompileTree
-} from '@sasjs/utils'
-import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import {
-  Target,
-  StreamConfig,
-  SASJsFileType,
-  Configuration
-} from '@sasjs/utils/types'
-import { checkCompileStatus } from './internal/checkCompileStatus'
+import { createWebAppServices } from '../web/web'
 import * as compileModule from './compile'
-import { getAllFolders, SasFileType } from './internal/getAllFolders'
+import { checkCompileStatus } from './internal/checkCompileStatus'
 import { compileFile } from './internal/compileFile'
+import { getAllFolders, SasFileType } from './internal/getAllFolders'
 
 import {
   compileTestFile,
   compileTestFlow,
   copyTestMacroFiles
 } from './internal/compileTestFile'
+import { copySyncFolder } from './internal/copySyncFolder'
 import {
-  getDestinationServicePath,
-  getDestinationJobPath
+  getDestinationJobPath,
+  getDestinationServicePath
 } from './internal/getDestinationPath'
 import { getCompileTree } from './internal/loadDependencies'
-import { copySyncFolder } from './internal/copySyncFolder'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])

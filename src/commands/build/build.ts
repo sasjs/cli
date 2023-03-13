@@ -1,41 +1,37 @@
-import path from 'path'
 import {
-  Target,
-  ServerType,
-  chunk,
-  getDependencyPaths,
-  readFile,
+  asyncForEach,
   base64EncodeFile,
-  listSubFoldersInFolder,
-  listFilesInFolder,
+  chunk,
   createFile,
   folderExists,
-  asyncForEach,
-  removeHeader
+  getDependencyPaths,
+  listFilesInFolder,
+  listSubFoldersInFolder,
+  readFile,
+  removeHeader,
+  ServerType,
+  Target
 } from '@sasjs/utils'
 import { ServerTypeError } from '@sasjs/utils/error'
+import path from 'path'
 
-import { isSasFile } from '../../utils/file'
-import {
-  getLocalConfig,
-  getMacroFolders,
-  getStreamConfig
-} from '../../utils/config'
-import { compile } from '../compile/compile'
-import { getBuildInit, getBuildTerm } from './internal/config'
-import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import {
   FileTree,
   FolderMember,
   MemberType,
-  ServicePackSASjs,
-  SASJsFileType
+  SASJsFileType,
+  ServicePackSASjs
 } from '@sasjs/utils/types'
 import { compressAndSave } from '../../utils/compressAndSave'
+import { getMacroFolders, getStreamConfig } from '../../utils/config'
+import { isSasFile } from '../../utils/file'
+import { compile } from '../compile/compile'
 import {
-  loadDependencies,
-  getCompileTree
+  getCompileTree,
+  loadDependencies
 } from '../compile/internal/loadDependencies'
+import { getBuildInit, getBuildTerm } from './internal/config'
+import { getLaunchPageCode } from './internal/getLaunchPageCode'
 
 export async function build(target: Target) {
   if (
@@ -488,7 +484,7 @@ function getLines(text: string): string[] {
 
 export async function getBuildVars(target: Target) {
   const targetBuildVars = target?.buildConfig?.macroVars ?? {}
-  const configuration = await getLocalConfig()
+  const configuration = process.sasjsConfig
   const commonBuildVars = configuration?.buildConfig?.macroVars ?? {}
 
   return convertVarsToSasFormat({ ...commonBuildVars, ...targetBuildVars })

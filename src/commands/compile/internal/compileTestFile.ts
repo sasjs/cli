@@ -1,35 +1,26 @@
-import { TestFlow, Coverage, CoverageType, CoverageState } from '../../../types'
-import path from 'path'
 import {
-  createFile,
-  copy,
-  listFilesInFolder,
-  fileExists,
-  createFolder,
-  Target,
   asyncForEach,
-  moveFile,
+  CompileTree,
+  Configuration,
+  copy,
+  createFile,
   deleteFile,
+  fileExists,
   folderExists,
-  deleteFolder,
+  getAbsolutePath,
+  isTestFile,
   listFilesAndSubFoldersInFolder,
   pathSepEscaped,
   SASJsFileType,
-  getAbsolutePath,
-  isTestFile,
-  testFileRegExp,
-  Configuration,
-  CompileTree
+  Target,
+  testFileRegExp
 } from '@sasjs/utils'
-import { loadDependencies } from './loadDependencies'
-import { sasFileRegExp } from '../../../utils/file'
 import chalk from 'chalk'
-import {
-  getProgramFolders,
-  getMacroFolders,
-  getLocalConfig,
-  getGlobalRcFile
-} from '../../../utils/config'
+import path from 'path'
+import { Coverage, CoverageState, CoverageType, TestFlow } from '../../../types'
+import { getMacroFolders, getProgramFolders } from '../../../utils/config'
+import { sasFileRegExp } from '../../../utils/file'
+import { loadDependencies } from './loadDependencies'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
 

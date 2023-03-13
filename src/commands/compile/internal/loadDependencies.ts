@@ -1,19 +1,14 @@
 import {
-  Target,
-  readFile,
-  SASJsFileType,
-  loadDependenciesFile,
-  DependencyHeader,
   CompileTree,
+  DependencyHeader,
+  loadDependenciesFile,
+  readFile,
   removeHeader,
-  Configuration
+  SASJsFileType,
+  Target
 } from '@sasjs/utils'
-import {
-  getBinaryFolders,
-  getLocalConfig,
-  getGlobalRcFile
-} from '../../../utils/config'
 import path from 'path'
+import { getBinaryFolders } from '../../../utils/config'
 
 export async function loadDependencies(
   target: Target,
