@@ -4,8 +4,9 @@ import * as deployModule from '../deploy'
 import { CompileBuildDeployCommand } from '../compileBuildDeployCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
-import { ReturnCode } from '../../../types/command'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { setConstants } from '../../../utils'
+import { ReturnCode } from '../../../types/command'
 
 describe('CompileBuildDeployCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -17,7 +18,7 @@ describe('CompileBuildDeployCommand', () => {
   })
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
   })
 
   beforeEach(() => {
@@ -37,6 +38,14 @@ describe('CompileBuildDeployCommand', () => {
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+    jest
+      .spyOn(configUtils, 'getLocalConfig')
+      .mockImplementation(() => Promise.resolve({}))
+
+    jest
+      .spyOn(setConstantsUtils, 'setConstants')
+      .mockImplementation(() => Promise.resolve())
 
     process.logger = new Logger(LogLevel.Off)
     jest.spyOn(process.logger, 'success')

@@ -313,6 +313,10 @@ const setupMocksForViya = () => {
     )
 
   jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
     .spyOn(configUtils, 'getSASjsAndAuthConfig')
     .mockImplementation((target: Target) => {
       return Promise.resolve({
@@ -340,6 +344,10 @@ const setupMocksForSAS9 = () => {
     .mockImplementation(() =>
       Promise.resolve({ target: target9, isLocal: true })
     )
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'error')

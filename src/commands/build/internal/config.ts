@@ -1,6 +1,4 @@
-import path from 'path'
 import { Target, readFile, getAbsolutePath } from '@sasjs/utils'
-import { getConfiguration } from '../../../utils/config'
 
 export const getBuildInit = async (target: Target) => {
   const { buildSourceFolder } = process.sasjsConstants
@@ -10,9 +8,7 @@ export const getBuildInit = async (target: Target) => {
       getAbsolutePath(target.buildConfig.initProgram, buildSourceFolder)
     )
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const configuration = process.sasjsConfig
     if (configuration?.buildConfig?.initProgram) {
       buildInitContent = await readFile(
         getAbsolutePath(
@@ -36,9 +32,7 @@ export const getBuildTerm = async (target: Target) => {
       getAbsolutePath(target.buildConfig.termProgram, buildSourceFolder)
     )
   } else {
-    const configuration = await getConfiguration(
-      path.join(buildSourceFolder, 'sasjs', 'sasjsconfig.json')
-    )
+    const configuration = process.sasjsConfig
     if (configuration?.buildConfig?.termProgram) {
       buildTermContent = await readFile(
         getAbsolutePath(

@@ -4,6 +4,7 @@ import * as generateDotModule from '../generateDot'
 import * as initDocsModule from '../initDocs'
 import { ReturnCode } from '../../../types/command'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
 import { Configuration, ServerType, Target } from '@sasjs/utils'
 
@@ -236,4 +237,7 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'getLocalConfig')
     .mockImplementation(() => Promise.resolve(config))
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 }

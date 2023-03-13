@@ -9,7 +9,7 @@ import {
 import { Folder } from '../../../types'
 import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
 import { createWebAppServices } from '../web'
-import { findTargetInConfiguration } from '../../../utils'
+import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 
 const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
@@ -96,6 +96,8 @@ describe('sasjs web', () => {
       { serverUrl: undefined, streamConfig: undefined },
       'sas9'
     )
+
+    process.sasjsConfig = await getLocalConfig()
   })
 
   afterAll(async () => {

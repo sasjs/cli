@@ -1,5 +1,5 @@
 import { Target, getAbsolutePath, Configuration } from '@sasjs/utils'
-import { getLocalOrGlobalConfig } from '../../../utils/config'
+import { getGlobalRcFile, getLocalConfig } from '../../../utils/config'
 import { ServiceConfig, JobConfig } from '@sasjs/utils'
 
 export enum SasFileType {
@@ -12,8 +12,8 @@ export const getAllFolders = async (
   type: SasFileType,
   rootConfig?: Configuration
 ): Promise<string[]> => {
-  const configuration =
-    rootConfig || (await (await getLocalOrGlobalConfig()).configuration)
+  const configuration = rootConfig || process.sasjsConfig
+
   let allFolders: string[] | undefined
   let config: ServiceConfig | JobConfig | undefined
   let folders: string[] | undefined

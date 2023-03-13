@@ -3,7 +3,9 @@ import {
   findTargetInConfiguration,
   loadTargetEnvVariables,
   validateTargetName,
-  updateSasjsConstants
+  getLocalConfig,
+  getGlobalRcFile,
+  setConstants
 } from '../../utils'
 import { CommandBase, CommandOptions } from './commandBase'
 import { ReturnCode } from './returnCode'
@@ -39,9 +41,16 @@ export class TargetCommand extends CommandBase {
     })
 
     return await findTargetInConfiguration(targetName)
-      .then((res) => {
+      .then(async (res) => {
         this._targetInfo = res
-        updateSasjsConstants(res.target, res.isLocal)
+
+        const configuration = res.isLocal
+          ? await getLocalConfig()
+          : await getGlobalRcFile()
+
+        await setConstants(res.isLocal, res.target, configuration)
+        process.sasjsConfig = configuration
+
         return res
       })
       .catch((err) => {

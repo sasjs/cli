@@ -43,6 +43,7 @@ export const createTestApp = async (parentFolder: string, appName: string) => {
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  process.sasjsConfig = await getLocalConfig()
   await setConstants()
 }
 
@@ -54,6 +55,7 @@ export const createTestJobsApp = async (
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  process.sasjsConfig = await getLocalConfig()
   await setConstants()
   await updateTarget({ serverUrl: 'https://example.com' }, 'viya')
 }
@@ -66,6 +68,7 @@ export const createTestMinimalApp = async (
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
   process.currentDir = process.projectDir
+  process.sasjsConfig = await getLocalConfig()
   await setConstants()
 }
 

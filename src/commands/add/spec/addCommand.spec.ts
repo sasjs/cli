@@ -2,6 +2,7 @@ import { AddCommand } from '../addCommand'
 import * as addTargetModule from '../addTarget'
 import * as addCredentialModule from '../addCredential'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { TargetScope } from '../../../types'
 import { ReturnCode } from '../../../types/command'
@@ -84,6 +85,15 @@ describe('AddCommand - cred', () => {
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+    jest
+      .spyOn(configUtils, 'getLocalConfig')
+      .mockImplementation(() => Promise.resolve({}))
+
+    jest
+      .spyOn(setConstantsUtils, 'setConstants')
+      .mockImplementation(() => Promise.resolve())
+
     jest.spyOn(process.logger, 'success')
     jest.spyOn(process.logger, 'error')
   })

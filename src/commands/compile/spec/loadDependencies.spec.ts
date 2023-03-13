@@ -18,7 +18,7 @@ import {
   removeTestApp,
   updateConfig
 } from '../../../utils/test'
-import { setConstants } from '../../../utils'
+import { getLocalConfig, setConstants } from '../../../utils'
 import { loadDependencies, getCompileTree } from '../internal/loadDependencies'
 import { SasFileType } from '../internal/getAllFolders'
 
@@ -191,7 +191,7 @@ describe('loadDependencies', () => {
   let compileTree: CompileTree
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
 
     compileTree = getCompileTree(target)
 
@@ -201,6 +201,8 @@ describe('loadDependencies', () => {
       jobConfig: jobConfig(),
       serviceConfig: serviceConfig()
     })
+
+    process.sasjsConfig = await getLocalConfig()
   })
 
   afterAll(async () => {

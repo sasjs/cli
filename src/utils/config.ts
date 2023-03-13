@@ -463,45 +463,45 @@ export async function getFolders() {
  * @param {Target} target- the target to check program folders for.
  */
 export async function getProgramFolders(target: Target) {
-  let programFolders: string[] = []
+  const programFolders: string[] = []
 
-  const localConfig = await getLocalConfig().catch(() => null)
+  const configuration = process.sasjsConfig
 
-  if (localConfig?.programFolders) {
-    programFolders = programFolders.concat(localConfig.programFolders)
+  if (configuration?.programFolders) {
+    programFolders.push(...configuration.programFolders)
   }
 
   if (target?.programFolders) {
-    programFolders = programFolders.concat(target.programFolders)
+    programFolders.push(...target.programFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
-  programFolders = programFolders.map((programFolder) =>
+  const programFoldersWithAbsolutePath = programFolders.map((programFolder) =>
     getAbsolutePath(programFolder, buildSourceFolder)
   )
 
-  return [...new Set(programFolders)]
+  return [...new Set(programFoldersWithAbsolutePath)]
 }
 
 export async function getBinaryFolders(target: Target) {
-  let binaryFolders: string[] = []
+  const binaryFolders: string[] = []
 
-  const localConfig = await getLocalConfig().catch(() => null)
+  const configuration = process.sasjsConfig
 
-  if (localConfig?.binaryFolders) {
-    binaryFolders = binaryFolders.concat(localConfig.binaryFolders)
+  if (configuration?.binaryFolders) {
+    binaryFolders.push(...configuration.binaryFolders)
   }
 
   if (target?.binaryFolders) {
-    binaryFolders = binaryFolders.concat(target.binaryFolders)
+    binaryFolders.push(...target.binaryFolders)
   }
 
   const { buildSourceFolder } = process.sasjsConstants
-  binaryFolders = binaryFolders.map((binaryFolder) =>
+  const binaryFoldersWithAbsolutePath = binaryFolders.map((binaryFolder) =>
     getAbsolutePath(binaryFolder, buildSourceFolder)
   )
 
-  return [...new Set(binaryFolders)]
+  return [...new Set(binaryFoldersWithAbsolutePath)]
 }
 
 /**
@@ -510,22 +510,23 @@ export async function getBinaryFolders(target: Target) {
  * @param {Target} target- the target to check macro folders for.
  */
 export async function getMacroFolders(target?: Target) {
-  let macroFolders: string[] = []
-  const { configuration: localConfig } = await getLocalOrGlobalConfig()
+  const configuration = process.sasjsConfig
 
-  if (target?.macroFolders) macroFolders = target.macroFolders
+  const macroFolders: string[] = []
 
-  if (localConfig?.macroFolders) {
-    macroFolders = localConfig.macroFolders.concat(macroFolders)
+  if (configuration?.macroFolders) {
+    macroFolders.push(...configuration.macroFolders)
   }
+
+  if (target?.macroFolders) macroFolders.push(...target.macroFolders)
 
   const { buildSourceFolder } = process.sasjsConstants
 
-  macroFolders = macroFolders.map((macroFolder) =>
+  const macroFoldersWithAbsolutePath = macroFolders.map((macroFolder) =>
     getAbsolutePath(macroFolder, buildSourceFolder)
   )
 
-  return [...new Set(macroFolders)]
+  return [...new Set(macroFoldersWithAbsolutePath)]
 }
 
 /**
@@ -534,11 +535,11 @@ export async function getMacroFolders(target?: Target) {
  * @param {Target} target- the target to check stream configuration for.
  */
 export async function getStreamConfig(target?: Target): Promise<StreamConfig> {
-  const localConfig = await getLocalConfig()
+  const configuration = process.sasjsConfig
 
   return {
     streamServiceName: 'clickme',
-    ...localConfig?.streamConfig,
+    ...configuration?.streamConfig,
     ...target?.streamConfig
   } as StreamConfig
 }

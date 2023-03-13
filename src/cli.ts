@@ -1,11 +1,10 @@
 import { LogLevel, Logger } from '@sasjs/utils/logger'
-import { loadProjectEnvVariables, setProjectDir, setConstants } from './utils'
+import { loadProjectEnvVariables, setProjectDir } from './utils'
 import { parse } from './types/command/parse'
 
 export async function cli(args: string[]) {
   await setProjectDir(args)
   await instantiateLogger()
-  await setConstants()
   await loadProjectEnvVariables()
 
   const command = parse(args)

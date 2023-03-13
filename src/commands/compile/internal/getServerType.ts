@@ -1,6 +1,6 @@
 import { Target } from '@sasjs/utils'
-import { ServerType } from '@sasjs/utils/types'
-import { getLocalOrGlobalConfig } from '../../../utils/config'
+import { Configuration, ServerType } from '@sasjs/utils/types'
+import { getGlobalRcFile, getLocalConfig } from '../../../utils/config'
 
 /**
  * Returns server type for 'compile' step.
@@ -11,7 +11,7 @@ import { getLocalOrGlobalConfig } from '../../../utils/config'
 export async function getServerType(target: Target): Promise<ServerType> {
   if (target?.serverType) return target.serverType
 
-  const { configuration } = await getLocalOrGlobalConfig()
+  const configuration = process.sasjsConfig
 
   return configuration?.serverType
     ? configuration.serverType

@@ -2,6 +2,7 @@ import * as webModule from '../web'
 import { WebCommand } from '../webCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
 import { setConstants } from '../../../utils'
 
@@ -15,7 +16,7 @@ describe('WebCommand', () => {
   })
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
   })
 
   beforeEach(() => {
@@ -29,6 +30,14 @@ describe('WebCommand', () => {
     jest
       .spyOn(configUtils, 'findTargetInConfiguration')
       .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+    jest
+      .spyOn(configUtils, 'getLocalConfig')
+      .mockImplementation(() => Promise.resolve({}))
+
+    jest
+      .spyOn(setConstantsUtils, 'setConstants')
+      .mockImplementation(() => Promise.resolve())
 
     process.logger = new Logger(LogLevel.Off)
     jest.spyOn(process.logger, 'success')

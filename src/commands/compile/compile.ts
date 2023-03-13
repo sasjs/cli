@@ -1,10 +1,11 @@
 import path from 'path'
 import {
-  getLocalOrGlobalConfig,
   getProgramFolders,
   getMacroFolders,
   getTestSetUp,
-  getTestTearDown
+  getTestTearDown,
+  getLocalConfig,
+  getGlobalRcFile
 } from '../../utils/config'
 import {
   listSubFoldersInFolder,
@@ -21,7 +22,12 @@ import {
 } from '@sasjs/utils'
 import { createWebAppServices } from '../web/web'
 import { isSasFile } from '../../utils/file'
-import { Target, StreamConfig, SASJsFileType } from '@sasjs/utils/types'
+import {
+  Target,
+  StreamConfig,
+  SASJsFileType,
+  Configuration
+} from '@sasjs/utils/types'
 import { checkCompileStatus } from './internal/checkCompileStatus'
 import * as compileModule from './compile'
 import { getAllFolders, SasFileType } from './internal/getAllFolders'
@@ -357,7 +363,7 @@ const compileJobFolder = async (
 }
 
 async function compileWeb(target: Target) {
-  const { configuration } = await getLocalOrGlobalConfig()
+  const configuration = process.sasjsConfig
 
   const streamConfig = {
     ...configuration?.streamConfig,
@@ -383,7 +389,7 @@ async function compileWeb(target: Target) {
 }
 
 const syncFolder = async (target: Target) => {
-  const { configuration } = await getLocalOrGlobalConfig()
+  const configuration = process.sasjsConfig
 
   if (configuration.syncFolder) {
     await copySyncFolder(configuration.syncFolder)

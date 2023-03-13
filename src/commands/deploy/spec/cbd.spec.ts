@@ -20,7 +20,10 @@ import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
 import { deploy } from '../deploy'
 import { createLocalTarget, updateLocalTarget } from './utils'
-import { findTargetInConfiguration } from '../../../utils/config'
+import {
+  findTargetInConfiguration,
+  getLocalConfig
+} from '../../../utils/config'
 
 describe('sasjs cbd with server type SASJS', () => {
   let target: Target
@@ -73,6 +76,8 @@ describe('sasjs cbd with server type SASJS', () => {
         deployScripts: []
       }
     })
+
+    process.sasjsConfig = await getLocalConfig()
 
     const { target: customTarget } = await findTargetInConfiguration(
       target.name,

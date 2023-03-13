@@ -4,9 +4,10 @@ import * as compileModule from '../compile'
 import * as compileSingleFileModule from '../compileSingleFile'
 import { CompileCommand } from '../compileCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
-import * as configUtils from '../../../utils/config'
-import { ReturnCode } from '../../../types/command'
 import { setConstants } from '../../../utils'
+import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
+import { ReturnCode } from '../../../types/command'
 
 const target = new Target({
   name: 'test',
@@ -18,7 +19,7 @@ const defaultArgs = ['node', 'sasjs']
 
 describe('CompileCommand', () => {
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
   })
 
   beforeEach(() => {
@@ -116,7 +117,7 @@ describe('CompileCommand', () => {
   })
 
   beforeAll(async () => {
-    await setConstants()
+    await setConstants(false)
   })
 
   beforeEach(() => {
@@ -330,6 +331,8 @@ const setupMocks = () => {
   jest.mock('../compile')
   jest.mock('../compileSingleFile')
   jest.mock('../../../utils/config')
+  jest.mock('../../../utils/setConstants')
+
   jest
     .spyOn(compileModule, 'compile')
     .mockImplementation(() => Promise.resolve())
@@ -337,6 +340,14 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({}))
+
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'success')
