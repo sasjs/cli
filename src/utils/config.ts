@@ -692,8 +692,17 @@ export const saveTokens = async (
   access_token: string,
   refresh_token: string
 ): Promise<void> => {
-  const localConfig = await getLocalConfig()
-  const isLocalTarget = localConfig.targets?.some((t) => t.name === targetName)
+  const isLocalTarget = await getLocalConfig()
+    .then((localConfig) =>
+      localConfig.targets?.some((t) => t.name === targetName)
+    )
+    .catch(() => {
+      process.logger?.info(
+        'Local sasjsconfig.json file could not be found! Now finding target in global .sasjsrc file'
+      )
+      return false
+    })
+
   if (isLocalTarget) {
     const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n`
     const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
