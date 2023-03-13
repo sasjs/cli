@@ -1,6 +1,10 @@
-import { Target, getAbsolutePath, Configuration } from '@sasjs/utils'
-import { getGlobalRcFile, getLocalConfig } from '../../../utils/config'
-import { ServiceConfig, JobConfig } from '@sasjs/utils'
+import {
+  Configuration,
+  getAbsolutePath,
+  JobConfig,
+  ServiceConfig,
+  Target
+} from '@sasjs/utils'
 
 export enum SasFileType {
   Service = 'service',

@@ -1,7 +1,6 @@
 import { generateDocs, generateDot, initDocs } from '..'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getLocalConfig } from '../../utils'
 
 enum DocSubCommand {
   Init = 'init',

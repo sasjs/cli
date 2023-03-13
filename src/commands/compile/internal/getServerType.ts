@@ -1,6 +1,5 @@
 import { Target } from '@sasjs/utils'
-import { Configuration, ServerType } from '@sasjs/utils/types'
-import { getGlobalRcFile, getLocalConfig } from '../../../utils/config'
+import { ServerType } from '@sasjs/utils/types'
 
 /**
  * Returns server type for 'compile' step.
