@@ -9,9 +9,7 @@ import {
   getAbsolutePath,
   SASJsFileType
 } from '@sasjs/utils'
-import { compileFile } from './internal/compileFile'
-import { identifySasFile } from './internal/identifySasFile'
-import { getCompileTree } from './internal/loadDependencies'
+import { compileFile, identifySasFile, getCompileTree } from './internal'
 
 export async function compileSingleFile(
   target: Target,

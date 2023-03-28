@@ -20,7 +20,7 @@ import path from 'path'
 import { Coverage, CoverageState, CoverageType, TestFlow } from '../../../types'
 import { getMacroFolders, getProgramFolders } from '../../../utils/config'
 import { sasFileRegExp } from '../../../utils/file'
-import { loadDependencies } from './loadDependencies'
+import { loadDependencies } from './'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
 

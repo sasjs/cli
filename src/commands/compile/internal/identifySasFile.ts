@@ -1,6 +1,5 @@
-import path from 'path'
 import { Target } from '@sasjs/utils'
-import { getAllFolders, SasFileType } from './getAllFolders'
+import { getAllFolders, SasFileType } from './'
 
 export const identifySasFile = async (
   target: Target,

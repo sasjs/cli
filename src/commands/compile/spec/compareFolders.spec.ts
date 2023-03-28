@@ -5,7 +5,7 @@ import {
   deleteFolder,
   generateTimestamp
 } from '@sasjs/utils'
-import { compareFolders } from '../internal/compareFolders'
+import { compareFolders } from '../internal'
 
 describe('compareFolders', () => {
   let sourceFolderPath: string

@@ -22,21 +22,19 @@ import {
 import { isSasFile } from '../../utils/file'
 import { createWebAppServices } from '../web/web'
 import * as compileModule from './compile'
-import { checkCompileStatus } from './internal/checkCompileStatus'
-import { compileFile } from './internal/compileFile'
-import { getAllFolders, SasFileType } from './internal/getAllFolders'
-
 import {
+  checkCompileStatus,
+  compileFile,
   compileTestFile,
   compileTestFlow,
-  copyTestMacroFiles
-} from './internal/compileTestFile'
-import { copySyncFolder } from './internal/copySyncFolder'
-import {
+  copyTestMacroFiles,
+  copySyncFolder,
+  getAllFolders,
+  SasFileType,
   getDestinationJobPath,
-  getDestinationServicePath
-} from './internal/getDestinationPath'
-import { getCompileTree } from './internal/loadDependencies'
+  getDestinationServicePath,
+  getCompileTree
+} from './internal'
 
 export async function compile(target: Target, forceCompile = false) {
   const result = await checkCompileStatus(target, ['tests'])

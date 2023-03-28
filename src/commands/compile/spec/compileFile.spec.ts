@@ -15,9 +15,8 @@ import {
   verifyCompiledService,
   verifyCompiledJob
 } from '../../../utils/test'
-import { compileFile } from '../internal/compileFile'
+import { compileFile, getCompileTree } from '../internal'
 import { copy, fileExists, createFolder, readFile } from '@sasjs/utils'
-import { getCompileTree } from '../internal/loadDependencies'
 
 const fakeJobInit = `/**
   @file
