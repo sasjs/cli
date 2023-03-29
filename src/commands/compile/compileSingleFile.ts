@@ -9,7 +9,22 @@ import {
   getAbsolutePath,
   SASJsFileType
 } from '@sasjs/utils'
-import { compileFile, identifySasFile, getCompileTree } from './internal'
+import { prefixMessage } from '@sasjs/utils/error'
+import {
+  compileFile,
+  identifySasFile,
+  getCompileTree,
+  compileTestFile
+} from './internal'
+
+export enum CompileSingleFileSubCommands {
+  Job = 'job',
+  Service = 'service',
+  Test = 'test'
+}
+
+const isCompileSingleFileSubCommands = (command: string) =>
+  (Object.values(CompileSingleFileSubCommands) as string[]).includes(command)
 
 export async function compileSingleFile(
   target: Target,
@@ -19,15 +34,13 @@ export async function compileSingleFile(
   insertProgramVar: boolean = false,
   currentFolder?: string
 ) {
-  const subCommands = {
-    job: 'job',
-    service: 'service'
-  }
-
-  if (!subCommands.hasOwnProperty(subCommand) && subCommand !== 'identify') {
+  if (
+    !isCompileSingleFileSubCommands(subCommand) &&
+    subCommand !== 'identify'
+  ) {
     throw new Error(
-      `Unsupported context command. Supported commands are:\n${Object.keys(
-        subCommands
+      `Unsupported context command. Supported commands are:\n${Object.values(
+        CompileSingleFileSubCommands
       ).join('\n')}`
     )
   }
@@ -47,27 +60,34 @@ export async function compileSingleFile(
   )
 
   if (!(await validateSourcePath(sourcePath))) {
-    throw new Error(`Provide a path to source file (eg '${commandExample}')`)
+    throw new Error(
+      `Provide a valid path to source file (eg '${commandExample}')`
+    )
   }
 
   if (subCommand === 'identify') {
-    subCommand = await identifySasFile(target, sourcePath)
+    subCommand = await identifySasFile(target, sourcePath).catch((err) => {
+      throw prefixMessage(err, 'Single file compilation failed. ')
+    })
   }
 
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
-  let outputPathParts = output.split(path.sep)
-  const leafFolderName = source.split(path.sep).pop() as string
+  const outputPathParts = output.split(path.sep)
   outputPathParts.pop(), outputPathParts.pop()
+
+  const leafFolderName = source.split(path.sep).pop() as string
   const parentOutputFolder = outputPathParts.join(path.sep)
 
   const pathExists = await fileExists(parentOutputFolder)
+
   if (pathExists) await deleteFolder(parentOutputFolder)
 
   await createFolder(output)
 
   const sourceFileName = sourcePath.split(path.sep).pop() as string
   const destinationPath = path.join(output, sourceFileName)
+
   await copy(sourcePath, destinationPath)
 
   const sourceFileNameWithoutExt = sourceFileName.split('.')[0]
@@ -84,7 +104,7 @@ export async function compileSingleFile(
     .join(path.sep)
 
   switch (subCommand) {
-    case subCommands.service:
+    case CompileSingleFileSubCommands.Service:
       await compileFile(
         target,
         destinationPath,
@@ -96,7 +116,7 @@ export async function compileSingleFile(
         sourceFolder
       )
       break
-    case subCommands.job:
+    case CompileSingleFileSubCommands.Job:
       await compileFile(
         target,
         destinationPath,
@@ -108,7 +128,16 @@ export async function compileSingleFile(
         sourceFolder
       )
       break
-    default:
+    case CompileSingleFileSubCommands.Test:
+      await compileTestFile(
+        target,
+        sourcePath,
+        programVar,
+        undefined,
+        false,
+        compileTree,
+        destinationPath
+      )
       break
   }
 
