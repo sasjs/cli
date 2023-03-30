@@ -22,6 +22,7 @@ export class TargetCommand extends CommandBase {
         description: 'The target to execute this command against.'
       }
     }
+
     super(args, { ...options, parseOptions })
   }
 

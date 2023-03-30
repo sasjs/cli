@@ -19,8 +19,8 @@ import {
   updateConfig
 } from '../../../utils/test'
 import { getLocalConfig, setConstants } from '../../../utils'
+import { SasFileType } from '../internal'
 import { loadDependencies, getCompileTree } from '../internal/loadDependencies'
-import { SasFileType } from '../internal/getAllFolders'
 
 const fakeInit = `/**
   @file serviceinit.sas

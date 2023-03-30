@@ -1,4 +1,4 @@
-import { SasFileType, getAllFolders } from '../getAllFolders'
+import { SasFileType, getAllFolders } from '../'
 import { Target, readFile, ServerType, Configuration } from '@sasjs/utils'
 import { generateTestTarget } from '../../../../utils/test'
 import * as configUtils from '../../../../utils/config'

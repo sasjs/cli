@@ -1,10 +1,11 @@
 import { Target, asyncForEach, folderExists } from '@sasjs/utils'
-import { compareFolders } from './compareFolders'
-import { getAllFolders, SasFileType } from './getAllFolders'
 import {
+  compareFolders,
+  getAllFolders,
+  SasFileType,
   getDestinationJobPath,
   getDestinationServicePath
-} from './getDestinationPath'
+} from './'
 
 export async function checkCompileStatus(
   target: Target,

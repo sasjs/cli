@@ -13,6 +13,7 @@ import { getAbsolutePath } from '@sasjs/utils'
 enum CompileSubCommand {
   Job = 'job',
   Service = 'service',
+  Test = 'test',
   Identify = 'identify'
 }
 
@@ -41,15 +42,18 @@ export class CompileCommand extends TargetCommand {
   constructor(args: string[]) {
     let parseOptions = {}
     const subCommand = args[3]
+
     if (
       [
         CompileSubCommand.Job,
-        CompileSubCommand.Identify,
-        CompileSubCommand.Service
+        CompileSubCommand.Service,
+        CompileSubCommand.Test,
+        CompileSubCommand.Identify
       ].includes(subCommand as CompileSubCommand)
     ) {
       parseOptions = subCommandParseOptions
     }
+
     super(args, { parseOptions, syntax, usage, description, examples, aliases })
   }
 
@@ -96,6 +100,7 @@ export class CompileCommand extends TargetCommand {
         process.logger?.success(
           `The project was successfully compiled for ${target.serverType} using target '${target.name}'\nThe compile output is located in the ${buildDestinationFolder} directory.`
         )
+
         return ReturnCode.Success
       })
       .catch((err) => {
@@ -108,6 +113,7 @@ export class CompileCommand extends TargetCommand {
   async executeSingleFileCompile() {
     const { target } = await this.getTargetInfo()
     const output = await this.output
+
     return await compileSingleFile(
       target,
       this.parsed.subCommand as string,
@@ -118,10 +124,12 @@ export class CompileCommand extends TargetCommand {
         process.logger?.success(
           `Source has been successfully compiled!\nThe compiled output is located at: ${res.destinationPath}`
         )
+
         return ReturnCode.Success
       })
       .catch((err) => {
         displayError(err, 'Error compiling source.')
+
         return ReturnCode.InternalError
       })
   }

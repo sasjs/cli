@@ -26,10 +26,7 @@ import { compressAndSave } from '../../utils/compressAndSave'
 import { getMacroFolders, getStreamConfig } from '../../utils/config'
 import { isSasFile } from '../../utils/file'
 import { compile } from '../compile/compile'
-import {
-  getCompileTree,
-  loadDependencies
-} from '../compile/internal/loadDependencies'
+import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 

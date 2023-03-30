@@ -20,7 +20,7 @@ import path from 'path'
 import { Coverage, CoverageState, CoverageType, TestFlow } from '../../../types'
 import { getMacroFolders, getProgramFolders } from '../../../utils/config'
 import { sasFileRegExp } from '../../../utils/file'
-import { loadDependencies } from './loadDependencies'
+import { loadDependencies } from './'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
 
@@ -30,7 +30,8 @@ export async function compileTestFile(
   testVar: string = '',
   saveToRoot: boolean = true,
   removeOriginalFile = true,
-  compileTree: CompileTree
+  compileTree: CompileTree,
+  destinationPath?: string
 ) {
   let dependencies = await loadDependencies(
     target,
@@ -50,23 +51,25 @@ export async function compileTestFile(
     .split(path.sep)
     .pop()
 
-  const destinationPath = path.join(
-    buildDestinationTestFolder,
-    saveToRoot
-      ? filePath.split(path.sep).pop() || ''
-      : filePath
-          .split(path.sep)
-          .reduce(
-            (acc: any, item: any, i: any, arr: any) =>
-              acc.length
-                ? [...acc, item]
-                : arr[i - 1] === buildDestinationFolderName
-                ? [...acc, item]
-                : acc,
-            []
-          )
-          .join(path.sep)
-  )
+  destinationPath =
+    destinationPath ||
+    path.join(
+      buildDestinationTestFolder,
+      saveToRoot
+        ? filePath.split(path.sep).pop() || ''
+        : filePath
+            .split(path.sep)
+            .reduce(
+              (acc: any, item: any, i: any, arr: any) =>
+                acc.length
+                  ? [...acc, item]
+                  : arr[i - 1] === buildDestinationFolderName
+                  ? [...acc, item]
+                  : acc,
+              []
+            )
+            .join(path.sep)
+    )
 
   await createFile(destinationPath, dependencies)
 

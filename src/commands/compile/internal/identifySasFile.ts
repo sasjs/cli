@@ -1,20 +1,26 @@
+import { Target, isTestFile } from '@sasjs/utils'
+import { getAllFolders, SasFileType } from './'
 import path from 'path'
-import { Target } from '@sasjs/utils'
-import { getAllFolders, SasFileType } from './getAllFolders'
 
 export const identifySasFile = async (
   target: Target,
   sourcePath: string
-): Promise<'job' | 'service'> => {
+): Promise<SasFileType> => {
+  if (isTestFile(sourcePath.split(path.sep).pop() as string)) {
+    return SasFileType.Test
+  }
+
   const serviceFolders = await getAllFolders(target, SasFileType.Service)
 
-  const isService = serviceFolders.find((folder) => sourcePath.includes(folder))
-  if (isService) return 'service'
+  if (serviceFolders.find((folder) => sourcePath.includes(folder))) {
+    return SasFileType.Service
+  }
 
   const jobFolders = await getAllFolders(target, SasFileType.Job)
 
-  const isJob = jobFolders.find((folder) => sourcePath.includes(folder))
-  if (isJob) return 'job'
+  if (jobFolders.find((folder) => sourcePath.includes(folder))) {
+    return SasFileType.Job
+  }
 
-  throw 'Unable to identify file as Service or Job'
+  throw `Unable to identify file as ${SasFileType.Service}, ${SasFileType.Job} or ${SasFileType.Test}`
 }

@@ -22,7 +22,7 @@ import {
   isSasJsServerInServerMode
 } from '../../utils/'
 import axios from 'axios'
-import { getDestinationServicePath } from '../compile/internal/getDestinationPath'
+import { getDestinationServicePath } from '../compile/internal'
 import { saveLog } from '../../utils/saveLog'
 import { parseSourceFile } from '../../utils/parseSourceFile'
 

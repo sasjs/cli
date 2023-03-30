@@ -8,12 +8,13 @@ import {
 
 export enum SasFileType {
   Service = 'service',
-  Job = 'job'
+  Job = 'job',
+  Test = 'test'
 }
 
 export const getAllFolders = async (
   target: Target,
-  type: SasFileType,
+  type: SasFileType.Service | SasFileType.Job,
   rootConfig?: Configuration
 ): Promise<string[]> => {
   const configuration = rootConfig || process.sasjsConfig

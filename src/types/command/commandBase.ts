@@ -4,7 +4,7 @@ import { ReturnCode } from './returnCode'
 import { unalias } from './unalias'
 
 const subCommandMap = new Map<string, string[]>([
-  ['compile', ['job', 'service', 'identify']],
+  ['compile', ['job', 'service', 'test', 'identify']],
   ['context', ['create', 'delete', 'edit', 'export', 'list']],
   ['folder', ['create', 'delete', 'list']],
   ['doc', ['init', 'lineage']],

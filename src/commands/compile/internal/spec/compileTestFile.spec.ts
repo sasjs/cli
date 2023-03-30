@@ -1,4 +1,4 @@
-import { compileTestFlow } from '../compileTestFile'
+import { compileTestFlow } from '../'
 import {
   Logger,
   LogLevel,
