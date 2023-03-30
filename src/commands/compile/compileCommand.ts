@@ -99,7 +99,8 @@ export class CompileCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
-        displayError(err, 'An error has occurred when compiling services.')
+        displayError(err, 'An error has occurred during compilation.')
+
         return ReturnCode.InternalError
       })
   }
