@@ -29,6 +29,8 @@ import { compileSingleFile } from '../compileSingleFile'
 import * as compileFile from '../internal/compileFile'
 import { setConstants } from '../../../utils'
 import { CompileCommand } from '../compileCommand'
+import { prefixMessage } from '@sasjs/utils/error'
+import * as compileTestFileModule from '../internal/compileTestFile'
 
 describe('sasjs compile', () => {
   let sharedAppName: string
@@ -40,6 +42,7 @@ describe('sasjs compile', () => {
     sharedAppName = `cli-tests-compile-${generateTimestamp()}`
     await createTestApp(homedir, sharedAppName)
   })
+
   beforeEach(async () => {
     appName = `cli-tests-compile-${generateTimestamp()}`
     await createTestApp(__dirname, appName)
@@ -162,6 +165,48 @@ describe('sasjs compile', () => {
     await compileModule.compile(target)
     expect(compileModule.copyFilesToBuildFolder).not.toHaveBeenCalled()
     expect(compileModule.compileJobsServicesTests).not.toHaveBeenCalled()
+  })
+
+  it('should fail to compile if testSetUp is present and test file compilation failed', async () => {
+    const testSetUpFile = 'WRONG.sas'
+    const compileTestFileError = `ENOENT: no such file or directory, open '${testSetUpFile}'`
+
+    const testTarget: any = { ...target }
+    testTarget.testConfig = { testSetUp: testSetUpFile }
+
+    jest
+      .spyOn(compileTestFileModule, 'compileTestFile')
+      .mockImplementation(() => Promise.reject(compileTestFileError))
+
+    const expectedError = prefixMessage(
+      compileTestFileError,
+      'Test set up compilation has failed. '
+    )
+
+    await expect(compileModule.compile(testTarget)).rejects.toEqual(
+      expectedError
+    )
+  })
+
+  it('should fail to compile if testTearDown is present and test file compilation failed', async () => {
+    const testTearDownFile = 'WRONG.sas'
+    const compileTestFileError = `ENOENT: no such file or directory, open '${testTearDownFile}'`
+
+    const testTarget: any = { ...target }
+    testTarget.testConfig = { testTearDown: testTearDownFile }
+
+    jest
+      .spyOn(compileTestFileModule, 'compileTestFile')
+      .mockImplementation(() => Promise.reject(compileTestFileError))
+
+    const expectedError = prefixMessage(
+      compileTestFileError,
+      'Test tear down compilation has failed. '
+    )
+
+    await expect(compileModule.compile(testTarget)).rejects.toEqual(
+      expectedError
+    )
   })
 })
 

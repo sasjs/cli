@@ -12,6 +12,7 @@ import {
   listSubFoldersInFolder
 } from '@sasjs/utils'
 import { SASJsFileType, StreamConfig, Target } from '@sasjs/utils/types'
+import { prefixMessage } from '@sasjs/utils/error'
 import path from 'path'
 import {
   getMacroFolders,
@@ -155,10 +156,11 @@ export async function compileJobsServicesTests(
         true,
         false,
         compileTree
-      ).catch((err) =>
-        process.logger?.error('Test set up compilation has failed.')
-      )
+      ).catch((err) => {
+        throw prefixMessage(err, 'Test set up compilation has failed. ')
+      })
     }
+
     if (testTearDown) {
       await compileTestFile(
         target,
@@ -167,9 +169,9 @@ export async function compileJobsServicesTests(
         true,
         false,
         compileTree
-      ).catch((err) =>
-        process.logger?.error('Test tear down compilation has failed.')
-      )
+      ).catch((err) => {
+        throw prefixMessage(err, 'Test tear down compilation has failed. ')
+      })
     }
 
     await asyncForEach(serviceFolders, async (serviceFolder) => {
@@ -192,10 +194,6 @@ export async function compileJobsServicesTests(
       )
     })
   } catch (error) {
-    process.logger?.error(
-      'An error has occurred when compiling your jobs and services.'
-    )
-
     throw error
   }
 }
