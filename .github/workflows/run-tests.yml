@@ -66,19 +66,11 @@ jobs:
       - name: Run smoke tests
         run: sh ./test.sh
 
-      - name: Run mocked tests
-        run: npm run test:mocked
-        env:
-          CI: true
-          CLIENT: ${{secrets.CLIENT}}
-          SECRET: ${{secrets.SECRET}}
-          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
-          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
-          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: 'http://localhost:5000'
-          SASJS_SERVER_URL: 'http://localhost:5000'
-          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
-          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+      # Mocked (*.spec.ts) tests will be conducted during this step
+      - name: Generate coverage report
+        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy SAS9 tests
         run: |
