@@ -101,3 +101,9 @@ jobs:
           SASJS_SERVER_URL: http://localhost:5000
           ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
           REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+
+      # For some reason if coverage report action is run before other commands, those commands can't access the directories and files on which they depend on
+      - name: Generate coverage report
+        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
