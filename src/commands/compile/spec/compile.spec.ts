@@ -84,9 +84,7 @@ describe('sasjs compile', () => {
     await expect(compileModule.compile(target)).toResolve()
     await expect(folderExists(wrongSasjsBuildFolder)).resolves.toEqual(false)
     await expect(folderExists(correctSasjsBuildFolder)).resolves.toEqual(true)
-
-    // FIXME: intentional error
-    await expect(fileExists(correctBuildFile)).resolves.toEqual(false)
+    await expect(fileExists(correctBuildFile)).resolves.toEqual(true)
   })
 
   it('should compile an uncompiled project', async () => {
