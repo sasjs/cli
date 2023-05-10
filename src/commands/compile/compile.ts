@@ -44,11 +44,13 @@ export async function compile(target: Target, forceCompile = false) {
   if (result.compiled && !forceCompile) {
     process.logger?.info('Skipping compilation.')
     process.logger?.info(result.message)
+
     return
   }
 
   await compileModule.copyFilesToBuildFolder(target).catch((error) => {
     process.logger?.error('Project compilation has failed.')
+
     throw error
   })
 
