@@ -1,6 +1,6 @@
 import { displayError } from '../../utils/displayResult'
 import { AuthConfig, Target } from '@sasjs/utils'
-import SASjs, { PollOptions } from '@sasjs/adapter/node'
+import SASjs, { PollStrategy } from '@sasjs/adapter/node'
 import examples from './internal/examples'
 import {
   executeFlow,
@@ -38,7 +38,7 @@ export async function execute(
           deadlockChain!.join(' -> ')
       )
 
-    const pollOptions: PollOptions = {
+    const pollStrategy: PollStrategy = {
       maxPollCount: 24 * 60 * 60,
       pollInterval: 1000,
       streamLog,
@@ -80,7 +80,7 @@ export async function execute(
       const { jobStatus, flowStatus } = await executeFlow(
         flow,
         sasjs,
-        pollOptions,
+        pollStrategy,
         target,
         authConfig!,
         csvFileRealPath!

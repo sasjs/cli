@@ -1,4 +1,4 @@
-import SASjs, { PollOptions } from '@sasjs/adapter/node'
+import SASjs, { PollStrategy } from '@sasjs/adapter/node'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { executeFlow } from '../executeFlow'
 import * as saveLogModule from '../saveLog'
@@ -6,14 +6,14 @@ import * as saveToCsvModule from '../saveToCsv'
 import * as normalizeFilePath from '../normalizeFilePath'
 import csvColumns from '../csvColumns'
 
-const pollOptions: PollOptions = {
+const pollStrategy: PollStrategy = {
   maxPollCount: 24 * 60 * 60,
   pollInterval: 1000,
   streamLog: false,
   logFolderPath: 'fake/log/folder/path'
 }
 const fakeLogFileName = 'fakeLog.log'
-const fakeLogPath = `${pollOptions.logFolderPath}/${fakeLogFileName}`
+const fakeLogPath = `${pollStrategy.logFolderPath}/${fakeLogFileName}`
 describe('executeFlow', () => {
   const target: Target = {
     name: 'test-target',
@@ -63,7 +63,7 @@ describe('executeFlow', () => {
     await executeFlow(
       flow,
       sasjs,
-      pollOptions,
+      pollStrategy,
       target,
       {} as any as AuthConfig,
       ''
@@ -112,7 +112,7 @@ describe('executeFlow', () => {
     await executeFlow(
       flow,
       sasjs,
-      pollOptions,
+      pollStrategy,
       target,
       {} as any as AuthConfig,
       ''
@@ -160,7 +160,7 @@ describe('executeFlow', () => {
     const { jobStatus, flowStatus } = await executeFlow(
       flow,
       sasjs,
-      pollOptions,
+      pollStrategy,
       target,
       {} as any as AuthConfig,
       'fake/csv/path'
