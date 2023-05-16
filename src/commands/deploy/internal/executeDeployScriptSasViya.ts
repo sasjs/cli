@@ -1,6 +1,7 @@
 import os from 'os'
 import { getSASjsAndAuthConfig } from '../../../utils/config'
 import { createFile, Target, StreamConfig } from '@sasjs/utils'
+import { LogLine } from '../../../types'
 
 /**
  * Execute deployScript on `SASVIYA` server.
@@ -48,13 +49,12 @@ export async function executeDeployScriptSasViya(
     })
 
   let log
+
   try {
     if (typeof executionResult.log === 'string') {
       log = executionResult.log
     } else if (executionResult.log.items) {
-      log = executionResult.log.items
-        .map((i: { line: string }) => i.line)
-        .join(os.EOL)
+      log = executionResult.log.items.map((i: LogLine) => i.line).join(os.EOL)
     } else {
       log = JSON.stringify(executionResult.log).replace(/\\n/g, os.EOL)
     }

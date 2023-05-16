@@ -1,8 +1,5 @@
 import SASjs from '@sasjs/adapter/node'
-
-interface LogJson {
-  items: { line: string }[]
-}
+import { LogJson } from '../../types'
 
 /**
  * Fetches content of the log file
