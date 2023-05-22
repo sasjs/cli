@@ -5,7 +5,7 @@ import path from 'path'
 import SASjs, {
   Link,
   NoSessionStateError,
-  PollStrategy
+  PollOptions
 } from '@sasjs/adapter/node'
 import {
   Target,
@@ -51,7 +51,7 @@ export async function executeJobViya(
   source: string | undefined,
   streamLog: boolean
 ) {
-  const pollStrategy: PollStrategy = {
+  const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
     pollInterval: 1000,
     streamLog,
@@ -101,7 +101,7 @@ export async function executeJobViya(
       { contextName },
       authConfig,
       waitForJob || !!logFile,
-      pollStrategy,
+      pollOptions,
       true,
       macroVars?.macroVars
     )
@@ -192,7 +192,7 @@ export async function executeJobViya(
 
         // If the log was being streamed, it should already be present
         // at the specified log path
-        if (logFile && !pollStrategy.streamLog) {
+        if (logFile && !pollOptions.streamLog) {
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
           )

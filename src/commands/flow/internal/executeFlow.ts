@@ -1,4 +1,4 @@
-import SASjs, { PollStrategy } from '@sasjs/adapter/node'
+import SASjs, { PollOptions } from '@sasjs/adapter/node'
 import { AuthConfig, Target } from '@sasjs/utils'
 import {
   displayError,
@@ -26,12 +26,12 @@ interface executeFlowReturn {
 export const executeFlow = async (
   flow: FlowWave,
   sasjs: SASjs,
-  pollStrategy: PollStrategy,
+  pollOptions: PollOptions,
   target: Target,
   authConfig: AuthConfig,
   csvFile: string
 ): Promise<executeFlowReturn> => {
-  const logFolder: string = pollStrategy.logFolderPath as string
+  const logFolder: string = pollOptions.logFolderPath as string
   const flowName: string = flow.name!
   displaySuccess(`'${flowName}' flow started.`)
 
@@ -50,7 +50,7 @@ export const executeFlow = async (
 
       let logName: string = ''
 
-      if (pollStrategy.streamLog) {
+      if (pollOptions.streamLog) {
         logName = `${logFolder}/${generateFileName(flowName, jobLocation)}`
       }
 
@@ -63,7 +63,7 @@ export const executeFlow = async (
           },
           authConfig,
           true,
-          pollStrategy,
+          pollOptions,
           true,
           job.macroVars
         )
@@ -136,7 +136,7 @@ export const executeFlow = async (
 
         // If the log was being streamed, it should already be present
         // at the specified log path
-        if (!pollStrategy.streamLog) {
+        if (!pollOptions.streamLog) {
           logName = (await saveLog(
             submittedJob.links,
             flowName,
@@ -185,7 +185,7 @@ export const executeFlow = async (
             }' failed with the status '${job.status}'.${
               job.status === 'running'
                 ? ` Job had been aborted due to timeout(${millisecondsToDdHhMmSs(
-                    pollStrategy.maxPollCount * pollStrategy.pollInterval
+                    pollOptions.maxPollCount * pollOptions.pollInterval
                   )}).`
                 : ''
             }`
