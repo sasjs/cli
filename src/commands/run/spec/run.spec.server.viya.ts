@@ -252,7 +252,7 @@ describe('sasjs run with Viya', () => {
     })
 
     it('should get the log having launch code message', async () => {
-      const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      sas.4gl.io/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
+      const logPart = `SASjs Streaming App Created! Check it out here:\n      \n      \n      \n      \n      your-sas-server.com/SASJobExecution?_FILE=${target.appLoc}/services/clickme.html&_debug=2\n`
       await build(target)
       const result: any = await runSasCode(
         target,
