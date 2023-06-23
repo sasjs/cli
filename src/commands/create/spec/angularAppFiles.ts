@@ -41,8 +41,7 @@ export const angularAppFiles: Folder = {
         { fileName: 'index.html' },
         { fileName: 'main.ts' },
         { fileName: 'polyfills.ts' },
-        { fileName: 'styles.scss' },
-        { fileName: 'test.ts' }
+        { fileName: 'styles.scss' }
       ],
       subFolders: [
         {
