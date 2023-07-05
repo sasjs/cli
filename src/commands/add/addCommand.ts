@@ -76,13 +76,16 @@ export class AddCommand extends TargetCommand {
   public async executeCred() {
     const { target, isLocal } = await this.getTargetInfo()
     const scope = isLocal ? TargetScope.Local : TargetScope.Global
+
     return await addCredential(target, this.insecure, scope)
       .then(() => {
         process.logger?.success('Credentials successfully added!')
+
         return ReturnCode.Success
       })
       .catch((err) => {
-        process.logger?.error('Error adding credentials: ', err.toString())
+        process.logger?.error('Error adding credentials.', err.toString())
+
         return ReturnCode.InternalError
       })
   }
@@ -91,10 +94,12 @@ export class AddCommand extends TargetCommand {
     return await addTarget(this.insecure)
       .then(() => {
         process.logger?.success('Target has been successfully added!')
+
         return ReturnCode.Success
       })
       .catch((err) => {
-        process.logger?.error('Error adding target: ', err)
+        process.logger?.error('Error adding target.', err)
+
         return ReturnCode.InternalError
       })
   }

@@ -1,6 +1,6 @@
 import { getString, ServerType, Target } from '@sasjs/utils'
 import jwtDecode from 'jwt-decode'
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { CertificateError } from '@sasjs/adapter/node'
 
 export const getAuthUrl = (
   serverType: ServerType,
@@ -84,11 +84,21 @@ export async function getNewAccessToken(
 ) {
   const authUrl = getAuthUrl(target.serverType, target.serverUrl, clientId)
   const authCode = await getAuthCode(authUrl)
-  const { access_token, refresh_token } = await sasjsInstance.getAccessToken(
-    clientId,
-    clientSecret,
-    authCode
-  )
+  const { access_token, refresh_token } = await sasjsInstance
+    .getAccessToken(clientId, clientSecret, authCode)
+    .catch((err) => {
+      const errorMessage = `An error has occurred while validating your credentials.\n${err}`
+      const checkCredentialsMessage = `Please check your Client ID ${
+        target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
+      }and try again.\n`
+
+      const errorMessageToDisplay =
+        err instanceof CertificateError
+          ? errorMessage
+          : `${errorMessage}\n${checkCredentialsMessage}`
+
+      throw errorMessageToDisplay
+    })
 
   return { access_token, refresh_token }
 }

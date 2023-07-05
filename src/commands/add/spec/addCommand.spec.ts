@@ -6,6 +6,7 @@ import * as setConstantsUtils from '../../../utils/setConstants'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { TargetScope } from '../../../types'
 import { ReturnCode } from '../../../types/command'
+import { LoginRequiredError } from '@sasjs/adapter/node'
 
 describe('AddCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -177,17 +178,40 @@ describe('AddCommand - cred', () => {
 
   it('should return the error code when execution was unsuccessful', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
+    const loginError =
+      new LoginRequiredError(`Error while fetching access token from /SASLogon/oauth/token
+Thrown by the @sasjs/adapter getAccessTokenForViya function.
+Payload:
+{
+  "grant_type": "authorization_code",
+  "code": "hD8O7b7t6i"
+}
+Headers:
+{
+  "Authorization": "Basic NEdMQXBwOjRHTEFwcDE=",
+  "Accept": "application/json"
+}
+ClientId: 4GLApp
+ClientSecret: 4GLApp1
+
+Response from Viya is below.
+Auth error: {
+  "error": "invalid_token",
+  "error_description": "No scopes were granted"
+}
+Please check your Client ID and Client Secret and try again.`)
+
     jest
       .spyOn(addCredentialModule, 'addCredential')
-      .mockImplementation(() => Promise.reject(new Error('Test Error')))
+      .mockImplementation(() => Promise.reject(loginError))
 
     const command = new AddCommand(args)
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.InternalError)
     expect(process.logger.error).toHaveBeenCalledWith(
-      'Error adding credentials: ',
-      new Error('Test Error').toString()
+      'Error adding credentials.',
+      loginError.toString()
     )
   })
 

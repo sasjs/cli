@@ -56,7 +56,9 @@ export const addCredential = async (
           client,
           secret,
           httpsAgentOptions
-        )
+        ).catch((err) => {
+          throw err
+        })
 
         if (targetScope === TargetScope.Local) {
           await createEnvFileForViya(
@@ -73,6 +75,7 @@ export const addCredential = async (
           })
         }
       }
+
       break
     case ServerType.Sas9:
       {
@@ -129,8 +132,10 @@ export const addCredential = async (
         'Target contains invalid serverType. Possible types could be SASVIYA, SAS9 and SASJS'
       )
   }
+
   const filePath = await saveConfig(targetScope, target, false, false)
   process.logger?.info(`Target configuration has been saved to ${filePath} .`)
+
   return target
 }
 
@@ -168,19 +173,8 @@ export const getTokens = async (
     client,
     secret,
     target
-  ).catch((e) => {
-    const errorMessage = `An error has occurred while validating your credentials: ${e}`
-    const checkCredentialsMessage = `Please check your Client ID ${
-      target.serverType === ServerType.Sasjs ? '' : 'and Client Secret '
-    }and try again.\n`
-
-    const errorMessageToDisplay =
-      e instanceof CertificateError
-        ? errorMessage
-        : `${errorMessage}\n${checkCredentialsMessage}`
-
-    process.logger?.error(errorMessageToDisplay)
-    throw e
+  ).catch((err) => {
+    throw err
   })
 
   return { access_token, refresh_token }
