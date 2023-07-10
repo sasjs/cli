@@ -19,6 +19,7 @@ import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
 import dotenv from 'dotenv'
 import AdmZip from 'adm-zip'
+import { LogJson } from '../types'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -379,7 +380,7 @@ export async function executePowerShellScript(
  * Extracts plain text job log from fetched json log
  * @param {object} logJson
  */
-export function parseLogLines(logJson: { items: { line: string }[] }) {
+export function parseLogLines(logJson: LogJson) {
   let logLines = ''
 
   for (let item of logJson.items) {

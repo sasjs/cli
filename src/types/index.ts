@@ -15,3 +15,4 @@ export {
   TestResultCsv
 } from './testing'
 export { Flow, FlowWave, FlowWaveJob } from './flow'
+export * from './log'
