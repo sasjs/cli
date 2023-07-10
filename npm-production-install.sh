@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if npm ci --production --ignore-scripts 2>&1 | grep -i warn;
+if npm ci --omit=dev --ignore-scripts 2>&1 | grep -i warn;
 then
     echo "Warnings are found when doing production install"
     exit 1

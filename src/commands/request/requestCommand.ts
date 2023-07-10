@@ -82,12 +82,14 @@ export class RequestCommand extends TargetCommand {
     switch (target.serverType) {
       case ServerType.SasViya: {
         authConfig = await getAuthConfig(target)
+
         break
       }
       case ServerType.Sasjs: {
         try {
           authConfig = await getAuthConfig(target)
         } catch (e) {}
+
         break
       }
     }
@@ -110,6 +112,7 @@ export class RequestCommand extends TargetCommand {
       })
       .catch((err) => {
         displayError(err, 'An error has occurred when running your SAS job.')
+
         return ReturnCode.InternalError
       })
   }

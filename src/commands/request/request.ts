@@ -11,7 +11,7 @@ import {
 } from '@sasjs/utils'
 import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { displaySasjsRunnerError, isSASjsProject } from '../../utils/utils'
+import { isSASjsProject } from '../../utils/utils'
 import { saveLog } from '../../utils/saveLog'
 
 export async function runSasJob(
@@ -73,8 +73,10 @@ export async function runSasJob(
 
     if (!configJson.username || !configJson.password) {
       const { sas9CredentialsError } = process.sasjsConstants
+
       throw new Error(sas9CredentialsError)
     }
+
     configJson.password = decodeFromBase64(configJson.password)
   }
 
@@ -93,10 +95,14 @@ export async function runSasJob(
   await sasjs
     .request(sasJobLocation, dataJson, configJson, undefined, authConfig)
     .then(async (res: any) => {
-      if ((res && res.errorCode) || res.error) {
+      if ((res && res.errorCode) || (res && res.error)) {
         displayError('Request finished with errors.')
+
         await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+
         return
+      } else if (res === undefined) {
+        process.logger.warn('WEBOUT is not present in response payload.')
       }
 
       let output = ''
@@ -122,10 +128,12 @@ export async function runSasJob(
       if (!!output) await writeOutput(outputPathParam, output, sasJobLocation)
 
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+
       result = true
     })
     .catch(async (err: any) => {
       await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+
       throw err
     })
 

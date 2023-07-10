@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.3.4",
+    "@sasjs/adapter": "4.5.0",
     "@sasjs/core": "4.45.4",
     "@sasjs/lint": "2.3.0",
     "@sasjs/utils": "3.3.0",
@@ -60,7 +60,7 @@
     "esm": "3.2.25",
     "find": "0.3.0",
     "js-base64": "3.7.2",
-    "jsdom": "21.1.0",
+    "jsdom": "22.1.0",
     "jwt-decode": "3.1.2",
     "lodash.groupby": "4.6.0",
     "lodash.uniqby": "4.7.0",
@@ -81,7 +81,7 @@
     "@types/debug": "4.1.7",
     "@types/find": "0.2.1",
     "@types/jest": "29.4.0",
-    "@types/jsdom": "21.1.0",
+    "@types/jsdom": "21.1.1",
     "@types/lodash.groupby": "4.6.6",
     "@types/lodash.uniqby": "4.7.6",
     "@types/node": "18.14.1",
