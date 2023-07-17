@@ -82,13 +82,14 @@ export async function runSasCode(
     await deleteFile(filePath)
   }
 
-  if (target.serverType === ServerType.SasViya)
-    return await executeOnSasViya(filePath, target, linesToExecute, logFile)
-
-  if (target.serverType === ServerType.Sas9)
-    return await executeOnSas9(target, linesToExecute, logFile)
-
-  return await executeOnSasJS(filePath, target, linesToExecute, logFile)
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      return await executeOnSasViya(filePath, target, linesToExecute, logFile)
+    case ServerType.Sas9:
+      return await executeOnSas9(target, linesToExecute, logFile)
+    case ServerType.Sasjs:
+      return await executeOnSasJS(filePath, target, linesToExecute, logFile)
+  }
 }
 
 async function executeOnSasViya(
@@ -176,24 +177,28 @@ async function executeOnSasJS(
   linesToExecute: string[],
   logFile: string | undefined
 ) {
+  const sasjs = getSASjs(target)
   const authConfig = (await isSasJsServerInServerMode(target))
     ? await getAuthConfig(target)
     : undefined
-  const sasjs = getSASjs(target)
 
   const fileExtension = path.extname(filePath).slice(1)
 
-  const executionResult = await sasjs.executeScript({
+  const { log } = await sasjs.executeScript({
     linesOfCode: linesToExecute,
     runTime: fileExtension,
     authConfig
   })
 
+  if (!log) {
+    throw new ErrorResponse('We were not able to fetch the log this time.')
+  }
+
   process.logger?.success('Job execution completed!')
 
-  await createOutputFile(executionResult || '', logFile)
+  await createOutputFile(log, logFile)
 
-  return { log: executionResult }
+  return { log: log }
 }
 
 async function createOutputFile(
