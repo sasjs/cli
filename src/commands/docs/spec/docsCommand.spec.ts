@@ -233,7 +233,6 @@ const setupMocks = () => {
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
     .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
-  jest.spyOn(process.logger, 'error')
   jest
     .spyOn(configUtils, 'getLocalConfig')
     .mockImplementation(() => Promise.resolve(config))
