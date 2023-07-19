@@ -5,9 +5,11 @@ import {
   Configuration,
   fileExists,
   readFile,
-  deleteFile
+  deleteFile,
+  deleteFolder
 } from '@sasjs/utils'
 import path from 'path'
+import { setConstants } from '../../../utils'
 
 describe('sasjs snippets', () => {
   const testMacroFolder1 = 'testMacros'
@@ -15,18 +17,31 @@ describe('sasjs snippets', () => {
   const emptyMacroFolder = 'empty'
   const customOutputFilePath = 'snippets.json'
   const defaultFileName = 'sasjs-macro-snippets.json'
-  const defaultOutputFilePath = path.join(__dirname, defaultFileName)
+  const defaultOutputFilePath = path.join(
+    __dirname,
+    'sasjsresults',
+    defaultFileName
+  )
   const customOutputFolder = 'snippets'
   const customOutputFolderWithDefaultFileName = path.join(
     __dirname,
     customOutputFolder,
     defaultFileName
   )
+  const buildDestinationResultsFolder = path.join(__dirname, 'sasjsresults')
+
+  beforeAll(async () => {
+    await setConstants(false)
+
+    process.projectDir = __dirname
+    process.sasjsConstants.buildDestinationResultsFolder =
+      buildDestinationResultsFolder
+  })
 
   afterAll(async () => {
+    await deleteFolder(path.join(__dirname, customOutputFolder))
     await deleteFile(path.join(__dirname, customOutputFilePath))
-    await deleteFile(defaultOutputFilePath)
-    await deleteFile(customOutputFolderWithDefaultFileName)
+    await deleteFolder(buildDestinationResultsFolder)
   })
 
   it('should generate snippets', async () => {
@@ -37,8 +52,6 @@ describe('sasjs snippets', () => {
       serverType: ServerType.SasViya,
       macroFolders: [testMacroFolder1]
     })
-
-    process.projectDir = __dirname
 
     await generateSnippets(target, config, customOutputFilePath)
 

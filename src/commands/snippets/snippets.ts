@@ -69,8 +69,10 @@ export async function generateSnippets(
 
   const defaultOutputFileName = 'sasjs-macro-snippets.json'
 
+  const { buildDestinationResultsFolder } = process.sasjsConstants
+
   const snippetsFilePath = path.join(
-    process.projectDir,
+    outDirectory ? process.projectDir : buildDestinationResultsFolder,
     outDirectory
       ? /\.json$/.test(outDirectory)
         ? outDirectory
