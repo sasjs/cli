@@ -17,7 +17,7 @@ const parseOptions = {
     type: 'string',
     alias: 'o',
     description:
-      'Path to the directory where the snippets output will be generated.'
+      'Path to the directory where the VS Code snippets output will be generated.'
   }
 }
 
@@ -35,6 +35,9 @@ export class SnippetsCommand extends TargetCommand {
       .then((filePath) => {
         process.logger?.success(
           `VS Code snippets generated! File location: ${filePath}`
+        )
+        process.logger?.info(
+          `Follow these instructions https://cli.sasjs.io/snippets/#import-snippets-to-vs-code to import generated VS Code snippets into your VS Code.`
         )
 
         return ReturnCode.Success

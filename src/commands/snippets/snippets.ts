@@ -24,7 +24,6 @@ export async function generateSnippets(
   config?: Configuration,
   outDirectory?: string
 ) {
-  console.log(`🤖[outDirectory]🤖`, outDirectory)
   let macroFolders: string[] = []
 
   const configMacroFolders = config?.macroFolders
@@ -43,7 +42,7 @@ export async function generateSnippets(
 
   if (!macroFolders.length) {
     return Promise.reject(
-      `"macroFolders" array was not found in sasjsconfig.json.`
+      `"macroFolders" array was not found in sasjs/sasjsconfig.json.`
     )
   }
 
@@ -64,7 +63,7 @@ export async function generateSnippets(
   })
 
   if (!Object.keys(snippets).length) {
-    return Promise.reject('No snippets has been found.')
+    return Promise.reject('No VS Code snippets has been found.')
   }
 
   const defaultOutputFileName = 'sasjs-macro-snippets.json'

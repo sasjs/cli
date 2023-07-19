@@ -132,7 +132,7 @@ describe('sasjs snippets', () => {
 
   it('should return an error if macroFolders array was not provided', async () => {
     await expect(generateSnippets()).rejects.toEqual(
-      '"macroFolders" array was not found in sasjsconfig.json.'
+      '"macroFolders" array was not found in sasjs/sasjsconfig.json.'
     )
   })
 
@@ -140,7 +140,7 @@ describe('sasjs snippets', () => {
     const config: Configuration = { macroFolders: [emptyMacroFolder] }
 
     await expect(generateSnippets(undefined, config)).rejects.toEqual(
-      'No snippets has been found.'
+      'No VS Code snippets has been found.'
     )
   })
 })

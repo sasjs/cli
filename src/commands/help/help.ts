@@ -355,10 +355,11 @@ export async function printHelpText() {
       name: 'snippets',
       title: 'snippets',
       description: [
-        `Generates snippets from macros.`,
+        `Generates VS Code snippets from macros.`,
         `[2spaces]command example: sasjs snippets --outDirectory <folderPath> --target <targetName>`,
         ``,
-        `[2spaces]NOTE: Providing <folderPath> is optional. If not present, generated snippets will be saved to 'sasjs-macro-snippets.json' file.`
+        `[2spaces]NOTE: Providing <folderPath> is optional. If not present, generated snippets will be saved to 'sasjsresults/sasjs-macro-snippets.json' file.`,
+        `[2spaces]NOTE: more information can be found here https://cli.sasjs.io/snippets/.`
       ]
     }
   ]
