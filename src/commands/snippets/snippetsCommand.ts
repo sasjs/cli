@@ -21,16 +21,24 @@ const parseOptions = {
   }
 }
 
+/**
+ * 'snippets' command class.
+ */
 export class SnippetsCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, { syntax, usage, description, examples, parseOptions })
   }
 
+  /**
+   * Command execution method.
+   * @returns promise that results into return code.
+   */
   public async execute() {
     const { target } = await this.getTargetInfo()
     const config = process.sasjsConfig
     const { outDirectory } = this.parsed
 
+    // Generate snippets
     return await generateSnippets(target, config, outDirectory as string)
       .then((filePath) => {
         process.logger?.success(
