@@ -18,3 +18,7 @@ What code changes have been made to achieve the intent.
 - [ ] All CI checks are green.
 - [ ] JSDoc comments have been added or updated.
 - [ ] Reviewer is assigned.
+
+### Reviewer checks
+
+- [ ] Any new code is documented.
