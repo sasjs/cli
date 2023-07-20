@@ -86,7 +86,16 @@ export async function generateSnippets(
 
 const createMacro = async (file: string): Promise<Snippet> => {
   const fileContent = await readFile(file)
-  const lines = fileContent.split('\n')
+
+  enum LineEndings {
+    CRLF = `\r\n`,
+    LF = `\n`
+  }
+  const lineEnding = new RegExp(LineEndings.CRLF).test(fileContent)
+    ? LineEndings.CRLF
+    : LineEndings.LF
+
+  const lines = fileContent.split(lineEnding)
 
   let brief = lines.filter((line) => briefRegExp.test(line))
   let params = lines.filter((line) => paramRegExp.test(line))
@@ -99,12 +108,12 @@ const createMacro = async (file: string): Promise<Snippet> => {
   if (params.length) {
     brief.push('\r')
 
-    params = params.map((param) => param.replace(paramRegExp, '-') + '\r')
+    params = params.map((param) => param.replace(paramRegExp, '-'))
   }
 
   const description = [
     ...brief,
-    params.length ? 'Params:\r' : '',
+    params.length ? `Params:` : '',
     ...params
   ].filter((line) => line)
 

@@ -59,11 +59,55 @@ describe('sasjs snippets', () => {
 
     await expect(fileExists(outputFilePath)).resolves.toEqual(true)
 
-    const expectedSnippets = await readFile(
-      path.join(__dirname, 'expectedSnippets.json')
-    )
+    const expectedSnippets = {
+      macro2: {
+        prefix: '%macro2',
+        body: '%macro2($1)',
+        description: [
+          'Macro 2',
+          '\r',
+          'Params:',
+          '-msg The message to be printed'
+        ]
+      },
+      badMacro: {
+        prefix: '%badMacro',
+        body: '%badMacro($1)',
+        description: []
+      },
+      example: {
+        prefix: '%example',
+        body: '%example($1)',
+        description: [
+          'An example macro',
+          '\r',
+          'Params:',
+          '-msg The message to be printed'
+        ]
+      },
+      subMacro: {
+        prefix: '%subMacro',
+        body: '%subMacro($1)',
+        description: [
+          'A sub macro',
+          '\r',
+          'Params:',
+          '-msg The message to be printed'
+        ]
+      },
+      subSubMacro: {
+        prefix: '%subSubMacro',
+        body: '%subSubMacro($1)',
+        description: [
+          'A sub sub macro',
+          '\r',
+          'Params:',
+          '-msg The message to be printed'
+        ]
+      }
+    }
 
-    const generatedSnippets = await readFile(outputFilePath)
+    const generatedSnippets = JSON.parse(await readFile(outputFilePath))
 
     expect(generatedSnippets).toEqual(expectedSnippets)
   })
