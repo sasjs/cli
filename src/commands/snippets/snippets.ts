@@ -5,7 +5,8 @@ import {
   asyncForEach,
   readFile,
   createFile,
-  isTestFile
+  isTestFile,
+  getLineEnding
 } from '@sasjs/utils'
 import path from 'path'
 
@@ -86,15 +87,7 @@ export async function generateSnippets(
 
 const createMacro = async (file: string): Promise<Snippet> => {
   const fileContent = await readFile(file)
-
-  enum LineEndings {
-    CRLF = `\r\n`,
-    LF = `\n`
-  }
-  const lineEnding = new RegExp(LineEndings.CRLF).test(fileContent)
-    ? LineEndings.CRLF
-    : LineEndings.LF
-
+  const lineEnding = getLineEnding(fileContent) // LF or CRLF
   const lines = fileContent.split(lineEnding)
 
   let brief = lines.filter((line) => briefRegExp.test(line))
