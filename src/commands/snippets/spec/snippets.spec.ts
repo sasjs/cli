@@ -116,9 +116,17 @@ describe('sasjs snippets', () => {
   })
 
   it('should generate snippets with default file name', async () => {
-    const config: Configuration = { macroFolders: [testMacroFolder2] }
+    const targetWithoutMacroFolders = new Target({
+      name: 'test',
+      appLoc: '/Public/test/',
+      serverType: ServerType.SasViya
+    })
+    const config: Configuration = {
+      macroFolders: [testMacroFolder2],
+      targets: [targetWithoutMacroFolders]
+    }
 
-    await generateSnippets(config)
+    await generateSnippets(config, targetWithoutMacroFolders.name)
 
     await expect(fileExists(defaultOutputFilePath)).resolves.toEqual(true)
   })

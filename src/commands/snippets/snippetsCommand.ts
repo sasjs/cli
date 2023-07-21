@@ -4,11 +4,11 @@ import { TargetCommand } from '../../types/command/targetCommand'
 
 const syntax = 'snippets'
 const usage = 'sasjs snippets'
-const description = `Generates VS Code snippets from SAS Macros.`
+const description = `Generates VS Code snippets from the Doxygen headers in the SAS Macros.`
 const examples: CommandExample[] = [
   {
     command: 'sasjs snippets',
-    description: 'Generates VS Code snippets from SAS Macros.'
+    description: description
   }
 ]
 
