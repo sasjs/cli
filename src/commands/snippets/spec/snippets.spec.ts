@@ -45,15 +45,18 @@ describe('sasjs snippets', () => {
   })
 
   it('should generate snippets', async () => {
-    const config: Configuration = { macroFolders: [testMacroFolder2] }
     const target = new Target({
       name: 'test',
       appLoc: '/Public/test/',
       serverType: ServerType.SasViya,
       macroFolders: [testMacroFolder1]
     })
+    const config: Configuration = {
+      macroFolders: [testMacroFolder2],
+      targets: [target]
+    }
 
-    await generateSnippets(target, config, customOutputFilePath)
+    await generateSnippets(config, target.name, customOutputFilePath)
 
     const outputFilePath = path.join(__dirname, customOutputFilePath)
 
@@ -115,7 +118,7 @@ describe('sasjs snippets', () => {
   it('should generate snippets with default file name', async () => {
     const config: Configuration = { macroFolders: [testMacroFolder2] }
 
-    await generateSnippets(undefined, config)
+    await generateSnippets(config)
 
     await expect(fileExists(defaultOutputFilePath)).resolves.toEqual(true)
   })
@@ -123,7 +126,7 @@ describe('sasjs snippets', () => {
   it('should generate snippets with custom folder and default file name', async () => {
     const config: Configuration = { macroFolders: [testMacroFolder2] }
 
-    await generateSnippets(undefined, config, customOutputFolder)
+    await generateSnippets(config, undefined, customOutputFolder)
 
     await expect(
       fileExists(customOutputFolderWithDefaultFileName)
@@ -139,7 +142,7 @@ describe('sasjs snippets', () => {
   it('should return an error if macros were not found', async () => {
     const config: Configuration = { macroFolders: [emptyMacroFolder] }
 
-    await expect(generateSnippets(undefined, config)).rejects.toEqual(
+    await expect(generateSnippets(config)).rejects.toEqual(
       'No VS Code snippets has been found.'
     )
   })

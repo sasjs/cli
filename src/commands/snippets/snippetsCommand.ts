@@ -34,12 +34,12 @@ export class SnippetsCommand extends TargetCommand {
    * @returns promise that results into return code.
    */
   public async execute() {
-    const { target } = await this.getTargetInfo()
+    const { name } = (await this.getTargetInfo()).target
     const config = process.sasjsConfig
     const { outDirectory } = this.parsed
 
     // Generate snippets
-    return await generateSnippets(target, config, outDirectory as string)
+    return await generateSnippets(config, name, outDirectory as string)
       .then((filePath) => {
         process.logger?.success(
           `VS Code snippets generated! File location: ${filePath}`

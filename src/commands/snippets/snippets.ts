@@ -22,14 +22,14 @@ const paramRegExp = /^\s\s@param\s/ // to get lines that has @param keyword
 
 /**
  * Generates VS Code snippets.
- * @param target an object representing SASjs target.
  * @param config an object representing SASjs configuration.
+ * @param targetName SASjs target name.
  * @param outDirectory a folder path where generated snippets should be put into. If ends with '<file name>.json' then provided file name will be used, otherwise default file name ('sasjs-macro-snippets.json') will be used.
  * @returns a promise that resolves into a file path with generated VS Code snippets.
  */
 export async function generateSnippets(
-  target?: Target,
   config?: Configuration,
+  targetName?: string,
   outDirectory?: string
 ) {
   let macroFolders: string[] = []
@@ -39,10 +39,16 @@ export async function generateSnippets(
   // add macro folders from configuration if present
   if (configMacroFolders) macroFolders = configMacroFolders
 
-  const targetMacroFolder = target?.macroFolders
-
   // add macro folders from target if present
-  if (targetMacroFolder) macroFolders = [...macroFolders, ...targetMacroFolder]
+  if (config && targetName && config.targets?.length) {
+    const target = config.targets.filter(
+      (target) => target.name === targetName
+    )[0]
+
+    if (target && target.macroFolders) {
+      macroFolders = [...macroFolders, ...target.macroFolders]
+    }
+  }
 
   // an object that represents generated snippets
   const snippets: { [key: string]: Snippet } = {}
