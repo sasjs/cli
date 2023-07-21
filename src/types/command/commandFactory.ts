@@ -47,10 +47,10 @@ export const commandFactory = new Map<string, Function>([
   ['request', (args: string[]) => new RequestCommand(args)],
   ['run', (args: string[]) => new RunCommand(args)],
   ['servicepack', (args: string[]) => new ServicePackCommand(args)],
+  ['snippets', (args: string[]) => new SnippetsCommand(args)],
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],
-  ['web', (args: string[]) => new WebCommand(args)],
-  ['snippets', (args: string[]) => new SnippetsCommand(args)]
+  ['web', (args: string[]) => new WebCommand(args)]
 ])
 
 export const getAllSupportedCommands = () => commandFactory.keys()
