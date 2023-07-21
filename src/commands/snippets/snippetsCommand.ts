@@ -1,6 +1,7 @@
 import { generateSnippets } from './snippets'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
+import { getMacroFolders } from '../../utils'
 
 const syntax = 'snippets'
 const usage = 'sasjs snippets'
@@ -34,12 +35,12 @@ export class SnippetsCommand extends TargetCommand {
    * @returns promise that results into return code.
    */
   public async execute() {
-    const { name } = (await this.getTargetInfo()).target
-    const config = process.sasjsConfig
+    const { target } = await this.getTargetInfo()
+    const macroFolders = await getMacroFolders(target)
     const { outDirectory } = this.parsed
 
     // Generate snippets
-    return await generateSnippets(config, name, outDirectory as string)
+    return await generateSnippets(macroFolders, outDirectory as string)
       .then((filePath) => {
         process.logger?.success(
           `VS Code snippets generated! File location: ${filePath}`

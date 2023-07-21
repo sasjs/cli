@@ -5,6 +5,7 @@ import { Configuration, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import * as setConstantsUtils from '../../../utils/setConstants'
 import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { setConstants } from '../../../utils'
 
 const target = new Target({
   name: 'test',
@@ -18,6 +19,10 @@ const config: Configuration = {}
 describe('SnippetsCommand', () => {
   const defaultArgs = ['node', 'sasjs']
   const commandName = 'snippets'
+
+  beforeAll(async () => {
+    await setConstants(false)
+  })
 
   beforeEach(() => {
     setupMocks()

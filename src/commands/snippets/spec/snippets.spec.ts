@@ -9,7 +9,7 @@ import {
   deleteFolder
 } from '@sasjs/utils'
 import path from 'path'
-import { setConstants } from '../../../utils'
+import { setConstants, getMacroFolders } from '../../../utils'
 
 describe('sasjs snippets', () => {
   const testMacroFolder1 = 'testMacros'
@@ -36,6 +36,8 @@ describe('sasjs snippets', () => {
     process.projectDir = __dirname
     process.sasjsConstants.buildDestinationResultsFolder =
       buildDestinationResultsFolder
+
+    process.sasjsConstants.buildSourceFolder = __dirname
   })
 
   afterAll(async () => {
@@ -56,7 +58,11 @@ describe('sasjs snippets', () => {
       targets: [target]
     }
 
-    await generateSnippets(config, target.name, customOutputFilePath)
+    process.sasjsConfig = config
+
+    const macroFolders = await getMacroFolders(target)
+
+    await generateSnippets(macroFolders, customOutputFilePath)
 
     const outputFilePath = path.join(__dirname, customOutputFilePath)
 
@@ -126,7 +132,11 @@ describe('sasjs snippets', () => {
       targets: [targetWithoutMacroFolders]
     }
 
-    await generateSnippets(config, targetWithoutMacroFolders.name)
+    process.sasjsConfig = config
+
+    const macroFolders = await getMacroFolders(targetWithoutMacroFolders)
+
+    await generateSnippets(macroFolders)
 
     await expect(fileExists(defaultOutputFilePath)).resolves.toEqual(true)
   })
@@ -134,7 +144,11 @@ describe('sasjs snippets', () => {
   it('should generate snippets with custom folder and default file name', async () => {
     const config: Configuration = { macroFolders: [testMacroFolder2] }
 
-    await generateSnippets(config, undefined, customOutputFolder)
+    process.sasjsConfig = config
+
+    const macroFolders = await getMacroFolders()
+
+    await generateSnippets(macroFolders, customOutputFolder)
 
     await expect(
       fileExists(customOutputFolderWithDefaultFileName)
@@ -142,7 +156,13 @@ describe('sasjs snippets', () => {
   })
 
   it('should return an error if macroFolders array was not provided', async () => {
-    await expect(generateSnippets()).rejects.toEqual(
+    const config: Configuration = {}
+
+    process.sasjsConfig = config
+
+    const macroFolders = await getMacroFolders()
+
+    await expect(generateSnippets(macroFolders)).rejects.toEqual(
       '"macroFolders" array was not found in sasjs/sasjsconfig.json.'
     )
   })
@@ -150,7 +170,11 @@ describe('sasjs snippets', () => {
   it('should return an error if macros were not found', async () => {
     const config: Configuration = { macroFolders: [emptyMacroFolder] }
 
-    await expect(generateSnippets(config)).rejects.toEqual(
+    process.sasjsConfig = config
+
+    const macroFolders = await getMacroFolders()
+
+    await expect(generateSnippets(macroFolders)).rejects.toEqual(
       'No VS Code snippets has been found.'
     )
   })

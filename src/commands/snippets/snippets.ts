@@ -1,6 +1,4 @@
 import {
-  Configuration,
-  Target,
   listSasFilesInFolder,
   asyncForEach,
   readFile,
@@ -21,35 +19,15 @@ const briefRegExp = /^\s\s@brief\s/ // to get lines that has @brief keyword
 const paramRegExp = /^\s\s@param\s/ // to get lines that has @param keyword
 
 /**
- * Generates VS Code snippets.
- * @param config an object representing SASjs configuration.
- * @param targetName SASjs target name.
+ * Generates VS Code snippets from the Doxygen headers in the SAS Macros.
+ * @param macroFolders an array of file paths of SAS Macros.
  * @param outDirectory a folder path where generated snippets should be put into. If ends with '<file name>.json' then provided file name will be used, otherwise default file name ('sasjs-macro-snippets.json') will be used.
  * @returns a promise that resolves into a file path with generated VS Code snippets.
  */
 export async function generateSnippets(
-  config?: Configuration,
-  targetName?: string,
+  macroFolders: string[],
   outDirectory?: string
 ) {
-  let macroFolders: string[] = []
-
-  const configMacroFolders = config?.macroFolders
-
-  // add macro folders from configuration if present
-  if (configMacroFolders) macroFolders = configMacroFolders
-
-  // add macro folders from target if present
-  if (config && targetName && config.targets?.length) {
-    const target = config.targets.filter(
-      (target) => target.name === targetName
-    )[0]
-
-    if (target && target.macroFolders) {
-      macroFolders = [...macroFolders, ...target.macroFolders]
-    }
-  }
-
   // an object that represents generated snippets
   const snippets: { [key: string]: Snippet } = {}
 
@@ -59,11 +37,6 @@ export async function generateSnippets(
       `"macroFolders" array was not found in sasjs/sasjsconfig.json.`
     )
   }
-
-  // get whole file path to macro folders
-  macroFolders = macroFolders.map((folder) =>
-    path.join(process.projectDir, folder)
-  )
 
   // generate snippets from all .sas file in macro folders
   await asyncForEach(macroFolders, async (folder) => {
@@ -87,7 +60,6 @@ export async function generateSnippets(
   }
 
   const defaultOutputFileName = 'sasjs-macro-snippets.json'
-
   const { buildDestinationResultsFolder } = process.sasjsConstants
 
   // if outDirectory is provided, use it depending if it has file name or a folder only. If outDirectory is not provided, default file name and build result folder should be used.
