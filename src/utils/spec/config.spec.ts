@@ -7,7 +7,8 @@ import {
   removeFromGlobalConfig,
   saveToLocalConfig,
   getLocalConfig,
-  removeFromLocalConfig
+  removeFromLocalConfig,
+  getSASjs
 } from '../config'
 import * as authUtils from '../auth'
 import * as fileUtils from '@sasjs/utils/file'
@@ -21,7 +22,8 @@ import {
   SasAuthResponse,
   Configuration,
   Target,
-  generateTimestamp
+  generateTimestamp,
+  ServerType
 } from '@sasjs/utils'
 import {
   createTestMinimalApp,
@@ -29,7 +31,6 @@ import {
   removeTestApp
 } from '../test'
 import { setConstants } from '../setConstants'
-jest.mock('@sasjs/adapter/node')
 
 describe('getAccessToken', () => {
   beforeEach(async () => {
@@ -495,5 +496,83 @@ describe('removeFromLocalConfig', () => {
     configTarget2 = config.targets?.find((t) => t.name === target2.name)
     expect(configTarget2).toBeFalsy()
     expect(config.defaultTarget).toEqual(target1.name)
+  })
+})
+
+describe('getSASjs', () => {
+  it('should set sasjsConfig according to target', () => {
+    const target = {
+      serverUrl: 'test_serverUrl',
+      appLoc: 'test_appLoc',
+      serverType: ServerType.SasViya,
+      contextName: 'test_contextName',
+      httpsAgentOptions: {
+        caPath: 'test_caPath',
+        keyPath: 'test_keyPath',
+        certPath: 'test_certPath',
+        allowInsecureRequests: false
+      }
+    } as Target
+
+    const sasjs = getSASjs(target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { serverUrl, appLoc, serverType, contextName, httpsAgentOptions } =
+      sasjsConfig
+
+    expect(serverUrl).toEqual(target.serverUrl)
+    expect(appLoc).toEqual(target.appLoc)
+    expect(serverType).toEqual(target.serverType)
+    expect(contextName).toEqual(target.contextName)
+    expect(httpsAgentOptions).toEqual(target.httpsAgentOptions)
+  })
+
+  it('should set debug to true by default', () => {
+    const sasjs = getSASjs({} as Target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { debug } = sasjsConfig
+
+    expect(debug).toEqual(true)
+  })
+
+  it('should set useComputeApi to true if server type is Viya', () => {
+    const sasjs = getSASjs({ serverType: ServerType.SasViya } as Target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { useComputeApi } = sasjsConfig
+
+    expect(useComputeApi).toEqual(true)
+  })
+
+  it('should set useComputeApi to false if server type is not Viya', () => {
+    let sasjs = getSASjs({ serverType: ServerType.Sas9 } as Target)
+    let sasjsConfig = sasjs.getSasjsConfig()
+    let { useComputeApi } = sasjsConfig
+
+    expect(useComputeApi).toEqual(false)
+
+    sasjs = getSASjs({ serverType: ServerType.Sasjs } as Target)
+    sasjsConfig = sasjs.getSasjsConfig()
+    useComputeApi = sasjsConfig.useComputeApi
+
+    expect(useComputeApi).toEqual(false)
+  })
+
+  it('should enable verbose mode if VERBOSE env is present', () => {
+    process.env.VERBOSE = 'on'
+
+    const sasjs = getSASjs({} as Target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { verbose } = sasjsConfig
+
+    expect(verbose).toEqual(true)
+  })
+
+  it('should disable verbose mode if VERBOSE env is not present', () => {
+    process.env.VERBOSE = ''
+
+    const sasjs = getSASjs({} as Target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { verbose } = sasjsConfig
+
+    expect(verbose).toEqual(false)
   })
 })
