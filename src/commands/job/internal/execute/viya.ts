@@ -23,7 +23,7 @@ import { ReturnCode } from '../../../../types/command'
 import { saveLog } from '../utils'
 
 /**
- * Triggers existing job for execution.
+ * Triggers existing job for execution on Viya server.
  * @param {object} sasjs - configuration object of SAS adapter.
  * @param {string} accessToken - an access token for an authorized user.
  * @param {string} jobPath - location of the job on SAS Drive.
