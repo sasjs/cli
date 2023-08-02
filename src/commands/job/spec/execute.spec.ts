@@ -56,7 +56,7 @@ describe('executeJobViya', () => {
       },
       true,
       undefined,
-      false
+      undefined
     )
 
     await deleteFile(testFilePath)
@@ -94,7 +94,45 @@ describe('executeJobViya', () => {
       },
       true,
       undefined,
+      undefined
+    )
+
+    await deleteFile(testFilePath)
+  })
+
+  it('should set verbose to undefined when the flag is false', async () => {
+    await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      testLogsPath,
+      testFilePath,
+      false,
+      undefined,
+      false,
       false
+    )
+
+    expect(sasjs.startComputeJob).toHaveBeenCalledWith(
+      'test/job',
+      null,
+      {
+        contextName: 'Mock Context'
+      },
+      mockAuthConfig,
+      true,
+      {
+        maxPollCount: 24 * 60 * 60,
+        pollInterval: 1000,
+        streamLog: false,
+        logFolderPath: testLogsPath
+      },
+      true,
+      undefined,
+      undefined
     )
 
     await deleteFile(testFilePath)
