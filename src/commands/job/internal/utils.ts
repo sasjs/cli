@@ -3,6 +3,12 @@ import { createFile, createFolder, folderExists } from '@sasjs/utils'
 import { parseLogLines } from '../../../utils/utils'
 import { displayError, displaySuccess } from '../../../utils/displayResult'
 
+/**
+ * Saves log to a file.
+ * @param logData - log content.
+ * @param logFile - file path to log file.
+ * @param jobPath - file path to the job submitted for execution.
+ */
 export const saveLog = async (
   logData: any,
   logFile: string | undefined,
@@ -10,9 +16,13 @@ export const saveLog = async (
 ) => {
   let logPath
 
+  // INFO: use provide file path to log file
   if (logFile) {
     logPath = logFile
-  } else {
+  }
+  // INFO: use file path based on job file path
+  // the same file name will be used, but with *.log extension
+  else {
     logPath = path.join(
       process.projectDir,
       `${jobPath.split(path.sep).slice(-1).pop()}.log`
@@ -23,10 +33,12 @@ export const saveLog = async (
   folderPath.pop()
   const parentFolderPath = folderPath.join(path.sep)
 
+  // INFO: create parent folder of log file
   if (!(await folderExists(parentFolderPath))) {
     await createFolder(parentFolderPath)
   }
 
+  // INFO: try to parse log by lines
   const logLines =
     typeof logData === 'object' ? parseLogLines(logData) : logData
 
@@ -35,7 +47,13 @@ export const saveLog = async (
   displaySuccess(`Log saved to ${logPath}`)
 }
 
+/**
+ * Saves job output to the file.
+ * @param outputData - job output.
+ * @param outputFile - file path to output file.
+ */
 export const saveOutput = async (outputData: any, outputFile: string) => {
+  // INFO: try to convert job output into a string
   try {
     outputData = JSON.stringify(outputData, null, 2)
   } catch (error) {
@@ -45,6 +63,7 @@ export const saveOutput = async (outputData: any, outputFile: string) => {
     )
   }
 
+  // INFO: get absolute file path
   const currentDirPath = path.isAbsolute(outputFile) ? '' : process.projectDir
   const outputPath = path.join(
     currentDirPath,
@@ -57,6 +76,7 @@ export const saveOutput = async (outputData: any, outputFile: string) => {
   folderPath.pop()
   const parentFolderPath = folderPath.join(path.sep)
 
+  // INFO: create parent folder of output file
   if (!(await folderExists(parentFolderPath))) {
     await createFolder(parentFolderPath)
   }
