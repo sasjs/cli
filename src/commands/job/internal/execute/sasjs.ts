@@ -29,11 +29,11 @@ export async function executeJobSasjs(
     process.logger?.success('Job executed successfully!')
 
     if (!!logFile && response.log) {
-      await saveLog(response.log, logFile, jobPath, false)
+      await saveLog(response.log, logFile, jobPath)
     }
 
     if (!!output && response.result) {
-      await saveOutput(response.result, output, false)
+      await saveOutput(response.result, output)
     }
   }
 

@@ -2,7 +2,7 @@ import path from 'path'
 import { LogLevel } from '@sasjs/utils/logger'
 import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
 
-import SASjs, { CertificateError } from '@sasjs/adapter/node'
+import SASjs from '@sasjs/adapter/node'
 import { getNewAccessToken } from '../../utils/auth'
 import { isSasJsServerInServerMode } from '../../utils'
 import { createFile } from '@sasjs/utils'

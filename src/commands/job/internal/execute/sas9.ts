@@ -41,11 +41,11 @@ export async function executeJobSas9(
       )
 
       if (!!logFile && result.log) {
-        await saveLog(result.log, logFile, jobPath, false)
+        await saveLog(result.log, logFile, jobPath)
       }
 
       if (!!output && result.result) {
-        saveOutput(result.result, output, false)
+        saveOutput(result.result, output)
       }
     } else {
       process.logger.error(result.message)

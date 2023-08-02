@@ -86,14 +86,14 @@ describe('JobCommand', () => {
       )
     })
 
-    it('should pass wait as true if returnStatusOnly flag is present', async () => {
-      await executeCommandWrapper([jobPath, '--returnStatusOnly'])
+    it('should pass wait as true if verbose flag is present', async () => {
+      await executeCommandWrapper([jobPath, '--verbose'])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
         ...executeCalledWith({
           jobPath,
           waitForJob: true,
-          returnStatusOnly: true
+          verbose: true
         })
       )
     })
@@ -111,10 +111,10 @@ describe('JobCommand', () => {
         statusFile,
         '--source',
         source,
-        '--returnStatusOnly',
         '--ignoreWarnings',
         '--wait',
-        '--streamLog'
+        '--streamLog',
+        '--verbose'
       ])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
@@ -124,10 +124,10 @@ describe('JobCommand', () => {
           output,
           logFile: path.join(projectFolder, log),
           statusFile: path.join(projectFolder, statusFile),
-          returnStatusOnly: true,
           ignoreWarnings: true,
           source,
-          streamLog: true
+          streamLog: true,
+          verbose: true
         })
       )
     })
@@ -145,10 +145,10 @@ describe('JobCommand', () => {
         statusFile,
         '-s',
         source,
-        '-r',
         '-i',
         '-w',
-        '--streamLog'
+        '--streamLog',
+        '-v'
       ])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
@@ -158,10 +158,10 @@ describe('JobCommand', () => {
           output,
           logFile: path.join(projectFolder, log),
           statusFile: path.join(projectFolder, statusFile),
-          returnStatusOnly: true,
           ignoreWarnings: true,
           source,
-          streamLog: true
+          streamLog: true,
+          verbose: true
         })
       )
     })
@@ -359,10 +359,10 @@ interface executeWrapperParams {
   output?: string | boolean
   logFile?: string
   statusFile?: string
-  returnStatusOnly?: boolean
   ignoreWarnings?: boolean
   source?: string
   streamLog?: boolean
+  verbose?: boolean
 }
 
 const executeCalledWith = ({
@@ -371,10 +371,10 @@ const executeCalledWith = ({
   output = false,
   logFile = undefined,
   statusFile = undefined,
-  returnStatusOnly = false,
   ignoreWarnings = false,
   source = undefined,
-  streamLog = false
+  streamLog = false,
+  verbose = false
 }: executeWrapperParams) => [
   expect.anything(),
   authConfig,
@@ -384,10 +384,10 @@ const executeCalledWith = ({
   output,
   logFile,
   statusFile,
-  returnStatusOnly,
   ignoreWarnings,
   source,
-  streamLog
+  streamLog,
+  verbose
 ]
 
 const executeCommandWrapper = async (additionalParams: string[]) => {

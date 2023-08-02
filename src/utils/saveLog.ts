@@ -7,7 +7,6 @@ export const saveLog = async (
   logData: LogJson | string,
   logFile: string | undefined,
   jobPath: string,
-  returnStatusOnly: boolean,
   silent: boolean = false
 ) => {
   if (typeof logData !== 'string') {
@@ -38,5 +37,5 @@ export const saveLog = async (
   if (!silent) process.logger?.info(`Creating log file at ${logPath} .`)
   await createFile(logPath, logLines)
 
-  if (!returnStatusOnly && !silent) displaySuccess(`Log saved to ${logPath}`)
+  if (!silent) displaySuccess(`Log saved to ${logPath}`)
 }

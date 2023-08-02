@@ -10,6 +10,7 @@ import {
   executeJobSasjs,
   executeJobSas9
 } from './internal/execute'
+import SASjs from '@sasjs/adapter/node'
 
 enum JobSubCommand {
   Execute = 'execute',
@@ -75,6 +76,13 @@ const executeParseOptions = {
     type: 'boolean',
     description:
       'Flag indicating whether the logs should be streamed to a local file as the job executes.'
+  },
+  verbose: {
+    type: 'boolean',
+    alias: 'v',
+    default: false,
+    description:
+      'If present, CLI will return status 0, 1 or 2 together with HTTP response summaries.'
   }
 }
 
@@ -201,18 +209,17 @@ export class JobCommand extends TargetCommand {
       ? true
       : false
     const statusFile = getStatusFilePath(this.parsed.statusFile)
-    const returnStatusOnly = !!this.parsed.returnStatusOnly
     const ignoreWarnings = !!this.parsed.ignoreWarnings
     const source = this.parsed.source as string
     const streamLog = !!this.parsed.streamLog
+    const verbose = !!this.parsed.verbose
 
-    if (returnStatusOnly && !wait) wait = true
-
-    if (ignoreWarnings && !returnStatusOnly) {
-      process.logger?.warn(
-        `Using the 'ignoreWarnings' flag without 'returnStatusOnly' flag will not affect the sasjs job execute command.`
-      )
+    const returnStatusOnly = !!this.parsed.returnStatusOnly
+    if (returnStatusOnly) {
+      process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
     }
+
+    if (verbose && !wait) wait = true
 
     const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
       (err) => {
@@ -236,10 +243,10 @@ export class JobCommand extends TargetCommand {
       output,
       log,
       statusFile,
-      returnStatusOnly,
       ignoreWarnings,
       source,
-      streamLog
+      streamLog,
+      verbose
     )
       .then(() => {
         return ReturnCode.Success

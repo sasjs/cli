@@ -15,7 +15,6 @@ const target = new Target({
   appLoc: '/test',
   contextName: 'Mock Context'
 })
-let statusFile: string
 
 describe('executeJobViya', () => {
   beforeEach(async () => {
@@ -36,9 +35,9 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
-      true
+      true,
+      false
     )
 
     expect(sasjs.startComputeJob).toHaveBeenCalledWith(
@@ -56,7 +55,8 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
-      undefined
+      undefined,
+      false
     )
 
     await deleteFile(testFilePath)
@@ -73,8 +73,8 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
+      false,
       false
     )
 
@@ -93,7 +93,8 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
-      undefined
+      undefined,
+      false
     )
 
     await deleteFile(testFilePath)

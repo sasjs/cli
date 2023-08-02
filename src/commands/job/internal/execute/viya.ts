@@ -32,10 +32,10 @@ import { saveLog } from '../utils'
  * @param {boolean | string} output - flag indicating if CLI should print out job output. If string was provided, it will be treated as file path to store output. If filepath wasn't provided, output.json file will be created in current folder.
  * @param {string | undefined} logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
  * @param {string | undefined} statusFile - flag indicating if CLI should fetch and save status to the local file. If filepath wasn't provided, it will only print on console.
- * @param {boolean} returnStatusOnly - flag indicating if CLI should return status only (0 = success, 1 = warning, 3 = error).
  * @param {boolean} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
+ * @param {boolean} verbose - enables verbose mode that logs summary of every HTTP response.
  */
 export async function executeJobViya(
   sasjs: SASjs,
@@ -46,10 +46,10 @@ export async function executeJobViya(
   output: string | boolean,
   logFile: string | undefined,
   statusFile: string | undefined,
-  returnStatusOnly: boolean,
   ignoreWarnings: boolean,
   source: string | undefined,
-  streamLog: boolean
+  streamLog: boolean,
+  verbose: boolean
 ) {
   const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
@@ -62,16 +62,13 @@ export async function executeJobViya(
 
   const startTime = new Date().getTime()
 
-  if (statusFile && !returnStatusOnly)
-    await displayStatus({ state: 'Initiating' }, statusFile)
+  if (statusFile) await displayStatus({ state: 'Initiating' }, statusFile)
 
-  if (!returnStatusOnly) {
-    process.logger?.success(
-      `Job located at ${jobPath} has been submitted for execution...`
-    )
-  }
+  process.logger?.success(
+    `Job located at ${jobPath} has been submitted for execution...`
+  )
 
-  const contextName = getContextName(target, returnStatusOnly)
+  const contextName = getContextName(target)
 
   let macroVars: MacroVars | undefined
 
@@ -103,7 +100,8 @@ export async function executeJobViya(
       waitForJob || !!logFile,
       pollOptions,
       true,
-      macroVars?.macroVars
+      macroVars?.macroVars,
+      verbose || undefined
     )
     .catch(async (err) => {
       if (err instanceof NoSessionStateError) {
@@ -115,7 +113,7 @@ export async function executeJobViya(
             100000
           )
 
-          await saveLog(logData, logFile, jobPath, returnStatusOnly)
+          await saveLog(logData, logFile, jobPath)
         }
 
         displayError(err)
@@ -124,20 +122,18 @@ export async function executeJobViya(
       }
 
       if (err?.log) {
-        await saveLog(err.log, logFile, jobPath, returnStatusOnly)
+        await saveLog(err.log, logFile, jobPath)
       }
-
-      if (returnStatusOnly) terminateProcess(2)
 
       if (err?.name === 'NotFoundError') {
         throw new Error(`Job located at '${jobPath}' was not found.`)
       }
 
-      result = returnStatusOnly
-        ? ReturnCode.InternalError
-        : typeof err === 'object' && Object.keys(err).length
-        ? JSON.stringify({ state: err.job?.state })
-        : `${err}`
+      result =
+        typeof err === 'object' && Object.keys(err).length
+          ? JSON.stringify({ state: err.job?.state })
+          : `${err}`
+
       if (err.job) {
         return err.job
       }
@@ -145,20 +141,15 @@ export async function executeJobViya(
 
   const endTime = new Date().getTime()
 
-  if (result && !returnStatusOnly) {
+  if (result) {
     displayError(result, 'An error has occurred when executing a job.')
   }
 
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
-  if (statusFile && !returnStatusOnly)
-    await displayStatus(submittedJob, statusFile, result, true)
+  if (statusFile) await displayStatus(submittedJob, statusFile, result, true)
 
   if (submittedJob && submittedJob.links) {
     if (!result) result = true
-
-    const sessionLink = submittedJob.links.find(
-      (l: Link) => l.method === 'GET' && l.rel === 'self'
-    ).href
 
     if (output || logFile) {
       try {
@@ -184,10 +175,9 @@ export async function executeJobViya(
 
           await createFile(outputPath, outputJson)
 
-          if (!returnStatusOnly)
-            displaySuccess(`Output saved to: ${outputPath}`)
+          displaySuccess(`Output saved to: ${outputPath}`)
         } else if (output) {
-          if (!returnStatusOnly) (process.logger || console).log(outputJson)
+          ;(process.logger || console).log(outputJson)
         }
 
         // If the log was being streamed, it should already be present
@@ -208,7 +198,7 @@ export async function executeJobViya(
               logCount
             )
 
-            await saveLog(logData, logFile, jobPath, returnStatusOnly)
+            await saveLog(logData, logFile, jobPath)
           }
         }
 
@@ -216,16 +206,14 @@ export async function executeJobViya(
       } catch (error) {
         result = false
 
-        if (!returnStatusOnly) {
-          displayError(
-            null,
-            'An error has occurred when parsing an output of the job.'
-          )
-        }
+        displayError(
+          null,
+          'An error has occurred when parsing an output of the job.'
+        )
       }
     }
 
-    if (waitForJob && returnStatusOnly && submittedJob.state) {
+    if (waitForJob && submittedJob.state) {
       switch (submittedJob.state) {
         case 'completed':
           terminateProcess(0)
@@ -237,33 +225,26 @@ export async function executeJobViya(
           break
       }
     }
-  } else if (returnStatusOnly && result === 2) {
-    terminateProcess(2)
+  } else if (result) {
+    terminateProcess(ReturnCode.InternalError)
   }
 
-  if (!returnStatusOnly) {
-    process.logger?.info(
-      `This job was executed in ${(endTime - startTime) / 1000} seconds`
-    )
-  }
+  process.logger?.info(
+    `This job was executed in ${(endTime - startTime) / 1000} seconds`
+  )
 
   return result
 }
 
 // REFACTOR: should be a utility
-export function getContextName(
-  target: Target,
-  returnStatusOnly: boolean = false
-): string {
+export function getContextName(target: Target): string {
   const defaultContextName = contextName
 
   if (target?.contextName) return target.contextName
 
-  if (!returnStatusOnly) {
-    process.logger?.warn(
-      `\`contextName\` was not provided in your target configuration. Falling back to context ${defaultContextName}`
-    )
-  }
+  process.logger?.warn(
+    `\`contextName\` was not provided in your target configuration. Falling back to context ${defaultContextName}`
+  )
 
   return defaultContextName
 }

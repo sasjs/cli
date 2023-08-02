@@ -6,8 +6,7 @@ import { displayError, displaySuccess } from '../../../utils/displayResult'
 export const saveLog = async (
   logData: any,
   logFile: string | undefined,
-  jobPath: string,
-  returnStatusOnly: boolean
+  jobPath: string
 ) => {
   let logPath
 
@@ -33,14 +32,10 @@ export const saveLog = async (
 
   await createFile(logPath, logLines)
 
-  if (!returnStatusOnly) displaySuccess(`Log saved to ${logPath}`)
+  displaySuccess(`Log saved to ${logPath}`)
 }
 
-export const saveOutput = async (
-  outputData: any,
-  outputFile: string,
-  returnStatusOnly: boolean
-) => {
+export const saveOutput = async (outputData: any, outputFile: string) => {
   try {
     outputData = JSON.stringify(outputData, null, 2)
   } catch (error) {
@@ -68,5 +63,5 @@ export const saveOutput = async (
 
   await createFile(outputPath, outputData)
 
-  if (!returnStatusOnly) displaySuccess(`Output saved to: ${outputPath}`)
+  displaySuccess(`Output saved to: ${outputPath}`)
 }

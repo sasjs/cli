@@ -964,7 +964,8 @@ export function getSASjs(target: Target) {
     contextName: target.contextName,
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
-    useComputeApi: target.serverType === ServerType.SasViya
+    useComputeApi: target.serverType === ServerType.SasViya,
+    verbose: !!process.env.VERBOSE
   })
 }
 
