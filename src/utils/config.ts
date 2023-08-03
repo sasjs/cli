@@ -953,8 +953,9 @@ export const getTestTearDown = async (target: Target) => {
 }
 
 /**
- * Returns configuration object of SAS Adapter and authentication configuration
- * @param {Target} target - the target to get auth configuration from.
+ * Provides instance of @sasjs/adapter.
+ * @param target - server server.
+ * @returns - instance of @sasjs/adapter.
  */
 export function getSASjs(target: Target) {
   return new SASjs({
@@ -964,8 +965,8 @@ export function getSASjs(target: Target) {
     contextName: target.contextName,
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
-    useComputeApi: target.serverType === ServerType.SasViya,
-    verbose: !!process.env.VERBOSE
+    useComputeApi: target.serverType === ServerType.SasViya, // compute api is used only on Viya server
+    verbose: !!process.env.VERBOSE // any not empty string should be considered as true
   })
 }
 
