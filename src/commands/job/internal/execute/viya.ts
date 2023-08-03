@@ -51,7 +51,7 @@ export async function executeJobViya(
   streamLog: boolean,
   verbose: boolean
 ) {
-  // INFO: job status poll options
+  // job status poll options
   const pollOptions: PollOptions = {
     maxPollCount: 24 * 60 * 60,
     pollInterval: 1000,
@@ -59,26 +59,26 @@ export async function executeJobViya(
     logFolderPath: logFile
   }
 
-  // INFO: job result
+  // job result
   let result
 
-  // INFO: job execution start time
+  // job execution start time
   const startTime = new Date().getTime()
 
-  // INFO: write job status to file
+  // write job status to file
   if (statusFile) await displayStatus({ state: 'Initiating' }, statusFile)
 
   process.logger?.success(
     `Job located at ${jobPath} has been submitted for execution...`
   )
 
-  // INFO: execution context name
+  // execution context name
   const contextName = getContextName(target)
 
-  // INFO: macro variables
+  // macro variables
   let macroVars: MacroVars | undefined
 
-  // INFO: get macro variables from source file
+  // get macro variables from source file
   if (source) {
     if (!isJsonFile(source)) throw 'Source file has to be JSON.'
 
@@ -98,7 +98,7 @@ export async function executeJobViya(
     }
   }
 
-  // INFO: submit job for execution
+  // submit job for execution
   let submittedJob = await sasjs
     .startComputeJob(
       jobPath,
@@ -112,11 +112,11 @@ export async function executeJobViya(
       verbose || undefined
     )
     .catch(async (err) => {
-      // INFO: handle error
+      // handle error
       if (err instanceof NoSessionStateError) {
-        // INFO: handle use case when there was no state of the session
+        // handle use case when there was no state of the session
         if (err?.logUrl) {
-          // INFO: retrieve log if there is a link
+          // retrieve log if there is a link
           const logData = await fetchLogFileContent(
             sasjs,
             authConfig.access_token,
@@ -124,25 +124,25 @@ export async function executeJobViya(
             100000
           )
 
-          // INFO: save log
+          // save log
           await saveLog(logData, logFile, jobPath)
         }
 
         displayError(err)
 
-        // INFO: terminate process with status code 2
+        // terminate process with status code 2
         terminateProcess(2)
       }
 
-      // INFO: save log if it is present
+      // save log if it is present
       if (err?.log) await saveLog(err.log, logFile, jobPath)
 
-      // INFO: handle use case when job wasn't found
+      // handle use case when job wasn't found
       if (err?.name === 'NotFoundError') {
         throw new Error(`Job located at '${jobPath}' was not found.`)
       }
 
-      // INFO: get additional information about error if it is present
+      // get additional information about error if it is present
       result =
         typeof err === 'object' && Object.keys(err).length
           ? JSON.stringify({ state: err.job?.state })
@@ -153,7 +153,7 @@ export async function executeJobViya(
       }
     })
 
-  // INFO: job execution end time
+  // job execution end time
   const endTime = new Date().getTime()
 
   if (result) {
@@ -162,21 +162,21 @@ export async function executeJobViya(
 
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
 
-  // INFO: write job status to the status file
+  // write job status to the status file
   if (statusFile) await displayStatus(submittedJob, statusFile, result, true)
 
-  // INFO: job execution completed successfully
+  // job execution completed successfully
   if (submittedJob && submittedJob.links) {
     if (!result) result = true
 
     if (output || logFile) {
-      // INFO: try to convert submitted job into an object
+      // try to convert submitted job into an object
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
 
-        // INFO: if a file path to output file has been provided
+        // if a file path to output file has been provided
         if (typeof output === 'string') {
-          // INFO: determine absolute file path
+          // determine absolute file path
           const currentDirPath = path.isAbsolute(output)
             ? ''
             : process.projectDir
@@ -192,7 +192,7 @@ export async function executeJobViya(
 
           const parentFolderPath = folderPath.join(path.sep)
 
-          // INFO: create a parent folder if it doesn't exist
+          // create a parent folder if it doesn't exist
           if (!(await folderExists(parentFolderPath))) {
             await createFolder(parentFolderPath)
           }
@@ -201,19 +201,19 @@ export async function executeJobViya(
 
           displaySuccess(`Output saved to: ${outputPath}`)
         } else if (output) {
-          // INFO: log job object to the console
+          // log job object to the console
           ;(process.logger || console).log(outputJson)
         }
 
-        // INFO: If the log was being streamed, it should already be present
+        // If the log was being streamed, it should already be present
         // at the specified log path
         if (logFile && !pollOptions.streamLog) {
-          // INFO: get a link object of the log
+          // get a link object of the log
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
           )
 
-          // INFO: retrieve log
+          // retrieve log
           if (logObj) {
             const logUrl = target.serverUrl + logObj.href
             const logCount = submittedJob.logStatistics.lineCount
@@ -231,7 +231,7 @@ export async function executeJobViya(
 
         result = submittedJob
       } catch (error) {
-        // INFO: handle use case when submitted job can't be parsed
+        // handle use case when submitted job can't be parsed
         result = false
 
         displayError(
@@ -241,13 +241,13 @@ export async function executeJobViya(
       }
     }
 
-    // INFO: wait for job state and return status(0,1,2) based on it
+    // wait for job state and return status(0,1,2) based on it
     if (waitForJob && submittedJob.state) {
       switch (submittedJob.state) {
         case 'completed':
           terminateProcess(0)
         case 'warning':
-          // INFO: if ignoreWarnings flag is present, process will be terminated with
+          // if ignoreWarnings flag is present, process will be terminated with
           // status code 0, otherwise status code will be 1
           terminateProcess(ignoreWarnings ? 0 : 1)
         case 'error':
@@ -274,10 +274,10 @@ export async function executeJobViya(
  * @returns - job execution context name.
  */
 export function getContextName(target: Target): string {
-  // INFO: default execution context of @sasjs/cli
+  // default execution context of @sasjs/cli
   const defaultContextName = contextName
 
-  // INFO: get gontext name from target
+  // get gontext name from target
   if (target?.contextName) return target.contextName
 
   process.logger?.warn(
@@ -300,41 +300,41 @@ async function displayStatus(
   error = '',
   displayStatusFilePath = false
 ) {
-  // INFO: get job state
+  // get job state
   const adapterStatus = submittedJob?.state
     ? submittedJob.state
     : 'Not Available'
 
-  // INFO: handle use case when job state is not available
+  // handle use case when job state is not available
   const status =
     adapterStatus === 'Not Available'
       ? `Job Status: ${adapterStatus}\nDetails: ${error}\n`
       : `Job Status: ${adapterStatus}`
 
-  // INFO: handle job states 'Initiating' and 'completed'
+  // handle job states 'Initiating' and 'completed'
   if (adapterStatus === 'Initiating' || adapterStatus === 'completed') {
     displaySuccess(status)
   }
-  // INFO: display an job status as an error
+  // display an job status as an error
   else {
     displayError({}, status)
   }
 
-  // INFO: if file path to status file is provided
+  // if file path to status file is provided
   if (statusFile) {
-    // INFO: get absolute file path
+    // get absolute file path
     let folderPath = statusFile.split(path.sep)
     folderPath.pop()
     const parentFolderPath = folderPath.join(path.sep)
 
-    // INFO: create parent folder of status file
+    // create parent folder of status file
     if (!(await folderExists(parentFolderPath))) {
       await createFolder(parentFolderPath)
     }
 
     await createFile(statusFile, status)
 
-    // INFO: display file path to status file
+    // display file path to status file
     if (displayStatusFilePath) displaySuccess(`Status saved to: ${statusFile}`)
   }
 }

@@ -48,7 +48,7 @@ const executeParseOptions = {
     description:
       'path where output of the finished job execution will be saved.'
   },
-  // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
+  // returnStatusOnly flag is deprecated and is left to display warning if used
   returnStatusOnly: {
     type: 'boolean',
     default: false,
@@ -114,13 +114,13 @@ export class JobCommand extends TargetCommand {
   public async execute() {
     const { target } = await this.getTargetInfo()
 
-    // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
+    // returnStatusOnly flag is deprecated and is left to display warning if used
     const returnStatusOnly = !!this.parsed.returnStatusOnly
     if (returnStatusOnly) {
       process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
     }
 
-    // INFO: use execution function based on server type
+    // use execution function based on server type
     switch (target.serverType) {
       case ServerType.SasViya:
         return this.jobSubCommands.includes(this.parsed.subCommand)
@@ -155,7 +155,7 @@ export class JobCommand extends TargetCommand {
    * @returns - promise that resolves into return code.
    */
   async executeJobSasjs(target: Target) {
-    // INFO: use command attributes to get to get required details for job execution
+    // use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
 
@@ -166,7 +166,7 @@ export class JobCommand extends TargetCommand {
     const returnCode = await executeJobSasjs(target, jobPath, log, output)
       .then(() => ReturnCode.Success)
       .catch((err) => {
-        // INFO: handle job execution failure
+        // handle job execution failure
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError
@@ -181,7 +181,7 @@ export class JobCommand extends TargetCommand {
    * @returns - promise that resolves into return code.
    */
   async executeJobSas9(target: Target) {
-    // INFO: use command attributes to get to get required details for job execution
+    // use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
     const source = this.parsed.source as string
@@ -192,7 +192,7 @@ export class JobCommand extends TargetCommand {
 
     const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target).catch(
       (err) => {
-        // INFO: handle getting instance of @sasjs/adapter and auth config failure
+        // handle getting instance of @sasjs/adapter and auth config failure
         process.logger?.error(
           'Unable to execute job. Error fetching auth config: ',
           err
@@ -217,7 +217,7 @@ export class JobCommand extends TargetCommand {
     )
       .then(() => ReturnCode.Success)
       .catch((err) => {
-        // INFO: handle job execution failure
+        // handle job execution failure
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError
@@ -232,7 +232,7 @@ export class JobCommand extends TargetCommand {
    * @returns - promise that resolves into return code.
    */
   async executeJobViya(target: Target) {
-    // INFO: use command attributes to get to get required details for job execution
+    // use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const statusFile = getStatusFilePath(this.parsed.statusFile)
     const log = getLogFilePath(this.parsed.log, jobPath)
@@ -252,7 +252,7 @@ export class JobCommand extends TargetCommand {
 
     const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
       (err) => {
-        // INFO: handle getting instance of @sasjs/adapter and auth config failure
+        // handle getting instance of @sasjs/adapter and auth config failure
         process.logger?.error(
           'Unable to execute job. Error fetching auth config: ',
           err
@@ -280,7 +280,7 @@ export class JobCommand extends TargetCommand {
     )
       .then(() => ReturnCode.Success)
       .catch((err) => {
-        // INFO: handle job execution failure
+        // handle job execution failure
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError

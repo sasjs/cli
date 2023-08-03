@@ -17,7 +17,7 @@ export async function executeJobSasjs(
   logFile?: string,
   output?: string
 ) {
-  // INFO: get authentication configuration if SASJS server is in server mode.
+  // get authentication configuration if SASJS server is in server mode.
   const authConfig = (await isSasJsServerInServerMode(target))
     ? await getAuthConfig(target)
     : undefined
@@ -35,13 +35,13 @@ export async function executeJobSasjs(
   )
 
   if (response) {
-    // INFO: handle success
+    // handle success
     process.logger?.success('Job executed successfully!')
 
-    // INFO: save log if it is present
+    // save log if it is present
     if (!!logFile && response.log) await saveLog(response.log, logFile, jobPath)
 
-    // INFO: save output if it is present
+    // save output if it is present
     if (!!output && response.result) await saveOutput(response.result, output)
   }
 

@@ -22,31 +22,31 @@ export async function executeJobSas9(
 ) {
   let macroVars: MacroVars | null = null
 
-  // INFO: get macro variables
+  // get macro variables
   if (source) macroVars = await parseSourceFile(source)
 
-  // INFO: timestamp of the execution start
+  // timestamp of the execution start
   const startTime = new Date().getTime()
 
   const result = await sasjs.request(jobPath, macroVars, config)
 
-  // INFO: timestamp of the execution end
+  // timestamp of the execution end
   const endTime = new Date().getTime()
 
   if (result) {
     if (result.status === 200) {
-      // INFO: handle success
+      // handle success
       process.logger.success(
         `Job executed successfully! in ${(endTime - startTime) / 1000} seconds`
       )
 
-      // INFO: save log if it is present
+      // save log if it is present
       if (!!logFile && result.log) await saveLog(result.log, logFile, jobPath)
 
-      // INFO: save output if it is present
+      // save output if it is present
       if (!!output && result.result) await saveOutput(result.result, output)
     } else {
-      // INFO: handle failure
+      // handle failure
       process.logger.error(result.message)
       process.logger.error(JSON.stringify(result.error, null, 2))
     }
