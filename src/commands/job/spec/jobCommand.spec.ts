@@ -298,6 +298,16 @@ describe('JobCommand', () => {
       expect(returnCode).toEqual(ReturnCode.Success)
     })
   })
+
+  it('should log deprecation warning if returnStatusOnly flag is present', async () => {
+    jest.spyOn(process.logger, 'warn')
+
+    await executeCommandWrapper([jobPath, '--returnStatusOnly'])
+
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      '--returnStatusOnly (-r) flag is deprecated.'
+    )
+  })
 })
 
 const setupMocksForViya = () => {

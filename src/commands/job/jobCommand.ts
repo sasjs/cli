@@ -34,7 +34,7 @@ const executeParseOptions = {
     alias: 'i',
     default: false,
     description:
-      'If present and return status only is provided, CLI will return status 0 when the job state is warning.'
+      'If present, CLI will return status 0 when the job state is warning.'
   },
   log: {
     type: 'string',
@@ -113,6 +113,12 @@ export class JobCommand extends TargetCommand {
    */
   public async execute() {
     const { target } = await this.getTargetInfo()
+
+    // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
+    const returnStatusOnly = !!this.parsed.returnStatusOnly
+    if (returnStatusOnly) {
+      process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
+    }
 
     // INFO: use execution function based on server type
     switch (target.serverType) {
@@ -241,12 +247,6 @@ export class JobCommand extends TargetCommand {
       : (this.parsed.output as string)?.length === 0
       ? true
       : false
-
-    // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
-    const returnStatusOnly = !!this.parsed.returnStatusOnly
-    if (returnStatusOnly) {
-      process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
-    }
 
     if (verbose && !wait) wait = true
 
