@@ -2,7 +2,7 @@ import { ServerType, Target, decodeFromBase64 } from '@sasjs/utils'
 import path from 'path'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getSASjs, getSASjsAndAuthConfig } from '../../utils'
+import { getSASjsAndAuthConfig } from '../../utils'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import {
@@ -10,7 +10,6 @@ import {
   executeJobSasjs,
   executeJobSas9
 } from './internal/execute'
-import SASjs from '@sasjs/adapter/node'
 
 enum JobSubCommand {
   Execute = 'execute',
@@ -49,6 +48,7 @@ const executeParseOptions = {
     description:
       'path where output of the finished job execution will be saved.'
   },
+  // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
   returnStatusOnly: {
     type: 'boolean',
     default: false,
@@ -107,9 +107,14 @@ export class JobCommand extends TargetCommand {
     this.jobSubCommands = jobSubCommands
   }
 
+  /**
+   * Method responsible for command execution.
+   * @returns - promise that resolves into return code.
+   */
   public async execute() {
     const { target } = await this.getTargetInfo()
 
+    // INFO: use execution function based on server type
     switch (target.serverType) {
       case ServerType.SasViya:
         return this.jobSubCommands.includes(this.parsed.subCommand)
@@ -138,10 +143,16 @@ export class JobCommand extends TargetCommand {
     }
   }
 
+  /**
+   * Executes job on SASJS server.
+   * @param target - SASJS server configuration.
+   * @returns - promise that resolves into return code.
+   */
   async executeJobSasjs(target: Target) {
+    // INFO: use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
-
     const log = getLogFilePath(this.parsed.log, jobPath)
+
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
       : undefined
@@ -149,6 +160,7 @@ export class JobCommand extends TargetCommand {
     const returnCode = await executeJobSasjs(target, jobPath, log, output)
       .then(() => ReturnCode.Success)
       .catch((err) => {
+        // INFO: handle job execution failure
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError
@@ -157,25 +169,34 @@ export class JobCommand extends TargetCommand {
     return returnCode
   }
 
+  /**
+   * Executes job on SAS9 server.
+   * @param target - SAS9 server configuration.
+   * @returns - promise that resolves into return code.
+   */
   async executeJobSas9(target: Target) {
+    // INFO: use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
     const log = getLogFilePath(this.parsed.log, jobPath)
+    const source = this.parsed.source as string
+
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
       : undefined
-    const source = this.parsed.source as string
 
     const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target).catch(
       (err) => {
+        // INFO: handle getting instance of @sasjs/adapter and auth config failure
         process.logger?.error(
           'Unable to execute job. Error fetching auth config: ',
           err
         )
 
-        return { sasjs: getSASjs(target), authConfigSas9: undefined }
+        return { sasjs: undefined, authConfigSas9: undefined }
       }
     )
-    if (!authConfigSas9) return ReturnCode.InternalError
+
+    if (!authConfigSas9 || !sasjs) return ReturnCode.InternalError
 
     const userName = authConfigSas9.userName
     const password = decodeFromBase64(authConfigSas9.password)
@@ -188,32 +209,40 @@ export class JobCommand extends TargetCommand {
       output,
       source
     )
-      .then(() => {
-        return ReturnCode.Success
-      })
+      .then(() => ReturnCode.Success)
       .catch((err) => {
+        // INFO: handle job execution failure
         process.logger?.error('Error executing job: ', err)
+
         return ReturnCode.InternalError
       })
 
     return returnCode
   }
 
+  /**
+   * Executes job on Viya server.
+   * @param target - Viya server configuration.
+   * @returns - promise that resolves into return code.
+   */
   async executeJobViya(target: Target) {
+    // INFO: use command attributes to get to get required details for job execution
     const jobPath = prefixAppLoc(target.appLoc, this.parsed.jobPath as string)
+    const statusFile = getStatusFilePath(this.parsed.statusFile)
     const log = getLogFilePath(this.parsed.log, jobPath)
+    const ignoreWarnings = !!this.parsed.ignoreWarnings
+    const streamLog = !!this.parsed.streamLog
+    const verbose = !!this.parsed.verbose
+    const source = this.parsed.source as string
     let wait = (this.parsed.wait as boolean) || !!log
+
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
       : (this.parsed.output as string)?.length === 0
       ? true
       : false
-    const statusFile = getStatusFilePath(this.parsed.statusFile)
-    const ignoreWarnings = !!this.parsed.ignoreWarnings
-    const source = this.parsed.source as string
-    const streamLog = !!this.parsed.streamLog
-    const verbose = !!this.parsed.verbose
 
+    // INFO: returnStatusOnly flag is deprecated and is left to display warning if used
     const returnStatusOnly = !!this.parsed.returnStatusOnly
     if (returnStatusOnly) {
       process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
@@ -223,16 +252,17 @@ export class JobCommand extends TargetCommand {
 
     const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
       (err) => {
+        // INFO: handle getting instance of @sasjs/adapter and auth config failure
         process.logger?.error(
           'Unable to execute job. Error fetching auth config: ',
           err
         )
 
-        return { sasjs: getSASjs(target), authConfig: undefined }
+        return { sasjs: undefined, authConfig: undefined }
       }
     )
 
-    if (!authConfig) return ReturnCode.InternalError
+    if (!authConfig || !sasjs) return ReturnCode.InternalError
 
     const returnCode = await executeJobViya(
       sasjs,
@@ -248,11 +278,11 @@ export class JobCommand extends TargetCommand {
       streamLog,
       verbose
     )
-      .then(() => {
-        return ReturnCode.Success
-      })
+      .then(() => ReturnCode.Success)
       .catch((err) => {
+        // INFO: handle job execution failure
         process.logger?.error('Error executing job: ', err)
+
         return ReturnCode.InternalError
       })
 
@@ -260,12 +290,19 @@ export class JobCommand extends TargetCommand {
   }
 }
 
+/**
+ * Gets status file path.
+ * @param statusFileArg - file path provided as command attribute.
+ * @returns - absolute status file path or undefined if command attribute wasn't provided.
+ */
 const getStatusFilePath = (statusFileArg: unknown) => {
   if (statusFileArg) {
     const currentDirPath = path.isAbsolute(statusFileArg as string)
       ? ''
       : process.projectDir
+
     return path.join(currentDirPath, statusFileArg as string)
   }
+
   return undefined
 }
