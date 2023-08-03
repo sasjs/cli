@@ -1,7 +1,5 @@
-import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { MacroVars, createFile, createFolder, folderExists } from '@sasjs/utils'
-import { displayError, displaySuccess } from '../../../../utils/displayResult'
+import { MacroVars } from '@sasjs/utils'
 import { saveLog, saveOutput } from '../utils'
 import { parseSourceFile } from '../../../../utils/parseSourceFile'
 
@@ -46,7 +44,7 @@ export async function executeJobSas9(
       if (!!logFile && result.log) await saveLog(result.log, logFile, jobPath)
 
       // INFO: save output if it is present
-      if (!!output && result.result) saveOutput(result.result, output)
+      if (!!output && result.result) await saveOutput(result.result, output)
     } else {
       // INFO: handle failure
       process.logger.error(result.message)

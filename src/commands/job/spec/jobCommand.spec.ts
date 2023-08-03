@@ -288,11 +288,13 @@ describe('JobCommand', () => {
       jest
         .spyOn(SasjsUtilsFilesModule, 'createFile')
         .mockImplementation(() => Promise.resolve())
+
       const returnCode = await executeCommandWrapper([
         jobPath,
         '--output',
         'output.json'
       ])
+
       expect(returnCode).toEqual(ReturnCode.Success)
     })
   })
