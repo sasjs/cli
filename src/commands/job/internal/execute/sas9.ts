@@ -1,7 +1,5 @@
-import path from 'path'
 import SASjs from '@sasjs/adapter/node'
-import { MacroVars, createFile, createFolder, folderExists } from '@sasjs/utils'
-import { displayError, displaySuccess } from '../../../../utils/displayResult'
+import { MacroVars } from '@sasjs/utils'
 import { saveLog, saveOutput } from '../utils'
 import { parseSourceFile } from '../../../../utils/parseSourceFile'
 
@@ -24,30 +22,31 @@ export async function executeJobSas9(
 ) {
   let macroVars: MacroVars | null = null
 
-  if (source) {
-    macroVars = await parseSourceFile(source)
-  }
+  // get macro variables
+  if (source) macroVars = await parseSourceFile(source)
 
+  // timestamp of the execution start
   const startTime = new Date().getTime()
 
   const result = await sasjs.request(jobPath, macroVars, config)
 
+  // timestamp of the execution end
   const endTime = new Date().getTime()
 
   if (result) {
     if (result.status === 200) {
+      // handle success
       process.logger.success(
         `Job executed successfully! in ${(endTime - startTime) / 1000} seconds`
       )
 
-      if (!!logFile && result.log) {
-        await saveLog(result.log, logFile, jobPath, false)
-      }
+      // save log if it is present
+      if (!!logFile && result.log) await saveLog(result.log, logFile, jobPath)
 
-      if (!!output && result.result) {
-        saveOutput(result.result, output, false)
-      }
+      // save output if it is present
+      if (!!output && result.result) await saveOutput(result.result, output)
     } else {
+      // handle failure
       process.logger.error(result.message)
       process.logger.error(JSON.stringify(result.error, null, 2))
     }

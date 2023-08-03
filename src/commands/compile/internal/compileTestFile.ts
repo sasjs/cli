@@ -95,10 +95,7 @@ export async function copyTestMacroFiles(folderAbsolutePath: string) {
   })
 }
 
-export const compileTestFlow = async (
-  target: Target,
-  config?: Configuration
-) => {
+export const compileTestFlow = async (target: Target) => {
   if (
     target.testConfig &&
     Object.keys(target.testConfig).includes('testFolders')
