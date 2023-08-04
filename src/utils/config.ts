@@ -958,6 +958,8 @@ export const getTestTearDown = async (target: Target) => {
  * @returns - instance of @sasjs/adapter.
  */
 export function getSASjs(target: Target) {
+  const verbose = process.env.VERBOSE
+
   return new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
@@ -966,7 +968,7 @@ export function getSASjs(target: Target) {
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
     useComputeApi: target.serverType === ServerType.SasViya, // compute api is used only on Viya server
-    verbose: !!process.env.VERBOSE // any not empty string should be considered as true
+    verbose: typeof verbose === 'string' ? /on/i.test(verbose) : false // only string equal to 'on'(case insensitive) will enable verbose mode
   })
 }
 
