@@ -23,9 +23,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Generate development documentation and test level of documentation coverage
-        run: npm run doc
-
       - name: Check npm audit
         run: npm audit --production --audit-level=low
 
@@ -36,6 +33,9 @@ jobs:
         run: |
           npm config set registry http://registry.npmjs.org
           npm ci
+
+      - name: Generate development documentation and test level of documentation coverage
+        run: npm run doc
 
       - name: Check code style
         run: npm run lint
