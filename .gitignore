@@ -7,3 +7,4 @@ sasjsbuild
 .env.*
 .DS_Store
 /coverage
+/documentation
