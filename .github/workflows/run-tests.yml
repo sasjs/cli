@@ -16,32 +16,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Install Doxygen
-        run: sudo apt-get install doxygen
 
-      - name: install pm2 for process management
-        run: npm i -g pm2
-
-      - name: Create .env file for sasjs/server
-        run: |
-          touch .env
-          echo RUN_TIMES=js >> .env
-          echo NODE_PATH=node >> .env
-          echo MOCK_SERVERTYPE=sas9 >> .env
-
-      - name: download sasjs/server package from github using curl
-        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
-
-      - name: unzip downloaded package
-        run: unzip linux.zip
-
-      - name: run sasjs server
-        run: pm2 start api-linux
+      - name: Generate development documentation and test level of documentation coverage
+        run: npm run doc
 
       - name: Check npm audit
         run: npm audit --production --audit-level=low
@@ -66,11 +49,33 @@ jobs:
       - name: Run smoke tests
         run: sh ./test.sh
 
+      - name: Install Doxygen
+        run: sudo apt-get install doxygen
+
       # Mocked (*.spec.ts) tests will be conducted during this step
       - name: Generate coverage report
         uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install pm2 for process management
+        run: npm i -g pm2
+
+      - name: Create .env file for sasjs/server
+        run: |
+          touch .env
+          echo RUN_TIMES=js >> .env
+          echo NODE_PATH=node >> .env
+          echo MOCK_SERVERTYPE=sas9 >> .env
+
+      - name: download sasjs/server package from github using curl
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
+
+      - name: unzip downloaded package
+        run: unzip linux.zip
+
+      - name: run sasjs server
+        run: pm2 start api-linux
 
       - name: Deploy SAS9 tests
         run: |
