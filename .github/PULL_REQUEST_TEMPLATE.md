@@ -17,4 +17,5 @@ What code changes have been made to achieve the intent.
 - [ ] All unit tests are passing (`npm test`).
 - [ ] All CI checks are green.
 - [ ] Development comments have been added or updated.
+- [ ] Development documentation coverage increased.
 - [ ] Reviewer is assigned.
