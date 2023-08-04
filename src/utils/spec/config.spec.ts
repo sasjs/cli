@@ -556,18 +556,36 @@ describe('getSASjs', () => {
     expect(useComputeApi).toEqual(false)
   })
 
-  it('should enable verbose mode if VERBOSE env is present', () => {
+  it(`should enable verbose mode if VERBOSE env is present and is equal to 'on'(case insensitive)`, () => {
     process.env.VERBOSE = 'on'
 
-    const sasjs = getSASjs({} as Target)
-    const sasjsConfig = sasjs.getSasjsConfig()
-    const { verbose } = sasjsConfig
+    let sasjs = getSASjs({} as Target)
+    let sasjsConfig = sasjs.getSasjsConfig()
+    let { verbose } = sasjsConfig
+
+    expect(verbose).toEqual(true)
+
+    process.env.VERBOSE = 'ON'
+
+    sasjs = getSASjs({} as Target)
+    sasjsConfig = sasjs.getSasjsConfig()
+    verbose = sasjsConfig.verbose
 
     expect(verbose).toEqual(true)
   })
 
   it('should disable verbose mode if VERBOSE env is not present', () => {
     process.env.VERBOSE = ''
+
+    const sasjs = getSASjs({} as Target)
+    const sasjsConfig = sasjs.getSasjsConfig()
+    const { verbose } = sasjsConfig
+
+    expect(verbose).toEqual(false)
+  })
+
+  it(`should disable verbose mode if VERBOSE env is present and is not equal to 'on'(case insensitive)`, () => {
+    process.env.VERBOSE = 'start'
 
     const sasjs = getSASjs({} as Target)
     const sasjsConfig = sasjs.getSasjsConfig()
