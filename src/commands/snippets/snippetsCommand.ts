@@ -42,6 +42,7 @@ export class SnippetsCommand extends TargetCommand {
     // Generate snippets
     return await generateSnippets(macroFolders, outDirectory as string)
       .then((filePath) => {
+        // handle command execution success
         process.logger?.success(
           `VS Code snippets generated! File location: ${filePath}`
         )
@@ -52,6 +53,7 @@ export class SnippetsCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
+        // handle command execution failure
         process.logger?.error('Error generating VS Code snippets: ', err)
 
         return ReturnCode.InternalError
