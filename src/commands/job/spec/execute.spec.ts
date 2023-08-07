@@ -15,7 +15,6 @@ const target = new Target({
   appLoc: '/test',
   contextName: 'Mock Context'
 })
-let statusFile: string
 
 describe('executeJobViya', () => {
   beforeEach(async () => {
@@ -36,9 +35,9 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
-      true
+      true,
+      false
     )
 
     expect(sasjs.startComputeJob).toHaveBeenCalledWith(
@@ -56,6 +55,7 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
+      undefined,
       undefined
     )
 
@@ -73,8 +73,8 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
+      false,
       false
     )
 
@@ -93,7 +93,86 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
+      undefined,
       undefined
+    )
+
+    await deleteFile(testFilePath)
+  })
+
+  it('should pass verbose as undefined when the flag is false', async () => {
+    await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      testLogsPath,
+      testFilePath,
+      false,
+      undefined,
+      false,
+      false
+    )
+
+    expect(sasjs.startComputeJob).toHaveBeenCalledWith(
+      'test/job',
+      null,
+      {
+        contextName: 'Mock Context'
+      },
+      mockAuthConfig,
+      true,
+      {
+        maxPollCount: 24 * 60 * 60,
+        pollInterval: 1000,
+        streamLog: false,
+        logFolderPath: testLogsPath
+      },
+      true,
+      undefined,
+      undefined
+    )
+
+    await deleteFile(testFilePath)
+  })
+
+  it('should pass verbose as true when the flag is true', async () => {
+    const verbose = true
+
+    await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      testLogsPath,
+      testFilePath,
+      false,
+      undefined,
+      false,
+      verbose
+    )
+
+    expect(sasjs.startComputeJob).toHaveBeenCalledWith(
+      'test/job',
+      null,
+      {
+        contextName: 'Mock Context'
+      },
+      mockAuthConfig,
+      true,
+      {
+        maxPollCount: 24 * 60 * 60,
+        pollInterval: 1000,
+        streamLog: false,
+        logFolderPath: testLogsPath
+      },
+      true,
+      undefined,
+      verbose
     )
 
     await deleteFile(testFilePath)

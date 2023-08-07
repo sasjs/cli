@@ -340,8 +340,7 @@ describe('sasjs job execute with Viya', () => {
     await expect(
       executeWrapper({
         jobPath: 'jobs/testJob/job',
-        waitForJob: true,
-        returnStatusOnly: true
+        waitForJob: true
       })
     ).toResolve()
 
@@ -354,8 +353,7 @@ describe('sasjs job execute with Viya', () => {
     await expect(
       executeWrapper({
         jobPath: 'jobs/testJob/jobWithWarning',
-        waitForJob: true,
-        returnStatusOnly: true
+        waitForJob: true
       })
     ).toResolve()
 
@@ -369,7 +367,6 @@ describe('sasjs job execute with Viya', () => {
       executeWrapper({
         jobPath: 'jobs/testJob/jobWithWarning',
         waitForJob: true,
-        returnStatusOnly: true,
         ignoreWarnings: true
       })
     ).toResolve()
@@ -384,8 +381,7 @@ describe('sasjs job execute with Viya', () => {
       executeWrapper({
         jobPath: 'jobs/testJob/failingJob',
         waitForJob: true,
-        logFile: path.join(process.projectDir, 'failingJob.log'),
-        returnStatusOnly: true
+        logFile: path.join(process.projectDir, 'failingJob.log')
       })
     ).toResolve()
 
@@ -410,8 +406,7 @@ describe('sasjs job execute with Viya', () => {
     await expect(
       executeWrapper({
         jobPath: 'jobs/testJob/failingJob_DOES_NOT_EXIST',
-        waitForJob: true,
-        returnStatusOnly: true
+        waitForJob: true
       })
     ).toResolve()
 
@@ -462,7 +457,6 @@ interface executeWrapperParams {
   output?: string | boolean
   logFile?: string
   statusFile?: string
-  returnStatusOnly?: boolean
   ignoreWarnings?: boolean
   source?: string
   streamLog?: boolean
@@ -475,7 +469,6 @@ const executeWrapper = async ({
   output = false,
   logFile = undefined,
   statusFile = undefined,
-  returnStatusOnly = false,
   ignoreWarnings = false,
   source = undefined,
   streamLog = false
@@ -489,8 +482,8 @@ const executeWrapper = async ({
     output,
     logFile,
     statusFile,
-    returnStatusOnly,
     ignoreWarnings,
     source,
-    streamLog
+    streamLog,
+    false
   )

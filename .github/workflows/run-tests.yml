@@ -16,13 +16,47 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+
+      - name: Check npm audit
+        run: npm audit --production --audit-level=low
+
+      - name: Install production dependencies (fail if any warning)
+        run: sh ./npm-production-install.sh
+
+      - name: Install dependencies
+        run: |
+          npm config set registry http://registry.npmjs.org
+          npm ci
+
+      - name: Generate development documentation and test level of documentation coverage
+        run: npm run doc
+
+      - name: Check code style
+        run: npm run lint
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Test Package Install
+        run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
+
+      - name: Run smoke tests
+        run: sh ./test.sh
+
       - name: Install Doxygen
         run: sudo apt-get install doxygen
+
+      # Mocked (*.spec.ts) tests will be conducted during this step
+      - name: Generate coverage report
+        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: install pm2 for process management
         run: npm i -g pm2
@@ -42,35 +76,6 @@ jobs:
 
       - name: run sasjs server
         run: pm2 start api-linux
-
-      - name: Check npm audit
-        run: npm audit --production --audit-level=low
-
-      - name: Install production dependencies (fail if any warning)
-        run: sh ./npm-production-install.sh
-
-      - name: Install dependencies
-        run: |
-          npm config set registry http://registry.npmjs.org
-          npm ci
-
-      - name: Check code style
-        run: npm run lint
-
-      - name: Build Project
-        run: npm run build
-
-      - name: Test Package Install
-        run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
-
-      - name: Run smoke tests
-        run: sh ./test.sh
-
-      # Mocked (*.spec.ts) tests will be conducted during this step
-      - name: Generate coverage report
-        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy SAS9 tests
         run: |

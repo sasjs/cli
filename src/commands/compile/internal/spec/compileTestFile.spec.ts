@@ -267,10 +267,7 @@ describe('compileTestFile', () => {
 
       expect(process.logger.warn).toHaveBeenCalledWith(expectedWarn)
 
-      compileTestFlow(
-        testTarget as unknown as Target,
-        testConfig as unknown as Configuration
-      )
+      compileTestFlow(testTarget as unknown as Target)
 
       expect(process.logger.warn).toHaveBeenCalledWith(expectedWarn)
     })
