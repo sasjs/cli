@@ -50,7 +50,7 @@ export async function generateSnippets(
       const macro: string = file.split(path.sep).pop().replace(sasRegExp, '')
 
       // put generated snippet into snippets object
-      snippets[macro] = await createMacro(file)
+      snippets[macro] = await createSnippetFromMacro(file)
     })
   })
 
@@ -84,7 +84,7 @@ export async function generateSnippets(
  * @param file file path of SAS macro.
  * @returns promise that resolves with VS Code snippet.
  */
-const createMacro = async (file: string): Promise<Snippet> => {
+const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
   const fileContent = await readFile(file)
   const lineEnding = getLineEnding(fileContent) // LF or CRLF
   const lines = fileContent.split(lineEnding)
