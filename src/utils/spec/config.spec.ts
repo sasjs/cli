@@ -574,8 +574,27 @@ describe('getSASjs', () => {
     expect(verbose).toEqual(true)
   })
 
-  it('should disable verbose mode if VERBOSE env is not present', () => {
+  it(`should enable verbose mode if LOG_LEVEL env is present and is equal to 'trace'(case insensitive)`, () => {
+    process.env.LOG_LEVEL = 'trace'
+
+    let sasjs = getSASjs({} as Target)
+    let sasjsConfig = sasjs.getSasjsConfig()
+    let { verbose } = sasjsConfig
+
+    expect(verbose).toEqual(true)
+
+    process.env.LOG_LEVEL = 'TRACE'
+
+    sasjs = getSASjs({} as Target)
+    sasjsConfig = sasjs.getSasjsConfig()
+    verbose = sasjsConfig.verbose
+
+    expect(verbose).toEqual(true)
+  })
+
+  it('should disable verbose mode if VERBOSE and LOG_LEVEL env are not present', () => {
     process.env.VERBOSE = ''
+    process.env.LOG_LEVEL = ''
 
     const sasjs = getSASjs({} as Target)
     const sasjsConfig = sasjs.getSasjsConfig()
@@ -584,8 +603,9 @@ describe('getSASjs', () => {
     expect(verbose).toEqual(false)
   })
 
-  it(`should disable verbose mode if VERBOSE env is present and is not equal to 'on'(case insensitive)`, () => {
+  it(`should disable verbose mode if VERBOSE env is present and is not equal to 'on'(case insensitive) and LOG_LEVEL env is present and is not equal to 'trace'(case insensitive)`, () => {
     process.env.VERBOSE = 'start'
+    process.env.LOG_LEVEL = 'Info'
 
     const sasjs = getSASjs({} as Target)
     const sasjsConfig = sasjs.getSasjsConfig()
