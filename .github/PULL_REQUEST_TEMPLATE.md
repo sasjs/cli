@@ -20,3 +20,7 @@ What code changes have been made to achieve the intent.
 - [ ] Development comments have been added or updated.
 - [ ] Development documentation coverage has been increased and a new threshold is set.
 - [ ] Reviewer is assigned.
+
+### Reviewer checks
+
+- [ ] Any new code is documented.

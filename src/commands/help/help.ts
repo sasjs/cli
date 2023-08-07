@@ -350,6 +350,17 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`,
         `[2spaces]NOTE: Providing force (--force or -f) flag is optional. If present, CLI will force command to finish running all tests and will not return an error code even when some are failing. Useful when the requirement is not to make CI Pipeline fail.`
       ]
+    },
+    {
+      name: 'snippets',
+      title: 'snippets',
+      description: [
+        `Generates VS Code snippets from the Doxygen headers in the SAS Macros.`,
+        `[2spaces]command example: sasjs snippets --outDirectory <folderPath> --target <targetName>`,
+        ``,
+        `[2spaces]NOTE: Providing <folderPath> is optional. If not present, generated snippets will be saved to 'sasjsresults/sasjs-macro-snippets.json' file.`,
+        `[2spaces]NOTE: more information can be found here https://cli.sasjs.io/snippets/.`
+      ]
     }
   ]
 
