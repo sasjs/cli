@@ -38,9 +38,12 @@ export async function execute(
           deadlockChain!.join(' -> ')
       )
 
+    // job state poll options
+    // maxPollCount and pollInterval are set to 0 to use default polling options
+    // configured in @sasjs/adapter/src/api/viya/pollJobState.ts
     const pollOptions: PollOptions = {
-      maxPollCount: 24 * 60 * 60,
-      pollInterval: 1000,
+      maxPollCount: 0,
+      pollInterval: 0,
       streamLog,
       logFolderPath: logFolderRealPath
     }
