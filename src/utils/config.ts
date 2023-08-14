@@ -25,7 +25,7 @@ import {
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
-import { loadEnvVariables } from './utils'
+import { loadEnvVariables, isSasJsServerInServerMode } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
@@ -1000,14 +1000,25 @@ export function getSASjs(target: Target) {
 export async function getSASjsAndAuthConfig(target: Target) {
   const sasjs = getSASjs(target)
 
-  if (target.serverType === ServerType.Sas9)
-    return {
-      sasjs,
-      authConfigSas9: getAuthConfigSAS9(target)
-    }
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      return {
+        sasjs,
+        authConfig: await getAuthConfig(target)
+      }
 
-  return {
-    sasjs,
-    authConfig: await getAuthConfig(target)
+    case ServerType.Sas9:
+      return {
+        sasjs,
+        authConfigSas9: getAuthConfigSAS9(target)
+      }
+
+    case ServerType.Sasjs:
+      return {
+        sasjs,
+        authConfig: (await isSasJsServerInServerMode(target))
+          ? await getAuthConfig(target)
+          : undefined // @sasjs/server doesn't have authentication in desktop mode
+      }
   }
 }
