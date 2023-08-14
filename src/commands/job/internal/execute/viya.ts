@@ -35,7 +35,6 @@ import { saveLog } from '../utils'
  * @param {boolean} ignoreWarnings - flag indicating if CLI should return status '0', when the job state is warning.
  * @param {string | undefined} source - an optional path to a JSON file containing macro variables.
  * @param {boolean} streamLog - a flag indicating if the logs should be streamed to the supplied log path during job execution. This is useful for getting feedback on long running jobs.
- * @param {boolean} verbose - enables verbose mode that logs summary of every HTTP response.
  */
 export async function executeJobViya(
   sasjs: SASjs,
@@ -48,13 +47,14 @@ export async function executeJobViya(
   statusFile: string | undefined,
   ignoreWarnings: boolean,
   source: string | undefined,
-  streamLog: boolean,
-  verbose: boolean
+  streamLog: boolean
 ) {
-  // job status poll options
+  // job state poll options
+  // maxPollCount and pollInterval are set to 0 to use default polling options
+  // configured in @sasjs/adapter/src/api/viya/pollJobState.ts
   const pollOptions: PollOptions = {
-    maxPollCount: 24 * 60 * 60,
-    pollInterval: 1000,
+    maxPollCount: 0,
+    pollInterval: 0,
     streamLog,
     logFolderPath: logFile
   }
@@ -108,8 +108,7 @@ export async function executeJobViya(
       waitForJob || !!logFile,
       pollOptions,
       true,
-      macroVars?.macroVars,
-      verbose || undefined
+      macroVars?.macroVars
     )
     .catch(async (err) => {
       // handle error

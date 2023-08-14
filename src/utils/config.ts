@@ -1,4 +1,4 @@
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { VerboseMode } from '@sasjs/adapter/node'
 import {
   Configuration,
   Target,
@@ -960,13 +960,21 @@ export const getTestTearDown = async (target: Target) => {
 export function getSASjs(target: Target) {
   const { VERBOSE, LOG_LEVEL } = process.env
 
-  let verbose = false
+  let verbose: VerboseMode = false
 
-  // verbose mode should be enabled if VERBOSE environment variable present and is equal to 'on'(case insensitive)
+  // verbose mode should be enabled if VERBOSE environment variable present and
+  // is equal to 'on'(case insensitive)
   if (typeof VERBOSE === 'string' && /on/i.test(VERBOSE)) {
     verbose = true
   }
-  // verbose mode should be enabled if LOG_LEVEL environment variable present and is equal to 'trace'(case insensitive)
+  // verbose mode should be enabled in 'bleached' mode(without extra colors)
+  // if VERBOSE environment variable present and is equal to
+  // 'bleached'(case insensitive)
+  if (typeof VERBOSE === 'string' && /bleached/i.test(VERBOSE)) {
+    verbose = 'bleached'
+  }
+  // verbose mode should be enabled if LOG_LEVEL environment variable present
+  // and is equal to 'trace'(case insensitive)
   else if (typeof LOG_LEVEL === 'string' && /trace/i.test(LOG_LEVEL)) {
     verbose = true
   }

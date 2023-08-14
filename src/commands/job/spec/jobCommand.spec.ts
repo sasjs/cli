@@ -92,8 +92,7 @@ describe('JobCommand', () => {
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
         ...executeCalledWith({
           jobPath,
-          waitForJob: true,
-          verbose: true
+          waitForJob: true
         })
       )
     })
@@ -192,6 +191,69 @@ describe('JobCommand', () => {
 
       expect(returnCode).toEqual(ReturnCode.InternalError)
       expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should set verbose to true if verbose flag present', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath, '--verbose'])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith(true)
+    })
+
+    it('should set verbose to bleached if verbose flag present and is equal to bleached', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath, '-v', 'bleached'])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith('bleached')
+    })
+
+    it('should set verbose to false if verbose flag is not present', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith(false)
     })
   })
 
@@ -385,8 +447,7 @@ const executeCalledWith = ({
   statusFile = undefined,
   ignoreWarnings = false,
   source = undefined,
-  streamLog = false,
-  verbose = false
+  streamLog = false
 }: executeWrapperParams) => [
   expect.anything(),
   authConfig,
@@ -398,8 +459,7 @@ const executeCalledWith = ({
   statusFile,
   ignoreWarnings,
   source,
-  streamLog,
-  verbose
+  streamLog
 ]
 
 const executeCommandWrapper = async (additionalParams: string[]) => {

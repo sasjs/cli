@@ -1,10 +1,10 @@
-import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
-import { Target } from '@sasjs/utils'
-import { getAuthConfig, isSasJsServerInServerMode } from '../../../../utils'
+import { AuthConfig, Target } from '@sasjs/utils'
 import { saveLog, saveOutput } from '../utils'
+import SASjs from '@sasjs/adapter/node'
 
 /**
  * Triggers existing job for execution on SASJS server.
+ * @param {object} sasjs - configuration object of SAS adapter.
  * @param target - SASJS server configuration.
  * @param jobPath - location of the job.
  * @param logFile - flag indicating if CLI should fetch and save log to provided file path. If filepath wasn't provided, {job}.log file will be created in current folder.
@@ -12,21 +12,14 @@ import { saveLog, saveOutput } from '../utils'
  * @returns - promise that resolves into an object with log and output.
  */
 export async function executeJobSasjs(
+  sasjs: SASjs,
   target: Target,
   jobPath: string,
   logFile?: string,
-  output?: string
+  output?: string,
+  authConfig?: AuthConfig
 ) {
-  // get authentication configuration if SASJS server is in server mode.
-  const authConfig = (await isSasJsServerInServerMode(target))
-    ? await getAuthConfig(target)
-    : undefined
-
-  const sasjsApiClient = new SASjsApiClient(
-    new SasjsRequestClient(target.serverUrl, target.httpsAgentOptions)
-  )
-
-  const response = await sasjsApiClient.executeJob(
+  const response = await sasjs.executeJob(
     {
       _program: jobPath
     },

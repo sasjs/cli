@@ -296,7 +296,7 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
         `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`,
         `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present, CLI will return status '0', when the job state is warning.`,
-        `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response.`
+        `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response. If set to 'bleached', , CLI will log summary of every HTTP response without extra colors.`
       ]
     },
     {
