@@ -21,7 +21,7 @@
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "preinstall": "npm run nodeVersionMessage",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true",
-    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 15 --coverageTestThresholdFail"
+    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 16 --coverageTestThresholdFail"
   },
   "testServerTypes": "sasjs",
   "release": {
