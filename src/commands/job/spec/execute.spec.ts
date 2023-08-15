@@ -2,7 +2,7 @@ import SASjs, { SASjsApiClient } from '@sasjs/adapter/node'
 import { deleteFile } from '@sasjs/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
-import { setConstants } from '../../../utils'
+import { setConstants, getSASjsAndAuthConfig } from '../../../utils'
 import * as utilsModule from '../../../utils/utils'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
@@ -36,8 +36,7 @@ describe('executeJobViya', () => {
       testFilePath,
       false,
       undefined,
-      true,
-      false
+      true
     )
 
     expect(sasjs.startComputeJob).toHaveBeenCalledWith(
@@ -49,13 +48,12 @@ describe('executeJobViya', () => {
       mockAuthConfig,
       true,
       {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
+        maxPollCount: 0,
+        pollInterval: 0,
         streamLog: true,
         logFolderPath: testLogsPath
       },
       true,
-      undefined,
       undefined
     )
 
@@ -74,7 +72,6 @@ describe('executeJobViya', () => {
       testFilePath,
       false,
       undefined,
-      false,
       false
     )
 
@@ -87,92 +84,13 @@ describe('executeJobViya', () => {
       mockAuthConfig,
       true,
       {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
+        maxPollCount: 0,
+        pollInterval: 0,
         streamLog: false,
         logFolderPath: testLogsPath
       },
       true,
-      undefined,
       undefined
-    )
-
-    await deleteFile(testFilePath)
-  })
-
-  it('should pass verbose as undefined when the flag is false', async () => {
-    await executeJobViya(
-      sasjs,
-      mockAuthConfig,
-      'test/job',
-      target,
-      false,
-      false,
-      testLogsPath,
-      testFilePath,
-      false,
-      undefined,
-      false,
-      false
-    )
-
-    expect(sasjs.startComputeJob).toHaveBeenCalledWith(
-      'test/job',
-      null,
-      {
-        contextName: 'Mock Context'
-      },
-      mockAuthConfig,
-      true,
-      {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
-        streamLog: false,
-        logFolderPath: testLogsPath
-      },
-      true,
-      undefined,
-      undefined
-    )
-
-    await deleteFile(testFilePath)
-  })
-
-  it('should pass verbose as true when the flag is true', async () => {
-    const verbose = true
-
-    await executeJobViya(
-      sasjs,
-      mockAuthConfig,
-      'test/job',
-      target,
-      false,
-      false,
-      testLogsPath,
-      testFilePath,
-      false,
-      undefined,
-      false,
-      verbose
-    )
-
-    expect(sasjs.startComputeJob).toHaveBeenCalledWith(
-      'test/job',
-      null,
-      {
-        contextName: 'Mock Context'
-      },
-      mockAuthConfig,
-      true,
-      {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
-        streamLog: false,
-        logFolderPath: testLogsPath
-      },
-      true,
-      undefined,
-      verbose
     )
 
     await deleteFile(testFilePath)
@@ -185,10 +103,15 @@ describe('executeJobSasjs', () => {
   })
 
   it('should pass job pass as a _program parameter', async () => {
+    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target)
+
     await executeJobSasjs(
+      sasjs,
       target,
       'test/job',
-      path.join(process.projectDir, 'logs')
+      path.join(process.projectDir, 'logs'),
+      undefined,
+      authConfig
     )
 
     expect(executeJobMock).toHaveBeenCalledWith(
