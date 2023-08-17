@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { Target, ServerType } from '@sasjs/utils/types'
 import { TargetScope } from '../../types/targetScope'
 import {
