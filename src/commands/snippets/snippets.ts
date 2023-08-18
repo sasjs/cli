@@ -18,9 +18,9 @@ interface Snippet {
 const sasRegExp = /\.sas$/
 // to get lines that have @brief keyword (case insensitive)
 const briefRegExp = /^\s\s@brief\s/i
-// to get lines that have @param keyword and optionally [in] or [out] string
+// to get lines that have @param keyword and optionally [anything] string
 // following it (case insensitive)
-const paramRegExp = /^\s\s@param\s(\[(in|out)\]\s)?/i
+const paramRegExp = /^\s\s@param\s?(\[.*?]\s?)?/i
 
 /**
  * Generates VS Code snippets from the Doxygen headers in the SAS Macros.
