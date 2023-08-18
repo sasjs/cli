@@ -76,7 +76,9 @@ describe('sasjs snippets', () => {
           'Macro 2',
           '\r',
           'Params:',
-          '-msg The message to be printed'
+          '-msg The message to be printed',
+          '-indlm= ( ) Delimeter of the input string',
+          '-outdlm= ( ) Delimiter of the output string'
         ]
       },
       badMacro: {

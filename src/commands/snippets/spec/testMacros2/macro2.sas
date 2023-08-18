@@ -4,6 +4,8 @@
   @details prints an arbitrary message to the log
 
   @param msg The message to be printed
+  @param [in] indlm= ( ) Delimeter of the input string
+  @param [out] outdlm= ( ) Delimiter of the output string
   @author Allan Bowe
 
 **/
