@@ -16,11 +16,11 @@ interface Snippet {
 
 // to check if file has .sas extension
 const sasRegExp = /\.sas$/
-// to get lines that has @brief keyword
-const briefRegExp = /^\s\s@brief\s/
-// to get lines that has @param keyword and optionally [in] or [out] string
-// following it
-const paramRegExp = /^\s\s@param\s(\[(in|out)\]\s)?/
+// to get lines that have @brief keyword (case insensitive)
+const briefRegExp = /^\s\s@brief\s/i
+// to get lines that have @param keyword and optionally [in] or [out] string
+// following it (case insensitive)
+const paramRegExp = /^\s\s@param\s(\[(in|out)\]\s)?/i
 
 /**
  * Generates VS Code snippets from the Doxygen headers in the SAS Macros.
