@@ -1,9 +1,11 @@
 /**
   @file
-  @brief Macro 2
+  @BRIEF Macro 2
   @details prints an arbitrary message to the log
 
   @param msg The message to be printed
+  @PARAM [in] indlm= ( ) Delimeter of the input string
+  @param [OUT] outdlm= ( ) Delimiter of the output string
   @author Allan Bowe
 
 **/
