@@ -484,6 +484,5 @@ const executeWrapper = async ({
     statusFile,
     ignoreWarnings,
     source,
-    streamLog,
-    false
+    streamLog
   )

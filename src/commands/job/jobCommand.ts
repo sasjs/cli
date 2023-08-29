@@ -1,8 +1,14 @@
-import { ServerType, Target, decodeFromBase64 } from '@sasjs/utils'
+import {
+  AuthConfig,
+  AuthConfigSas9,
+  ServerType,
+  Target,
+  decodeFromBase64
+} from '@sasjs/utils'
 import path from 'path'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getSASjsAndAuthConfig } from '../../utils'
+import { getSASjs, getSASjsAndAuthConfig } from '../../utils'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import {
@@ -10,6 +16,8 @@ import {
   executeJobSasjs,
   executeJobSas9
 } from './internal/execute'
+import { VerboseMode } from '@sasjs/adapter/node'
+import SASjs from '@sasjs/adapter/node'
 
 enum JobSubCommand {
   Execute = 'execute',
@@ -78,16 +86,18 @@ const executeParseOptions = {
       'Flag indicating whether the logs should be streamed to a local file as the job executes.'
   },
   verbose: {
-    type: 'boolean',
+    type: 'string',
     alias: 'v',
     default: false,
-    description:
-      'If present, CLI will return status 0, 1 or 2 together with HTTP response summaries.'
+    description: `If present, CLI will return status 0, 1 or 2 together with HTTP response summaries. If set to 'bleached', HTTP response summaries will be logged without extra colors.`
   }
 }
 
 export class JobCommand extends TargetCommand {
   private jobSubCommands: any[]
+  private verbose: VerboseMode = false
+  private sasjs: SASjs = new SASjs()
+  private authConfig?: AuthConfig | AuthConfigSas9
 
   constructor(args: string[]) {
     const jobSubCommands: string[] = (<any>Object).values(JobSubCommand)
@@ -105,6 +115,8 @@ export class JobCommand extends TargetCommand {
     })
 
     this.jobSubCommands = jobSubCommands
+
+    this.verbose = getVerbose(args, this.parsed.verbose)
   }
 
   /**
@@ -112,13 +124,43 @@ export class JobCommand extends TargetCommand {
    * @returns - promise that resolves into return code.
    */
   public async execute() {
-    const { target } = await this.getTargetInfo()
-
     // returnStatusOnly flag is deprecated and is left to display warning if used
     const returnStatusOnly = !!this.parsed.returnStatusOnly
     if (returnStatusOnly) {
       process.logger.warn('--returnStatusOnly (-r) flag is deprecated.')
     }
+
+    const { target } = await this.getTargetInfo()
+
+    const sasjsAndAuthConfig = await getSASjsAndAuthConfig(target).catch(
+      (err) => {
+        // handle getting instance of @sasjs/adapter and auth config failure
+        process.logger?.error(
+          'Unable to execute job. Error fetching auth config: ',
+          err
+        )
+
+        return {
+          sasjs: getSASjs(target),
+          authConfig: undefined,
+          authConfigSas9: undefined
+        }
+      }
+    )
+
+    const sasjs = sasjsAndAuthConfig.sasjs
+    const authConfig = sasjsAndAuthConfig.authConfig
+    const authConfigSas9 = (
+      sasjsAndAuthConfig as { authConfigSas9: AuthConfigSas9 }
+    ).authConfigSas9
+
+    if (!sasjs || (!authConfig && !authConfigSas9)) {
+      return ReturnCode.InternalError
+    }
+
+    this.sasjs = sasjs
+    this.sasjs.setVerboseMode(this.verbose)
+    this.authConfig = authConfig || authConfigSas9
 
     // use execution function based on server type
     switch (target.serverType) {
@@ -163,7 +205,14 @@ export class JobCommand extends TargetCommand {
       ? (this.parsed.output as string)
       : undefined
 
-    const returnCode = await executeJobSasjs(target, jobPath, log, output)
+    const returnCode = await executeJobSasjs(
+      this.sasjs,
+      target,
+      jobPath,
+      log,
+      output,
+      this.authConfig as AuthConfig
+    )
       .then(() => ReturnCode.Success)
       .catch((err) => {
         // handle job execution failure
@@ -190,25 +239,13 @@ export class JobCommand extends TargetCommand {
       ? (this.parsed.output as string)
       : undefined
 
-    const { sasjs, authConfigSas9 } = await getSASjsAndAuthConfig(target).catch(
-      (err) => {
-        // handle getting instance of @sasjs/adapter and auth config failure
-        process.logger?.error(
-          'Unable to execute job. Error fetching auth config: ',
-          err
-        )
+    this.authConfig = this.authConfig as AuthConfigSas9
 
-        return { sasjs: undefined, authConfigSas9: undefined }
-      }
-    )
-
-    if (!authConfigSas9 || !sasjs) return ReturnCode.InternalError
-
-    const userName = authConfigSas9.userName
-    const password = decodeFromBase64(authConfigSas9.password)
+    const userName = this.authConfig.userName
+    const password = decodeFromBase64(this.authConfig.password)
 
     const returnCode = await executeJobSas9(
-      sasjs,
+      this.sasjs,
       { userName, password },
       jobPath,
       log,
@@ -238,7 +275,6 @@ export class JobCommand extends TargetCommand {
     const log = getLogFilePath(this.parsed.log, jobPath)
     const ignoreWarnings = !!this.parsed.ignoreWarnings
     const streamLog = !!this.parsed.streamLog
-    const verbose = !!this.parsed.verbose
     const source = this.parsed.source as string
     let wait = (this.parsed.wait as boolean) || !!log
 
@@ -248,25 +284,11 @@ export class JobCommand extends TargetCommand {
       ? true
       : false
 
-    if (verbose && !wait) wait = true
-
-    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target).catch(
-      (err) => {
-        // handle getting instance of @sasjs/adapter and auth config failure
-        process.logger?.error(
-          'Unable to execute job. Error fetching auth config: ',
-          err
-        )
-
-        return { sasjs: undefined, authConfig: undefined }
-      }
-    )
-
-    if (!authConfig || !sasjs) return ReturnCode.InternalError
+    if (!!this.verbose && !wait) wait = true
 
     const returnCode = await executeJobViya(
-      sasjs,
-      authConfig,
+      this.sasjs,
+      this.authConfig as AuthConfig,
       jobPath,
       target,
       wait,
@@ -275,8 +297,7 @@ export class JobCommand extends TargetCommand {
       statusFile,
       ignoreWarnings,
       source,
-      streamLog,
-      verbose
+      streamLog
     )
       .then(() => ReturnCode.Success)
       .catch((err) => {
@@ -305,4 +326,24 @@ const getStatusFilePath = (statusFileArg: unknown) => {
   }
 
   return undefined
+}
+
+/**
+ * Determines verbose mode based on command arguments.
+ * @param args - command arguments.
+ * @param verboseArg - value of the verbose argument.
+ * @returns - verbose mode.
+ */
+const getVerbose = (args: string[], verboseArg: unknown) => {
+  const verboseArgPresent = args.includes('-v') || args.includes('--verbose')
+
+  if (verboseArgPresent) {
+    // if verboseArg, use the string as verbose mode(any strings not equal to
+    // 'bleached' will be ignored)
+    if (typeof verboseArg === 'string') return verboseArg as VerboseMode
+
+    return true
+  }
+
+  return false
 }
