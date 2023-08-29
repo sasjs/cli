@@ -2,7 +2,7 @@ import SASjs, { SASjsApiClient } from '@sasjs/adapter/node'
 import { deleteFile } from '@sasjs/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
-import { setConstants } from '../../../utils'
+import { setConstants, getSASjsAndAuthConfig } from '../../../utils'
 import * as utilsModule from '../../../utils/utils'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
@@ -15,7 +15,6 @@ const target = new Target({
   appLoc: '/test',
   contextName: 'Mock Context'
 })
-let statusFile: string
 
 describe('executeJobViya', () => {
   beforeEach(async () => {
@@ -36,7 +35,6 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
       true
     )
@@ -50,8 +48,8 @@ describe('executeJobViya', () => {
       mockAuthConfig,
       true,
       {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
+        maxPollCount: 0,
+        pollInterval: 0,
         streamLog: true,
         logFolderPath: testLogsPath
       },
@@ -73,7 +71,6 @@ describe('executeJobViya', () => {
       testLogsPath,
       testFilePath,
       false,
-      false,
       undefined,
       false
     )
@@ -87,8 +84,8 @@ describe('executeJobViya', () => {
       mockAuthConfig,
       true,
       {
-        maxPollCount: 24 * 60 * 60,
-        pollInterval: 1000,
+        maxPollCount: 0,
+        pollInterval: 0,
         streamLog: false,
         logFolderPath: testLogsPath
       },
@@ -106,10 +103,15 @@ describe('executeJobSasjs', () => {
   })
 
   it('should pass job pass as a _program parameter', async () => {
+    const { sasjs, authConfig } = await getSASjsAndAuthConfig(target)
+
     await executeJobSasjs(
+      sasjs,
       target,
       'test/job',
-      path.join(process.projectDir, 'logs')
+      path.join(process.projectDir, 'logs'),
+      undefined,
+      authConfig
     )
 
     expect(executeJobMock).toHaveBeenCalledWith(

@@ -7,8 +7,8 @@ import * as normalizeFilePath from '../normalizeFilePath'
 import csvColumns from '../csvColumns'
 
 const pollOptions: PollOptions = {
-  maxPollCount: 24 * 60 * 60,
-  pollInterval: 1000,
+  maxPollCount: 0,
+  pollInterval: 0,
   streamLog: false,
   logFolderPath: 'fake/log/folder/path'
 }

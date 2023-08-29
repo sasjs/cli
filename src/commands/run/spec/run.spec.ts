@@ -43,7 +43,6 @@ describe('sasjs run', () => {
         logData,
         expect.stringMatching(/sasjs-run-\d{14}\.log$/),
         '',
-        false,
         undefined
       )
     })

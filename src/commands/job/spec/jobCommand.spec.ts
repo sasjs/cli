@@ -86,14 +86,13 @@ describe('JobCommand', () => {
       )
     })
 
-    it('should pass wait as true if returnStatusOnly flag is present', async () => {
-      await executeCommandWrapper([jobPath, '--returnStatusOnly'])
+    it('should pass wait as true if verbose flag is present', async () => {
+      await executeCommandWrapper([jobPath, '--verbose'])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
         ...executeCalledWith({
           jobPath,
-          waitForJob: true,
-          returnStatusOnly: true
+          waitForJob: true
         })
       )
     })
@@ -111,10 +110,10 @@ describe('JobCommand', () => {
         statusFile,
         '--source',
         source,
-        '--returnStatusOnly',
         '--ignoreWarnings',
         '--wait',
-        '--streamLog'
+        '--streamLog',
+        '--verbose'
       ])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
@@ -124,10 +123,10 @@ describe('JobCommand', () => {
           output,
           logFile: path.join(projectFolder, log),
           statusFile: path.join(projectFolder, statusFile),
-          returnStatusOnly: true,
           ignoreWarnings: true,
           source,
-          streamLog: true
+          streamLog: true,
+          verbose: true
         })
       )
     })
@@ -145,10 +144,10 @@ describe('JobCommand', () => {
         statusFile,
         '-s',
         source,
-        '-r',
         '-i',
         '-w',
-        '--streamLog'
+        '--streamLog',
+        '-v'
       ])
 
       expect(viyaExecuteModule.executeJobViya).toHaveBeenCalledWith(
@@ -158,10 +157,10 @@ describe('JobCommand', () => {
           output,
           logFile: path.join(projectFolder, log),
           statusFile: path.join(projectFolder, statusFile),
-          returnStatusOnly: true,
           ignoreWarnings: true,
           source,
-          streamLog: true
+          streamLog: true,
+          verbose: true
         })
       )
     })
@@ -192,6 +191,69 @@ describe('JobCommand', () => {
 
       expect(returnCode).toEqual(ReturnCode.InternalError)
       expect(process.logger.error).toHaveBeenCalled()
+    })
+
+    it('should set verbose to true if verbose flag present', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath, '--verbose'])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith(true)
+    })
+
+    it('should set verbose to bleached if verbose flag present and is equal to bleached', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath, '-v', 'bleached'])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith('bleached')
+    })
+
+    it('should set verbose to false if verbose flag is not present', async () => {
+      let sasjs = new SASjs()
+
+      jest
+        .spyOn(configUtils, 'getSASjsAndAuthConfig')
+        .mockImplementation((target: Target) => {
+          sasjs = configUtils.getSASjs(target)
+
+          jest.spyOn(sasjs, 'setVerboseMode')
+
+          return Promise.resolve({
+            sasjs: sasjs,
+            authConfig: authConfig as AuthConfig
+          })
+        })
+
+      await executeCommandWrapper([jobPath])
+
+      expect(sasjs.setVerboseMode).toHaveBeenCalledWith(false)
     })
   })
 
@@ -288,13 +350,25 @@ describe('JobCommand', () => {
       jest
         .spyOn(SasjsUtilsFilesModule, 'createFile')
         .mockImplementation(() => Promise.resolve())
+
       const returnCode = await executeCommandWrapper([
         jobPath,
         '--output',
         'output.json'
       ])
+
       expect(returnCode).toEqual(ReturnCode.Success)
     })
+  })
+
+  it('should log deprecation warning if returnStatusOnly flag is present', async () => {
+    jest.spyOn(process.logger, 'warn')
+
+    await executeCommandWrapper([jobPath, '--returnStatusOnly'])
+
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      '--returnStatusOnly (-r) flag is deprecated.'
+    )
   })
 })
 
@@ -359,10 +433,10 @@ interface executeWrapperParams {
   output?: string | boolean
   logFile?: string
   statusFile?: string
-  returnStatusOnly?: boolean
   ignoreWarnings?: boolean
   source?: string
   streamLog?: boolean
+  verbose?: boolean
 }
 
 const executeCalledWith = ({
@@ -371,7 +445,6 @@ const executeCalledWith = ({
   output = false,
   logFile = undefined,
   statusFile = undefined,
-  returnStatusOnly = false,
   ignoreWarnings = false,
   source = undefined,
   streamLog = false
@@ -384,7 +457,6 @@ const executeCalledWith = ({
   output,
   logFile,
   statusFile,
-  returnStatusOnly,
   ignoreWarnings,
   source,
   streamLog

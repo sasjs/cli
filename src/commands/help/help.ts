@@ -289,14 +289,14 @@ export async function printHelpText() {
         `[2spaces]* ${chalk.cyanBright(
           'execute'
         )} - triggers job for execution.`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName --output ./outputFolder/output.json --returnStatusOnly --ignoreWarnings`,
-        `[2spaces]command example: sasjs job execute /Public/job -t targetName --wait --log ./logFolder/log.json -r -i`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --output ./outputFolder/output.json --ignoreWarnings --verbose`,
+        `[2spaces]command example: sasjs job execute /Public/job -t targetName --wait --log ./logFolder/log.json -i -v`,
         ``,
         `[2spaces]NOTE: Providing wait flag (--wait or -w) is optional. If present, CLI will wait for job completion.`,
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
         `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`,
-        `[2spaces]NOTE: Providing return status only (--returnStatusOnly or -r) flag is optional. If present and wait flag is provided, CLI will job status only (0 = success, 1 = warning, 2 = error).`,
-        `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present and return status only is provided, CLI will return status '0', when the job state is warning.`
+        `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present, CLI will return status '0', when the job state is warning.`,
+        `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response. If set to 'bleached', CLI will log summary of every HTTP response without extra colors.`
       ]
     },
     {
@@ -349,6 +349,17 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing source flag is optional. If not present, CLI will use test flow located at sasjsbuild/testFlow.json.`,
         `[2spaces]NOTE: Providing outDirectory flag is optional. If not present, CLI will use save outputs into sasjsresults folder.`,
         `[2spaces]NOTE: Providing force (--force or -f) flag is optional. If present, CLI will force command to finish running all tests and will not return an error code even when some are failing. Useful when the requirement is not to make CI Pipeline fail.`
+      ]
+    },
+    {
+      name: 'snippets',
+      title: 'snippets',
+      description: [
+        `Generates VS Code snippets from the Doxygen headers in the SAS Macros.`,
+        `[2spaces]command example: sasjs snippets --outDirectory <folderPath> --target <targetName>`,
+        ``,
+        `[2spaces]NOTE: Providing <folderPath> is optional. If not present, generated snippets will be saved to 'sasjsresults/sasjs-macro-snippets.json' file.`,
+        `[2spaces]NOTE: more information can be found here https://cli.sasjs.io/snippets/.`
       ]
     }
   ]

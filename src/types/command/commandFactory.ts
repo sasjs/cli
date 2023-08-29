@@ -21,6 +21,7 @@ import { JobCommand } from '../../commands/job/jobCommand'
 import { LintCommand } from '../../commands/lint/lintCommand'
 import { FlowCommand } from '../../commands/flow/flowCommand'
 import { FSCommand } from '../../commands/fs/fsCommand'
+import { SnippetsCommand } from '../../commands/snippets/snippetsCommand'
 
 export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddCommand(args)],
@@ -46,6 +47,7 @@ export const commandFactory = new Map<string, Function>([
   ['request', (args: string[]) => new RequestCommand(args)],
   ['run', (args: string[]) => new RunCommand(args)],
   ['servicepack', (args: string[]) => new ServicePackCommand(args)],
+  ['snippets', (args: string[]) => new SnippetsCommand(args)],
   ['version', (args: string[]) => new VersionCommand(args)],
   ['test', (args: string[]) => new TestCommand(args)],
   ['web', (args: string[]) => new WebCommand(args)]

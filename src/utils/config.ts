@@ -1,4 +1,4 @@
-import SASjs from '@sasjs/adapter/node'
+import SASjs, { VerboseMode } from '@sasjs/adapter/node'
 import {
   Configuration,
   Target,
@@ -25,7 +25,7 @@ import {
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
-import { loadEnvVariables } from './utils'
+import { loadEnvVariables, isSasJsServerInServerMode } from './utils'
 
 const ERROR_MESSAGE = (targetName: string = '') => {
   return {
@@ -953,10 +953,32 @@ export const getTestTearDown = async (target: Target) => {
 }
 
 /**
- * Returns configuration object of SAS Adapter and authentication configuration
- * @param {Target} target - the target to get auth configuration from.
+ * Provides instance of @sasjs/adapter.
+ * @param target - server server.
+ * @returns - instance of @sasjs/adapter.
  */
 export function getSASjs(target: Target) {
+  const { VERBOSE, LOG_LEVEL } = process.env
+
+  let verbose: VerboseMode = false
+
+  // verbose mode should be enabled if VERBOSE environment variable present and
+  // is equal to 'on'(case insensitive)
+  if (typeof VERBOSE === 'string' && /on/i.test(VERBOSE)) {
+    verbose = true
+  }
+  // verbose mode should be enabled in 'bleached' mode(without extra colors)
+  // if VERBOSE environment variable present and is equal to
+  // 'bleached'(case insensitive)
+  if (typeof VERBOSE === 'string' && /bleached/i.test(VERBOSE)) {
+    verbose = 'bleached'
+  }
+  // verbose mode should be enabled if LOG_LEVEL environment variable present
+  // and is equal to 'trace'(case insensitive)
+  else if (typeof LOG_LEVEL === 'string' && /trace/i.test(LOG_LEVEL)) {
+    verbose = true
+  }
+
   return new SASjs({
     serverUrl: target.serverUrl,
     appLoc: target.appLoc,
@@ -964,7 +986,8 @@ export function getSASjs(target: Target) {
     contextName: target.contextName,
     httpsAgentOptions: target.httpsAgentOptions,
     debug: true,
-    useComputeApi: target.serverType === ServerType.SasViya
+    useComputeApi: target.serverType === ServerType.SasViya, // compute api is used only on Viya server
+    verbose
   })
 }
 
@@ -977,14 +1000,25 @@ export function getSASjs(target: Target) {
 export async function getSASjsAndAuthConfig(target: Target) {
   const sasjs = getSASjs(target)
 
-  if (target.serverType === ServerType.Sas9)
-    return {
-      sasjs,
-      authConfigSas9: getAuthConfigSAS9(target)
-    }
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      return {
+        sasjs,
+        authConfig: await getAuthConfig(target)
+      }
 
-  return {
-    sasjs,
-    authConfig: await getAuthConfig(target)
+    case ServerType.Sas9:
+      return {
+        sasjs,
+        authConfigSas9: getAuthConfigSAS9(target)
+      }
+
+    case ServerType.Sasjs:
+      return {
+        sasjs,
+        authConfig: (await isSasJsServerInServerMode(target))
+          ? await getAuthConfig(target)
+          : undefined // @sasjs/server doesn't have authentication in desktop mode
+      }
   }
 }

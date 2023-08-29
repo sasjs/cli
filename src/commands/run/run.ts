@@ -216,7 +216,7 @@ async function createOutputFile(
     )
   }
 
-  await saveLog(log || '', logFilePath, '', false, silent)
+  await saveLog(log || '', logFilePath, '', silent)
 
   return logFilePath
 }
