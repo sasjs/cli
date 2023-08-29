@@ -21,7 +21,7 @@
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "preinstall": "npm run nodeVersionMessage",
     "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true",
-    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 15 --coverageTestThresholdFail"
+    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 16 --coverageTestThresholdFail"
   },
   "testServerTypes": "sasjs",
   "release": {
@@ -51,7 +51,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.8.0",
+    "@sasjs/adapter": "4.9.1",
     "@sasjs/core": "4.46.3",
     "@sasjs/lint": "2.3.1",
     "@sasjs/utils": "3.4.0",

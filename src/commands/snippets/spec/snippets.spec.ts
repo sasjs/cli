@@ -73,10 +73,17 @@ describe('sasjs snippets', () => {
         prefix: '%macro2',
         body: '%macro2($1)',
         description: [
-          'Macro 2',
+          'Macro 2 with uppercase @BRIEF',
           '\r',
           'Params:',
-          '-msg The message to be printed'
+          '-msg The message to be printed',
+          '-indlm= ( ) Uppercase @PARAM',
+          '-outdlm= ( ) Uppercase [OUT]',
+          '-outdlm= ( ) No space after @param',
+          '-outdlm= ( ) No space after [out]',
+          '-outdlm= ( ) No space after @param and [out]',
+          '-scopeds= () with [in,out]',
+          '-anything= () with [anything]'
         ]
       },
       badMacro: {
