@@ -28,14 +28,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm config set registry http://registry.npmjs.org
+          npm config set registry https://registry.npmjs.org
           npm ci
 
       - name: Build Project
         run: npm run build
 
       - name: Check npm audit
-        run: npm audit --production --audit-level=low
+        run: npm audit --omit=dev --audit-level=low
 
       - name: Set NPM Registry back to https
         run: npm config set registry https://registry.npmjs.org
