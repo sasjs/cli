@@ -143,7 +143,7 @@ export async function executeJobViya(
 
       // get additional information about error if it is present
       result =
-        typeof err === 'object' && Object.keys(err).length
+        typeof err === 'object' && err.job && err.job?.state
           ? JSON.stringify({ state: err.job?.state })
           : `${err}`
 
