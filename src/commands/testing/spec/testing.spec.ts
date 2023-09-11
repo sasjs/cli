@@ -22,6 +22,7 @@ import * as sasJsModules from '../../../utils/createSASjsInstance'
 import { testResponses } from './mockedAdapter/testResponses'
 import * as fileModule from '@sasjs/utils/file'
 import * as utilsModule from '@sasjs/utils/utils'
+import * as readAndValidateInputModule from '@sasjs/utils/input/readAndValidateInput'
 import * as configUtils from '../../../utils/config'
 import chalk from 'chalk'
 import { mockAuthConfig } from '../../context/spec/mocks'
@@ -962,4 +963,7 @@ const setupMocksForSASJS = () => {
         }
       } as unknown as SASjs
     })
+  jest
+    .spyOn(readAndValidateInputModule, 'getString')
+    .mockImplementation(() => Promise.resolve('mocked input'))
 }
