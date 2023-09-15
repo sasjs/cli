@@ -95,7 +95,7 @@ const executeParseOptions = {
 
 export class JobCommand extends TargetCommand {
   private jobSubCommands: any[]
-  private verbose: VerboseMode = false
+  private verbose?: VerboseMode
   private sasjs: SASjs = new SASjs()
   private authConfig?: AuthConfig | AuthConfigSas9
 
@@ -159,8 +159,9 @@ export class JobCommand extends TargetCommand {
     }
 
     this.sasjs = sasjs
-    this.sasjs.setVerboseMode(this.verbose)
     this.authConfig = authConfig || authConfigSas9
+
+    if (this.verbose) this.sasjs.setVerboseMode(this.verbose)
 
     // use execution function based on server type
     switch (target.serverType) {
@@ -345,5 +346,5 @@ const getVerbose = (args: string[], verboseArg: unknown) => {
     return true
   }
 
-  return false
+  return undefined
 }

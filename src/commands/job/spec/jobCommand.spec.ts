@@ -235,7 +235,7 @@ describe('JobCommand', () => {
       expect(sasjs.setVerboseMode).toHaveBeenCalledWith('bleached')
     })
 
-    it('should set verbose to false if verbose flag is not present', async () => {
+    it('should not call @sasjs/adapter/setVerboseMode method if verbose flag is not present', async () => {
       let sasjs = new SASjs()
 
       jest
@@ -253,7 +253,7 @@ describe('JobCommand', () => {
 
       await executeCommandWrapper([jobPath])
 
-      expect(sasjs.setVerboseMode).toHaveBeenCalledWith(false)
+      expect(sasjs.setVerboseMode).not.toHaveBeenCalled()
     })
   })
 
