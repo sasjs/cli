@@ -24,7 +24,8 @@ import {
   getGlobalRcFile,
   saveGlobalRcFile,
   saveToGlobalConfig,
-  getAccessToken
+  getAccessToken,
+  getSASjs
 } from './config'
 import { dbFiles } from './fileStructures/dbFiles'
 import { compiledFiles } from './fileStructures/compiledFiles'
@@ -36,7 +37,6 @@ import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
-import SASjs from '@sasjs/adapter/node'
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder
@@ -89,12 +89,7 @@ export const removeTestServerFolder = async (
     return
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType
-  })
+  const sasjs = getSASjs(target)
 
   const accessToken = await getAccessToken(target)
 

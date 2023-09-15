@@ -20,6 +20,7 @@ import { displayError } from './displayResult'
 import dotenv from 'dotenv'
 import AdmZip from 'adm-zip'
 import { LogJson } from '../types'
+import { getSASjs } from './config'
 
 export async function inExistingProject(folderPath: string) {
   const packageJsonExists = await fileExists(
@@ -455,14 +456,7 @@ export function getAdapterInstance(target: Target): SASjs {
     )
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType,
-    httpsAgentOptions: target.httpsAgentOptions,
-    contextName: target.contextName,
-    useComputeApi: true,
-    debug: process.env.LOG_LEVEL === LogLevel.Debug
-  })
+  const sasjs = getSASjs(target)
 
   return sasjs
 }

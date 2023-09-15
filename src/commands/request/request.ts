@@ -9,10 +9,14 @@ import {
   getAbsolutePath,
   generateTimestamp
 } from '@sasjs/utils'
-import { displayError, displaySuccess } from '../../utils/displayResult'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils/types'
-import { isSASjsProject } from '../../utils/utils'
-import { saveLog } from '../../utils/saveLog'
+import {
+  isSASjsProject,
+  saveLog,
+  displayError,
+  displaySuccess,
+  getSASjs
+} from '../../utils'
 
 export async function runSasJob(
   target: Target,
@@ -80,15 +84,7 @@ export async function runSasJob(
     configJson.password = decodeFromBase64(configJson.password)
   }
 
-  const sasjs = new SASjs({
-    serverUrl: target.serverUrl,
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    contextName: target.contextName,
-    useComputeApi: false,
-    debug: true
-  })
+  const sasjs = getSASjs(target)
 
   let result
 

@@ -653,11 +653,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   }
 
   if (isAccessTokenExpiring(access_token)) {
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     let tokens
     if (isRefreshTokenExpiring(refresh_token)) {
@@ -704,9 +700,13 @@ export const saveTokens = async (
     })
 
   if (isLocalTarget) {
-    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n`
+    const { VERBOSE } = process.env
+    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
+      VERBOSE ? 'VERBOSE=' + VERBOSE + '\n' : ''
+    }`
     const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
     await createFile(envFilePath, envFileContent)
+
     process.logger?.success(`Environment file saved at ${envFilePath}`)
   } else {
     const globalConfig = await getGlobalRcFile()
@@ -795,11 +795,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   }
 
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     let client =
       target.authConfig && target.authConfig.client

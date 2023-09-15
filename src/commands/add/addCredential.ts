@@ -1,10 +1,10 @@
 import path from 'path'
-import { LogLevel } from '@sasjs/utils/logger'
 import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
-
-import SASjs from '@sasjs/adapter/node'
-import { getNewAccessToken } from '../../utils/auth'
-import { isSasJsServerInServerMode } from '../../utils'
+import {
+  getNewAccessToken,
+  isSasJsServerInServerMode,
+  getSASjs
+} from '../../utils'
 import { createFile } from '@sasjs/utils'
 import {
   getAndValidateServerUrl,
@@ -54,8 +54,7 @@ export const addCredential = async (
         const { access_token, refresh_token } = await getTokens(
           target,
           client,
-          secret,
-          httpsAgentOptions
+          secret
         ).catch((err) => {
           throw err
         })
@@ -108,8 +107,7 @@ export const addCredential = async (
         const { access_token, refresh_token } = await getTokens(
           target,
           client,
-          '',
-          httpsAgentOptions
+          ''
         )
 
         if (targetScope === TargetScope.Local) {
@@ -159,15 +157,9 @@ export const validateTargetName = (targetName: string): string => {
 export const getTokens = async (
   target: Target,
   client: string,
-  secret: string,
-  httpsAgentOptions?: HttpsAgentOptions
+  secret: string
 ) => {
-  const adapter = new SASjs({
-    serverUrl: target.serverUrl,
-    serverType: target.serverType,
-    httpsAgentOptions,
-    debug: process.logger?.logLevel === LogLevel.Debug
-  })
+  const adapter = getSASjs(target)
   const { access_token, refresh_token } = await getNewAccessToken(
     adapter,
     client,
@@ -189,7 +181,9 @@ export const createEnvFileForViya = async (
 ): Promise<void> => {
   const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+
   await createFile(envFilePath, envFileContent)
+
   process.logger?.success(`Environment file saved at ${envFilePath}`)
 }
 
@@ -200,7 +194,9 @@ export const createEnvFileForSas9 = async (
 ): Promise<void> => {
   const envFileContent = `SAS_USERNAME=${userName}\nSAS_PASSWORD=${password}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+
   await createFile(envFilePath, envFileContent)
+
   process.logger?.success(`Environment file saved at ${envFilePath}`)
 }
 
@@ -212,6 +208,8 @@ export const createEnvFileForSasjs = async (
 ): Promise<void> => {
   const envFileContent = `CLIENT=${client}\nACCESS_TOKEN=${accessToken}\nREFRESH_TOKEN=${refreshToken}\n`
   const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
+
   await createFile(envFilePath, envFileContent)
+
   process.logger?.success(`Environment file saved at ${envFilePath}`)
 }
