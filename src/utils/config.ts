@@ -704,9 +704,13 @@ export const saveTokens = async (
     })
 
   if (isLocalTarget) {
-    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n`
+    const { VERBOSE } = process.env
+    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
+      VERBOSE ? 'VERBOSE=' + VERBOSE + '\n' : ''
+    }`
     const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
     await createFile(envFilePath, envFileContent)
+
     process.logger?.success(`Environment file saved at ${envFilePath}`)
   } else {
     const globalConfig = await getGlobalRcFile()
