@@ -2,7 +2,7 @@ import SASjs from '@sasjs/adapter/node'
 import { AuthConfig, ServerType, Target } from '@sasjs/utils'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getAuthConfig } from '../../utils'
+import { getAuthConfig, getSASjs } from '../../utils'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import { create } from './create'
 import { deleteFolder } from './delete'
@@ -74,12 +74,7 @@ export class FolderCommand extends TargetCommand {
       return ReturnCode.InternalError
     }
 
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
@@ -185,12 +180,7 @@ export class FolderCommand extends TargetCommand {
       return ReturnCode.InternalError
     }
 
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(

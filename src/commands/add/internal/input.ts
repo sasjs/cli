@@ -5,14 +5,12 @@ import {
   getUrl
 } from '@sasjs/utils/input'
 import { Target, TargetJson, ServerType } from '@sasjs/utils/types'
-import { LogLevel } from '@sasjs/utils/logger'
 import { encodeToBase64 } from '@sasjs/utils'
 import path from 'path'
 import dotenv from 'dotenv'
-import SASjs from '@sasjs/adapter/node'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
-import { findTargetInConfiguration } from '../../../utils/config'
+import { findTargetInConfiguration, getSASjs } from '../../../utils'
 
 export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()
@@ -207,12 +205,7 @@ export async function getAndValidateSasViyaFields(
         }
       : target.httpsAgentOptions
 
-    const sasjs = new SASjs({
-      serverUrl,
-      serverType: ServerType.SasViya,
-      httpsAgentOptions,
-      debug: process.logger?.logLevel === LogLevel.Debug
-    })
+    const sasjs = getSASjs(target)
     let contexts: any[] = []
     if (scope === TargetScope.Local) {
       dotenv.config({

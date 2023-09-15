@@ -1,6 +1,5 @@
-import SASjs from '@sasjs/adapter/node'
 import { FileTree, MemberType, readFile, Target } from '@sasjs/utils'
-import { getAccessToken } from '../../utils'
+import { getAccessToken, getSASjs } from '../../utils'
 
 export async function deployToSasViyaWithServicePack(
   jsonFilePath: string,
@@ -30,13 +29,7 @@ export async function deployToSasViyaWithServicePack(
     )
   }
 
-  const sasjs = new SASjs({
-    httpsAgentOptions: target.httpsAgentOptions,
-    appLoc: target.appLoc,
-    serverType: target.serverType,
-    serverUrl: target.serverUrl,
-    useComputeApi: true
-  })
+  const sasjs = getSASjs(target)
 
   await sasjs
     .deployServicePack(jsonObject, undefined, undefined, access_token, isForced)

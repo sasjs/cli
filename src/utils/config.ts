@@ -653,11 +653,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   }
 
   if (isAccessTokenExpiring(access_token)) {
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     let tokens
     if (isRefreshTokenExpiring(refresh_token)) {
@@ -799,11 +795,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   }
 
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     let client =
       target.authConfig && target.authConfig.client

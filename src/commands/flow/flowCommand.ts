@@ -3,7 +3,7 @@ import { AuthConfig, Target } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { displayError, getAuthConfig } from '../../utils'
+import { displayError, getAuthConfig, getSASjs } from '../../utils'
 import { execute } from './execute'
 
 enum FlowSubCommand {
@@ -67,13 +67,7 @@ export class FlowCommand extends TargetCommand {
 
   public async execute() {
     const { target } = await this.getTargetInfo()
-
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target as Target).catch((err) => {
       displayError(err, 'Error while getting access token.')

@@ -1,8 +1,7 @@
-import SASjs from '@sasjs/adapter/node'
 import { readFile, ServerType } from '@sasjs/utils'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
-import { getAuthConfig } from '../../utils'
+import { getAuthConfig, getSASjs } from '../../utils'
 import { create } from './create'
 import { deleteContext } from './delete'
 import { edit } from './edit'
@@ -145,12 +144,7 @@ export class ContextCommand extends TargetCommand {
 
   async executeCreateContext() {
     const { target } = await this.getTargetInfo()
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
     const config = await this.getConfig().catch((err) => {
       process.logger?.error(
         `Unable to create context. Error fetching context configuration from ${this.parsed.source}: `,
@@ -186,12 +180,7 @@ export class ContextCommand extends TargetCommand {
 
   async executeDeleteContext() {
     const { target } = await this.getTargetInfo()
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
@@ -221,33 +210,29 @@ export class ContextCommand extends TargetCommand {
 
   async executeEditContext() {
     const { target } = await this.getTargetInfo()
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+
+    const sasjs = getSASjs(target)
     const config = await this.getConfig().catch((err) => {
       process.logger?.error(
         `Unable to edit context. Error fetching context configuration from ${this.parsed.source}: `,
         err
       )
+
       return null
     })
-    if (!config) {
-      return ReturnCode.InternalError
-    }
+
+    if (!config) return ReturnCode.InternalError
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
         'Unable to edit context. Error fetching auth config: ',
         err
       )
+
       return null
     })
-    if (!authConfig) {
-      return ReturnCode.InternalError
-    }
+
+    if (!authConfig) return ReturnCode.InternalError
 
     const returnCode = await edit(
       this.parsed.contextName as string,
@@ -255,85 +240,65 @@ export class ContextCommand extends TargetCommand {
       sasjs,
       authConfig.access_token
     )
-      .then(() => {
-        return ReturnCode.Success
-      })
-      .catch(() => {
-        return ReturnCode.InternalError
-      })
+      .then(() => ReturnCode.Success)
+      .catch(() => ReturnCode.InternalError)
 
     return returnCode
   }
 
   async executeExportContext() {
     const { target } = await this.getTargetInfo()
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
         'Unable to create context. Error fetching auth config: ',
         err
       )
+
       return null
     })
-    if (!authConfig) {
-      return ReturnCode.InternalError
-    }
+
+    if (!authConfig) return ReturnCode.InternalError
 
     const returnCode = await exportContext(
       this.parsed.contextName as string,
       sasjs,
       authConfig.access_token
     )
-      .then(() => {
-        return ReturnCode.Success
-      })
-      .catch(() => {
-        return ReturnCode.InternalError
-      })
+      .then(() => ReturnCode.Success)
+      .catch(() => ReturnCode.InternalError)
 
     return returnCode
   }
 
   async executeListContext() {
     const { target } = await this.getTargetInfo()
+
     if (target.serverType !== ServerType.SasViya) {
       process.logger?.error(
         `'context list' command is only supported for SAS Viya build targets.\nPlease try again with a different target.`
       )
+
       return ReturnCode.InternalError
     }
 
-    const sasjs = new SASjs({
-      serverUrl: target.serverUrl,
-      httpsAgentOptions: target.httpsAgentOptions,
-      appLoc: target.appLoc,
-      serverType: target.serverType
-    })
+    const sasjs = getSASjs(target)
 
     const authConfig = await getAuthConfig(target).catch((err) => {
       process.logger?.error(
         'Unable to create context. Error fetching auth config: ',
         err
       )
+
       return null
     })
-    if (!authConfig) {
-      return ReturnCode.InternalError
-    }
+
+    if (!authConfig) return ReturnCode.InternalError
 
     const returnCode = await list(target, sasjs, authConfig)
-      .then(() => {
-        return ReturnCode.Success
-      })
-      .catch(() => {
-        return ReturnCode.InternalError
-      })
+      .then(() => ReturnCode.Success)
+      .catch(() => ReturnCode.InternalError)
 
     return returnCode
   }
