@@ -30,7 +30,7 @@ jobs:
       - name: Install Doxygen
         run: |
           git clone https://github.com/sasjs/doxygen-installer.git
-          .\doxygen-installer\install.bat
+          .\doxygen-installer\install.bat -Force
 
       - name: Add doxygen to path
         run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
