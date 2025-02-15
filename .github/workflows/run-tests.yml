@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/hydrogen]
+        node-version: [lts/iron]
 
     steps:
       - uses: actions/checkout@v2
@@ -24,7 +24,7 @@ jobs:
           cache: npm
 
       - name: Check npm audit
-        run: npm audit --production --audit-level=low
+        run: npm install -g better-npm-audit && npm run audit
 
       - name: Install production dependencies (fail if any warning)
         run: sh ./npm-production-install.sh

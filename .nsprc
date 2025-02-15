@@ -1,0 +1,6 @@
+{
+  "1097679": {
+    "active": true,
+    "notes": "Ignored since the Cross-Site Request Forgery vulnerability in Axios is mainly related to the browsers and it does not apply to @sasjs/cli."
+  }
+}
