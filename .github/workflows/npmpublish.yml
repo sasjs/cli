@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/hydrogen]
+        node-version: [lts/iron]
 
     steps:
       - name: Checkout
@@ -35,7 +35,7 @@ jobs:
         run: npm run build
 
       - name: Check npm audit
-        run: npm audit --omit=dev --audit-level=low
+        run: npm run audit
 
       - name: Set NPM Registry back to https
         run: npm config set registry https://registry.npmjs.org
