@@ -23,7 +23,7 @@ jobs:
           cache: npm
       - uses: ssciwr/doxygen-install@v1
         with:
-          version: "1.13.2"
+          version: "1.9.3"
       # - name: Install Doxygen
       #   run: choco install doxygen.install
       #
