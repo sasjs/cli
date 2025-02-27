@@ -63,6 +63,9 @@ jobs:
       - name: Check code style
         run: npm run lint
 
+      - name: Install rimraf
+        run: npm i rimraf
+
       - name: Build Project
         run: npm run build
 
