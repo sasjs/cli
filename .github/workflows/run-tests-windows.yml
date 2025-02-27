@@ -21,19 +21,21 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-
+      - uses: ssciwr/doxygen-install@v1
+        with:
+          version: "1.13.2"
       # - name: Install Doxygen
       #   run: choco install doxygen.install
       #
       # `choco install doxygen.install` is unreliable
 
-      - name: Install Doxygen
-        run: |
-          git clone https://github.com/sasjs/doxygen-installer.git
-          .\doxygen-installer\install.bat
+#      - name: Install Doxygen
+#        run: |
+#          git clone https://github.com/sasjs/doxygen-installer.git
+#          .\doxygen-installer\install.bat
 
-      - name: Add doxygen to path
-        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+#      - name: Add doxygen to path
+#        run: echo "C:\Program Files\doxygen\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Check doxygen version
         run: doxygen -v
