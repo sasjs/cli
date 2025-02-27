@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/Jod]
+        node-version: [lts/Iron]
 
     steps:
       - uses: actions/checkout@v2
