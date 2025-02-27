@@ -77,7 +77,6 @@
     "@babel/core": "7.21.0",
     "@babel/preset-env": "7.20.2",
     "@babel/preset-typescript": "7.21.0",
-    "@compodoc/compodoc": "1.1.21",
     "@types/adm-zip": "0.5.0",
     "@types/debug": "4.1.7",
     "@types/find": "0.2.1",
