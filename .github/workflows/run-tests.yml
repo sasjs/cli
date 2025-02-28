@@ -27,7 +27,9 @@ jobs:
 #        run: npm audit --production --audit-level=low
 
       - name: Install production dependencies (fail if any warning)
-        run: sh ./npm-production-install.sh
+        run: |
+          npm ci --omit=dev --ignore-scripts
+#          sh ./npm-production-install.sh
 
       - name: Install dependencies
         run: |
