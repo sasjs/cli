@@ -217,7 +217,7 @@ ${
   serverType === ServerType.Sas9
     ? `
 /**
-  * The serverName represents the SAS 9logical server context
+  * The serverName represents the SAS 9 logical server context
   * There is no programmatic (SAS code) way to obtain this
   * So it is taken from the sasjsconfig file OR supplied at runtime, eg:
   * 
