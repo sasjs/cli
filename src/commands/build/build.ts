@@ -208,12 +208,31 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   *
   */
 
-%global appLoc serverName;
+%global appLoc;
 %let compiled_apploc=${appLoc};
-
-${serverType === ServerType.Sas9 ? `%let serverName=${serverName};` : ''}
-
 %let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
+
+
+${
+  serverType === ServerType.Sas9
+    ? `
+/**
+  * The serverName represents the SAS 9logical server context
+  * There is no programmatic (SAS code) way to obtain this
+  * So it is taken from the sasjsconfig file OR supplied at runtime, eg:
+  * 
+  * %let apploc=/my/apploc;
+  * %let serverName=SASAppDC;
+  * %inc thisfile;
+  * 
+  * /
+
+%global serverName;
+%let compiled_serverName=${serverName};
+%let serverName=%sysfunc(coalescec(&serverName,&compiled_serverName));
+`
+    : ''
+}
 
 %let sasjs_clickmeservice=clickme;
 %let syscc=0;
