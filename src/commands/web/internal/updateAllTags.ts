@@ -7,7 +7,8 @@ import {
   getScriptTags,
   getSourceTags,
   getStyleInPageTags,
-  getSasjsTags
+  getSasjsTags,
+  getManifestTags
 } from './getTags'
 import { updateScriptTag } from './updateScriptTag'
 import { updateLinkTag } from './updateLinkTag'
@@ -68,6 +69,15 @@ export const updateAllTags = async (
 
   const faviconTags = getFaviconTags(parsedHtml)
   faviconTags.forEach((tag) => {
+    try {
+      updateLinkTag(tag, assetPathMap)
+    } catch (error) {
+      assetsNotFound.push(error as Error)
+    }
+  })
+
+  const manifestTags = getManifestTags(parsedHtml)
+  manifestTags.forEach((tag) => {
     try {
       updateLinkTag(tag, assetPathMap)
     } catch (error) {

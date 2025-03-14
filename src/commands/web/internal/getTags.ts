@@ -28,3 +28,8 @@ export const getSourceTags = (parsedHtml: JSDOM) =>
   Array.from(parsedHtml.window.document.getElementsByTagName('source')).filter(
     (s) => s.getAttribute('src')
   )
+
+export const getManifestTags = (parsedHtml: JSDOM) =>
+  Array.from(parsedHtml.window.document.getElementsByTagName('link')).filter(
+    (s) => s.getAttribute('rel') === 'manifest'
+  )
