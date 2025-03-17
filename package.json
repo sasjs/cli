@@ -17,6 +17,7 @@
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --runInBand --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
+    "test:mocked:ci": "jest --config=jest.config.js --silent --runInBand --coverage --ci --coverageReporters='text' --coverageReporters='text-summary'",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "preinstall": "npm run nodeVersionMessage",
