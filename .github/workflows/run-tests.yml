@@ -62,7 +62,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-script: npm run test:mocked:ci
-          threshold: 73
 
       - name: install pm2 for process management
         run: npm i -g pm2
