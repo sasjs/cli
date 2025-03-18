@@ -61,7 +61,6 @@ jobs:
         uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          test-script: npm run test:mocked-ci
 
       - name: install pm2 for process management
         run: npm i -g pm2
