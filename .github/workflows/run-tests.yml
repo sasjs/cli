@@ -61,6 +61,7 @@ jobs:
         uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
 
       - name: install pm2 for process management
         run: npm i -g pm2
