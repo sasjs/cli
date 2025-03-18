@@ -51,14 +51,13 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.11.2",
+    "@sasjs/adapter": "4.11.3",
     "@sasjs/core": "4.54.0",
     "@sasjs/lint": "2.4.3",
     "@sasjs/utils": "3.5.2",
     "adm-zip": "0.5.10",
     "chalk": "4.1.2",
     "dotenv": "16.0.3",
-    "esm": "3.2.25",
     "find": "0.3.0",
     "js-base64": "3.7.5",
     "jsdom": "22.1.0",
