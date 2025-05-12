@@ -54,7 +54,9 @@ export const updateStyleTag = async (
         'href',
         assetPathMap.find(
           (entry) =>
-            entry.source === scriptPath || `./${entry.source}` === scriptPath
+            entry.source === scriptPath ||
+            `./${entry.source}` === scriptPath ||
+            `/${entry.source}` === scriptPath
         )!.target
       )
     }

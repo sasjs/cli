@@ -18,7 +18,9 @@ export const updateLinkTag = (
 
   const assetPath = assetPathMap.find(
     (entry) =>
-      entry.source === linkSourcePath || `./${entry.source}` === linkSourcePath
+      entry.source === linkSourcePath ||
+      `./${entry.source}` === linkSourcePath ||
+      `/${entry.source}` === linkSourcePath
   )
 
   if (!assetPath?.target) {

@@ -6,6 +6,11 @@ export const getSasjsTags = (parsedHtml: JSDOM) =>
 export const getScriptTags = (parsedHtml: JSDOM) =>
   Array.from(parsedHtml.window.document.getElementsByTagName('script'))
 
+export const getModulePreload = (parsedHtml: JSDOM) =>
+  Array.from(parsedHtml.window.document.getElementsByTagName('link')).filter(
+    (s) => s.getAttribute('rel') === 'modulepreload'
+  )
+
 export const getStyleInPageTags = (parsedHtml: JSDOM) =>
   Array.from(parsedHtml.window.document.getElementsByTagName('style'))
 
