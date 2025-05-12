@@ -12,13 +12,13 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/Iron]
+        node-version: [lts/*]
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -48,13 +48,17 @@ jobs:
         run: npm run build
 
       - name: Test Package Install
-        run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
+          sasjs v
 
       - name: Run smoke tests
         run: sh ./test.sh
 
       - name: Install Doxygen
-        run: sudo apt-get install doxygen
+        run: sudo apt-get install -y doxygen
 
       # Mocked (*.spec.ts) tests will be conducted during this step
       - name: Generate coverage report
@@ -63,23 +67,22 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
 
-      - name: install pm2 for process management
+      - name: Install PM2
         run: npm i -g pm2
 
       - name: Create .env file for sasjs/server
         run: |
-          touch .env
-          echo RUN_TIMES=js >> .env
-          echo NODE_PATH=node >> .env
-          echo MOCK_SERVERTYPE=sas9 >> .env
+          echo "RUN_TIMES=js" >> .env
+          echo "NODE_PATH=node" >> .env
+          echo "MOCK_SERVERTYPE=sas9" >> .env
 
-      - name: download sasjs/server package from github using curl
-        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip > linux.zip
+      - name: Download sasjs/server package
+        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip -o linux.zip
 
-      - name: unzip downloaded package
+      - name: Unzip downloaded package
         run: unzip linux.zip
 
-      - name: run sasjs server
+      - name: Run sasjs server
         run: pm2 start api-linux
 
       - name: Deploy SAS9 tests
@@ -90,16 +93,15 @@ jobs:
           ls sasjs_root -R
 
       - name: Run server tests
-        run: |
-          npm run test:server
+        run: npm run test:server
         env:
           CI: true
-          CLIENT: ${{secrets.CLIENT}}
-          SECRET: ${{secrets.SECRET}}
-          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
-          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
-          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
+          CLIENT: ${{ secrets.CLIENT }}
+          SECRET: ${{ secrets.SECRET }}
+          SAS_USERNAME: ${{ secrets.SAS_USERNAME }}
+          SAS_PASSWORD: ${{ secrets.SAS_PASSWORD }}
+          VIYA_SERVER_URL: ${{ secrets.VIYA_SERVER_URL }}
           SAS9_SERVER_URL: http://localhost:5000
           SASJS_SERVER_URL: http://localhost:5000
-          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
-          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
