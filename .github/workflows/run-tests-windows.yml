@@ -12,13 +12,13 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/Iron]
+        node-version: [lts/*]
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -32,17 +32,16 @@ jobs:
 
       - name: Create .env file for sasjs/server
         run: |
-          touch .env
           echo RUN_TIMES=js >> .env
           echo NODE_PATH=node >> .env
 
-      - name: download sasjs/server package from github using curl
+      - name: Download sasjs/server package from GitHub
         run: curl -L https://github.com/sasjs/server/releases/latest/download/windows.zip --output windows.zip
 
-      - name: unzip downloaded package
+      - name: Unzip downloaded package
         run: npx extract-zip windows.zip
 
-      - name: run sasjs server in background
+      - name: Start sasjs server in background
         run: START .\api-win.exe >> run-sasjs-server.txt
 
       - name: Install dependencies
@@ -60,7 +59,11 @@ jobs:
         run: npm run build
 
       - name: Test Package Install
-        run: npm version "5.0.0" --no-git-tag-version && npm pack && npm install -g ./sasjs-cli-5.0.0.tgz && sasjs v
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
+          sasjs v
 
       - name: npm prefix for user
         run: echo prefix=C:\npm\prefix >> ~\.npmrc
@@ -72,12 +75,12 @@ jobs:
         run: npm run test:mocked
         env:
           CI: true
-          CLIENT: ${{secrets.CLIENT}}
-          SECRET: ${{secrets.SECRET}}
-          SAS_USERNAME: ${{secrets.SAS_USERNAME}}
-          SAS_PASSWORD: ${{secrets.SAS_PASSWORD}}
-          VIYA_SERVER_URL: ${{secrets.VIYA_SERVER_URL}}
-          SAS9_SERVER_URL: ${{secrets.SAS9_SERVER_URL}}
+          CLIENT: ${{ secrets.CLIENT }}
+          SECRET: ${{ secrets.SECRET }}
+          SAS_USERNAME: ${{ secrets.SAS_USERNAME }}
+          SAS_PASSWORD: ${{ secrets.SAS_PASSWORD }}
+          VIYA_SERVER_URL: ${{ secrets.VIYA_SERVER_URL }}
+          SAS9_SERVER_URL: ${{ secrets.SAS9_SERVER_URL }}
           SASJS_SERVER_URL: 'http://localhost:5000'
-          ACCESS_TOKEN: ${{secrets.ACCESS_TOKEN}}
-          REFRESH_TOKEN: ${{secrets.REFRESH_TOKEN}}
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
