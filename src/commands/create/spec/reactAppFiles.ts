@@ -49,7 +49,7 @@ export const reactAppFiles: Folder = {
             { fileName: 'data-page.component.tsx' },
             { fileName: 'home-page.component.tsx' },
             { fileName: 'login.component.tsx' },
-            { fileName: 'request-modal.component.jsx' },
+            { fileName: 'request-modal.component.tsx' },
             { fileName: 'syntax-highlighting.css' },
             { fileName: 'user-name.component.tsx' }
           ],
@@ -72,7 +72,7 @@ export const reactAppFiles: Folder = {
         },
         {
           folderName: 'theme',
-          files: [{ fileName: 'index.js' }],
+          files: [{ fileName: 'index.ts' }],
           subFolders: []
         }
       ]

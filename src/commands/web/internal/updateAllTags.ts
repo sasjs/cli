@@ -8,7 +8,8 @@ import {
   getSourceTags,
   getStyleInPageTags,
   getSasjsTags,
-  getManifestTags
+  getManifestTags,
+  getModulePreload
 } from './getTags'
 import { updateScriptTag } from './updateScriptTag'
 import { updateLinkTag } from './updateLinkTag'
@@ -49,6 +50,15 @@ export const updateAllTags = async (
       serverType,
       assetPathMap
     ).catch((e) => assetsNotFound.push(e))
+  })
+
+  const modulePreloadTags = getModulePreload(parsedHtml)
+  modulePreloadTags.forEach((tag) => {
+    try {
+      updateLinkTag(tag, assetPathMap)
+    } catch (error) {
+      assetsNotFound.push(error as Error)
+    }
   })
 
   const styleExternalTags = getStyleTags(parsedHtml)

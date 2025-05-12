@@ -54,7 +54,9 @@ export const updateScriptTag = async (
         'src',
         assetPathMap.find(
           (entry) =>
-            entry.source === scriptPath || `./${entry.source}` === scriptPath
+            entry.source === scriptPath ||
+            `./${entry.source}` === scriptPath ||
+            `/${entry.source}` === scriptPath
         )!.target
       )
     }
