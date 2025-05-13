@@ -14,14 +14,14 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [lts/hydrogen]
+        node-version: [lts/iron]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -31,10 +31,10 @@ jobs:
           npm config set registry https://registry.npmjs.org
           npm ci
 
-      - name: Build Project
+      - name: Build project
         run: npm run build
 
-      - name: Check npm audit
+      - name: Audit for vulnerabilities
         run: npm audit --omit=dev --audit-level=low
 
       - name: Set NPM Registry back to https
