@@ -3,7 +3,6 @@ import {
   fileExists,
   folderExists,
   createFolder,
-  createFile,
   copy,
   deleteFolder,
   ServerType,
@@ -13,7 +12,6 @@ import {
 import { getStreamConfig } from '../../utils/config'
 import path from 'path'
 import jsdom from 'jsdom'
-import { adjustIframeScript } from './internal/adjustIframeScript'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import { createAssetServices } from './internal/createAssetServices'
 import { updateAllTags } from './internal/updateAllTags'
@@ -81,7 +79,6 @@ export async function createWebAppServices(target: Target) {
 
   switch (target.serverType) {
     case ServerType.SasViya:
-      indexHtml.window.document.body.innerHTML += adjustIframeScript
       await createClickMeFile(
         indexHtml.serialize(),
         streamConfig.streamServiceName as string
