@@ -82,7 +82,7 @@ export async function executeDeployScriptSasViya(
 
   if (streamConfig?.streamWeb) {
     const appLoc = encodeURI(target.appLoc)
-    const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html&_debug=2`
+    const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }

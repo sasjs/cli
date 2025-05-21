@@ -56,7 +56,7 @@ data _null_;
  urlEscaped = tranwrd(trim(url)," ","%20");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " urlEscaped +(-1) '${streamServiceName}.html&_debug=2' ;
+ putlog "NOTE- " urlEscaped +(-1) '${streamServiceName}.html' ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `

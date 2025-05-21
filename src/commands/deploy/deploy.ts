@@ -60,7 +60,7 @@ export async function deploy(target: Target, isLocal: boolean) {
 
       process.logger?.success(
         target.serverType === ServerType.SasViya && webIndexFileName
-          ? `${target.serverUrl}/SASJobExecution?_file=${appLoc}/services/${webIndexFileName}&_debug=2`
+          ? `${target.serverUrl}/SASJobExecution?_file=${appLoc}/services/${webIndexFileName}`
           : `${target.serverUrl}/SASJobExecution?_folder=${appLoc}`
       )
     } else if (target.serverType === ServerType.Sasjs) {
