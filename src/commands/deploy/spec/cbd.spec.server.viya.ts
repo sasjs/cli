@@ -211,7 +211,7 @@ describe('sasjs cbd with Viya', () => {
         ''
       )}/SASJobExecution?_FILE=${appLoc}${appLocTransformed}/services/${
         streamConfig.streamServiceName
-      }.html&_debug=2`
+      }.html`
 
       expect(logFileContent.replace(/\s/g, '')).toEqual(
         expect.stringContaining(streamingApplink)
