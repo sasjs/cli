@@ -166,25 +166,8 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
       macroCorePath
     )
 
-    // The gsubScript is used to perform the replacement of the appLoc within
-    // the deployed index.html file.  This only happens when deploying using the
-    // SAS Program (build.sas) approach.
-    const gsubScript = await readFile(
-      `${process.sasjsConstants.macroCorePath}/base/mp_replace.sas`
-    )
-    buildConfig += `${gsubScript}\n`
-    const dependencyFilePathsForGsubScript = await getDependencyPaths(
-      gsubScript,
-      macroFolders,
-      macroCorePath
-    )
-
     dependencyFilePaths = [
-      ...new Set([
-        ...dependencyFilePaths,
-        ...dependencyFilePathsForCreateFile,
-        ...dependencyFilePathsForGsubScript
-      ])
+      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
     ]
   }
 
@@ -286,15 +269,26 @@ async function getCreateFileScript(serverType: ServerType) {
 export function getWebServiceScriptInvocation(
   serverType: ServerType,
   isSASFile: boolean = true,
-  encoded: boolean = false
+  encoded: boolean = false,
+  fileName?: string
 ) {
   const encodedParam = encoded ? ', intype=BASE64' : ''
 
   switch (serverType) {
     case ServerType.SasViya:
+      let swapString = ''
+
+      if (fileName) {
+        const extension = fileName?.split('.').pop()?.toLowerCase() || ''
+
+        if (['html', 'css', 'js'].includes(extension)) {
+          swapString = `,swap=compiled_apploc apploc`
+        }
+      }
+
       return isSASFile
         ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode,replace=yes)`
-        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
+        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam}${swapString})`
     case ServerType.Sas9:
       return isSASFile
         ? `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode, server=&serverName, replace=yes)`
@@ -458,7 +452,7 @@ ${content}\n
 run;
 ${
   serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, false, true)
+    ? getWebServiceScriptInvocation(serverType, false, true, fileName)
     : ''
 }
 filename filecode clear;
