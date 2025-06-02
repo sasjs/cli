@@ -250,7 +250,7 @@ describe('deploy', () => {
           }
         })
 
-        await deploy(target, true).catch(err => {
+        await deploy(target, true).catch((err) => {
           // error is expected, nothing to do
         })
 
