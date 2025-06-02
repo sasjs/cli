@@ -167,10 +167,7 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
     )
 
     dependencyFilePaths = [
-      ...new Set([
-        ...dependencyFilePaths,
-        ...dependencyFilePathsForCreateFile
-      ])
+      ...new Set([...dependencyFilePaths, ...dependencyFilePathsForCreateFile])
     ]
   }
 
@@ -273,7 +270,7 @@ export function getWebServiceScriptInvocation(
   serverType: ServerType,
   isSASFile: boolean = true,
   encoded: boolean = false,
-  fileName?: string,
+  fileName?: string
 ) {
   const encodedParam = encoded ? ', intype=BASE64' : ''
 
@@ -283,7 +280,7 @@ export function getWebServiceScriptInvocation(
 
       if (fileName) {
         const extension = fileName?.split('.').pop()?.toLowerCase() || ''
-  
+
         if (['html', 'css', 'js'].includes(extension)) {
           swapString = `,swap=compiled_apploc apploc`
         }
