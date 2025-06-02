@@ -250,7 +250,9 @@ describe('deploy', () => {
           }
         })
 
-        await deploy(target, true)
+        await deploy(target, true).catch(err => {
+          // error is expected, nothing to do
+        })
 
         expect(process.logger.error).toHaveBeenCalledWith(
           `Unable to process script located at ${path.join(
