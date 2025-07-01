@@ -208,7 +208,7 @@ ${
   * %let serverName=SASAppDC;
   * %inc thisfile;
   * 
-  * /
+  */
 
 %global serverName;
 %let compiled_serverName=${serverName};
