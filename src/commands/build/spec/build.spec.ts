@@ -122,6 +122,19 @@ describe('getWebServiceScriptInvocation', () => {
         '%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode, intype=BASE64)'
       )
     })
+
+    it('should return macro invocation for stored file when encoded is equal to true and filename is passed', () => {
+      expect(
+        getWebServiceScriptInvocation(
+          ServerType.SasViya,
+          false,
+          true,
+          'index.js'
+        )
+      ).toEqual(
+        '%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode, intype=BASE64,swap=compiled_apploc apploc)'
+      )
+    })
   })
 
   describe(ServerType.Sas9, () => {
