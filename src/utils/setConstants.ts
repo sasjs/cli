@@ -43,7 +43,26 @@ export const setConstants = async (
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
-  const macroCorePath = await getNodeModulePath('@sasjs/core')
+  // Arriving here from a `@sasjs/cli` command invoked with `npx` can result
+  // in no discoverable installation of '@sasjs/core' for getNodeModulePath()
+  // to find (`npx` will have cached the @sasjs/cli dependencies in a temporary
+  // area).
+  let macroCorePath = await getNodeModulePath('@sasjs/core')
+  if ( macroCorePath === '' ) {
+    // If @sasjs/core was not found, check for and use an environment
+    // variable with the same name as the variable we are setting.
+    macroCorePath = process.env.macroCorePath as string ?? ''
+    if ( macroCorePath === '' ) {
+      throw new Error(
+        `@sasjs/core folder location is unknown.\n` +
+        `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
+        `environment variable named\n'macroCorePath' containing the path to ` +
+        `the @sasjs/core root folder.\n` +
+        `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
+        `@sasjs/core dependency.`
+      )
+    }
+  }
 
   const buildDestinationResultsFolder = getAbsolutePath(
     buildResultsFolder,
