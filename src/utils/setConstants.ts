@@ -52,7 +52,6 @@ export const setConstants = async (
     // If @sasjs/core was not found, check for and use an environment
     // variable with the same name as the variable we are setting.
     macroCorePath = process.env.macroCorePath as string ?? ''
-
   }
 
   const buildDestinationResultsFolder = getAbsolutePath(
