@@ -33,14 +33,14 @@ import { getLaunchPageCode } from './internal/getLaunchPageCode'
 export async function build(target: Target) {
   const { macroCorePath } = process.sasjsConstants
 
-  if ( macroCorePath === '' ) {
+  if (macroCorePath === '') {
     throw new Error(
       `The @sasjs/core folder location is unknown.\n` +
-      `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
-      `environment variable named\n'macroCorePath' containing the path to ` +
-      `the @sasjs/core root folder.\n` +
-      `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
-      `@sasjs/core dependency.`
+        `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
+        `environment variable named\n'macroCorePath' containing the path to ` +
+        `the @sasjs/core root folder.\n` +
+        `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
+        `@sasjs/core dependency.`
     )
   }
 

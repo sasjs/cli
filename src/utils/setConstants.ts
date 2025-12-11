@@ -48,10 +48,10 @@ export const setConstants = async (
   // to find (`npx` will have cached the @sasjs/cli dependencies in a temporary
   // area).
   let macroCorePath = await getNodeModulePath('@sasjs/core')
-  if ( macroCorePath === '' ) {
+  if (macroCorePath === '') {
     // If @sasjs/core was not found, check for and use an environment
     // variable with the same name as the variable we are setting.
-    macroCorePath = process.env.macroCorePath as string ?? ''
+    macroCorePath = (process.env.macroCorePath as string) ?? ''
   }
 
   const buildDestinationResultsFolder = getAbsolutePath(
