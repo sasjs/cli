@@ -31,6 +31,19 @@ import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 
 export async function build(target: Target) {
+  const { macroCorePath } = process.sasjsConstants
+
+  if ( macroCorePath === '' ) {
+    throw new Error(
+      `The @sasjs/core folder location is unknown.\n` +
+      `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
+      `environment variable named\n'macroCorePath' containing the path to ` +
+      `the @sasjs/core root folder.\n` +
+      `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
+      `@sasjs/core dependency.`
+    )
+  }
+
   if (
     process.sasjsConstants.buildDestinationFolder &&
     !(await folderExists(process.sasjsConstants.buildDestinationFolder))
@@ -234,17 +247,6 @@ ${removeHeader(buildConfig)}
 
 async function getCreateWebServiceScript(serverType: ServerType) {
   const { macroCorePath } = process.sasjsConstants
-
-  if ( macroCorePath === '' ) {
-    throw new Error(
-      `The @sasjs/core folder location is unknown.\n` +
-      `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
-      `environment variable named\n'macroCorePath' containing the path to ` +
-      `the @sasjs/core root folder.\n` +
-      `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
-      `@sasjs/core dependency.`
-    )
-  }
 
   switch (serverType) {
     case ServerType.SasViya:
