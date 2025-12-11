@@ -203,11 +203,11 @@ ${
   * The serverName represents the SAS 9 logical server context
   * There is no programmatic (SAS code) way to obtain this
   * So it is taken from the sasjsconfig file OR supplied at runtime, eg:
-  * 
+  *
   * %let apploc=/my/apploc;
   * %let serverName=SASAppDC;
   * %inc thisfile;
-  * 
+  *
   */
 
 %global serverName;
@@ -234,6 +234,17 @@ ${removeHeader(buildConfig)}
 
 async function getCreateWebServiceScript(serverType: ServerType) {
   const { macroCorePath } = process.sasjsConstants
+
+  if ( macroCorePath === '' ) {
+    throw new Error(
+      `The @sasjs/core folder location is unknown.\n` +
+      `Either install @sasjs/core, install @sasjs/cli, or declare an ` +
+      `environment variable named\n'macroCorePath' containing the path to ` +
+      `the @sasjs/core root folder.\n` +
+      `Note: 'npx' invocations of @sasjs/cli do not install a discoverable ` +
+      `@sasjs/core dependency.`
+    )
+  }
 
   switch (serverType) {
     case ServerType.SasViya:
