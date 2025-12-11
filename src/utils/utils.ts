@@ -552,30 +552,15 @@ export const isSASjsProject = async () => {
 }
 
 export const getNodeModulePath = async (module: string): Promise<string> => {
-  // Check if module is present in project's dependencies
-  const projectPath = path.join(process.cwd(), 'node_modules', module)
-
-  if (await folderExists(projectPath)) return projectPath
-
-  // Check if module is present in @sasjs/cli located in project's dependencies
-  const cliDepsPath = path.join('@sasjs', 'cli', 'node_modules')
-  const cliLocalPath = path.join(
-    process.cwd(),
-    'node_modules',
-    cliDepsPath,
-    module
-  )
-
-  if (await folderExists(cliLocalPath)) return cliLocalPath
-
-  // Check if module is present in global @sasjs/cli
-  const cliGlobalPath = path.join(
-    shelljs.exec(`npm root -g`, { silent: true }).stdout.replace(/\n/, ''),
-    cliDepsPath,
-    module
-  )
-
-  if (await folderExists(cliGlobalPath)) return cliGlobalPath
+  // Look for ${module}/package.json, then return only the path
+  try {
+    const nodePackagePath = path.dirname(
+      require.resolve(path.join(module, 'package.json'))
+    )
+    if (nodePackagePath) return nodePackagePath
+  } catch (e: any) {
+    if (e.code !== 'MODULE_NOT_FOUND') throw e
+  }
 
   // Return default value
   return ''
