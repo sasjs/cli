@@ -3,14 +3,20 @@ import path from 'path'
 import * as configUtils from '../config'
 import { setConstants } from '../setConstants'
 import * as fileModule from '@sasjs/utils/file'
+import * as utils from '../utils'
 
 describe('setConstants', () => {
   let config: Configuration
+  const origProcessEnv = process.env
 
   beforeAll(async () => {
     ;({ config } = JSON.parse(
       await fileModule.readFile(path.join(__dirname, '..', '..', 'config.json'))
     ))
+  })
+
+  afterEach(() => {
+    process.env = { ...origProcessEnv }
   })
 
   test('should set constants inside appFolder when @sasjs/core dependency is present', async () => {
@@ -80,6 +86,54 @@ describe('setConstants', () => {
     await setConstants(false)
 
     verifySasjsConstants(undefined, false, false)
+  })
+
+  test('should call getNodeModulePath once when environment variable macroCorePath is undefined', async () => {
+    process.env.macroCorePath = undefined
+
+    const getNodeModulePathSpy = jest
+      .spyOn(utils, 'getNodeModulePath')
+      .mockImplementation(async (packageName: string) =>
+        Promise.resolve(
+          path.join('some', 'app', 'folder', 'node_modules', packageName)
+        )
+      )
+
+    await setConstants()
+
+    expect(getNodeModulePathSpy).toHaveBeenCalledOnceWith('@sasjs/core')
+  })
+
+  test('should not call getNodeModulePath when environment variable macroCorePath is blank', async () => {
+    process.env.macroCorePath = ''
+
+    const getNodeModulePathSpy = jest
+      .spyOn(utils, 'getNodeModulePath')
+      .mockImplementation(async (packageName: string) =>
+        Promise.resolve(
+          path.join('some', 'app', 'folder', 'node_modules', packageName)
+        )
+      )
+
+    await setConstants()
+
+    expect(getNodeModulePathSpy).toHaveBeenCalledOnceWith('@sasjs/core')
+  })
+
+  test('should not call getNodeModulePath when environment variable macroCorePath is populated', async () => {
+    process.env.macroCorePath = '../core'
+
+    const getNodeModulePathSpy = jest
+      .spyOn(utils, 'getNodeModulePath')
+      .mockImplementation(async (packageName: string) =>
+        Promise.resolve(
+          path.join('some', 'app', 'folder', 'node_modules', packageName)
+        )
+      )
+
+    await setConstants()
+
+    expect(getNodeModulePathSpy).toBeCalledTimes(0)
   })
 })
 
