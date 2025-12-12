@@ -36,9 +36,10 @@ export async function build(target: Target) {
   if (macroCorePath === '') {
     throw new Error(
       `The @sasjs/core folder location is unknown.\n` +
-        `Check that @sasjs/core is a dependency in the package.json, or\n` +
-        `populate environment variable 'macroCorePath' with the path to\n` +
-        `a local @sasjs/core package's root directory.`
+        `Check that @sasjs/core is a dependency in the package.json, and \n` +
+        `that the package has been installed.\n` +
+        `Alternatively populate environment variable 'macroCorePath' with\n` +
+        `the path to a local @sasjs/core package's root directory.`
     )
   }
   process.logger?.info(`@sasjs/core found at ${macroCorePath}`)

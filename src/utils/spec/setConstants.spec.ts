@@ -20,8 +20,7 @@ describe('setConstants', () => {
   })
 
   test('should set constants inside appFolder when @sasjs/core dependency is present', async () => {
-    const appFolder = ['some', 'app', 'folder'].join(path.sep)
-    process.projectDir = appFolder
+    process.projectDir = process.cwd()
 
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
@@ -32,13 +31,7 @@ describe('setConstants', () => {
         })
       )
 
-    jest.spyOn(process, 'cwd').mockImplementation(() => appFolder)
-
     const hasSasjsCore = true
-
-    jest
-      .spyOn(fileModule, 'folderExists')
-      .mockImplementation((path: string) => Promise.resolve(hasSasjsCore))
 
     await setConstants()
 
@@ -48,6 +41,7 @@ describe('setConstants', () => {
   test('should set constants inside appFolder when @sasjs/core dependency is not present', async () => {
     const appFolder = ['some', 'app', 'folder'].join(path.sep)
     process.projectDir = appFolder
+    process.env.macroCorePath = undefined
 
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
@@ -60,13 +54,7 @@ describe('setConstants', () => {
 
     jest.spyOn(process, 'cwd').mockImplementation(() => appFolder)
 
-    jest
-      .spyOn(fileModule, 'folderExists')
-      .mockImplementation((folderPath: string) =>
-        Promise.resolve(
-          folderPath !== path.join(appFolder, 'node_modules', '@sasjs', 'core')
-        )
-      )
+    jest.spyOn(utils, 'getNodeModulePath').mockImplementation(async () => '')
 
     await setConstants()
 
@@ -74,6 +62,8 @@ describe('setConstants', () => {
   })
 
   test('should set constants outside appFolder', async () => {
+    process.env.macroCorePath = undefined
+
     jest
       .spyOn(configUtils, 'getLocalOrGlobalConfig')
       .mockImplementation(async () =>
@@ -82,6 +72,8 @@ describe('setConstants', () => {
           isLocal: false
         })
       )
+
+    jest.spyOn(utils, 'getNodeModulePath').mockImplementation(async () => '')
 
     await setConstants(false)
 
@@ -93,27 +85,19 @@ describe('setConstants', () => {
 
     const getNodeModulePathSpy = jest
       .spyOn(utils, 'getNodeModulePath')
-      .mockImplementation(async (packageName: string) =>
-        Promise.resolve(
-          path.join('some', 'app', 'folder', 'node_modules', packageName)
-        )
-      )
+      .mockImplementation(async (packageName: string) => Promise.resolve(''))
 
     await setConstants()
 
     expect(getNodeModulePathSpy).toHaveBeenCalledOnceWith('@sasjs/core')
   })
 
-  test('should not call getNodeModulePath when environment variable macroCorePath is blank', async () => {
+  test('should call getNodeModulePath once when environment variable macroCorePath is blank', async () => {
     process.env.macroCorePath = ''
 
     const getNodeModulePathSpy = jest
       .spyOn(utils, 'getNodeModulePath')
-      .mockImplementation(async (packageName: string) =>
-        Promise.resolve(
-          path.join('some', 'app', 'folder', 'node_modules', packageName)
-        )
-      )
+      .mockImplementation(async (packageName: string) => Promise.resolve(''))
 
     await setConstants()
 
@@ -125,11 +109,7 @@ describe('setConstants', () => {
 
     const getNodeModulePathSpy = jest
       .spyOn(utils, 'getNodeModulePath')
-      .mockImplementation(async (packageName: string) =>
-        Promise.resolve(
-          path.join('some', 'app', 'folder', 'node_modules', packageName)
-        )
-      )
+      .mockImplementation(async (packageName: string) => Promise.resolve(''))
 
     await setConstants()
 
@@ -180,15 +160,17 @@ const verifySasjsConstants = (
     path.join(prefixAppFolder, isLocal ? '' : '.sasjs', 'sasjsbuild', 'tests')
   )
 
-  const corePath = hasSasjsCore
-    ? 'core'
-    : path.join('cli', 'node_modules', '@sasjs', 'core')
+  const corePath = hasSasjsCore ? 'core' : ''
 
-  if (appFolder) {
-    expect(sasjsConstants.macroCorePath).toEqual(
-      path.join(prefixAppFolder, 'node_modules', '@sasjs', corePath)
-    )
+  if (hasSasjsCore) {
+    if (appFolder) {
+      expect(sasjsConstants.macroCorePath).toEqual(
+        path.join(prefixAppFolder, 'node_modules', '@sasjs', corePath)
+      )
+    } else {
+      expect(sasjsConstants.macroCorePath).toEqual(expect.toEndWith(corePath))
+    }
   } else {
-    expect(sasjsConstants.macroCorePath).toEqual(expect.toEndWith(corePath))
+    expect(sasjsConstants.macroCorePath).toEqual(corePath)
   }
 }
