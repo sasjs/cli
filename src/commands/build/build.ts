@@ -31,6 +31,19 @@ import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 
 export async function build(target: Target) {
+  const { macroCorePath } = process.sasjsConstants
+
+  if (macroCorePath === '') {
+    throw new Error(
+      `The @sasjs/core folder location is unknown.\n` +
+        `Check that @sasjs/core is a dependency in the package.json, and \n` +
+        `that the package has been installed.\n` +
+        `Alternatively populate environment variable 'macroCorePath' with\n` +
+        `the path to a local @sasjs/core package's root directory.`
+    )
+  }
+  process.logger?.info(`@sasjs/core found at ${macroCorePath}`)
+
   if (
     process.sasjsConstants.buildDestinationFolder &&
     !(await folderExists(process.sasjsConstants.buildDestinationFolder))
@@ -203,11 +216,11 @@ ${
   * The serverName represents the SAS 9 logical server context
   * There is no programmatic (SAS code) way to obtain this
   * So it is taken from the sasjsconfig file OR supplied at runtime, eg:
-  * 
+  *
   * %let apploc=/my/apploc;
   * %let serverName=SASAppDC;
   * %inc thisfile;
-  * 
+  *
   */
 
 %global serverName;
