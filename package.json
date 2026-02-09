@@ -60,7 +60,7 @@
     "find": "0.3.0",
     "js-base64": "3.7.5",
     "jsdom": "22.1.0",
-    "jwt-decode": "3.1.2",
+    "jwt-decode": "4.0.0",
     "lodash.groupby": "4.6.0",
     "lodash.uniqby": "4.7.0",
     "node-graphviz": "0.1.1",
