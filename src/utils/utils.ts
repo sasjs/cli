@@ -162,7 +162,11 @@ function createApp(
   const zip = new AdmZip(zipName)
   zip.extractAllTo(`./`, true)
 
-  shelljs.cp('-r', `${shelljs.ls('-d', `./*${zipWithoutExtension}`)[0]}/.`, folderPath)
+  shelljs.cp(
+    '-r',
+    `${shelljs.ls('-d', `./*${zipWithoutExtension}`)[0]}/.`,
+    folderPath
+  )
   shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
   shelljs.rm('-rf', [`./${zipName}`])
 
