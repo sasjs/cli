@@ -162,7 +162,7 @@ function createApp(
   const zip = new AdmZip(zipName)
   zip.extractAllTo(`./`, true)
 
-  shelljs.cp('-r', `./*${zipWithoutExtension}/.`, folderPath)
+  shelljs.cp('-r', `${shelljs.ls('-d', `./*${zipWithoutExtension}`)[0]}/.`, folderPath)
   shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
   shelljs.rm('-rf', [`./${zipName}`])
 
@@ -203,7 +203,7 @@ const loadDocsSubmodule = async (
   const zip = new AdmZip('main.zip')
   zip.extractAllTo('./', true)
 
-  shelljs.cp('-r', `./*-main/.`, docsFolderPath)
+  shelljs.cp('-r', `${shelljs.ls('-d', `./*-main`)[0]}/.`, docsFolderPath)
   shelljs.rm('-rf', [`./*-main`])
   shelljs.rm('-rf', [`./main.zip`])
 }
