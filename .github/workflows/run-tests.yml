@@ -1,97 +1,116 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
 name: Node.js CI
 
 on:
   pull_request:
 
+env:
+  NODE_VERSION: lts/iron
+
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [lts/iron]
-
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
-      - name: Check npm audit
-        run: npm audit --omit=dev --audit-level=low
-
-      - name: Install production dependencies (fail if any warning)
-        run: |
-          npm ci --omit=dev --ignore-scripts
-      #          sh ./npm-production-install.sh
-      - name: Install dependencies
-        run: |
-          npm config set registry http://registry.npmjs.org
-          npm ci
-
-      - name: Install Compodoc
-        run: npm i -g @compodoc/compodoc
-
-      - name: Generate development documentation and test level of documentation coverage
-        run: npm run doc
-
+      - run: npm ci
       - name: Check code style
         run: npm run lint
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install production dependencies
+        run: npm ci --omit=dev --ignore-scripts
+      - name: Check npm audit
+        run: npm audit --omit=dev --audit-level=low
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Generate docs and check coverage
+        run: npm run doc
+
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
       - name: Build Project
         run: npm run build
-
       - name: Test Package Install
         run: |
           npm version "5.0.0" --no-git-tag-version
           npm pack
           npm install -g ./sasjs-cli-5.0.0.tgz
           sasjs v
-
       - name: Run smoke tests
         run: sh ./test.sh
 
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
       - name: Install Doxygen
         run: sudo apt-get install -y doxygen
-
-      # Mocked (*.spec.ts) tests will be conducted during this step
       - name: Generate coverage report
-        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
+        uses: artiomtr/jest-coverage-report-action@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
 
-      - name: Install PM2
-        run: npm i -g pm2
-
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+      - name: Build Project
+        run: npm run build
       - name: Create .env file for sasjs/server
         run: |
           echo "RUN_TIMES=js" >> .env
           echo "NODE_PATH=node" >> .env
           echo "MOCK_SERVERTYPE=sas9" >> .env
-
       - name: Download sasjs/server package
         run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip -o linux.zip
-
-      - name: Unzip downloaded package
-        run: unzip linux.zip
-
-      - name: Run sasjs server
-        run: pm2 start api-linux
-
+      - name: Unzip and start server
+        run: |
+          unzip linux.zip
+          npx pm2 start api-linux
       - name: Deploy SAS9 tests
         run: |
           cd mocks
           sasjs cbd
           cd ..
           ls sasjs_root -R
-
       - name: Run server tests
         run: npm run test:server
         env:
