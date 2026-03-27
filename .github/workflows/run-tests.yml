@@ -77,8 +77,15 @@ jobs:
       - run: npm ci
       - name: Install Doxygen
         run: sudo apt-get install -y doxygen
+      - name: Build Project
+        run: npm run build
+      - name: Install sasjs CLI globally
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
       - name: Generate coverage report
-        uses: artiomtr/jest-coverage-report-action@v2
+        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
