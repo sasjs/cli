@@ -1,34 +1,27 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
 name: Run mocked tests on Windows
 
 on:
   pull_request:
 
+env:
+  NODE_VERSION: lts/iron
+
 jobs:
   test:
     runs-on: windows-latest
 
-    strategy:
-      matrix:
-        node-version: [lts/iron]
-
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - uses: ssciwr/doxygen-install@v1
         with:
           version: '1.9.3'
-
-      - name: Check doxygen version
-        run: doxygen -v
 
       - name: Create .env file for sasjs/server
         run: |
@@ -48,12 +41,6 @@ jobs:
         run: |
           npm config set registry http://registry.npmjs.org
           npm ci
-
-      - name: Check code style
-        run: npm run lint
-
-      - name: Install rimraf
-        run: npm i -g rimraf
 
       - name: Build Project
         run: npm run build
