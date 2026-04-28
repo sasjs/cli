@@ -80,6 +80,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://rudvfaden.github.io/"><img src="https://avatars.githubusercontent.com/u/2445577?v=4?s=100" width="100px;" alt="Rud Faden"/><br /><sub><b>Rud Faden</b></sub></a><br /><a href="https://github.com/sasjs/cli/issues?q=author%3Arudvfaden" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://sead.dev"><img src="https://avatars.githubusercontent.com/u/8067014?v=4?s=100" width="100px;" alt="Sead Mulahasanović"/><br /><sub><b>Sead Mulahasanović</b></sub></a><br /><a href="https://github.com/sasjs/cli/commits?author=mulahasanovic" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tmoody"><img src="https://avatars.githubusercontent.com/u/79837106?v=4?s=100" width="100px;" alt="Trevor Moody"/><br /><sub><b>Trevor Moody</b></sub></a><br /><a href="https://github.com/sasjs/cli/commits?author=tmoody" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
