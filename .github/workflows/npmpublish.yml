@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  NODE_VERSION: lts/iron
+  NODE_VERSION: lts/jod
 
 jobs:
   release:

@@ -101,6 +101,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "mulahasanovic",
+      "name": "Sead Mulahasanović",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8067014?v=4",
+      "profile": "https://sead.dev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "tmoody",
+      "name": "Trevor Moody",
+      "avatar_url": "https://avatars.githubusercontent.com/u/79837106?v=4",
+      "profile": "https://github.com/tmoody",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
@@ -108,5 +126,7 @@
   "projectOwner": "sasjs",
   "repoType": "github",
   "repoHost": "https://github.com",
-  "skipCi": true
+  "skipCi": true,
+  "commitType": "docs",
+  "commitConvention": "angular"
 }
