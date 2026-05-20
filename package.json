@@ -50,7 +50,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.16.7",
+    "@sasjs/adapter": "4.17.0",
     "@sasjs/core": "4.67.1",
     "@sasjs/lint": "2.4.3",
     "@sasjs/utils": "3.5.8",
@@ -99,5 +99,8 @@
     "tslib": "2.3.1",
     "typescript": "4.9.5",
     "util": "0.12.4"
+  },
+  "overrides": {
+    "ws": "8.20.1"
   }
 }
