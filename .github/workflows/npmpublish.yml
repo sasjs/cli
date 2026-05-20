@@ -18,13 +18,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: |
@@ -37,14 +38,14 @@ jobs:
       - name: Audit for vulnerabilities
         run: npm audit --omit=dev --audit-level=low
 
-      - name: Set NPM Registry back to https
-        run: npm config set registry https://registry.npmjs.org
+      - name: Verify npm auth
+        run: npm whoami --registry=https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
