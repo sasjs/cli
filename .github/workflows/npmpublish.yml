@@ -11,6 +11,7 @@ on:
 permissions:
   id-token: write  # https://docs.npmjs.com/trusted-publishers
   contents: write  # semantic-release needs to push tags and create releases
+  issues: write  # semantic-release comments on issues on failure
 
 jobs:
   release:
@@ -41,7 +42,6 @@ jobs:
         run: npm audit --omit=dev --audit-level=low
 
       - name: Semantic Release
-        run: npx semantic-release
+        run: npx -p @semantic-release/exec -p semantic-release -- semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
