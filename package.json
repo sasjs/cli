@@ -27,15 +27,22 @@
     "branches": [
       "main"
     ],
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
+    "verifyConditions": [
+      "@semantic-release/github"
+    ],
+    "publish": [
       [
         "@semantic-release/npm",
         {
-          "provenance": true
+          "npmPublish": true
         }
       ],
+      "@semantic-release/github"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/npm",
       "@semantic-release/github"
     ]
   },
@@ -58,7 +65,9 @@
   },
   "homepage": "https://cli.sasjs.io",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
     "@sasjs/adapter": "4.17.0",
