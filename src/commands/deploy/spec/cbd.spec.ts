@@ -101,7 +101,8 @@ describe('sasjs cbd with server type SASJS', () => {
     ,missing=&missing
     ,showmeta=&showmeta
     ,maxobs=&maxobs
-  ) %mend;
+  )
+%mend;
 `
 
     const mocksPath = path.join(__dirname, appName, 'sasjs', 'mocks')
@@ -121,7 +122,7 @@ describe('sasjs cbd with server type SASJS', () => {
     const appinitJSContents = await readFile(appinitJSPath)
     const getdataJSContents = await readFile(getdataJSPath)
 
-    const depsInserts = `\n\n* Service Variables start;\n\n\n* Service Variables end;\n* SAS Macros start;\n\n\n\n* SAS Macros end;\n* SAS Includes start;\n\n* SAS Includes end;\n* Binary Files start;\n\n* Binary Files end;\n\n    \n* Service start;\n`
+    const depsInserts = `\n\n* Service Variables start;\n\n\n* Service Variables end;\n* SAS Macros start;\n\n\n\n* SAS Macros end;\n* SAS Includes start;\n\n* SAS Includes end;\n* Binary Files start;\n\n* Binary Files end;\n\n\n* Service start;\n`
     const appinit = `/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from mydb.springs;\n\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n\n`
     const getdata = `/**\n  @file getdata.sas\n  @brief Get Data service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\n%webout(FETCH)\n\nproc sql;\ncreate table springs as select * from mydb.springs\n  where area in (select area from work.areas);\n\n%webout(OPEN)\n%webout(OBJ,springs)\n%webout(CLOSE)\n\n`
     const getCode = (file: string) =>

@@ -20,8 +20,8 @@ options notes;
 data _null_;
  if symexist('_baseurl') then do;
    url=symget('_baseurl');
-   if subpad(url,length(url)-9,9)='SASStudio'
-     then url=substr(url,1,length(url)-11);
+   if subpad(url,length(url)-8,9)='SASStudio'
+     then url=substr(url,1,length(url)-10);
    else url="&systcpiphostname";
  end;
  else url="&systcpiphostname";
