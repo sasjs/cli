@@ -147,7 +147,9 @@ describe('sasjs cbd with Viya', () => {
       await build(target)
 
       await expect(deploy(target, true)).rejects.toThrow(
-        new Error(`Deployment failed. Request is not authenticated.\nToken error`)
+        new Error(
+          `Deployment failed. Request is not authenticated.\nToken error`
+        )
       )
 
       jest.restoreAllMocks()

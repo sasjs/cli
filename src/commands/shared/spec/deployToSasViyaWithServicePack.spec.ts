@@ -1,6 +1,12 @@
 import path from 'path'
 import os from 'os'
-import { AuthConfig, ServerType, Target, createFile, deleteFile } from '@sasjs/utils'
+import {
+  AuthConfig,
+  ServerType,
+  Target,
+  createFile,
+  deleteFile
+} from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import { deployToSasViyaWithServicePack } from '../deployToSasViyaWithServicePack'
 

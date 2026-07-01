@@ -26,9 +26,7 @@ export async function deployToSasViyaWithServicePack(
   // describes the real cause (missing client/secret, or a rejected refresh).
   const { access_token } = await getAuthConfig(target).catch((err) => {
     throw new Error(
-      `Deployment failed. Request is not authenticated.\n${
-        err?.message || err
-      }`
+      `Deployment failed. Request is not authenticated.\n${err?.message || err}`
     )
   })
 
