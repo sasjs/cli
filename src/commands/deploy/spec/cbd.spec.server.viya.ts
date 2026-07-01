@@ -140,16 +140,14 @@ describe('sasjs cbd with Viya', () => {
     })
 
     it(`should error when an access token is not provided`, async () => {
-      jest.spyOn(configUtils, 'getAccessToken').mockImplementation(() => {
+      jest.spyOn(configUtils, 'getAuthConfig').mockImplementation(() => {
         return Promise.reject('Token error')
       })
 
       await build(target)
 
       await expect(deploy(target, true)).rejects.toThrow(
-        new Error(
-          `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env.${target.name} file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
-        )
+        new Error(`Deployment failed. Request is not authenticated.\nToken error`)
       )
 
       jest.restoreAllMocks()
