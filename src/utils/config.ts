@@ -593,7 +593,18 @@ export async function getProjectRoot() {
 }
 
 /**
- * Gets the auth config for the specified target.
+ * Gets the auth config for the specified target, refreshing the access token
+ * (via the refresh token) if it is expiring.
+ *
+ * Unlike {@link getAccessToken}, this persists any newly issued access/refresh
+ * token pair via {@link saveTokens}. That persistence is not optional: SAS Viya
+ * issues rotating, single-use refresh tokens, so once a refresh token has been
+ * used to mint a new pair, the old one is void. If the new pair isn't written
+ * back to `.env.{target}` / the global config, the *next* CLI invocation reads
+ * the now-stale refresh token from disk and fails to authenticate - which is
+ * indistinguishable, from the user's point of view, from never having
+ * refreshed at all. This is why every command that needs an authenticated
+ * request should call `getAuthConfig`, not `getAccessToken`.
  * @param {Target} target - the target to get an access token for.
  * @returns {AuthConfig} - an object containing an access token, refresh token, client ID and secret.
  */
@@ -681,6 +692,13 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   }
 }
 
+/**
+ * Persists an access/refresh token pair to wherever the target's credentials
+ * live: `.env.{targetName}` for a local target, or `authConfig` in the global
+ * `~/.sasjsrc` otherwise. Called by {@link getAuthConfig} after every refresh
+ * so that a rotated (single-use) refresh token from SAS Viya is never reused -
+ * reusing it on a subsequent CLI invocation would be rejected by the server.
+ */
 export const saveTokens = async (
   targetName: string,
   client: string,
@@ -766,6 +784,16 @@ export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
  * If a refresh token is unavailable, we will use the client ID and secret
  * to obtain a new access token. Manual intervention is required in this case
  * to navigate to the URL shown and type in an authorization code.
+ *
+ * IMPORTANT: unlike {@link getAuthConfig}, this does NOT persist a refreshed
+ * access/refresh token pair back to disk - the new tokens only live for the
+ * lifetime of this process. Since SAS Viya refresh tokens are single-use and
+ * rotate on every refresh, calling this from a command whose CLI invocation
+ * ends shortly after (leaving the stale refresh token on disk) will cause the
+ * *next* invocation to fail to authenticate. Only use this where that's
+ * acceptable - e.g. one-shot, same-process cleanup calls such as
+ * `removeTestServerFolder` in test support code. Any user-facing command
+ * should use `getAuthConfig` instead.
  * @param {object} target - the target to get an access token for.
  * @param {string} checkIfExpiring - flag that indicates whether to do an expiry check.
  */

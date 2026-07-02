@@ -61,6 +61,14 @@ export function isRefreshTokenExpiring(token?: string): boolean {
   return timeToLive <= 30 // 30 seconds
 }
 
+/**
+ * Exchanges a refresh token for a new access/refresh token pair.
+ * SAS Viya's refresh tokens are single-use and rotate on every call: the
+ * `refresh_token` returned here supersedes the one passed in, which becomes
+ * invalid immediately. Callers must persist the returned pair (see
+ * `saveTokens` in config.ts) or a later refresh attempt with the old token
+ * will be rejected by the server.
+ */
 export async function refreshTokens(
   sasjsInstance: SASjs,
   clientId: string,
