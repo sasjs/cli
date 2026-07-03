@@ -356,13 +356,11 @@ describe('sasjs doc', () => {
   })
 
   it('should throw a Doxygen-specific error when the shell command fails with an "error: " stderr', async () => {
-    jest
-      .spyOn(shelljs, 'exec')
-      .mockReturnValueOnce({
-        code: 1,
-        stderr: 'error: bad config',
-        stdout: ''
-      } as any)
+    jest.spyOn(shelljs, 'exec').mockReturnValueOnce({
+      code: 1,
+      stderr: 'error: bad config',
+      stdout: ''
+    } as any)
 
     await expect(generateDocs(defaultTarget, defaultConfig)).rejects.toThrow(
       '\nerror: bad config'
@@ -370,13 +368,11 @@ describe('sasjs doc', () => {
   })
 
   it('should throw a generic Doxygen-not-installed error for any other shell failure', async () => {
-    jest
-      .spyOn(shelljs, 'exec')
-      .mockReturnValueOnce({
-        code: 1,
-        stderr: 'command not found',
-        stdout: ''
-      } as any)
+    jest.spyOn(shelljs, 'exec').mockReturnValueOnce({
+      code: 1,
+      stderr: 'command not found',
+      stdout: ''
+    } as any)
 
     await expect(generateDocs(defaultTarget, defaultConfig)).rejects.toThrow(
       `The Doxygen application is not installed or configured.`
