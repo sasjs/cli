@@ -1,4 +1,10 @@
-import { compileTestFlow } from '../'
+import {
+  compileTestFile,
+  compileTestFlow,
+  copyTestMacroFiles,
+  getCompileTree,
+  getTestFileDestinationFragment
+} from '../'
 import {
   Logger,
   LogLevel,
@@ -8,9 +14,9 @@ import {
   fileExists,
   generateTimestamp,
   deleteFolder,
+  createFolder,
   ServerType,
-  isTestFile,
-  Configuration
+  isTestFile
 } from '@sasjs/utils'
 import {
   removeTestApp,
@@ -21,8 +27,65 @@ import path from 'path'
 import { compile } from '../../compile'
 import chalk from 'chalk'
 
+describe('getTestFileDestinationFragment', () => {
+  // sasjsconfig.json testConfig paths (testSetUp/testTearDown) are conventionally
+  // forward-slash, regardless of the OS the CLI is running on - these tests pin
+  // that a Windows-style host separator doesn't break the flattening/reduce logic
+  // when the config value itself uses forward slashes (see PLAN-windows-testsetup-path.md).
+  describe('saveToRoot = true (testSetUp/testTearDown)', () => {
+    it('flattens a forward-slash config path to its basename', () => {
+      expect(
+        getTestFileDestinationFragment(
+          'sasjs/tests/testsetup.sas',
+          'tests',
+          true
+        )
+      ).toEqual('testsetup.sas')
+    })
+
+    it('flattens a backslash (Windows-native) path to its basename', () => {
+      expect(
+        getTestFileDestinationFragment(
+          'sasjs\\tests\\testsetup.sas',
+          'tests',
+          true
+        )
+      ).toEqual('testsetup.sas')
+    })
+
+    it('returns an empty string for a path ending in a separator', () => {
+      expect(
+        getTestFileDestinationFragment('sasjs/tests/', 'tests', true)
+      ).toEqual('')
+    })
+  })
+
+  describe('saveToRoot = false (service/job test files)', () => {
+    it('keeps the path fragment after the build destination folder name, for a forward-slash path', () => {
+      expect(
+        getTestFileDestinationFragment(
+          'sasjsbuild/tests/services/admin/random.test.sas',
+          'tests',
+          false
+        )
+      ).toEqual(['services', 'admin', 'random.test.sas'].join(path.sep))
+    })
+
+    it('keeps the path fragment after the build destination folder name, for a backslash path', () => {
+      expect(
+        getTestFileDestinationFragment(
+          'sasjsbuild\\tests\\services\\admin\\random.test.sas',
+          'tests',
+          false
+        )
+      ).toEqual(['services', 'admin', 'random.test.sas'].join(path.sep))
+    })
+  })
+})
+
 describe('compileTestFile', () => {
   const appName: string = `cli-tests-compile-test-file-${generateTimestamp()}`
+
   const temp: Target = generateTestTarget(
     appName,
     '/Public/app',
@@ -41,9 +104,11 @@ describe('compileTestFile', () => {
     },
     macroFolders: ['sasjs/macros']
   })
+
   let sasjsPath: string
   let testBody: string
   let buildPath: string
+
   const testFileName = 'random.test.sas'
 
   beforeAll(async () => {
@@ -119,6 +184,61 @@ describe('compileTestFile', () => {
       await testContent(path.join('testteardown.sas'))
       await testContent(path.join('macros', 'testMacro.test.sas'))
     })
+
+    it('should use default testVar/saveToRoot when omitted', async () => {
+      await compile(target)
+
+      const compileTree = getCompileTree(target)
+
+      await expect(
+        compileTestFile(
+          target,
+          target.testConfig!.testSetUp,
+          undefined,
+          undefined,
+          false,
+          compileTree
+        )
+      ).toResolve()
+    })
+
+    it('should prepend a non-empty testVar to the compiled test file', async () => {
+      await compile(target)
+
+      const compileTree = getCompileTree(target)
+      const testVar = '%let some_var=some_value;'
+
+      await compileTestFile(
+        target,
+        target.testConfig!.testSetUp,
+        testVar,
+        true,
+        false,
+        compileTree
+      )
+
+      const compiledTestSetUpPath = path.join(
+        buildPath,
+        'tests',
+        'testsetup.sas'
+      )
+      const compiledContent = await readFile(compiledTestSetUpPath)
+
+      expect(compiledContent.indexOf(testVar)).toEqual(0)
+    })
+
+    it('should skip copying a macro test file that is already present in the build folder', async () => {
+      await compile(target)
+
+      const macroFolderAbsolutePath = path.join(
+        __dirname,
+        appName,
+        'sasjs',
+        'macros'
+      )
+
+      await expect(copyTestMacroFiles(macroFolderAbsolutePath)).toResolve()
+    })
   })
 
   describe('compileTestFlow', () => {
@@ -152,6 +272,38 @@ describe('compileTestFile', () => {
       await expect(JSON.parse(await readFile(testFlowPath))).toEqual(
         expectedTestFlow
       )
+    })
+
+    it('should return no tests when the tests folder is empty', async () => {
+      await compile(target)
+
+      const testsFolderPath = path.join(buildPath, 'tests')
+      await deleteFolder(testsFolderPath)
+      await createFolder(testsFolderPath)
+
+      const testFlow = await compileTestFlow(target)
+
+      expect(testFlow!.tests).toEqual([])
+      expect(testFlow!.testSetUp).toBeUndefined()
+      expect(testFlow!.testTearDown).toBeUndefined()
+    })
+
+    it('should not set testSetUp/testTearDown when the configured file is not among the compiled tests', async () => {
+      await compile(target)
+
+      const targetWithBogusSetup = new Target({
+        ...target.toJson(),
+        testConfig: {
+          ...target.testConfig!,
+          testSetUp: 'does-not-exist-setup.sas',
+          testTearDown: 'does-not-exist-teardown.sas'
+        }
+      })
+
+      const testFlow = await compileTestFlow(targetWithBogusSetup)
+
+      expect(testFlow!.testSetUp).toBeUndefined()
+      expect(testFlow!.testTearDown).toBeUndefined()
     })
 
     it('should log coverage', async () => {
