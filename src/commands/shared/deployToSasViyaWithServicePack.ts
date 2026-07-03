@@ -1,5 +1,5 @@
 import { FileTree, MemberType, readFile, Target } from '@sasjs/utils'
-import { getAccessToken, getSASjs } from '../../utils'
+import { getAuthConfig, getSASjs } from '../../utils'
 
 export async function deployToSasViyaWithServicePack(
   jsonFilePath: string,
@@ -19,15 +19,16 @@ export async function deployToSasViyaWithServicePack(
 
   populateCodeInServicePack(jsonObject)
 
-  const access_token: string = await getAccessToken(target).catch((e) => '')
-
-  if (!access_token) {
+  // getAuthConfig (not getAccessToken) is required here: it persists a
+  // refreshed access/refresh token pair back to disk, which matters because
+  // Viya refresh tokens are single-use/rotating - see getAuthConfig's doc.
+  // The original error is forwarded rather than replaced, since it already
+  // describes the real cause (missing client/secret, or a rejected refresh).
+  const { access_token } = await getAuthConfig(target).catch((err) => {
     throw new Error(
-      `Deployment failed. Request is not authenticated.\nPlease add the following variables to your .env${
-        isLocal ? `.${target.name}` : ''
-      } file:\nCLIENT, SECRET, ACCESS_TOKEN, REFRESH_TOKEN`
+      `Deployment failed. Request is not authenticated.\n${err?.message || err}`
     )
-  }
+  })
 
   const sasjs = getSASjs(target)
 

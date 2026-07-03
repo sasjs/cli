@@ -91,6 +91,9 @@ export const removeTestServerFolder = async (
 
   const sasjs = getSASjs(target)
 
+  // getAccessToken is fine here (unlike in a real command) since this is a
+  // one-shot, same-process cleanup call - no later invocation depends on the
+  // refresh token this leaves on disk. See getAccessToken's doc in config.ts.
   const accessToken = await getAccessToken(target)
 
   await deleteServerFolder(folderPath, sasjs, accessToken)
