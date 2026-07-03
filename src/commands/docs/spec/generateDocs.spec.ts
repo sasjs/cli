@@ -1,4 +1,5 @@
 import path from 'path'
+import shelljs from 'shelljs'
 import {
   createTestApp,
   removeTestApp,
@@ -11,9 +12,12 @@ import {
   copy,
   deleteFolder,
   deleteFile,
+  readFile,
+  createFile,
   DocConfig,
   generateTimestamp,
   Target,
+  ServerType,
   Configuration
 } from '@sasjs/utils'
 import { generateDocs } from '../generateDocs'
@@ -308,5 +312,74 @@ describe('sasjs doc', () => {
 
     await verifyDocs(docOutputDefault, 'no-target')
     await verifyDotFiles(docOutputDefault)
+  })
+
+  it('should throw when no macro/program/service/job folders are configured', async () => {
+    const emptyTarget = new Target({
+      name: 'no-folders',
+      appLoc: '/Public/test/',
+      serverType: ServerType.SasViya,
+      docConfig: { displayMacroCore: false }
+    })
+
+    await expect(
+      generateDocs(emptyTarget, {
+        docConfig: { displayMacroCore: false }
+      } as Configuration)
+    ).rejects.toThrow('Unable to locate folders for generating docs.')
+  })
+
+  it('should not toggle the spinner when LOG_LEVEL is Debug', async () => {
+    const originalLogLevel = process.env.LOG_LEVEL
+    process.env.LOG_LEVEL = 'Debug'
+
+    await expect(generateDocs(defaultTarget, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    process.env.LOG_LEVEL = originalLogLevel
+  })
+
+  it('should fall back to the default project name when package.json has none', async () => {
+    const packageJsonPath = path.join(__dirname, appName, 'package.json')
+    const originalPackageJson = await readFile(packageJsonPath)
+    const packageJson = JSON.parse(originalPackageJson)
+    delete packageJson.name
+
+    await createFile(packageJsonPath, JSON.stringify(packageJson))
+
+    await expect(generateDocs(defaultTarget, defaultConfig)).resolves.toEqual({
+      outDirectory: docOutputDefault
+    })
+
+    await createFile(packageJsonPath, originalPackageJson)
+  })
+
+  it('should throw a Doxygen-specific error when the shell command fails with an "error: " stderr', async () => {
+    jest
+      .spyOn(shelljs, 'exec')
+      .mockReturnValueOnce({
+        code: 1,
+        stderr: 'error: bad config',
+        stdout: ''
+      } as any)
+
+    await expect(generateDocs(defaultTarget, defaultConfig)).rejects.toThrow(
+      '\nerror: bad config'
+    )
+  })
+
+  it('should throw a generic Doxygen-not-installed error for any other shell failure', async () => {
+    jest
+      .spyOn(shelljs, 'exec')
+      .mockReturnValueOnce({
+        code: 1,
+        stderr: 'command not found',
+        stdout: ''
+      } as any)
+
+    await expect(generateDocs(defaultTarget, defaultConfig)).rejects.toThrow(
+      `The Doxygen application is not installed or configured.`
+    )
   })
 })

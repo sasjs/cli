@@ -122,12 +122,17 @@ export async function generateDocs(
     return tmpFilePath
   })
 
+  // Doxygen matches USE_MDFILE_AS_MAINPAGE against the file's path exactly as it
+  // appears in INPUT - a bare name like "README.md" no longer matches an absolute
+  // INPUT path on newer Doxygen versions (see doxygen/doxygen#10110), which silently
+  // drops the README content instead of using it as the main page. Passing the same
+  // absolute path to both keeps them in sync regardless of Doxygen version.
+  const readMePath = path.join(doxyContent.path, doxyContent.readMe)
+
   const doxyParams = setVariableCmd({
     DOXY_HTML_OUTPUT: newOutDirectory,
-    DOXY_INPUT: `"${path.join(
-      doxyContent.path,
-      doxyContent.readMe
-    )}" ${combinedFolders}`,
+    DOXY_INPUT: `"${readMePath}" ${combinedFolders}`,
+    DOXY_MAINPAGE: readMePath,
     HTML_EXTRA_FILES: `"${path.join(doxyContent.path, doxyContent.favIcon)}"`,
     HTML_EXTRA_STYLESHEET: `"${path.join(
       doxyContent.path,
