@@ -36,7 +36,10 @@ describe('sasjs create', () => {
   })
 
   afterEach(async () => {
-    await deleteFolder(path.join(__dirname, 'test-app-create-*'))
+    // deleteFolder() takes a literal path, not a glob - 'test-app-create-*' never
+    // matches anything on disk, silently leaving every test's real (timestamped)
+    // folder behind. Delete the actual folder each test just created instead.
+    if (process.projectDir) await deleteFolder(process.projectDir)
   })
 
   it('should set up a default app in the current folder', async () => {

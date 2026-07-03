@@ -18,7 +18,10 @@ describe('sasjs init', () => {
   })
 
   afterEach(async () => {
-    await deleteFolder(path.join(__dirname, 'test-app-init-*'))
+    // deleteFolder() takes a literal path, not a glob - 'test-app-init-*' never
+    // matches anything on disk, silently leaving every test's real (timestamped)
+    // folder behind. Delete the actual folder each test just created instead.
+    if (process.projectDir) await deleteFolder(process.projectDir)
   })
 
   it('should initialise with default app in the current folder', async () => {

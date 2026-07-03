@@ -7,9 +7,9 @@ import {
   fileExists,
   folderExists,
   createFile,
+  deleteFile,
   readFile,
   copy,
-  LogLevel,
   Target,
   isWindows,
   isLinux,
@@ -90,10 +90,15 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
 
 export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
-    const { stdout, stderr, code } = downloadFile(
+    // This is only a repo-existence probe - its content is never read, only
+    // stderr/code are checked - so the downloaded file is discarded immediately.
+    const probeFile = 'response.txt'
+    const { stderr, code } = downloadFile(
       `https://username:password@github.com/sasjs/template_${template}`,
-      'response.txt'
+      probeFile
     )
+
+    await deleteFile(probeFile).catch(() => {})
 
     if (stderr.includes('404: Not Found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
@@ -107,6 +112,7 @@ export async function createTemplateApp(folderPath: string, template: string) {
         return reject(new Error(err))
       }
     )
+
     return resolve()
   })
 }
@@ -214,7 +220,13 @@ const loadDocsSubmodule = async (
 
 function downloadFile(url: string, filename?: string): ShellString {
   if (isLinux()) {
-    return shelljs.exec(`wget ${url}`, { silent: true })
+    // -O <filename> writes to the given name; without it, wget defaults to the
+    // remote URL's basename, which silently ignores the caller's `filename` and
+    // can leave an unexpectedly-named file behind (e.g. a repo-existence probe
+    // meant to be discarded as `response.txt` instead landing as the repo name).
+    return shelljs.exec(`wget ${url}${filename ? ' -O ' + filename : ''}`, {
+      silent: true
+    })
   } else if (isWindows()) {
     // First We set TLS12 & then we invoke request to download file.
     return shelljs.exec(
@@ -224,7 +236,13 @@ function downloadFile(url: string, filename?: string): ShellString {
       { silent: true }
     )
   } else {
-    return shelljs.exec(`curl ${url} -LO -f`, { silent: true })
+    // -o <filename> writes to the given name; -O (used previously) instead saves
+    // under the remote URL's basename, ignoring `filename` - see the wget comment
+    // above for the same issue.
+    return shelljs.exec(
+      `curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`,
+      { silent: true }
+    )
   }
 }
 

@@ -24,6 +24,47 @@ import { loadDependencies } from './'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
 
+/**
+ * Resolves the relative destination fragment for a compiled test file inside
+ * `sasjsbuild/tests` - either just the file's basename (saveToRoot, used for
+ * testSetUp/testTearDown), or the path fragment following the build
+ * destination folder name (used for service/job test files).
+ *
+ * `filePath` for testSetUp/testTearDown comes straight from a user's
+ * sasjsconfig.json, which conventionally uses forward slashes for
+ * portability - it is not guaranteed to match the current OS's separator.
+ * Splitting on both `/` and `\` (instead of only `path.sep`) means this
+ * works whether the config was authored with POSIX-style paths and the CLI
+ * is running on Windows (`path.sep === '\\'`) or vice versa. Splitting on
+ * `path.sep` alone silently no-ops when the string contains none of that
+ * separator, leaving the whole config path intact and producing a nested
+ * `sasjsbuild/tests/sasjs/tests/testsetup.sas` instead of a flat
+ * `sasjsbuild/tests/testsetup.sas`.
+ */
+export const getTestFileDestinationFragment = (
+  filePath: string,
+  buildDestinationFolderName: string | undefined,
+  saveToRoot: boolean
+): string => {
+  const segments = filePath.split(/[\\/]/)
+
+  const destinationFragment = saveToRoot
+    ? segments.pop() || ''
+    : segments
+        .reduce(
+          (acc: string[], item: string, i: number, arr: string[]) =>
+            acc.length
+              ? [...acc, item]
+              : arr[i - 1] === buildDestinationFolderName
+              ? [...acc, item]
+              : acc,
+          [] as string[]
+        )
+        .join(path.sep)
+
+  return destinationFragment
+}
+
 export async function compileTestFile(
   target: Target,
   filePath: string,
@@ -55,20 +96,11 @@ export async function compileTestFile(
     destinationPath ||
     path.join(
       buildDestinationTestFolder,
-      saveToRoot
-        ? filePath.split(path.sep).pop() || ''
-        : filePath
-            .split(path.sep)
-            .reduce(
-              (acc: any, item: any, i: any, arr: any) =>
-                acc.length
-                  ? [...acc, item]
-                  : arr[i - 1] === buildDestinationFolderName
-                  ? [...acc, item]
-                  : acc,
-              []
-            )
-            .join(path.sep)
+      getTestFileDestinationFragment(
+        filePath,
+        buildDestinationFolderName,
+        saveToRoot
+      )
     )
 
   await createFile(destinationPath, dependencies)

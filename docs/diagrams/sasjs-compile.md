@@ -40,15 +40,40 @@ flowchart TD
     H -->|no| J["compileFile(target, filePath, macroFolders, programFolders, ..., fileType, sourceFolder)\n→ loadDependencies() resolves %macro/[include] headers, writes resolved SAS in place"]
 ```
 
+## `compileTestFile` — destination path resolution
+
+```mermaid
+flowchart TD
+    A["compileTestFile(target, filePath, testVar, saveToRoot, removeOriginalFile, compileTree, destinationPath?) — compileTestFile.ts:68"] --> B["loadDependencies(target, absolutePath(filePath), macroFolders, programFolders, SASJsFileType.test, compileTree)\n→ resolves %macro/[include] headers into final SAS content"]
+    B --> C["dependencies = (testVar ? testVar + newline : '') + newline + dependencies"]
+    C --> D{"destinationPath explicitly given?"}
+    D -->|yes| F["use it as-is"]
+    D -->|no| E["getTestFileDestinationFragment(filePath, buildDestinationFolderName, saveToRoot) — compileTestFile.ts:44\n(see subgraph below)"]
+    E --> F2["destinationPath = join(buildDestinationTestFolder, fragment)"]
+    F --> G["createFile(destinationPath, dependencies)"]
+    F2 --> G
+    G --> H{"removeOriginalFile?"}
+    H -->|yes| I["deleteFile(filePath) — source removed"]
+    H -->|no| J["source left in place"]
+```
+
+```mermaid
+flowchart TD
+    A["getTestFileDestinationFragment(filePath, buildDestinationFolderName, saveToRoot)"] --> B["segments = filePath.split(/[\\\\/]/) — splits on both '/' and '\\'\nregardless of host OS or which separator the input string uses"]
+    B --> C{"saveToRoot?"}
+    C -->|true, e.g. testSetUp/testTearDown| D["return segments.pop() || ''\n→ just the file's basename, flattened to build-test-folder root"]
+    C -->|false, e.g. service/job test files| E["reduce over segments: drop everything up to and\nincluding buildDestinationFolderName, keep the remainder,\njoin with path.sep\n→ preserves the relative path fragment under services/jobs"]
+```
+
 ## `compileTestFlow` — building `testFlow.json` + coverage
 
 ```mermaid
 flowchart TD
-    A["compileTestFlow(target) — compileTestFile.ts:98"] --> B{"sasjsbuild/tests folder exists?"}
+    A["compileTestFlow(target) — compileTestFile.ts:130"] --> B{"sasjsbuild/tests folder exists?"}
     B -->|no| Z["return undefined"]
     B -->|yes| C["testFiles = listFilesAndSubFoldersInFolder(buildDestinationTestFolder)\nprefixed with 'tests/'"]
     C --> D{"testSetUp / testTearDown configured\n(target.testConfig or root sasjsconfig.json)?"}
-    D --> E["match by basename against testFiles;\nremove matched entry from testFiles list,\nset testFlow.testSetUp / testFlow.testTearDown = 'tests/{basename}'"]
+    D --> E["match by basename against testFiles;\nremove matched entry from testFiles list,\nset testFlow.testSetUp / testFlow.testTearDown = 'tests/{basename}'\n(no match found → left unset, file stays a regular/standalone test entry)"]
     E --> F["testFlow.tests = remaining testFiles (posix-joined)"]
     F --> G["printTestCoverage(testFlow, buildDestinationFolder, target)"]
     G --> H["collectCoverage() over sasjsbuild/services, sasjsbuild/jobs,\nand each macro folder (excluding *.test.sas)"]
@@ -66,14 +91,17 @@ flowchart TD
   service/job folders are compiled with their relative path preserved under
   `sasjsbuild/tests/{services|jobs}/...` (`saveToRoot = false`). Both paths go through
   `getTestFileDestinationFragment(filePath, buildDestinationFolderName, saveToRoot)`
-  in `compileTestFile.ts`.
+  in `compileTestFile.ts`, which splits on both `/` and `\` so the result doesn't
+  depend on which separator style the input path happens to use.
 - Macro test files (`*.test.sas` under any macro folder) are handled separately via
-  `copyTestMacroFiles()` (copy into `sasjsbuild/tests/macros`) + a second `compileFile()`
-  pass to resolve their dependencies - this happens after `compileJobsServicesTests`,
-  not inside it.
+  `copyTestMacroFiles()` (copy into `sasjsbuild/tests/macros`, skipping files that
+  already exist at the destination) + a second `compileFile()` pass to resolve their
+  dependencies - this happens after `compileJobsServicesTests`, not inside it.
 - `compileTestFlow` only ever *reads* whatever already landed in
   `sasjsbuild/tests` - it doesn't compile anything itself, it just assembles
-  `testFlow.json` and prints/writes coverage.
+  `testFlow.json` and prints/writes coverage. If a configured `testSetUp`/
+  `testTearDown` doesn't match any actual compiled file by basename, it's silently
+  left unset and the corresponding file (if any) is treated as a regular test.
 - Dependency resolution (`%macro`/program includes) for every non-test file goes
   through `loadDependencies()` → `loadDependenciesFile()` (from `@sasjs/utils`), which
   is also memoized per-file via the `compileTree` (`{target}_compileTree.json`) to

@@ -9,9 +9,17 @@ import {
   getAdapterInstance,
   displaySasjsRunnerError,
   loadEnvVariables,
-  createReactApp
+  createReactApp,
+  prefixAppLoc,
+  isSASjsProject,
+  getNodeModulePath,
+  getUniqServicesObj,
+  convertToSASStatements,
+  terminateProcess,
+  isSasJsServerInServerMode
 } from '../utils'
 import { mockProcessExit } from '../test'
+import axios from 'axios'
 import {
   createFile,
   deleteFile,
@@ -183,6 +191,20 @@ describe('utils', () => {
 
       await deleteFile(gitFilePath)
     })
+
+    it('should populate all default rules when an existing .gitignore file is empty', async () => {
+      await createFile(gitFilePath, '')
+
+      await expect(setupGitIgnore(folderPath)).toResolve()
+
+      const gitIgnoreContent = await readFile(gitFilePath)
+
+      expect(gitIgnoreContent).toEqual(
+        'node_modules\nsasjsbuild\nsasjsresults\n.env*\n'
+      )
+
+      await deleteFile(gitFilePath)
+    })
   })
 
   describe('chunk', () => {
@@ -350,5 +372,155 @@ describe('utils', () => {
 
       await deleteFolder(reactFolderPath)
     }, 600000)
+  })
+
+  describe('prefixAppLoc', () => {
+    it('should return null when path is falsy', () => {
+      expect(prefixAppLoc('/my/app', '')).toEqual(null)
+    })
+
+    it('should prepend a leading slash to appLoc if missing', () => {
+      expect(prefixAppLoc('my/app', 'program1')).toEqual('/my/app/program1')
+    })
+
+    it('should keep an already-absolute path unchanged', () => {
+      expect(prefixAppLoc('/my/app', '/absolute/path')).toEqual(
+        '/absolute/path'
+      )
+    })
+
+    it('should join an array path before prefixing each segment', () => {
+      expect(prefixAppLoc('/my/app', ['program1', 'program2'] as any)).toEqual(
+        '/my/app/program1 /my/app/program2'
+      )
+    })
+  })
+
+  describe('isSASjsProject', () => {
+    it('should return true when sasjs/sasjsconfig.json exists under projectDir', async () => {
+      const projectDir = path.join(
+        __dirname,
+        `is-sasjs-project-${generateTimestamp()}`
+      )
+      const originalProjectDir = process.projectDir
+
+      await createFolder(path.join(projectDir, 'sasjs'))
+      await createFile(path.join(projectDir, 'sasjs', 'sasjsconfig.json'), '{}')
+      process.projectDir = projectDir
+
+      await expect(isSASjsProject()).resolves.toEqual(true)
+
+      process.projectDir = originalProjectDir
+      await deleteFolder(projectDir)
+    })
+
+    it('should return false when no sasjsconfig.json is found in any parent folder', async () => {
+      const projectDir = path.join(
+        require('os').tmpdir(),
+        `not-a-sasjs-project-${generateTimestamp()}`
+      )
+      const originalProjectDir = process.projectDir
+
+      await createFolder(projectDir)
+      process.projectDir = projectDir
+
+      await expect(isSASjsProject()).resolves.toEqual(false)
+
+      process.projectDir = originalProjectDir
+      await deleteFolder(projectDir)
+    })
+  })
+
+  describe('getNodeModulePath', () => {
+    it('should return the folder path of an installed module', async () => {
+      const modulePath = await getNodeModulePath('@sasjs/utils')
+
+      expect(modulePath).not.toEqual('')
+      expect(modulePath.endsWith(path.join('@sasjs', 'utils'))).toEqual(true)
+    })
+
+    it('should return an empty string when the module cannot be found', async () => {
+      await expect(
+        getNodeModulePath('sasjs-nonexistent-module-xyz')
+      ).resolves.toEqual('')
+    })
+  })
+
+  describe('getUniqServicesObj', () => {
+    it('should return an empty object when services is falsy', () => {
+      expect(getUniqServicesObj(undefined as any)).toEqual({})
+    })
+
+    it('should key services by their basename, keeping the first of any duplicates', () => {
+      expect(
+        getUniqServicesObj(['a/b/service1', 'x/service2', 'y/service1'])
+      ).toEqual({
+        service1: 'a/b/service1',
+        service2: 'x/service2'
+      })
+    })
+  })
+
+  describe('convertToSASStatements', () => {
+    it('should convert macroVars to %let statements', () => {
+      expect(
+        convertToSASStatements({
+          macroVars: { var1: 'val1', var2: 'val2' }
+        })
+      ).toEqual('%let var1=val1;\n%let var2=val2;\n')
+    })
+
+    it('should return an empty string when there are no macroVars', () => {
+      expect(convertToSASStatements({ macroVars: {} })).toEqual('')
+    })
+  })
+
+  describe('terminateProcess', () => {
+    it('should exit the process with the given status code', () => {
+      const mockExit = mockProcessExit()
+
+      terminateProcess(2)
+
+      expect(mockExit).toHaveBeenCalledWith(2)
+    })
+  })
+
+  describe('isSasJsServerInServerMode', () => {
+    const target = new Target({
+      name: 'test',
+      appLoc: '/Public/test/',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://sasjsserver.com'
+    })
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('should return true when the server reports server mode', async () => {
+      jest
+        .spyOn(axios, 'get')
+        .mockImplementation(() => Promise.resolve({ data: { mode: 'server' } }))
+
+      await expect(isSasJsServerInServerMode(target)).resolves.toEqual(true)
+    })
+
+    it('should return false when the server does not report server mode', async () => {
+      jest
+        .spyOn(axios, 'get')
+        .mockImplementation(() =>
+          Promise.resolve({ data: { mode: 'desktop' } })
+        )
+
+      await expect(isSasJsServerInServerMode(target)).resolves.toEqual(false)
+    })
+
+    it('should throw when the server info request fails', async () => {
+      jest.spyOn(axios, 'get').mockImplementation(() => Promise.reject())
+
+      await expect(isSasJsServerInServerMode(target)).rejects.toThrow(
+        `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
+      )
+    })
   })
 })
