@@ -444,6 +444,36 @@ describe('utils', () => {
         getNodeModulePath('sasjs-nonexistent-module-xyz')
       ).resolves.toEqual('')
     })
+
+    it('should prefer a module installed under the given fromDir over default resolution', async () => {
+      const fakeModuleName = `sasjs-test-fake-module-${generateTimestamp()}`
+      const fromDir = path.join(
+        require('os').tmpdir(),
+        `getNodeModulePath-${generateTimestamp()}`
+      )
+      const fakeModuleDir = path.join(fromDir, 'node_modules', fakeModuleName)
+
+      await createFolder(fakeModuleDir)
+      await createFile(
+        path.join(fakeModuleDir, 'package.json'),
+        JSON.stringify({ name: fakeModuleName, version: '1.0.0' })
+      )
+
+      // not resolvable at all without fromDir - it only exists in fromDir's
+      // own node_modules, nowhere on the default resolution path
+      await expect(getNodeModulePath(fakeModuleName)).resolves.toEqual('')
+
+      const resolvedPath = await getNodeModulePath(fakeModuleName, fromDir)
+
+      // compare tails rather than exact paths: require.resolve returns the
+      // real (symlink-resolved) path, which can differ from os.tmpdir()'s
+      // raw value (e.g. /var vs /private/var on macOS)
+      expect(resolvedPath.endsWith(path.join('node_modules', fakeModuleName))).toEqual(
+        true
+      )
+
+      await deleteFolder(fromDir)
+    })
   })
 
   describe('getUniqServicesObj', () => {

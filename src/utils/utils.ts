@@ -573,12 +573,37 @@ export const isSASjsProject = async () => {
   return false
 }
 
-export const getNodeModulePath = async (module: string): Promise<string> => {
+/**
+ * Locates an installed npm module and returns its root folder.
+ *
+ * Without `fromDir`, `require.resolve` searches relative to *this file's own*
+ * location on disk - i.e. wherever @sasjs/cli itself is installed - not the
+ * user's project. That's fine for CLI-internal dependencies, but wrong for
+ * anything the user is expected to manage in their own project's
+ * node_modules (e.g. @sasjs/core): since @sasjs/cli also depends on that
+ * same package, default resolution finds the CLI's own bundled copy first
+ * and never reaches the project's. Passing `fromDir` anchors the search at
+ * that directory instead (Node's `paths` option replaces, rather than
+ * extends, the default resolution paths), so callers that need
+ * project-first resolution should pass `process.projectDir` and fall back to
+ * an unscoped call if that returns nothing.
+ * @param {string} module - the name of the npm module to locate.
+ * @param {string} fromDir - optional directory to resolve `module` from,
+ * instead of this file's own location.
+ */
+export const getNodeModulePath = async (
+  module: string,
+  fromDir?: string
+): Promise<string> => {
   // Look for ${module}/package.json, then return only the path
   try {
     const nodePackagePath = path.dirname(
-      require.resolve(path.join(module, 'package.json'))
+      require.resolve(
+        path.join(module, 'package.json'),
+        fromDir ? { paths: [fromDir] } : undefined
+      )
     )
+
     if (nodePackagePath) return nodePackagePath
   } catch (e: any) {
     if (e.code !== 'MODULE_NOT_FOUND') throw e
