@@ -47,11 +47,6 @@ export const setConstants = async (
   //   1. the `macroCorePath` environment variable, if set - an explicit
   //      override, e.g. for developing against a local @sasjs/core checkout.
   //   2. @sasjs/core installed in the user's own project (process.projectDir).
-  //      This must be checked before falling back to @sasjs/cli's own
-  //      dependency below, otherwise a user who runs `npm i @sasjs/core` to
-  //      pick up a new/updated macro never actually sees it: @sasjs/cli also
-  //      depends on @sasjs/core, so unscoped resolution finds the CLI's own
-  //      bundled copy first and never reaches the project's.
   //   3. @sasjs/cli's own @sasjs/core dependency, as a fallback for projects
   //      that haven't installed @sasjs/core themselves.
   let macroCorePath = (process.env.macroCorePath as string) ?? ''
