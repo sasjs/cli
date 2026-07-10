@@ -80,28 +80,40 @@ describe('setConstants', () => {
     verifySasjsConstants(undefined, false, false)
   })
 
-  test('should call getNodeModulePath once when environment variable macroCorePath is undefined', async () => {
+  test('should look up @sasjs/core scoped to process.projectDir, then fall back unscoped, when environment variable macroCorePath is undefined', async () => {
     process.env.macroCorePath = undefined
 
     const getNodeModulePathSpy = jest
       .spyOn(utils, 'getNodeModulePath')
-      .mockImplementation(async (packageName: string) => Promise.resolve(''))
+      .mockImplementation(async () => Promise.resolve(''))
 
     await setConstants()
 
-    expect(getNodeModulePathSpy).toHaveBeenCalledOnceWith('@sasjs/core')
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(
+      1,
+      '@sasjs/core',
+      process.projectDir
+    )
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(2, '@sasjs/core')
+    expect(getNodeModulePathSpy).toHaveBeenCalledTimes(2)
   })
 
-  test('should call getNodeModulePath once when environment variable macroCorePath is blank', async () => {
+  test('should look up @sasjs/core scoped to process.projectDir, then fall back unscoped, when environment variable macroCorePath is blank', async () => {
     process.env.macroCorePath = ''
 
     const getNodeModulePathSpy = jest
       .spyOn(utils, 'getNodeModulePath')
-      .mockImplementation(async (packageName: string) => Promise.resolve(''))
+      .mockImplementation(async () => Promise.resolve(''))
 
     await setConstants()
 
-    expect(getNodeModulePathSpy).toHaveBeenCalledOnceWith('@sasjs/core')
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(
+      1,
+      '@sasjs/core',
+      process.projectDir
+    )
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(2, '@sasjs/core')
+    expect(getNodeModulePathSpy).toHaveBeenCalledTimes(2)
   })
 
   test('should not call getNodeModulePath when environment variable macroCorePath is populated', async () => {
@@ -114,6 +126,51 @@ describe('setConstants', () => {
     await setConstants()
 
     expect(getNodeModulePathSpy).toBeCalledTimes(0)
+  })
+
+  test('should prefer @sasjs/core resolved relative to process.projectDir over the CLI-relative fallback', async () => {
+    process.env.macroCorePath = undefined
+    const projectCorePath = path.join(
+      'some',
+      'project',
+      'node_modules',
+      '@sasjs',
+      'core'
+    )
+
+    const getNodeModulePathSpy = jest
+      .spyOn(utils, 'getNodeModulePath')
+      .mockImplementation(async (_packageName: string, fromDir?: string) =>
+        Promise.resolve(fromDir ? projectCorePath : 'cli-relative-core-path')
+      )
+
+    await setConstants()
+
+    // found on the first, project-scoped lookup - the unscoped fallback
+    // should never be reached
+    expect(getNodeModulePathSpy).toHaveBeenCalledTimes(1)
+    expect(process.sasjsConstants.macroCorePath).toEqual(projectCorePath)
+  })
+
+  test('should fall back to the CLI-relative @sasjs/core when the project has none installed', async () => {
+    process.env.macroCorePath = undefined
+    const fallbackCorePath = path.join('cli', 'node_modules', '@sasjs', 'core')
+
+    const getNodeModulePathSpy = jest
+      .spyOn(utils, 'getNodeModulePath')
+      .mockImplementation(async (_packageName: string, fromDir?: string) =>
+        Promise.resolve(fromDir ? '' : fallbackCorePath)
+      )
+
+    await setConstants()
+
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(
+      1,
+      '@sasjs/core',
+      process.projectDir
+    )
+    expect(getNodeModulePathSpy).toHaveBeenNthCalledWith(2, '@sasjs/core')
+    expect(process.sasjsConstants.macroCorePath).toEqual(fallbackCorePath)
   })
 })
 

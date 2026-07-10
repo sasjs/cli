@@ -106,3 +106,11 @@ flowchart TD
   through `loadDependencies()` → `loadDependenciesFile()` (from `@sasjs/utils`), which
   is also memoized per-file via the `compileTree` (`{target}_compileTree.json`) to
   avoid recomputing dependencies across compiles.
+- `loadDependencies()` resolves `%macro` calls against `macroFolders`/`programFolders`
+  (from the target/config) plus `process.sasjsConstants.macroCorePath`, for macros from
+  `@sasjs/core`. `macroCorePath` is computed once per run in `setConstants()`
+  (`src/utils/setConstants.ts`), in this order: the `macroCorePath` env var if set,
+  else `@sasjs/core` resolved starting from `process.projectDir` (the user's own
+  project - via `getNodeModulePath('@sasjs/core', process.projectDir)`), else
+  `@sasjs/core` resolved relative to `@sasjs/cli`'s own install location, as a
+  fallback for projects that haven't installed `@sasjs/core` themselves.

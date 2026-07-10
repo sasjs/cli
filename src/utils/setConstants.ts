@@ -43,17 +43,19 @@ export const setConstants = async (
   const buildDestinationJobsFolder = path.join(buildDestinationFolder, 'jobs')
   const buildDestinationDbFolder = path.join(buildDestinationFolder, 'db')
   const buildDestinationDocsFolder = path.join(buildDestinationFolder, 'docs')
-  // Edge case: @sasjs/cli has a dependency on @sasjs/core.
-  // When @sasjs/cli is used to submit a test of the @sasjs/core
-  // repo, it is desirable to use that @sasjs/core repo as the dependency rather
-  // than the older version in @sasjs/cli node_modules.
-  // To achieve this, set environment variable `macroCorePath` to the root dir
-  // of the local @sasjs/core package. If found, this takes precedence over
-  // any node_modules installations of @sasjs/core.
+  // Resolution order for the @sasjs/core macros used by 'sasjs compile' etc:
+  //   1. the `macroCorePath` environment variable, if set - an explicit
+  //      override, e.g. for developing against a local @sasjs/core checkout.
+  //   2. @sasjs/core installed in the user's own project (process.projectDir).
+  //   3. @sasjs/cli's own @sasjs/core dependency, as a fallback for projects
+  //      that haven't installed @sasjs/core themselves.
   let macroCorePath = (process.env.macroCorePath as string) ?? ''
+
   if (macroCorePath === '') {
-    // If no environment variable is set/populated then check for an installed
-    // @sasjs/core in locations known to node.
+    macroCorePath = await getNodeModulePath('@sasjs/core', process.projectDir)
+  }
+
+  if (macroCorePath === '') {
     macroCorePath = await getNodeModulePath('@sasjs/core')
   }
 
