@@ -468,9 +468,9 @@ describe('utils', () => {
       // compare tails rather than exact paths: require.resolve returns the
       // real (symlink-resolved) path, which can differ from os.tmpdir()'s
       // raw value (e.g. /var vs /private/var on macOS)
-      expect(resolvedPath.endsWith(path.join('node_modules', fakeModuleName))).toEqual(
-        true
-      )
+      expect(
+        resolvedPath.endsWith(path.join('node_modules', fakeModuleName))
+      ).toEqual(true)
 
       await deleteFolder(fromDir)
     })
