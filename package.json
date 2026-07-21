@@ -69,11 +69,11 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.17.1",
-    "@sasjs/core": "4.67.3",
+    "@sasjs/adapter": "4.17.2",
+    "@sasjs/core": "4.68.1",
     "@sasjs/lint": "2.4.3",
-    "@sasjs/utils": "3.5.8",
-    "adm-zip": "0.5.10",
+    "@sasjs/utils": "3.5.9",
+    "adm-zip": "0.6.0",
     "chalk": "4.1.2",
     "dotenv": "16.0.3",
     "find": "0.3.0",
@@ -91,7 +91,7 @@
     "yargs": "17.6.2"
   },
   "devDependencies": {
-    "@babel/core": "7.22.0",
+    "@babel/core": "7.29.7",
     "@babel/preset-env": "7.22.0",
     "@babel/preset-typescript": "7.22.5",
     "@types/adm-zip": "0.5.0",
