@@ -202,6 +202,12 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   * %let apploc=/my/apploc;
   * %inc thisfile;
   *
+  * Do NOT change compiled_apploc - it is not the deploy location, it is the
+  * appLoc that was baked into the frontend files at build time.  It is used
+  * by the swap= parameter of %mv_createfile to rewrite that string to the
+  * runtime appLoc when streaming web (html/css/js) files are uploaded.
+  * Changing it breaks dynamic appLoc switching (no strings will match).
+  *
   */
 
 %global appLoc;
