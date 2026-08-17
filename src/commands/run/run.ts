@@ -3,7 +3,8 @@ import { ErrorResponse } from '@sasjs/adapter/node'
 import {
   getAuthConfig,
   getSASjs,
-  getSASjsAndAuthConfig
+  getSASjsAndAuthConfig,
+  persistTokensRefreshedByAdapter
 } from '../../utils/config'
 import {
   readFile,
@@ -111,7 +112,8 @@ async function executeOnSasViya(
       fileName: path.basename(filePath),
       linesOfCode: linesToExecute,
       contextName,
-      authConfig
+      authConfig,
+      onTokensRefreshed: persistTokensRefreshedByAdapter(target)
     })
     .catch(async (err) => {
       const log = err.log

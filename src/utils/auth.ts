@@ -1,6 +1,8 @@
 import { getString, ServerType, Target } from '@sasjs/utils'
-import jwtDecode from 'jwt-decode'
-import SASjs, { CertificateError } from '@sasjs/adapter/node'
+import SASjs, {
+  CertificateError,
+  SasjsRequestClient
+} from '@sasjs/adapter/node'
 
 export const getAuthUrl = (
   serverType: ServerType,
@@ -28,40 +30,6 @@ export async function getAuthCode(authUrl: string) {
 }
 
 /**
- * Checks if the Access Token is expired or is expiring in 1 hour.  A default Access Token
- * lasts 12 hours. If the Access Token expires, the Refresh Token is used to fetch a new
- * Access Token. In the case that the Refresh Token is expired, 1 hour is enough to let
- * most jobs finish.
- * @param {string} token- token string that will be evaluated
- */
-export function isAccessTokenExpiring(token: string): boolean {
-  if (!token) {
-    return true
-  }
-  const payload = jwtDecode<{ exp: number }>(token)
-  const timeToLive = payload.exp - new Date().valueOf() / 1000
-
-  return timeToLive <= 60 * 60 // 1 hour
-}
-
-/**
- * Checks if the Refresh Token is expired or expiring in 30 secs. A default Refresh Token
- * lasts 30 days.  Once the Refresh Token expires, the user must re-authenticate (provide
- * credentials in a browser to obtain an authorisation code). 30 seconds is enough time
- * to make a request for a final Access Token.
- * @param {string} token- token string that will be evaluated
- */
-export function isRefreshTokenExpiring(token?: string): boolean {
-  if (!token) {
-    return true
-  }
-  const payload = jwtDecode<{ exp: number }>(token)
-  const timeToLive = payload.exp - new Date().valueOf() / 1000
-
-  return timeToLive <= 30 // 30 seconds
-}
-
-/**
  * Exchanges a refresh token for a new access/refresh token pair.
  * SAS Viya's refresh tokens are single-use and rotate on every call: the
  * `refresh_token` returned here supersedes the one passed in, which becomes
@@ -82,6 +50,100 @@ export async function refreshTokens(
   )
 
   return { access_token, refresh_token }
+}
+
+/**
+ * The pre-registered, secret-less OAuth client that ships with every SAS Viya
+ * deployment (used by the official SAS Viya CLI). Allows authenticating with a
+ * SAS username/password (OAuth2 resource owner password grant) when no
+ * administrator-registered client/secret is available.
+ */
+export const SAS_CLI_CLIENT_ID = 'sas.cli'
+
+/**
+ * Fetches an access/refresh token pair from SAS Viya using the resource owner
+ * password grant against the built-in `sas.cli` public client. Unlike the
+ * client/secret flows, no OAuth client registration is required - the
+ * credentials are the user's regular SAS logon credentials.
+ *
+ * Note: this requires the password grant to be enabled for `sas.cli` (the
+ * default) and a local/LDAP account - it cannot work on SSO/SAML/MFA-only
+ * estates.
+ * @param {Target} target - the SASVIYA target to authenticate against.
+ * @param {string} user - the SAS username.
+ * @param {string} pass - the SAS password.
+ * @returns the access and refresh token pair.
+ */
+export async function getTokensWithPasswordGrant(
+  target: Target,
+  user: string,
+  pass: string
+): Promise<{ access_token: string; refresh_token: string }> {
+  const requestClient = new SasjsRequestClient(
+    target.serverUrl,
+    target.httpsAgentOptions
+  )
+
+  const basicAuth = Buffer.from(`${SAS_CLI_CLIENT_ID}:`).toString('base64')
+  const data = new URLSearchParams({
+    grant_type: 'password',
+    username: user,
+    password: pass
+  })
+
+  const authResponse = await requestClient
+    .post(
+      '/SASLogon/oauth/token',
+      data,
+      undefined,
+      'application/x-www-form-urlencoded',
+      {
+        Authorization: `Basic ${basicAuth}`,
+        Accept: 'application/json'
+      }
+    )
+    .then((res) => res.result as any)
+    .catch((err) => {
+      if (err instanceof CertificateError) throw err
+      throw new Error(
+        `Login failed for user '${user}' on ${target.serverUrl}.\n` +
+          `Please check your username and password and try again. If they are correct, ` +
+          `the password grant may be disabled for the '${SAS_CLI_CLIENT_ID}' client on this Viya deployment.\n` +
+          `${err?.message || err}`
+      )
+    })
+
+  if (!authResponse?.access_token) {
+    throw new Error(
+      `Login failed: the token endpoint did not return an access token.`
+    )
+  }
+
+  return {
+    access_token: authResponse.access_token,
+    refresh_token: authResponse.refresh_token
+  }
+}
+
+/**
+ * Verifies an access token by fetching the identity it belongs to.
+ * @param {Target} target - the SASVIYA target the token was minted for.
+ * @param {string} accessToken - the access token to verify.
+ * @returns the id and display name of the authenticated user.
+ */
+export async function fetchLoggedInUser(
+  target: Target,
+  accessToken: string
+): Promise<{ id: string; name?: string }> {
+  const requestClient = new SasjsRequestClient(
+    target.serverUrl,
+    target.httpsAgentOptions
+  )
+  const { result } = await requestClient.get<any>(
+    '/identities/users/@currentUser',
+    accessToken
+  )
+  return { id: result?.id, name: result?.name }
 }
 
 export async function getNewAccessToken(

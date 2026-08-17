@@ -10,6 +10,7 @@ const subCommandMap = new Map<string, string[]>([
   ['doc', ['init', 'lineage']],
   ['servicepack', ['deploy']],
   ['add', ['cred']],
+  ['auth', ['login']],
   ['lint', ['init', 'fix', 'find']],
   ['flow', ['execute']]
 ])

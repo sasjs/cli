@@ -1,4 +1,4 @@
-import SASjs, { VerboseMode } from '@sasjs/adapter/node'
+import SASjs, { VerboseMode, OnTokensRefreshed } from '@sasjs/adapter/node'
 import {
   Configuration,
   Target,
@@ -16,12 +16,11 @@ import {
   AuthConfigSas9,
   SyncDirectoryMap
 } from '@sasjs/utils'
+import { getNewAccessToken, refreshTokens, SAS_CLI_CLIENT_ID } from './auth'
 import {
   isAccessTokenExpiring,
-  isRefreshTokenExpiring,
-  getNewAccessToken,
-  refreshTokens
-} from './auth'
+  isRefreshTokenExpiring
+} from '@sasjs/utils/auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
@@ -639,10 +638,58 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       ? undefined
       : client
 
+  const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
+
+  // A fresh access token is sufficient on its own - return it before
+  // requiring client/secret. This enables token-based authentication for
+  // targets without a registered OAuth client (see `sasjs auth login`).
+  if (access_token && !isAccessTokenExpiring(access_token)) {
+    return {
+      access_token,
+      refresh_token: refresh_token || '',
+      client,
+      secret: undefined
+    }
+  }
+
+  // Tokens minted by `sasjs auth login` have no client/secret. The built-in,
+  // secret-less `sas.cli` client accepts refresh token grants, so the stored
+  // refresh token can still be used - and MUST be persisted again, since Viya
+  // refresh tokens rotate on every use.
+  if (!client && target.serverType === ServerType.SasViya) {
+    // Some estates issue opaque (non-JWT) refresh tokens, which cannot be
+    // expiry-checked client-side - isRefreshTokenExpiring treats those as
+    // usable and lets the server reject them if they have actually expired.
+    if (!refresh_token || isRefreshTokenExpiring(refresh_token)) {
+      throw new Error(
+        `The access token has expired and no refresh token is available.${passwordGrantHint}`
+      )
+    }
+
+    const sasjs = getSASjs(target)
+    const tokens = await refreshTokens(
+      sasjs,
+      SAS_CLI_CLIENT_ID,
+      '',
+      refresh_token
+    )
+
+    access_token = tokens?.access_token || access_token
+    refresh_token = tokens?.refresh_token || refresh_token
+    await saveTokens(target.name, access_token, refresh_token || '')
+
+    return {
+      access_token,
+      refresh_token: refresh_token || '',
+      client: undefined,
+      secret: undefined
+    }
+  }
+
   if (!client) {
     throw new Error(
       `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
     )
   }
 
@@ -659,7 +706,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     else
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
   }
 
@@ -670,23 +717,23 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
     if (isRefreshTokenExpiring(refresh_token)) {
       tokens = await getNewAccessToken(sasjs, client, secret, target)
     } else {
-      tokens = await refreshTokens(sasjs, client, secret, refresh_token!)
+      tokens = await refreshTokens(sasjs, client, secret, refresh_token || '')
     }
 
     access_token = tokens?.access_token || access_token
     refresh_token = tokens?.refresh_token || refresh_token
     await saveTokens(
       target.name,
-      client,
-      secret,
       access_token,
-      refresh_token || ''
+      refresh_token || '',
+      client,
+      secret
     )
   }
 
   return {
     access_token,
-    refresh_token: refresh_token!,
+    refresh_token: refresh_token || '',
     client,
     secret
   }
@@ -701,10 +748,10 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
  */
 export const saveTokens = async (
   targetName: string,
-  client: string,
-  secret: string,
   access_token: string,
-  refresh_token: string
+  refresh_token: string,
+  client?: string,
+  secret?: string
 ): Promise<void> => {
   const isLocalTarget = await getLocalConfig()
     .then((localConfig) =>
@@ -719,7 +766,10 @@ export const saveTokens = async (
 
   if (isLocalTarget) {
     const { VERBOSE } = process.env
-    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
+    const clientSecretContent = client
+      ? `CLIENT=${client}\nSECRET=${secret || ''}\n`
+      : ''
+    const envFileContent = `${clientSecretContent}ACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
       VERBOSE ? 'VERBOSE=' + VERBOSE + '\n' : ''
     }`
     const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
@@ -734,14 +784,43 @@ export const saveTokens = async (
     if (!target) {
       throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
     }
-    const targetJson = target.toJson()
-    targetJson.authConfig = { client, secret, access_token, refresh_token }
+    // NOTE: getGlobalRcFile returns plain JSON (not Target instances)
+    const targetJson = { ...target } as any
+    targetJson.authConfig = {
+      ...(targetJson.authConfig || {}),
+      ...(client ? { client, secret: secret || '' } : {}),
+      access_token,
+      refresh_token
+    }
     await saveToGlobalConfig(
       new Target(targetJson),
       globalConfig.defaultTarget === targetName
     )
     process.logger?.success(
       `Target saved to global .sasjsrc file at ~/.sasjsrc.`
+    )
+  }
+}
+
+/**
+ * Returns an `onTokensRefreshed` handler for adapter methods that refresh
+ * tokens internally (e.g. `executeScript` on long-running jobs). The adapter
+ * receives the rotated pair; this handler persists it via {@link saveTokens}
+ * exactly as {@link getAuthConfig} does for its own refreshes, so the stored
+ * single-use refresh token never goes stale between CLI invocations.
+ * Any client/secret already configured for the target is passed through so
+ * {@link saveTokens} does not drop it from `.env.{target}`.
+ */
+export const persistTokensRefreshedByAdapter = (
+  target: Target
+): OnTokensRefreshed => {
+  return async ({ access_token, refresh_token }) => {
+    await saveTokens(
+      target.name,
+      access_token,
+      refresh_token,
+      target.authConfig?.client || process.env.CLIENT,
+      target.authConfig?.secret || process.env.SECRET
     )
   }
 }

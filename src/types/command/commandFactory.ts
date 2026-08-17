@@ -1,4 +1,5 @@
 import { AddCommand } from '../../commands/add/addCommand'
+import { AuthCommand } from '../../commands/auth/authCommand'
 import { BuildCommand } from '../../commands/build/buildCommand'
 import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
@@ -25,6 +26,7 @@ import { SnippetsCommand } from '../../commands/snippets/snippetsCommand'
 
 export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddCommand(args)],
+  ['auth', (args: string[]) => new AuthCommand(args)],
   ['build', (args: string[]) => new BuildCommand(args)],
   ['compile', (args: string[]) => new CompileCommand(args)],
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],
