@@ -94,6 +94,9 @@ describe('sasjs build', () => {
     ).toBeTruthy()
     expect(commentLine2.split(`'`).join(`'`.repeat(2))).toBeTruthy()
     expect(finalSasFile.includes(afterComment)).toBeTruthy()
+    // The guidance comment only survives removeHeader() because `%global appLoc;`
+    // precedes it (regex ^\s*/(\*){1,2}... does not match) - lock that in.
+    expect(finalSasFile.includes('Do NOT change compiled_apploc')).toBeTruthy()
   })
 })
 
