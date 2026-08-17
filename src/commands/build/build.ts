@@ -191,7 +191,12 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   )
   const buildVars = await getBuildVars(target)
 
+  /* NOTE: keep %global as the first line - a leading /** comment block is
+     stripped by removeHeader() when the final build file is assembled, so
+     the guidance below must come AFTER code to survive into the output. */
   return `
+%global appLoc;
+
 /**
   * The appLoc represents the metadata or SAS Drive location of the app you
   * are about to deploy
@@ -210,7 +215,6 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   *
   */
 
-%global appLoc;
 %let compiled_apploc=${appLoc};
 %let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
 
