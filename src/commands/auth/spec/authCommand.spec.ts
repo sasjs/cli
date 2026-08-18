@@ -60,7 +60,21 @@ describe('AuthCommand', () => {
     const command = new AuthCommand(args)
     const returnCode = await command.execute()
 
-    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target)
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, false)
+    expect(returnCode).toEqual(ReturnCode.Success)
+  })
+
+  it('should pass the insecure flag to authLogin when --insecure is provided', async () => {
+    jest
+      .spyOn(authLoginModule, 'authLogin')
+      .mockImplementation(() => Promise.resolve())
+
+    const args = [...defaultArgs, 'auth', 'login', '-t', 'test', '--insecure']
+
+    const command = new AuthCommand(args)
+    const returnCode = await command.execute()
+
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, true)
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 

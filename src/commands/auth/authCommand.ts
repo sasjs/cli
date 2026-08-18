@@ -61,7 +61,7 @@ export class AuthCommand extends TargetCommand {
   public async executeLogin() {
     const { target } = await this.getTargetInfo()
 
-    return await authLogin(target)
+    return await authLogin(target, this.insecure)
       .then(() => ReturnCode.Success)
       .catch((err) => {
         process.logger?.error('Error logging in.', err?.message || err)

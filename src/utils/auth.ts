@@ -141,11 +141,24 @@ export async function fetchLoggedInUser(
     target.serverUrl,
     target.httpsAgentOptions
   )
-  const { result } = await requestClient.get<any>(
-    '/identities/users/@currentUser',
-    accessToken
-  )
-  return { id: result?.id || '', name: result?.name }
+  const { result } = await requestClient
+    .get<any>('/identities/users/@currentUser', accessToken)
+    .catch((err) => {
+      if (err instanceof CertificateError) throw err
+      throw new Error(
+        `Unable to verify the access token against ${target.serverUrl}: ${
+          err?.message || err
+        }`
+      )
+    })
+
+  if (!result?.id) {
+    throw new Error(
+      'Login succeeded but the identity endpoint returned no user id.'
+    )
+  }
+
+  return { id: result.id, name: result?.name }
 }
 
 export async function getNewAccessToken(

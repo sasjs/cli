@@ -640,6 +640,14 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
 
   const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
 
+  let secret = target?.authConfig?.secret
+    ? target.authConfig.secret
+    : process.env.SECRET
+  secret =
+    secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
+      ? undefined
+      : secret
+
   // A fresh access token is sufficient on its own - return it before
   // requiring client/secret. This enables token-based authentication for
   // targets without a registered OAuth client (see `sasjs auth login`).
@@ -648,7 +656,7 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       access_token,
       refresh_token: refresh_token || '',
       client,
-      secret: undefined
+      secret: client ? secret || '' : undefined
     }
   }
 
@@ -692,14 +700,6 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
         Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
     )
   }
-
-  let secret = target?.authConfig?.secret
-    ? target.authConfig.secret
-    : process.env.SECRET
-  secret =
-    secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
-      ? undefined
-      : secret
 
   if (!secret) {
     if (target.serverType === ServerType.Sasjs) secret = ''

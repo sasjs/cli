@@ -16,8 +16,14 @@ import {
  * The password is used only to mint the tokens and is never stored. When the
  * access token expires, re-run `sasjs auth login -t <target>`.
  * @param {Target} target - the target to authenticate against.
+ * @param {boolean} insecure - when true, bypasses TLS certificate validation
+ *   (for self-signed cert Viya servers). Mirrors the `--insecure` flag on
+ *   `sasjs add cred`.
  */
-export const authLogin = async (target: Target): Promise<void> => {
+export const authLogin = async (
+  target: Target,
+  insecure = false
+): Promise<void> => {
   if (target.serverType !== ServerType.SasViya) {
     throw new Error(
       `'sasjs auth login' is only supported for SASVIYA targets. ` +
@@ -30,6 +36,18 @@ export const authLogin = async (target: Target): Promise<void> => {
     throw new Error(
       `Target '${target.name}' does not have a serverUrl configured.`
     )
+  }
+
+  if (insecure) {
+    target = new Target({
+      ...target.toJson(false),
+      httpsAgentOptions: {
+        ...target.httpsAgentOptions,
+        allowInsecureRequests: true,
+        rejectUnauthorized: false
+      }
+    })
+    process.logger?.warn('Executing with insecure connection.')
   }
 
   const user = await getString(

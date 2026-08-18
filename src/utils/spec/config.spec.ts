@@ -288,6 +288,26 @@ describe('getAuthConfig', () => {
     expect(authConfig.access_token).toEqual('T0K3N')
   })
 
+  it('should return the configured secret on the fresh-token early return when client/secret are set', async () => {
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => false
+    )
+    const target = {
+      name: 'viya',
+      authConfig: {
+        access_token: 'T0K3N',
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    }
+
+    const authConfig = await getAuthConfig(target as Target)
+
+    expect(authConfig.access_token).toEqual('T0K3N')
+    expect(authConfig.client).toEqual('CL13NT')
+    expect(authConfig.secret).toEqual('53CR3T')
+  })
+
   it('should throw an error mentioning sasjs auth login when the token is expiring and no client is available', async () => {
     ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
       () => true

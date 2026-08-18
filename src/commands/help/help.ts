@@ -368,7 +368,6 @@ export async function printHelpText() {
 
   const aliases = [
     { name: 'add', aliases: [] },
-    { name: 'auth', aliases: [] },
     { name: 'build', aliases: ['b'] },
     { name: 'compile', aliases: ['c'] },
     { name: 'compilebuild', aliases: ['cb'] },
