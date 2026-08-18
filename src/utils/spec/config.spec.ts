@@ -233,6 +233,7 @@ describe('getAccessToken', () => {
       () => true
     )
     const target = {
+      name: 'viya',
       authConfig: {
         access_token: 'T0K3N',
         secret: '53CR3T'
@@ -240,7 +241,9 @@ describe('getAccessToken', () => {
     }
     process.env.CLIENT = undefined
 
-    await expect(getAccessToken(target as Target)).rejects.toThrow()
+    await expect(getAccessToken(target as Target)).rejects.toThrow(
+      /sasjs auth login -t viya/
+    )
   })
 
   it('should throw an error if access token is expiring and client secret is not available', async () => {
@@ -248,6 +251,7 @@ describe('getAccessToken', () => {
       () => true
     )
     const target = {
+      name: 'viya',
       authConfig: {
         access_token: 'T0K3N',
         client: 'CL13NT'
@@ -255,7 +259,9 @@ describe('getAccessToken', () => {
     }
     process.env.SECRET = undefined
 
-    await expect(getAccessToken(target as Target)).rejects.toThrow()
+    await expect(getAccessToken(target as Target)).rejects.toThrow(
+      /sasjs auth login -t viya/
+    )
   })
 })
 

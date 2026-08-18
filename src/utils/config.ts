@@ -898,6 +898,7 @@ export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
  * should use `getAuthConfig` instead.
  * @param {object} target - the target to get an access token for.
  * @param {string} checkIfExpiring - flag that indicates whether to do an expiry check.
+ * @internal One-shot/test-only. User-facing commands must use {@link getAuthConfig}.
  */
 export async function getAccessToken(target: Target, checkIfExpiring = true) {
   let accessToken =
@@ -927,6 +928,8 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = getSASjs(target)
 
+    const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
+
     let client =
       target.authConfig && target.authConfig.client
         ? target.authConfig.client
@@ -936,7 +939,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
     if (!client) {
       throw new Error(
         `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
     }
 
@@ -949,7 +952,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
     if (!secret) {
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
     }
 
