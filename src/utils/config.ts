@@ -710,7 +710,16 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
       )
   }
 
-  if (isAccessTokenExpiring(access_token)) {
+  // Use a 300 s (5 min) safety margin instead of the isAccessTokenExpiring
+  // default of 3600 s (1 h).  Some Viya estates issue access tokens with a
+  // 1-hour TTL; with the 3600 s default a brand-new 1 h token is immediately
+  // considered "expiring", causing the CLI to refresh it and then the adapter
+  // to refresh it *again* (double-refresh).  300 s is short enough that a
+  // fresh 1 h token (TTL ≈ 3600 ≫ 300) is NOT considered expiring, yet long
+  // enough to let a single API call complete before the token actually expires.
+  // Long-running jobs are protected by mid-execution refresh checks in the
+  // adapter (pollJobState calls getTokens on every poll).
+  if (isAccessTokenExpiring(access_token, 300)) {
     const sasjs = getSASjs(target)
 
     let tokens
