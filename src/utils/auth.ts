@@ -123,7 +123,7 @@ export async function getTokensWithPasswordGrant(
 
   return {
     access_token: authResponse.access_token as string,
-    refresh_token: authResponse.refresh_token
+    refresh_token: authResponse.refresh_token as string
   }
 }
 
