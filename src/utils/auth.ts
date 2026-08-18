@@ -102,7 +102,9 @@ export async function getTokensWithPasswordGrant(
         Accept: 'application/json'
       }
     )
-    .then((res) => res.result as { access_token?: string; refresh_token?: string })
+    .then(
+      (res) => res.result as { access_token?: string; refresh_token?: string }
+    )
     .catch((err) => {
       if (err instanceof CertificateError) throw err
       throw new Error(
