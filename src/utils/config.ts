@@ -651,7 +651,9 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   // A fresh access token is sufficient on its own - return it before
   // requiring client/secret. This enables token-based authentication for
   // targets without a registered OAuth client (see `sasjs auth login`).
-  if (access_token && !isAccessTokenExpiring(access_token)) {
+  // Use the same 300 s margin as the refresh path below for consistency —
+  // see the comment at line 713 for why the default 3600 s is too large.
+  if (access_token && !isAccessTokenExpiring(access_token, 300)) {
     return {
       access_token,
       refresh_token: refresh_token || '',
