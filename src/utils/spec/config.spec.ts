@@ -444,6 +444,32 @@ describe('getAuthConfig - opaque refresh tokens', () => {
     expect(envContent).toContain('CLIENT=CL13NT')
     expect(envContent).toContain('SECRET=53CR3T')
   })
+
+  it('should persist tokens refreshed by the adapter without adding CLIENT=/SECRET= lines for a password-grant-only target', async () => {
+    const target = new Target({
+      name: 'opaq',
+      serverType: ServerType.SasViya,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      contextName: 'test context',
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: opaqueRefreshToken
+      }
+    })
+    await setupLocalProjectWithTarget(target)
+
+    await persistTokensRefreshedByAdapter(target)({
+      access_token: '4D4PT3R',
+      refresh_token: '4D4PT3RR3FR35H'
+    })
+
+    const envContent = await readFile(path.join(projectDir, '.env.opaq'))
+    expect(envContent).toContain('ACCESS_TOKEN=4D4PT3R')
+    expect(envContent).toContain('REFRESH_TOKEN=4D4PT3RR3FR35H')
+    expect(envContent).not.toContain('CLIENT=')
+    expect(envContent).not.toContain('SECRET=')
+  })
 })
 
 describe('sanitizeAppLoc', () => {

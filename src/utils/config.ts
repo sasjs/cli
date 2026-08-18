@@ -826,13 +826,23 @@ export const persistTokensRefreshedByAdapter = (
   target: Target
 ): OnTokensRefreshed => {
   return async ({ access_token, refresh_token }) => {
-    await saveTokens(
-      target.name,
-      access_token,
-      refresh_token,
-      target.authConfig?.client || process.env.CLIENT,
-      target.authConfig?.secret || process.env.SECRET
-    )
+    // Sanitize the same way getAuthConfig does: an .env file (or
+    // `process.env.X = undefined`, which Node stores as the string
+    // "undefined") must not leak the literal string into .env.{target}.
+    const rawClient = target.authConfig?.client || process.env.CLIENT
+    const rawSecret = target.authConfig?.secret || process.env.SECRET
+    const client =
+      rawClient &&
+      (rawClient.trim() === 'null' || rawClient.trim() === 'undefined')
+        ? undefined
+        : rawClient
+    const secret =
+      rawSecret &&
+      (rawSecret.trim() === 'null' || rawSecret.trim() === 'undefined')
+        ? undefined
+        : rawSecret
+
+    await saveTokens(target.name, access_token, refresh_token, client, secret)
   }
 }
 
