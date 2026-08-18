@@ -191,7 +191,12 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   )
   const buildVars = await getBuildVars(target)
 
+  /* NOTE: keep %global as the first line - a leading /** comment block is
+     stripped by removeHeader() when the final build file is assembled, so
+     the guidance below must come AFTER code to survive into the output. */
   return `
+%global appLoc;
+
 /**
   * The appLoc represents the metadata or SAS Drive location of the app you
   * are about to deploy
@@ -202,9 +207,14 @@ async function getBuildInfo(target: Target, streamWeb: boolean) {
   * %let apploc=/my/apploc;
   * %inc thisfile;
   *
+  * Do NOT change compiled_apploc - it is not the deploy location, it is the
+  * appLoc that was baked into the frontend files at build time.  It is used
+  * by the swap= parameter of %mv_createfile to rewrite that string to the
+  * runtime appLoc when streaming web (html/css/js) files are uploaded.
+  * Changing it breaks dynamic appLoc switching (no strings will match).
+  *
   */
 
-%global appLoc;
 %let compiled_apploc=${appLoc};
 %let appLoc=%sysfunc(coalescec(&appLoc,&compiled_apploc));
 
