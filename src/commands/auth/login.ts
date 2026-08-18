@@ -55,6 +55,13 @@ export const authLogin = async (
     (v) => !!v || 'Username is required.'
   )
 
+  // Password is prompted with a masked input (prompts 'password' type) rather
+  // than getString from @sasjs/utils, because getString has no mask/hide mode
+  // and would echo the password to the terminal.
+  // The password stays in memory for the remainder of the process. This is an
+  // accepted trade-off for a short-lived CLI: the process exits within seconds
+  // and Node's V8 heap is not accessible to other users. Clearing the variable
+  // would not reliably zero the underlying V8 string storage anyway.
   const { pass } = await prompts(
     {
       type: 'password',

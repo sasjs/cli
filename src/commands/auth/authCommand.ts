@@ -61,29 +61,26 @@ export class AuthCommand extends TargetCommand {
   public async executeLogin() {
     const { target } = await this.getTargetInfo()
 
-    return await authLogin(target, this.insecure)
-      .then(() => ReturnCode.Success)
-      .catch((err) => {
-        process.logger?.error('Error logging in.', err?.message || err)
-
-        return ReturnCode.InternalError
-      })
+    try {
+      await authLogin(target, this.insecure)
+      return ReturnCode.Success
+    } catch (err: any) {
+      process.logger?.error('Error logging in.', err?.message || err)
+      return ReturnCode.InternalError
+    }
   }
 
   public async executeCred() {
     const { target, isLocal } = await this.getTargetInfo()
     const scope = isLocal ? TargetScope.Local : TargetScope.Global
 
-    return await addCredential(target, this.insecure, scope)
-      .then(() => {
-        process.logger?.success('Credentials successfully added!')
-
-        return ReturnCode.Success
-      })
-      .catch((err) => {
-        process.logger?.error('Error adding credentials.', err.toString())
-
-        return ReturnCode.InternalError
-      })
+    try {
+      await addCredential(target, this.insecure, scope)
+      process.logger?.success('Credentials successfully added!')
+      return ReturnCode.Success
+    } catch (err: any) {
+      process.logger?.error('Error adding credentials.', err.toString())
+      return ReturnCode.InternalError
+    }
   }
 }

@@ -40,6 +40,19 @@ More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-gl
 }
 
 /**
+ * Sanitizes a credential value that may have come from an .env file or
+ * `process.env`. Node persists `process.env.X = undefined` as the literal
+ * string "undefined", and .env files can contain "null" as a placeholder.
+ * Returns undefined for those sentinel strings so they don't leak into
+ * authConfig; otherwise returns the original value (including the empty
+ * string, which is a valid client secret).
+ */
+const sanitizeEnvValue = (value: string | undefined): string | undefined =>
+  value && (value.trim() === 'null' || value.trim() === 'undefined')
+    ? undefined
+    : value
+
+/**
  * Returns an object that represents the SASjs CLI configuration in a given file.
  * @param {string} pathToFile - the path to the file in question.
  * @returns {Configuration} configuration object if available.
@@ -624,29 +637,19 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   let refresh_token = target?.authConfig?.refresh_token
     ? target.authConfig.refresh_token
     : process.env.REFRESH_TOKEN
-  refresh_token =
-    refresh_token &&
-    (refresh_token.trim() === 'null' || refresh_token.trim() === 'undefined')
-      ? undefined
-      : refresh_token
+  refresh_token = sanitizeEnvValue(refresh_token)
 
   let client = target?.authConfig?.client
     ? target.authConfig.client
     : process.env.CLIENT
-  client =
-    client && (client.trim() === 'null' || client.trim() === 'undefined')
-      ? undefined
-      : client
+  client = sanitizeEnvValue(client)
 
   const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
 
   let secret = target?.authConfig?.secret
     ? target.authConfig.secret
     : process.env.SECRET
-  secret =
-    secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
-      ? undefined
-      : secret
+  secret = sanitizeEnvValue(secret)
 
   // A fresh access token is sufficient on its own - return it before
   // requiring client/secret. This enables token-based authentication for
@@ -799,6 +802,11 @@ export const saveTokens = async (
     const targetJson = { ...target } as any
     targetJson.authConfig = {
       ...(targetJson.authConfig || {}),
+      // When no OAuth client/secret is configured (password-grant login),
+      // we explicitly set client/secret to undefined. JSON.stringify omits
+      // undefined-valued keys, which strips them from the .sasjsrc file —
+      // the desired behaviour so a later client/secret login can set them
+      // without a stale value lingering.
       ...(client
         ? { client, secret: secret || '' }
         : { client: undefined, secret: undefined }),
@@ -833,16 +841,8 @@ export const persistTokensRefreshedByAdapter = (
     // "undefined") must not leak the literal string into .env.{target}.
     const rawClient = target.authConfig?.client || process.env.CLIENT
     const rawSecret = target.authConfig?.secret || process.env.SECRET
-    const client =
-      rawClient &&
-      (rawClient.trim() === 'null' || rawClient.trim() === 'undefined')
-        ? undefined
-        : rawClient
-    const secret =
-      rawSecret &&
-      (rawSecret.trim() === 'null' || rawSecret.trim() === 'undefined')
-        ? undefined
-        : rawSecret
+    const client = sanitizeEnvValue(rawClient)
+    const secret = sanitizeEnvValue(rawSecret)
 
     await saveTokens(target.name, access_token, refresh_token, client, secret)
   }
@@ -931,10 +931,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.client
         ? target.authConfig.client
         : process.env.CLIENT
-    client =
-      client && (client.trim() === 'null' || client.trim() === 'undefined')
-        ? undefined
-        : client
+    client = sanitizeEnvValue(client)
 
     if (!client) {
       throw new Error(
@@ -947,10 +944,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.secret
         ? target.authConfig.secret
         : process.env.SECRET
-    secret =
-      secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
-        ? undefined
-        : secret
+    secret = sanitizeEnvValue(secret)
 
     if (!secret) {
       throw new Error(
@@ -963,11 +957,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.refresh_token
         ? target.authConfig.refresh_token
         : process.env.REFRESH_TOKEN
-    refreshToken =
-      refreshToken &&
-      (refreshToken.trim() === 'null' || refreshToken.trim() === 'undefined')
-        ? undefined
-        : refreshToken
+    refreshToken = sanitizeEnvValue(refreshToken)
 
     let tokens
 

@@ -123,7 +123,10 @@ export async function getTokensWithPasswordGrant(
 
   return {
     access_token: authResponse.access_token as string,
-    refresh_token: authResponse.refresh_token as string
+    // Some Viya deployments omit refresh_token for the password grant; default
+    // to '' so downstream code (saveTokens, config) can treat it as a plain
+    // string rather than handling undefined.
+    refresh_token: authResponse.refresh_token || ''
   }
 }
 
