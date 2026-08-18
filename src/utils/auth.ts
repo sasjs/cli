@@ -102,7 +102,7 @@ export async function getTokensWithPasswordGrant(
         Accept: 'application/json'
       }
     )
-    .then((res) => res.result as any)
+    .then((res) => res.result as { access_token?: string; refresh_token?: string })
     .catch((err) => {
       if (err instanceof CertificateError) throw err
       throw new Error(
@@ -120,7 +120,7 @@ export async function getTokensWithPasswordGrant(
   }
 
   return {
-    access_token: authResponse.access_token,
+    access_token: authResponse.access_token as string,
     refresh_token: authResponse.refresh_token
   }
 }
@@ -143,7 +143,7 @@ export async function fetchLoggedInUser(
     '/identities/users/@currentUser',
     accessToken
   )
-  return { id: result?.id, name: result?.name }
+  return { id: result?.id || '', name: result?.name }
 }
 
 export async function getNewAccessToken(

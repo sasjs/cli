@@ -45,8 +45,7 @@ export const authLogin = async (target: Target): Promise<void> => {
     },
     {
       onCancel: () => {
-        console.error('Input cancelled. Exiting...')
-        process.exit(1)
+        throw new Error('Input cancelled.')
       }
     }
   )
@@ -62,7 +61,7 @@ export const authLogin = async (target: Target): Promise<void> => {
   await saveTokens(target.name, access_token, refresh_token || '')
 
   process.logger?.success(
-    `Logged in as ${id}${name ? ` (${name})` : ''} on ${target.serverUrl}.`
+    `Logged in as ${id || 'unknown user'}${name ? ` (${name})` : ''} on ${target.serverUrl}.`
   )
   process.logger?.info(
     `The access token is valid for the duration configured on the server (12 hours by default). ` +

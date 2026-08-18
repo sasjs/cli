@@ -797,7 +797,7 @@ export const saveTokens = async (
     const targetJson = { ...target } as any
     targetJson.authConfig = {
       ...(targetJson.authConfig || {}),
-      ...(client ? { client, secret: secret || '' } : {}),
+      ...(client ? { client, secret: secret || '' } : { client: undefined, secret: undefined }),
       access_token,
       refresh_token
     }
