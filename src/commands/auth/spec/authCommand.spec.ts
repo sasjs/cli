@@ -60,7 +60,7 @@ describe('AuthCommand', () => {
     const command = new AuthCommand(args)
     const returnCode = await command.execute()
 
-    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, false)
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, false, false)
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 
@@ -74,7 +74,50 @@ describe('AuthCommand', () => {
     const command = new AuthCommand(args)
     const returnCode = await command.execute()
 
-    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, true)
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, true, false)
+    expect(returnCode).toEqual(ReturnCode.Success)
+  })
+
+  it('should pass passwordStdin=true to authLogin when --password-stdin is provided', async () => {
+    jest
+      .spyOn(authLoginModule, 'authLogin')
+      .mockImplementation(() => Promise.resolve())
+
+    const args = [
+      ...defaultArgs,
+      'auth',
+      'login',
+      '-t',
+      'test',
+      '--password-stdin'
+    ]
+
+    const command = new AuthCommand(args)
+    const returnCode = await command.execute()
+
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, false, true)
+    expect(returnCode).toEqual(ReturnCode.Success)
+  })
+
+  it('should pass both insecure and passwordStdin flags to authLogin', async () => {
+    jest
+      .spyOn(authLoginModule, 'authLogin')
+      .mockImplementation(() => Promise.resolve())
+
+    const args = [
+      ...defaultArgs,
+      'auth',
+      'login',
+      '-t',
+      'test',
+      '--insecure',
+      '--password-stdin'
+    ]
+
+    const command = new AuthCommand(args)
+    const returnCode = await command.execute()
+
+    expect(authLoginModule.authLogin).toHaveBeenCalledWith(target, true, true)
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 
