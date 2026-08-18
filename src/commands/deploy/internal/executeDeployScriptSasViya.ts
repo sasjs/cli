@@ -1,5 +1,8 @@
 import os from 'os'
-import { getSASjsAndAuthConfig } from '../../../utils/config'
+import {
+  getSASjsAndAuthConfig,
+  persistTokensRefreshedByAdapter
+} from '../../../utils/config'
 import { createFile, Target, StreamConfig } from '@sasjs/utils'
 import { LogLine } from '../../../types'
 
@@ -39,7 +42,8 @@ export async function executeDeployScriptSasViya(
       fileName: deployScriptName,
       linesOfCode: linesToExecute,
       contextName,
-      authConfig
+      authConfig,
+      onTokensRefreshed: persistTokensRefreshedByAdapter(target)
     })
     .catch((err: any) => {
       process.logger.error('executeScriptSASViya Error', err)

@@ -1,5 +1,7 @@
 import {
   getAccessToken,
+  getAuthConfig,
+  persistTokensRefreshedByAdapter,
   sanitizeAppLoc,
   overrideEnvVariables,
   saveToGlobalConfig,
@@ -11,6 +13,7 @@ import {
   getSASjs
 } from '../config'
 import * as authUtils from '../auth'
+import * as sasjsAuthUtils from '@sasjs/utils/auth'
 import * as fileUtils from '@sasjs/utils/file'
 import dotenv from 'dotenv'
 import path from 'path'
@@ -25,12 +28,35 @@ import {
   generateTimestamp,
   ServerType
 } from '@sasjs/utils'
+import { readFile } from '@sasjs/utils/file'
 import {
   createTestMinimalApp,
   generateTestTarget,
   removeTestApp
 } from '../test'
 import { setConstants } from '../setConstants'
+
+// The compiled @sasjs/utils/auth module exposes getters that jest.spyOn
+// cannot redefine - mock the module with configurable jest.fn()s that
+// default to the real implementations.
+jest.mock('@sasjs/utils/auth', () => {
+  const actual = jest.requireActual('@sasjs/utils/auth')
+  return {
+    ...actual,
+    isAccessTokenExpiring: jest.fn(),
+    isRefreshTokenExpiring: jest.fn()
+  }
+})
+const actualAuthUtils = jest.requireActual('@sasjs/utils/auth')
+
+beforeEach(() => {
+  ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+    actualAuthUtils.isAccessTokenExpiring
+  )
+  ;(sasjsAuthUtils.isRefreshTokenExpiring as jest.Mock).mockImplementation(
+    actualAuthUtils.isRefreshTokenExpiring
+  )
+})
 
 describe('getAccessToken', () => {
   beforeEach(async () => {
@@ -108,12 +134,12 @@ describe('getAccessToken', () => {
   })
 
   it('should refresh access token when it is expiring and refresh token is available & not expired', async () => {
-    jest
-      .spyOn(authUtils, 'isAccessTokenExpiring')
-      .mockImplementation(() => true)
-    jest
-      .spyOn(authUtils, 'isRefreshTokenExpiring')
-      .mockImplementation(() => false)
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    ;(sasjsAuthUtils.isRefreshTokenExpiring as jest.Mock).mockImplementation(
+      () => false
+    )
     jest.spyOn(authUtils, 'getNewAccessToken')
     jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
       Promise.resolve({
@@ -132,20 +158,20 @@ describe('getAccessToken', () => {
 
     const token = await getAccessToken(target as Target, true)
 
-    expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
-    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).toHaveBeenCalledTimes(1)
     expect(authUtils.getNewAccessToken).not.toHaveBeenCalled()
     expect(token).toEqual('N3WT0K3N')
   })
 
   it('should get new access token when it is expiring and refresh token is available & expired', async () => {
-    jest
-      .spyOn(authUtils, 'isAccessTokenExpiring')
-      .mockImplementation(() => true)
-    jest
-      .spyOn(authUtils, 'isRefreshTokenExpiring')
-      .mockImplementation(() => true)
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    ;(sasjsAuthUtils.isRefreshTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
     jest.spyOn(authUtils, 'refreshTokens')
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
       Promise.resolve({
@@ -164,20 +190,20 @@ describe('getAccessToken', () => {
 
     const token = await getAccessToken(target as Target, true)
 
-    expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
-    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).not.toHaveBeenCalled()
     expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
   })
 
   it('should get new access token when it is expiring and refresh token is not available', async () => {
-    jest
-      .spyOn(authUtils, 'isAccessTokenExpiring')
-      .mockImplementation(() => true)
-    jest
-      .spyOn(authUtils, 'isRefreshTokenExpiring')
-      .mockImplementation(() => true)
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    ;(sasjsAuthUtils.isRefreshTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
     jest.spyOn(authUtils, 'refreshTokens')
     jest.spyOn(authUtils, 'getNewAccessToken').mockImplementation(() =>
       Promise.resolve({
@@ -195,18 +221,19 @@ describe('getAccessToken', () => {
 
     const token = await getAccessToken(target as Target, true)
 
-    expect(authUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
-    expect(authUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isAccessTokenExpiring).toHaveBeenCalledTimes(1)
+    expect(sasjsAuthUtils.isRefreshTokenExpiring).toHaveBeenCalledTimes(1)
     expect(authUtils.refreshTokens).not.toHaveBeenCalled()
     expect(authUtils.getNewAccessToken).toHaveBeenCalledTimes(1)
     expect(token).toEqual('N3WT0K3N')
   })
 
   it('should throw an error if access token is expiring and client ID is not available', async () => {
-    jest
-      .spyOn(authUtils, 'isAccessTokenExpiring')
-      .mockImplementation(() => true)
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
     const target = {
+      name: 'viya',
       authConfig: {
         access_token: 'T0K3N',
         secret: '53CR3T'
@@ -214,14 +241,17 @@ describe('getAccessToken', () => {
     }
     process.env.CLIENT = undefined
 
-    await expect(getAccessToken(target as Target)).rejects.toThrow()
+    await expect(getAccessToken(target as Target)).rejects.toThrow(
+      /sasjs auth login -t viya/
+    )
   })
 
   it('should throw an error if access token is expiring and client secret is not available', async () => {
-    jest
-      .spyOn(authUtils, 'isAccessTokenExpiring')
-      .mockImplementation(() => true)
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
     const target = {
+      name: 'viya',
       authConfig: {
         access_token: 'T0K3N',
         client: 'CL13NT'
@@ -229,7 +259,242 @@ describe('getAccessToken', () => {
     }
     process.env.SECRET = undefined
 
-    await expect(getAccessToken(target as Target)).rejects.toThrow()
+    await expect(getAccessToken(target as Target)).rejects.toThrow(
+      /sasjs auth login -t viya/
+    )
+  })
+})
+
+describe('getAuthConfig', () => {
+  beforeEach(async () => {
+    process.projectDir = process.cwd()
+    process.env.ACCESS_TOKEN = undefined
+    process.env.CLIENT = undefined
+    process.env.SECRET = undefined
+    process.env.REFRESH_TOKEN = undefined
+  })
+
+  afterEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('should return a fresh access token even when client and secret are not configured', async () => {
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => false
+    )
+    const target = {
+      name: 'viya',
+      authConfig: {
+        access_token: 'T0K3N'
+      }
+    }
+
+    const authConfig = await getAuthConfig(target as Target)
+
+    expect(authConfig.access_token).toEqual('T0K3N')
+  })
+
+  it('should return the configured secret on the fresh-token early return when client/secret are set', async () => {
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => false
+    )
+    const target = {
+      name: 'viya',
+      authConfig: {
+        access_token: 'T0K3N',
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    }
+
+    const authConfig = await getAuthConfig(target as Target)
+
+    expect(authConfig.access_token).toEqual('T0K3N')
+    expect(authConfig.client).toEqual('CL13NT')
+    expect(authConfig.secret).toEqual('53CR3T')
+  })
+
+  it('should throw an error mentioning sasjs auth login when the token is expiring and no client is available', async () => {
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    const target = {
+      name: 'viya',
+      authConfig: {
+        access_token: 'T0K3N'
+      }
+    }
+
+    await expect(getAuthConfig(target as Target)).rejects.toThrow(
+      /sasjs auth login/
+    )
+  })
+})
+
+describe('getAuthConfig - opaque refresh tokens', () => {
+  const opaqueRefreshToken = '1f8da55057bd4f50a6577f0bc2b38b1a-r'
+  let projectDir: string
+
+  const setupLocalProjectWithTarget = async (target: Target) => {
+    projectDir = path.join(
+      process.env.TEMP || process.env.TMP || '/tmp',
+      `sasjs-cli-test-${generateTimestamp()}`
+    )
+    process.projectDir = projectDir
+    await setConstants()
+    await createFile(
+      path.join(projectDir, 'sasjs', 'sasjsconfig.json'),
+      JSON.stringify({ targets: [target.toJson()] })
+    )
+  }
+
+  beforeEach(() => {
+    process.env.ACCESS_TOKEN = undefined
+    process.env.CLIENT = undefined
+    process.env.SECRET = undefined
+    process.env.REFRESH_TOKEN = undefined
+  })
+
+  afterEach(async () => {
+    jest.resetAllMocks()
+    await deleteFile(projectDir).catch(() => {})
+  })
+
+  it('should refresh without crashing and persist the rotated pair in the client/secret branch', async () => {
+    // The real isRefreshTokenExpiring must be used - it should treat the
+    // opaque token as usable rather than throwing InvalidTokenError.
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    jest.spyOn(authUtils, 'refreshTokens').mockImplementation(() =>
+      Promise.resolve({
+        access_token: 'N3WT0K3N',
+        refresh_token: 'N3WR3FR35H'
+      } as SasAuthResponse)
+    )
+
+    const target = new Target({
+      name: 'opaq',
+      serverType: ServerType.SasViya,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      contextName: 'test context',
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: opaqueRefreshToken,
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    })
+    await setupLocalProjectWithTarget(target)
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authUtils.refreshTokens).toHaveBeenCalledTimes(1)
+    expect(authConfig.access_token).toEqual('N3WT0K3N')
+
+    const envContent = await readFile(path.join(projectDir, '.env.opaq'))
+    expect(envContent).toContain('ACCESS_TOKEN=N3WT0K3N')
+    expect(envContent).toContain('REFRESH_TOKEN=N3WR3FR35H')
+    expect(envContent).toContain('CLIENT=CL13NT')
+  })
+
+  it('should refresh via the sas.cli public client and persist the rotated pair when no client is configured', async () => {
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => true
+    )
+    const refreshTokensSpy = jest
+      .spyOn(authUtils, 'refreshTokens')
+      .mockImplementation(() =>
+        Promise.resolve({
+          access_token: 'N3WT0K3N',
+          refresh_token: 'N3WR3FR35H'
+        } as SasAuthResponse)
+      )
+
+    const target = new Target({
+      name: 'opaq',
+      serverType: ServerType.SasViya,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      contextName: 'test context',
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: opaqueRefreshToken
+      }
+    })
+    await setupLocalProjectWithTarget(target)
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(refreshTokensSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'sas.cli',
+      '',
+      opaqueRefreshToken
+    )
+    expect(authConfig.access_token).toEqual('N3WT0K3N')
+    expect(authConfig.client).toBeUndefined()
+    expect(authConfig.secret).toBeUndefined()
+
+    const envContent = await readFile(path.join(projectDir, '.env.opaq'))
+    expect(envContent).toContain('ACCESS_TOKEN=N3WT0K3N')
+    expect(envContent).toContain('REFRESH_TOKEN=N3WR3FR35H')
+    expect(envContent).not.toContain('CLIENT=')
+  })
+
+  it('should persist tokens refreshed internally by the adapter without dropping client/secret', async () => {
+    const target = new Target({
+      name: 'opaq',
+      serverType: ServerType.SasViya,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      contextName: 'test context',
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: opaqueRefreshToken,
+        client: 'CL13NT',
+        secret: '53CR3T'
+      }
+    })
+    await setupLocalProjectWithTarget(target)
+
+    await persistTokensRefreshedByAdapter(target)({
+      access_token: '4D4PT3R',
+      refresh_token: '4D4PT3RR3FR35H'
+    })
+
+    const envContent = await readFile(path.join(projectDir, '.env.opaq'))
+    expect(envContent).toContain('ACCESS_TOKEN=4D4PT3R')
+    expect(envContent).toContain('REFRESH_TOKEN=4D4PT3RR3FR35H')
+    expect(envContent).toContain('CLIENT=CL13NT')
+    expect(envContent).toContain('SECRET=53CR3T')
+  })
+
+  it('should persist tokens refreshed by the adapter without adding CLIENT=/SECRET= lines for a password-grant-only target', async () => {
+    const target = new Target({
+      name: 'opaq',
+      serverType: ServerType.SasViya,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      contextName: 'test context',
+      authConfig: {
+        access_token: 'T0K3N',
+        refresh_token: opaqueRefreshToken
+      }
+    })
+    await setupLocalProjectWithTarget(target)
+
+    await persistTokensRefreshedByAdapter(target)({
+      access_token: '4D4PT3R',
+      refresh_token: '4D4PT3RR3FR35H'
+    })
+
+    const envContent = await readFile(path.join(projectDir, '.env.opaq'))
+    expect(envContent).toContain('ACCESS_TOKEN=4D4PT3R')
+    expect(envContent).toContain('REFRESH_TOKEN=4D4PT3RR3FR35H')
+    expect(envContent).not.toContain('CLIENT=')
+    expect(envContent).not.toContain('SECRET=')
   })
 })
 

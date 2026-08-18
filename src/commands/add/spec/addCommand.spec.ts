@@ -129,28 +129,6 @@ describe('AddCommand - cred', () => {
     expect(command.insecure).toEqual(true)
   })
 
-  it('should parse a sasjs add cred command invoked with the alias sasjs auth', () => {
-    const args = [...defaultArgs, 'auth', '-i']
-
-    const command = new AddCommand(args)
-
-    expect(command.name).toEqual('add')
-    expect(command.insecure).toEqual(true)
-  })
-
-  it('should call the addCredential handler when executed with the alias sasjs auth', async () => {
-    const args = [...defaultArgs, 'auth', '-t', 'test']
-
-    const command = new AddCommand(args)
-    await command.execute()
-
-    expect(addCredentialModule.addCredential).toHaveBeenCalledWith(
-      target,
-      false,
-      TargetScope.Local
-    )
-  })
-
   it('should call the addCredential handler when executed without the insecure option', async () => {
     const args = [...defaultArgs, 'add', 'cred', '-t', 'test']
 

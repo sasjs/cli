@@ -214,7 +214,9 @@ export async function printHelpText() {
       name: 'auth',
       title: 'auth',
       description: [
-        `lets the user add credentials for target to either the local project configuration, or to the global .sasjsrc file.`,
+        `lets the user authenticate against a target.`,
+        `With the 'login' sub command (SASVIYA targets only), authentication is performed with a SAS username and password - no OAuth client/secret required - and the resulting tokens are saved.`,
+        `Without a sub command, behaves like 'sasjs add cred' (client/secret based authentication).`,
         ``,
         `NOTE: This command requires the user to input all the required parameters. More information available in the online documentation: ${chalk.cyanBright(
           'https://cli.sasjs.io/auth/'
@@ -365,7 +367,6 @@ export async function printHelpText() {
   ]
 
   const aliases = [
-    { name: 'add', aliases: ['auth'] },
     { name: 'build', aliases: ['b'] },
     { name: 'compile', aliases: ['c'] },
     { name: 'compilebuild', aliases: ['cb'] },

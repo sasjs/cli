@@ -1,4 +1,4 @@
-import SASjs, { VerboseMode } from '@sasjs/adapter/node'
+import SASjs, { VerboseMode, OnTokensRefreshed } from '@sasjs/adapter/node'
 import {
   Configuration,
   Target,
@@ -16,12 +16,11 @@ import {
   AuthConfigSas9,
   SyncDirectoryMap
 } from '@sasjs/utils'
+import { getNewAccessToken, refreshTokens, SAS_CLI_CLIENT_ID } from './auth'
 import {
   isAccessTokenExpiring,
-  isRefreshTokenExpiring,
-  getNewAccessToken,
-  refreshTokens
-} from './auth'
+  isRefreshTokenExpiring
+} from '@sasjs/utils/auth'
 import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../types/targetScope'
@@ -39,6 +38,19 @@ More info: https://cli.sasjs.io/faq/#what-is-the-difference-between-local-and-gl
 `
   }
 }
+
+/**
+ * Sanitizes a credential value that may have come from an .env file or
+ * `process.env`. Node persists `process.env.X = undefined` as the literal
+ * string "undefined", and .env files can contain "null" as a placeholder.
+ * Returns undefined for those sentinel strings so they don't leak into
+ * authConfig; otherwise returns the original value (including the empty
+ * string, which is a valid client secret).
+ */
+const sanitizeEnvValue = (value: string | undefined): string | undefined =>
+  value && (value.trim() === 'null' || value.trim() === 'undefined')
+    ? undefined
+    : value
 
 /**
  * Returns an object that represents the SASjs CLI configuration in a given file.
@@ -625,68 +637,117 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
   let refresh_token = target?.authConfig?.refresh_token
     ? target.authConfig.refresh_token
     : process.env.REFRESH_TOKEN
-  refresh_token =
-    refresh_token &&
-    (refresh_token.trim() === 'null' || refresh_token.trim() === 'undefined')
-      ? undefined
-      : refresh_token
+  refresh_token = sanitizeEnvValue(refresh_token)
 
   let client = target?.authConfig?.client
     ? target.authConfig.client
     : process.env.CLIENT
-  client =
-    client && (client.trim() === 'null' || client.trim() === 'undefined')
-      ? undefined
-      : client
+  client = sanitizeEnvValue(client)
 
-  if (!client) {
-    throw new Error(
-      `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
-    )
-  }
+  const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
 
   let secret = target?.authConfig?.secret
     ? target.authConfig.secret
     : process.env.SECRET
-  secret =
-    secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
-      ? undefined
-      : secret
+  secret = sanitizeEnvValue(secret)
+
+  // A fresh access token is sufficient on its own - return it before
+  // requiring client/secret. This enables token-based authentication for
+  // targets without a registered OAuth client (see `sasjs auth login`).
+  // Use the same 300 s margin as the refresh path below for consistency —
+  // see the comment at line 713 for why the default 3600 s is too large.
+  if (access_token && !isAccessTokenExpiring(access_token, 300)) {
+    return {
+      access_token,
+      refresh_token: refresh_token || '',
+      client,
+      secret: client ? secret || '' : undefined
+    }
+  }
+
+  // Tokens minted by `sasjs auth login` have no client/secret. The built-in,
+  // secret-less `sas.cli` client accepts refresh token grants, so the stored
+  // refresh token can still be used - and MUST be persisted again, since Viya
+  // refresh tokens rotate on every use.
+  if (!client && target.serverType === ServerType.SasViya) {
+    // Some estates issue opaque (non-JWT) refresh tokens, which cannot be
+    // expiry-checked client-side - isRefreshTokenExpiring treats those as
+    // usable and lets the server reject them if they have actually expired.
+    if (!refresh_token || isRefreshTokenExpiring(refresh_token)) {
+      throw new Error(
+        `The access token has expired and no refresh token is available.${passwordGrantHint}`
+      )
+    }
+
+    const sasjs = getSASjs(target)
+    const tokens = await refreshTokens(
+      sasjs,
+      SAS_CLI_CLIENT_ID,
+      '',
+      refresh_token
+    )
+
+    access_token = tokens?.access_token || access_token
+    refresh_token = tokens?.refresh_token || refresh_token
+    await saveTokens(target.name, access_token, refresh_token || '')
+
+    return {
+      access_token,
+      refresh_token: refresh_token || '',
+      client: undefined,
+      secret: undefined
+    }
+  }
+
+  if (!client) {
+    throw new Error(
+      `Client ID was not found.
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
+    )
+  }
 
   if (!secret) {
     if (target.serverType === ServerType.Sasjs) secret = ''
     else
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
   }
 
-  if (isAccessTokenExpiring(access_token)) {
+  // Use a 300 s (5 min) safety margin instead of the isAccessTokenExpiring
+  // default of 3600 s (1 h).  Some Viya estates issue access tokens with a
+  // 1-hour TTL; with the 3600 s default a brand-new 1 h token is immediately
+  // considered "expiring", causing the CLI to refresh it and then the adapter
+  // to refresh it *again* (double-refresh).  300 s is short enough that a
+  // fresh 1 h token (TTL ≈ 3600 ≫ 300) is NOT considered expiring, yet long
+  // enough to let a single API call complete before the token actually expires.
+  // Long-running jobs are protected by mid-execution refresh checks in the
+  // adapter (pollJobState calls getTokens on every poll).
+  if (isAccessTokenExpiring(access_token, 300)) {
     const sasjs = getSASjs(target)
 
     let tokens
     if (isRefreshTokenExpiring(refresh_token)) {
       tokens = await getNewAccessToken(sasjs, client, secret, target)
     } else {
-      tokens = await refreshTokens(sasjs, client, secret, refresh_token!)
+      tokens = await refreshTokens(sasjs, client, secret, refresh_token || '')
     }
 
     access_token = tokens?.access_token || access_token
     refresh_token = tokens?.refresh_token || refresh_token
     await saveTokens(
       target.name,
-      client,
-      secret,
       access_token,
-      refresh_token || ''
+      refresh_token || '',
+      client,
+      secret
     )
   }
 
   return {
     access_token,
-    refresh_token: refresh_token!,
+    refresh_token: refresh_token || '',
     client,
     secret
   }
@@ -701,10 +762,10 @@ export async function getAuthConfig(target: Target): Promise<AuthConfig> {
  */
 export const saveTokens = async (
   targetName: string,
-  client: string,
-  secret: string,
   access_token: string,
-  refresh_token: string
+  refresh_token: string,
+  client?: string,
+  secret?: string
 ): Promise<void> => {
   const isLocalTarget = await getLocalConfig()
     .then((localConfig) =>
@@ -719,7 +780,10 @@ export const saveTokens = async (
 
   if (isLocalTarget) {
     const { VERBOSE } = process.env
-    const envFileContent = `CLIENT=${client}\nSECRET=${secret}\nACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
+    const clientSecretContent = client
+      ? `CLIENT=${client}\nSECRET=${secret || ''}\n`
+      : ''
+    const envFileContent = `${clientSecretContent}ACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
       VERBOSE ? 'VERBOSE=' + VERBOSE + '\n' : ''
     }`
     const envFilePath = path.join(process.projectDir, `.env.${targetName}`)
@@ -734,8 +798,21 @@ export const saveTokens = async (
     if (!target) {
       throw new Error(ERROR_MESSAGE(targetName).NOT_FOUND_TARGET_NAME)
     }
-    const targetJson = target.toJson()
-    targetJson.authConfig = { client, secret, access_token, refresh_token }
+    // NOTE: getGlobalRcFile returns plain JSON (not Target instances)
+    const targetJson = { ...target } as any
+    targetJson.authConfig = {
+      ...(targetJson.authConfig || {}),
+      // When no OAuth client/secret is configured (password-grant login),
+      // we explicitly set client/secret to undefined. JSON.stringify omits
+      // undefined-valued keys, which strips them from the .sasjsrc file —
+      // the desired behaviour so a later client/secret login can set them
+      // without a stale value lingering.
+      ...(client
+        ? { client, secret: secret || '' }
+        : { client: undefined, secret: undefined }),
+      access_token,
+      refresh_token
+    }
     await saveToGlobalConfig(
       new Target(targetJson),
       globalConfig.defaultTarget === targetName
@@ -743,6 +820,31 @@ export const saveTokens = async (
     process.logger?.success(
       `Target saved to global .sasjsrc file at ~/.sasjsrc.`
     )
+  }
+}
+
+/**
+ * Returns an `onTokensRefreshed` handler for adapter methods that refresh
+ * tokens internally (e.g. `executeScript` on long-running jobs). The adapter
+ * receives the rotated pair; this handler persists it via {@link saveTokens}
+ * exactly as {@link getAuthConfig} does for its own refreshes, so the stored
+ * single-use refresh token never goes stale between CLI invocations.
+ * Any client/secret already configured for the target is passed through so
+ * {@link saveTokens} does not drop it from `.env.{target}`.
+ */
+export const persistTokensRefreshedByAdapter = (
+  target: Target
+): OnTokensRefreshed => {
+  return async ({ access_token, refresh_token }) => {
+    // Sanitize the same way getAuthConfig does: an .env file (or
+    // `process.env.X = undefined`, which Node stores as the string
+    // "undefined") must not leak the literal string into .env.{target}.
+    const rawClient = target.authConfig?.client || process.env.CLIENT
+    const rawSecret = target.authConfig?.secret || process.env.SECRET
+    const client = sanitizeEnvValue(rawClient)
+    const secret = sanitizeEnvValue(rawSecret)
+
+    await saveTokens(target.name, access_token, refresh_token, client, secret)
   }
 }
 
@@ -796,6 +898,7 @@ export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
  * should use `getAuthConfig` instead.
  * @param {object} target - the target to get an access token for.
  * @param {string} checkIfExpiring - flag that indicates whether to do an expiry check.
+ * @internal One-shot/test-only. User-facing commands must use {@link getAuthConfig}.
  */
 export async function getAccessToken(target: Target, checkIfExpiring = true) {
   let accessToken =
@@ -825,19 +928,18 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
   if (checkIfExpiring && isAccessTokenExpiring(accessToken)) {
     const sasjs = getSASjs(target)
 
+    const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
+
     let client =
       target.authConfig && target.authConfig.client
         ? target.authConfig.client
         : process.env.CLIENT
-    client =
-      client && (client.trim() === 'null' || client.trim() === 'undefined')
-        ? undefined
-        : client
+    client = sanitizeEnvValue(client)
 
     if (!client) {
       throw new Error(
         `Client ID was not found.
-        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'client' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
     }
 
@@ -845,15 +947,12 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.secret
         ? target.authConfig.secret
         : process.env.SECRET
-    secret =
-      secret && (secret.trim() === 'null' || secret.trim() === 'undefined')
-        ? undefined
-        : secret
+    secret = sanitizeEnvValue(secret)
 
     if (!secret) {
       throw new Error(
         `Client secret was not found.
-        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.`
+        Please make sure that the 'secret' property is set in your local .env file or in the correct target authConfig in your global ~${path.sep}.sasjsrc file.${passwordGrantHint}`
       )
     }
 
@@ -861,11 +960,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       target.authConfig && target.authConfig.refresh_token
         ? target.authConfig.refresh_token
         : process.env.REFRESH_TOKEN
-    refreshToken =
-      refreshToken &&
-      (refreshToken.trim() === 'null' || refreshToken.trim() === 'undefined')
-        ? undefined
-        : refreshToken
+    refreshToken = sanitizeEnvValue(refreshToken)
 
     let tokens
 

@@ -3,7 +3,8 @@ import {
   isSasJsServerInServerMode,
   getAuthConfig,
   getSASjsAndAuthConfig,
-  getSASjs
+  getSASjs,
+  persistTokensRefreshedByAdapter
 } from '../../../utils/'
 
 export const executeCode = async (target: Target, code: string) => {
@@ -25,7 +26,8 @@ const executeOnSasViya = async (target: Target, code: string) => {
     fileName: 'program.sas',
     linesOfCode: code.split('\n'),
     contextName,
-    authConfig
+    authConfig,
+    onTokensRefreshed: persistTokensRefreshedByAdapter(target)
   })
 
   return { log }
