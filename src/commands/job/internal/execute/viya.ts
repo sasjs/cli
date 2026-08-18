@@ -18,7 +18,11 @@ import {
   folderExists,
   AuthConfig
 } from '@sasjs/utils'
-import { terminateProcess, contextName } from '../../../../utils/'
+import {
+  terminateProcess,
+  contextName,
+  persistTokensRefreshedByAdapter
+} from '../../../../utils/'
 import { ReturnCode } from '../../../../types/command'
 import { saveLog } from '../utils'
 
@@ -108,7 +112,9 @@ export async function executeJobViya(
       waitForJob || !!logFile,
       pollOptions,
       true,
-      macroVars?.macroVars
+      macroVars?.macroVars,
+      undefined,
+      persistTokensRefreshedByAdapter(target)
     )
     .catch(async (err) => {
       // handle error

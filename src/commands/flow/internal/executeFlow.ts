@@ -4,7 +4,8 @@ import {
   displayError,
   displaySuccess,
   millisecondsToDdHhMmSs,
-  prefixAppLoc
+  prefixAppLoc,
+  persistTokensRefreshedByAdapter
 } from '../../../utils'
 import {
   saveLog,
@@ -65,7 +66,9 @@ export const executeFlow = async (
           true,
           pollOptions,
           true,
-          job.macroVars
+          job.macroVars,
+          undefined,
+          persistTokensRefreshedByAdapter(target)
         )
         .catch(async (err: any) => {
           printError(job, flowName, err)
