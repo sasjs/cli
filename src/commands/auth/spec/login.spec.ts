@@ -71,10 +71,26 @@ describe('authLogin', () => {
       name: 'SAS Test User'
     })
     ;(utilsModule.saveTokens as jest.Mock).mockResolvedValue(undefined)
+
+    // Reset env vars and TTY between tests.
+    delete process.env.SAS_USERNAME
+    delete process.env.SAS_PASSWORD
+    // Default to TTY=true so interactive prompts are allowed unless a test
+    // explicitly overrides.
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true
+    })
   })
 
   afterAll(() => {
     jest.restoreAllMocks()
+    delete process.env.SAS_USERNAME
+    delete process.env.SAS_PASSWORD
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true
+    })
   })
 
   // ---------------------------------------------------------------------------
@@ -271,5 +287,265 @@ describe('authLogin', () => {
       'access-123',
       'refresh-456'
     )
+  })
+
+  // ===========================================================================
+  // Non-interactive credential input paths (env vars, stdin, no-TTY fallback)
+  // ===========================================================================
+
+  // ---------------------------------------------------------------------------
+  // Env vars: SAS_USERNAME + SAS_PASSWORD skip both prompts
+  // ---------------------------------------------------------------------------
+  it('should use SAS_USERNAME and SAS_PASSWORD env vars without prompting', async () => {
+    process.env.SAS_USERNAME = 'env-user'
+    process.env.SAS_PASSWORD = 'env-pass'
+
+    await authLoginModule.authLogin(viyaTarget, false)
+
+    expect(mockedGetString).not.toHaveBeenCalled()
+    expect(prompts).not.toHaveBeenCalled()
+    expect(utilsModule.getTokensWithPasswordGrant).toHaveBeenCalledWith(
+      viyaTarget,
+      'env-user',
+      'env-pass'
+    )
+    expect(utilsModule.saveTokens).toHaveBeenCalledWith(
+      viyaTarget.name,
+      'access-123',
+      'refresh-456'
+    )
+  })
+
+  // ---------------------------------------------------------------------------
+  // Env var username only — password still prompted interactively
+  // ---------------------------------------------------------------------------
+  it('should use SAS_USERNAME but prompt for password when only username env var is set', async () => {
+    process.env.SAS_USERNAME = 'env-user'
+
+    await authLoginModule.authLogin(viyaTarget, false)
+
+    expect(mockedGetString).not.toHaveBeenCalled()
+    expect(prompts).toHaveBeenCalled()
+    expect(utilsModule.getTokensWithPasswordGrant).toHaveBeenCalledWith(
+      viyaTarget,
+      'env-user',
+      'test-pass'
+    )
+  })
+
+  // ---------------------------------------------------------------------------
+  // Env var password only — username still prompted interactively
+  // ---------------------------------------------------------------------------
+  it('should use SAS_PASSWORD but prompt for username when only password env var is set', async () => {
+    process.env.SAS_PASSWORD = 'env-pass'
+
+    await authLoginModule.authLogin(viyaTarget, false)
+
+    expect(mockedGetString).toHaveBeenCalled()
+    expect(prompts).not.toHaveBeenCalled()
+    expect(utilsModule.getTokensWithPasswordGrant).toHaveBeenCalledWith(
+      viyaTarget,
+      'test-user',
+      'env-pass'
+    )
+  })
+
+  // ---------------------------------------------------------------------------
+  // --password-stdin reads password from stdin, username from env
+  // ---------------------------------------------------------------------------
+  it('should read password from stdin and username from SAS_USERNAME when --password-stdin is set', async () => {
+    process.env.SAS_USERNAME = 'stdin-user'
+
+    // Simulate stdin content by mocking the async iterator on process.stdin.
+    const stdinData = 'stdin-pa55\n'
+    const originalStdin = process.stdin
+    const mockStdin: any = {
+      [Symbol.asyncIterator]() {
+        let done = false
+        return {
+          next() {
+            if (done) return Promise.resolve({ done: true, value: undefined })
+            done = true
+            return Promise.resolve({
+              done: false,
+              value: Buffer.from(stdinData)
+            })
+          }
+        }
+      }
+    }
+    Object.defineProperty(process, 'stdin', {
+      value: mockStdin,
+      configurable: true
+    })
+
+    try {
+      await authLoginModule.authLogin(viyaTarget, false, true)
+
+      expect(mockedGetString).not.toHaveBeenCalled()
+      expect(prompts).not.toHaveBeenCalled()
+      expect(utilsModule.getTokensWithPasswordGrant).toHaveBeenCalledWith(
+        viyaTarget,
+        'stdin-user',
+        'stdin-pa55'
+      )
+      expect(utilsModule.saveTokens).toHaveBeenCalledWith(
+        viyaTarget.name,
+        'access-123',
+        'refresh-456'
+      )
+    } finally {
+      Object.defineProperty(process, 'stdin', {
+        value: originalStdin,
+        configurable: true
+      })
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // --password-stdin with empty stdin throws a clear error
+  // ---------------------------------------------------------------------------
+  it('should throw when --password-stdin is set but stdin is empty', async () => {
+    process.env.SAS_USERNAME = 'stdin-user'
+
+    const originalStdin = process.stdin
+    const mockStdin: any = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            return Promise.resolve({ done: true, value: undefined })
+          }
+        }
+      }
+    }
+    Object.defineProperty(process, 'stdin', {
+      value: mockStdin,
+      configurable: true
+    })
+
+    try {
+      await expect(
+        authLoginModule.authLogin(viyaTarget, false, true)
+      ).rejects.toThrow(/no password was read from stdin/)
+
+      expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
+      expect(utilsModule.saveTokens).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(process, 'stdin', {
+        value: originalStdin,
+        configurable: true
+      })
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // --password-stdin without SAS_USERNAME throws (can't prompt interactively)
+  // ---------------------------------------------------------------------------
+  it('should throw when --password-stdin is set but SAS_USERNAME is not set', async () => {
+    const originalStdin = process.stdin
+    const mockStdin: any = {
+      [Symbol.asyncIterator]() {
+        return {
+          next() {
+            return Promise.resolve({ done: true, value: undefined })
+          }
+        }
+      }
+    }
+    Object.defineProperty(process, 'stdin', {
+      value: mockStdin,
+      configurable: true
+    })
+
+    try {
+      await expect(
+        authLoginModule.authLogin(viyaTarget, false, true)
+      ).rejects.toThrow(/SAS_USERNAME/)
+
+      expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(process, 'stdin', {
+        value: originalStdin,
+        configurable: true
+      })
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // No TTY, no env vars, no --password-stdin → clear error for username
+  // ---------------------------------------------------------------------------
+  it('should throw a clear error when no TTY and no env vars are available (username)', async () => {
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: false,
+      configurable: true
+    })
+
+    await expect(authLoginModule.authLogin(viyaTarget, false)).rejects.toThrow(
+      /A SAS username is required/
+    )
+
+    expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
+  })
+
+  // ---------------------------------------------------------------------------
+  // No TTY + SAS_USERNAME set but no password → clear error for password
+  // ---------------------------------------------------------------------------
+  it('should throw a clear error when SAS_USERNAME is set but no password source is available', async () => {
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: false,
+      configurable: true
+    })
+    process.env.SAS_USERNAME = 'env-user'
+
+    await expect(authLoginModule.authLogin(viyaTarget, false)).rejects.toThrow(
+      /A SAS password is required/
+    )
+
+    expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
+  })
+
+  // ---------------------------------------------------------------------------
+  // Precedence: --password-stdin takes precedence over SAS_PASSWORD
+  // ---------------------------------------------------------------------------
+  it('should prefer --password-stdin over SAS_PASSWORD env var', async () => {
+    process.env.SAS_USERNAME = 'env-user'
+    process.env.SAS_PASSWORD = 'env-pass'
+
+    const stdinData = 'stdin-pa55\n'
+    const originalStdin = process.stdin
+    const mockStdin: any = {
+      [Symbol.asyncIterator]() {
+        let done = false
+        return {
+          next() {
+            if (done) return Promise.resolve({ done: true, value: undefined })
+            done = true
+            return Promise.resolve({
+              done: false,
+              value: Buffer.from(stdinData)
+            })
+          }
+        }
+      }
+    }
+    Object.defineProperty(process, 'stdin', {
+      value: mockStdin,
+      configurable: true
+    })
+
+    try {
+      await authLoginModule.authLogin(viyaTarget, false, true)
+
+      expect(utilsModule.getTokensWithPasswordGrant).toHaveBeenCalledWith(
+        viyaTarget,
+        'env-user',
+        'stdin-pa55'
+      )
+    } finally {
+      Object.defineProperty(process, 'stdin', {
+        value: originalStdin,
+        configurable: true
+      })
+    }
   })
 })
