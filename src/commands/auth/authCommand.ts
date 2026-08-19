@@ -17,7 +17,10 @@ const description =
   `Authenticates against the specified target.\n` +
   `With the 'login' subCommand, authentication is performed with a SAS username and password ` +
   `(no OAuth client/secret required, SASVIYA targets only) and the resulting tokens are saved.\n` +
-  `Without a subCommand, behaves like 'sasjs add cred' (client/secret based authentication).`
+  `Without a subCommand, behaves like 'sasjs add cred' (client/secret based authentication).\n` +
+  `\n` +
+  `Non-interactive use (CI/agents): set SAS_USERNAME and SAS_PASSWORD environment variables, ` +
+  `or pipe the password and use --password-stdin.`
 const examples: CommandExample[] = [
   {
     command: 'sasjs auth login --target <target-name>',
@@ -27,6 +30,18 @@ const examples: CommandExample[] = [
   {
     command: 'sasjs auth login -t <target-name>',
     description: ''
+  },
+  {
+    command:
+      'SAS_USERNAME=usr SAS_PASSWORD=pass sasjs auth login -t <target-name>',
+    description:
+      'Non-interactive: read credentials from SAS_USERNAME/SAS_PASSWORD env vars (CI/agents).'
+  },
+  {
+    command:
+      'echo "$SAS_PASSWORD" | sasjs auth login --password-stdin -t <target-name>',
+    description:
+      'Non-interactive: read the password from stdin (avoids shell history).'
   },
   {
     command: 'sasjs auth --target <target-name>',
@@ -43,6 +58,15 @@ export class AuthCommand extends TargetCommand {
         default: false,
         description:
           'Allows the command to bypass the HTTPs requirement. Not recommended.'
+      },
+      passwordStdin: {
+        type: 'boolean',
+        default: false,
+        description:
+          'Read the password from stdin instead of prompting or reading the ' +
+          'SAS_PASSWORD env var. Use this in CI/scripts to avoid leaking the ' +
+          'password in shell history (e.g. ' +
+          '`echo "$SAS_PASSWORD" | sasjs auth login --password-stdin -t <target>`).'
       }
     }
     super(args, { parseOptions, usage, description, examples, syntax })
@@ -50,6 +74,10 @@ export class AuthCommand extends TargetCommand {
 
   public get insecure(): boolean {
     return !!this.parsed.insecure
+  }
+
+  public get passwordStdin(): boolean {
+    return !!this.parsed.passwordStdin
   }
 
   public async execute() {
@@ -62,7 +90,7 @@ export class AuthCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
 
     try {
-      await authLogin(target, this.insecure)
+      await authLogin(target, this.insecure, this.passwordStdin)
       return ReturnCode.Success
     } catch (err: any) {
       process.logger?.error('Error logging in.', err?.message || err)
