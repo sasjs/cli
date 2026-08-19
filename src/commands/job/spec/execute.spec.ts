@@ -2,8 +2,13 @@ import SASjs, { SASjsApiClient } from '@sasjs/adapter/node'
 import { deleteFile } from '@sasjs/utils'
 import { ServerType, Target } from '@sasjs/utils/types'
 import path from 'path'
-import { setConstants, getSASjsAndAuthConfig } from '../../../utils'
+import {
+  setConstants,
+  getSASjsAndAuthConfig,
+  persistTokensRefreshedByAdapter
+} from '../../../utils'
 import * as utilsModule from '../../../utils/utils'
+import * as configUtils from '../../../utils/config'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
@@ -54,7 +59,9 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
-      undefined
+      undefined,
+      undefined,
+      expect.any(Function)
     )
 
     await deleteFile(testFilePath)
@@ -90,10 +97,41 @@ describe('executeJobViya', () => {
         logFolderPath: testLogsPath
       },
       true,
-      undefined
+      undefined,
+      undefined,
+      expect.any(Function)
     )
 
     await deleteFile(testFilePath)
+  })
+
+  it('should pass persistTokensRefreshedByAdapter(target) as onTokensRefreshed', async () => {
+    const spy = jest
+      .spyOn(configUtils, 'persistTokensRefreshedByAdapter')
+      .mockImplementation(() => jest.fn())
+
+    await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      false
+    )
+
+    expect(spy).toHaveBeenCalledWith(target)
+
+    const callArgs = (sasjs.startComputeJob as jest.Mock).mock.calls[0]
+    const onTokensRefreshed = callArgs[callArgs.length - 1]
+    expect(onTokensRefreshed).toBeDefined()
+    expect(typeof onTokensRefreshed).toEqual('function')
+
+    spy.mockRestore()
   })
 })
 
