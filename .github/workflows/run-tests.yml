@@ -91,6 +91,20 @@ jobs:
       - name: Run sasjs server
         run: pm2 start api-linux
 
+      - name: Wait for sasjs server to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -m 5 http://localhost:5000/SASjsApi/info > /dev/null 2>&1; then
+              echo "sasjs server is ready"
+              exit 0
+            fi
+            echo "waiting for sasjs server ($i/60)..."
+            sleep 5
+          done
+          echo "sasjs server failed to start"
+          pm2 logs api-linux --nostream --lines 50
+          exit 1
+
       - name: Deploy SAS9 tests
         run: |
           cd mocks
