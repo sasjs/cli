@@ -56,8 +56,8 @@ export class DocsCommand extends TargetCommand {
     return this.parsed.subCommand === DocSubCommand.Init
       ? await this.executeInitDocs()
       : this.parsed.subCommand === DocSubCommand.Lineage
-      ? await this.executeGenerateDot()
-      : await this.executeGenerateDocs()
+        ? await this.executeGenerateDot()
+        : await this.executeGenerateDocs()
   }
 
   async executeGenerateDocs() {

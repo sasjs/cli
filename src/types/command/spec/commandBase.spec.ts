@@ -7,7 +7,9 @@ describe('CommandBase', () => {
     jest.resetAllMocks()
     jest
       .spyOn(process, 'exit')
-      .mockImplementation((code?: number) => code as never)
+      .mockImplementation(
+        (code?: string | number | null | undefined) => code as never
+      )
   })
 
   it('should parse a simple sasjs command', () => {

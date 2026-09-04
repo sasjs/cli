@@ -74,7 +74,7 @@ export async function compileSingleFile(
   process.logger?.info(`Compiling source file:\n- ${sourcePath}`)
 
   const outputPathParts = output.split(path.sep)
-  outputPathParts.pop(), outputPathParts.pop()
+  ;(outputPathParts.pop(), outputPathParts.pop())
 
   const leafFolderName = source.split(path.sep).pop() as string
   const parentOutputFolder = outputPathParts.join(path.sep)

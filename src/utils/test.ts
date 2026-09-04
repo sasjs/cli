@@ -190,14 +190,14 @@ export const verifyStep = async (
     step === 'db'
       ? dbFiles
       : step === 'compile'
-      ? customFiles === 'no'
-        ? compiledFiles
-        : compiledFilesCustom1
-      : step === 'build'
-      ? customFiles === 'no'
-        ? builtFiles(buildFileName)
-        : builtFilesCustom1(buildFileName)
-      : compiledFiles
+        ? customFiles === 'no'
+          ? compiledFiles
+          : compiledFilesCustom1
+        : step === 'build'
+          ? customFiles === 'no'
+            ? builtFiles(buildFileName)
+            : builtFilesCustom1(buildFileName)
+          : compiledFiles
 
   await expect(verifyFolder(fileStructure)).resolves.toEqual(true)
 
@@ -223,9 +223,11 @@ export const verifyStep = async (
 }
 
 export const mockProcessExit = () =>
-  jest.spyOn(process, 'exit').mockImplementation((code?: number) => {
-    return code as never
-  })
+  jest
+    .spyOn(process, 'exit')
+    .mockImplementation((code?: string | number | null | undefined) => {
+      return code as never
+    })
 
 interface BuildJson {
   name: string

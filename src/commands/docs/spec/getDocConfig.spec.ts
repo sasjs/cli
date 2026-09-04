@@ -22,7 +22,7 @@ describe('getDocConfig', () => {
       docConfig: { doxyContent: { path: '//server1/unc/path' } }
     } as unknown as Target
 
-    expect(() => getDocConfig(target)).toThrowError(UNCErrorMessage)
+    expect(() => getDocConfig(target)).toThrow(UNCErrorMessage)
   })
 
   it('should throw for having UNC path picked up from config', () => {
@@ -30,6 +30,6 @@ describe('getDocConfig', () => {
       docConfig: { doxyContent: { path: '//server1/unc/path' } }
     } as unknown as Configuration
 
-    expect(() => getDocConfig(undefined, config)).toThrowError(UNCErrorMessage)
+    expect(() => getDocConfig(undefined, config)).toThrow(UNCErrorMessage)
   })
 })

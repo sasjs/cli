@@ -71,7 +71,7 @@ describe('compileSingleFile', () => {
       .mockImplementation(() => Promise.resolve([]))
     jest
       .spyOn(loadDependenciesModule, 'getCompileTree')
-      .mockImplementation(() => ({ saveTree: () => Promise.resolve() } as any))
+      .mockImplementation(() => ({ saveTree: () => Promise.resolve() }) as any)
     jest
       .spyOn(compileTestFileModule, 'compileTestFile')
       .mockImplementation(() => Promise.resolve())

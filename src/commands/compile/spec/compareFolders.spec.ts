@@ -31,7 +31,7 @@ describe('compareFolders', () => {
     const nonExistentSourcePath = path.join(__dirname, 'nothing')
     await expect(
       compareFolders(nonExistentSourcePath, destinationFolderPath)
-    ).rejects.toThrowError(
+    ).rejects.toThrow(
       `Source path ${nonExistentSourcePath} does not exist. Please check the \`serviceFolders\` and \`jobFolders\` in your target configuration and try again.`
     )
   })

@@ -29,9 +29,9 @@ describe('copyFilesToBuildFolder', () => {
     })
     const { target } = await findTargetInConfiguration('viya')
 
-    await expect(
-      compileModule.copyFilesToBuildFolder(target)
-    ).rejects.toThrowError('Test Error')
+    await expect(compileModule.copyFilesToBuildFolder(target)).rejects.toThrow(
+      'Test Error'
+    )
   })
 })
 

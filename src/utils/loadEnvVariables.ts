@@ -20,8 +20,8 @@ async function loadEnvVariables(fileName: string) {
   const envFilePath = envFileExistsInCurrentPath
     ? path.join(process.cwd(), fileName)
     : envFileExistsInParentPath
-    ? path.join(process.cwd(), '..', fileName)
-    : null
+      ? path.join(process.cwd(), '..', fileName)
+      : null
   if (envFilePath) {
     dotenv.config({ path: envFilePath })
   }

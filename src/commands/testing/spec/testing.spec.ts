@@ -862,8 +862,8 @@ function generateTarget(serverType = ServerType.SasViya): Target {
     serverUrl: (serverType === ServerType.SasViya
       ? process.env.VIYA_SERVER_URL
       : serverType === ServerType.Sas9
-      ? process.env.SAS9_SERVER_URL
-      : process.env.SASJS_SERVER_URL) as string,
+        ? process.env.SAS9_SERVER_URL
+        : process.env.SASJS_SERVER_URL) as string,
     appLoc: `/Public/app/cli-tests/${targetName}`,
     contextName,
     macroFolders: ['sasjs/macros'],

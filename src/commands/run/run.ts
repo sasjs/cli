@@ -44,9 +44,8 @@ export async function runSasCode(
   let isTempFile = false
 
   if (isUrl(filePath)) {
-    ;({ isTempFile, tempFilePath: filePath } = await createFileFromUrl(
-      filePath
-    ))
+    ;({ isTempFile, tempFilePath: filePath } =
+      await createFileFromUrl(filePath))
   }
 
   if (compile) {

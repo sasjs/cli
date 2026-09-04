@@ -91,10 +91,10 @@ export class FolderCommand extends TargetCommand {
     return this.parsed.subCommand === FolderSubCommand.Create
       ? await this.executeCreateFolder(target, sasjs, authConfig)
       : this.parsed.subCommand === FolderSubCommand.Delete
-      ? await this.executeDeleteFolder(target, sasjs, authConfig)
-      : this.parsed.subCommand === FolderSubCommand.List
-      ? await this.executeListFolder(target, sasjs, authConfig)
-      : ReturnCode.InvalidCommand
+        ? await this.executeDeleteFolder(target, sasjs, authConfig)
+        : this.parsed.subCommand === FolderSubCommand.List
+          ? await this.executeListFolder(target, sasjs, authConfig)
+          : ReturnCode.InvalidCommand
   }
 
   async executeCreateFolder(

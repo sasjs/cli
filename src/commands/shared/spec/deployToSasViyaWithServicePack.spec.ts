@@ -36,7 +36,7 @@ describe('deployToSasViyaWithServicePack', () => {
     deployServicePack = jest.fn().mockResolvedValue({})
     jest
       .spyOn(configUtils, 'getSASjs')
-      .mockImplementation(() => ({ deployServicePack } as any))
+      .mockImplementation(() => ({ deployServicePack }) as any)
   })
 
   afterEach(async () => {

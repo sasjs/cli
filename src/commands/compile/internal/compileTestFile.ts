@@ -56,8 +56,8 @@ export const getTestFileDestinationFragment = (
             acc.length
               ? [...acc, item]
               : arr[i - 1] === buildDestinationFolderName
-              ? [...acc, item]
-              : acc,
+                ? [...acc, item]
+                : acc,
           [] as string[]
         )
         .join(path.sep)
@@ -330,7 +330,11 @@ const printTestCoverage = async (
   const calculateCoverage = (covered: number, from: number) =>
     (Math.round((covered / from) * 100) || 0) + '%'
 
-  const formatCoverage = (type: string, covered: string[], toCover: string[]) =>
+  const formatCoverage = (
+    type: string,
+    covered: string[],
+    toCover: string[]
+  ) =>
     toCover.length
       ? process.logger?.info(
           `${type} coverage: ${covered.length}/${

@@ -125,7 +125,7 @@ describe('setConstants', () => {
 
     await setConstants()
 
-    expect(getNodeModulePathSpy).toBeCalledTimes(0)
+    expect(getNodeModulePathSpy).toHaveBeenCalledTimes(0)
   })
 
   test('should prefer @sasjs/core resolved relative to process.projectDir over the CLI-relative fallback', async () => {
