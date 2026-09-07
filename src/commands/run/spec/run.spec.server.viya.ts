@@ -66,14 +66,14 @@ describe('sasjs run with Viya', () => {
       const url = 'https://github.com/sasjs/cli/issues/808'
       const { invalidSasError } = process.sasjsConstants
       const error = new Error(`${invalidSasError}\nUrl: ${url}`)
-      await expect(runSasCode(target, url)).rejects.toThrowError(error)
+      await expect(runSasCode(target, url)).rejects.toThrow(error)
     })
 
     it('should throw an error when url response is not a string', async () => {
       const url = 'https://api.agify.io/?name=sabir'
       const { invalidSasError } = process.sasjsConstants
       const error = new Error(`${invalidSasError}\nUrl: ${url}`)
-      await expect(runSasCode(target, url)).rejects.toThrowError(error)
+      await expect(runSasCode(target, url)).rejects.toThrow(error)
     })
 
     it('should get the log on successfull execution having relative path', async () => {

@@ -363,8 +363,8 @@ export async function runTest(
       resultTable[key].test_suite_result === TestResultStatus.pass
         ? chalk.greenBright(TestResultStatus.pass)
         : resultTable[key].test_suite_result === TestResultStatus.fail
-        ? chalk.redBright(TestResultStatus.fail)
-        : resultTable[key].test_suite_result
+          ? chalk.redBright(TestResultStatus.fail)
+          : resultTable[key].test_suite_result
     ]),
     {
       head: ['SASjs Test ID', 'Test Target', 'Test Suite Result']
@@ -455,6 +455,6 @@ export const getTestUrl = (target: Target, jobLocation: string) =>
     target.serverType === ServerType.SasViya
       ? 'SASJobExecution'
       : target.serverType === ServerType.Sas9
-      ? 'SASStoredProcess'
-      : 'SASjsApi/stp/execute'
+        ? 'SASStoredProcess'
+        : 'SASjsApi/stp/execute'
   }/?_program=${jobLocation}&_debug=2477`

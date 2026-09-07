@@ -282,8 +282,8 @@ export class JobCommand extends TargetCommand {
     const output = (this.parsed.output as string)?.length
       ? (this.parsed.output as string)
       : (this.parsed.output as string)?.length === 0
-      ? true
-      : false
+        ? true
+        : false
 
     if (!!this.verbose && !wait) wait = true
 

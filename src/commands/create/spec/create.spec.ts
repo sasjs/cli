@@ -147,10 +147,10 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
     appType === 'minimal'
       ? minimalAppFiles
       : appType === 'react'
-      ? reactAppFiles
-      : appType === 'angular'
-      ? angularAppFiles
-      : minimalAppFiles
+        ? reactAppFiles
+        : appType === 'angular'
+          ? angularAppFiles
+          : minimalAppFiles
   fileStructure.folderName = appName
 
   await verifyFolder(fileStructure)

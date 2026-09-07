@@ -40,8 +40,8 @@ export const createAssetServices = async (
       const fullAssetPath = path.isAbsolute(assetPath)
         ? assetPath
         : path.isAbsolute(webSourcePath)
-        ? path.join(webSourcePath, assetPath)
-        : path.join(process.projectDir, webSourcePath, assetPath)
+          ? path.join(webSourcePath, assetPath)
+          : path.join(process.projectDir, webSourcePath, assetPath)
       const assetPathExists = await folderExists(fullAssetPath)
 
       if (!assetPathExists) {

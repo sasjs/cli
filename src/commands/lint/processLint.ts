@@ -201,21 +201,21 @@ const displayDiagnostics = (
 ) => {
   process.logger?.info(`File: ${filePath}`)
 
-  process.logger?.table(
+  ;(process.logger?.table(
     sasjsDiagnostics.map((d: Diagnostic) => {
       const severity =
         d.severity === Severity.Info
           ? chalk.cyan.bold('Info')
           : d.severity === Severity.Warning
-          ? chalk.yellow.bold('Warning')
-          : d.severity === Severity.Error
-          ? chalk.red.bold('Error')
-          : 'Unknown'
+            ? chalk.yellow.bold('Warning')
+            : d.severity === Severity.Error
+              ? chalk.red.bold('Error')
+              : 'Unknown'
 
       return [severity, d.message, `[${d.lineNumber}, ${d.startColumnNumber}]`]
     })
   ),
     {
       head: ['Severity', 'Message', '[Line #, Col #]']
-    }
+    })
 }

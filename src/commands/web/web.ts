@@ -31,9 +31,8 @@ export async function createWebAppServices(target: Target) {
 
   const streamConfig = await getStreamConfig(target)
 
-  const { webSourcePathFull, indexHtmlPath } = await validateStreamConfig(
-    streamConfig
-  )
+  const { webSourcePathFull, indexHtmlPath } =
+    await validateStreamConfig(streamConfig)
 
   await createBuildDestinationFolder()
 

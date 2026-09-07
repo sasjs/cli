@@ -96,9 +96,8 @@ async function createFinalSasFiles(target: Target) {
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
 
-  const { folderContent, folderContentJSON } = await getFolderContent(
-    serverType
-  )
+  const { folderContent, folderContentJSON } =
+    await getFolderContent(serverType)
 
   const servicePackSASjs: ServicePackSASjs = {
     appLoc: target.appLoc,

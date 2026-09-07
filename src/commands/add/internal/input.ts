@@ -112,8 +112,8 @@ async function getAndValidateTargetName(
     serverType === ServerType.SasViya
       ? 'viya'
       : serverType === ServerType.Sas9
-      ? 'sas9'
-      : 'server'
+        ? 'sas9'
+        : 'server'
 
   const targetName = await getString(
     'Please enter a target name: ',
