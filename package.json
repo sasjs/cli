@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^4.19.0",
-    "@sasjs/core": "5.2.3",
+    "@sasjs/core": "5.2.4",
     "@sasjs/lint": "2.5.0",
     "@sasjs/utils": "3.6.2",
     "adm-zip": "0.6.0",
