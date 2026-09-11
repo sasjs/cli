@@ -2,7 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import yazl from 'yazl'
 import { extractZip } from '../zip'
-import { createFile, deleteFolder, readFile, generateTimestamp } from '@sasjs/utils'
+import {
+  createFile,
+  deleteFolder,
+  readFile,
+  generateTimestamp
+} from '@sasjs/utils'
 
 const makeZip = (
   entries: { name: string; content: string; mode?: number }[],
