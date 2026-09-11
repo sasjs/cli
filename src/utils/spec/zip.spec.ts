@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import yazl from 'yazl'
+import { isWindows } from '@sasjs/utils'
 import { extractZip } from '../zip'
 import {
   createFile,
@@ -72,6 +73,8 @@ describe('zip', () => {
     })
 
     it('should preserve unix mode bits', async () => {
+      if (isWindows()) return // chmod exec bits are a no-op on Windows
+
       const zipPath = path.join(tmpRoot, 'modes.zip')
       await makeZip(
         [
@@ -88,6 +91,8 @@ describe('zip', () => {
     })
 
     it('should not write through a symlink at the destination', async () => {
+      if (isWindows()) return // symlink creation needs elevated privileges
+
       const zipPath = path.join(tmpRoot, 'evil.zip')
       await makeZip([{ name: 'app-main/target.txt', content: 'EVIL' }], zipPath)
 
@@ -107,6 +112,8 @@ describe('zip', () => {
     })
 
     it('should not extract into a symlinked parent directory', async () => {
+      if (isWindows()) return // symlink creation needs elevated privileges
+
       const zipPath = path.join(tmpRoot, 'evilparent.zip')
       await makeZip([{ name: 'app-main/x.txt', content: 'x' }], zipPath)
 
