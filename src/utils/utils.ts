@@ -18,7 +18,7 @@ import {
 import SASjs from '@sasjs/adapter/node'
 import { displayError } from './displayResult'
 import dotenv from 'dotenv'
-import AdmZip from 'adm-zip'
+import { extractZip } from './zip'
 import { LogJson } from '../types'
 import { getSASjs } from './config'
 
@@ -47,7 +47,7 @@ export function diff(a: any[], b: any[]) {
 
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    createApp(
+    await createApp(
       folderPath,
       'https://github.com/sasjs/react-seed-app',
       'https://github.com/sasjs/docs',
@@ -62,7 +62,7 @@ export async function createReactApp(folderPath: string): Promise<void> {
 
 export async function createAngularApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    createApp(
+    await createApp(
       folderPath,
       'https://github.com/sasjs/angular-seed-app',
       'https://github.com/sasjs/docs',
@@ -76,7 +76,7 @@ export async function createAngularApp(folderPath: string): Promise<void> {
 
 export async function createMinimalApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
-    createApp(
+    await createApp(
       folderPath,
       'https://github.com/sasjs/minimal-seed-app',
       'https://github.com/sasjs/docs',
@@ -104,7 +104,7 @@ export async function createTemplateApp(folderPath: string, template: string) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
     }
 
-    createApp(
+    await createApp(
       folderPath,
       `https://github.com/sasjs/template_${template}`,
       'https://github.com/sasjs/docs',
@@ -125,7 +125,7 @@ export async function createTemplateApp(folderPath: string, template: string) {
  * @param docsUrl sasjs/docs repo url
  * @params installDependencies whether or not to do `npm install`
  */
-function createApp(
+async function createApp(
   folderPath: string,
   repoUrl: string,
   docsUrl: string,
@@ -165,8 +165,7 @@ function createApp(
 
   const zipWithoutExtension = zipName.replace('.zip', '')
 
-  const zip = new AdmZip(zipName)
-  zip.extractAllTo(`./`, true)
+  await extractZip(zipName, `./`, true)
 
   shelljs.cp(
     '-r',
@@ -176,7 +175,7 @@ function createApp(
   shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
   shelljs.rm('-rf', [`./${zipName}`])
 
-  loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+  await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
   shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
 
   spinner.stop()
@@ -210,8 +209,7 @@ const loadDocsSubmodule = async (
 
   downloadFile(`${docsUrl}${zipPath}`, 'main.zip')
 
-  const zip = new AdmZip('main.zip')
-  zip.extractAllTo('./', true)
+  await extractZip('main.zip', './', true)
 
   shelljs.cp('-r', `${shelljs.ls('-d', `./*-main`)[0]}/.`, docsFolderPath)
   shelljs.rm('-rf', [`./*-main`])
