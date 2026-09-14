@@ -91,14 +91,27 @@ const extractEntry = async (
   await streamToFile(readStream, destPath)
 
   // Preserve unix mode bits (external attrs high 16 bits), e.g. the exec bit
-  // on .git-hooks files in seed apps.
-  const mode = (entry.externalFileAttributes >>> 16) & 0o7777
+  // on .git-hooks files in seed apps. Only entries created on a unix host
+  // (versionMadeBy platform 3) are honoured: archives created on other
+  // hosts (Windows, DOS, ...) leave these bits zero or repurpose them, and
+  // chmod-ing a mode derived from them would give the file garbage
+  // permissions.
+  const mode =
+    entry.versionMadeBy >>> 8 === 3
+      ? (entry.externalFileAttributes >>> 16) & 0o7777
+      : 0
   if (mode) fs.chmodSync(destPath, mode)
 }
 
 /**
  * Creates dirPath (which must be at or under rootDir), creating parents as
  * needed, and throws if any existing path component is a symbolic link.
+ *
+ * NOTE: the existsSync/lstatSync/mkdirSync sequence is inherently racy
+ * (TOCTOU) - a symlink swapped in between the check and the mkdir is
+ * traversed. Extraction is therefore strictly sequential, one entry at a
+ * time. Do not extract entries in parallel into a shared destDir without
+ * closing this window first.
  */
 const ensureDirNoSymlink = async (rootDir: string, dirPath: string) => {
   const rootParts = path.resolve(rootDir).split(path.sep)

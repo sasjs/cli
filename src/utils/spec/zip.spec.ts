@@ -24,6 +24,32 @@ const makeZip = (
     zip.end()
   })
 
+/**
+ * Rewrites the versionMadeBy host platform byte (high byte of the central
+ * directory field) of every entry, simulating an archive created on a
+ * different host (e.g. 0 = MS-DOS/Windows). Used to prove that mode bits
+ * from non-unix hosts are ignored.
+ */
+const setEntryPlatform = (zipPath: string, platform: number) => {
+  const buffer = fs.readFileSync(zipPath)
+  const eocd = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+  if (eocd < 0) throw new Error('end of central directory record not found')
+  const cdSize = buffer.readUInt32LE(eocd + 12)
+  const cdOffset = buffer.readUInt32LE(eocd + 16)
+  let p = cdOffset
+  const end = cdOffset + cdSize
+  while (p < end) {
+    if (buffer.readUInt32LE(p) !== 0x02014b50) break // central file header
+    const versionMadeBy = buffer.readUInt16LE(p + 4)
+    buffer.writeUInt16LE((versionMadeBy & 0xff) | (platform << 8), p + 4)
+    const nlen = buffer.readUInt16LE(p + 28)
+    const elen = buffer.readUInt16LE(p + 30)
+    const clen = buffer.readUInt16LE(p + 32)
+    p += 46 + nlen + elen + clen
+  }
+  fs.writeFileSync(zipPath, buffer)
+}
+
 describe('zip', () => {
   const tmpRoot = path.join(__dirname, `zip-spec-${generateTimestamp()}`)
   const destDir = path.join(tmpRoot, 'dest')
@@ -88,6 +114,26 @@ describe('zip', () => {
 
       const hookMode = fs.statSync(path.join(destDir, 'app-main', 'hook')).mode
       expect(hookMode & 0o111).not.toEqual(0)
+    })
+
+    it('should not apply mode bits from non-unix (e.g. Windows) archives', async () => {
+      if (isWindows()) return // chmod exec bits are a no-op on Windows
+
+      const zipPath = path.join(tmpRoot, 'winmodes.zip')
+      await makeZip(
+        [{ name: 'app-main/binary', content: 'MZ', mode: 0o755 }],
+        zipPath
+      )
+      // Simulate a Windows-created archive: same externalFileAttributes
+      // (exec bits set by yazl), but versionMadeBy platform 0 (MS-DOS).
+      setEntryPlatform(zipPath, 0)
+
+      await extractZip(zipPath, destDir, true)
+
+      // The entry's externalFileAttributes high bits are not a unix mode
+      // on non-unix platforms - applying them would chmod the file 755.
+      const mode = fs.statSync(path.join(destDir, 'app-main', 'binary')).mode
+      expect(mode & 0o111).toEqual(0)
     })
 
     it('should not write through a symlink at the destination', async () => {
