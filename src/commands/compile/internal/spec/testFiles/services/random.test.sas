@@ -6,6 +6,7 @@
 **/
 %put 'random.test.sas';
 data work.test_results;
+length test_result $5 test_description $256 test_comments $256;
 test_description="random test description";
 test_result="PASS";
 output;
