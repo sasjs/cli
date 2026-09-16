@@ -55,14 +55,7 @@ If you are running NPM in version 6 or below, you can try running `npm update -g
 
 ## Contributing
 
-1.  Clone the repo and install dependencies (`npm install`).
-2.  One-time setup: point git at this repo's hooks directory:
-
-```
-  git config core.hooksPath ./.git-hooks
-```
-
-This enables the pre-commit checks (gitleaks secret scan, 2MB commit size limit). This step is required because the repo's `.npmrc` sets `ignore-scripts=true`, so the `prepare` script that would configure the hooks path automatically never runs on install. If you skip it, your commits are not scanned for secrets and you may push them that way.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup.
 
 ## Star Gazing
 
