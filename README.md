@@ -55,7 +55,7 @@ If you are running NPM in version 6 or below, you can try running `npm update -g
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup (including the one-time `core.hooksPath` step that enables the pre-commit hooks) and the repo-specific notes: CI runs on Windows as well as Ubuntu, and all zip handling goes through `yauzl` / `yazl`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup.
 
 ## Star Gazing
 
