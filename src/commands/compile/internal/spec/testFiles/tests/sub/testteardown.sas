@@ -7,6 +7,7 @@
 %put testing, tear down everything;
 
 data work.test_results;
+    length test_result $5 test_description $256 test_comments $256;
     test_description="some description";
     test_result="FAIL";
     output;

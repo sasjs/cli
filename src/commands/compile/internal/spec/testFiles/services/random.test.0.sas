@@ -5,6 +5,7 @@
 **/
 %put 'random.test.0.sas';
 data work.test_results;
+length test_result $5 test_description $256 test_comments $256;
 test_description="random 0 test description";
 test_result="FAIL";
 output;
