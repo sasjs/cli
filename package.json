@@ -1,6 +1,9 @@
 {
   "name": "@sasjs/cli",
   "description": "Command line interface for SASjs",
+  "engines": {
+    "node": ">=14"
+  },
   "main": "index.js",
   "files": [
     "build/**/*"
