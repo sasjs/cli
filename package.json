@@ -69,8 +69,8 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@sasjs/adapter": "^4.19.0",
-    "@sasjs/core": "5.2.9",
+    "@sasjs/adapter": "4.19.1",
+    "@sasjs/core": "5.2.10",
     "@sasjs/lint": "4.1.0",
     "@sasjs/utils": "3.6.2",
     "chalk": "4.1.2",
@@ -124,7 +124,6 @@
     "util": "0.12.5"
   },
   "overrides": {
-    "axios": "1.20.0",
     "ws": "8.21.0",
     "nanoid": "3.3.18"
   }
