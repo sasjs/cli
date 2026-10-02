@@ -1,0 +1,15 @@
+# Hooks for the pre-commit framework - https://pre-commit.com
+#
+# The repo also ships native hooks in .git-hooks/, covering the secret scan and
+# a commit size limit. But .npmrc sets ignore-scripts=true, so the `prepare`
+# script that points git at them never runs on `npm i` - a fresh clone commits
+# unchecked until that one-time command is run by hand.
+#
+# This file is the standard route instead: install the framework once with
+# `pre-commit install`, and the secret scan runs on every commit. The hook is
+# pinned to an exact gitleaks release tag.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

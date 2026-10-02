@@ -157,7 +157,9 @@ async function createApp(
     )
 
     if (stderr.includes('404: Not Found') || code) {
-      errorCallback(`${repoUrl}${zipPath} is not SASjs repository!`)
+      errorCallback(
+        `Could not download ${repoUrl}${zipPath}main.zip or master.zip - is ${repoUrl} a SASjs repository?`
+      )
 
       return
     }
@@ -216,8 +218,8 @@ const loadDocsSubmodule = async (
   shelljs.rm('-rf', [`./main.zip`])
 }
 
-function downloadFile(url: string, filename?: string): ShellString {
-  if (isLinux()) {
+export function downloadFile(url: string, filename?: string): ShellString {
+  if (isLinux() && shelljs.which('wget')) {
     // -O <filename> writes to the given name; without it, wget defaults to the
     // remote URL's basename, which silently ignores the caller's `filename` and
     // can leave an unexpectedly-named file behind (e.g. a repo-existence probe
@@ -234,9 +236,9 @@ function downloadFile(url: string, filename?: string): ShellString {
       { silent: true }
     )
   } else {
-    // -o <filename> writes to the given name; -O (used previously) instead saves
-    // under the remote URL's basename, ignoring `filename` - see the wget comment
-    // above for the same issue.
+    // curl, on macOS and on Linux hosts without wget. -o <filename> writes to
+    // the given name; -O instead saves under the remote URL's basename, ignoring
+    // `filename` - see the wget note above for the same issue.
     return shelljs.exec(
       `curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`,
       { silent: true }
