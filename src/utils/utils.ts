@@ -1,4 +1,4 @@
-import shelljs, { ShellString } from 'shelljs'
+import { cp, exec, ls, rm, ShellResult, which } from './shell'
 import { PowerShell } from 'node-powershell'
 import path from 'path'
 import ora from 'ora'
@@ -169,16 +169,12 @@ async function createApp(
 
   await extractZip(zipName, `./`, true)
 
-  shelljs.cp(
-    '-r',
-    `${shelljs.ls('-d', `./*${zipWithoutExtension}`)[0]}/.`,
-    folderPath
-  )
-  shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
-  shelljs.rm('-rf', [`./${zipName}`])
+  await cp(`${ls(`./*${zipWithoutExtension}`)[0]}/.`, folderPath)
+  rm([`./*${zipWithoutExtension}`], true)
+  rm([`./${zipName}`], true)
 
   await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
-  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+  rm([path.join(folderPath, '.gitmodules')])
 
   spinner.stop()
 
@@ -186,7 +182,7 @@ async function createApp(
     spinner.text = 'Installing dependencies...'
     spinner.start()
 
-    shelljs.exec(`cd "${folderPath}" && npm install`, {
+    exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
 
@@ -213,23 +209,23 @@ const loadDocsSubmodule = async (
 
   await extractZip('main.zip', './', true)
 
-  shelljs.cp('-r', `${shelljs.ls('-d', `./*-main`)[0]}/.`, docsFolderPath)
-  shelljs.rm('-rf', [`./*-main`])
-  shelljs.rm('-rf', [`./main.zip`])
+  await cp(`${ls('./*-main')[0]}/.`, docsFolderPath)
+  rm(['./*-main'], true)
+  rm(['./main.zip'], true)
 }
 
-export function downloadFile(url: string, filename?: string): ShellString {
-  if (isLinux() && shelljs.which('wget')) {
+export function downloadFile(url: string, filename?: string): ShellResult {
+  if (isLinux() && which('wget')) {
     // -O <filename> writes to the given name; without it, wget defaults to the
     // remote URL's basename, which silently ignores the caller's `filename` and
     // can leave an unexpectedly-named file behind (e.g. a repo-existence probe
     // meant to be discarded as `response.txt` instead landing as the repo name).
-    return shelljs.exec(`wget ${url}${filename ? ' -O ' + filename : ''}`, {
+    return exec(`wget ${url}${filename ? ' -O ' + filename : ''}`, {
       silent: true
     })
   } else if (isWindows()) {
     // First We set TLS12 & then we invoke request to download file.
-    return shelljs.exec(
+    return exec(
       `powershell.exe "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest ${url} ${
         filename ? '-O ' + filename : ''
       }"`,
@@ -239,10 +235,9 @@ export function downloadFile(url: string, filename?: string): ShellString {
     // curl, on macOS and on Linux hosts without wget. -o <filename> writes to
     // the given name; -O instead saves under the remote URL's basename, ignoring
     // `filename` - see the wget note above for the same issue.
-    return shelljs.exec(
-      `curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`,
-      { silent: true }
-    )
+    return exec(`curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`, {
+      silent: true
+    })
   }
 }
 
@@ -252,14 +247,14 @@ export async function setupNpmProject(folderName: string): Promise<void> {
     const isExistingProject = await inExistingProject(folderName)
     if (!isExistingProject) {
       process.logger?.info(`Initialising NPM project in ${folderPath}`)
-      shelljs.exec(`cd "${folderPath}" && npm init --yes`, {
+      exec(`cd "${folderPath}" && npm init --yes`, {
         silent: true
       })
     } else {
       process.logger?.success('Existing NPM project detected.')
     }
     process.logger?.info('Installing @sasjs/core')
-    shelljs.exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
+    exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
       silent: true
     })
     return resolve()
@@ -346,7 +341,7 @@ export async function executeShellScript(
 ) {
   return new Promise(async (resolve, reject) => {
     const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
-    const result = shelljs.exec(shellCommand, { silent: true })
+    const result = exec(shellCommand, { silent: true })
 
     if (result.code) {
       process.logger?.error(`Error: ${result.stderr}`)

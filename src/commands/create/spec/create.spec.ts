@@ -13,7 +13,7 @@ import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
-import shelljs from 'shelljs'
+import * as shell from '../../../utils/shell'
 import { ChildProcess } from 'child_process'
 
 describe('sasjs create', () => {
@@ -22,16 +22,17 @@ describe('sasjs create', () => {
   })
 
   beforeEach(() => {
-    const exec = shelljs.exec
+    const exec = shell.exec
 
-    jest.spyOn(shelljs, 'exec').mockImplementation((command: string) => {
+    jest.spyOn(shell, 'exec').mockImplementation((command: string) => {
       if (!command.includes('npm install')) {
         return exec(command, {
           silent: true
-        }) as unknown as ChildProcess
+        })
       }
 
-      return undefined as unknown as ChildProcess
+      // The real install is skipped; the caller ignores the result.
+      return { stdout: '', stderr: '', code: 0 }
     })
   })
 
