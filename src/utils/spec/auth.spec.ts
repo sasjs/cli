@@ -2,6 +2,7 @@ import { ServerType, Target } from '@sasjs/utils'
 import { CertificateError, SasjsRequestClient } from '@sasjs/adapter/node'
 import {
   fetchLoggedInUser,
+  getAuthUrl,
   getTokensWithPasswordGrant,
   SAS_CLI_CLIENT_ID
 } from '../auth'
@@ -30,6 +31,32 @@ const target = new Target({
   serverUrl: 'https://viya.example.com',
   appLoc: '/Public/test',
   contextName: 'test context'
+})
+
+describe('getAuthUrl', () => {
+  it('should address the SASjs Server authorization screen as a path', () => {
+    expect(
+      getAuthUrl(ServerType.Sasjs, 'https://server.example.com', 'my-client')
+    ).toBe(
+      'https://server.example.com/SASjsLogon?client_id=my-client&response_type=code'
+    )
+  })
+
+  it('should build the Viya authorize URL for a SAS Viya server', () => {
+    expect(
+      getAuthUrl(ServerType.SasViya, 'https://viya.example.com', 'my-client')
+    ).toBe(
+      'https://viya.example.com/SASLogon/oauth/authorize?client_id=my-client&response_type=code'
+    )
+  })
+
+  it('should keep the route out of the fragment', () => {
+    // The screen used to live at /#/SASjsLogon. A fragment is not sent to the
+    // server, so the path is what makes a deep link work.
+    expect(
+      getAuthUrl(ServerType.Sasjs, 'https://server.example.com', 'my-client')
+    ).not.toContain('#')
+  })
 })
 
 describe('fetchLoggedInUser', () => {
