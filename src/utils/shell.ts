@@ -38,7 +38,10 @@ export const exec = (
   const result = spawnSync(command, {
     shell: true,
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    // shelljs allowed 20MB of output; spawnSync's 1MB default kills a chatty
+    // command mid-run, and a deploy script can easily be chatty.
+    maxBuffer: 20 * 1024 * 1024
   })
 
   const stdout = result.stdout ?? ''
@@ -47,6 +50,17 @@ export const exec = (
   if (!options.silent) {
     if (stdout) process.stdout.write(stdout)
     if (stderr) process.stderr.write(stderr)
+  }
+
+  // A killed command leaves status null and reports why on `error` - an
+  // exceeded buffer is ENOBUFS. Returning `status ?? 0` for that would report a
+  // command that never finished as a success.
+  if (result.error) {
+    return {
+      stdout,
+      stderr: [stderr, result.error.message].filter(Boolean).join('\n'),
+      code: 1
+    }
   }
 
   return { stdout, stderr, code: result.status ?? 0 }

@@ -167,14 +167,32 @@ async function createApp(
 
   const zipWithoutExtension = zipName.replace('.zip', '')
 
-  await extractZip(zipName, `./`, true)
+  // Everything from here can fail - a download that was not a zip, an unzip
+  // that produced nothing - and this body runs inside an async Promise
+  // executor, where a throw does not reach the caller's reject. Each failure is
+  // routed to errorCallback instead, which is what settles the promise.
+  try {
+    await extractZip(zipName, `./`, true)
 
-  await cp(`${ls(`./*${zipWithoutExtension}`)[0]}/.`, folderPath)
-  rm([`./*${zipWithoutExtension}`], true)
-  rm([`./${zipName}`], true)
+    const extractedFolder = ls(`./*${zipWithoutExtension}`)[0]
 
-  await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
-  rm([path.join(folderPath, '.gitmodules')])
+    if (!extractedFolder) {
+      return errorCallback(
+        `Could not find the unzipped ${zipWithoutExtension} folder.`
+      )
+    }
+
+    await cp(`${extractedFolder}/.`, folderPath)
+    rm([`./*${zipWithoutExtension}`], true)
+    rm([`./${zipName}`], true)
+
+    await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+    rm([path.join(folderPath, '.gitmodules')])
+  } catch (err: any) {
+    spinner.stop()
+
+    return errorCallback(err?.message ?? String(err))
+  }
 
   spinner.stop()
 
@@ -209,7 +227,13 @@ const loadDocsSubmodule = async (
 
   await extractZip('main.zip', './', true)
 
-  await cp(`${ls('./*-main')[0]}/.`, docsFolderPath)
+  const docsFolder = ls('./*-main')[0]
+
+  if (!docsFolder) {
+    throw new Error('Could not find the unzipped docs folder.')
+  }
+
+  await cp(`${docsFolder}/.`, docsFolderPath)
   rm(['./*-main'], true)
   rm(['./main.zip'], true)
 }
