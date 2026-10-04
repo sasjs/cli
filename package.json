@@ -2,7 +2,7 @@
   "name": "@sasjs/cli",
   "description": "Command line interface for SASjs",
   "engines": {
-    "node": ">=14"
+    "node": "^14.18.0 || >=16.10.0"
   },
   "main": "index.js",
   "files": [
@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "nodeVersionMessage": "echo \u001b[33m make sure you are running node lts version \u001b[0m",
-    "checkNodeVersion": "node -e \"console.log('\u001b[36m', 'Checking your Node.js version...'); if (!process.versions || !process.versions.node) { console.log('\u001b[31m', 'Error determining Node.js version. Exiting...') } if (parseInt(process.versions.node) < 14) { console.log('\u001b[31m', '❌ You must be running at least Node.js 14 to install SASjs CLI.\\nYour current version is ' + process.versions.node + '.\\nPlease install a more recent version and try again.'); process.exit(1); } else { console.log('\u001b[32m', '✅ Node.js version check passed. Continuing...'); } console.log('\u001b[0m', '');\"",
+    "checkNodeVersion": "node -e \"console.log('\\u001b[36m', 'Checking your Node.js version...'); const v = process.versions && process.versions.node; const ok = v && (() => { const [m, n] = v.split('.').map(Number); if (m === 14) return n >= 18; if (m === 15) return false; if (m === 16) return n >= 10; return m > 16 })(); if (!ok) { console.log('\\u001b[31m', '\\u274c You must be running Node.js ^14.18.0 || >=16.10.0 to install SASjs CLI.\\nYour current version is ' + v + '.\\nPlease install a more recent version and try again.'); process.exit(1) } else { console.log('\\u001b[32m', '\\u2705 Node.js version check passed. Continuing...') } console.log('\\u001b[0m', '');\"",
     "start:ci": "npm run build && npm run set:permissions",
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
@@ -22,7 +22,6 @@
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
     "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
-    "prepare": "git rev-parse --git-dir && git config core.hooksPath ./.git-hooks || true",
     "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 16 --coverageTestThresholdFail"
   },
   "testServerTypes": "sasjs",
@@ -72,13 +71,12 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.19.1",
-    "@sasjs/core": "5.2.10",
-    "@sasjs/lint": "4.1.1",
-    "@sasjs/utils": "3.6.2",
+    "@sasjs/adapter": "4.19.2",
+    "@sasjs/core": "5.3.0",
+    "@sasjs/lint": "4.1.2",
+    "@sasjs/utils": "3.6.4",
     "chalk": "4.1.2",
     "dotenv": "17.4.2",
-    "find": "0.3.0",
     "js-base64": "3.9.3",
     "jsdom": "26.0.0",
     "jwt-decode": "3.1.2",
@@ -106,6 +104,7 @@
     "@types/lodash.groupby": "4.6.9",
     "@types/lodash.uniqby": "4.7.9",
     "@types/node": "22.10.2",
+    "@types/prompts": "2.4.9",
     "@types/url-parse": "1.4.11",
     "@types/xml": "1.0.11",
     "@types/yauzl": "3.4.0",
