@@ -194,6 +194,8 @@ async function createApp(
     )[0]
 
     if (!extractedFolder) {
+      spinner.stop()
+
       return errorCallback(
         `Could not find the unzipped ${zipWithoutExtension} folder.`
       )
