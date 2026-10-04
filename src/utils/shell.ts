@@ -2,7 +2,7 @@ import { spawnSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
-import { copy, isWindows } from '@sasjs/utils'
+import { copy } from '@sasjs/utils'
 
 /**
  * The shell operations the CLI needs, on Node's own APIs.
@@ -128,10 +128,16 @@ export const ls = (pattern: string): string[] => {
   )
 }
 
-/** The path of an executable on this machine, or null when it is not there. */
+/**
+ * The path of an executable on this machine, or null when it is not there.
+ *
+ * POSIX `which`, because that is the only question asked of it: the one caller
+ * wants to know whether `wget` is available, and it only asks on Linux. Answer
+ * `where` when something needs to ask on Windows - a branch for it now would be
+ * unreachable, since the caller has already ruled Windows out.
+ */
 export const which = (command: string): string | null => {
-  const finder = isWindows() ? 'where' : 'which'
-  const result = spawnSync(finder, [command], { encoding: 'utf8' })
+  const result = spawnSync('which', [command], { encoding: 'utf8' })
 
   if (result.status !== 0) return null
 
