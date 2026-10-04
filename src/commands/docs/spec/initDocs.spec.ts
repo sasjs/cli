@@ -1,7 +1,11 @@
 import path from 'path'
 
-import { createTestApp, removeTestApp } from '../../../utils/test'
-import { folderExists, deleteFolder, generateTimestamp } from '@sasjs/utils'
+import {
+  createTestApp,
+  removeTestApp,
+  generateUniqueTimestamp
+} from '../../../utils/test'
+import { folderExists, deleteFolder } from '@sasjs/utils'
 import { initDocs } from '../initDocs'
 
 describe('sasjs doc', () => {
@@ -14,7 +18,7 @@ describe('sasjs doc', () => {
   it(
     `should create 'doxy' folder in 'sasjs'`,
     async () => {
-      appName = `test-app-doc-${generateTimestamp()}`
+      appName = `test-app-doc-${generateUniqueTimestamp()}`
       const doxypath = path.join(__dirname, appName, 'sasjs', 'doxy')
 
       await createTestApp(__dirname, appName)

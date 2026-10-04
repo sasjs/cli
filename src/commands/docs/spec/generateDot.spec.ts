@@ -1,6 +1,7 @@
 import path from 'path'
 import { graphviz } from 'node-graphviz'
 import {
+  generateUniqueTimestamp,
   createTestApp,
   removeTestApp,
   verifyDotFiles
@@ -8,7 +9,6 @@ import {
 import {
   readFile,
   JobConfig,
-  generateTimestamp,
   Target,
   Configuration,
   deleteFolder
@@ -18,7 +18,7 @@ import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 import { TargetScope } from '../../../types'
 
 describe('sasjs doc lineage', () => {
-  const appName = `test-app-doc-${generateTimestamp()}`
+  const appName = `test-app-doc-${generateUniqueTimestamp()}`
   const docOutputDefault = path.join(__dirname, appName, 'sasjsbuild', 'docs')
   let defaultTarget: Target
   let defaultConfig: Configuration
@@ -52,7 +52,7 @@ describe('sasjs doc lineage', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `my-docs-${generateTimestamp()}`
+      `my-docs-${generateUniqueTimestamp()}`
     )
 
     await expect(
@@ -68,7 +68,7 @@ describe('sasjs doc lineage', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `xyz-${generateTimestamp()}`
+      `xyz-${generateUniqueTimestamp()}`
     )
     const target = new Target({
       ...defaultTarget.toJson(),

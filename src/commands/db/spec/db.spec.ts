@@ -1,10 +1,15 @@
 import path from 'path'
-import { createTestApp, removeTestApp, verifyStep } from '../../../utils/test'
-import { deleteFolder, generateTimestamp } from '@sasjs/utils'
+import {
+  createTestApp,
+  removeTestApp,
+  verifyStep,
+  generateUniqueTimestamp
+} from '../../../utils/test'
+import { deleteFolder } from '@sasjs/utils'
 import { buildDB } from '../db'
 
 describe(`sasjs db`, () => {
-  const timestamp = generateTimestamp()
+  const timestamp = generateUniqueTimestamp()
   const appName = `test-app-DB-${timestamp}`
 
   beforeAll(async () => {

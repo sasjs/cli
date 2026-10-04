@@ -6,11 +6,11 @@ import path from 'path'
 import {
   createFolder,
   deleteFolder,
-  generateTimestamp,
   readFile,
   ServerType,
   Target
 } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../../../../utils/test'
 import { updateStyleTag } from '../updateStyleTag'
 import { setConstants } from '../../../../utils'
 
@@ -20,7 +20,7 @@ describe('updateStyleTag', () => {
   beforeAll(async () => {
     destinationPath = path.join(
       __dirname,
-      `cli-test-web-updateStyleTag-${generateTimestamp()}`
+      `cli-test-web-updateStyleTag-${generateUniqueTimestamp()}`
     )
     await createFolder(destinationPath)
     process.projectDir = destinationPath

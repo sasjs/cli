@@ -1,5 +1,6 @@
 import path from 'path'
 import {
+  generateUniqueTimestamp,
   createTestMinimalApp,
   removeTestApp,
   updateConfig,
@@ -7,7 +8,7 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { createFile, generateTimestamp, StreamConfig } from '@sasjs/utils'
+import { createFile, StreamConfig } from '@sasjs/utils'
 import { createWebAppServices } from '../web'
 import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 
@@ -71,7 +72,7 @@ describe('sasjs web', () => {
   let appName: string
 
   beforeAll(async () => {
-    appName = `cli-test-web-minimal-${generateTimestamp()}`
+    appName = `cli-test-web-minimal-${generateUniqueTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
 
     await updateConfig({

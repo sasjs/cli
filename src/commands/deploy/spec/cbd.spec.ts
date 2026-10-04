@@ -4,13 +4,13 @@ import { encode } from 'js-base64'
 import {
   ServerType,
   Target,
-  generateTimestamp,
   readFile,
   ServiceConfig,
   removeHeader
 } from '@sasjs/utils'
 import * as fileModule from '@sasjs/utils/file'
 import {
+  generateUniqueTimestamp,
   createTestMinimalApp,
   removeTestApp,
   updateConfig
@@ -30,7 +30,7 @@ describe('sasjs cbd with server type SASJS', () => {
   let appName: string
 
   beforeEach(async () => {
-    appName = `cli-tests-cbd-sasjs-server-${generateTimestamp()}`
+    appName = `cli-tests-cbd-sasjs-server-${generateUniqueTimestamp()}`
 
     await createTestMinimalApp(__dirname, appName)
     target = await createLocalTarget(ServerType.Sasjs)

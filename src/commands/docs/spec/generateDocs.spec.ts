@@ -1,6 +1,7 @@
 import path from 'path'
 import * as shell from '../../../utils/shell'
 import {
+  generateUniqueTimestamp,
   createTestApp,
   removeTestApp,
   verifyDocs,
@@ -15,7 +16,6 @@ import {
   readFile,
   createFile,
   DocConfig,
-  generateTimestamp,
   Target,
   ServerType,
   Configuration
@@ -25,7 +25,7 @@ import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 import { TargetScope } from '../../../types'
 
 describe('sasjs doc', () => {
-  const appName = `test-app-doc-${generateTimestamp()}`
+  const appName = `test-app-doc-${generateUniqueTimestamp()}`
   const docOutputDefault = path.join(__dirname, appName, 'sasjsbuild', 'docs')
   const doxyContentPath = path.join(__dirname, appName, 'sasjs', 'doxy')
   let defaultTarget: Target
@@ -133,7 +133,7 @@ describe('sasjs doc', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `my-docs-${generateTimestamp()}`
+      `my-docs-${generateUniqueTimestamp()}`
     )
 
     await expect(
@@ -164,7 +164,7 @@ describe('sasjs doc', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `xyz-${generateTimestamp()}`
+      `xyz-${generateUniqueTimestamp()}`
     )
 
     const config = {
@@ -216,7 +216,7 @@ describe('sasjs doc', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `xyz-${generateTimestamp()}`
+      `xyz-${generateUniqueTimestamp()}`
     )
 
     const target = new Target({
@@ -240,7 +240,7 @@ describe('sasjs doc', () => {
     const docOutputProvided = path.join(
       __dirname,
       appName,
-      `xyz-${generateTimestamp()}`
+      `xyz-${generateUniqueTimestamp()}`
     )
 
     const config = {

@@ -1,7 +1,8 @@
 import path from 'path'
-import { generateTimestamp, ServerType, Target } from '@sasjs/utils'
+import { ServerType, Target } from '@sasjs/utils'
 import { removeFromGlobalConfig } from '../../../utils/config'
 import {
+  generateUniqueTimestamp,
   createTestApp,
   generateTestTarget,
   removeTestApp
@@ -12,7 +13,7 @@ describe('getDeployScripts', () => {
   let target: Target
 
   beforeEach(async () => {
-    const appName = `cli-tests-${generateTimestamp()}`
+    const appName = `cli-tests-${generateUniqueTimestamp()}`
     await createTestApp(__dirname, appName)
     target = generateTestTarget(
       appName,

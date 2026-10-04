@@ -18,14 +18,13 @@ import {
   terminateProcess,
   isSasJsServerInServerMode
 } from '../utils'
-import { mockProcessExit } from '../test'
+import { mockProcessExit, generateUniqueTimestamp } from '../test'
 import axios from 'axios'
 import {
   createFile,
   deleteFile,
   fileExists,
   readFile,
-  generateTimestamp,
   ServerType,
   Target,
   chunk,
@@ -341,7 +340,7 @@ describe('utils', () => {
   })
 
   describe('loadEnvVariables', () => {
-    const fileName = `.env.${generateTimestamp()}`
+    const fileName = `.env.${generateUniqueTimestamp()}`
     const filePath = path.join(process.projectDir, fileName)
     beforeEach(async () => {
       const fileContent = 'TEST=this is test variable'
@@ -400,7 +399,7 @@ describe('utils', () => {
     it('should return true when sasjs/sasjsconfig.json exists under projectDir', async () => {
       const projectDir = path.join(
         __dirname,
-        `is-sasjs-project-${generateTimestamp()}`
+        `is-sasjs-project-${generateUniqueTimestamp()}`
       )
       const originalProjectDir = process.projectDir
 
@@ -417,7 +416,7 @@ describe('utils', () => {
     it('should return false when no sasjsconfig.json is found in any parent folder', async () => {
       const projectDir = path.join(
         require('os').tmpdir(),
-        `not-a-sasjs-project-${generateTimestamp()}`
+        `not-a-sasjs-project-${generateUniqueTimestamp()}`
       )
       const originalProjectDir = process.projectDir
 
@@ -446,10 +445,10 @@ describe('utils', () => {
     })
 
     it('should prefer a module installed under the given fromDir over default resolution', async () => {
-      const fakeModuleName = `sasjs-test-fake-module-${generateTimestamp()}`
+      const fakeModuleName = `sasjs-test-fake-module-${generateUniqueTimestamp()}`
       const fromDir = path.join(
         require('os').tmpdir(),
-        `getNodeModulePath-${generateTimestamp()}`
+        `getNodeModulePath-${generateUniqueTimestamp()}`
       )
       const fakeModuleDir = path.join(fromDir, 'node_modules', fakeModuleName)
 

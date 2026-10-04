@@ -5,7 +5,6 @@ import {
   readFile,
   fileExists,
   deleteFolder,
-  generateTimestamp,
   createFile,
   folderExists
 } from '@sasjs/utils'
@@ -16,6 +15,7 @@ import {
   saveGlobalRcFile
 } from '../../../utils/config'
 import {
+  generateUniqueTimestamp,
   createTestApp,
   createTestJobsApp,
   removeTestApp,
@@ -39,12 +39,12 @@ describe('sasjs compile', () => {
   const homedir = require('os').homedir()
 
   beforeAll(async () => {
-    sharedAppName = `cli-tests-compile-${generateTimestamp()}`
+    sharedAppName = `cli-tests-compile-${generateUniqueTimestamp()}`
     await createTestApp(homedir, sharedAppName)
   })
 
   beforeEach(async () => {
-    appName = `cli-tests-compile-${generateTimestamp()}`
+    appName = `cli-tests-compile-${generateUniqueTimestamp()}`
     await createTestApp(__dirname, appName)
     target = (await findTargetInConfiguration('viya')).target
     jest.spyOn(compileModule, 'copyFilesToBuildFolder')
@@ -220,7 +220,7 @@ describe('sasjs compile single file', () => {
 
   describe('job', () => {
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-${generateUniqueTimestamp()}`
       await createTestJobsApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileFile, 'compileFile')
@@ -261,7 +261,7 @@ describe('sasjs compile single file', () => {
 
   describe('service', () => {
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-${generateUniqueTimestamp()}`
       await createTestApp(__dirname, appName)
       target = (await findTargetInConfiguration('viya')).target
       jest.spyOn(compileFile, 'compileFile')
@@ -334,12 +334,12 @@ describe('sasjs compile outside project', () => {
 
   describe('with global config', () => {
     beforeAll(async () => {
-      sharedAppName = `cli-tests-compile-${generateTimestamp()}`
+      sharedAppName = `cli-tests-compile-${generateUniqueTimestamp()}`
       await createTestApp(homedir, sharedAppName)
     })
 
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-${generateUniqueTimestamp()}`
       await updateConfig(
         {
           macroFolders: [
@@ -620,7 +620,7 @@ describe('sasjs compile outside project', () => {
 
   describe('without global config', () => {
     beforeEach(async () => {
-      appName = `cli-tests-compile-${generateTimestamp()}`
+      appName = `cli-tests-compile-${generateUniqueTimestamp()}`
 
       await saveGlobalRcFile('')
       await setConstants(false)

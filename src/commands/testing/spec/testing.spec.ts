@@ -13,7 +13,11 @@ import {
   readFile,
   generateTimestamp
 } from '@sasjs/utils'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  generateUniqueTimestamp
+} from '../../../utils/test'
 import { contextName } from '../../../utils/setConstants'
 import dotenv from 'dotenv'
 import { build } from '../..'
@@ -853,7 +857,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
 function generateTarget(serverType = ServerType.SasViya): Target {
   dotenv.config()
 
-  const timestamp = generateTimestamp()
+  const timestamp = generateUniqueTimestamp()
   const targetName = `cli-tests-test-command-${serverType}-${timestamp}`
 
   return new Target({

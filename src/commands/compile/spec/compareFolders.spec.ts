@@ -5,6 +5,7 @@ import {
   deleteFolder,
   generateTimestamp
 } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../../../utils/test'
 import { compareFolders } from '../internal'
 
 describe('compareFolders', () => {
@@ -12,7 +13,7 @@ describe('compareFolders', () => {
   let destinationFolderPath: string
 
   beforeEach(async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     sourceFolderPath = path.join(__dirname, `cli-tests-source-${timestamp}`)
     destinationFolderPath = path.join(
       __dirname,

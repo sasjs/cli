@@ -1,7 +1,12 @@
 import { Folder } from '../../../types'
 import { findTargetInConfiguration } from '../../../utils/config'
-import { createTestApp, removeTestApp, verifyFolder } from '../../../utils/test'
-import { asyncForEach, generateTimestamp } from '@sasjs/utils'
+import {
+  createTestApp,
+  removeTestApp,
+  verifyFolder,
+  generateUniqueTimestamp
+} from '../../../utils/test'
+import { asyncForEach } from '@sasjs/utils'
 import * as getAllFoldersModule from '../internal/getAllFolders'
 import * as compileModule from '../compile'
 
@@ -9,7 +14,7 @@ describe('copyFilesToBuildFolder', () => {
   let appName: string
 
   beforeEach(async () => {
-    appName = `cli-tests-copyFilesToBuildFolder-${generateTimestamp()}`
+    appName = `cli-tests-copyFilesToBuildFolder-${generateUniqueTimestamp()}`
     await createTestApp(__dirname, appName)
   })
 
