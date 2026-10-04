@@ -1,5 +1,7 @@
 import { cp, exec, ls, rm, ShellResult, which } from './shell'
 import { PowerShell } from 'node-powershell'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import ora from 'ora'
 import axios from 'axios'
@@ -92,13 +94,17 @@ export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     // This is only a repo-existence probe - its content is never read, only
     // stderr/code are checked - so the downloaded file is discarded immediately.
-    const probeFile = 'response.txt'
+    // It goes in its own directory rather than the working directory, which two
+    // runs in one process share.
+    const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-probe-'))
+    const probeFile = path.join(probeDir, 'response.txt')
     const { stderr, code } = downloadFile(
       `https://username:password@github.com/sasjs/template_${template}`,
       probeFile
     )
 
     await deleteFile(probeFile).catch(() => {})
+    rm([probeDir], true)
 
     if (stderr.includes('404: Not Found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
@@ -140,10 +146,16 @@ async function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
+  // Each run unpacks into its own directory. The download and the extraction
+  // used to happen in the process working directory, which two runs in one
+  // process share - two specs creating an app at once would overwrite each
+  // other's archive mid-extract and the loser reported an invalid zip.
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-create-'))
+
   //Get repo zip, assuming main branch is called `main`
-  const { stdout, stderr, code } = downloadFile(
+  const { stderr, code } = downloadFile(
     `${repoUrl}${fullZipPath}`,
-    zipName
+    path.join(workspace, zipName)
   )
 
   // If doesn't exist, we try again, but with master.zip for the zip name.
@@ -151,12 +163,15 @@ async function createApp(
   if (stderr.includes('404: Not Found') || code) {
     zipName = 'master.zip'
 
-    const { stdout, stderr, code } = downloadFile(
+    const { stderr, code } = downloadFile(
       `${repoUrl}${zipPath}${zipName}`,
-      zipName
+      path.join(workspace, zipName)
     )
 
     if (stderr.includes('404: Not Found') || code) {
+      spinner.stop()
+      rm([workspace], true)
+
       errorCallback(
         `Could not download ${repoUrl}${zipPath}main.zip or master.zip - is ${repoUrl} a SASjs repository?`
       )
@@ -172,9 +187,11 @@ async function createApp(
   // executor, where a throw does not reach the caller's reject. Each failure is
   // routed to errorCallback instead, which is what settles the promise.
   try {
-    await extractZip(zipName, `./`, true)
+    await extractZip(path.join(workspace, zipName), workspace, true)
 
-    const extractedFolder = ls(`./*${zipWithoutExtension}`)[0]
+    const extractedFolder = ls(
+      path.join(workspace, `*${zipWithoutExtension}`)
+    )[0]
 
     if (!extractedFolder) {
       return errorCallback(
@@ -183,15 +200,15 @@ async function createApp(
     }
 
     await cp(`${extractedFolder}/.`, folderPath)
-    rm([`./*${zipWithoutExtension}`], true)
-    rm([`./${zipName}`], true)
 
-    await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
+    await loadDocsSubmodule(docsUrl, folderPath, workspace, fullZipPath)
     rm([path.join(folderPath, '.gitmodules')])
   } catch (err: any) {
     spinner.stop()
 
     return errorCallback(err?.message ?? String(err))
+  } finally {
+    rm([workspace], true)
   }
 
   spinner.stop()
@@ -212,30 +229,36 @@ async function createApp(
  * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
  * @param docsUrl sasjs/docs repo url
  * @param folderPath full path to the newly created folder that contains the seed app
+ * @param workspace directory this run unpacks into
  * @param zipPath fixed path of where github puts zip for repo download
  */
 const loadDocsSubmodule = async (
   docsUrl: string,
   folderPath: string,
+  workspace: string,
   zipPath: string
 ) => {
   let docsFolderPath = `${folderPath}/public/docs` // We first look if docs submodule is inside `public` folder. (react-seed-app for example)
 
   if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` // If not, we load submodule in root
 
-  downloadFile(`${docsUrl}${zipPath}`, 'main.zip')
+  // The docs unpack into their own directory. The seed app's folder is still in
+  // the workspace and its name ends in `-main` too, so one shared directory
+  // would make the match below ambiguous.
+  const docsWorkspace = path.join(workspace, 'docs')
+  fs.mkdirSync(docsWorkspace, { recursive: true })
 
-  await extractZip('main.zip', './', true)
+  downloadFile(`${docsUrl}${zipPath}`, path.join(docsWorkspace, 'main.zip'))
 
-  const docsFolder = ls('./*-main')[0]
+  await extractZip(path.join(docsWorkspace, 'main.zip'), docsWorkspace, true)
+
+  const docsFolder = ls(path.join(docsWorkspace, '*-main'))[0]
 
   if (!docsFolder) {
     throw new Error('Could not find the unzipped docs folder.')
   }
 
   await cp(`${docsFolder}/.`, docsFolderPath)
-  rm(['./*-main'], true)
-  rm(['./main.zip'], true)
 }
 
 export function downloadFile(url: string, filename?: string): ShellResult {
