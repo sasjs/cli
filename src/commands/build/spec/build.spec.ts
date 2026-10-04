@@ -1,8 +1,11 @@
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  generateUniqueTimestamp
+} from '../../../utils/test'
 import {
   Logger,
   LogLevel,
-  generateTimestamp,
   readFile,
   createFile,
   ServerType
@@ -26,7 +29,7 @@ describe('sasjs build', () => {
   it(
     `should build with minimal template`,
     async () => {
-      appName = `test-app-build-minimal-${generateTimestamp()}`
+      appName = `test-app-build-minimal-${generateUniqueTimestamp()}`
       await createTestApp(__dirname, appName)
       const target = (await findTargetInConfiguration('viya')).target
 
@@ -38,7 +41,7 @@ describe('sasjs build', () => {
   it(
     `should compile and build(skipping compile)`,
     async () => {
-      appName = `test-app-build-${generateTimestamp()}`
+      appName = `test-app-build-${generateUniqueTimestamp()}`
 
       await createTestApp(__dirname, appName)
       const target = (await findTargetInConfiguration('viya')).target
@@ -61,7 +64,7 @@ describe('sasjs build', () => {
       afterComment
     ].join('\n')
 
-    appName = `test-app-build-${generateTimestamp()}`
+    appName = `test-app-build-${generateUniqueTimestamp()}`
 
     await createTestApp(__dirname, appName)
 

@@ -1,4 +1,4 @@
-import { ServerType, Target, TargetJson, generateTimestamp } from '@sasjs/utils'
+import { ServerType, Target, TargetJson } from '@sasjs/utils'
 import dotenv from 'dotenv'
 import path from 'path'
 import * as inputModule from '../internal/input'
@@ -12,16 +12,17 @@ import {
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
 import {
+  generateUniqueTimestamp,
   createTestMinimalApp,
   removeTestApp,
   createTestGlobalTarget
 } from '../../../utils/test'
 
 describe('addTarget', () => {
-  const appName = `cli-tests-add-${generateTimestamp()}`
-  const viyaTargetName = `test-viya-${generateTimestamp()}`
-  const sas9TargetName = `test-sas9-${generateTimestamp()}`
-  const sasjsTargetName = `test-server-${generateTimestamp()}`
+  const appName = `cli-tests-add-${generateUniqueTimestamp()}`
+  const viyaTargetName = `test-viya-${generateUniqueTimestamp()}`
+  const sas9TargetName = `test-sas9-${generateUniqueTimestamp()}`
+  const sasjsTargetName = `test-server-${generateUniqueTimestamp()}`
   const serverUrl = process.env.VIYA_SERVER_URL || ''
   let globalTestTarget: Target
 
@@ -37,7 +38,7 @@ describe('addTarget', () => {
 
   beforeEach(async () => {
     globalTestTarget = await createTestGlobalTarget(
-      `test-target-global-${generateTimestamp()}`,
+      `test-target-global-${generateUniqueTimestamp()}`,
       `/Public/app/cli-tests/${appName}`
     )
   })

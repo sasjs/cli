@@ -1,11 +1,12 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import {
+  generateUniqueTimestamp,
   verifyFolder,
   verifyPackageJsonContent,
   verifyGitNotPresent
 } from '../../../utils/test'
-import { createFolder, deleteFolder, generateTimestamp } from '@sasjs/utils'
+import { createFolder, deleteFolder } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
 import { minimalAppFiles } from './minimalAppFiles'
 import { reactAppFiles } from './reactAppFiles'
@@ -13,7 +14,7 @@ import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
-import shelljs from 'shelljs'
+import * as shell from '../../../utils/shell'
 import { ChildProcess } from 'child_process'
 
 describe('sasjs create', () => {
@@ -22,16 +23,17 @@ describe('sasjs create', () => {
   })
 
   beforeEach(() => {
-    const exec = shelljs.exec
+    const exec = shell.exec
 
-    jest.spyOn(shelljs, 'exec').mockImplementation((command: string) => {
+    jest.spyOn(shell, 'exec').mockImplementation((command: string) => {
       if (!command.includes('npm install')) {
         return exec(command, {
           silent: true
-        }) as unknown as ChildProcess
+        })
       }
 
-      return undefined as unknown as ChildProcess
+      // The real install is skipped; the caller ignores the result.
+      return { stdout: '', stderr: '', code: 0 }
     })
   })
 
@@ -43,7 +45,7 @@ describe('sasjs create', () => {
   })
 
   it('should set up a default app in the current folder', async () => {
-    const appName = `test-app-create-.-${generateTimestamp()}`
+    const appName = `test-app-create-.-${generateUniqueTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
     await setConstants()
@@ -56,7 +58,7 @@ describe('sasjs create', () => {
   })
 
   it(`should set up a 'sasonly' app in the current folder`, async () => {
-    const appName = `test-app-create-.-${generateTimestamp()}-sasonly`
+    const appName = `test-app-create-.-${generateUniqueTimestamp()}-sasonly`
 
     process.projectDir = path.join(__dirname, appName)
     await setConstants()
@@ -69,7 +71,7 @@ describe('sasjs create', () => {
   })
 
   it(`should set up a react app in the current folder`, async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     const appName = `test-app-create-.-${timestamp}-react`
 
     process.projectDir = path.join(__dirname, appName)
@@ -84,7 +86,7 @@ describe('sasjs create', () => {
   })
 
   it(`should set up a react app in a given folder`, async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     const appName = `test-app-create-.-${timestamp}-react`
 
     process.projectDir = path.join(__dirname, appName)
@@ -99,7 +101,7 @@ describe('sasjs create', () => {
   })
 
   it(`should set up a minimal app in a given folder`, async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     const appName = `test-app-create-${timestamp}-minimal`
 
     process.projectDir = path.join(__dirname, appName)
@@ -113,7 +115,7 @@ describe('sasjs create', () => {
   })
 
   it(`should set up an angular app in a given folder`, async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     const appName = `test-app-create-${timestamp}-angular`
 
     process.projectDir = path.join(__dirname, appName)
@@ -128,7 +130,7 @@ describe('sasjs create', () => {
   })
 
   it(`should fail with an unknown app type 'xyz'`, async () => {
-    const timestamp = generateTimestamp()
+    const timestamp = generateUniqueTimestamp()
     const appName = `test-app-create-${timestamp}-xyz`
 
     process.projectDir = path.join(__dirname, appName)

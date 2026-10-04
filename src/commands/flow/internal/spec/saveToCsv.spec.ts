@@ -1,5 +1,6 @@
 import path from 'path'
-import { deleteFile, generateTimestamp, readFile } from '@sasjs/utils'
+import { deleteFile, readFile } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../../../../utils/test'
 import { saveToCsv } from '..'
 import csvColumns from '../csvColumns'
 
@@ -11,7 +12,10 @@ describe('saveToCsv', () => {
   })
 
   it('should write to csv', async () => {
-    csvFilePath = path.join(__dirname, `cli-tests-csv-${generateTimestamp()}`)
+    csvFilePath = path.join(
+      __dirname,
+      `cli-tests-csv-${generateUniqueTimestamp()}`
+    )
 
     await saveToCsv(
       csvFilePath,
@@ -37,7 +41,10 @@ describe('saveToCsv', () => {
   })
 
   it('should write to csv - asynchronous at same time', async () => {
-    csvFilePath = path.join(__dirname, `cli-tests-csv-${generateTimestamp()}`)
+    csvFilePath = path.join(
+      __dirname,
+      `cli-tests-csv-${generateUniqueTimestamp()}`
+    )
 
     await Promise.all(
       [1, 2, 3].map(async (_, i) => {
@@ -71,7 +78,10 @@ describe('saveToCsv', () => {
   })
 
   it('should write to csv - asynchronous at random times', async () => {
-    csvFilePath = path.join(__dirname, `cli-tests-csv-${generateTimestamp()}`)
+    csvFilePath = path.join(
+      __dirname,
+      `cli-tests-csv-${generateUniqueTimestamp()}`
+    )
 
     await Promise.all(
       [1, 2, 3].map(async (_, i) => {

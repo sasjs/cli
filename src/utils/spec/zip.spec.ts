@@ -2,13 +2,9 @@ import fs from 'fs'
 import path from 'path'
 import yazl from 'yazl'
 import { isWindows } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../test'
 import { extractZip } from '../zip'
-import {
-  createFile,
-  deleteFolder,
-  readFile,
-  generateTimestamp
-} from '@sasjs/utils'
+import { createFile, deleteFolder, readFile } from '@sasjs/utils'
 
 const makeZip = (
   entries: { name: string; content: string; mode?: number }[],
@@ -51,7 +47,7 @@ const setEntryPlatform = (zipPath: string, platform: number) => {
 }
 
 describe('zip', () => {
-  const tmpRoot = path.join(__dirname, `zip-spec-${generateTimestamp()}`)
+  const tmpRoot = path.join(__dirname, `zip-spec-${generateUniqueTimestamp()}`)
   const destDir = path.join(tmpRoot, 'dest')
 
   beforeAll(async () => {

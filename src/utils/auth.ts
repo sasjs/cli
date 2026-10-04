@@ -4,13 +4,19 @@ import SASjs, {
   SasjsRequestClient
 } from '@sasjs/adapter/node'
 
+/**
+ * The URL a user visits to obtain an authorization code.
+ *
+ * SASjs Server serves its authorization code screen at /SASjsLogon - a real
+ * path on its single-page app. SAS Viya answers at its own /SASLogon endpoint.
+ */
 export const getAuthUrl = (
   serverType: ServerType,
   serverUrl: string,
   clientId: string
 ) =>
   serverType === ServerType.Sasjs
-    ? `${serverUrl}/#/SASjsLogon?client_id=${clientId}&response_type=code`
+    ? `${serverUrl}/SASjsLogon?client_id=${clientId}&response_type=code`
     : `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
 
 export async function getAuthCode(authUrl: string) {

@@ -5,6 +5,7 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
+  generateTimestamp,
   readFile,
   asyncForEach,
   listFilesAndSubFoldersInFolder,
@@ -37,6 +38,20 @@ import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
+
+/**
+ * A name for a test app or output folder that two specs cannot collide on.
+ *
+ * `generateTimestamp()` is second-resolution - year, month, day, hour, minute,
+ * second, and nothing finer - so two specs in one directory starting within the
+ * same second build the same folder name and clobber each other, which is what
+ * the docs specs do whenever jest runs them in parallel. The milliseconds and a
+ * short random suffix make that impossible while keeping the name readable.
+ */
+export const generateUniqueTimestamp = () =>
+  `${generateTimestamp()}-${Date.now() % 1000}-${Math.random()
+    .toString(36)
+    .slice(2, 7)}`
 
 export const createTestApp = async (parentFolder: string, appName: string) => {
   process.projectDir = parentFolder

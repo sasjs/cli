@@ -25,11 +25,11 @@ import {
   SasAuthResponse,
   Configuration,
   Target,
-  generateTimestamp,
   ServerType
 } from '@sasjs/utils'
 import { readFile } from '@sasjs/utils/file'
 import {
+  generateUniqueTimestamp,
   createTestMinimalApp,
   generateTestTarget,
   removeTestApp
@@ -338,7 +338,7 @@ describe('getAuthConfig - opaque refresh tokens', () => {
   const setupLocalProjectWithTarget = async (target: Target) => {
     projectDir = path.join(
       process.env.TEMP || process.env.TMP || '/tmp',
-      `sasjs-cli-test-${generateTimestamp()}`
+      `sasjs-cli-test-${generateUniqueTimestamp()}`
     )
     process.projectDir = projectDir
     await setConstants()
@@ -571,7 +571,7 @@ describe('saveToGlobalConfig', () => {
   })
 
   it('should set the target as default when isDefault is true', async () => {
-    const appName = 'cli-tests-config-' + generateTimestamp()
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -587,7 +587,7 @@ describe('saveToGlobalConfig', () => {
   })
 
   it('should not set the target as default when isDefault is false', async () => {
-    const appName = 'cli-tests-config-' + generateTimestamp()
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -610,7 +610,7 @@ describe('removeFromGlobalConfig', () => {
   })
 
   it('should reset the default target when that target is removed', async () => {
-    const appName = 'cli-tests-config-' + generateTimestamp()
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -629,8 +629,8 @@ describe('removeFromGlobalConfig', () => {
   })
 
   it('should not change the default target when another target is removed', async () => {
-    const appName1 = 'cli-tests-config-1-' + generateTimestamp()
-    const appName2 = 'cli-tests-config-2-' + generateTimestamp()
+    const appName1 = 'cli-tests-config-1-' + generateUniqueTimestamp()
+    const appName2 = 'cli-tests-config-2-' + generateUniqueTimestamp()
     const target1 = generateTestTarget(
       appName1,
       `/Public/app/cli-tests/${appName1}`
@@ -662,7 +662,7 @@ describe('saveToLocalConfig', () => {
   let appName: string
 
   beforeEach(async () => {
-    appName = `cli-tests-config-${generateTimestamp()}`
+    appName = `cli-tests-config-${generateUniqueTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
   })
 
@@ -671,7 +671,7 @@ describe('saveToLocalConfig', () => {
   })
 
   it('should set the target as default when isDefault is true', async () => {
-    const appName = 'cli-tests-cb-' + generateTimestamp()
+    const appName = 'cli-tests-cb-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -687,7 +687,7 @@ describe('saveToLocalConfig', () => {
   })
 
   it('should not set the target as default when isDefault is false', async () => {
-    const appName = 'cli-tests-cb-' + generateTimestamp()
+    const appName = 'cli-tests-cb-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -707,7 +707,7 @@ describe('removeFromLocalConfig', () => {
   let appName: string
 
   beforeEach(async () => {
-    appName = `cli-tests-config-${generateTimestamp()}`
+    appName = `cli-tests-config-${generateUniqueTimestamp()}`
     await createTestMinimalApp(__dirname, appName)
   })
 
@@ -716,7 +716,7 @@ describe('removeFromLocalConfig', () => {
   })
 
   it('should reset the default target when that target is removed', async () => {
-    const appName = 'cli-tests-config-' + generateTimestamp()
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
       `/Public/app/cli-tests/${appName}`
@@ -735,8 +735,8 @@ describe('removeFromLocalConfig', () => {
   })
 
   it('should not change the default target when another target is removed', async () => {
-    const appName1 = 'cli-tests-config-1-' + generateTimestamp()
-    const appName2 = 'cli-tests-config-2-' + generateTimestamp()
+    const appName1 = 'cli-tests-config-1-' + generateUniqueTimestamp()
+    const appName2 = 'cli-tests-config-2-' + generateUniqueTimestamp()
     const target1 = generateTestTarget(
       appName1,
       `/Public/app/cli-tests/${appName1}`

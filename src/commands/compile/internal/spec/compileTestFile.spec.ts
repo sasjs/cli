@@ -12,13 +12,13 @@ import {
   copy,
   readFile,
   fileExists,
-  generateTimestamp,
   deleteFolder,
   createFolder,
   ServerType,
   isTestFile
 } from '@sasjs/utils'
 import {
+  generateUniqueTimestamp,
   removeTestApp,
   createTestMinimalApp,
   generateTestTarget
@@ -84,7 +84,7 @@ describe('getTestFileDestinationFragment', () => {
 })
 
 describe('compileTestFile', () => {
-  const appName: string = `cli-tests-compile-test-file-${generateTimestamp()}`
+  const appName: string = `cli-tests-compile-test-file-${generateUniqueTimestamp()}`
 
   const temp: Target = generateTestTarget(
     appName,

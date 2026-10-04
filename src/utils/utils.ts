@@ -1,5 +1,7 @@
-import shelljs, { ShellString } from 'shelljs'
+import { cp, exec, ls, rm, ShellResult, which } from './shell'
 import { PowerShell } from 'node-powershell'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import ora from 'ora'
 import axios from 'axios'
@@ -92,13 +94,17 @@ export async function createTemplateApp(folderPath: string, template: string) {
   return new Promise<void>(async (resolve, reject) => {
     // This is only a repo-existence probe - its content is never read, only
     // stderr/code are checked - so the downloaded file is discarded immediately.
-    const probeFile = 'response.txt'
+    // It goes in its own directory rather than the working directory, which two
+    // runs in one process share.
+    const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-probe-'))
+    const probeFile = path.join(probeDir, 'response.txt')
     const { stderr, code } = downloadFile(
       `https://username:password@github.com/sasjs/template_${template}`,
       probeFile
     )
 
     await deleteFile(probeFile).catch(() => {})
+    rm([probeDir], true)
 
     if (stderr.includes('404: Not Found') || code) {
       return reject(new Error(`Template "${template}" is not a SASjs template`))
@@ -140,10 +146,16 @@ async function createApp(
   const spinner = ora(`Creating SASjs project in ${folderPath}.`)
   spinner.start()
 
+  // Each run unpacks into its own directory. The download and the extraction
+  // used to happen in the process working directory, which two runs in one
+  // process share - two specs creating an app at once would overwrite each
+  // other's archive mid-extract and the loser reported an invalid zip.
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-create-'))
+
   //Get repo zip, assuming main branch is called `main`
-  const { stdout, stderr, code } = downloadFile(
+  const { stderr, code } = downloadFile(
     `${repoUrl}${fullZipPath}`,
-    zipName
+    path.join(workspace, zipName)
   )
 
   // If doesn't exist, we try again, but with master.zip for the zip name.
@@ -151,12 +163,15 @@ async function createApp(
   if (stderr.includes('404: Not Found') || code) {
     zipName = 'master.zip'
 
-    const { stdout, stderr, code } = downloadFile(
+    const { stderr, code } = downloadFile(
       `${repoUrl}${zipPath}${zipName}`,
-      zipName
+      path.join(workspace, zipName)
     )
 
     if (stderr.includes('404: Not Found') || code) {
+      spinner.stop()
+      rm([workspace], true)
+
       errorCallback(
         `Could not download ${repoUrl}${zipPath}main.zip or master.zip - is ${repoUrl} a SASjs repository?`
       )
@@ -167,18 +182,36 @@ async function createApp(
 
   const zipWithoutExtension = zipName.replace('.zip', '')
 
-  await extractZip(zipName, `./`, true)
+  // Everything from here can fail - a download that was not a zip, an unzip
+  // that produced nothing - and this body runs inside an async Promise
+  // executor, where a throw does not reach the caller's reject. Each failure is
+  // routed to errorCallback instead, which is what settles the promise.
+  try {
+    await extractZip(path.join(workspace, zipName), workspace, true)
 
-  shelljs.cp(
-    '-r',
-    `${shelljs.ls('-d', `./*${zipWithoutExtension}`)[0]}/.`,
-    folderPath
-  )
-  shelljs.rm('-rf', [`./*${zipWithoutExtension}`])
-  shelljs.rm('-rf', [`./${zipName}`])
+    const extractedFolder = ls(
+      path.join(workspace, `*${zipWithoutExtension}`)
+    )[0]
 
-  await loadDocsSubmodule(docsUrl, folderPath, fullZipPath)
-  shelljs.rm('-f', [path.join(folderPath, '.gitmodules')])
+    if (!extractedFolder) {
+      spinner.stop()
+
+      return errorCallback(
+        `Could not find the unzipped ${zipWithoutExtension} folder.`
+      )
+    }
+
+    await cp(`${extractedFolder}/.`, folderPath)
+
+    await loadDocsSubmodule(docsUrl, folderPath, workspace, fullZipPath)
+    rm([path.join(folderPath, '.gitmodules')])
+  } catch (err: any) {
+    spinner.stop()
+
+    return errorCallback(err?.message ?? String(err))
+  } finally {
+    rm([workspace], true)
+  }
 
   spinner.stop()
 
@@ -186,7 +219,7 @@ async function createApp(
     spinner.text = 'Installing dependencies...'
     spinner.start()
 
-    shelljs.exec(`cd "${folderPath}" && npm install`, {
+    exec(`cd "${folderPath}" && npm install`, {
       silent: true
     })
 
@@ -198,38 +231,50 @@ async function createApp(
  * It will download and unzip `sasjs/docs` into newly created folder into `docs` subfolder
  * @param docsUrl sasjs/docs repo url
  * @param folderPath full path to the newly created folder that contains the seed app
+ * @param workspace directory this run unpacks into
  * @param zipPath fixed path of where github puts zip for repo download
  */
 const loadDocsSubmodule = async (
   docsUrl: string,
   folderPath: string,
+  workspace: string,
   zipPath: string
 ) => {
   let docsFolderPath = `${folderPath}/public/docs` // We first look if docs submodule is inside `public` folder. (react-seed-app for example)
 
   if (!(await fileExists(docsFolderPath))) docsFolderPath = `${folderPath}/docs` // If not, we load submodule in root
 
-  downloadFile(`${docsUrl}${zipPath}`, 'main.zip')
+  // The docs unpack into their own directory. The seed app's folder is still in
+  // the workspace and its name ends in `-main` too, so one shared directory
+  // would make the match below ambiguous.
+  const docsWorkspace = path.join(workspace, 'docs')
+  fs.mkdirSync(docsWorkspace, { recursive: true })
 
-  await extractZip('main.zip', './', true)
+  downloadFile(`${docsUrl}${zipPath}`, path.join(docsWorkspace, 'main.zip'))
 
-  shelljs.cp('-r', `${shelljs.ls('-d', `./*-main`)[0]}/.`, docsFolderPath)
-  shelljs.rm('-rf', [`./*-main`])
-  shelljs.rm('-rf', [`./main.zip`])
+  await extractZip(path.join(docsWorkspace, 'main.zip'), docsWorkspace, true)
+
+  const docsFolder = ls(path.join(docsWorkspace, '*-main'))[0]
+
+  if (!docsFolder) {
+    throw new Error('Could not find the unzipped docs folder.')
+  }
+
+  await cp(`${docsFolder}/.`, docsFolderPath)
 }
 
-export function downloadFile(url: string, filename?: string): ShellString {
-  if (isLinux() && shelljs.which('wget')) {
+export function downloadFile(url: string, filename?: string): ShellResult {
+  if (isLinux() && which('wget')) {
     // -O <filename> writes to the given name; without it, wget defaults to the
     // remote URL's basename, which silently ignores the caller's `filename` and
     // can leave an unexpectedly-named file behind (e.g. a repo-existence probe
     // meant to be discarded as `response.txt` instead landing as the repo name).
-    return shelljs.exec(`wget ${url}${filename ? ' -O ' + filename : ''}`, {
+    return exec(`wget ${url}${filename ? ' -O ' + filename : ''}`, {
       silent: true
     })
   } else if (isWindows()) {
     // First We set TLS12 & then we invoke request to download file.
-    return shelljs.exec(
+    return exec(
       `powershell.exe "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest ${url} ${
         filename ? '-O ' + filename : ''
       }"`,
@@ -239,10 +284,9 @@ export function downloadFile(url: string, filename?: string): ShellString {
     // curl, on macOS and on Linux hosts without wget. -o <filename> writes to
     // the given name; -O instead saves under the remote URL's basename, ignoring
     // `filename` - see the wget note above for the same issue.
-    return shelljs.exec(
-      `curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`,
-      { silent: true }
-    )
+    return exec(`curl ${url} -L -f${filename ? ' -o ' + filename : ' -O'}`, {
+      silent: true
+    })
   }
 }
 
@@ -252,14 +296,14 @@ export async function setupNpmProject(folderName: string): Promise<void> {
     const isExistingProject = await inExistingProject(folderName)
     if (!isExistingProject) {
       process.logger?.info(`Initialising NPM project in ${folderPath}`)
-      shelljs.exec(`cd "${folderPath}" && npm init --yes`, {
+      exec(`cd "${folderPath}" && npm init --yes`, {
         silent: true
       })
     } else {
       process.logger?.success('Existing NPM project detected.')
     }
     process.logger?.info('Installing @sasjs/core')
-    shelljs.exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
+    exec(`cd "${folderPath}" && npm i @sasjs/core --save`, {
       silent: true
     })
     return resolve()
@@ -346,7 +390,7 @@ export async function executeShellScript(
 ) {
   return new Promise(async (resolve, reject) => {
     const shellCommand = isWindows() ? `${filePath}` : `bash ${filePath}`
-    const result = shelljs.exec(shellCommand, { silent: true })
+    const result = exec(shellCommand, { silent: true })
 
     if (result.code) {
       process.logger?.error(`Error: ${result.stderr}`)

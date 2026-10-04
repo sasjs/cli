@@ -1,12 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
-import { verifyFolder } from '../../../utils/test'
-import {
-  createFolder,
-  deleteFolder,
-  readFile,
-  generateTimestamp
-} from '@sasjs/utils'
+import { verifyFolder, generateUniqueTimestamp } from '../../../utils/test'
+import { createFolder, deleteFolder, readFile } from '@sasjs/utils'
 import { initFiles } from './initFiles'
 import { create } from '../../create/create'
 import { init } from '../init'
@@ -25,7 +20,7 @@ describe('sasjs init', () => {
   })
 
   it('should initialise with default app in the current folder', async () => {
-    const appName = `test-app-init-${generateTimestamp()}`
+    const appName = `test-app-init-${generateUniqueTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
     await setConstants()
@@ -40,7 +35,7 @@ describe('sasjs init', () => {
   })
 
   it(`should initialise with 'sasonly' app in the current folder`, async () => {
-    const appName = `test-app-init-sasonly-${generateTimestamp()}`
+    const appName = `test-app-init-sasonly-${generateUniqueTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
     await setConstants()
@@ -54,7 +49,7 @@ describe('sasjs init', () => {
     await verifyInit()
   })
   it('should initialise in an empty current folder', async () => {
-    const appName = `test-app-init-.-${generateTimestamp()}`
+    const appName = `test-app-init-.-${generateUniqueTimestamp()}`
 
     process.projectDir = path.join(__dirname, appName)
     await setConstants()

@@ -1,7 +1,6 @@
 import path from 'path'
 import {
   Target,
-  generateTimestamp,
   JobConfig,
   ServiceConfig,
   ServerType,
@@ -13,6 +12,7 @@ import {
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
+  generateUniqueTimestamp,
   generateTestTarget,
   createTestMinimalApp,
   removeTestApp,
@@ -171,7 +171,7 @@ const compiledVars = (
 * ${capitalizeFirstChar(type)} Variables end;`
 
 describe('loadDependencies', () => {
-  const appName = `cli-tests-load-dependencies-${generateTimestamp()}`
+  const appName = `cli-tests-load-dependencies-${generateUniqueTimestamp()}`
   const temp: Target = generateTestTarget(
     appName,
     '/Public/app',

@@ -1,14 +1,11 @@
 import path from 'path'
-import {
-  FileTree,
-  generateTimestamp,
-  Logger,
-  MemberType,
-  ServerType,
-  Target
-} from '@sasjs/utils'
+import { FileTree, Logger, MemberType, ServerType, Target } from '@sasjs/utils'
 import { deploy } from '../deploy'
-import { createTestApp, removeTestApp } from '../../../utils/test'
+import {
+  createTestApp,
+  removeTestApp,
+  generateUniqueTimestamp
+} from '../../../utils/test'
 import * as deployToSasViyaWithServicePackModule from '../../shared/deployToSasViyaWithServicePack'
 import * as deployToSASJSWithServicePackModule from '../internal/deployToSASJSWithServicePack'
 import * as executeSasScriptModule from '../internal/executeSasScript'
@@ -23,7 +20,7 @@ const commonTargetFields = {
 describe('deploy', () => {
   let appName = ''
   beforeEach(async () => {
-    appName = `cli-tests-${generateTimestamp()}`
+    appName = `cli-tests-${generateUniqueTimestamp()}`
     await createTestApp(__dirname, appName)
     process.logger = new Logger()
     jest.spyOn(process.logger, 'success')

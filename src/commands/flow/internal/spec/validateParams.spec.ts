@@ -6,9 +6,9 @@ import {
   deleteFolder,
   fileExists,
   folderExists,
-  generateTimestamp,
   Target
 } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../../../../utils/test'
 import { validateParams } from '..'
 import * as configUtils from '../../../../utils/config'
 import examples from '../examples'
@@ -16,7 +16,7 @@ import examples from '../examples'
 describe('validateParams', () => {
   let appFolder = path.join(
     __dirname,
-    `cli-tests-validateParams-${generateTimestamp()}`
+    `cli-tests-validateParams-${generateUniqueTimestamp()}`
   )
   beforeAll(async () => {
     await createFolder(appFolder)

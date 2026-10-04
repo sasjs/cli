@@ -4,13 +4,13 @@ import {
   readFile,
   fileExists,
   deleteFile,
-  deleteFolder,
-  generateTimestamp
+  deleteFolder
 } from '@sasjs/utils'
+import { generateUniqueTimestamp } from '../test'
 
 describe('file utility', () => {
   describe('createFile', () => {
-    const filename = `test-create-file-${generateTimestamp()}.txt`
+    const filename = `test-create-file-${generateUniqueTimestamp()}.txt`
 
     it('should create a file', async () => {
       const filePath = path.join(process.cwd(), filename)

@@ -1,8 +1,9 @@
-import shelljs from 'shelljs'
+import * as shell from '../shell'
 import { isLinux, isWindows } from '@sasjs/utils'
 import { downloadFile } from '../utils'
 
-jest.mock('shelljs', () => ({
+jest.mock('../shell', () => ({
+  ...jest.requireActual('../shell'),
   exec: jest.fn(() => ({ stdout: '', stderr: '', code: 0 })),
   which: jest.fn()
 }))
@@ -14,8 +15,8 @@ jest.mock('@sasjs/utils', () => ({
 }))
 
 describe('downloadFile', () => {
-  const exec = shelljs.exec as unknown as jest.Mock
-  const which = shelljs.which as unknown as jest.Mock
+  const exec = shell.exec as unknown as jest.Mock
+  const which = shell.which as unknown as jest.Mock
   const linux = isLinux as unknown as jest.Mock
   const windows = isWindows as unknown as jest.Mock
 

@@ -1,7 +1,6 @@
 import path from 'path'
 import {
   Target,
-  generateTimestamp,
   ServerType,
   DependencyHeader,
   SASJsFileType
@@ -9,6 +8,7 @@ import {
 import * as internalModule from '@sasjs/utils/sasjsCli/getInitTerm'
 import { mockGetProgram } from '@sasjs/utils/sasjsCli/getInitTerm'
 import {
+  generateUniqueTimestamp,
   generateTestTarget,
   createTestMinimalApp,
   removeTestApp,
@@ -64,7 +64,7 @@ const preCode =
   '/* provide additional debug info */\n%global _program;\n%put &=syscc;\n%put user=%mf_getuser();\n%put pgm=&_program;\n%put timestamp=%sysfunc(datetime(),datetime19.);\n'
 
 describe('compileFile', () => {
-  const appName = `cli-tests-compile-service-file-${generateTimestamp()}`
+  const appName = `cli-tests-compile-service-file-${generateUniqueTimestamp()}`
   const target: Target = generateTestTarget(
     appName,
     '/Public/app',

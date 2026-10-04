@@ -1,5 +1,4 @@
 import path from 'path'
-import shelljs from 'shelljs'
 import chalk from 'chalk'
 import ora from 'ora'
 
@@ -20,6 +19,7 @@ import {
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
+import { exec } from '../../utils/shell'
 
 /**
  * Generates documentation(Doxygen)
@@ -158,12 +158,9 @@ export async function generateDocs(
   if (pathExists) await deleteFolder(newOutDirectory)
   await createFolder(newOutDirectory)
 
-  const { stderr, code } = shelljs.exec(
-    `${doxyParams} doxygen "${doxyConfigPath}"`,
-    {
-      silent: process.env.LOG_LEVEL !== LogLevel.Debug
-    }
-  )
+  const { stderr, code } = exec(`${doxyParams} doxygen "${doxyConfigPath}"`, {
+    silent: process.env.LOG_LEVEL !== LogLevel.Debug
+  })
   if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.stop()
 
   if (!enableLineage) {
