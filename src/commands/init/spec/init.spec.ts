@@ -1,12 +1,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { verifyFolder, generateUniqueTimestamp } from '../../../utils/test'
-import {
-  createFolder,
-  deleteFolder,
-  readFile,
-  generateTimestamp
-} from '@sasjs/utils'
+import { createFolder, deleteFolder, readFile } from '@sasjs/utils'
 import { initFiles } from './initFiles'
 import { create } from '../../create/create'
 import { init } from '../init'

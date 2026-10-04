@@ -4,8 +4,7 @@ import {
   readFile,
   fileExists,
   deleteFile,
-  deleteFolder,
-  generateTimestamp
+  deleteFolder
 } from '@sasjs/utils'
 import { generateUniqueTimestamp } from '../test'
 

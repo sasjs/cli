@@ -4,12 +4,7 @@ import yazl from 'yazl'
 import { isWindows } from '@sasjs/utils'
 import { generateUniqueTimestamp } from '../test'
 import { extractZip } from '../zip'
-import {
-  createFile,
-  deleteFolder,
-  readFile,
-  generateTimestamp
-} from '@sasjs/utils'
+import { createFile, deleteFolder, readFile } from '@sasjs/utils'
 
 const makeZip = (
   entries: { name: string; content: string; mode?: number }[],

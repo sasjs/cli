@@ -10,8 +10,7 @@ import {
   copy,
   folderExists,
   fileExists,
-  readFile,
-  generateTimestamp
+  readFile
 } from '@sasjs/utils'
 import {
   createTestApp,
