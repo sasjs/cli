@@ -42,6 +42,9 @@ jobs:
         run: npm audit --omit=dev --audit-level=low
 
       - name: Semantic Release
-        run: npx -p @semantic-release/exec -p semantic-release -- semantic-release
+        # Pinned rather than resolving `latest` on every release: this runs with
+        # publish credentials, so a new major should arrive by PR, not silently.
+        # Same shape as the other sasjs release workflows.
+        run: npx -p @semantic-release/exec@7.1.0 -p semantic-release@25.0.9 -- semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
