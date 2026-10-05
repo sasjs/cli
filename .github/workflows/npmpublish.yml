@@ -41,10 +41,15 @@ jobs:
       - name: Audit for vulnerabilities
         run: npm audit --omit=dev --audit-level=low
 
+      - name: Install the release tooling
+        # Its own locked tree, installed here rather than resolved from npx:
+        # that pins the resolved versions and their integrity hashes, and this
+        # runs with publish credentials. Kept out of the package's own
+        # dependencies so its unfixable advisories stay out of the package's
+        # `npm audit`.
+        run: npm ci --prefix release --ignore-scripts
+
       - name: Semantic Release
-        # Pinned rather than resolving `latest` on every release: this runs with
-        # publish credentials, so a new major should arrive by PR, not silently.
-        # Same shape as the other sasjs release workflows.
-        run: npx -p @semantic-release/exec@7.1.0 -p semantic-release@25.0.9 -- semantic-release
+        run: release/node_modules/.bin/semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
