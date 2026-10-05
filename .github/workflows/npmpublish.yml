@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # semantic-release needs full history + tags
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
