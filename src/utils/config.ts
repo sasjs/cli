@@ -309,7 +309,7 @@ export async function saveGlobalRcFile(content: string) {
 export async function saveToGlobalConfig(
   target: Target,
   isDefault: boolean = false,
-  saveWithDefaultValues: boolean = true
+  saveWithDefaultValues: boolean = false
 ) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson(saveWithDefaultValues)
@@ -422,7 +422,7 @@ export async function saveLocalConfigFile(content: string) {
 export async function saveToLocalConfig(
   target: Target,
   isDefault: boolean = false,
-  saveWithDefaultValues: boolean = true
+  saveWithDefaultValues: boolean = false
 ) {
   const targetJson = target.toJson(saveWithDefaultValues)
 
