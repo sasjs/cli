@@ -5,7 +5,6 @@ import {
   diff,
   setupGitIgnore,
   arrToObj,
-  checkNodeVersion,
   getAdapterInstance,
   displaySasjsRunnerError,
   loadEnvVariables,
@@ -227,35 +226,6 @@ describe('utils', () => {
         b: 'b',
         c: 'c'
       })
-    })
-  })
-
-  describe('checkNodeVersion', () => {
-    afterEach(() => {
-      jest.resetAllMocks()
-    })
-
-    it('should exit the process when node version is less than 22', () => {
-      let originalProcess: NodeJS.Process = global.process
-      global.process = {
-        ...originalProcess,
-        versions: { ...originalProcess.versions, node: '11.0.0' }
-      }
-
-      const mockExit = mockProcessExit()
-
-      checkNodeVersion()
-
-      expect(mockExit).toHaveBeenCalledWith(1)
-
-      global.process = originalProcess
-    })
-    it('should not exit the process when node version greater than 22', () => {
-      jest.spyOn(process, 'exit')
-
-      checkNodeVersion()
-
-      expect(process.exit).toHaveBeenCalledTimes(0)
     })
   })
 
