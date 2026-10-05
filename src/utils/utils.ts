@@ -497,9 +497,9 @@ export const millisecondsToDdHhMmSs = (milliseconds: number): string => {
 export function checkNodeVersion() {
   const nodeVersion = process.versions.node
   const majorVersion = parseInt(nodeVersion.substr(0, 2))
-  if (majorVersion < 12) {
+  if (majorVersion < 22) {
     process.logger?.error(
-      'SASjs CLI requires at least NodeJS version 12. Please upgrade NodeJS and try again.'
+      'SASjs CLI requires at least NodeJS version 22. Please upgrade NodeJS and try again.'
     )
     process.exit(1)
   }

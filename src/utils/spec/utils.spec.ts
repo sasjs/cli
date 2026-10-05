@@ -235,7 +235,7 @@ describe('utils', () => {
       jest.resetAllMocks()
     })
 
-    it('should exit the process when node version is less than 12', () => {
+    it('should exit the process when node version is less than 22', () => {
       let originalProcess: NodeJS.Process = global.process
       global.process = {
         ...originalProcess,
@@ -250,7 +250,7 @@ describe('utils', () => {
 
       global.process = originalProcess
     })
-    it('should not exit the process when node version greater than 12', () => {
+    it('should not exit the process when node version greater than 22', () => {
       jest.spyOn(process, 'exit')
 
       checkNodeVersion()
