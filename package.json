@@ -71,8 +71,8 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@sasjs/adapter": "4.19.2",
-    "@sasjs/core": "5.3.0",
+    "@sasjs/adapter": "4.19.4",
+    "@sasjs/core": "5.3.1",
     "@sasjs/lint": "4.1.2",
     "@sasjs/utils": "3.7.0",
     "chalk": "4.1.2",
