@@ -77,6 +77,44 @@ describe('deploy', () => {
       )
     })
 
+    it('should deploy the service pack when the target declares no deployConfig', async () => {
+      const target = new Target({
+        ...commonTargetFields,
+        serverType: ServerType.SasViya
+      })
+
+      const fileTree: FileTree = {
+        members: [
+          {
+            name: 'mockedFile',
+            type: MemberType.file,
+            code: 'mocked code'
+          }
+        ]
+      }
+
+      jest
+        .spyOn(
+          deployToSasViyaWithServicePackModule,
+          'deployToSasViyaWithServicePack'
+        )
+        .mockImplementation(() => Promise.resolve(fileTree))
+
+      await deploy(target, true)
+
+      expect(
+        deployToSasViyaWithServicePackModule.deployToSasViyaWithServicePack
+      ).toHaveBeenCalledWith(
+        path.join(
+          process.sasjsConstants.buildDestinationFolder,
+          `${target.name}.json`
+        ),
+        target,
+        true,
+        true
+      )
+    })
+
     it('should deploy services to SASJS as a service pack', async () => {
       const target = new Target({
         ...commonTargetFields,
