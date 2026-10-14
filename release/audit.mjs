@@ -148,14 +148,9 @@ for (const entry of found.values()) {
 }
 
 // An exemption that is no longer needed should be deleted, not left to rot.
+// Aggregated with the failing gate, so an unexempted advisory is never
+// masked by a stale-exemption report (or vice versa).
 const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
-if (stale.length) {
-  console.error(
-    '\nexempt advisories that no longer appear, so the exemption can go:'
-  )
-  for (const id of stale) console.error(`  ${id}  ${EXEMPT.get(id)}`)
-  process.exit(1)
-}
 
 if (failing.length) {
   console.error(
@@ -168,8 +163,16 @@ if (failing.length) {
     '\nThe toolchain is not shipped, but it runs with publish credentials. Fix it,\n' +
       'or add it to EXEMPT in release/audit.mjs with the reason it cannot be fixed.'
   )
-  process.exit(1)
 }
+
+if (stale.length) {
+  console.error(
+    '\nexempt advisories that no longer appear, so the exemption can go:'
+  )
+  for (const id of stale) console.error(`  ${id}  ${EXEMPT.get(id)}`)
+}
+
+if (failing.length || stale.length) process.exit(1)
 
 console.log(
   `\nno advisory in the release toolchain outside the documented exemptions` +
