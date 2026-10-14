@@ -56,21 +56,46 @@ const EXEMPT = new Map([
     'GHSA-rj75-hqrm-r3gf',
     "postcss-selector-parser, inside the npm package that @semantic-release/npm bundles. Affected through 7.1.5. npm ships its own bundled copy, so no resolver change reaches it - 11.21.0 is the last 11.x and @semantic-release/npm requires ^11 - and the eventual fix is that plugin moving to npm 12. Unreachable here: the parser reads this repo's own release config, not the commits being matched."
   ],
-  ['GHSA-rpw4-54j3-4h4q', 'ip-address, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-2vr4-cq9g-pvrc', 'ip-address, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-j6r3-76f7-8jcv', 'ip-address, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-h3mg-xc3c-68pw', 'ip-address, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-3wwx-pv8p-q78v', 'undici, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-r53p-7pc4-xj5r', 'undici, inside the npm package that @semantic-release/npm bundles.'],
-  ['GHSA-rfgv-xxqx-mfg5', 'undici, inside the npm package that @semantic-release/npm bundles.']
+  [
+    'GHSA-rpw4-54j3-4h4q',
+    'ip-address, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-2vr4-cq9g-pvrc',
+    'ip-address, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-j6r3-76f7-8jcv',
+    'ip-address, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-h3mg-xc3c-68pw',
+    'ip-address, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-3wwx-pv8p-q78v',
+    'undici, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-r53p-7pc4-xj5r',
+    'undici, inside the npm package that @semantic-release/npm bundles.'
+  ],
+  [
+    'GHSA-rfgv-xxqx-mfg5',
+    'undici, inside the npm package that @semantic-release/npm bundles.'
+  ]
 ])
 
 const run = () => {
   try {
-    return execFileSync('npm', ['audit', '--package-lock-only', '--json', '--prefix', releaseDir], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore']
-    })
+    return execFileSync(
+      'npm',
+      ['audit', '--package-lock-only', '--json', '--prefix', releaseDir],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      }
+    )
   } catch (error) {
     // npm audit exits non-zero when it finds anything, which is the case we are
     // here to read, so the report on stdout is the payload either way.
@@ -125,7 +150,9 @@ for (const entry of found.values()) {
 // An exemption that is no longer needed should be deleted, not left to rot.
 const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
 if (stale.length) {
-  console.log('\nexempt advisories that no longer appear, so the exemption can go:')
+  console.log(
+    '\nexempt advisories that no longer appear, so the exemption can go:'
+  )
   for (const id of stale) console.log(`  ${id}  ${EXEMPT.get(id)}`)
 }
 
