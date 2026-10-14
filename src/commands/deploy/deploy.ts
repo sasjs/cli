@@ -26,7 +26,14 @@ import {
 export async function deploy(target: Target, isLocal: boolean) {
   const streamConfig = await getStreamConfig(target)
 
-  if (target.deployConfig?.deployServicePack) {
+  // A target that declares no deployConfig used to have one injected by the
+  // @sasjs/utils Target constructor. That injection is gone (sasjs/utils#277),
+  // so an absent deployConfig is treated as the historical default - deploy the
+  // service pack - rather than refusing to deploy. An explicit
+  // deployServicePack: false is still honoured.
+  const deployServicePack = target.deployConfig?.deployServicePack ?? true
+
+  if (deployServicePack) {
     const { buildDestinationFolder } = process.sasjsConstants
     const finalFilePathJSON = path.join(
       buildDestinationFolder,
@@ -87,7 +94,7 @@ export async function deploy(target: Target, isLocal: boolean) {
 
   const deployScripts = await getDeployScripts(target)
 
-  if (deployScripts.length === 0 && !target.deployConfig?.deployServicePack) {
+  if (deployScripts.length === 0 && !deployServicePack) {
     throw new Error(
       `Deployment failed.\nPlease either enable the 'deployServicePack' option or add deployment script paths to 'deployScripts' in your target's 'deployConfig'.`
     )

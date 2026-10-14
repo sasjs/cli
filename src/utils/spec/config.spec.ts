@@ -586,6 +586,42 @@ describe('saveToGlobalConfig', () => {
     await removeFromGlobalConfig(target.name)
   })
 
+  it('should persist the target with injected defaults when saveWithDefaultValues is true', async () => {
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
+    const target = generateTestTarget(
+      appName,
+      `/Public/app/cli-tests/${appName}`
+    )
+
+    await saveToGlobalConfig(target, true, true)
+
+    const config = (await getGlobalRcFile()) as Configuration
+    const configTarget = config.targets?.find((t) => t.name === target.name)
+    expect(configTarget).toBeTruthy()
+    expect(configTarget?.deployConfig).toBeTruthy()
+    await removeFromGlobalConfig(target.name)
+  })
+
+  it('should persist a minimal target when saveWithDefaultValues is false', async () => {
+    const appName = 'cli-tests-config-' + generateUniqueTimestamp()
+    const target = new Target({
+      name: appName,
+      serverUrl: 'http://test.sasjs',
+      appLoc: `/Public/app/cli-tests/${appName}`,
+      serverType: ServerType.SasViya
+    })
+
+    await saveToGlobalConfig(target, true)
+
+    const config = (await getGlobalRcFile()) as Configuration
+    expect(config.defaultTarget).toEqual(target.name)
+    const configTarget = config.targets?.find((t) => t.name === target.name)
+    expect(configTarget).toBeTruthy()
+    expect(configTarget?.deployConfig).toBeFalsy()
+    expect(configTarget?.buildConfig).toBeFalsy()
+    await removeFromGlobalConfig(target.name)
+  })
+
   it('should not set the target as default when isDefault is false', async () => {
     const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
@@ -683,6 +719,41 @@ describe('saveToLocalConfig', () => {
     expect(config.defaultTarget).toEqual(target.name)
     const configTarget = config.targets?.find((t) => t.name === target.name)
     expect(configTarget).toBeTruthy()
+    await removeFromLocalConfig(target.name)
+  })
+
+  it('should persist the target with injected defaults when saveWithDefaultValues is true', async () => {
+    const appName = 'cli-tests-cb-' + generateUniqueTimestamp()
+    const target = generateTestTarget(
+      appName,
+      `/Public/app/cli-tests/${appName}`
+    )
+
+    await saveToLocalConfig(target, true, true)
+
+    const config = (await getLocalConfig()) as Configuration
+    const configTarget = config.targets?.find((t) => t.name === target.name)
+    expect(configTarget).toBeTruthy()
+    expect(configTarget?.deployConfig).toBeTruthy()
+    await removeFromLocalConfig(target.name)
+  })
+
+  it('should persist a minimal target when saveWithDefaultValues is omitted', async () => {
+    const appName = 'cli-tests-cb-' + generateUniqueTimestamp()
+    const target = new Target({
+      name: appName,
+      serverUrl: 'http://test.sasjs',
+      appLoc: `/Public/app/cli-tests/${appName}`,
+      serverType: ServerType.SasViya
+    })
+
+    await saveToLocalConfig(target, true)
+
+    const config = (await getLocalConfig()) as Configuration
+    const configTarget = config.targets?.find((t) => t.name === target.name)
+    expect(configTarget).toBeTruthy()
+    expect(configTarget?.deployConfig).toBeFalsy()
+    expect(configTarget?.buildConfig).toBeFalsy()
     await removeFromLocalConfig(target.name)
   })
 

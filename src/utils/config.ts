@@ -306,10 +306,17 @@ export async function saveGlobalRcFile(content: string) {
   return rcFilePath
 }
 
+/**
+ * Saves a target to the global SASjs config.
+ *
+ * `saveWithDefaultValues` defaults to false, so omitting it persists a minimal
+ * target - the mandatory attributes only. Pass true to write the full set of
+ * injected defaults, including a deployConfig the caller never declared.
+ */
 export async function saveToGlobalConfig(
   target: Target,
   isDefault: boolean = false,
-  saveWithDefaultValues: boolean = true
+  saveWithDefaultValues: boolean = false
 ) {
   let globalConfig = await getGlobalRcFile()
   const targetJson = target.toJson(saveWithDefaultValues)
@@ -419,10 +426,17 @@ export async function saveLocalConfigFile(content: string) {
   return configPath
 }
 
+/**
+ * Saves a target to the project's local sasjsconfig.json.
+ *
+ * `saveWithDefaultValues` defaults to false, so omitting it persists a minimal
+ * target - the mandatory attributes only. Pass true to write the full set of
+ * injected defaults, including a deployConfig the caller never declared.
+ */
 export async function saveToLocalConfig(
   target: Target,
   isDefault: boolean = false,
-  saveWithDefaultValues: boolean = true
+  saveWithDefaultValues: boolean = false
 ) {
   const targetJson = target.toJson(saveWithDefaultValues)
 

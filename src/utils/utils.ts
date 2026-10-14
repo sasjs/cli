@@ -494,17 +494,6 @@ export const millisecondsToDdHhMmSs = (milliseconds: number): string => {
   return `${days} day(s); ${hours} hour(s); ${minutes} minute(s); ${seconds} second(s)`
 }
 
-export function checkNodeVersion() {
-  const nodeVersion = process.versions.node
-  const majorVersion = parseInt(nodeVersion.substr(0, 2))
-  if (majorVersion < 12) {
-    process.logger?.error(
-      'SASjs CLI requires at least NodeJS version 12. Please upgrade NodeJS and try again.'
-    )
-    process.exit(1)
-  }
-}
-
 export function getAdapterInstance(target: Target): SASjs {
   if (!target) {
     throw new Error('Unable to create SASjs adapter instance: Invalid target.')
