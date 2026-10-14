@@ -150,10 +150,11 @@ for (const entry of found.values()) {
 // An exemption that is no longer needed should be deleted, not left to rot.
 const stale = [...EXEMPT.keys()].filter((id) => !found.has(id))
 if (stale.length) {
-  console.log(
+  console.error(
     '\nexempt advisories that no longer appear, so the exemption can go:'
   )
-  for (const id of stale) console.log(`  ${id}  ${EXEMPT.get(id)}`)
+  for (const id of stale) console.error(`  ${id}  ${EXEMPT.get(id)}`)
+  process.exit(1)
 }
 
 if (failing.length) {

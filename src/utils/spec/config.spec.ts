@@ -586,7 +586,7 @@ describe('saveToGlobalConfig', () => {
     await removeFromGlobalConfig(target.name)
   })
 
-  it('should persist the target with injected defaults when saveWithDefaultValues is omitted', async () => {
+  it('should persist the target with injected defaults when saveWithDefaultValues is true', async () => {
     const appName = 'cli-tests-config-' + generateUniqueTimestamp()
     const target = generateTestTarget(
       appName,
