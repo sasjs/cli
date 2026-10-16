@@ -29,6 +29,16 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      - name: Update npm
+        # The same pin as the Update npm step in npmpublish.yml, and it is here
+        # for Test Package Install below: that step packs and installs the
+        # tarball a pull request validates, and the release job packs and
+        # publishes it. Both have to use the same npm or the artifact a PR
+        # checks is not the artifact that ships - npm 12 changed the shape of
+        # `npm pack --json`, and in sasjs/adapter that difference appeared in a
+        # release run rather than a pull request. Bump both together.
+        run: npm install -g npm@12.2.0
+
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
 

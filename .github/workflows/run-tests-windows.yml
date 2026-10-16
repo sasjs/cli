@@ -23,6 +23,13 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      - name: Update npm
+        # The same pin as the Update npm step in npmpublish.yml, for the same
+        # reason as run-tests.yml: Test Package Install packs the tarball a pull
+        # request validates, and the release job packs and publishes it. Bump
+        # both together.
+        run: npm install -g npm@12.2.0
+
       - uses: ssciwr/doxygen-install@v1
         with:
           version: '1.9.3'
