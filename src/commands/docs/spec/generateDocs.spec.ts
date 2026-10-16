@@ -356,7 +356,7 @@ describe('sasjs doc', () => {
   })
 
   it('should throw a Doxygen-specific error when the shell command fails with an "error: " stderr', async () => {
-    jest.spyOn(shell, 'exec').mockReturnValueOnce({
+    jest.spyOn(shell, 'execFile').mockReturnValueOnce({
       code: 1,
       stderr: 'error: bad config',
       stdout: ''
@@ -368,7 +368,7 @@ describe('sasjs doc', () => {
   })
 
   it('should throw a generic Doxygen-not-installed error for any other shell failure', async () => {
-    jest.spyOn(shell, 'exec').mockReturnValueOnce({
+    jest.spyOn(shell, 'execFile').mockReturnValueOnce({
       code: 1,
       stderr: 'command not found',
       stdout: ''
