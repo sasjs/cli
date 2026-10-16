@@ -46,6 +46,36 @@ const setEntryPlatform = (zipPath: string, platform: number) => {
   fs.writeFileSync(zipPath, buffer)
 }
 
+/**
+ * Rewrites an entry name in the archive bytes, in both the local file header
+ * and the central directory record.
+ *
+ * yazl refuses to create an entry whose name is absolute or contains `..`, so
+ * a traversal entry has to be patched in after the fact. The replacement must
+ * be the same length as the original: both records carry the name length, and
+ * changing it would move every offset that follows.
+ */
+const replaceEntryName = (zipPath: string, from: string, to: string) => {
+  if (from.length !== to.length)
+    throw new Error('the replacement name must be the same length')
+
+  const buffer = fs.readFileSync(zipPath)
+  const fromBuffer = Buffer.from(from, 'utf8')
+  const toBuffer = Buffer.from(to, 'utf8')
+
+  let index = buffer.indexOf(fromBuffer)
+  let replaced = 0
+  while (index !== -1) {
+    toBuffer.copy(buffer, index)
+    replaced++
+    index = buffer.indexOf(fromBuffer, index + 1)
+  }
+
+  if (!replaced) throw new Error(`entry name not found in the archive: ${from}`)
+
+  fs.writeFileSync(zipPath, buffer)
+}
+
 describe('zip', () => {
   const tmpRoot = path.join(__dirname, `zip-spec-${generateUniqueTimestamp()}`)
   const destDir = path.join(tmpRoot, 'dest')
@@ -183,6 +213,24 @@ describe('zip', () => {
 
       const content = await readFile(existingPath)
       expect(content).toEqual('EXISTING')
+    })
+
+    /**
+     * The safety of `path.join(destDir, entry.fileName)` rests on the entry
+     * name never containing `..` or a leading slash. That is yauzl's
+     * validateFileName, which only runs because the reader is opened with
+     * decodeStrings - so the property is pinned here rather than left to the
+     * comment that documents it.
+     */
+    it('should refuse an entry whose name traverses out of the destination', async () => {
+      const zipPath = path.join(tmpRoot, 'traversal.zip')
+      await makeZip([{ name: 'aa/evil.txt', content: 'pwned' }], zipPath)
+      replaceEntryName(zipPath, 'aa/evil.txt', '../evil.txt')
+
+      await expect(extractZip(zipPath, destDir)).rejects.toThrow()
+
+      // destDir/../evil.txt resolves to tmpRoot/evil.txt
+      expect(fs.existsSync(path.join(tmpRoot, 'evil.txt'))).toBeFalse()
     })
   })
 })
