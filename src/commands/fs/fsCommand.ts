@@ -4,19 +4,25 @@ import { displayError, getSyncDirectories, saveLog } from '../../utils'
 import path, { join } from 'path'
 import {
   createFile,
+  getRelativePath,
+  generateTimestamp,
+  SyncDirectoryMap,
+  getAbsolutePath,
+  generatePathForSas
+} from '@sasjs/utils'
+// The hash and sync helpers live in the fs subpath. The barrel no longer
+// re-exports them, because it is the only module in @sasjs/utils that imports
+// crypto, which put the whole AES/RSA/ECDSA polyfill suite into every browser
+// bundle that imported anything from the barrel (sasjs/utils#275, #283).
+import {
   compareHashes,
   findResourcesNotPresentLocally,
   generateCompileProgram,
   getHash,
   generateProgramToGetRemoteHash,
   generateProgramToSyncHashDiff,
-  getRelativePath,
-  generateTimestamp,
-  SyncDirectoryMap,
-  getAbsolutePath,
-  extractHashArray,
-  generatePathForSas
-} from '@sasjs/utils'
+  extractHashArray
+} from '@sasjs/utils/fs'
 import { CommandOptions } from '../../types/command/commandBase'
 import { executeCode } from './internal/executeCode'
 
