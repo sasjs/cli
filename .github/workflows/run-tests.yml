@@ -49,6 +49,14 @@ jobs:
         # release/audit.mjs.
         run: node release/audit.mjs
 
+      - name: Install the release toolchain
+        # The audit above reads the lockfile only, so drift between
+        # release/package.json and release/package-lock.json is invisible to
+        # it. This install is what makes that drift fail on a pull request
+        # rather than in the publish run on main. Same step as sasjs/adapter's
+        # build-unit-tests.yml.
+        run: npm ci --prefix release --ignore-scripts
+
       - name: Install production dependencies (fail if any warning)
         run: |
           npm ci --omit=dev --ignore-scripts
