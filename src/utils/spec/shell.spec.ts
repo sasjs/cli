@@ -2,7 +2,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
-import { cp, exec, ls, rm, which } from '../shell'
+import { cp, exec, execFile, ls, rm, which } from '../shell'
 
 /**
  * The shell wrapper, directly.
@@ -68,6 +68,58 @@ describe('shell', () => {
 
       expect(result.code).toEqual(0)
       expect(result.stdout.length).toEqual(3 * 1024 * 1024)
+    })
+  })
+
+  describe('execFile', () => {
+    // The values below are the point: a shell would interpret each of them -
+    // `&` and `;` separate commands, `$(...)` and backticks substitute, `'`
+    // closes a quote - and on Windows the `set NAME=value` form does not quote
+    // the value at all. Nothing here is parsed, so each arrives intact.
+    const metacharacters = "a'b&c;$(echo pwned)`id`|d>e"
+
+    it('should answer with stdout for an executable run with an argument array', () => {
+      const result = execFile(
+        process.execPath,
+        ['-e', `process.stdout.write('hello')`],
+        { silent: true }
+      )
+
+      expect(result.stdout).toEqual('hello')
+      expect(result.code).toEqual(0)
+    })
+
+    it('should pass an argument through without the shell interpreting it', () => {
+      const result = execFile(
+        process.execPath,
+        ['-e', 'process.stdout.write(process.argv[1])', metacharacters],
+        { silent: true }
+      )
+
+      expect(result.stdout).toEqual(metacharacters)
+      expect(result.code).toEqual(0)
+    })
+
+    it('should pass an environment value through without the shell interpreting it', () => {
+      const result = execFile(
+        process.execPath,
+        ['-e', 'process.stdout.write(process.env.PROBE)'],
+        { silent: true, env: { PROBE: metacharacters } }
+      )
+
+      expect(result.stdout).toEqual(metacharacters)
+      expect(result.code).toEqual(0)
+    })
+
+    it('should answer with the exit code and stderr for an executable that fails', () => {
+      const result = execFile(
+        process.execPath,
+        ['-e', `process.stderr.write('boom'); process.exit(3)`],
+        { silent: true }
+      )
+
+      expect(result.code).toEqual(3)
+      expect(result.stderr).toContain('boom')
     })
   })
 
