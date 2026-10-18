@@ -13,13 +13,12 @@ import {
   Configuration,
   LogLevel,
   getAbsolutePath,
-  isWindows,
   generateTimestamp
 } from '@sasjs/utils'
 import { getFoldersForDocs } from './internal/getFoldersForDocs'
 import { createDotFiles } from './internal/createDotFiles'
 import { getDocConfig } from './internal/getDocConfig'
-import { exec } from '../../utils/shell'
+import { execFile } from '../../utils/shell'
 
 /**
  * Generates documentation(Doxygen)
@@ -129,7 +128,12 @@ export async function generateDocs(
   // absolute path to both keeps them in sync regardless of Doxygen version.
   const readMePath = path.join(doxyContent.path, doxyContent.readMe)
 
-  const doxyParams = setVariableCmd({
+  // Handed to doxygen as environment variables rather than assigned on a
+  // command line. Doxygen substitutes $(NAME) from the environment (see
+  // src/doxy/Doxyfile), and an assignment built as a string is re-parsed by the
+  // shell - unquoted entirely on Windows - so a path containing a quote, `&` or
+  // `$` would change the command that runs.
+  const doxyVariables = {
     DOXY_HTML_OUTPUT: newOutDirectory,
     DOXY_INPUT: `"${readMePath}" ${combinedFolders}`,
     DOXY_MAINPAGE: readMePath,
@@ -144,7 +148,7 @@ export async function generateDocs(
     PROJECT_BRIEF,
     PROJECT_LOGO: path.join(doxyContent.path, doxyContent.logo),
     PROJECT_NAME
-  })
+  }
 
   const doxyConfigPath = await getDoxyConfigPath(doxyContent.path)
   process.logger?.info(`Using ${doxyConfigPath} as Doxygen Configuration.`)
@@ -158,8 +162,9 @@ export async function generateDocs(
   if (pathExists) await deleteFolder(newOutDirectory)
   await createFolder(newOutDirectory)
 
-  const { stderr, code } = exec(`${doxyParams} doxygen "${doxyConfigPath}"`, {
-    silent: process.env.LOG_LEVEL !== LogLevel.Debug
+  const { stderr, code } = execFile('doxygen', [doxyConfigPath], {
+    silent: process.env.LOG_LEVEL !== LogLevel.Debug,
+    env: doxyVariables
   })
   if (process.env.LOG_LEVEL !== LogLevel.Debug) spinner.stop()
 
@@ -186,18 +191,6 @@ export async function generateDocs(
   }
 
   return { outDirectory: newOutDirectory }
-}
-
-function setVariableCmd(params: any): string {
-  let command = ''
-
-  if (isWindows()) {
-    for (const param in params) command += `set ${param}=${params[param]} && `
-  } else {
-    for (const param in params) command += `${param}='${params[param]}' `
-  }
-
-  return command
 }
 
 const getDoxyConfigPath = async (doxyContentPath: string): Promise<string> => {
