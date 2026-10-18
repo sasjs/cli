@@ -1,4 +1,4 @@
-import { spawnSync } from 'child_process'
+import { spawnSync, SpawnSyncOptionsWithStringEncoding } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
@@ -25,27 +25,37 @@ export interface ShellResult {
   code: number
 }
 
-/**
- * Runs a command through the platform shell.
- *
- * `silent` decides whether the command's output also reaches this process's
- * streams, which is how shelljs' option of the same name behaved.
- */
-export const exec = (
-  command: string,
-  options: { silent?: boolean } = {}
-): ShellResult => {
-  const result = spawnSync(command, {
-    shell: true,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    // shelljs allowed 20MB of output; spawnSync's 1MB default kills a chatty
-    // command mid-run, and a deploy script can easily be chatty.
-    maxBuffer: 20 * 1024 * 1024
-  })
+export interface ExecOptions {
+  /**
+   * Whether the command's output also reaches this process's streams, which is
+   * how shelljs' option of the same name behaved.
+   */
+  silent?: boolean
+  /** Extra variables for the child, on top of this process's environment. */
+  env?: NodeJS.ProcessEnv
+}
 
-  const stdout = result.stdout ?? ''
-  const stderr = result.stderr ?? ''
+/**
+ * The options both runners share. shelljs allowed 20MB of output; spawnSync's
+ * 1MB default kills a chatty command mid-run, and a deploy script can easily be
+ * chatty.
+ */
+const spawnOptions = (
+  options: ExecOptions
+): SpawnSyncOptionsWithStringEncoding => ({
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'pipe'],
+  maxBuffer: 20 * 1024 * 1024,
+  env: options.env ? { ...process.env, ...options.env } : undefined
+})
+
+/** The result both runners answer with, from one place. */
+const toShellResult = (
+  result: ReturnType<typeof spawnSync>,
+  options: ExecOptions
+): ShellResult => {
+  const stdout = (result.stdout as string) ?? ''
+  const stderr = (result.stderr as string) ?? ''
 
   if (!options.silent) {
     if (stdout) process.stdout.write(stdout)
@@ -65,6 +75,29 @@ export const exec = (
 
   return { stdout, stderr, code: result.status ?? 0 }
 }
+
+/** Runs a command through the platform shell. */
+export const exec = (command: string, options: ExecOptions = {}): ShellResult =>
+  toShellResult(
+    spawnSync(command, { ...spawnOptions(options), shell: true }),
+    options
+  )
+
+/**
+ * Runs an executable with an argument array, without a shell.
+ *
+ * `exec` hands its command to a shell, which re-parses everything in it: a path
+ * containing a quote, `$` or `&` changes the command's meaning, and a variable
+ * assigned on the command line is no different - on Windows the assignment form
+ * does not even quote the value. Arguments and `env` given here are passed to
+ * the child as they are, so they are safe whatever they contain.
+ */
+export const execFile = (
+  command: string,
+  args: string[],
+  options: ExecOptions = {}
+): ShellResult =>
+  toShellResult(spawnSync(command, args, spawnOptions(options)), options)
 
 /**
  * Copies the contents of a folder into another folder, matching
