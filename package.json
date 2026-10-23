@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "5.1.1",
-    "@sasjs/core": "5.5.2",
+    "@sasjs/core": "6.0.0",
     "@sasjs/utils": "4.0.1",
     "axios": "1.20.0",
     "chalk": "4.1.2",
