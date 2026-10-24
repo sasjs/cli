@@ -41,6 +41,11 @@ const createProject = (root: string) => {
 describe('sasjs mock', () => {
   let root: string
   const out = () => path.join(root, 'sasjsbuild', 'mock')
+  const target = (streamConfig: { [key: string]: any } = {}) =>
+    ({
+      appLoc,
+      streamConfig: { webSourcePath: './client/dist', ...streamConfig }
+    }) as any
   const readSeed = () =>
     JSON.parse(
       fs.readFileSync(path.join(out(), 'host', 'vfs-seed.json'), 'utf8')
@@ -54,11 +59,11 @@ describe('sasjs mock', () => {
     root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sasjs-mock-'))
     createProject(root)
     process.projectDir = root
-    process.currentDir = root
     ;(process as any).sasjsConfig = { syncFolder: 'sasjs' }
     process.sasjsConstants = {
       buildDestinationFolder: path.join(root, 'sasjsbuild')
     } as any
+    process.logger = { warn: jest.fn(), info: jest.fn() } as any
   })
 
   afterEach(() => {
@@ -66,9 +71,7 @@ describe('sasjs mock', () => {
   })
 
   it('lays the compile output out on the virtual drive', async () => {
-    const result = await buildMockSite({ appLoc } as any, {
-      webSourcePath: './client/dist'
-    })
+    const result = await buildMockSite(target())
 
     expect(result.jsPrograms).toBe(3)
     expect(result.driveEntries).toBe(4) // 3 programs + the licence store
@@ -88,7 +91,7 @@ describe('sasjs mock', () => {
   })
 
   it('writes the runtime host and the worker at the site root', async () => {
-    await buildMockSite({ appLoc } as any, { webSourcePath: './client/dist' })
+    await buildMockSite(target())
 
     for (const asset of [
       'md5.js',
@@ -106,7 +109,7 @@ describe('sasjs mock', () => {
   })
 
   it('points the app at itself and installs the boot loader', async () => {
-    await buildMockSite({ appLoc } as any, { webSourcePath: './client/dist' })
+    await buildMockSite(target())
 
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
     expect(html).toContain('serverurl=""')
@@ -131,9 +134,7 @@ describe('sasjs mock', () => {
       JSON.stringify(snapshot)
     )
 
-    const result = await buildMockSite({ appLoc } as any, {
-      webSourcePath: './client/dist'
-    })
+    const result = await buildMockSite(target())
 
     expect(result.snapshot).toBe(true)
     const shipped = JSON.parse(
@@ -146,9 +147,7 @@ describe('sasjs mock', () => {
   })
 
   it('ships no snapshot when the project has none', async () => {
-    const result = await buildMockSite({ appLoc } as any, {
-      webSourcePath: './client/dist'
-    })
+    const result = await buildMockSite(target())
 
     expect(result.snapshot).toBe(false)
     expect(fs.existsSync(path.join(out(), 'host', 'vfs-snapshot.json'))).toBe(
@@ -156,7 +155,33 @@ describe('sasjs mock', () => {
     )
   })
 
-  it('refuses a target whose services are SAS', async () => {
+  it('leaves non-text files off the drive instead of corrupting them', async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'logo.png'),
+      png
+    )
+
+    const result = await buildMockSite(target())
+
+    const seed = readSeed()
+    expect(Object.keys(seed.files).some((k) => k.endsWith('logo.png'))).toBe(
+      false
+    )
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/fixtures.json`]
+    ).toBe('{}')
+    expect(result.driveEntries).toBe(5) // 3 programs + 2 text files
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('logo.png')
+    )
+  })
+
+  it('refuses a target whose services are SAS, and keeps the previous site', async () => {
+    await buildMockSite(target())
+    write(path.join(out(), 'stale.txt'), 'previous')
+
     fs.rmSync(path.join(root, 'sasjsbuild', 'services'), {
       recursive: true,
       force: true
@@ -166,28 +191,54 @@ describe('sasjs mock', () => {
       '%put sas;\n'
     )
 
-    await expect(
-      buildMockSite({ appLoc } as any, { webSourcePath: './client/dist' })
-    ).rejects.toThrow(/No \.js programs/)
+    await expect(buildMockSite(target())).rejects.toThrow(/No \.js programs/)
+    // the failure is not allowed to take the last good site with it
+    expect(fs.readFileSync(path.join(out(), 'stale.txt'), 'utf8')).toBe(
+      'previous'
+    )
   })
 
   it('refuses to build without a web app', async () => {
     await expect(
-      buildMockSite({ appLoc } as any, { webSourcePath: './does-not-exist' })
+      buildMockSite(target({ webSourcePath: './does-not-exist' }))
     ).rejects.toThrow(/Web source folder not found/)
   })
 
   it('refuses to build without an appLoc', async () => {
-    await expect(
-      buildMockSite({} as any, { webSourcePath: './client/dist' })
-    ).rejects.toThrow(/No appLoc/)
+    await expect(buildMockSite({ streamConfig: {} } as any)).rejects.toThrow(
+      /No appLoc/
+    )
   })
 
   it('replaces an existing output folder rather than merging into it', async () => {
     write(path.join(out(), 'stale.txt'), 'old')
 
-    await buildMockSite({ appLoc } as any, { webSourcePath: './client/dist' })
+    await buildMockSite(target())
 
     expect(fs.existsSync(path.join(out(), 'stale.txt'))).toBe(false)
+  })
+
+  it('refuses a mockWebFolder that would delete the project or its inputs', async () => {
+    for (const mockWebFolder of [
+      '.',
+      './',
+      '..',
+      'sasjsbuild',
+      'client/dist'
+    ]) {
+      await expect(buildMockSite(target({ mockWebFolder }))).rejects.toThrow(
+        /Refusing to write the mock site/
+      )
+      // nothing was removed on the way to the refusal
+      expect(
+        fs.existsSync(path.join(root, 'client', 'dist', 'index.html'))
+      ).toBe(true)
+      expect(
+        fs.existsSync(path.join(root, 'sasjsbuild', 'services', 'public'))
+      ).toBe(true)
+    }
+    expect(fs.existsSync(path.join(root, 'client', 'dist', 'index.html'))).toBe(
+      true
+    )
   })
 })

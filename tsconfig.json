@@ -18,7 +18,7 @@
     "node_modules",
     "src/utils/test.ts",
     "src/utils/fileStructures",
-    "src/commands/mock/assets",
+    "src/commands/build/internal/mockSite/assets",
     "PULL_REQUEST_TEMPLATE.md",
     "test.sh",
     "jest.config.js",

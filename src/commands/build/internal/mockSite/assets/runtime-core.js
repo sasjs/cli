@@ -278,8 +278,10 @@ const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
 /**
  * Resolves a program reference the way the server does: an exact drive path,
- * with the runtime extension tried. A reference that names no program folder
- * (e.g. "getdata") is also tried under services, jobs and tests.
+ * with the runtime extension tried. The adapter sends a full path, and prepends
+ * the appLoc when the app passes one without a leading slash, so a reference
+ * naming no program folder (e.g. "getdata", or "<appLoc>/getdata") is also
+ * tried under services, jobs and tests below the appLoc.
  */
 const resolveProgram = (program) => {
   const relative = String(program).replace(/^\/+/, '')
@@ -289,8 +291,13 @@ const resolveProgram = (program) => {
     (folder) => relative === folder || relative.startsWith(folder + '/')
   )
   if (!namesAFolder) {
+    // DRIVE_APP already carries the appLoc, and it is absolute: joining it with
+    // P.resolve keeps the drive prefix that the literal appLoc would replace.
+    const underAppLoc = relative.startsWith(APP_LOC.slice(1) + '/')
+      ? relative.slice(APP_LOC.length)
+      : relative
     for (const folder of PROGRAM_FOLDERS) {
-      roots.push(P.resolve(DRIVE_ROOT, 'files', APP_LOC, folder, relative))
+      roots.push(P.join(DRIVE_APP, folder, underAppLoc))
     }
   }
 

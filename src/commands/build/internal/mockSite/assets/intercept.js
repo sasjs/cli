@@ -17,8 +17,18 @@
   if (window.__sasjsMockBridgeInstalled) return
   window.__sasjsMockBridgeInstalled = true
 
+  // Set localStorage sasjsMockDebug='1' and reload to see this bridge's traffic
+  // in the console.
+  const DEBUG = (() => {
+    try {
+      return localStorage.getItem('sasjsMockDebug') === '1'
+    } catch (e) {
+      return false
+    }
+  })()
+
   const dbg = (...args) => {
-    if (window.__dcDebug) console.log('[sasjs-mock]', ...args)
+    if (DEBUG) console.log('[sasjs-mock]', ...args)
   }
 
   const readBody = async (body) => {
@@ -70,7 +80,7 @@
       configurable: true
     })
     Object.defineProperty(xhr, 'responseURL', {
-      value: xhr.__dcUrl,
+      value: xhr.__sasjsMockUrl,
       configurable: true
     })
     Object.defineProperty(xhr, 'response', {
@@ -94,16 +104,16 @@
   const nativeSend = proto.send
 
   proto.open = function (method, url) {
-    this.__dcMethod = method
-    this.__dcUrl = String(url)
+    this.__sasjsMockMethod = method
+    this.__sasjsMockUrl = String(url)
     return nativeOpen.apply(this, arguments)
   }
 
   proto.send = function (body) {
-    if (!isSasjs(this.__dcUrl)) return nativeSend.apply(this, arguments)
+    if (!isSasjs(this.__sasjsMockUrl)) return nativeSend.apply(this, arguments)
 
     const xhr = this
-    const method = (this.__dcMethod || 'GET').toUpperCase()
+    const method = (this.__sasjsMockMethod || 'GET').toUpperCase()
 
     readBody(body)
       .then(async (payload) => {
@@ -116,15 +126,19 @@
           init.headers['content-type'] = 'application/json'
           init.body = JSON.stringify(payload)
         }
-        dbg(method, xhr.__dcUrl, payload.tables.map((t) => t.name).join('|'))
+        dbg(
+          method,
+          xhr.__sasjsMockUrl,
+          payload.tables.map((t) => t.name).join('|')
+        )
 
-        const res = await fetch(xhr.__dcUrl, init)
+        const res = await fetch(xhr.__sasjsMockUrl, init)
         const text = await res.text()
         const contentType = res.headers.get('content-type') || 'text/plain'
         if (res.status >= 400)
           console.error(
             '[sasjs-mock] ' +
-              xhr.__dcUrl +
+              xhr.__sasjsMockUrl +
               ' -> ' +
               res.status +
               ' ' +
@@ -135,7 +149,7 @@
       .catch((err) => {
         const message = String((err && err.message) || err)
         console.error(
-          '[sasjs-mock] request failed: ' + xhr.__dcUrl + ' - ' + message
+          '[sasjs-mock] request failed: ' + xhr.__sasjsMockUrl + ' - ' + message
         )
         respond(
           xhr,

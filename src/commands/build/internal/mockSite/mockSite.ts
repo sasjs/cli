@@ -3,27 +3,6 @@ import fs from 'fs'
 import path from 'path'
 import { folderExists, Target } from '@sasjs/utils'
 
-/**
- * Builds a static site that runs the project's JS services (its mocks) in the
- * browser, so a frontend can be tested with no server and no SAS.
- *
- * The output is an ordinary folder of static files: serve it over http(s) and
- * the app behaves as though it were talking to a single-user SASjs server. The
- * work happens in a service worker, so every request is still a real request -
- * visible in DevTools > Network, marked "(from ServiceWorker)" - and the drive
- * it writes to is persisted in IndexedDB, so refreshes keep their state.
- */
-export interface MockSiteOptions {
-  /** Build folder to seed from (default: the compile output, sasjsbuild). */
-  servicesFolder?: string
-  /** Folder holding the built web app, relative to the project root. */
-  webSourcePath?: string
-  /** SASjs Drive location the app expects its services under. */
-  appLoc?: string
-  /** Where to write the static site, relative to the project root. */
-  outputFolder?: string
-}
-
 export interface MockSiteResult {
   outputFolder: string
   appLoc: string
@@ -75,6 +54,18 @@ const copyFolder = (from: string, to: string) => {
  */
 const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
+/**
+ * A drive file is a string in the browser runtime, so a file that does not
+ * survive a UTF-8 round trip (an image, an archive, a compiled artefact) cannot
+ * be carried onto it. Returning null for those keeps the site honest: the app
+ * sees a missing file rather than mojibake it would happily write back.
+ */
+const readTextFile = (absolute: string) => {
+  const buffer = fs.readFileSync(absolute)
+  const text = buffer.toString('utf8')
+  return Buffer.from(text, 'utf8').equals(buffer) ? text : null
+}
+
 const seedFromBuild = (
   buildFolder: string,
   appLoc: string,
@@ -82,33 +73,68 @@ const seedFromBuild = (
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
+  const skipped: string[] = []
   const driveBase = `/sasjs/drive/files${appLoc}`
 
-  const entries = fs.readdirSync(buildFolder, { withFileTypes: true })
-
-  // The program folders always go in, even when compile left them out of this
-  // build; everything else is carried across so a sync folder's content (a
-  // licence store, for instance) survives too.
-  const directories = entries.filter((entry) => entry.isDirectory())
-  for (const name of PROGRAM_FOLDERS) {
-    if (!directories.some((entry) => entry.name === name)) {
-      const present = fs.existsSync(path.join(buildFolder, name))
-      if (present) directories.push({ name, isDirectory: () => true } as any)
-    }
-  }
+  // Every folder of the build goes on the drive, so a sync folder's content (a
+  // licence store, for instance) survives as well as the program folders.
+  const directories = fs
+    .readdirSync(buildFolder, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
 
   for (const entry of directories) {
     const folder = path.join(buildFolder, entry.name)
     if (excludeFolders.includes(path.resolve(folder))) continue
-    if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
       if (exclude.some((prefix) => key.startsWith(prefix))) continue
-      files[key] = fs.readFileSync(path.join(folder, relative), 'utf8')
+      const contents = readTextFile(path.join(folder, relative))
+      if (contents === null) skipped.push(key)
+      else files[key] = contents
     }
   }
 
-  return files
+  return { files, skipped }
+}
+
+/**
+ * `mockWebFolder` decides a folder that is deleted before it is written, so it
+ * has to name a folder of its own. Anything that would delete the project, the
+ * build output the drive is seeded from, or the web app it is copied from is
+ * refused before a single file is touched.
+ */
+const assertSafeOutputFolder = (
+  outputFolder: string,
+  projectDir: string,
+  buildFolder: string,
+  webFolder: string
+) => {
+  const isSameOrChild = (parent: string, child: string) => {
+    const relative = path.relative(parent, child)
+    return (
+      relative === '' ||
+      (relative !== '..' &&
+        !relative.startsWith('..' + path.sep) &&
+        !path.isAbsolute(relative))
+    )
+  }
+  const refusal = (why: string) =>
+    new Error(
+      `Refusing to write the mock site to ${outputFolder}: ${why}. ` +
+        'Set streamConfig.mockWebFolder to a folder of its own, for example "sasjsbuild/mock".'
+    )
+
+  if (isSameOrChild(outputFolder, projectDir))
+    throw refusal('that folder is the project folder or contains it')
+  if (isSameOrChild(outputFolder, buildFolder))
+    throw refusal('that folder holds the build output the drive is seeded from')
+  if (isSameOrChild(outputFolder, webFolder))
+    throw refusal('that folder holds the web app the site is copied from')
+  if (
+    !isSameOrChild(projectDir, outputFolder) &&
+    !isSameOrChild(buildFolder, outputFolder)
+  )
+    throw refusal('that folder is outside the project')
 }
 
 const countJsPrograms = (files: { [path: string]: string }) =>
@@ -216,78 +242,67 @@ const patchIndexHtml = (html: string, version: string) => {
   return { patched, warnings }
 }
 
-export async function buildMockSite(
-  target: Target,
-  options: MockSiteOptions = {}
-): Promise<MockSiteResult> {
+/**
+ * Builds a static site that runs the project's JS services (its mocks) in the
+ * browser, so a frontend can be tested with no server and no SAS.
+ *
+ * The output is an ordinary folder of static files: serve it over http(s) and
+ * the app behaves as though it were talking to a single-user SASjs server. The
+ * work happens in a service worker, so every request is still a real request -
+ * visible in DevTools > Network, marked "(from ServiceWorker)" - and the drive
+ * it writes to is persisted in IndexedDB, so refreshes keep their state.
+ *
+ * Everything comes from the target: appLoc, streamConfig.mockWebFolder for the
+ * output, streamConfig.webSourcePath for the built app, and the compile output
+ * for the drive.
+ */
+export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const projectDir = process.projectDir || process.cwd()
-  // Paths the user types are relative to where they ran the command; defaults
-  // are relative to the project root (the folder above `sasjs/`).
-  const invocationDir = (process as any).currentDir || process.cwd()
-  const appLocRaw = options.appLoc || (target as any).appLoc
+  const appLocRaw = (target as any).appLoc
   if (!appLocRaw) {
     throw new Error(
-      'No appLoc. Set appLoc on the target, or pass --apploc <path>. It has to match the appLoc the app is built with.'
+      'No appLoc. Set appLoc on the target - it has to match the appLoc the app is built with.'
     )
   }
   const appLoc = '/' + appLocRaw.replace(/^\/+/, '').replace(/\/+$/, '')
 
-  // Default: the compile output. `--services` points at a different build
-  // folder when the mocks come from another project (the sasjs/server pattern
-  // most repos use: a small mocks project next to the real one).
-  const buildFolder = options.servicesFolder
-    ? path.resolve(invocationDir, options.servicesFolder)
-    : process.sasjsConstants.buildDestinationFolder ||
-      path.join(projectDir, 'sasjsbuild')
+  const buildFolder =
+    process.sasjsConstants.buildDestinationFolder ||
+    path.join(projectDir, 'sasjsbuild')
 
   if (!(await folderExists(buildFolder))) {
     throw new Error(
-      `Build folder not found: ${buildFolder}. Run \`sasjs compile\` first, or pass --services <build folder>.`
+      `Build folder not found: ${buildFolder}. Run \`sasjs compile\` first.`
     )
   }
 
-  const webSourceRaw =
-    options.webSourcePath ||
-    (target.streamConfig && target.streamConfig.webSourcePath)
+  const webSourceRaw = target.streamConfig?.webSourcePath
   if (!webSourceRaw) {
     throw new Error(
-      'No built web app. Pass --web <folder> (for example ./client/dist), or set streamConfig.webSourcePath on the target.'
+      'No built web app. Set streamConfig.webSourcePath on the target (for example ./client/dist), and build the frontend first.'
     )
   }
-  // A path from the config is relative to the project root; a path typed by
-  // the user is relative to where they ran the command.
-  const webFolder = options.webSourcePath
-    ? path.resolve(invocationDir, webSourceRaw)
-    : path.resolve(projectDir, webSourceRaw)
+  const webFolder = path.resolve(projectDir, webSourceRaw)
   if (!(await folderExists(webFolder))) {
     throw new Error(
-      `Web source folder not found: ${webFolder}. Build the frontend first.`
+      `Web source folder not found: ${webFolder}. Check streamConfig.webSourcePath - build the frontend first.`
     )
   }
   if (!fs.existsSync(path.join(webFolder, 'index.html'))) {
     throw new Error(
-      `${webFolder} does not contain an index.html - is that the built app?`
+      `${webFolder} does not contain an index.html - is streamConfig.webSourcePath pointing at the built app?`
     )
   }
 
-  const mockWebFolder = target.streamConfig?.mockWebFolder
+  const outputFolder = target.streamConfig?.mockWebFolder
+    ? path.resolve(projectDir, target.streamConfig.mockWebFolder)
+    : path.join(buildFolder, 'mock')
 
-  const outputFolder = options.outputFolder
-    ? path.resolve(invocationDir, options.outputFolder)
-    : mockWebFolder
-      ? path.resolve(projectDir, mockWebFolder)
-      : path.join(
-          process.sasjsConstants.buildDestinationFolder ||
-            path.join(projectDir, 'sasjsbuild'),
-          'mock'
-        )
+  assertSafeOutputFolder(outputFolder, projectDir, buildFolder, webFolder)
 
-  // A previous site may sit inside the build folder; removing it first keeps it
-  // out of the drive seed as well as out of the way.
-  fs.rmSync(outputFolder, { recursive: true, force: true })
-
-  // Read the drive before writing the output, so an unusable target fails
-  // without leaving a half-written site behind.
+  // Read the drive before anything is written or removed: an unusable target
+  // (SAS services, unreadable build folder) then leaves the previous site in
+  // place instead of destroying it and failing.
   // A streamed app is copied into the build as services/<streamWebFolder>. It
   // is already served as the site itself, so it does not belong on the drive.
   const streamConfig = target.streamConfig
@@ -300,17 +315,33 @@ export async function buildMockSite(
     )
   }
 
-  const seed = seedFromBuild(buildFolder, appLoc, excluded, [outputFolder])
+  // A previous site may sit inside the build folder; leaving it out of the seed
+  // keeps the old site out of the new drive.
+  const { files: seed, skipped } = seedFromBuild(
+    buildFolder,
+    appLoc,
+    excluded,
+    [outputFolder]
+  )
   const jsPrograms = countJsPrograms(seed)
   const driveEntries = Object.keys(seed).length
 
   if (jsPrograms === 0) {
     throw new Error(
       `No .js programs in ${buildFolder}/services, /jobs or /tests. This target builds SAS code, which cannot run in a browser. ` +
-        'Compile a project whose services are JavaScript (typically a mocks project), or pass --services <build folder>.'
+        'Build a target whose services are JavaScript (typically a mocks project).'
     )
   }
 
+  if (skipped.length) {
+    process.logger?.warn(
+      `Left ${skipped.length} non-text file(s) off the mock drive, which holds text files only: ` +
+        `${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? ', ...' : ''}`
+    )
+  }
+
+  // Only now is the previous site expendable.
+  fs.rmSync(outputFolder, { recursive: true, force: true })
   fs.mkdirSync(outputFolder, { recursive: true })
 
   // 1. the app
