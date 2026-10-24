@@ -64,7 +64,8 @@ describe('service worker host', () => {
   const seeded = () => {
     const worker = loadWorker()
     worker.runtime.load({
-      [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+      [drivePath('services/public/getdata.js')]:
+        'console.log("hello"); _webout = "seeded";'
     })
     return worker
   }
@@ -90,8 +91,10 @@ describe('service worker host', () => {
         '&_debug=log'
     )
 
+    // the log lands between the separators, not the empty string the framing
+    // would produce if the lines were dropped
     expect(await response.text()).toBe(
-      ['seeded', LOGS_SEPARATOR, '', LOGS_SEPARATOR].join('\n')
+      ['seeded', LOGS_SEPARATOR, 'hello', LOGS_SEPARATOR].join('\n')
     )
   })
 
@@ -140,7 +143,9 @@ describe('service worker host', () => {
         encodeURIComponent(`${appLoc}/services/public/getdata.js`)
     )
 
-    expect(await response.text()).toBe('_webout = "seeded";')
+    expect(await response.text()).toBe(
+      'console.log("hello"); _webout = "seeded";'
+    )
   })
 
   it('leaves requests outside /SASjsApi/ to the static host', () => {
