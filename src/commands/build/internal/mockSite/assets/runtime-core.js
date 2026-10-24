@@ -426,7 +426,7 @@ const mkdirp = (dir) => {
 }
 
 const FS = {
-  readFileSync(p, encoding) {
+  readFileSync(p, options) {
     const abs = P.resolve(String(p))
     if (!FILES.has(abs)) {
       const err = new Error(
@@ -435,6 +435,9 @@ const FS = {
       err.code = 'ENOENT'
       throw err
     }
+    // node takes the encoding either bare or on an options object
+    const encoding =
+      options && typeof options === 'object' ? options.encoding : options
     const contents = FILES.get(abs)
     const bytes = isBinary(contents)
       ? BUFFERS.from(contents.slice(BINARY_PREFIX.length), 'base64')
@@ -739,14 +742,14 @@ return _webout;
   // base64-decode text
   const fromFile = isBinary(stored)
     ? stored.slice(BINARY_PREFIX.length)
-    : stored
+    : entryText(stored)
   const binary = !!fromFile && isBinary(stored)
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
   return {
     webout,
     log: logLines.join('\n'),
-    headers: FILES.get(headersPath) || '',
+    headers: entryText(FILES.get(headersPath) || ''),
     // a byte body travels to the host as base64, which is how it is stored
     binary,
     error: thrown

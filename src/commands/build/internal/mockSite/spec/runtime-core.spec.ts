@@ -396,6 +396,33 @@ describe('browser runtime', () => {
     expect(result.webout).toBe('true|AGJhc2U2NDpBQUFB|12|true')
   })
 
+  it('takes an encoding on an options object, and hands an escaped body back unchanged', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'plain notes')",
+        "const options = fs.readFileSync(file, { encoding: 'utf8' })",
+        // a body that looks like the drive's own marker
+        "_webout = '\\u0000text:not really escaped'"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the webout comes back exactly as written, escape and all
+    expect(result.webout).toBe('\u0000text:not really escaped')
+
+    const read = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'plain notes')",
+        "_webout = fs.readFileSync(file, { encoding: 'utf8' })"
+      ].join('\n')
+    })
+    expect(read.webout).toBe('plain notes')
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 
