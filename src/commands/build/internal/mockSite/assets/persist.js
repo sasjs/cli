@@ -1,5 +1,5 @@
 /**
- * Drive storage for the demo: IndexedDB, owned by the page.
+ * Drive storage for the browser build: IndexedDB, owned by the page.
  *
  * The service worker hosts the runtime but may be terminated between requests,
  * so it holds no durable state. On boot this script reads the persisted drive

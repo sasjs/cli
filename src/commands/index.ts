@@ -6,7 +6,7 @@ export { compileSingleFile } from './compile/compileSingleFile'
 
 export { build, getBuildVars } from './build/build'
 
-export { buildMockSite } from './mock/mock'
+export { buildMockSite } from './build/internal/mockSite/mockSite'
 
 export { init } from './init/init'
 

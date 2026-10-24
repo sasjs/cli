@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { buildMockSite } from '../mock'
+import { buildMockSite } from '../mockSite'
 
 const appLoc = '/Public/app/test'
 

@@ -1,5 +1,5 @@
 /**
- * Service-worker host for the Data Controller single-page demo.
+ * Service-worker host for the browser build.
  *
  * Running the backend here (rather than inside the page) means every request is
  * a real network-layer request: DevTools > Network lists it as "(from

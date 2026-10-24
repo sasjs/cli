@@ -1,5 +1,5 @@
 /**
- * Page-side bridge for the single-page demo.
+ * Page-side bridge for the browser build.
  *
  * The real work happens in the service worker (see /sw.js), so every request
  * still goes over the network layer and is visible in DevTools > Network as

@@ -29,7 +29,7 @@ import { compile } from '../compile/compile'
 import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import { buildMockSite } from '../mock/mock'
+import { buildMockSite } from './internal/mockSite/mockSite'
 
 export async function build(target: Target) {
   const { macroCorePath } = process.sasjsConstants

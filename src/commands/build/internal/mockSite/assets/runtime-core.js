@@ -1,5 +1,5 @@
 /**
- * Browser runtime host for Data Controller's JS stored programs.
+ * Browser runtime host for a project's JS stored programs.
  *
  * Runs the sasjs/server JS "stored program" contract inside a Web Worker:
  * a generated wrapper declares the request parameters as module-scope consts,
@@ -7,9 +7,9 @@
  * controllers/internal/createJSProgram.ts does, executes the program text, and
  * the program's `_webout` assignment is read back from the virtual drive.
  *
- * The virtual drive seeds from vfs-seed.json, which holds the unmodified
- * Data Controller mock services, so the services themselves are not adapted
- * in any way.
+ * The virtual drive seeds from vfs-seed.json, which holds the project's own
+ * JS services unchanged, so the services themselves are not adapted in any
+ * way.
  */
 
 if (typeof importScripts === 'function') importScripts('/host/md5.js')
@@ -482,8 +482,8 @@ let lastBoot = null
 /**
  * Loads the drive the site ships with. A snapshot wins over the plain seed: it
  * is a complete drive captured after a project's own services had run (a
- * configured Data Controller, for instance), so a visitor starts from data
- * instead of from an empty drive.
+ * seeded demo site, for instance), so a visitor starts from data instead of
+ * from an empty drive.
  */
 const fetchDrive = async () => {
   for (const [source, url] of [
