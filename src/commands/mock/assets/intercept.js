@@ -29,7 +29,12 @@
     if (typeof FormData !== 'undefined' && body instanceof FormData) {
       for (const [key, value] of body.entries()) {
         if (typeof value === 'string') params[key] = value
-        else tables.push({ name: key, filename: value.name || key + '.csv', csv: await value.text() })
+        else
+          tables.push({
+            name: key,
+            filename: value.name || key + '.csv',
+            csv: await value.text()
+          })
       }
       return { params, tables }
     }
@@ -55,10 +60,19 @@
 
   const respond = (xhr, status, contentType, body) => {
     Object.defineProperty(xhr, 'status', { value: status, configurable: true })
-    Object.defineProperty(xhr, 'statusText', { value: status === 200 ? 'OK' : 'ERROR', configurable: true })
+    Object.defineProperty(xhr, 'statusText', {
+      value: status === 200 ? 'OK' : 'ERROR',
+      configurable: true
+    })
     Object.defineProperty(xhr, 'readyState', { value: 4, configurable: true })
-    Object.defineProperty(xhr, 'responseText', { value: body, configurable: true })
-    Object.defineProperty(xhr, 'responseURL', { value: xhr.__dcUrl, configurable: true })
+    Object.defineProperty(xhr, 'responseText', {
+      value: body,
+      configurable: true
+    })
+    Object.defineProperty(xhr, 'responseURL', {
+      value: xhr.__dcUrl,
+      configurable: true
+    })
     Object.defineProperty(xhr, 'response', {
       value: xhr.responseType === 'json' ? safeParse(body) : body,
       configurable: true
@@ -72,7 +86,8 @@
     xhr.dispatchEvent(new ProgressEvent('loadend'))
   }
 
-  const isSasjs = (url) => typeof url === 'string' && url.indexOf('/SASjsApi/') >= 0
+  const isSasjs = (url) =>
+    typeof url === 'string' && url.indexOf('/SASjsApi/') >= 0
 
   const proto = XMLHttpRequest.prototype
   const nativeOpen = proto.open
@@ -92,7 +107,11 @@
 
     readBody(body)
       .then(async (payload) => {
-        const init = { method, credentials: 'same-origin', headers: { accept: '*/*' } }
+        const init = {
+          method,
+          credentials: 'same-origin',
+          headers: { accept: '*/*' }
+        }
         if (method !== 'GET' && method !== 'HEAD') {
           init.headers['content-type'] = 'application/json'
           init.body = JSON.stringify(payload)
@@ -102,12 +121,22 @@
         const res = await fetch(xhr.__dcUrl, init)
         const text = await res.text()
         const contentType = res.headers.get('content-type') || 'text/plain'
-        if (res.status >= 400) console.error('[dc-host] ' + xhr.__dcUrl + ' -> ' + res.status + ' ' + text.slice(0, 400))
+        if (res.status >= 400)
+          console.error(
+            '[dc-host] ' +
+              xhr.__dcUrl +
+              ' -> ' +
+              res.status +
+              ' ' +
+              text.slice(0, 400)
+          )
         respond(xhr, res.status, contentType, text)
       })
       .catch((err) => {
         const message = String((err && err.message) || err)
-        console.error('[dc-host] request failed: ' + xhr.__dcUrl + ' - ' + message)
+        console.error(
+          '[dc-host] request failed: ' + xhr.__dcUrl + ' - ' + message
+        )
         respond(
           xhr,
           500,
@@ -121,6 +150,9 @@
   // bridge honest if a code path switches transport.
   window.__dcHostStats = async () => {
     const reg = await navigator.serviceWorker.ready
-    return { active: !!reg.active, controller: !!navigator.serviceWorker.controller }
+    return {
+      active: !!reg.active,
+      controller: !!navigator.serviceWorker.controller
+    }
   }
 })()

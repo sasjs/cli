@@ -16,7 +16,9 @@ const R = self.DCRuntime
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 
 self.addEventListener('install', () => self.skipWaiting())
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
+self.addEventListener('activate', (event) =>
+  event.waitUntil(self.clients.claim())
+)
 
 const json = (obj, status) =>
   new Response(JSON.stringify(obj, null, 2), {
@@ -25,7 +27,10 @@ const json = (obj, status) =>
   })
 
 const text = (body, status) =>
-  new Response(body, { status: status || 200, headers: { 'content-type': 'text/plain' } })
+  new Response(body, {
+    status: status || 200,
+    headers: { 'content-type': 'text/plain' }
+  })
 
 const broadcast = async (message) => {
   const clients = await self.clients.matchAll({ includeUncontrolled: true })
@@ -38,7 +43,8 @@ const persistChanges = async () => {
 }
 
 const readPayload = async (request) => {
-  if (request.method === 'GET' || request.method === 'HEAD') return { params: {}, tables: [] }
+  if (request.method === 'GET' || request.method === 'HEAD')
+    return { params: {}, tables: [] }
   const type = request.headers.get('content-type') || ''
   if (!type.includes('application/json')) {
     try {
@@ -47,7 +53,12 @@ const readPayload = async (request) => {
       const tables = []
       for (const [k, v] of form.entries()) {
         if (typeof v === 'string') params[k] = v
-        else tables.push({ name: k, filename: v.name || k + '.csv', csv: await v.text() })
+        else
+          tables.push({
+            name: k,
+            filename: v.name || k + '.csv',
+            csv: await v.text()
+          })
       }
       return { params, tables }
     } catch (e) {
@@ -67,7 +78,13 @@ const handle = async (request, url) => {
     await R.ensureReady()
 
     if (path.endsWith('/SASjsApi/info')) {
-      return json({ mode: 'desktop', cors: 'disabled', whiteList: [], protocol: 'browser', runTimes: ['js'] })
+      return json({
+        mode: 'desktop',
+        cors: 'disabled',
+        whiteList: [],
+        protocol: 'browser',
+        runTimes: ['js']
+      })
     }
 
     if (path.endsWith('/SASjsApi/drive/folder')) {
@@ -82,31 +99,60 @@ const handle = async (request, url) => {
       return text(R.read(query._filePath || '').contents)
     }
 
-    if (path.endsWith('/SASjsApi/stp/execute') || path.endsWith('/SASjsApi/code/execute')) {
+    if (
+      path.endsWith('/SASjsApi/stp/execute') ||
+      path.endsWith('/SASjsApi/code/execute')
+    ) {
       const payload = await readPayload(request)
       const merged = Object.assign({}, query, payload.params)
       const program = merged._program
-      const code = payload.json && payload.json.code ? payload.json.code : undefined
-      if (!program && !code) return json({ message: '_program is required' }, 400)
+      const code =
+        payload.json && payload.json.code ? payload.json.code : undefined
+      if (!program && !code)
+        return json({ message: '_program is required' }, 400)
 
-      const result = R.run({ program, code, params: merged, tables: payload.tables })
+      const result = R.run({
+        program,
+        code,
+        params: merged,
+        tables: payload.tables
+      })
       await persistChanges()
       if (result.error) {
-        return json({ status: 'failure', message: 'Job execution failed.', error: result.error }, 500)
+        return json(
+          {
+            status: 'failure',
+            message: 'Job execution failed.',
+            error: result.error
+          },
+          500
+        )
       }
       const debug = String(merged._debug || '').length > 0
-      return text(debug ? [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR].join('\n') : result.webout)
+      return text(
+        debug
+          ? [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR].join(
+              '\n'
+            )
+          : result.webout
+      )
     }
 
     if (path.includes('/SASjsApi/session')) {
       return json({ state: 'completed' })
     }
 
-    return json({ message: 'Not implemented by the browser host: ' + path }, 404)
+    return json(
+      { message: 'Not implemented by the browser host: ' + path },
+      404
+    )
   } catch (e) {
     const message = (e && e.stack) || String(e)
     broadcast({ type: 'dc-host-error', path, message })
-    return json({ message: (e && e.message) || String(e) }, (e && e.status) || 500)
+    return json(
+      { message: (e && e.message) || String(e) },
+      (e && e.status) || 500
+    )
   }
 }
 

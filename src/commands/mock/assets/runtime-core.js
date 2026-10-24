@@ -31,7 +31,13 @@ const P = {
     return isAbs ? '/' + joined : joined || '.'
   },
   join(...args) {
-    return this.normalise(args.filter((a) => a !== undefined && a !== null && String(a) !== '').join('/')) || '.'
+    return (
+      this.normalise(
+        args
+          .filter((a) => a !== undefined && a !== null && String(a) !== '')
+          .join('/')
+      ) || '.'
+    )
   },
   resolve(...args) {
     let resolved = ''
@@ -63,7 +69,6 @@ const P = {
 // ------------------------------------------------------------- virtual drive
 const FILES = new Map() // absolute path -> string contents
 const DIRS = new Set(['/'])
-
 
 // ------------------------------------------------------------ persistence
 // The drive lives in this worker's memory. IndexedDB is owned by the PAGE
@@ -101,7 +106,12 @@ const loadSnapshot = (files) => {
     FILES.set(P.resolve(path), contents)
     mkdirp(P.dirname(path))
   }
-  lastBoot = { booted: true, restored: true, files: FILES.size, at: new Date().toISOString() }
+  lastBoot = {
+    booted: true,
+    restored: true,
+    files: FILES.size,
+    at: new Date().toISOString()
+  }
   return lastBoot
 }
 
@@ -118,7 +128,9 @@ const FS = {
   readFileSync(p, opts) {
     const abs = P.resolve(String(p))
     if (!FILES.has(abs)) {
-      const err = new Error(`ENOENT: no such file or directory, open '${String(p)}'`)
+      const err = new Error(
+        `ENOENT: no such file or directory, open '${String(p)}'`
+      )
       err.code = 'ENOENT'
       throw err
     }
@@ -166,12 +178,15 @@ const FS = {
   },
   statSync(p) {
     const abs = P.resolve(String(p))
-    if (DIRS.has(abs)) return { isDirectory: () => true, isFile: () => false, size: 0 }
+    if (DIRS.has(abs))
+      return { isDirectory: () => true, isFile: () => false, size: 0 }
     if (FILES.has(abs)) {
       const size = FILES.get(abs).length
       return { isDirectory: () => false, isFile: () => true, size }
     }
-    const err = new Error(`ENOENT: no such file or directory, stat '${String(p)}'`)
+    const err = new Error(
+      `ENOENT: no such file or directory, stat '${String(p)}'`
+    )
     err.code = 'ENOENT'
     throw err
   },
@@ -182,14 +197,16 @@ const FS = {
   },
   copyFileSync(from, to) {
     const src = P.resolve(String(from))
-    if (!FILES.has(src)) throw new Error(`ENOENT: no such file, copy '${String(from)}'`)
+    if (!FILES.has(src))
+      throw new Error(`ENOENT: no such file, copy '${String(from)}'`)
     FS.writeFileSync(to, FILES.get(src))
   }
 }
 
 const CRYPTO = {
   createHash(alg) {
-    if (String(alg).toLowerCase() !== 'md5') throw new Error(`Unsupported hash in browser host: ${alg}`)
+    if (String(alg).toLowerCase() !== 'md5')
+      throw new Error(`Unsupported hash in browser host: ${alg}`)
     let buf = ''
     return {
       update(s) {
@@ -213,7 +230,9 @@ const requireShim = (name) => {
     case 'crypto':
       return CRYPTO
     default:
-      throw new Error(`Cannot find module '${name}' in the browser runtime host`)
+      throw new Error(
+        `Cannot find module '${name}' in the browser runtime host`
+      )
   }
 }
 
@@ -287,7 +306,8 @@ const resolveProgram = (program) => {
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
-  if (!codePath && !payloadCode) throw new Error(`Program not found in drive: ${program}`)
+  if (!codePath && !payloadCode)
+    throw new Error(`Program not found in drive: ${program}`)
 
   const logLines = []
   const sandboxConsole = {}
@@ -317,9 +337,15 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const webinStatements = []
   tables.forEach((table, idx) => {
     const n = idx + 1
-    webinStatements.push(`const _WEBIN_NAME${n} = ${JSON.stringify(table.name)};`)
-    webinStatements.push(`const _WEBIN_FILENAME${n} = ${JSON.stringify(table.filename)};`)
-    webinStatements.push(`const _WEBIN_FILEREF${n} = ${JSON.stringify(table.csv)};`)
+    webinStatements.push(
+      `const _WEBIN_NAME${n} = ${JSON.stringify(table.name)};`
+    )
+    webinStatements.push(
+      `const _WEBIN_FILENAME${n} = ${JSON.stringify(table.filename)};`
+    )
+    webinStatements.push(
+      `const _WEBIN_FILEREF${n} = ${JSON.stringify(table.csv)};`
+    )
   })
   webinStatements.push(`const _WEBIN_FILE_COUNT = ${tables.length};`)
 
@@ -351,7 +377,10 @@ return _webout;
   let thrown = null
   let returned = ''
   try {
-    returned = fn(requireShim, sandboxConsole, { pid: 4242, env: { NODE_ENV: 'browser' } })
+    returned = fn(requireShim, sandboxConsole, {
+      pid: 4242,
+      env: { NODE_ENV: 'browser' }
+    })
   } catch (e) {
     thrown = e && e.stack ? e.stack : String(e)
     logLines.push(String(thrown))
@@ -370,9 +399,16 @@ return _webout;
 
 const listFolder = (folderPath) => {
   const abs = folderPath
-    ? P.resolve(DRIVE_APP, String(folderPath).replace(/^\/+/, '').replace(new RegExp('^' + APP_LOC + '/'), ''))
+    ? P.resolve(
+        DRIVE_APP,
+        String(folderPath)
+          .replace(/^\/+/, '')
+          .replace(new RegExp('^' + APP_LOC + '/'), '')
+      )
     : DRIVE_APP
-  const alt = folderPath ? P.resolve(DRIVE_ROOT, 'files', String(folderPath).replace(/^\/+/, '')) : DRIVE_APP
+  const alt = folderPath
+    ? P.resolve(DRIVE_ROOT, 'files', String(folderPath).replace(/^\/+/, ''))
+    : DRIVE_APP
   const target = DIRS.has(abs) ? abs : alt
   if (!DIRS.has(target) && !FILES.has(target)) {
     const err = new Error(`Folder doesn't exist.`)
@@ -398,7 +434,11 @@ const listFolder = (folderPath) => {
 }
 
 const readDriveFile = (filePath) => {
-  const abs = P.resolve(DRIVE_ROOT, 'files', String(filePath).replace(/^\/+/, ''))
+  const abs = P.resolve(
+    DRIVE_ROOT,
+    'files',
+    String(filePath).replace(/^\/+/, '')
+  )
   if (!FILES.has(abs)) {
     const err = new Error('File not found')
     err.status = 404
@@ -462,7 +502,11 @@ const fetchDrive = async () => {
   }
 
   throw new Error(
-    'No drive to load: neither ' + SNAPSHOT_PATH + ' nor ' + SEED_PATH + ' could be read'
+    'No drive to load: neither ' +
+      SNAPSHOT_PATH +
+      ' nor ' +
+      SEED_PATH +
+      ' could be read'
   )
 }
 
@@ -535,7 +579,10 @@ const api = {
   },
   seed: () => {
     started = true
-    const p = boot().catch((e) => ({ booted: false, error: (e && e.message) || String(e) }))
+    const p = boot().catch((e) => ({
+      booted: false,
+      error: (e && e.message) || String(e)
+    }))
     ready = p
     if (resolveBoot) resolveBoot(p)
     return p
@@ -546,7 +593,10 @@ const api = {
   bootInfo: () => lastBoot,
   stats: () => ({
     files: FILES.size,
-    bytes: [...FILES.values()].reduce((total, contents) => total + contents.length, 0)
+    bytes: [...FILES.values()].reduce(
+      (total, contents) => total + contents.length,
+      0
+    )
   }),
   run: (payload) => runProgram(payload),
   list: (folder) => listFolder(folder),

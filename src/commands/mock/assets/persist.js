@@ -43,15 +43,22 @@
     new Promise(async (resolve, reject) => {
       try {
         const db = await openDb()
-        const keysReq = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys()
+        const keysReq = db
+          .transaction(STORE, 'readonly')
+          .objectStore(STORE)
+          .getAllKeys()
         keysReq.onsuccess = () => {
           const keys = keysReq.result
           if (!keys.length) return resolve({})
-          const valsReq = db.transaction(STORE, 'readonly').objectStore(STORE).getAll()
+          const valsReq = db
+            .transaction(STORE, 'readonly')
+            .objectStore(STORE)
+            .getAll()
           valsReq.onsuccess = () => {
             const files = {}
             keys.forEach((k, i) => {
-              if (typeof valsReq.result[i] === 'string') files[k] = valsReq.result[i]
+              if (typeof valsReq.result[i] === 'string')
+                files[k] = valsReq.result[i]
             })
             resolve(files)
           }
@@ -84,10 +91,12 @@
 
   const waitForController = () =>
     new Promise((resolve) => {
-      if (navigator.serviceWorker.controller) return resolve(navigator.serviceWorker.controller)
+      if (navigator.serviceWorker.controller)
+        return resolve(navigator.serviceWorker.controller)
       let waited = 0
       const tick = () => {
-        if (navigator.serviceWorker.controller) return resolve(navigator.serviceWorker.controller)
+        if (navigator.serviceWorker.controller)
+          return resolve(navigator.serviceWorker.controller)
         if (waited > 10000) return resolve(null)
         waited += 200
         setTimeout(tick, 200)
@@ -106,7 +115,8 @@
       }
       sw.addEventListener('message', handler)
       waitForController().then((controller) => {
-        if (!controller) return resolve({ error: 'no service worker controller' })
+        if (!controller)
+          return resolve({ error: 'no service worker controller' })
         controller.postMessage(message)
       })
       setTimeout(() => resolve({ timeout: true }), 20000)
@@ -115,8 +125,12 @@
   // Persist whatever the worker reports as changed.
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
-    if (data.type === 'dc-persist') writeFiles(data.files).catch((e) => console.error('[dc-host] persist failed', e))
-    if (data.type === 'dc-host-error') console.error('[dc-host] ' + data.path + ': ' + data.message)
+    if (data.type === 'dc-persist')
+      writeFiles(data.files).catch((e) =>
+        console.error('[dc-host] persist failed', e)
+      )
+    if (data.type === 'dc-host-error')
+      console.error('[dc-host] ' + data.path + ': ' + data.message)
   })
 
   window.__dcStorage = {
@@ -127,7 +141,10 @@
     stats: async () => {
       const files = await readAll()
       const paths = Object.keys(files)
-      return { files: paths.length, bytes: paths.reduce((t, p) => t + files[p].length, 0) }
+      return {
+        files: paths.length,
+        bytes: paths.reduce((t, p) => t + files[p].length, 0)
+      }
     },
     /**
      * Downloads the current drive as `mock-snapshot.json`. Drop that file in the
@@ -168,7 +185,10 @@
     }
 
     if (Object.keys(files).length) {
-      window.__dcBoot = await askWorker({ type: 'dc-load', files }, 'dc-load-ack')
+      window.__dcBoot = await askWorker(
+        { type: 'dc-load', files },
+        'dc-load-ack'
+      )
     } else {
       window.__dcBoot = await askWorker({ type: 'dc-seed' }, 'dc-seed-ack')
     }
