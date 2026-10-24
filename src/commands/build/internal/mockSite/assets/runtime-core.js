@@ -10,6 +10,21 @@
  * The virtual drive seeds from vfs-seed.json, which holds the project's own
  * JS services unchanged, so the services themselves are not adapted in any
  * way.
+ *
+ * CONTRACT. A stored program gets what the server's generated wrapper gives it:
+ * the request parameters as module-scope consts (`_program` included), the
+ * uploaded tables as `_WEBIN_*` refs, `fs`/`path`/`crypto` from require(),
+ * `Buffer`, and `_webout` / `weboutPath` / `_SASJS_WEBOUT_HEADERS`. Two ways to
+ * answer a request:
+ *
+ *   1. text - assign `_webout`, or write a string to `weboutPath`;
+ *   2. bytes - write an ArrayBuffer, a TypedArray or a Buffer to `weboutPath`,
+ *      the way a service that streams a file does on the server.
+ *
+ * In both cases the response headers are whatever lines the service wrote to
+ * `_SASJS_WEBOUT_HEADERS` (`Content-type`, `Content-Disposition`); the host
+ * applies them to the response. A byte body comes back to the host as base64
+ * with a `binary` flag, because the drive itself holds strings.
  */
 
 if (typeof importScripts === 'function') importScripts('/host/md5.js')
@@ -65,6 +80,117 @@ const P = {
     return i > 0 ? b.slice(i) : ''
   }
 }
+
+// ------------------------------------------------------------ binary values
+// The drive holds strings: it is persisted as JSON in IndexedDB and seeded from
+// a JSON file. A file a service writes as bytes is therefore stored as base64
+// behind a marker, which keeps the representation self-describing - a drive
+// restored from a snapshot still knows which entries are base64 - and no text
+// file starts with a NUL.
+const BINARY_PREFIX = '\u0000base64:'
+const BUFFER_MARK = '__sasjsBuffer'
+const CHUNK = 0x8000
+
+const chunked = (bytes) => {
+  let out = ''
+  for (let i = 0; i < bytes.length; i += CHUNK)
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK))
+  return out
+}
+
+const bytesToBase64 = (bytes) => btoa(chunked(bytes))
+
+const base64ToBytes = (base64) =>
+  Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+
+/** The bytes a service handed to fs, or null when it wrote text. */
+const asBytes = (data) => {
+  if (data instanceof Uint8Array) return data
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (ArrayBuffer.isView(data))
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  if (Array.isArray(data)) return Uint8Array.from(data)
+  return null
+}
+
+const base64Size = (base64) =>
+  Math.floor((base64.length * 3) / 4) -
+  (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
+
+const isBinary = (contents) =>
+  typeof contents === 'string' && contents.startsWith(BINARY_PREFIX)
+
+const utf8Encoder = new TextEncoder()
+const utf8Decoder = new TextDecoder()
+
+const bytesToString = (bytes, encoding) => {
+  switch (String(encoding || 'utf8').toLowerCase()) {
+    case 'base64':
+      return bytesToBase64(bytes)
+    case 'hex':
+      return [...bytes]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('')
+    case 'binary':
+    case 'latin1':
+      return chunked(bytes)
+    default:
+      return utf8Decoder.decode(bytes)
+  }
+}
+
+/**
+ * A minimal Buffer, for the writes a streaming service makes:
+ * `Buffer.from(bytes)` and `Buffer.from(base64, 'base64')`. What it returns is
+ * a Uint8Array that also decodes itself, so a service writes it straight to the
+ * webout and reads it back the way node returns one.
+ */
+const asBuffer = (bytes) => {
+  const buffer = new Uint8Array(bytes)
+  buffer[BUFFER_MARK] = true
+  buffer.toString = (encoding, start, end) =>
+    bytesToString(
+      buffer.subarray(start || 0, end === undefined ? buffer.length : end),
+      encoding
+    )
+  return buffer
+}
+
+const BUFFERS = {
+  from(value, encoding) {
+    if (typeof value === 'string') {
+      const how = String(encoding || 'utf8').toLowerCase()
+      if (how === 'base64') return asBuffer(base64ToBytes(value))
+      if (how === 'hex')
+        return asBuffer(
+          Uint8Array.from(value.match(/../g) || [], (pair) =>
+            parseInt(pair, 16)
+          )
+        )
+      return asBuffer(utf8Encoder.encode(value))
+    }
+    const bytes = asBytes(value)
+    if (!bytes)
+      throw new TypeError('Buffer.from: unsupported input in the browser host')
+    return asBuffer(bytes)
+  },
+  alloc: (size) => asBuffer(new Uint8Array(size || 0)),
+  concat(list) {
+    const parts = (list || []).map((item) => asBytes(item) || new Uint8Array(0))
+    const total = parts.reduce((sum, part) => sum + part.length, 0)
+    const out = new Uint8Array(total)
+    let offset = 0
+    for (const part of parts) {
+      out.set(part, offset)
+      offset += part.length
+    }
+    return asBuffer(out)
+  },
+  isBuffer: (value) => !!(value && value[BUFFER_MARK]),
+  byteLength: (value) => (asBytes(value) || { length: 0 }).length
+}
+
+BUFFERS.allocUnsafe = BUFFERS.alloc
 
 // ------------------------------------------------------------- virtual drive
 const FILES = new Map() // absolute path -> string contents
@@ -134,7 +260,11 @@ const FS = {
       err.code = 'ENOENT'
       throw err
     }
-    return FILES.get(abs)
+    const contents = FILES.get(abs)
+    // a file written as bytes reads back as bytes, the way node returns one
+    return isBinary(contents)
+      ? BUFFERS.from(contents.slice(BINARY_PREFIX.length), 'base64')
+      : contents
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
@@ -143,7 +273,11 @@ const FS = {
   writeFileSync(p, data) {
     const abs = P.resolve(String(p))
     mkdirp(P.dirname(abs))
-    FILES.set(abs, String(data))
+    const bytes =
+      typeof data === 'string' || data === null || data === undefined
+        ? null
+        : asBytes(data)
+    FILES.set(abs, bytes ? BINARY_PREFIX + bytesToBase64(bytes) : String(data))
     markDirty(abs)
   },
   writeFile(p, data, cb) {
@@ -181,7 +315,10 @@ const FS = {
     if (DIRS.has(abs))
       return { isDirectory: () => true, isFile: () => false, size: 0 }
     if (FILES.has(abs)) {
-      const size = FILES.get(abs).length
+      const contents = FILES.get(abs)
+      const size = isBinary(contents)
+        ? base64Size(contents.slice(BINARY_PREFIX.length))
+        : contents.length
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
@@ -379,27 +516,36 @@ if (_webout) { fs.writeFile(weboutPath, _webout, function () {}); }
 return _webout;
 `
 
-  const fn = new Function('require', 'console', 'process', source)
+  const fn = new Function('require', 'console', 'process', 'Buffer', source)
 
   let thrown = null
   let returned = ''
   try {
-    returned = fn(requireShim, sandboxConsole, {
-      pid: 4242,
-      env: { NODE_ENV: 'browser' }
-    })
+    returned = fn(
+      requireShim,
+      sandboxConsole,
+      {
+        pid: 4242,
+        env: { NODE_ENV: 'browser' }
+      },
+      BUFFERS
+    )
   } catch (e) {
     thrown = e && e.stack ? e.stack : String(e)
     logLines.push(String(thrown))
   }
 
-  const fromFile = FILES.get(weboutPath) || ''
+  const stored = FILES.get(weboutPath) || ''
+  const binary = isBinary(stored)
+  const fromFile = binary ? stored.slice(BINARY_PREFIX.length) : stored
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
   return {
     webout,
     log: logLines.join('\n'),
     headers: FILES.get(headersPath) || '',
+    // a byte body travels to the host as base64, which is how it is stored
+    binary,
     error: thrown
   }
 }
@@ -451,7 +597,11 @@ const readDriveFile = (filePath) => {
     err.status = 404
     throw err
   }
-  return FILES.get(abs)
+  const contents = FILES.get(abs)
+  // the host turns a base64 entry back into bytes before it answers with it
+  return isBinary(contents)
+    ? { contents: contents.slice(BINARY_PREFIX.length), binary: true }
+    : { contents, binary: false }
 }
 
 const buildTree = () => {
@@ -607,7 +757,7 @@ const api = {
   }),
   run: (payload) => runProgram(payload),
   list: (folder) => listFolder(folder),
-  read: (file) => ({ contents: readDriveFile(file) }),
+  read: (file) => readDriveFile(file),
   tree: () => buildTree()
 }
 

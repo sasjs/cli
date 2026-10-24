@@ -118,6 +118,132 @@ describe('service worker host', () => {
     expect(await response.text()).toBe('seeded')
   })
 
+  /**
+   * A worker whose drive holds one service that answers with a download, the
+   * way a streaming service does on the server: the body goes to the webout
+   * fileref and the headers file says what it is.
+   */
+  const streaming = (code: string) => {
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/download.js')]: code
+    })
+    return worker
+  }
+
+  const downloadPath = (query = '') =>
+    '/SASjsApi/stp/execute?_program=' +
+    encodeURIComponent(`${appLoc}/services/public/download`) +
+    query
+
+  it('applies the content type and disposition a service declared', async () => {
+    const { dispatch } = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-type: text/csv \\n Content-Disposition: attachment;filename="users.csv"\')',
+        "_webout = 'a,b\\n1,2'"
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('text/csv')
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment;filename="users.csv"'
+    )
+    expect(await response.text()).toBe('a,b\n1,2')
+  })
+
+  it('serves a byte body as bytes, under the name the service chose', async () => {
+    const { dispatch } = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-type: application/zip\\nContent-Disposition: attachment;filename="pack.zip"\')',
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe('application/zip')
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment;filename="pack.zip"'
+    )
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([80, 75, 3, 4])
+    )
+  })
+
+  it('serves a byte body with no declared type as an opaque download', async () => {
+    const { dispatch } = streaming(
+      'fs.writeFileSync(weboutPath, Uint8Array.from([1, 2, 3]))'
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe(
+      'application/octet-stream'
+    )
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3])
+    )
+  })
+
+  it('keeps a debug reply text, as the body is the framed log', async () => {
+    const { dispatch } = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-type: application/zip\\nContent-Disposition: attachment;filename="pack.zip"\')',
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath('&_debug=log'))
+
+    expect(response.headers.get('content-type')).toBe('text/plain')
+    expect(response.headers.get('content-disposition')).toBeNull()
+    // the body is still bytes, framed with the log rather than corrupted by it
+    expect(await response.text()).toBe(
+      ['UEsDBA==', LOGS_SEPARATOR, '', LOGS_SEPARATOR].join('\n')
+    )
+  })
+
+  it('applies nothing it was not asked for, and drops an unusable value', async () => {
+    const { dispatch } = streaming(
+      [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Cache-Control: no-store\\nContent-type: text/html\\u0000')",
+        "_webout = 'plain'"
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBeNull()
+    // a NUL would make Response throw, so the header is dropped and the body
+    // keeps its default type
+    expect(response.headers.get('content-type')).toBe(
+      'text/plain;charset=UTF-8'
+    )
+    expect(await response.text()).toBe('plain')
+  })
+
+  it('serves a byte file off the drive as bytes', async () => {
+    const { runtime, dispatch } = seeded()
+    runtime.run({
+      code: "fs.writeFileSync('/sasjs/drive/files/data.bin', Uint8Array.from([1, 2, 3]))"
+    })
+
+    const response = await dispatch(
+      '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data.bin')
+    )
+
+    expect(response.headers.get('content-type')).toBe(
+      'application/octet-stream'
+    )
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3])
+    )
+  })
+
   it('frames the log behind the separator when _debug is set', async () => {
     const { dispatch } = seeded()
 

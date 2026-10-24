@@ -182,6 +182,100 @@ describe('browser runtime', () => {
     expect(result.headers).toBe('content-type: application/json')
   })
 
+  it('hands a byte body back to the host as base64', () => {
+    const runtime = loadRuntime()
+
+    // the shape a service that streams a file uses on the server: write the
+    // body to the fileref, and say in the headers what it is
+    const result = runtime.run({
+      code: [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: application/zip')",
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.binary).toBe(true)
+    expect(result.webout).toBe('UEsDBA==')
+    expect(result.headers).toContain('application/zip')
+  })
+
+  it('accepts a Buffer, as a program written for the server uses', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, Buffer.from([80, 75, 3, 4]))'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('UEsDBA==', 'base64'))"
+      }).webout
+    ).toBe('UEsDBA==')
+  })
+
+  it('offers the Buffer helpers a service uses to build a body', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const joined = Buffer.concat([Buffer.from([80, 75]), Buffer.from('0304', 'hex')])",
+        "_webout = [Buffer.isBuffer(joined), Buffer.byteLength(joined), joined.toString('base64'), Buffer.alloc(2).length, joined.toString('latin1').charCodeAt(2)].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('true|4|UEsDBA==|2|3')
+  })
+
+  it('lets an assigned webout replace a byte body, as the generated program does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))',
+        "_webout = 'text wins'"
+      ].join('\n')
+    })
+
+    expect(result.binary).toBe(false)
+    expect(result.webout).toBe('text wins')
+  })
+
+  it('reads a file written as bytes back as bytes', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/data.bin'",
+        'fs.writeFileSync(file, Uint8Array.from([1, 2, 3]))',
+        'const read = fs.readFileSync(file)',
+        "_webout = [read.length, read.toString('base64'), fs.statSync(file).size].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('3|AQID|3')
+  })
+
+  it('carries a byte file through a copy', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const from = '/sasjs/drive/files/a.bin'",
+        "const to = '/sasjs/drive/files/b.bin'",
+        'fs.writeFileSync(from, Uint8Array.from([1, 2, 3]))',
+        'fs.copyFileSync(from, to)',
+        "_webout = fs.readFileSync(to).toString('base64')"
+      ].join('\n')
+    })
+
+    expect(result.webout).toBe('AQID')
+  })
+
   it('lists folders and builds the drive tree', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {

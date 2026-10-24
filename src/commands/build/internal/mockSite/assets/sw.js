@@ -40,6 +40,66 @@ const text = (body, status) =>
     headers: { 'content-type': 'text/plain' }
   })
 
+const bytes = (base64) => {
+  const binary = atob(String(base64 || '').replace(/\s+/g, ''))
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
+  return out
+}
+
+// ------------------------------------------------------------ webout headers
+// A service declares the response it wants by writing `Name: value` lines to
+// the file the preamble hands it as _SASJS_WEBOUT_HEADERS - the same channel
+// %mp_streamfile uses on the SAS side, and the one the server reads. Only the
+// two headers that change how a reply is delivered are applied: the content
+// type, and the disposition that makes the browser save it under the name the
+// service chose. Everything else (cache-control, cookies, ...) has no meaning
+// on a static host.
+const RESPONSE_HEADERS = ['content-type', 'content-disposition']
+
+/**
+ * Parses what the service wrote. A value that is not printable ASCII is
+ * dropped rather than handed to Response, which throws on a malformed header
+ * and would turn a download into a 500.
+ */
+const parseHeaders = (content) => {
+  const headers = {}
+  String(content || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const separator = line.indexOf(':')
+      if (separator < 1) return
+      const name = line.slice(0, separator).trim().toLowerCase()
+      const value = line.slice(separator + 1).trim()
+      if (!RESPONSE_HEADERS.includes(name)) return
+      if (!/^[\x20-\x7E]+$/.test(value)) return
+      headers[name] = value
+    })
+  return headers
+}
+
+/**
+ * The reply a run produces: the webout, in the shape and under the name the
+ * service asked for. A debug reply is the webout framed with the log, so it
+ * stays text - honouring a download there would put the frame in the file.
+ */
+const weboutResponse = (result, debug) => {
+  if (debug)
+    return text(
+      [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR].join('\n')
+    )
+
+  const headers = parseHeaders(result.headers)
+  if (result.binary) {
+    if (!headers['content-type'])
+      headers['content-type'] = 'application/octet-stream'
+    return new Response(bytes(result.webout), { status: 200, headers })
+  }
+  return new Response(result.webout, { status: 200, headers })
+}
+
 const broadcast = async (message) => {
   const clients = await self.clients.matchAll({ includeUncontrolled: true })
   clients.forEach((client) => client.postMessage(message))
@@ -105,7 +165,12 @@ const handle = async (request, url) => {
     }
 
     if (path.endsWith('/SASjsApi/drive/file') && request.method === 'GET') {
-      return text(R.read(query._filePath || '').contents)
+      const file = R.read(query._filePath || '')
+      return file.binary
+        ? new Response(bytes(file.contents), {
+            headers: { 'content-type': 'application/octet-stream' }
+          })
+        : text(file.contents)
     }
 
     if (
@@ -138,13 +203,7 @@ const handle = async (request, url) => {
         )
       }
       const debug = String(merged._debug || '').length > 0
-      return text(
-        debug
-          ? [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR].join(
-              '\n'
-            )
-          : result.webout
-      )
+      return weboutResponse(result, debug)
     }
 
     if (path.includes('/SASjsApi/session')) {
