@@ -100,8 +100,31 @@ const chunked = (bytes) => {
 
 const bytesToBase64 = (bytes) => btoa(chunked(bytes))
 
-const base64ToBytes = (base64) =>
-  Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
+/**
+ * Node's base64 decoding: ignore what is not a base64 character, and a
+ * leftover single character (which cannot be decoded) rather than throwing.
+ */
+const base64ToBytes = (base64) => {
+  const clean = String(base64).replace(/[^A-Za-z0-9+/]/g, '')
+  const usable = clean.length % 4 === 1 ? clean.slice(0, -1) : clean
+  try {
+    return Uint8Array.from(atob(usable), (char) => char.charCodeAt(0))
+  } catch (e) {
+    return new Uint8Array(0)
+  }
+}
+
+/** Node's hex decoding: pairs, stopping at the first pair that is not hex. */
+const hexToBytes = (value) => {
+  const text = String(value)
+  const bytes = []
+  for (let i = 0; i + 1 < text.length; i += 2) {
+    const pair = text.slice(i, i + 2)
+    if (!/^[0-9a-fA-F]{2}$/.test(pair)) break
+    bytes.push(parseInt(pair, 16))
+  }
+  return Uint8Array.from(bytes)
+}
 
 /** The bytes a service handed to fs, or null when it wrote text. */
 const asBytes = (data) => {
@@ -175,12 +198,7 @@ const BUFFERS = {
     if (typeof value === 'string') {
       const how = String(encoding || 'utf8').toLowerCase()
       if (how === 'base64') return asBuffer(base64ToBytes(value))
-      if (how === 'hex')
-        return asBuffer(
-          Uint8Array.from(value.match(/../g) || [], (pair) =>
-            parseInt(pair, 16)
-          )
-        )
+      if (how === 'hex') return asBuffer(hexToBytes(value))
       if (how === 'binary' || how === 'latin1')
         return asBuffer(
           Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)

@@ -255,6 +255,25 @@ describe('browser runtime', () => {
     expect(result.webout).toBe('UEs=|UEs=|0304|0203|true')
   })
 
+  it('decodes hex and base64 the way node does, including what it rejects', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        // node stops at the first pair that is not hex, and ignores a trailing
+        // nibble
+        "const hexCases = ['zz', 'abc', '0g', '504b0304'].map((text) => Buffer.from(text, 'hex').toString('hex'))",
+        // node ignores junk characters, drops a lone trailing character, and
+        // decodes unpadded input
+        "const b64Cases = ['zz', 'A', '!!!', 'UEsDBA'].map((text) => Buffer.from(text, 'base64').length)",
+        "_webout = [hexCases.join(','), b64Cases.join(',')].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(',ab,,504b0304|1,0,0,4')
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 
