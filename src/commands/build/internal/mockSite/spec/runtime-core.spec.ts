@@ -423,6 +423,21 @@ describe('browser runtime', () => {
     expect(read.webout).toBe('plain notes')
   })
 
+  it('measures a text file in bytes, as node does', () => {
+    const runtime = loadRuntime()
+
+    // a two-byte character: node's statSync().size is the utf8 length
+    const result = runtime.run({
+      code: [
+        "fs.writeFileSync('/sasjs/drive/files/accent.txt', '\\u00e9')",
+        "_webout = String(fs.statSync('/sasjs/drive/files/accent.txt').size)"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('2')
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 

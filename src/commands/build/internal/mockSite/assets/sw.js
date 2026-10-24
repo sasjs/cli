@@ -73,10 +73,13 @@ const toBytes = (base64) => {
 const RESPONSE_HEADERS = ['content-type', 'content-disposition']
 
 /**
- * Parses what the service wrote. A value that is not printable ASCII is
- * dropped rather than handed to Response, which throws on a malformed header
- * and would turn a download into a 500.
+ * Parses what the service wrote. Response takes a byte string, so a value is
+ * usable up to U+00FF - an accented filename passes through; anything above it,
+ * or a control character, would make the Response constructor throw, and a
+ * dropped header beats a 500.
  */
+const HEADER_VALUE = /^[\x20-\x7E\xA0-\xFF]+$/
+
 const parseHeaders = (content) => {
   const headers = {}
   String(content || '')
@@ -89,7 +92,7 @@ const parseHeaders = (content) => {
       const name = line.slice(0, separator).trim().toLowerCase()
       const value = line.slice(separator + 1).trim()
       if (!RESPONSE_HEADERS.includes(name)) return
-      if (!/^[\x20-\x7E]+$/.test(value)) return
+      if (!HEADER_VALUE.test(value)) return
       headers[name] = value
     })
   return headers

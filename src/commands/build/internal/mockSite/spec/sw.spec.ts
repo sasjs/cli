@@ -303,6 +303,31 @@ describe('service worker host', () => {
     expect(dispatch('https://other.example.com/SASjsApi/info')).toBeUndefined()
   })
 
+  it('keeps an accented filename, and drops a value Response cannot carry', async () => {
+    const accented = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-Disposition: attachment;filename="r\\u00e9sum\\u00e9.csv"\')',
+        "_webout = 'x'"
+      ].join('\n')
+    )
+    const kept = await accented.dispatch(downloadPath())
+    expect(kept.headers.get('content-disposition')).toBe(
+      'attachment;filename="r\u00e9sum\u00e9.csv"'
+    )
+
+    // above U+00FF the Response constructor would throw, so the header goes and
+    // the body is still served
+    const beyond = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-Disposition: attachment;filename="\\u{1F600}.csv"\')',
+        "_webout = 'x'"
+      ].join('\n')
+    )
+    const dropped = await beyond.dispatch(downloadPath())
+    expect(dropped.status).toBe(200)
+    expect(dropped.headers.get('content-disposition')).toBeNull()
+  })
+
   it('answers 500 when a byte entry on the drive is not valid base64', async () => {
     const worker = loadWorker()
     worker.runtime.load({

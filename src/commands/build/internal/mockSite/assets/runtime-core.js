@@ -514,7 +514,8 @@ const FS = {
       const contents = FILES.get(abs)
       const size = isBinary(contents)
         ? base64Size(contents.slice(BINARY_PREFIX.length))
-        : entryText(contents).length
+        : // node reports bytes, so a text entry is measured as utf8
+          utf8Encoder.encode(entryText(contents)).length
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
