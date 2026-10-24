@@ -269,8 +269,7 @@ export async function buildMockSite(
     )
   }
 
-  const streamSettings = ((target as any).streamConfig || {}) as any
-  const mockWebFolder = streamSettings.mockWebFolder as string | undefined
+  const mockWebFolder = target.streamConfig?.mockWebFolder
 
   const outputFolder = options.outputFolder
     ? path.resolve(invocationDir, options.outputFolder)
@@ -290,11 +289,14 @@ export async function buildMockSite(
   // without leaving a half-written site behind.
   // A streamed app is copied into the build as services/<streamWebFolder>. It
   // is already served as the site itself, so it does not belong on the drive.
-  const streamConfig = (target as any).streamConfig || {}
+  const streamConfig = target.streamConfig
   const excluded: string[] = []
-  if (streamConfig.streamWeb) {
-    const webFolder = streamConfig.streamWebFolder || 'web'
-    excluded.push(`/sasjs/drive/files${appLoc}/services/${webFolder}/`)
+  // streamWebFolder is defaulted by the config validator, so a streamed app
+  // always names its folder.
+  if (streamConfig?.streamWeb && streamConfig.streamWebFolder) {
+    excluded.push(
+      `/sasjs/drive/files${appLoc}/services/${streamConfig.streamWebFolder}/`
+    )
   }
 
   const seed = seedFromBuild(buildFolder, appLoc, excluded, [outputFolder])
