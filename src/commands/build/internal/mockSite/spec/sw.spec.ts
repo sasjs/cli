@@ -47,7 +47,10 @@ const loadWorker = () => {
   const runtime = self.SASjsMockRuntime
 
   const dispatch = (path: string, init: any = {}) => {
-    const request = new Request(origin + path, init)
+    const request = new Request(
+      path.startsWith('http') ? path : origin + path,
+      init
+    )
     const event: any = {
       request,
       respondWith: (response: any) => {
@@ -242,6 +245,62 @@ describe('service worker host', () => {
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(
       new Uint8Array([1, 2, 3])
     )
+  })
+
+  it('normalises header names and ignores a line that is not a header', async () => {
+    const { dispatch } = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'CONTENT-TYPE: text/plain\\nnot a header\\n: no name\\nContent-Disposition: attachment;filename="a.txt"\')',
+        "_webout = 'x'"
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe('text/plain')
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment;filename="a.txt"'
+    )
+    expect(await response.text()).toBe('x')
+  })
+
+  it('serves a service that declares a type but writes no body', async () => {
+    const { dispatch } = streaming(
+      "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: application/json')"
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe('application/json')
+    expect(await response.text()).toBe('')
+  })
+
+  it('answers the session state, and names a route it does not implement', async () => {
+    const { dispatch } = seeded()
+
+    const session = await dispatch('/SASjsApi/session')
+    expect(await session.json()).toEqual({ state: 'completed' })
+
+    const unknown = await dispatch('/SASjsApi/unknown/route')
+    expect(unknown.status).toBe(404)
+    expect((await unknown.json()).message).toContain('Not implemented')
+  })
+
+  it('answers 404 for a drive file the drive does not hold', async () => {
+    const { dispatch } = seeded()
+
+    const response = await dispatch(
+      '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/missing.txt')
+    )
+
+    expect(response.status).toBe(404)
+    expect((await response.json()).message).toBe('File not found')
+  })
+
+  it('leaves a request to another origin alone', () => {
+    const { dispatch } = seeded()
+
+    expect(dispatch('https://other.example.com/SASjsApi/info')).toBeUndefined()
   })
 
   it('frames the log behind the separator when _debug is set', async () => {

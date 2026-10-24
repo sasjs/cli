@@ -216,6 +216,41 @@ describe('browser runtime', () => {
     ).toBe('UEsDBA==')
   })
 
+  it('decodes a Buffer from a binary string, from hex and from text', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('PK\\u0003\\u0004', 'binary'))"
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('504b0304', 'hex'))"
+      }).webout
+    ).toBe('UEsDBA==')
+
+    // no encoding given means utf8, as in node
+    expect(
+      runtime.run({ code: "fs.writeFileSync(weboutPath, Buffer.from('ab'))" })
+        .webout
+    ).toBe('YWI=')
+  })
+
+  it('measures a Buffer or a string, and refuses what it cannot encode', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: "_webout = [Buffer.isBuffer('no'), Buffer.byteLength('ab'), Buffer.byteLength(Buffer.from([1, 2])), Buffer.allocUnsafe(3).length, Buffer.from([65]).toString()].join('|')"
+      }).webout
+    ).toBe('false|2|2|3|A')
+
+    const refused = runtime.run({ code: 'Buffer.from({})' })
+    expect(refused.error).toContain('unsupported input')
+  })
+
   it('offers the Buffer helpers a service uses to build a body', () => {
     const runtime = loadRuntime()
 
@@ -258,6 +293,74 @@ describe('browser runtime', () => {
 
     expect(result.error).toBeNull()
     expect(result.webout).toBe('3|AQID|3')
+  })
+
+  it('takes an ArrayBuffer or a view over one as bytes', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, new Uint8Array([80, 75, 3, 4]).buffer)'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, new DataView(new Uint8Array([80, 75, 3, 4]).buffer))'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    // and a service can read one back as hex
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      }).binary
+    ).toBe(true)
+    expect(
+      runtime.run({
+        code: [
+          "const file = '/sasjs/drive/files/a.bin'",
+          'fs.writeFileSync(file, Uint8Array.from([80, 75, 3, 4]))',
+          "_webout = fs.readFileSync(file).toString('hex')"
+        ].join('\n')
+      }).webout
+    ).toBe('504b0304')
+  })
+
+  it('reports a directory and a missing file the way node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "fs.mkdirSync('/sasjs/drive/files/folder')",
+        "const isDir = fs.statSync('/sasjs/drive/files/folder').isDirectory()",
+        'let copyError = "none"',
+        "try { fs.copyFileSync('/sasjs/drive/files/none.bin', '/sasjs/drive/files/there.bin') } catch (e) { copyError = e.message }",
+        'let statError = "none"',
+        "try { fs.statSync('/sasjs/drive/files/none.bin') } catch (e) { statError = e.code }",
+        "_webout = [isDir, copyError.includes('ENOENT'), statError].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('true|true|ENOENT')
+  })
+
+  it('logs a value it cannot serialise rather than failing the run', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const loop = {}',
+        'loop.self = loop',
+        'console.log(loop)',
+        "_webout = 'logged'"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('logged')
+    expect(result.log).toContain('[object Object]')
   })
 
   it('carries a byte file through a copy', () => {

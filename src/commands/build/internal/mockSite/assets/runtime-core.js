@@ -167,6 +167,10 @@ const BUFFERS = {
             parseInt(pair, 16)
           )
         )
+      if (how === 'binary' || how === 'latin1')
+        return asBuffer(
+          Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
+        )
       return asBuffer(utf8Encoder.encode(value))
     }
     const bytes = asBytes(value)
@@ -187,7 +191,10 @@ const BUFFERS = {
     return asBuffer(out)
   },
   isBuffer: (value) => !!(value && value[BUFFER_MARK]),
-  byteLength: (value) => (asBytes(value) || { length: 0 }).length
+  byteLength(value, encoding) {
+    if (typeof value === 'string') return BUFFERS.from(value, encoding).length
+    return (asBytes(value) || { length: 0 }).length
+  }
 }
 
 BUFFERS.allocUnsafe = BUFFERS.alloc
