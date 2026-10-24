@@ -13,8 +13,9 @@
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "npx rimraf build && tsc -p . && npm run copy:files",
-    "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy",
+    "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy && npm run copy:mock",
     "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
+    "copy:mock": "copyfiles -u 6 src/commands/build/internal/mockSite/assets/* build/commands/build/internal/mockSite/assets/",
     "test": "npm run test:mocked && npm run test:server",
     "test:server": "jest --silent --runInBand --config=jest.server.config.js",
     "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
@@ -69,9 +70,9 @@
     "registry": "https://registry.npmjs.org"
   },
   "dependencies": {
-    "@sasjs/adapter": "5.1.1",
-    "@sasjs/core": "6.0.0",
-    "@sasjs/utils": "4.0.1",
+    "@sasjs/adapter": "^5.1.1",
+    "@sasjs/core": "^6.0.0",
+    "@sasjs/utils": "^4.1.0",
     "axios": "1.20.0",
     "chalk": "4.1.2",
     "dotenv": "18.0.8",
@@ -93,7 +94,7 @@
     "@babel/preset-env": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
     "@nogoo9/gitleaks": "8.30.1-post.2",
-    "@sasjs/lint": "4.3.0",
+    "@sasjs/lint": "^4.3.0",
     "@types/debug": "4.1.13",
     "@types/find": "0.2.4",
     "@types/jest": "30.0.0",
@@ -123,6 +124,6 @@
     "nanoid": "3.3.18"
   },
   "peerDependencies": {
-    "@sasjs/lint": "4.3.0"
+    "@sasjs/lint": "^4.3.0"
   }
 }
