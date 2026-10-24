@@ -303,7 +303,7 @@ describe('service worker host', () => {
     expect(dispatch('https://other.example.com/SASjsApi/info')).toBeUndefined()
   })
 
-  it('keeps an accented filename, and drops a value Response cannot carry', async () => {
+  it('passes a latin1 header value through as written, and drops one Response cannot carry', async () => {
     const accented = streaming(
       [
         'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-Disposition: attachment;filename="r\\u00e9sum\\u00e9.csv"\')',

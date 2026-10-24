@@ -73,10 +73,15 @@ const toBytes = (base64) => {
 const RESPONSE_HEADERS = ['content-type', 'content-disposition']
 
 /**
- * Parses what the service wrote. Response takes a byte string, so a value is
- * usable up to U+00FF - an accented filename passes through; anything above it,
- * or a control character, would make the Response constructor throw, and a
- * dropped header beats a 500.
+ * Parses what the service wrote. A header value is a byte string, so everything
+ * up to U+00FF is passed through as written - the same bytes node writes when
+ * the server sets the same header, which is what the mock has to match. A value
+ * above that, or one with a control character, would make the Response
+ * constructor throw, so the header is dropped and the body is still served.
+ *
+ * A filename outside ASCII belongs in RFC 6266 form
+ * (`filename*=UTF-8''r%C3%A9sum%C3%A9.csv`) - raw non-ASCII bytes in a header
+ * are not portable, on this host or on the server.
  */
 const HEADER_VALUE = /^[\x20-\x7E\xA0-\xFF]+$/
 
