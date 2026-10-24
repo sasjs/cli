@@ -40,7 +40,7 @@ const text = (body, status) =>
     headers: { 'content-type': 'text/plain' }
   })
 
-const bytes = (base64) => {
+const toBytes = (base64) => {
   const binary = atob(String(base64 || '').replace(/\s+/g, ''))
   const out = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
@@ -95,7 +95,7 @@ const weboutResponse = (result, debug) => {
   if (result.binary) {
     if (!headers['content-type'])
       headers['content-type'] = 'application/octet-stream'
-    return new Response(bytes(result.webout), { status: 200, headers })
+    return new Response(toBytes(result.webout), { status: 200, headers })
   }
   return new Response(result.webout, { status: 200, headers })
 }
@@ -167,7 +167,7 @@ const handle = async (request, url) => {
     if (path.endsWith('/SASjsApi/drive/file') && request.method === 'GET') {
       const file = R.read(query._filePath || '')
       return file.binary
-        ? new Response(bytes(file.contents), {
+        ? new Response(toBytes(file.contents), {
             headers: { 'content-type': 'application/octet-stream' }
           })
         : text(file.contents)
