@@ -126,14 +126,36 @@ const hexToBytes = (value) => {
   return Uint8Array.from(bytes)
 }
 
+/**
+ * What node accepts as raw bytes: a Buffer or other Uint8Array, an ArrayBuffer,
+ * or a view over one. Arrays and strings are not bytes here - node rejects them
+ * where it wants a buffer, and a mock that quietly accepts them hides a service
+ * that would fail on the server.
+ */
+const asBufferInput = (value) => {
+  if (value instanceof Uint8Array) return value
+  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  if (ArrayBuffer.isView(value))
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+  return null
+}
+
 /** The bytes a service handed to fs, or null when it wrote text. */
 const asBytes = (data) => {
-  if (data instanceof Uint8Array) return data
-  if (data instanceof ArrayBuffer) return new Uint8Array(data)
-  if (ArrayBuffer.isView(data))
-    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+  const bytes = asBufferInput(data)
+  if (bytes) return bytes
   if (Array.isArray(data)) return Uint8Array.from(data)
   return null
+}
+
+/** How node names a value it refused, so a service's error reads the same. */
+const describeValue = (value) => {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'an instance of Array'
+  if (typeof value === 'string') return `type string (${JSON.stringify(value)})`
+  if (typeof value !== 'object')
+    return `type ${typeof value} (${String(value)})`
+  return 'an instance of Object'
 }
 
 const base64Size = (base64) =>
@@ -165,23 +187,39 @@ const bytesToString = (bytes, encoding) => {
 /**
  * Gives a Uint8Array the decoding a Buffer has, and makes a view of it a Buffer
  * too - a service that chunks a file with `subarray(i, j)` then decodes each
- * chunk gets the chunk, not "80,75".
+ * chunk gets the chunk, not "80,75". The mark is non-enumerable and the value
+ * serialises as node's Buffer does, so a service putting one in a JSON body
+ * gets the same response from the mock as from the server.
  */
 const decorate = (view) => {
-  view[BUFFER_MARK] = true
-  view.toString = (encoding, start, end) =>
-    bytesToString(
-      Uint8Array.prototype.subarray.call(
-        view,
-        start === undefined ? 0 : start,
-        end === undefined ? view.length : end
-      ),
+  // the mark and the methods stay out of Object.keys and for..in, as they are
+  // on node's Buffer, where they live on the prototype
+  const hide = (name, value) =>
+    Object.defineProperty(view, name, {
+      value,
+      writable: true,
+      configurable: true
+    })
+
+  hide(BUFFER_MARK, true)
+  hide('toString', (encoding, start, end) => {
+    // node clamps a negative start to 0 and a negative end to 0, so an end
+    // below the start yields nothing rather than counting back from the end
+    const from = Math.max(0, start === undefined ? 0 : start)
+    const to = Math.max(0, end === undefined ? view.length : end)
+    if (to <= from) return ''
+    return bytesToString(
+      Uint8Array.prototype.subarray.call(view, from, to),
       encoding
     )
-  view.subarray = (start, end) =>
+  })
+  hide('subarray', (start, end) =>
     decorate(Uint8Array.prototype.subarray.call(view, start, end))
-  view.slice = (start, end) =>
+  )
+  hide('slice', (start, end) =>
     decorate(Uint8Array.prototype.slice.call(view, start, end))
+  )
+  hide('toJSON', () => ({ type: 'Buffer', data: Array.from(view) }))
   return view
 }
 
@@ -212,7 +250,15 @@ const BUFFERS = {
   },
   alloc: (size) => asBuffer(new Uint8Array(size || 0)),
   concat(list) {
-    const parts = (list || []).map((item) => asBytes(item) || new Uint8Array(0))
+    const items = list || []
+    const parts = items.map((item, index) => {
+      const bytes = asBufferInput(item)
+      if (!bytes)
+        throw new TypeError(
+          `The "list[${index}]" argument must be an instance of Buffer or Uint8Array. Received ${describeValue(item)}`
+        )
+      return bytes
+    })
     const total = parts.reduce((sum, part) => sum + part.length, 0)
     const out = new Uint8Array(total)
     let offset = 0
@@ -225,7 +271,11 @@ const BUFFERS = {
   isBuffer: (value) => !!(value && value[BUFFER_MARK]),
   byteLength(value, encoding) {
     if (typeof value === 'string') return BUFFERS.from(value, encoding).length
-    return (asBytes(value) || { length: 0 }).length
+    const bytes = asBufferInput(value)
+    if (bytes) return bytes.length
+    throw new TypeError(
+      `The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received ${describeValue(value)}`
+    )
   }
 }
 

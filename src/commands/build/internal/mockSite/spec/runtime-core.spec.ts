@@ -274,6 +274,49 @@ describe('browser runtime', () => {
     expect(result.webout).toBe(',ab,,504b0304|1,0,0,4')
   })
 
+  it('clamps a toString range the way node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const buf = Buffer.from([1, 2, 3, 4])',
+        "_webout = [buf.toString('hex', -1), buf.toString('hex', 0, -1), buf.toString('hex', 1, 3), buf.toString('hex', 3, 1)].map((value) => JSON.stringify(value)).join('|')"
+      ].join('\n')
+    })
+
+    expect(result.webout).toBe('"01020304"|""|"0203"|""')
+  })
+
+  it('serialises a Buffer the way node does, with no marker in the JSON', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: "_webout = [JSON.stringify(Buffer.from([80, 75])), Object.keys(Buffer.from([1])).join()].join('|')"
+    })
+
+    expect(result.webout).toBe('{"type":"Buffer","data":[80,75]}|0')
+  })
+
+  it('refuses what node refuses, with the same complaint', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const messages = []',
+        "try { Buffer.concat(['ab', Buffer.from([1])]) } catch (e) { messages.push(e instanceof TypeError, e.message) }",
+        'try { Buffer.byteLength({}) } catch (e) { messages.push(e instanceof TypeError, e.message) }',
+        '_webout = messages.join("|")'
+      ].join('\n')
+    })
+
+    expect(result.webout).toContain(
+      'true|The "list[0]" argument must be an instance of Buffer or Uint8Array. Received type string ("ab")'
+    )
+    expect(result.webout).toContain(
+      'true|The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received an instance of Object'
+    )
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 
