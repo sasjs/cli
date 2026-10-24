@@ -238,6 +238,23 @@ describe('browser runtime', () => {
     ).toBe('YWI=')
   })
 
+  it('decodes a chunk of a Buffer, as a service streaming a file does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/pack.bin'",
+        'fs.writeFileSync(file, Uint8Array.from([80, 75, 3, 4]))',
+        'const read = fs.readFileSync(file)',
+        'const chunk = read.subarray(0, 2)',
+        "_webout = [chunk.toString('base64'), read.slice(0, 2).toString('base64'), read.subarray(2).toString('hex'), Buffer.from([1, 2, 3]).subarray(1).toString('hex'), Buffer.isBuffer(chunk)].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('UEs=|UEs=|0304|0203|true')
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 

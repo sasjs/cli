@@ -140,21 +140,35 @@ const bytesToString = (bytes, encoding) => {
 }
 
 /**
+ * Gives a Uint8Array the decoding a Buffer has, and makes a view of it a Buffer
+ * too - a service that chunks a file with `subarray(i, j)` then decodes each
+ * chunk gets the chunk, not "80,75".
+ */
+const decorate = (view) => {
+  view[BUFFER_MARK] = true
+  view.toString = (encoding, start, end) =>
+    bytesToString(
+      Uint8Array.prototype.subarray.call(
+        view,
+        start === undefined ? 0 : start,
+        end === undefined ? view.length : end
+      ),
+      encoding
+    )
+  view.subarray = (start, end) =>
+    decorate(Uint8Array.prototype.subarray.call(view, start, end))
+  view.slice = (start, end) =>
+    decorate(Uint8Array.prototype.slice.call(view, start, end))
+  return view
+}
+
+/**
  * A minimal Buffer, for the writes a streaming service makes:
  * `Buffer.from(bytes)` and `Buffer.from(base64, 'base64')`. What it returns is
  * a Uint8Array that also decodes itself, so a service writes it straight to the
  * webout and reads it back the way node returns one.
  */
-const asBuffer = (bytes) => {
-  const buffer = new Uint8Array(bytes)
-  buffer[BUFFER_MARK] = true
-  buffer.toString = (encoding, start, end) =>
-    bytesToString(
-      buffer.subarray(start || 0, end === undefined ? buffer.length : end),
-      encoding
-    )
-  return buffer
-}
+const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
 
 const BUFFERS = {
   from(value, encoding) {
