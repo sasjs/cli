@@ -46,6 +46,14 @@ const releaseDir = dirname(fileURLToPath(import.meta.url))
  */
 const EXEMPT = new Map([
   [
+    'GHSA-xjj6-f33q-929c',
+    "undici 6.29.0, bundled inside npm 11.21.1 (npm declares its dependencies as bundled ones, so the copy is a file inside npm's own tarball), which @semantic-release/npm resolves from its npm ^11.6.2 range; 11.21.1 is the newest 11.x. Patched in 6.29.1, published after it. Measured in this tree: an `overrides` entry for undici leaves node_modules/npm/node_modules/undici at 6.29.0, because a bundled dependency is not a resolvable node; and forcing npm 12.2.1 was measured too - its published tarball also bundles undici 6.29.0. The two copies that CAN be reached were fixed by override in release/package.json (top level 7.30.0 -> 7.30.1, @actions/http-client 6.29.0 -> 6.29.1), which cleared the sibling advisory GHSA-f72v-6w45-q472 outright. RISK ACCEPTANCE for the remainder: the affected code paths are npm's own HTTP client during publish, exercised only against the registry over a metadata response, so what reaches it is the registry's reply rather than anything in this repo - a publish-time denial of service, not code execution. Clears when npm ships undici >= 6.29.1 in its bundled tree; the advisory then disappears and this entry fails the gate until it is deleted."
+  ],
+  [
+    'GHSA-4qv8-2p9j-2685',
+    "Same bundled copy as GHSA-xjj6-f33q-929c above - undici 6.29.0 inside npm 11.21.1, not reachable by `overrides`, and not moved by npm 12.2.1 (measured: that tarball bundles 6.29.0). This one is the EventSource parser's memory growth; the release toolchain never constructs an EventSource, so the affected parser is not instantiated on this path at all. Clears with the same npm bump, and this entry fails the gate until it is deleted."
+  ],
+  [
     'GHSA-rxp7-6hxx-x8q5',
     "ip-address 10.7.2, bundled inside npm 11.21.1, which @semantic-release/npm resolves from its npm ^11.6.2 range. 11.21.1 is the newest 11.x, and the version npm bundles cannot be overridden from here - adding `overrides` for ip-address to release/package.json leaves the lockfile at 10.7.2, which was measured. RISK ACCEPTANCE, not unreachability: the parse runs only on a proxy address that carries an Address6 zone identifier; the exposure is a stall during publish, and that string can arrive from standard npm proxy configuration (`npm_config_proxy`, `HTTPS_PROXY`), so the input path is reachable and the accepted risk is a publish-time stall rather than a package-supplied one. No bump in this repo moves it - forcing npm 12.2.1 inside the toolchain was measured too, and the lockfile still resolves ip-address 10.7.2 through socks 2.8.9. It clears only when npm ships ip-address >= 10.7.4 in its own bundled tree; the advisory then disappears and this entry fails the gate until it is deleted."
   ]

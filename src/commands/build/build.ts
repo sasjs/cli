@@ -29,6 +29,7 @@ import { compile } from '../compile/compile'
 import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
+import { buildMockSite } from './internal/mockSite/mockSite'
 
 export async function build(target: Target) {
   const { macroCorePath } = process.sasjsConstants
@@ -52,6 +53,13 @@ export async function build(target: Target) {
   }
 
   await createFinalSasFiles(target)
+
+  // streamConfig.mockWeb opts the target into a static site that runs the same
+  // services in a browser. It is built from what compile just produced, so it
+  // is only meaningful after the tree above exists.
+  if (target.streamConfig?.mockWeb) {
+    await buildMockSite(target)
+  }
 }
 
 async function createFinalSasFiles(target: Target) {
