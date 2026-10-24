@@ -297,6 +297,45 @@ describe('browser runtime', () => {
     expect(result.webout).toBe('{"type":"Buffer","data":[80,75]}|0')
   })
 
+  it('does not call an empty byte write a byte body', () => {
+    const runtime = loadRuntime()
+
+    // a service that writes no bytes and returns a string can only be answered
+    // with that string, so the reply is text rather than base64-decoded text
+    const result = runtime.run({
+      code: [
+        'fs.writeFileSync(weboutPath, new Uint8Array(0))',
+        "return 'from the return'"
+      ].join('\n')
+    })
+
+    expect(result.binary).toBe(false)
+    expect(result.webout).toBe('from the return')
+  })
+
+  it('handles the encodings node handles, and refuses the rest', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const codes = ['utf16le', 'ucs2', 'ascii'].map((encoding) => Buffer.from('PK', encoding).toString('hex'))",
+        "const url = Buffer.from([251, 255]).toString('base64url')",
+        "const back = Buffer.from('-_8', 'base64url').toString('hex')",
+        "const high = Buffer.from([0xc8]).toString('ascii').charCodeAt(0)",
+        'let refused = "none"',
+        "try { Buffer.from('x', 'not-an-encoding') } catch (e) { refused = e.message }",
+        "_webout = [codes.join(','), url, back, high, refused].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // 'P' is 0x50 and 'K' is 0x4b, written little-endian for the utf16 pair;
+    // ascii drops the high bit of 0xc8, leaving 0x48
+    expect(result.webout).toBe(
+      '50004b00,50004b00,504b|-_8|fbff|72|Unknown encoding: not-an-encoding'
+    )
+  })
+
   it('refuses what node refuses, with the same complaint', () => {
     const runtime = loadRuntime()
 

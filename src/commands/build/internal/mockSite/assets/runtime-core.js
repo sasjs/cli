@@ -170,11 +170,51 @@ const isBinary = (contents) =>
 
 const utf8Encoder = new TextEncoder()
 const utf8Decoder = new TextDecoder()
+const utf16Decoder = new TextDecoder('utf-16le')
+
+/** node's names for its encodings, including the aliases it accepts. */
+const ENCODINGS = [
+  'utf8',
+  'utf-8',
+  'base64',
+  'base64url',
+  'hex',
+  'binary',
+  'latin1',
+  'ascii',
+  'utf16le',
+  'utf-16le',
+  'ucs2',
+  'ucs-2'
+]
+
+const normaliseEncoding = (encoding) => {
+  const how = String(encoding || 'utf8').toLowerCase()
+  if (how === 'utf-8') return 'utf8'
+  if (how === 'ucs2' || how === 'ucs-2' || how === 'utf-16le') return 'utf16le'
+  return how
+}
+
+/** node refuses an encoding it does not implement, rather than guessing utf8. */
+const assertEncoding = (encoding) => {
+  const how = normaliseEncoding(encoding)
+  if (!ENCODINGS.includes(how))
+    throw new TypeError(`Unknown encoding: ${String(encoding)}`)
+  return how
+}
+
+const toBase64Url = (base64) =>
+  base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const fromBase64Url = (base64url) =>
+  String(base64url).replace(/-/g, '+').replace(/_/g, '/')
 
 const bytesToString = (bytes, encoding) => {
-  switch (String(encoding || 'utf8').toLowerCase()) {
+  switch (assertEncoding(encoding)) {
     case 'base64':
       return bytesToBase64(bytes)
+    case 'base64url':
+      return toBase64Url(bytesToBase64(bytes))
     case 'hex':
       return [...bytes]
         .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -182,6 +222,11 @@ const bytesToString = (bytes, encoding) => {
     case 'binary':
     case 'latin1':
       return chunked(bytes)
+    case 'ascii':
+      // node's ascii decode drops the high bit
+      return chunked(Uint8Array.from(bytes, (byte) => byte & 0x7f))
+    case 'utf16le':
+      return utf16Decoder.decode(bytes)
     default:
       return utf8Decoder.decode(bytes)
   }
@@ -237,14 +282,34 @@ const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
 const BUFFERS = {
   from(value, encoding) {
     if (typeof value === 'string') {
-      const how = String(encoding || 'utf8').toLowerCase()
-      if (how === 'base64') return asBuffer(base64ToBytes(value))
-      if (how === 'hex') return asBuffer(hexToBytes(value))
-      if (how === 'binary' || how === 'latin1')
-        return asBuffer(
-          Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
-        )
-      return asBuffer(utf8Encoder.encode(value))
+      switch (assertEncoding(encoding)) {
+        case 'base64':
+          return asBuffer(base64ToBytes(value))
+        case 'base64url':
+          return asBuffer(base64ToBytes(fromBase64Url(value)))
+        case 'hex':
+          return asBuffer(hexToBytes(value))
+        case 'binary':
+        case 'latin1':
+          return asBuffer(
+            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
+          )
+        case 'ascii':
+          return asBuffer(
+            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0x7f)
+          )
+        case 'utf16le': {
+          const bytes = new Uint8Array(value.length * 2)
+          for (let i = 0; i < value.length; i++) {
+            const code = value.charCodeAt(i)
+            bytes[i * 2] = code & 0xff
+            bytes[i * 2 + 1] = code >> 8
+          }
+          return asBuffer(bytes)
+        }
+        default:
+          return asBuffer(utf8Encoder.encode(value))
+      }
     }
     const bytes = asBytes(value)
     if (!bytes)
@@ -637,8 +702,13 @@ return _webout;
   }
 
   const stored = FILES.get(weboutPath) || ''
-  const binary = isBinary(stored)
-  const fromFile = binary ? stored.slice(BINARY_PREFIX.length) : stored
+  // binary only when the byte body is the body: an empty byte write falls back
+  // to the returned string, and flagging that as bytes would have the worker
+  // base64-decode text
+  const fromFile = isBinary(stored)
+    ? stored.slice(BINARY_PREFIX.length)
+    : stored
+  const binary = !!fromFile && isBinary(stored)
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
   return {
