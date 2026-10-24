@@ -32,6 +32,18 @@ const loadWorker = () => {
   }
   require('../assets/sw.js')
 
+  // A seed request re-boots the runtime from /host/vfs-seed.json, so the
+  // harness answers that one path the way the static host does.
+  ;(global as any).fetch = jest.fn(async (url: string) =>
+    String(url).includes('vfs-seed')
+      ? jsonResponse({
+          files: {
+            [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+          }
+        })
+      : jsonResponse({ appLoc })
+  )
+
   const runtime = self.SASjsMockRuntime
 
   const dispatch = (path: string, init: any = {}) => {
@@ -46,8 +58,31 @@ const loadWorker = () => {
     return event.response as Promise<Response>
   }
 
-  return { runtime, dispatch }
+  const message = (data: any) => {
+    const replies: any[] = []
+    const event: any = {
+      data,
+      source: { postMessage: (m: any) => replies.push(m) },
+      waitUntil: (promise: any) => {
+        event.pending = promise
+      }
+    }
+    ;(handlers.message || []).forEach((fn) => fn(event))
+    return { replies, pending: event.pending as Promise<any> | undefined }
+  }
+
+  const lifecycle = (type: string) => {
+    const event: any = { waitUntil: () => {} }
+    ;(handlers[type] || []).forEach((fn) => fn(event))
+  }
+
+  return { runtime, dispatch, message, lifecycle, self }
 }
+
+const jsonResponse = (body: any) => ({
+  ok: true,
+  json: async () => body
+})
 
 const runRequest = (body: any) => ({
   method: 'POST',
@@ -59,6 +94,7 @@ describe('service worker host', () => {
   afterEach(() => {
     delete (global as any).self
     delete (global as any).importScripts
+    delete (global as any).fetch
   })
 
   const seeded = () => {
@@ -146,6 +182,79 @@ describe('service worker host', () => {
     expect(await response.text()).toBe(
       'console.log("hello"); _webout = "seeded";'
     )
+  })
+
+  it('answers the API info and drive routes', async () => {
+    const { dispatch } = seeded()
+
+    const info = await dispatch('/SASjsApi/info')
+    expect(await info.json()).toEqual(
+      expect.objectContaining({ protocol: 'browser', runTimes: ['js'] })
+    )
+
+    const folder = await dispatch(
+      '/SASjsApi/drive/folder?_folderPath=' +
+        encodeURIComponent(`${appLoc}/services/public`)
+    )
+    expect((await folder.json()).files).toContain('getdata.js')
+
+    const tree = await dispatch('/SASjsApi/drive/filetree')
+    expect(JSON.stringify(await tree.json())).toContain('getdata.js')
+  })
+
+  it('accepts a multipart request body', async () => {
+    const { dispatch } = seeded()
+
+    const form = new FormData()
+    form.append('_program', `${appLoc}/services/public/getdata`)
+
+    const response = await dispatch('/SASjsApi/stp/execute', {
+      method: 'POST',
+      body: form
+    })
+
+    expect(await response.text()).toBe('seeded')
+  })
+
+  it('acknowledges a load, a seed, a reset and a snapshot from the page', async () => {
+    const { message, runtime } = seeded()
+    const files = { [drivePath('services/public/other.js')]: '_webout = "x";' }
+
+    const load = message({ type: 'sasjs-load', files })
+    await load.pending
+    expect(load.replies[0]).toEqual(
+      expect.objectContaining({ type: 'sasjs-load-ack' })
+    )
+
+    const seed = message({ type: 'sasjs-seed' })
+    await seed.pending
+    expect(seed.replies[0]).toEqual(
+      expect.objectContaining({ type: 'sasjs-seed-ack' })
+    )
+
+    runtime.load(files)
+    const snapshot = message({ type: 'sasjs-snapshot' })
+    expect(snapshot.replies[0].type).toBe('sasjs-snapshot')
+    expect(Object.keys(snapshot.replies[0].files).length).toBe(1)
+
+    const reset = message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0]).toEqual(
+      expect.objectContaining({ type: 'sasjs-reset-ack' })
+    )
+
+    const stats = message({ type: 'sasjs-stats' })
+    await stats.pending
+    expect(stats.replies[0]).toEqual(
+      expect.objectContaining({ type: 'sasjs-stats' })
+    )
+  })
+
+  it('claims the clients on install and activate', () => {
+    const { lifecycle } = seeded()
+
+    expect(() => lifecycle('install')).not.toThrow()
+    expect(() => lifecycle('activate')).not.toThrow()
   })
 
   it('leaves requests outside /SASjsApi/ to the static host', () => {

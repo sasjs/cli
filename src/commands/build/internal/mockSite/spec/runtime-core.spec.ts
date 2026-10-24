@@ -143,6 +143,101 @@ describe('browser runtime', () => {
     expect(runtime.run({ program: 'public/loaddata' }).webout).toBe('job')
   })
 
+  it('gives a service the virtual drive to work on', () => {
+    const runtime = loadRuntime()
+    const folder = `/sasjs/drive/files${appLoc}/data`
+
+    const result = runtime.run({
+      code: [
+        `fs.mkdirSync('${folder}');`,
+        `fs.writeFileSync('${folder}/a.txt', 'hello');`,
+        `fs.copyFileSync('${folder}/a.txt', '${folder}/b.txt');`,
+        `const seen = [fs.existsSync('${folder}/a.txt'), fs.readFileSync('${folder}/b.txt'), fs.statSync('${folder}/a.txt').size, fs.readdirSync('${folder}').join()];`,
+        `fs.unlinkSync('${folder}/b.txt');`,
+        `_webout = seen.join('|') + '|' + fs.existsSync('${folder}/b.txt');`
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('true|hello|5|a.txt,b.txt|false')
+  })
+
+  it('reports a missing drive file the way the server does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: `_webout = String(require('fs').readFileSync('/no/such/file'))`
+    })
+
+    expect(result.error).toContain('ENOENT')
+  })
+
+  it('hands the headers a service writes back to the host', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: "require('fs').writeFileSync(_SASJS_WEBOUT_HEADERS, 'content-type: application/json');"
+    })
+
+    expect(result.headers).toBe('content-type: application/json')
+  })
+
+  it('lists folders and builds the drive tree', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {
+      [drivePath('services/public/getdata.js')]: '_webout = "x";',
+      [drivePath('data/a.txt')]: 'a'
+    })
+
+    const listing = runtime.list(`${appLoc}/services/public`)
+    expect(listing.files).toEqual(['getdata.js'])
+
+    const tree = runtime.tree()
+    expect(JSON.stringify(tree)).toContain('getdata.js')
+    expect(runtime.read(`${appLoc}/data/a.txt`).contents).toBe('a')
+  })
+
+  it('reports the files a run changed, and the whole drive on demand', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {
+      [drivePath('services/public/getdata.js')]: '_webout = "x";'
+    })
+
+    runtime.takeDirty()
+    runtime.run({
+      code: `require('fs').writeFileSync('/sasjs/drive/files${appLoc}/data/new.txt', 'n');`
+    })
+
+    expect(Object.keys(runtime.takeDirty())).toEqual([
+      `/sasjs/drive/files${appLoc}/data/new.txt`
+    ])
+    expect(
+      Object.keys(runtime.dumpAll()).some((k) => k.endsWith('new.txt'))
+    ).toBe(true)
+    // the seed, the three session files and the one the service wrote
+    expect(runtime.stats().files).toBe(5)
+  })
+
+  it('clears the drive and re-seeds on reset', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {
+      [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+    })
+    runtime.run({
+      code: `require('fs').writeFileSync('/sasjs/drive/files${appLoc}/temp.txt', 't');`
+    })
+    expect(runtime.dumpAll()[`/sasjs/drive/files${appLoc}/temp.txt`]).toBe('t')
+
+    await runtime.reset()
+
+    expect(runtime.dumpAll()[`/sasjs/drive/files${appLoc}/temp.txt`]).toBe(
+      undefined
+    )
+    expect(
+      runtime.run({ program: `${appLoc}/services/public/getdata` }).webout
+    ).toBe('seeded')
+  })
+
   it('fails a run that names a program the drive does not hold', () => {
     const runtime = loadRuntime()
 

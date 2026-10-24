@@ -218,6 +218,52 @@ describe('browser-hosted build', () => {
     expect(fs.existsSync(path.join(out(), 'stale.txt'))).toBe(false)
   })
 
+  it('warns instead of failing when the index.html is not the expected shape', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<!doctype html><html><body><div id="app"></div></body></html>'
+    )
+
+    const result = await buildMockSite(target())
+
+    expect(result.webFileCount).toBeGreaterThan(0)
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('no <sasjs> element found')
+    )
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('no main bundle script tag found')
+    )
+  })
+
+  it('leaves a streamed web folder off the drive', async () => {
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'web', 'index.html'),
+      '<html></html>'
+    )
+
+    await buildMockSite(target({ streamWeb: true, streamWebFolder: 'web' }))
+
+    const keys = Object.keys(readSeed().files)
+    expect(keys.some((k) => k.startsWith(`${appLoc}/services/web/`))).toBe(
+      false
+    )
+    // the same folder is still the site's own content, so it is copied
+    expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
+  })
+
+  it('refuses a mockWebFolder outside the project', async () => {
+    const outside = fs.mkdtempSync(
+      path.join(require('os').tmpdir(), 'outside-')
+    )
+
+    await expect(
+      buildMockSite(target({ mockWebFolder: outside }))
+    ).rejects.toThrow(/outside the project/)
+
+    expect(fs.existsSync(outside)).toBe(true)
+    fs.rmSync(outside, { recursive: true, force: true })
+  })
+
   it('refuses a mockWebFolder that would delete the project or its inputs', async () => {
     for (const mockWebFolder of [
       '.',
