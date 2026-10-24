@@ -130,6 +130,10 @@ const assertSafeOutputFolder = (
     throw refusal('that folder holds the build output the drive is seeded from')
   if (isSameOrChild(outputFolder, webFolder))
     throw refusal('that folder holds the web app the site is copied from')
+  if (isSameOrChild(webFolder, outputFolder))
+    throw refusal(
+      'that folder is inside the web app the site is copied from, so copying it would copy itself'
+    )
   if (
     !isSameOrChild(projectDir, outputFolder) &&
     !isSameOrChild(buildFolder, outputFolder)

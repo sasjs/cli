@@ -107,19 +107,31 @@
   const askWorker = (message, expect) =>
     new Promise((resolve) => {
       const sw = navigator.serviceWorker
-      const handler = (ev) => {
-        if (ev.data && ev.data.type === expect) {
-          sw.removeEventListener('message', handler)
-          resolve(ev.data)
-        }
+      let settled = false
+      let timer
+      const finish = (value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        sw.removeEventListener('message', handler)
+        resolve(value)
       }
+      const handler = (ev) => {
+        if (ev.data && ev.data.type === expect) finish(ev.data)
+      }
+      // The listener is removed on every path: a page that asks repeatedly with
+      // a slow worker would otherwise stack one listener per call, and a reply
+      // arriving after the timeout would land on a listener nobody reads.
+      timer = setTimeout(
+        () => finish({ error: 'timed out waiting for ' + expect }),
+        20000
+      )
       sw.addEventListener('message', handler)
       waitForController().then((controller) => {
         if (!controller)
-          return resolve({ error: 'no service worker controller' })
+          return finish({ error: 'no service worker controller' })
         controller.postMessage(message)
       })
-      setTimeout(() => resolve({ timeout: true }), 20000)
     })
 
   // Persist whatever the worker reports as changed.

@@ -9,6 +9,14 @@
  * be terminated between requests, and some browsers do not share IndexedDB
  * between the page and its worker. The page hands in the drive at boot and
  * receives the changed files back after every run.
+ *
+ * TRUST MODEL: this is a single-user, no-auth host. It answers every /SASjsApi/
+ * path on the site's origin, runs whatever program the request names, and runs
+ * the code a code/execute request carries - the same contract a SASjs server
+ * offers, minus the server. Nothing here is a boundary: a page at this origin
+ * can already do all of it, because a visitor's own browser is the client. So
+ * a site holding anything private, or one served from a shared origin, belongs
+ * behind a real server rather than a static host.
  */
 importScripts('/host/runtime-core.js')
 

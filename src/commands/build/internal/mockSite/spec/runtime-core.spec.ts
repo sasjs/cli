@@ -1,3 +1,5 @@
+export {}
+
 /**
  * The parity claim of a browser-hosted build is that a service runs in the
  * browser exactly as it runs as a stored program. That claim lives in

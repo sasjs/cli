@@ -238,7 +238,7 @@ const requireShim = (name) => {
 
 // ------------------------------------------------------------------ commands
 const DRIVE_ROOT = '/sasjs/drive'
-// Rewritten at boot from host/mock-config.json, which `sasjs mock` generates.
+// Rewritten at boot from host/mock-config.json, which the mock build writes.
 let APP_LOC = '/Public/app'
 let DRIVE_APP = `${DRIVE_ROOT}/files${APP_LOC}`
 const SEED_PATH = '/host/vfs-seed.json'

@@ -38,7 +38,7 @@ const createProject = (root: string) => {
   write(path.join(root, 'client', 'dist', 'main.abc123.js'), 'console.log(1)\n')
 }
 
-describe('sasjs mock', () => {
+describe('browser-hosted build', () => {
   let root: string
   const out = () => path.join(root, 'sasjsbuild', 'mock')
   const target = (streamConfig: { [key: string]: any } = {}) =>
@@ -224,7 +224,8 @@ describe('sasjs mock', () => {
       './',
       '..',
       'sasjsbuild',
-      'client/dist'
+      'client/dist',
+      'client/dist/mock'
     ]) {
       await expect(buildMockSite(target({ mockWebFolder }))).rejects.toThrow(
         /Refusing to write the mock site/

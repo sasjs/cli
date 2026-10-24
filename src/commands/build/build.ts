@@ -57,7 +57,7 @@ export async function build(target: Target) {
   // streamConfig.mockWeb opts the target into a static site that runs the same
   // services in a browser. It is built from what compile just produced, so it
   // is only meaningful after the tree above exists.
-  if ((target.streamConfig as any)?.mockWeb) {
+  if (target.streamConfig?.mockWeb) {
     await buildMockSite(target)
   }
 }
