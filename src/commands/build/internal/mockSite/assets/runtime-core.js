@@ -25,6 +25,11 @@
  * `_SASJS_WEBOUT_HEADERS` (`Content-type`, `Content-Disposition`); the host
  * applies them to the response. A byte body comes back to the host as base64
  * with a `binary` flag, because the drive itself holds strings.
+ *
+ * One place the drive is not node: `fs.readFileSync` without an encoding hands
+ * TEXT back as text, which is what a service reading a config, a CSV or a
+ * service file expects - a byte file still reads back as a Buffer, and an
+ * encoding returns a string for either, as node does.
  */
 
 if (typeof importScripts === 'function') importScripts('/host/md5.js')
@@ -88,6 +93,9 @@ const P = {
 // restored from a snapshot still knows which entries are base64 - and no text
 // file starts with a NUL.
 const BINARY_PREFIX = '\u0000base64:'
+// a text file that would otherwise look like a marker is stored behind this, so
+// a value a service wrote can never be mistaken for a byte entry
+const TEXT_PREFIX = '\u0000text:'
 const BUFFER_MARK = '__sasjsBuffer'
 const CHUNK = 0x8000
 
@@ -167,6 +175,16 @@ const base64Size = (base64) =>
 
 const isBinary = (contents) =>
   typeof contents === 'string' && contents.startsWith(BINARY_PREFIX)
+
+/** The text a stored entry holds, with the escape for a marker-like value off. */
+const entryText = (contents) =>
+  contents.startsWith(TEXT_PREFIX)
+    ? contents.slice(TEXT_PREFIX.length)
+    : contents
+
+/** What the drive stores for a string a service wrote. */
+const encodeText = (data) =>
+  data.startsWith('\u0000') ? TEXT_PREFIX + data : data
 
 const utf8Encoder = new TextEncoder()
 const utf8Decoder = new TextDecoder()
@@ -408,7 +426,7 @@ const mkdirp = (dir) => {
 }
 
 const FS = {
-  readFileSync(p, opts) {
+  readFileSync(p, encoding) {
     const abs = P.resolve(String(p))
     if (!FILES.has(abs)) {
       const err = new Error(
@@ -418,10 +436,19 @@ const FS = {
       throw err
     }
     const contents = FILES.get(abs)
-    // a file written as bytes reads back as bytes, the way node returns one
-    return isBinary(contents)
+    const bytes = isBinary(contents)
       ? BUFFERS.from(contents.slice(BINARY_PREFIX.length), 'base64')
-      : contents
+      : null
+    // an encoding asks for a string, as it does in node; without one the drive
+    // hands text back as text (a service reading a config or a CSV expects
+    // that) and a byte file back as bytes
+    if (encoding) {
+      const how = assertEncoding(encoding)
+      return bytes
+        ? bytes.toString(how)
+        : BUFFERS.from(entryText(contents)).toString(how)
+    }
+    return bytes || entryText(contents)
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
@@ -443,7 +470,7 @@ const FS = {
       markDirty(abs)
       return
     }
-    FILES.set(abs, data)
+    FILES.set(abs, encodeText(data))
     markDirty(abs)
   },
   writeFile(p, data, cb) {
@@ -484,7 +511,7 @@ const FS = {
       const contents = FILES.get(abs)
       const size = isBinary(contents)
         ? base64Size(contents.slice(BINARY_PREFIX.length))
-        : contents.length
+        : entryText(contents).length
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
@@ -502,7 +529,12 @@ const FS = {
     const src = P.resolve(String(from))
     if (!FILES.has(src))
       throw new Error(`ENOENT: no such file, copy '${String(from)}'`)
-    FS.writeFileSync(to, FILES.get(src))
+    // copy the stored representation verbatim, so a byte file stays bytes and a
+    // text file is not re-escaped
+    const abs = P.resolve(String(to))
+    mkdirp(P.dirname(abs))
+    FILES.set(abs, FILES.get(src))
+    markDirty(abs)
   }
 }
 
@@ -769,10 +801,11 @@ const readDriveFile = (filePath) => {
     throw err
   }
   const contents = FILES.get(abs)
-  // the host turns a base64 entry back into bytes before it answers with it
+  // the host turns a base64 entry back into bytes before it answers with it,
+  // and takes the escape off a text entry
   return isBinary(contents)
     ? { contents: contents.slice(BINARY_PREFIX.length), binary: true }
-    : { contents, binary: false }
+    : { contents: entryText(contents), binary: false }
 }
 
 const buildTree = () => {

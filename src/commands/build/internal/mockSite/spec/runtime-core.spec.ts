@@ -374,6 +374,28 @@ describe('browser runtime', () => {
     expect(result.webout).toContain('Received type number (7)')
   })
 
+  it('reads text with an encoding, and never mistakes a marker-like value for bytes', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        // a value that begins with the drive's own binary marker
+        "fs.writeFileSync(file, '\\u0000base64:AAAA')",
+        'const raw = fs.readFileSync(file)',
+        "const b64 = fs.readFileSync(file, 'base64')",
+        'const size = fs.statSync(file).size',
+        "fs.copyFileSync(file, '/sasjs/drive/files/copy.txt')",
+        "const copied = fs.readFileSync('/sasjs/drive/files/copy.txt')",
+        '_webout = [raw === "\\u0000base64:AAAA", b64, size, copied === raw].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // base64 of "\u0000base64:AAAA" - the text, not a decode of it
+    expect(result.webout).toBe('true|AGJhc2U2NDpBQUFB|12|true')
+  })
+
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
     const runtime = loadRuntime()
 
