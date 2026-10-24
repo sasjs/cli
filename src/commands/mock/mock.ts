@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { folderExists, Target } from '@sasjs/utils'
@@ -118,7 +119,7 @@ const countJsPrograms = (files: { [path: string]: string }) =>
     return inProgramFolder && key.toLowerCase().endsWith('.js')
   }).length
 
-const loaderScript = (mainScript: string) => `<script>
+const loaderScript = (mainScript: string, version: string) => `<script>
     // Boot order: register the service worker that hosts the mock backend, wait
     // until it controls this page, hand it the persisted drive, install the XHR
     // bridge, then start the app.
@@ -132,10 +133,10 @@ const loaderScript = (mainScript: string) => `<script>
         document.body.appendChild(s)
       }
       function start() {
-        load('host/persist.js', function () {
+        load('host/persist.js?v=${version}', function () {
           Promise.resolve(window.__sasjsMockReady).then(function (boot) {
             if (boot && boot.error) console.error('[mock] boot: ' + boot.error)
-            load('host/intercept.js', function () {
+            load('host/intercept.js?v=${version}', function () {
               load('${mainScript}', function () {}, true)
             })
           })
@@ -181,7 +182,7 @@ const loaderScript = (mainScript: string) => `<script>
  * boot loader. Both changes are reported when the expected markup is absent,
  * rather than producing a site that silently talks to a real server.
  */
-const patchIndexHtml = (html: string) => {
+const patchIndexHtml = (html: string, version: string) => {
   const warnings: string[] = []
   let patched = html
 
@@ -205,7 +206,7 @@ const patchIndexHtml = (html: string) => {
   )
 
   if (mainMatch) {
-    patched = patched.replace(mainMatch[0], loaderScript(mainMatch[1]))
+    patched = patched.replace(mainMatch[0], loaderScript(mainMatch[1], version))
   } else {
     warnings.push(
       'no main bundle script tag found - the mock loader was not installed'
@@ -337,6 +338,30 @@ export async function buildMockSite(
     path.join(outputFolder, 'sw.js')
   )
 
+  // 2a. cache busting. Static hosts keep these files for a long time and their
+  // names never change, so a returning visitor would otherwise run the host
+  // code from the previous build - including the worker, which imports
+  // runtime-core.js through the same cache.
+  const hostVersion = createHash('md5')
+    .update(
+      ['runtime-core.js', 'persist.js', 'intercept.js']
+        .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
+        .reduce((all, buf) => Buffer.concat([all, buf]), Buffer.alloc(0))
+    )
+    .digest('hex')
+    .slice(0, 10)
+
+  const swPath = path.join(outputFolder, 'sw.js')
+  fs.writeFileSync(
+    swPath,
+    fs
+      .readFileSync(swPath, 'utf8')
+      .replace(
+        "importScripts('/host/runtime-core.js')",
+        `importScripts('/host/runtime-core.js?v=${hostVersion}')`
+      )
+  )
+
   // 2b. a captured drive, if the project keeps one. This is how a site ships
   // with data already in it: seed once in a browser, export the drive with
   // window.SASjsMock.download(), and place the file here.
@@ -372,7 +397,8 @@ export async function buildMockSite(
   // 4. point the app at itself
   const indexPath = path.join(outputFolder, 'index.html')
   const { patched, warnings } = patchIndexHtml(
-    fs.readFileSync(indexPath, 'utf8')
+    fs.readFileSync(indexPath, 'utf8'),
+    hostVersion
   )
   fs.writeFileSync(indexPath, patched)
   warnings.forEach((warning) => process.logger?.warn(warning))
