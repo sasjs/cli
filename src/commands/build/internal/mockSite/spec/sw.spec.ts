@@ -303,6 +303,21 @@ describe('service worker host', () => {
     expect(dispatch('https://other.example.com/SASjsApi/info')).toBeUndefined()
   })
 
+  it('answers 500 when a byte entry on the drive is not valid base64', async () => {
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('data.bin')]: '\u0000base64:!!!not base64!!!'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/drive/file?_filePath=' +
+        encodeURIComponent(`${appLoc}/data.bin`)
+    )
+
+    expect(response.status).toBe(500)
+    expect((await response.json()).message).toContain('Corrupt binary entry')
+  })
+
   it('frames the log behind the separator when _debug is set', async () => {
     const { dispatch } = seeded()
 

@@ -140,7 +140,10 @@ const asBufferInput = (value) => {
   return null
 }
 
-/** The bytes a service handed to fs, or null when it wrote text. */
+/**
+ * The bytes behind a value Buffer.from accepts: the byte-like inputs plus a
+ * plain array of numbers, which node allows there and nowhere else.
+ */
 const asBytes = (data) => {
   const bytes = asBufferInput(data)
   if (bytes) return bytes
@@ -148,11 +151,11 @@ const asBytes = (data) => {
   return null
 }
 
-/** How node names a value it refused, so a service's error reads the same. */
+/** How node names a value it refused, so the error names the same rule. */
 const describeValue = (value) => {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'an instance of Array'
-  if (typeof value === 'string') return `type string (${JSON.stringify(value)})`
+  if (typeof value === 'string') return `type string ('${value}')`
   if (typeof value !== 'object')
     return `type ${typeof value} (${String(value)})`
   return 'an instance of Object'
@@ -362,11 +365,20 @@ const FS = {
   writeFileSync(p, data) {
     const abs = P.resolve(String(p))
     mkdirp(P.dirname(abs))
-    const bytes =
-      typeof data === 'string' || data === null || data === undefined
-        ? null
-        : asBytes(data)
-    FILES.set(abs, bytes ? BINARY_PREFIX + bytesToBase64(bytes) : String(data))
+    // text, or the bytes node lets a service write: an array, a number or null
+    // is an error there, so it is one here too rather than a silent "1,2,3" in
+    // the file that fails on the server
+    if (typeof data !== 'string') {
+      const bytes = asBufferInput(data)
+      if (!bytes)
+        throw new TypeError(
+          `The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received ${describeValue(data)}`
+        )
+      FILES.set(abs, BINARY_PREFIX + bytesToBase64(bytes))
+      markDirty(abs)
+      return
+    }
+    FILES.set(abs, data)
     markDirty(abs)
   },
   writeFile(p, data, cb) {

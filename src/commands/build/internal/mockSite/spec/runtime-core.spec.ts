@@ -310,11 +310,29 @@ describe('browser runtime', () => {
     })
 
     expect(result.webout).toContain(
-      'true|The "list[0]" argument must be an instance of Buffer or Uint8Array. Received type string ("ab")'
+      'true|The "list[0]" argument must be an instance of Buffer or Uint8Array. Received type string (\'ab\')'
     )
     expect(result.webout).toContain(
       'true|The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received an instance of Object'
     )
+  })
+
+  it('refuses a write node would refuse, rather than stringifying it', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const outcomes = []',
+        "try { fs.writeFileSync('/sasjs/drive/files/list.bin', [1, 2, 3]) } catch (e) { outcomes.push(e instanceof TypeError, e.message) }",
+        "try { fs.writeFileSync('/sasjs/drive/files/count.txt', 7) } catch (e) { outcomes.push(e instanceof TypeError, e.message) }",
+        '_webout = outcomes.join("|")'
+      ].join('\n')
+    })
+
+    expect(result.webout).toContain(
+      'true|The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received an instance of Array'
+    )
+    expect(result.webout).toContain('Received type number (7)')
   })
 
   it('measures a Buffer or a string, and refuses what it cannot encode', () => {
