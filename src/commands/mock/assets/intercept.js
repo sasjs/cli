@@ -14,11 +14,11 @@
  *      readyState, responseText and real load events.
  */
 ;(function () {
-  if (window.__dcBridgeInstalled) return
-  window.__dcBridgeInstalled = true
+  if (window.__sasjsMockBridgeInstalled) return
+  window.__sasjsMockBridgeInstalled = true
 
   const dbg = (...args) => {
-    if (window.__dcDebug) console.log('[dc-host]', ...args)
+    if (window.__dcDebug) console.log('[sasjs-mock]', ...args)
   }
 
   const readBody = async (body) => {
@@ -123,7 +123,7 @@
         const contentType = res.headers.get('content-type') || 'text/plain'
         if (res.status >= 400)
           console.error(
-            '[dc-host] ' +
+            '[sasjs-mock] ' +
               xhr.__dcUrl +
               ' -> ' +
               res.status +
@@ -135,7 +135,7 @@
       .catch((err) => {
         const message = String((err && err.message) || err)
         console.error(
-          '[dc-host] request failed: ' + xhr.__dcUrl + ' - ' + message
+          '[sasjs-mock] request failed: ' + xhr.__dcUrl + ' - ' + message
         )
         respond(
           xhr,
@@ -148,7 +148,7 @@
 
   // fetch() is used by nothing in this build, but answering it keeps the
   // bridge honest if a code path switches transport.
-  window.__dcHostStats = async () => {
+  window.__sasjsMockHostStats = async () => {
     const reg = await navigator.serviceWorker.ready
     return {
       active: !!reg.active,

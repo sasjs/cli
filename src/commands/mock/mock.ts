@@ -133,7 +133,7 @@ const loaderScript = (mainScript: string) => `<script>
       }
       function start() {
         load('host/persist.js', function () {
-          Promise.resolve(window.__dcPersistReady).then(function (boot) {
+          Promise.resolve(window.__sasjsMockReady).then(function (boot) {
             if (boot && boot.error) console.error('[mock] boot: ' + boot.error)
             load('host/intercept.js', function () {
               load('${mainScript}', function () {}, true)
@@ -337,7 +337,7 @@ export async function buildMockSite(
 
   // 2b. a captured drive, if the project keeps one. This is how a site ships
   // with data already in it: seed once in a browser, export the drive with
-  // window.__dcStorage.download(), and place the file here.
+  // window.SASjsMock.download(), and place the file here.
   const snapshotSource = path.join(buildFolder, 'mock-snapshot.json')
   const hasSnapshot = fs.existsSync(snapshotSource)
   if (hasSnapshot) {

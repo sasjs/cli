@@ -12,7 +12,7 @@
  */
 importScripts('/host/runtime-core.js')
 
-const R = self.DCRuntime
+const R = self.SASjsMockRuntime
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -39,7 +39,8 @@ const broadcast = async (message) => {
 
 const persistChanges = async () => {
   const files = R.takeDirty()
-  if (Object.keys(files).length) await broadcast({ type: 'dc-persist', files })
+  if (Object.keys(files).length)
+    await broadcast({ type: 'sasjs-persist', files })
 }
 
 const readPayload = async (request) => {
@@ -148,7 +149,7 @@ const handle = async (request, url) => {
     )
   } catch (e) {
     const message = (e && e.stack) || String(e)
-    broadcast({ type: 'dc-host-error', path, message })
+    broadcast({ type: 'sasjs-host-error', path, message })
     return json(
       { message: (e && e.message) || String(e) },
       (e && e.status) || 500
@@ -169,41 +170,49 @@ self.addEventListener('message', (event) => {
   const reply = (message) => event.source && event.source.postMessage(message)
 
   switch (data.type) {
-    case 'dc-load':
+    case 'sasjs-load':
       event.waitUntil(
         R.load(data.files || {}).then(async () => {
           await persistChanges()
-          reply({ type: 'dc-load-ack', boot: R.bootInfo(), stats: R.stats() })
+          reply({
+            type: 'sasjs-load-ack',
+            boot: R.bootInfo(),
+            stats: R.stats()
+          })
         })
       )
       break
 
-    case 'dc-seed':
+    case 'sasjs-seed':
       event.waitUntil(
         R.seed().then(async () => {
           await persistChanges()
-          reply({ type: 'dc-seed-ack', boot: R.bootInfo(), stats: R.stats() })
+          reply({
+            type: 'sasjs-seed-ack',
+            boot: R.bootInfo(),
+            stats: R.stats()
+          })
         })
       )
       break
 
-    case 'dc-reset':
+    case 'sasjs-reset':
       event.waitUntil(
         R.reset().then(async () => {
           await persistChanges()
-          reply({ type: 'dc-reset-ack', boot: R.bootInfo() })
+          reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
         })
       )
       break
 
-    case 'dc-snapshot':
-      reply({ type: 'dc-snapshot', files: R.dumpAll() })
+    case 'sasjs-snapshot':
+      reply({ type: 'sasjs-snapshot', files: R.dumpAll() })
       break
 
-    case 'dc-stats':
+    case 'sasjs-stats':
       event.waitUntil(
         R.ensureReady().then(() =>
-          reply({ type: 'dc-stats', boot: R.bootInfo(), stats: R.stats() })
+          reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
         )
       )
       break

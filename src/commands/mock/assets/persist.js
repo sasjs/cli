@@ -7,7 +7,7 @@
  * files it changed and they are written here.
  */
 ;(function () {
-  const DB_NAME = 'dc-browser-host'
+  const DB_NAME = 'sasjs-mock-host'
   const STORE = 'files'
 
   const openDb = () =>
@@ -125,19 +125,19 @@
   // Persist whatever the worker reports as changed.
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
-    if (data.type === 'dc-persist')
+    if (data.type === 'sasjs-persist')
       writeFiles(data.files).catch((e) =>
-        console.error('[dc-host] persist failed', e)
+        console.error('[sasjs-mock] persist failed', e)
       )
-    if (data.type === 'dc-host-error')
-      console.error('[dc-host] ' + data.path + ': ' + data.message)
+    if (data.type === 'sasjs-host-error')
+      console.error('[sasjs-mock] ' + data.path + ': ' + data.message)
   })
 
-  window.__dcStorage = {
+  window.SASjsMock = {
     readAll,
     writeFiles,
     clear: clearAll,
-    snapshot: () => askWorker({ type: 'dc-snapshot' }, 'dc-snapshot'),
+    snapshot: () => askWorker({ type: 'sasjs-snapshot' }, 'sasjs-snapshot'),
     stats: async () => {
       const files = await readAll()
       const paths = Object.keys(files)
@@ -152,7 +152,10 @@
      * visitor starts from this state instead of from an empty drive.
      */
     download: async () => {
-      const snapshot = await askWorker({ type: 'dc-snapshot' }, 'dc-snapshot')
+      const snapshot = await askWorker(
+        { type: 'sasjs-snapshot' },
+        'sasjs-snapshot'
+      )
       const files = (snapshot && snapshot.files) || {}
       const blob = new Blob([JSON.stringify({ files }, null, 2)], {
         type: 'application/json'
@@ -166,13 +169,13 @@
       return Object.keys(files).length
     },
     reset: async () => {
-      await askWorker({ type: 'dc-reset' }, 'dc-reset-ack')
+      await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
       await clearAll()
       return true
     }
   }
 
-  window.__dcPersistReady = (async () => {
+  window.__sasjsMockReady = (async () => {
     await navigator.serviceWorker.ready
     const controller = await waitForController()
     if (!controller) return { error: 'no service worker controller' }
@@ -181,17 +184,20 @@
     try {
       files = await readAll()
     } catch (e) {
-      console.error('[dc-host] could not read storage: ' + e)
+      console.error('[sasjs-mock] could not read storage: ' + e)
     }
 
     if (Object.keys(files).length) {
-      window.__dcBoot = await askWorker(
-        { type: 'dc-load', files },
-        'dc-load-ack'
+      window.__sasjsMockBoot = await askWorker(
+        { type: 'sasjs-load', files },
+        'sasjs-load-ack'
       )
     } else {
-      window.__dcBoot = await askWorker({ type: 'dc-seed' }, 'dc-seed-ack')
+      window.__sasjsMockBoot = await askWorker(
+        { type: 'sasjs-seed' },
+        'sasjs-seed-ack'
+      )
     }
-    return window.__dcBoot
+    return window.__sasjsMockBoot
   })()
 })()

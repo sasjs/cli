@@ -604,6 +604,6 @@ const api = {
   tree: () => buildTree()
 }
 
-self.DCRuntime = api
+self.SASjsMockRuntime = api
 
 if (typeof module !== 'undefined') module.exports = api
