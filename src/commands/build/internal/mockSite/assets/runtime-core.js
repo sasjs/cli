@@ -173,10 +173,6 @@ const describeValue = (value) => {
   return 'an instance of Object'
 }
 
-const base64Size = (base64) =>
-  Math.floor((base64.length * 3) / 4) -
-  (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
-
 const isBinary = (contents) =>
   typeof contents === 'string' && contents.startsWith(BINARY_PREFIX)
 
@@ -195,19 +191,33 @@ const utf8Decoder = new TextDecoder()
 const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
 /**
- * The byte length node reports for a stored entry: a byte entry decodes to its
- * own length, and a text entry is measured as utf8. The marker prefixes are a
- * storage detail and never count.
+ * The bytes of a stored byte entry, refusing one that will not decode. node's
+ * own base64 decoder ignores what it cannot use, but a drive entry is written by
+ * the host as base64 and nothing else, so a corrupt one is a host bug: it fails
+ * here with the same complaint the worker gives when it serves the file, rather
+ * than reading as empty bytes in one place and a 500 in another.
  */
-const entrySize = (contents) =>
-  isBinary(contents)
-    ? base64Size(contents.slice(BINARY_PREFIX.length))
-    : utf8Encoder.encode(entryText(contents)).length
+const decodeEntry = (contents) => {
+  const base64 = contents.slice(BINARY_PREFIX.length)
+  const clean = String(base64).replace(/\s+/g, '')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4)
+    throw corruptEntry()
+  return base64ToBytes(clean)
+}
+
+const corruptEntry = () => {
+  const error = new Error('Corrupt binary entry on the drive: not valid base64')
+  error.status = 500
+  return error
+}
+
+/** The byte length node reports for a stored entry. */
+const entrySize = (contents) => entryBytes(contents).length
 
 /** The bytes a stored entry holds, whatever representation it is behind. */
 const entryBytes = (contents) =>
   isBinary(contents)
-    ? base64ToBytes(contents.slice(BINARY_PREFIX.length))
+    ? decodeEntry(contents)
     : utf8Encoder.encode(entryText(contents))
 
 /** Two byte sets joined, as an appending write leaves the file. */
@@ -388,7 +398,18 @@ const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
  * buffer. A service building a padded payload depends on the repeat.
  */
 const allocBytes = (size, fill, encoding) => {
-  const out = new Uint8Array(Number(size) || 0)
+  // node refuses a size that is not a number, and one it cannot make an array
+  // of - a silent empty buffer would hide a service that fails on the server
+  if (typeof size !== 'number')
+    throw new TypeError(
+      `The "size" argument must be of type number. Received ${describeValue(size)}`
+    )
+  const length = Number.isFinite(size) ? Math.trunc(size) : size
+  if (!(length >= 0) || !Number.isFinite(length))
+    throw new RangeError(
+      `The value of "size" is out of range. It must be >= 0 && <= 9007199254740991. Received ${size}`
+    )
+  const out = new Uint8Array(length)
   if (fill === undefined || !out.length) return out
   const bytes =
     typeof fill === 'number'
@@ -598,9 +619,7 @@ const FS = {
     const onOptions = options && typeof options === 'object'
     const encoding = onOptions ? options.encoding : options
     const contents = FILES.get(abs)
-    const bytes = isBinary(contents)
-      ? BUFFERS.from(contents.slice(BINARY_PREFIX.length), 'base64')
-      : null
+    const bytes = isBinary(contents) ? asBuffer(decodeEntry(contents)) : null
     // an encoding asks for a string, as it does in node; without one the drive
     // hands text back as text (a service reading a config or a CSV expects
     // that) and a byte file back as bytes
@@ -992,10 +1011,17 @@ const readDriveFile = (filePath) => {
   }
   const contents = FILES.get(abs)
   // the host turns a base64 entry back into bytes before it answers with it,
-  // and takes the escape off a text entry
+  // and takes the escape off a text entry. A corrupt entry is refused here, so
+  // the answer is the same error the service gets when it reads the file.
   return isBinary(contents)
-    ? { contents: contents.slice(BINARY_PREFIX.length), binary: true }
+    ? { contents: validateEntry(contents), binary: true }
     : { contents: entryText(contents), binary: false }
+}
+
+/** The stored base64 of a byte entry, once it is known to decode. */
+const validateEntry = (contents) => {
+  decodeEntry(contents)
+  return contents.slice(BINARY_PREFIX.length)
 }
 
 const buildTree = () => {

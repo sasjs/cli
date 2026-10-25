@@ -303,9 +303,18 @@ self.addEventListener('message', (event) => {
 
     case 'sasjs-stats':
       event.waitUntil(
-        R.ensureReady().then(() =>
-          reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
-        )
+        R.ensureReady().then(() => {
+          try {
+            reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
+          } catch (e) {
+            // a corrupt entry fails the whole total, so the page is answered
+            // with the reason instead of waiting out its own timeout
+            reply({
+              type: 'sasjs-stats',
+              error: (e && e.message) || String(e)
+            })
+          }
+        })
       )
       break
   }

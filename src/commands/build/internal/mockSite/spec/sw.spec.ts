@@ -490,6 +490,23 @@ describe('service worker host', () => {
     )
   })
 
+  it('reports a corrupt entry in the stats reply rather than leaving the page waiting', async () => {
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('data.bin')]: '\u0000base64:!!!not base64!!!'
+    })
+
+    const stats = worker.message({ type: 'sasjs-stats' })
+    await stats.pending
+
+    expect(stats.replies[0]).toEqual(
+      expect.objectContaining({
+        type: 'sasjs-stats',
+        error: expect.stringContaining('Corrupt binary entry')
+      })
+    )
+  })
+
   it('claims the clients on install and activate', () => {
     const { lifecycle } = seeded()
 

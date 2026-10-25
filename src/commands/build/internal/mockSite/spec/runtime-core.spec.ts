@@ -462,6 +462,36 @@ describe('browser runtime', () => {
     expect(result.webout).toBe('true|aMOpbGxv|6|true|6|string')
   })
 
+  it('refuses a corrupt byte entry wherever it is read, and measures what it hands back', () => {
+    const runtime = loadRuntime()
+    runtime.load({
+      '/sasjs/drive/files/bad.bin': '\u0000base64:!!!not base64!!!',
+      // a snapshot carrying a line break inside the base64 still decodes
+      '/sasjs/drive/files/spaced.bin': '\u0000base64:AQID\n'
+    })
+
+    const result = runtime.run({
+      code: [
+        "const bad = '/sasjs/drive/files/bad.bin'",
+        'let readError = "none"',
+        'try { fs.readFileSync(bad) } catch (e) { readError = [e.status, e.message].join("|") }',
+        'let statError = "none"',
+        'try { fs.statSync(bad) } catch (e) { statError = e.status }',
+        "const spaced = '/sasjs/drive/files/spaced.bin'",
+        '_webout = [readError, statError, fs.readFileSync(spaced).length, fs.statSync(spaced).size].join(";")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the same complaint the worker gives when it serves the file, and a size
+    // that is the bytes read hands back rather than the stored string
+    expect(result.webout).toBe(
+      '500|Corrupt binary entry on the drive: not valid base64;500;3;3'
+    )
+    // the drive total is a read of every entry, so it refuses one too
+    expect(() => runtime.stats()).toThrow('Corrupt binary entry')
+  })
+
   it('measures a text file in bytes, as node does', () => {
     const runtime = loadRuntime()
 
@@ -513,12 +543,20 @@ describe('browser runtime', () => {
         "const pair = Buffer.alloc(3, 'ab').toString()",
         "const latin = Buffer.alloc(3, '\\u00e9', 'latin1').toString('hex')",
         "const zeros = Buffer.alloc(2).toString('hex')",
-        '_webout = [bytes, pair, latin, zeros].join("|")'
+        'const truncated = Buffer.alloc(1.5).length',
+        'let notNumber = "none"',
+        "try { Buffer.alloc('x') } catch (e) { notNumber = e.constructor.name }",
+        'let range = "none"',
+        'try { Buffer.alloc(-1) } catch (e) { range = e.constructor.name }',
+        '_webout = [bytes, pair, latin, zeros, truncated, notNumber, range].join("|")'
       ].join('\n')
     })
 
     expect(result.error).toBeNull()
-    expect(result.webout).toBe('ffffffff|aba|e9e9e9|0000')
+    // node truncates a fractional size and refuses a non-number or a negative
+    expect(result.webout).toBe(
+      'ffffffff|aba|e9e9e9|0000|1|TypeError|RangeError'
+    )
   })
 
   it('slices as a view, and names a Buffer method the shim does not carry', () => {
