@@ -440,6 +440,25 @@ describe('browser runtime', () => {
     expect(read.webout).toBe('plain notes')
   })
 
+  it('hands bytes back for an explicit null encoding, as node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'h\\u00e9llo')",
+        'const nulled = fs.readFileSync(file, { encoding: null })',
+        'const undef = fs.readFileSync(file, { encoding: undefined })',
+        'const plain = fs.readFileSync(file)',
+        "_webout = [Buffer.isBuffer(nulled), nulled.toString('base64'), nulled.length, Buffer.isBuffer(undef), undef.length, typeof plain].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node: fs.readFileSync(f, { encoding: null }) is a Buffer of the utf8 bytes
+    expect(result.webout).toBe('true|aMOpbGxv|6|true|6|string')
+  })
+
   it('measures a text file in bytes, as node does', () => {
     const runtime = loadRuntime()
 
@@ -544,6 +563,33 @@ describe('browser runtime', () => {
     ).toBe('504b0304')
   })
 
+  it('takes the offset and length node takes for an ArrayBuffer, and a length for concat', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const ab = new Uint8Array([1, 2, 3, 4, 5]).buffer',
+        "const chunk = Buffer.from(ab, 2, 2).toString('hex')",
+        "const rest = Buffer.from(ab, 2).toString('hex')",
+        "const whole = Buffer.from(ab, 'utf8').toString('hex')",
+        'let bounds = "none"',
+        'try { Buffer.from(ab, 2, 100) } catch (e) { bounds = e.constructor.name }',
+        'let offsetError = "none"',
+        'try { Buffer.from(ab, 9) } catch (e) { offsetError = e.constructor.name }',
+        "const padded = Buffer.concat([Buffer.from([1, 2])], 4).toString('hex')",
+        "const cut = Buffer.concat([Buffer.from([1, 2]), Buffer.from([3])], 2).toString('hex')",
+        'let badLength = "none"',
+        'try { Buffer.concat([Buffer.from([1])], -1) } catch (e) { badLength = e.constructor.name }',
+        '_webout = [chunk, rest, whole, bounds, offsetError, padded, cut, badLength].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(
+      '0304|030405|0102030405|RangeError|RangeError|01020000|0102|RangeError'
+    )
+  })
+
   it('reports a directory and a missing file the way node does', () => {
     const runtime = loadRuntime()
 
@@ -630,6 +676,42 @@ describe('browser runtime', () => {
     ).toBe(true)
     // the seed, the three session files and the one the service wrote
     expect(runtime.stats().files).toBe(5)
+  })
+
+  it('reports the drive total in bytes, not in stored characters', () => {
+    const runtime = loadRuntime()
+    runtime.load({})
+
+    runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/data/notes.txt'",
+        "fs.writeFileSync('/sasjs/drive/files/data/pack.bin', Uint8Array.from([80, 75, 3, 4]))",
+        "fs.writeFileSync(file, 'h\\u00e9llo')"
+      ].join('\n')
+    })
+
+    // the drive total is measured per entry: a byte entry counts its bytes, not
+    // the base64 and marker it is stored behind, and text counts utf8 bytes
+    const storedBytes = (contents: string) =>
+      contents.startsWith('\u0000base64:')
+        ? Buffer.from(contents.slice('\u0000base64:'.length), 'base64').length
+        : Buffer.byteLength(contents.replace(/^\u0000text:/, ''))
+
+    const drive = runtime.dumpAll()
+    const expected = Object.values(drive).reduce(
+      (total: number, contents: any) => total + storedBytes(contents),
+      0
+    )
+    const written = Object.keys(drive).filter((k) => k.includes('/data/'))
+    expect(written.length).toBe(2)
+    expect(runtime.stats().bytes).toBe(expected)
+    // the stored representation is longer than the bytes it holds
+    expect(
+      Object.values(drive).reduce(
+        (total: number, contents: any) => total + contents.length,
+        0
+      )
+    ).toBeGreaterThan(expected)
   })
 
   it('clears the drive and re-seeds on reset', async () => {

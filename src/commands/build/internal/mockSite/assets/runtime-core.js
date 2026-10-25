@@ -194,6 +194,16 @@ const utf8Encoder = new TextEncoder()
 const utf8Decoder = new TextDecoder()
 const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
+/**
+ * The byte length node reports for a stored entry: a byte entry decodes to its
+ * own length, and a text entry is measured as utf8. The marker prefixes are a
+ * storage detail and never count.
+ */
+const entrySize = (contents) =>
+  isBinary(contents)
+    ? base64Size(contents.slice(BINARY_PREFIX.length))
+    : utf8Encoder.encode(entryText(contents)).length
+
 /** node's names for its encodings, including the aliases it accepts. */
 const ENCODINGS = [
   'utf8',
@@ -302,9 +312,15 @@ const decorate = (view) => {
 const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
 
 const BUFFERS = {
-  from(value, encoding) {
+  /**
+   * node's Buffer.from overloads: (string, encoding), (arrayBuffer, byteOffset,
+   * length), and a single argument for anything else. The offset and length are
+   * read only for an ArrayBuffer - node ignores them for the contents of a view,
+   * so a chunk comes from subarray, not from a second argument.
+   */
+  from(value, offsetOrEncoding, length) {
     if (typeof value === 'string') {
-      switch (assertEncoding(encoding)) {
+      switch (assertEncoding(offsetOrEncoding)) {
         case 'base64':
           return asBuffer(base64ToBytes(value))
         case 'base64url':
@@ -333,13 +349,30 @@ const BUFFERS = {
           return asBuffer(utf8Encoder.encode(value))
       }
     }
+    if (value instanceof ArrayBuffer) {
+      // a non-numeric second argument is not an offset, it is node's encoding
+      // slot, and node ignores it here rather than rejecting it
+      const start =
+        typeof offsetOrEncoding === 'number' ? Math.trunc(offsetOrEncoding) : 0
+      const end =
+        typeof length === 'number'
+          ? start + Math.trunc(length)
+          : value.byteLength
+      if (start < 0 || start > value.byteLength)
+        throw new RangeError(
+          `Start offset ${String(offsetOrEncoding)} is outside the bounds of the buffer`
+        )
+      if (end < start || end > value.byteLength)
+        throw new RangeError('"length" is outside of buffer bounds')
+      return asBuffer(new Uint8Array(value, start, end - start))
+    }
     const bytes = asBytes(value)
     if (!bytes)
       throw new TypeError('Buffer.from: unsupported input in the browser host')
     return asBuffer(bytes)
   },
   alloc: (size) => asBuffer(new Uint8Array(size || 0)),
-  concat(list) {
+  concat(list, totalLength) {
     const items = list || []
     const parts = items.map((item, index) => {
       const bytes = asBufferInput(item)
@@ -349,12 +382,25 @@ const BUFFERS = {
         )
       return bytes
     })
-    const total = parts.reduce((sum, part) => sum + part.length, 0)
+    const written = parts.reduce((sum, part) => sum + part.length, 0)
+    // node pads with zeros when totalLength is longer than the parts and cuts
+    // them short when it is shorter, rather than ignoring the argument
+    const total = totalLength === undefined ? written : totalLength
+    if (typeof total !== 'number')
+      throw new TypeError(
+        `The "length" argument must be of type number. Received ${describeValue(totalLength)}`
+      )
+    if (!Number.isInteger(total) || total < 0)
+      throw new RangeError(
+        `The value of "length" is out of range. It must be ${total < 0 ? '>= 0' : 'an integer'}. Received ${total}`
+      )
     const out = new Uint8Array(total)
     let offset = 0
     for (const part of parts) {
-      out.set(part, offset)
-      offset += part.length
+      if (offset >= total) break
+      const room = Math.min(part.length, total - offset)
+      out.set(part.subarray(0, room), offset)
+      offset += room
     }
     return asBuffer(out)
   },
@@ -439,9 +485,11 @@ const FS = {
       err.code = 'ENOENT'
       throw err
     }
-    // node takes the encoding either bare or on an options object
-    const encoding =
-      options && typeof options === 'object' ? options.encoding : options
+    // node takes the encoding either bare or on an options object. An explicit
+    // `{ encoding: null }` is node's ask for a Buffer, so it is not the same as
+    // no encoding at all - the key has to be told apart from its value.
+    const onOptions = options && typeof options === 'object'
+    const encoding = onOptions ? options.encoding : options
     const contents = FILES.get(abs)
     const bytes = isBinary(contents)
       ? BUFFERS.from(contents.slice(BINARY_PREFIX.length), 'base64')
@@ -455,6 +503,10 @@ const FS = {
         ? bytes.toString(how)
         : BUFFERS.from(entryText(contents)).toString(how)
     }
+    // an encoding key present but null: node hands back the Buffer, so a text
+    // entry is its utf8 bytes
+    if (onOptions && 'encoding' in options)
+      return bytes || asBuffer(utf8Encoder.encode(entryText(contents)))
     return bytes || entryText(contents)
   },
   existsSync(p) {
@@ -515,11 +567,7 @@ const FS = {
     if (DIRS.has(abs))
       return { isDirectory: () => true, isFile: () => false, size: 0 }
     if (FILES.has(abs)) {
-      const contents = FILES.get(abs)
-      const size = isBinary(contents)
-        ? base64Size(contents.slice(BINARY_PREFIX.length))
-        : // node reports bytes, so a text entry is measured as utf8
-          utf8Encoder.encode(entryText(contents)).length
+      const size = entrySize(FILES.get(abs))
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
@@ -962,8 +1010,11 @@ const api = {
   bootInfo: () => lastBoot,
   stats: () => ({
     files: FILES.size,
+    // the drive's total in bytes, measured per entry the way statSync does it -
+    // the stored representation's own length would count the marker and the
+    // base64 expansion instead
     bytes: [...FILES.values()].reduce(
-      (total, contents) => total + contents.length,
+      (total, contents) => total + entrySize(contents),
       0
     )
   }),
