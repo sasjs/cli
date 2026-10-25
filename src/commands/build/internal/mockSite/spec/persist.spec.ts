@@ -215,6 +215,18 @@ describe('page-side store', () => {
     await expect(pending).resolves.toEqual({ files: 2, bytes: 7 })
   })
 
+  it('hands a worker error back rather than an empty drive total', async () => {
+    jest.useFakeTimers()
+    const { window } = loadPersist()
+
+    const pending = window.SASjsMock.stats()
+    await jest.advanceTimersByTimeAsync(20000)
+
+    await expect(pending).resolves.toEqual({
+      error: 'timed out waiting for sasjs-stats'
+    })
+  })
+
   it('writes nothing when a change set is empty', async () => {
     const { window } = loadPersist()
 
