@@ -55,6 +55,16 @@ const copyFolder = (from: string, to: string) => {
 const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
 /**
+ * A per-file bound on what the browser drive seeds. A byte entry is carried as
+ * base64 in vfs-seed.json and held in the worker's memory, so one large
+ * artefact - an export, a media file, a vendored archive - would make the
+ * generated site unloadable. Over the bound the file is left off the drive and
+ * named in a warning, as it was when the drive carried text only. Text has no
+ * bound: a program folder is text by nature and the drive has always carried it.
+ */
+export const MAX_BINARY_SEED_BYTES = 10 * 1024 * 1024
+
+/**
  * What the drive stores for a file: its text when the bytes survive a UTF-8
  * round trip, and behind the byte marker (BINARY_PREFIX in runtime-core.js)
  * otherwise. An archive, an image or an xlsx therefore lands on the drive as
@@ -66,12 +76,23 @@ const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 const DRIVE_BINARY_PREFIX = '\u0000base64:'
 const DRIVE_TEXT_PREFIX = '\u0000text:'
 
-const readDriveFile = (absolute: string) => {
+type DriveFile = { contents: string } | { skippedAt: number }
+
+/** A byte count in MB, for the message that names a file too large to seed. */
+const megabytes = (bytes: number) =>
+  `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`
+
+const readDriveFile = (absolute: string): DriveFile => {
   const buffer = fs.readFileSync(absolute)
   const text = buffer.toString('utf8')
-  if (!Buffer.from(text, 'utf8').equals(buffer))
-    return DRIVE_BINARY_PREFIX + buffer.toString('base64')
-  return text.startsWith('\u0000') ? DRIVE_TEXT_PREFIX + text : text
+  if (!Buffer.from(text, 'utf8').equals(buffer)) {
+    if (buffer.length > MAX_BINARY_SEED_BYTES)
+      return { skippedAt: buffer.length }
+    return { contents: DRIVE_BINARY_PREFIX + buffer.toString('base64') }
+  }
+  return {
+    contents: text.startsWith('\u0000') ? DRIVE_TEXT_PREFIX + text : text
+  }
 }
 
 const seedFromBuild = (
@@ -81,6 +102,7 @@ const seedFromBuild = (
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
+  const skipped: { key: string; bytes: number }[] = []
   const driveBase = `/sasjs/drive/files${appLoc}`
 
   // Every folder of the build goes on the drive, so a sync folder's content (a
@@ -95,11 +117,13 @@ const seedFromBuild = (
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
       if (exclude.some((prefix) => key.startsWith(prefix))) continue
-      files[key] = readDriveFile(path.join(folder, relative))
+      const file = readDriveFile(path.join(folder, relative))
+      if ('skippedAt' in file) skipped.push({ key, bytes: file.skippedAt })
+      else files[key] = file.contents
     }
   }
 
-  return { files }
+  return { files, skipped }
 }
 
 /**
@@ -326,9 +350,12 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
 
   // A previous site may sit inside the build folder; leaving it out of the seed
   // keeps the old site out of the new drive.
-  const { files: seed } = seedFromBuild(buildFolder, appLoc, excluded, [
-    outputFolder
-  ])
+  const { files: seed, skipped } = seedFromBuild(
+    buildFolder,
+    appLoc,
+    excluded,
+    [outputFolder]
+  )
   const jsPrograms = countJsPrograms(seed)
   const driveEntries = Object.keys(seed).length
 
@@ -336,6 +363,18 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     throw new Error(
       `No .js programs in ${buildFolder}/services, /jobs or /tests. This target builds SAS code, which cannot run in a browser. ` +
         'Build a target whose services are JavaScript (typically a mocks project).'
+    )
+  }
+
+  if (skipped.length) {
+    process.logger?.warn(
+      `Left ${skipped.length} file(s) off the mock drive, each over the ${megabytes(
+        MAX_BINARY_SEED_BYTES
+      )} the browser build seeds: ` +
+        `${skipped
+          .slice(0, 3)
+          .map((file) => `${file.key} (${megabytes(file.bytes)})`)
+          .join(', ')}${skipped.length > 3 ? ', ...' : ''}`
     )
   }
 

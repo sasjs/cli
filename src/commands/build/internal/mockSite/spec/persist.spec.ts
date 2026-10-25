@@ -229,6 +229,19 @@ describe('page-side store', () => {
     await pending
   })
 
+  it('fails the read when the reply carries no stats', async () => {
+    const { window, reply } = loadPersist()
+
+    const pending = expect(window.SASjsMock.stats()).rejects.toThrow(
+      'carried no stats'
+    )
+    await Promise.resolve()
+    // a worker left over from an older build answers the message with no stats
+    reply({ type: 'sasjs-stats' })
+
+    await pending
+  })
+
   it('writes nothing when a change set is empty', async () => {
     const { window } = loadPersist()
 

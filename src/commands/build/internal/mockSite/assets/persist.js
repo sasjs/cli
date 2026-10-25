@@ -159,8 +159,10 @@
     stats: async () => {
       const answer = await askWorker({ type: 'sasjs-stats' }, 'sasjs-stats')
       // a worker that cannot report fails the read, as the other drive reads
-      // do: a caller destructuring { files, bytes } must not be handed NaN
+      // do: a caller destructuring { files, bytes } must not be handed NaN, and
+      // neither must a reply of an older shape that carries no stats at all
       if (answer.error) throw new Error(answer.error)
+      if (!answer.stats) throw new Error('sasjs-stats reply carried no stats')
       return answer.stats
     },
     /**

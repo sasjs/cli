@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { buildMockSite } from '../mockSite'
+import { buildMockSite, MAX_BINARY_SEED_BYTES } from '../mockSite'
 
 const appLoc = '/Public/app/test'
 
@@ -184,6 +184,26 @@ describe('browser-hosted build', () => {
       '\u0000text:\u0000base64:not really'
     )
     expect(result.driveEntries).toBe(7) // 3 programs + 3 text files + the png
+  })
+
+  it('leaves a byte file over the seed bound off the drive, and names it', async () => {
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'export.zip'),
+      Buffer.alloc(MAX_BINARY_SEED_BYTES + 1, 0x89)
+    )
+
+    const result = await buildMockSite(target())
+
+    const seed = readSeed()
+    // one large artefact must not make the generated site unloadable
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/export.zip`]
+    ).toBeUndefined()
+    expect(result.driveEntries).toBe(5) // 3 programs + 2 text files
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('export.zip (10 MB')
+    )
   })
 
   it('seeds a project file the runtime reads back as its bytes', async () => {
