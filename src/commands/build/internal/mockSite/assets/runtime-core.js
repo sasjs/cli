@@ -546,6 +546,21 @@ BUFFERS.allocUnsafe = BUFFERS.alloc
 // ------------------------------------------------------------- virtual drive
 const FILES = new Map() // absolute path -> string contents
 const DIRS = new Set(['/'])
+// abs path -> { contents, size }: the measure of the entry as stored. A cached
+// entry is trusted only while it is the same string, so a write that replaces
+// the contents recomputes - the cache cannot go stale, and a stat of a
+// multi-megabyte seeded file does not scan it again.
+const SIZES = new Map()
+
+/** The byte length of an entry on the drive, measured once per stored value. */
+const entrySizeAt = (abs) => {
+  const contents = FILES.get(abs)
+  const cached = SIZES.get(abs)
+  if (cached && cached.contents === contents) return cached.size
+  const size = entrySize(contents)
+  SIZES.set(abs, { contents, size })
+  return size
+}
 
 // ------------------------------------------------------------ persistence
 // The drive lives in this worker's memory. IndexedDB is owned by the PAGE
@@ -574,6 +589,7 @@ const dumpAll = () => {
 
 const loadSnapshot = (files) => {
   FILES.clear()
+  SIZES.clear()
   DIRS.clear()
   DIRS.add('/')
   mkdirp(DRIVE_APP)
@@ -736,7 +752,7 @@ const FS = {
     if (DIRS.has(abs))
       return { isDirectory: () => true, isFile: () => false, size: 0 }
     if (FILES.has(abs)) {
-      const size = entrySize(FILES.get(abs))
+      const size = entrySizeAt(abs)
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
@@ -748,6 +764,7 @@ const FS = {
   unlinkSync(p) {
     const abs = P.resolve(String(p))
     FILES.delete(abs)
+    SIZES.delete(abs)
     markDirty(abs)
   },
   copyFileSync(from, to) {
@@ -1144,6 +1161,7 @@ const boot = async () => {
 
 const reset = async () => {
   FILES.clear()
+  SIZES.clear()
   DIRS.clear()
   DIRS.add('/')
   dirty.clear()
@@ -1198,11 +1216,8 @@ const api = {
     files: FILES.size,
     // the drive's total in bytes, measured per entry the way statSync does it -
     // the stored representation's own length would count the marker and the
-    // base64 expansion instead
-    bytes: [...FILES.values()].reduce(
-      (total, contents) => total + entrySize(contents),
-      0
-    )
+    // base64 expansion instead - and cached, so a second call scans nothing
+    bytes: [...FILES.keys()].reduce((total, abs) => total + entrySizeAt(abs), 0)
   }),
   run: (payload) => runProgram(payload),
   list: (folder) => listFolder(folder),

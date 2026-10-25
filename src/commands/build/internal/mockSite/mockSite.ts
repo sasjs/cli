@@ -55,14 +55,16 @@ const copyFolder = (from: string, to: string) => {
 const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
 /**
- * A per-file bound on what the browser drive seeds. A byte entry is carried as
- * base64 in vfs-seed.json and held in the worker's memory, so one large
- * artefact - an export, a media file, a vendored archive - would make the
- * generated site unloadable. Over the bound the file is left off the drive and
- * named in a warning, as it was when the drive carried text only. Text has no
- * bound: a program folder is text by nature and the drive has always carried it.
+ * The bounds on what the browser drive seeds. A byte entry is carried as base64
+ * in vfs-seed.json and held in the worker's memory, so a large artefact - an
+ * export, a media file, a vendored archive - makes the generated site
+ * unloadable: one file over the per-file bound, or enough files to pass the
+ * total, is left off the drive and named in a warning, as every non-text file
+ * was when the drive carried text only. Text has no bound: a program folder is
+ * text by nature and the drive has always carried it.
  */
 export const MAX_BINARY_SEED_BYTES = 10 * 1024 * 1024
+export const MAX_SEED_BYTES = 25 * 1024 * 1024
 
 /**
  * What the drive stores for a file: its text when the bytes survive a UTF-8
@@ -76,7 +78,7 @@ export const MAX_BINARY_SEED_BYTES = 10 * 1024 * 1024
 const DRIVE_BINARY_PREFIX = '\u0000base64:'
 const DRIVE_TEXT_PREFIX = '\u0000text:'
 
-type DriveFile = { contents: string } | { skippedAt: number }
+type DriveFile = { contents: string; bytes?: number }
 
 /** A byte count in MB, for the message that names a file too large to seed. */
 const megabytes = (bytes: number) =>
@@ -85,11 +87,12 @@ const megabytes = (bytes: number) =>
 const readDriveFile = (absolute: string): DriveFile => {
   const buffer = fs.readFileSync(absolute)
   const text = buffer.toString('utf8')
-  if (!Buffer.from(text, 'utf8').equals(buffer)) {
-    if (buffer.length > MAX_BINARY_SEED_BYTES)
-      return { skippedAt: buffer.length }
-    return { contents: DRIVE_BINARY_PREFIX + buffer.toString('base64') }
-  }
+  if (!Buffer.from(text, 'utf8').equals(buffer))
+    return {
+      contents: DRIVE_BINARY_PREFIX + buffer.toString('base64'),
+      // the raw size, which is what the seed bounds are measured in
+      bytes: buffer.length
+    }
   return {
     contents: text.startsWith('\u0000') ? DRIVE_TEXT_PREFIX + text : text
   }
@@ -102,8 +105,9 @@ const seedFromBuild = (
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
-  const skipped: { key: string; bytes: number }[] = []
+  const skipped: { key: string; bytes: number; limit: 'file' | 'total' }[] = []
   const driveBase = `/sasjs/drive/files${appLoc}`
+  let seededBytes = 0
 
   // Every folder of the build goes on the drive, so a sync folder's content (a
   // licence store, for instance) survives as well as the program folders.
@@ -118,8 +122,20 @@ const seedFromBuild = (
       const key = `${driveBase}/${entry.name}/${relative}`
       if (exclude.some((prefix) => key.startsWith(prefix))) continue
       const file = readDriveFile(path.join(folder, relative))
-      if ('skippedAt' in file) skipped.push({ key, bytes: file.skippedAt })
-      else files[key] = file.contents
+      // a byte entry counts against both bounds; a text entry counts against
+      // neither, because the drive has always carried the program folders
+      if (file.bytes !== undefined) {
+        if (file.bytes > MAX_BINARY_SEED_BYTES) {
+          skipped.push({ key, bytes: file.bytes, limit: 'file' })
+          continue
+        }
+        if (seededBytes + file.bytes > MAX_SEED_BYTES) {
+          skipped.push({ key, bytes: file.bytes, limit: 'total' })
+          continue
+        }
+        seededBytes += file.bytes
+      }
+      files[key] = file.contents
     }
   }
 
@@ -368,12 +384,21 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
 
   if (skipped.length) {
     process.logger?.warn(
-      `Left ${skipped.length} file(s) off the mock drive, each over the ${megabytes(
+      `Left ${skipped.length} file(s) off the mock drive, over the ${megabytes(
         MAX_BINARY_SEED_BYTES
-      )} the browser build seeds: ` +
+      )} per-file or ${megabytes(
+        MAX_SEED_BYTES
+      )} total the browser build seeds: ` +
         `${skipped
           .slice(0, 3)
-          .map((file) => `${file.key} (${megabytes(file.bytes)})`)
+          .map(
+            (file) =>
+              `${file.key} (${megabytes(file.bytes)}, ${
+                file.limit === 'file'
+                  ? 'over the per-file limit'
+                  : 'over the drive budget'
+              })`
+          )
           .join(', ')}${skipped.length > 3 ? ', ...' : ''}`
     )
   }

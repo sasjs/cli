@@ -206,6 +206,32 @@ describe('browser-hosted build', () => {
     )
   })
 
+  it('stops seeding bytes once the drive budget is spent, and names the file', async () => {
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    // each file is under the per-file bound; together they pass the total
+    const chunk = Buffer.alloc(Math.floor(MAX_BINARY_SEED_BYTES * 0.9), 0x89)
+    for (const name of ['one.bin', 'two.bin', 'three.bin']) {
+      fs.writeFileSync(
+        path.join(root, 'sasjsbuild', 'mock-storage', name),
+        chunk
+      )
+    }
+
+    await buildMockSite(target())
+
+    const seed = readSeed()
+    expect(
+      Object.keys(seed.files).filter((k) => k.endsWith('.bin')).length
+    ).toBe(2)
+    // the folder is listed in no guaranteed order, so the warning is checked for
+    // the reason and for naming whichever file did not fit
+    const warning = ((process.logger?.warn as jest.Mock).mock.calls || [])
+      .map((call) => call[0])
+      .join('\n')
+    expect(warning).toContain('over the drive budget')
+    expect(warning).toMatch(/(one|two|three)\.bin/)
+  })
+
   it('seeds a project file the runtime reads back as its bytes', async () => {
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
