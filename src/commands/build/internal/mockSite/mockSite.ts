@@ -115,28 +115,40 @@ const seedFromBuild = (
     .readdirSync(buildFolder, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
 
+  const candidates: { key: string; absolute: string }[] = []
   for (const entry of directories) {
     const folder = path.join(buildFolder, entry.name)
     if (excludeFolders.includes(path.resolve(folder))) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
       if (exclude.some((prefix) => key.startsWith(prefix))) continue
-      const file = readDriveFile(path.join(folder, relative))
-      // a byte entry counts against both bounds; a text entry counts against
-      // neither, because the drive has always carried the program folders
-      if (file.bytes !== undefined) {
-        if (file.bytes > MAX_BINARY_SEED_BYTES) {
-          skipped.push({ key, bytes: file.bytes, limit: 'file' })
-          continue
-        }
-        if (seededBytes + file.bytes > MAX_SEED_BYTES) {
-          skipped.push({ key, bytes: file.bytes, limit: 'total' })
-          continue
-        }
-        seededBytes += file.bytes
-      }
-      files[key] = file.contents
+      candidates.push({ key, absolute: path.join(folder, relative) })
     }
+  }
+
+  // The budget is spent in path order, not in whatever order the folder listing
+  // returns, so the same project yields the same drive - and the same warning -
+  // on every machine and filesystem.
+  candidates.sort((first, second) =>
+    first.key < second.key ? -1 : first.key > second.key ? 1 : 0
+  )
+
+  for (const candidate of candidates) {
+    const file = readDriveFile(candidate.absolute)
+    // a byte entry counts against both bounds; a text entry counts against
+    // neither, because the drive has always carried the program folders
+    if (file.bytes !== undefined) {
+      if (file.bytes > MAX_BINARY_SEED_BYTES) {
+        skipped.push({ key: candidate.key, bytes: file.bytes, limit: 'file' })
+        continue
+      }
+      if (seededBytes + file.bytes > MAX_SEED_BYTES) {
+        skipped.push({ key: candidate.key, bytes: file.bytes, limit: 'total' })
+        continue
+      }
+      seededBytes += file.bytes
+    }
+    files[candidate.key] = file.contents
   }
 
   return { files, skipped }

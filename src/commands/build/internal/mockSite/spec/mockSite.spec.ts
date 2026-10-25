@@ -219,17 +219,16 @@ describe('browser-hosted build', () => {
 
     await buildMockSite(target())
 
+    // the budget is spent in path order, so the drive is the same on every host:
+    // one and three fit, two does not
     const seed = readSeed()
-    expect(
-      Object.keys(seed.files).filter((k) => k.endsWith('.bin')).length
-    ).toBe(2)
-    // the folder is listed in no guaranteed order, so the warning is checked for
-    // the reason and for naming whichever file did not fit
-    const warning = ((process.logger?.warn as jest.Mock).mock.calls || [])
-      .map((call) => call[0])
-      .join('\n')
-    expect(warning).toContain('over the drive budget')
-    expect(warning).toMatch(/(one|two|three)\.bin/)
+    const seeded = Object.keys(seed.files)
+      .filter((key) => key.endsWith('.bin'))
+      .map((key) => key.slice(key.lastIndexOf('/') + 1))
+    expect(seeded).toEqual(['one.bin', 'three.bin'])
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('two.bin (9 MB, over the drive budget)')
+    )
   })
 
   it('seeds a project file the runtime reads back as its bytes', async () => {
