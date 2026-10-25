@@ -490,7 +490,12 @@ const BUFFERS = {
         )
       if (end < start || end > value.byteLength)
         throw new RangeError('"length" is outside of buffer bounds')
-      return asBuffer(new Uint8Array(value, start, end - start))
+      // node returns a VIEW over the ArrayBuffer for this overload - a service
+      // that patches the bytes through the buffer is patching the ArrayBuffer
+      // it kept - and copies only for a Uint8Array input, which is what
+      // asBytes does below. `decorate` adds the methods to the view in place;
+      // `asBuffer` would copy it and hide the patch.
+      return decorate(new Uint8Array(value, start, end - start))
     }
     const bytes = asBytes(value)
     if (!bytes)
@@ -822,6 +827,19 @@ const SEED_PATH = '/host/vfs-seed.json'
 const SNAPSHOT_PATH = '/host/vfs-snapshot.json'
 
 /**
+ * The drive storage format, stamped into the seed and the snapshot. The markers
+ * themselves (`\u0000base64:` / `\u0000text:`) are written by the build
+ * (DRIVE_BINARY_PREFIX / DRIVE_TEXT_PREFIX in mockSite.ts) and read here, so the
+ * two sides hold the same format independently - and a one-sided edit would
+ * otherwise show up as a byte file reading as text, or a 500 per entry.
+ *
+ * The stamp is what makes that loud instead of silent: a file written by a build
+ * that speaks a different format is refused here, naming both numbers. Bump this
+ * whenever the marker format changes, and the builder's DRIVE_FORMAT with it.
+ */
+const DRIVE_FORMAT = 1
+
+/**
  * Reads the generated mock-config.json (appLoc and provenance). Absent or
  * malformed, the defaults above apply - a demo can then only work when the
  * services sit under the default appLoc.
@@ -998,10 +1016,19 @@ return _webout;
   const binary = !corrupt && !!fromFile && isBinary(stored)
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
+  // The headers file is read as text whatever way it was written, which is what
+  // the server does (`extractHeaders` reads the file, not the write). A service
+  // that writes it as bytes - a Buffer, or any non-UTF-8 encoding - leaves a
+  // byte entry on the drive, so decoding the entry text alone would hand the
+  // worker the `\u0000base64:...` marker and drop every declared header.
+  const storedHeaders = FILES.get(headersPath) || ''
+
   return {
     webout,
     log: logLines.join('\n'),
-    headers: entryText(FILES.get(headersPath) || ''),
+    headers: isBinary(storedHeaders)
+      ? utf8Decoder.decode(entryBytes(storedHeaders))
+      : entryText(storedHeaders),
     // a byte body travels to the host as base64, which is how it is stored
     binary,
     error: thrown
@@ -1115,8 +1142,29 @@ const fetchDrive = async () => {
       if (!res.ok) continue
       const body = await res.json()
       const files = body && body.files ? body.files : body
-      if (files && typeof files === 'object') return { source, files }
+      if (!files || typeof files !== 'object') continue
+
+      // A file that declares a format this runtime does not speak is refused
+      // rather than misread: the markers inside it would decode as text, and the
+      // failure would surface as a corrupt download or a 500 per entry with
+      // nothing naming the cause. A file with no stamp predates the stamp and is
+      // read as the current format.
+      if (body && body.format !== undefined && body.format !== DRIVE_FORMAT)
+        throw new Error(
+          'The drive in ' +
+            url +
+            ' is format ' +
+            JSON.stringify(body.format) +
+            ', and this runtime speaks format ' +
+            DRIVE_FORMAT +
+            '. Rebuild the mock site with the matching @sasjs/cli.'
+        )
+
+      return { source, files }
     } catch (e) {
+      // a format mismatch is not a reason to try the other file: it is the file
+      // the operator meant to ship, and falling through would hide it
+      if (e && /is format /.test(e.message)) throw e
       /* fall through to the next source */
     }
   }
@@ -1222,7 +1270,10 @@ const api = {
   run: (payload) => runProgram(payload),
   list: (folder) => listFolder(folder),
   read: (file) => readDriveFile(file),
-  tree: () => buildTree()
+  tree: () => buildTree(),
+  // the format the snapshot download stamps, so persist.js writes the number
+  // this runtime reads rather than a second literal
+  DRIVE_FORMAT
 }
 
 self.SASjsMockRuntime = api

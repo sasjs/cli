@@ -176,9 +176,13 @@
         'sasjs-snapshot'
       )
       const files = (snapshot && snapshot.files) || {}
-      const blob = new Blob([JSON.stringify({ files }, null, 2)], {
-        type: 'application/json'
-      })
+      // the format stamp the runtime checks on load: a snapshot that outlived a
+      // marker-format change is refused by name, instead of decoding as text
+      const driveFormat = (self.SASjsMockRuntime || {}).DRIVE_FORMAT
+      const blob = new Blob(
+        [JSON.stringify({ format: driveFormat, files }, null, 2)],
+        { type: 'application/json' }
+      )
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
