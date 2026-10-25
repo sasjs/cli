@@ -195,12 +195,51 @@ describe('page-side store', () => {
     await expect(window.SASjsMock.readAll()).resolves.toEqual({})
 
     await window.SASjsMock.writeFiles({ '/sasjs/drive/b.txt': 'bb' })
-    await expect(window.SASjsMock.stats()).resolves.toEqual({
-      files: 1,
-      bytes: 2
+    await expect(window.SASjsMock.readAll()).resolves.toEqual({
+      '/sasjs/drive/b.txt': 'bb'
     })
     await window.SASjsMock.clear()
     await expect(window.SASjsMock.readAll()).resolves.toEqual({})
+  })
+
+  it('takes the drive total from the worker, which owns the storage format', async () => {
+    const { window, posted, reply } = loadPersist()
+
+    const pending = window.SASjsMock.stats()
+    await Promise.resolve()
+    expect(posted).toContainEqual({ type: 'sasjs-stats' })
+
+    // the worker measures a byte entry as its bytes, not as base64
+    reply({ type: 'sasjs-stats', boot: {}, stats: { files: 2, bytes: 7 } })
+
+    await expect(pending).resolves.toEqual({ files: 2, bytes: 7 })
+  })
+
+  it('fails the read when the worker cannot report, rather than returning NaN', async () => {
+    jest.useFakeTimers()
+    const { window } = loadPersist()
+
+    // the assertion is attached before the timer fires: a rejection with no
+    // handler yet is an unhandled rejection, not a test result
+    const pending = expect(window.SASjsMock.stats()).rejects.toThrow(
+      'timed out waiting for sasjs-stats'
+    )
+    await jest.advanceTimersByTimeAsync(20000)
+
+    await pending
+  })
+
+  it('fails the read when the reply carries no stats', async () => {
+    const { window, reply } = loadPersist()
+
+    const pending = expect(window.SASjsMock.stats()).rejects.toThrow(
+      'carried no stats'
+    )
+    await Promise.resolve()
+    // a worker left over from an older build answers the message with no stats
+    reply({ type: 'sasjs-stats' })
+
+    await pending
   })
 
   it('writes nothing when a change set is empty', async () => {

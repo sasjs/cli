@@ -182,6 +182,623 @@ describe('browser runtime', () => {
     expect(result.headers).toBe('content-type: application/json')
   })
 
+  it('hands a byte body back to the host as base64', () => {
+    const runtime = loadRuntime()
+
+    // the shape a service that streams a file uses on the server: write the
+    // body to the fileref, and say in the headers what it is
+    const result = runtime.run({
+      code: [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: application/zip')",
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.binary).toBe(true)
+    expect(result.webout).toBe('UEsDBA==')
+    expect(result.headers).toContain('application/zip')
+  })
+
+  it('accepts a Buffer, as a program written for the server uses', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, Buffer.from([80, 75, 3, 4]))'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('UEsDBA==', 'base64'))"
+      }).webout
+    ).toBe('UEsDBA==')
+  })
+
+  it('decodes a Buffer from a binary string, from hex and from text', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('PK\\u0003\\u0004', 'binary'))"
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: "fs.writeFileSync(weboutPath, Buffer.from('504b0304', 'hex'))"
+      }).webout
+    ).toBe('UEsDBA==')
+
+    // no encoding given means utf8, as in node
+    expect(
+      runtime.run({ code: "fs.writeFileSync(weboutPath, Buffer.from('ab'))" })
+        .webout
+    ).toBe('YWI=')
+  })
+
+  it('decodes a chunk of a Buffer, as a service streaming a file does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/pack.bin'",
+        'fs.writeFileSync(file, Uint8Array.from([80, 75, 3, 4]))',
+        'const read = fs.readFileSync(file)',
+        'const chunk = read.subarray(0, 2)',
+        "_webout = [chunk.toString('base64'), read.slice(0, 2).toString('base64'), read.subarray(2).toString('hex'), Buffer.from([1, 2, 3]).subarray(1).toString('hex'), Buffer.isBuffer(chunk)].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('UEs=|UEs=|0304|0203|true')
+  })
+
+  it('decodes hex and base64 the way node does, including what it rejects', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        // node stops at the first pair that is not hex, and ignores a trailing
+        // nibble
+        "const hexCases = ['zz', 'abc', '0g', '504b0304'].map((text) => Buffer.from(text, 'hex').toString('hex'))",
+        // node ignores junk characters, drops a lone trailing character, and
+        // decodes unpadded input
+        "const b64Cases = ['zz', 'A', '!!!', 'UEsDBA'].map((text) => Buffer.from(text, 'base64').length)",
+        "_webout = [hexCases.join(','), b64Cases.join(',')].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(',ab,,504b0304|1,0,0,4')
+  })
+
+  it('clamps a toString range the way node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const buf = Buffer.from([1, 2, 3, 4])',
+        "_webout = [buf.toString('hex', -1), buf.toString('hex', 0, -1), buf.toString('hex', 1, 3), buf.toString('hex', 3, 1)].map((value) => JSON.stringify(value)).join('|')"
+      ].join('\n')
+    })
+
+    expect(result.webout).toBe('"01020304"|""|"0203"|""')
+  })
+
+  it('serialises a Buffer the way node does, with no marker in the JSON', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: "_webout = [JSON.stringify(Buffer.from([80, 75])), Object.keys(Buffer.from([1])).join()].join('|')"
+    })
+
+    expect(result.webout).toBe('{"type":"Buffer","data":[80,75]}|0')
+  })
+
+  it('does not call an empty byte write a byte body', () => {
+    const runtime = loadRuntime()
+
+    // a service that writes no bytes and returns a string can only be answered
+    // with that string, so the reply is text rather than base64-decoded text
+    const result = runtime.run({
+      code: [
+        'fs.writeFileSync(weboutPath, new Uint8Array(0))',
+        "return 'from the return'"
+      ].join('\n')
+    })
+
+    expect(result.binary).toBe(false)
+    expect(result.webout).toBe('from the return')
+  })
+
+  it('handles the encodings node handles, and refuses the rest', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const codes = ['utf16le', 'ucs2', 'ascii'].map((encoding) => Buffer.from('PK', encoding).toString('hex'))",
+        // node encodes 'ascii' as latin1 and keeps the high bits
+        "const latin = Buffer.from('\\u00e9\\u00ff', 'ascii').toString('hex')",
+        "const url = Buffer.from([251, 255]).toString('base64url')",
+        "const back = Buffer.from('-_8', 'base64url').toString('hex')",
+        "const high = Buffer.from([0xc8]).toString('ascii').charCodeAt(0)",
+        'let refused = "none"',
+        "try { Buffer.from('x', 'not-an-encoding') } catch (e) { refused = e.message }",
+        "_webout = [codes.join(','), latin, url, back, high, refused].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // 'P' is 0x50 and 'K' is 0x4b, written little-endian for the utf16 pair;
+    // ascii encodes as latin1 (e9ff) and drops the high bit only when decoding
+    // 0xc8, leaving 0x48
+    expect(result.webout).toBe(
+      '50004b00,50004b00,504b|e9ff|-_8|fbff|72|Unknown encoding: not-an-encoding'
+    )
+  })
+
+  it('decodes the url-safe alphabet and keeps a utf16 byte order mark', () => {
+    const runtime = loadRuntime()
+
+    // node's base64 decoder accepts the url-safe characters, and its utf16le
+    // decoder keeps a leading BOM as a character
+    const result = runtime.run({
+      code: [
+        "const bytes = Buffer.from('-_8', 'base64')",
+        'const bom = Buffer.from([0xff, 0xfe, 0x41, 0x00])',
+        "_webout = [bytes.toString('hex'), JSON.stringify(bom.toString('utf16le'))].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('fbff|"\ufeffA"')
+  })
+
+  it('refuses what node refuses, with the same complaint', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const messages = []',
+        "try { Buffer.concat(['ab', Buffer.from([1])]) } catch (e) { messages.push(e instanceof TypeError, e.message) }",
+        'try { Buffer.byteLength({}) } catch (e) { messages.push(e instanceof TypeError, e.message) }',
+        '_webout = messages.join("|")'
+      ].join('\n')
+    })
+
+    expect(result.webout).toContain(
+      'true|The "list[0]" argument must be an instance of Buffer or Uint8Array. Received type string (\'ab\')'
+    )
+    expect(result.webout).toContain(
+      'true|The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received an instance of Object'
+    )
+  })
+
+  it('refuses a write node would refuse, rather than stringifying it', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const outcomes = []',
+        "try { fs.writeFileSync('/sasjs/drive/files/list.bin', [1, 2, 3]) } catch (e) { outcomes.push(e instanceof TypeError, e.message) }",
+        "try { fs.writeFileSync('/sasjs/drive/files/count.txt', 7) } catch (e) { outcomes.push(e instanceof TypeError, e.message) }",
+        '_webout = outcomes.join("|")'
+      ].join('\n')
+    })
+
+    expect(result.webout).toContain(
+      'true|The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received an instance of Array'
+    )
+    expect(result.webout).toContain('Received type number (7)')
+  })
+
+  it('reads text with an encoding, and never mistakes a marker-like value for bytes', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        // a value that begins with the drive's own binary marker
+        "fs.writeFileSync(file, '\\u0000base64:AAAA')",
+        'const raw = fs.readFileSync(file)',
+        "const b64 = fs.readFileSync(file, 'base64')",
+        'const size = fs.statSync(file).size',
+        "fs.copyFileSync(file, '/sasjs/drive/files/copy.txt')",
+        "const copied = fs.readFileSync('/sasjs/drive/files/copy.txt')",
+        '_webout = [raw === "\\u0000base64:AAAA", b64, size, copied === raw].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // base64 of "\u0000base64:AAAA" - the text, not a decode of it
+    expect(result.webout).toBe('true|AGJhc2U2NDpBQUFB|12|true')
+  })
+
+  it('takes an encoding on an options object, and hands an escaped body back unchanged', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'plain notes')",
+        "const options = fs.readFileSync(file, { encoding: 'utf8' })",
+        // a body that looks like the drive's own marker
+        "_webout = '\\u0000text:not really escaped'"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the webout comes back exactly as written, escape and all
+    expect(result.webout).toBe('\u0000text:not really escaped')
+
+    const read = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'plain notes')",
+        "_webout = fs.readFileSync(file, { encoding: 'utf8' })"
+      ].join('\n')
+    })
+    expect(read.webout).toBe('plain notes')
+  })
+
+  it('hands bytes back for an explicit null encoding, as node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.txt'",
+        "fs.writeFileSync(file, 'h\\u00e9llo')",
+        'const nulled = fs.readFileSync(file, { encoding: null })',
+        'const undef = fs.readFileSync(file, { encoding: undefined })',
+        'const plain = fs.readFileSync(file)',
+        "_webout = [Buffer.isBuffer(nulled), nulled.toString('base64'), nulled.length, Buffer.isBuffer(undef), undef.length, typeof plain].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node: fs.readFileSync(f, { encoding: null }) is a Buffer of the utf8 bytes
+    expect(result.webout).toBe('true|aMOpbGxv|6|true|6|string')
+  })
+
+  it('refuses a corrupt byte entry wherever it is read, and measures what it hands back', () => {
+    const runtime = loadRuntime()
+    runtime.load({
+      '/sasjs/drive/files/bad.bin': '\u0000base64:!!!not base64!!!',
+      // a snapshot carrying a line break inside the base64 still decodes
+      '/sasjs/drive/files/spaced.bin': '\u0000base64:AQID\n'
+    })
+
+    const result = runtime.run({
+      code: [
+        "const bad = '/sasjs/drive/files/bad.bin'",
+        'let readError = "none"',
+        'try { fs.readFileSync(bad) } catch (e) { readError = [e.status, e.message].join("|") }',
+        'let statError = "none"',
+        'try { fs.statSync(bad) } catch (e) { statError = e.status }',
+        "const spaced = '/sasjs/drive/files/spaced.bin'",
+        '_webout = [readError, statError, fs.readFileSync(spaced).length, fs.statSync(spaced).size].join(";")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the same complaint the worker gives when it serves the file, and a size
+    // that is the bytes read hands back rather than the stored string
+    expect(result.webout).toBe(
+      '500|Corrupt binary entry on the drive: not valid base64;500;3;3'
+    )
+    // the drive total is a read of every entry, so it refuses one too
+    expect(() => runtime.stats()).toThrow('Corrupt binary entry')
+  })
+
+  it('measures a byte entry from its stored length, whatever the padding', () => {
+    const runtime = loadRuntime()
+    const entry = (bytes: number[]) =>
+      '\u0000base64:' + Buffer.from(bytes).toString('base64')
+    runtime.load({
+      '/sasjs/drive/files/b4.bin': entry([1, 2, 3, 4]),
+      '/sasjs/drive/files/b5.bin': entry([1, 2, 3, 4, 5]),
+      '/sasjs/drive/files/b6.bin': entry([1, 2, 3, 4, 5, 6])
+    })
+
+    const result = runtime.run({
+      code: [
+        "const paths = ['b4.bin', 'b5.bin', 'b6.bin']",
+        "_webout = paths.map((name) => { const file = '/sasjs/drive/files/' + name; return [fs.readFileSync(file).length, fs.statSync(file).size].join('/') }).join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the size is the bytes the entry decodes to, padding included
+    expect(result.webout).toBe('4/4|5/5|6/6')
+  })
+
+  it('fails a run whose byte body will not decode, rather than serving it', () => {
+    const runtime = loadRuntime()
+    runtime.load({
+      '/sasjs/drive/files/broken.bin': '\u0000base64:!!!not base64!!!'
+    })
+
+    const result = runtime.run({
+      code: "fs.copyFileSync('/sasjs/drive/files/broken.bin', weboutPath)"
+    })
+
+    // the body is validated where it is read, so a corrupt entry never reaches
+    // the worker's decoder as raw base64
+    expect(result.binary).toBeFalsy()
+    expect(result.error).toContain('Corrupt binary entry')
+  })
+
+  it('reports a service that redeclares a prelude name as a program error', () => {
+    const runtime = loadRuntime()
+
+    let result: any
+    expect(() => {
+      result = runtime.run({ code: "const Buffer = 1\n_webout = 'x'" })
+    }).not.toThrow()
+
+    expect(result.error).toContain('Buffer')
+  })
+
+  it('measures a text file in bytes, as node does', () => {
+    const runtime = loadRuntime()
+
+    // a two-byte character: node's statSync().size is the utf8 length
+    const result = runtime.run({
+      code: [
+        "fs.writeFileSync('/sasjs/drive/files/accent.txt', '\\u00e9')",
+        "_webout = String(fs.statSync('/sasjs/drive/files/accent.txt').size)"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('2')
+  })
+
+  it('measures a Buffer or a string, and refuses what it cannot encode', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: "_webout = [Buffer.isBuffer('no'), Buffer.byteLength('ab'), Buffer.byteLength(Buffer.from([1, 2])), Buffer.allocUnsafe(3).length, Buffer.from([65]).toString()].join('|')"
+      }).webout
+    ).toBe('false|2|2|3|A')
+
+    const refused = runtime.run({ code: 'Buffer.from({})' })
+    expect(refused.error).toContain('unsupported input')
+  })
+
+  it('offers the Buffer helpers a service uses to build a body', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const joined = Buffer.concat([Buffer.from([80, 75]), Buffer.from('0304', 'hex')])",
+        "_webout = [Buffer.isBuffer(joined), Buffer.byteLength(joined), joined.toString('base64'), Buffer.alloc(2).length, joined.toString('latin1').charCodeAt(2)].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('true|4|UEsDBA==|2|3')
+  })
+
+  it('fills a Buffer.alloc with the value node repeats', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const bytes = Buffer.alloc(4, 0xff).toString('hex')",
+        "const pair = Buffer.alloc(3, 'ab').toString()",
+        "const latin = Buffer.alloc(3, '\\u00e9', 'latin1').toString('hex')",
+        "const zeros = Buffer.alloc(2).toString('hex')",
+        'const truncated = Buffer.alloc(1.5).length',
+        'let notNumber = "none"',
+        "try { Buffer.alloc('x') } catch (e) { notNumber = e.constructor.name }",
+        'let range = "none"',
+        'try { Buffer.alloc(-1) } catch (e) { range = e.constructor.name }',
+        '_webout = [bytes, pair, latin, zeros, truncated, notNumber, range].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node truncates a fractional size and refuses a non-number or a negative
+    expect(result.webout).toBe(
+      'ffffffff|aba|e9e9e9|0000|1|TypeError|RangeError'
+    )
+  })
+
+  it('slices as a view, and names a Buffer method the shim does not carry', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const whole = Buffer.from([1, 2, 3])',
+        'const part = whole.slice(0, 2)',
+        'part[0] = 9',
+        'let named = "none"',
+        "try { whole.write('x') } catch (e) { named = e.message }",
+        '_webout = [whole.toString("hex"), part.length, named].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node's Buffer#slice is a view, so the edit reaches the original
+    expect(result.webout).toBe(
+      '090203|2|Buffer.write is not implemented in the browser host'
+    )
+  })
+
+  it('honours the encoding and the append flag node takes on a write', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.md'",
+        "fs.writeFileSync(file, 'one')",
+        "fs.writeFileSync(file, '-two', { flag: 'a' })",
+        'const appended = fs.readFileSync(file)',
+        "const latin = '/sasjs/drive/files/latin.txt'",
+        "fs.writeFileSync(latin, '\\u00e9', 'latin1')",
+        "const latinHex = fs.readFileSync(latin).toString('hex')",
+        "const latinText = fs.readFileSync(latin, 'latin1')",
+        "const chunks = '/sasjs/drive/files/chunks.bin'",
+        'fs.writeFileSync(chunks, Buffer.from([1, 2]))',
+        "fs.writeFileSync(chunks, Buffer.from([3]), { flag: 'a' })",
+        "const chunked = fs.readFileSync(chunks).toString('hex')",
+        'let refused = "none"',
+        "try { fs.writeFileSync(file, 'x', { flag: 'wx' }) } catch (e) { refused = e.message }",
+        "_webout = [appended, latinHex, latinText, chunked, refused].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(
+      "one-two|e9|é|010203|Unsupported flag 'wx' in the browser host - 'w' and 'a' only"
+    )
+  })
+
+  it('lets an assigned webout replace a byte body, as the generated program does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))',
+        "_webout = 'text wins'"
+      ].join('\n')
+    })
+
+    expect(result.binary).toBe(false)
+    expect(result.webout).toBe('text wins')
+  })
+
+  it('reads a file written as bytes back as bytes', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/data.bin'",
+        'fs.writeFileSync(file, Uint8Array.from([1, 2, 3]))',
+        'const read = fs.readFileSync(file)',
+        "_webout = [read.length, read.toString('base64'), fs.statSync(file).size].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('3|AQID|3')
+  })
+
+  it('takes an ArrayBuffer or a view over one as bytes', () => {
+    const runtime = loadRuntime()
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, new Uint8Array([80, 75, 3, 4]).buffer)'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, new DataView(new Uint8Array([80, 75, 3, 4]).buffer))'
+      }).webout
+    ).toBe('UEsDBA==')
+
+    // and a service can read one back as hex
+    expect(
+      runtime.run({
+        code: 'fs.writeFileSync(weboutPath, Uint8Array.from([80, 75, 3, 4]))'
+      }).binary
+    ).toBe(true)
+    expect(
+      runtime.run({
+        code: [
+          "const file = '/sasjs/drive/files/a.bin'",
+          'fs.writeFileSync(file, Uint8Array.from([80, 75, 3, 4]))',
+          "_webout = fs.readFileSync(file).toString('hex')"
+        ].join('\n')
+      }).webout
+    ).toBe('504b0304')
+  })
+
+  it('takes the offset and length node takes for an ArrayBuffer, and a length for concat', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const ab = new Uint8Array([1, 2, 3, 4, 5]).buffer',
+        "const chunk = Buffer.from(ab, 2, 2).toString('hex')",
+        "const rest = Buffer.from(ab, 2).toString('hex')",
+        "const whole = Buffer.from(ab, 'utf8').toString('hex')",
+        'let bounds = "none"',
+        'try { Buffer.from(ab, 2, 100) } catch (e) { bounds = e.constructor.name }',
+        'let offsetError = "none"',
+        'try { Buffer.from(ab, 9) } catch (e) { offsetError = e.constructor.name }',
+        "const padded = Buffer.concat([Buffer.from([1, 2])], 4).toString('hex')",
+        "const cut = Buffer.concat([Buffer.from([1, 2]), Buffer.from([3])], 2).toString('hex')",
+        'let badLength = "none"',
+        'try { Buffer.concat([Buffer.from([1])], -1) } catch (e) { badLength = e.constructor.name }',
+        '_webout = [chunk, rest, whole, bounds, offsetError, padded, cut, badLength].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(
+      '0304|030405|0102030405|RangeError|RangeError|01020000|0102|RangeError'
+    )
+  })
+
+  it('reports a directory and a missing file the way node does', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "fs.mkdirSync('/sasjs/drive/files/folder')",
+        "const isDir = fs.statSync('/sasjs/drive/files/folder').isDirectory()",
+        'let copyError = "none"',
+        "try { fs.copyFileSync('/sasjs/drive/files/none.bin', '/sasjs/drive/files/there.bin') } catch (e) { copyError = e.message }",
+        'let statError = "none"',
+        "try { fs.statSync('/sasjs/drive/files/none.bin') } catch (e) { statError = e.code }",
+        "_webout = [isDir, copyError.includes('ENOENT'), statError].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('true|true|ENOENT')
+  })
+
+  it('logs a value it cannot serialise rather than failing the run', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const loop = {}',
+        'loop.self = loop',
+        'console.log(loop)',
+        "_webout = 'logged'"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('logged')
+    expect(result.log).toContain('[object Object]')
+  })
+
+  it('carries a byte file through a copy', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const from = '/sasjs/drive/files/a.bin'",
+        "const to = '/sasjs/drive/files/b.bin'",
+        'fs.writeFileSync(from, Uint8Array.from([1, 2, 3]))',
+        'fs.copyFileSync(from, to)',
+        "_webout = fs.readFileSync(to).toString('base64')"
+      ].join('\n')
+    })
+
+    expect(result.webout).toBe('AQID')
+  })
+
   it('lists folders and builds the drive tree', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {
@@ -216,6 +833,42 @@ describe('browser runtime', () => {
     ).toBe(true)
     // the seed, the three session files and the one the service wrote
     expect(runtime.stats().files).toBe(5)
+  })
+
+  it('reports the drive total in bytes, not in stored characters', () => {
+    const runtime = loadRuntime()
+    runtime.load({})
+
+    runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/data/notes.txt'",
+        "fs.writeFileSync('/sasjs/drive/files/data/pack.bin', Uint8Array.from([80, 75, 3, 4]))",
+        "fs.writeFileSync(file, 'h\\u00e9llo')"
+      ].join('\n')
+    })
+
+    // the drive total is measured per entry: a byte entry counts its bytes, not
+    // the base64 and marker it is stored behind, and text counts utf8 bytes
+    const storedBytes = (contents: string) =>
+      contents.startsWith('\u0000base64:')
+        ? Buffer.from(contents.slice('\u0000base64:'.length), 'base64').length
+        : Buffer.byteLength(contents.replace(/^\u0000text:/, ''))
+
+    const drive = runtime.dumpAll()
+    const expected = Object.values(drive).reduce(
+      (total: number, contents: any) => total + storedBytes(contents),
+      0
+    )
+    const written = Object.keys(drive).filter((k) => k.includes('/data/'))
+    expect(written.length).toBe(2)
+    expect(runtime.stats().bytes).toBe(expected)
+    // the stored representation is longer than the bytes it holds
+    expect(
+      Object.values(drive).reduce(
+        (total: number, contents: any) => total + contents.length,
+        0
+      )
+    ).toBeGreaterThan(expected)
   })
 
   it('clears the drive and re-seeds on reset', async () => {

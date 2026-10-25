@@ -150,13 +150,20 @@
     writeFiles,
     clear: clearAll,
     snapshot: () => askWorker({ type: 'sasjs-snapshot' }, 'sasjs-snapshot'),
+    /**
+     * The drive total in bytes, measured by the worker: it owns the stored
+     * representation, so the figure stays the one `statSync` reports rather than
+     * the length of the strings this store happens to hold - which would count
+     * the base64 expansion and the marker of a byte entry.
+     */
     stats: async () => {
-      const files = await readAll()
-      const paths = Object.keys(files)
-      return {
-        files: paths.length,
-        bytes: paths.reduce((t, p) => t + files[p].length, 0)
-      }
+      const answer = await askWorker({ type: 'sasjs-stats' }, 'sasjs-stats')
+      // a worker that cannot report fails the read, as the other drive reads
+      // do: a caller destructuring { files, bytes } must not be handed NaN, and
+      // neither must a reply of an older shape that carries no stats at all
+      if (answer.error) throw new Error(answer.error)
+      if (!answer.stats) throw new Error('sasjs-stats reply carried no stats')
+      return answer.stats
     },
     /**
      * Downloads the current drive as `mock-snapshot.json`. Drop that file in the

@@ -10,6 +10,26 @@
  * The virtual drive seeds from vfs-seed.json, which holds the project's own
  * JS services unchanged, so the services themselves are not adapted in any
  * way.
+ *
+ * CONTRACT. A stored program gets what the server's generated wrapper gives it:
+ * the request parameters as module-scope consts (`_program` included), the
+ * uploaded tables as `_WEBIN_*` refs, `fs`/`path`/`crypto` from require(),
+ * `Buffer`, and `_webout` / `weboutPath` / `_SASJS_WEBOUT_HEADERS`. Two ways to
+ * answer a request:
+ *
+ *   1. text - assign `_webout`, or write a string to `weboutPath`;
+ *   2. bytes - write an ArrayBuffer, a TypedArray or a Buffer to `weboutPath`,
+ *      the way a service that streams a file does on the server.
+ *
+ * In both cases the response headers are whatever lines the service wrote to
+ * `_SASJS_WEBOUT_HEADERS` (`Content-type`, `Content-Disposition`); the host
+ * applies them to the response. A byte body comes back to the host as base64
+ * with a `binary` flag, because the drive itself holds strings.
+ *
+ * One place the drive is not node: `fs.readFileSync` without an encoding hands
+ * TEXT back as text, which is what a service reading a config, a CSV or a
+ * service file expects - a byte file still reads back as a Buffer, and an
+ * encoding returns a string for either, as node does.
  */
 
 if (typeof importScripts === 'function') importScripts('/host/md5.js')
@@ -66,9 +86,481 @@ const P = {
   }
 }
 
+// ------------------------------------------------------------ binary values
+// The drive holds strings: it is persisted as JSON in IndexedDB and seeded from
+// a JSON file. A file a service writes as bytes is therefore stored as base64
+// behind a marker, which keeps the representation self-describing - a drive
+// restored from a snapshot still knows which entries are base64 - and no text
+// file starts with a NUL.
+const BINARY_PREFIX = '\u0000base64:'
+// a text file that would otherwise look like a marker is stored behind this, so
+// a value a service wrote can never be mistaken for a byte entry
+const TEXT_PREFIX = '\u0000text:'
+const BUFFER_MARK = '__sasjsBuffer'
+const CHUNK = 0x8000
+
+const chunked = (bytes) => {
+  let out = ''
+  for (let i = 0; i < bytes.length; i += CHUNK)
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK))
+  return out
+}
+
+const bytesToBase64 = (bytes) => btoa(chunked(bytes))
+
+/**
+ * Node's base64 decoding: the url-safe alphabet counts, anything that is not a
+ * base64 character is ignored, and a leftover single character (which cannot be
+ * decoded) is dropped rather than throwing.
+ */
+const base64ToBytes = (base64) => {
+  const clean = String(base64)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .replace(/[^A-Za-z0-9+/]/g, '')
+  const usable = clean.length % 4 === 1 ? clean.slice(0, -1) : clean
+  try {
+    return Uint8Array.from(atob(usable), (char) => char.charCodeAt(0))
+  } catch (e) {
+    return new Uint8Array(0)
+  }
+}
+
+/** Node's hex decoding: pairs, stopping at the first pair that is not hex. */
+const hexToBytes = (value) => {
+  const text = String(value)
+  const bytes = []
+  for (let i = 0; i + 1 < text.length; i += 2) {
+    const pair = text.slice(i, i + 2)
+    if (!/^[0-9a-fA-F]{2}$/.test(pair)) break
+    bytes.push(parseInt(pair, 16))
+  }
+  return Uint8Array.from(bytes)
+}
+
+/**
+ * What node accepts as raw bytes: a Buffer or other Uint8Array, an ArrayBuffer,
+ * or a view over one. Arrays and strings are not bytes here - node rejects them
+ * where it wants a buffer, and a mock that quietly accepts them hides a service
+ * that would fail on the server.
+ */
+const asBufferInput = (value) => {
+  if (value instanceof Uint8Array) return value
+  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  if (ArrayBuffer.isView(value))
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+  return null
+}
+
+/**
+ * The bytes behind a value Buffer.from accepts: the byte-like inputs plus a
+ * plain array of numbers, which node allows there and nowhere else.
+ */
+const asBytes = (data) => {
+  const bytes = asBufferInput(data)
+  if (bytes) return bytes
+  if (Array.isArray(data)) return Uint8Array.from(data)
+  return null
+}
+
+/** How node names a value it refused, so the error names the same rule. */
+const describeValue = (value) => {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) return 'an instance of Array'
+  if (typeof value === 'string') return `type string ('${value}')`
+  if (typeof value !== 'object')
+    return `type ${typeof value} (${String(value)})`
+  return 'an instance of Object'
+}
+
+const isBinary = (contents) =>
+  typeof contents === 'string' && contents.startsWith(BINARY_PREFIX)
+
+/** The text a stored entry holds, with the escape for a marker-like value off. */
+const entryText = (contents) =>
+  contents.startsWith(TEXT_PREFIX)
+    ? contents.slice(TEXT_PREFIX.length)
+    : contents
+
+/** What the drive stores for a string a service wrote. */
+const encodeText = (data) =>
+  data.startsWith('\u0000') ? TEXT_PREFIX + data : data
+
+const utf8Encoder = new TextEncoder()
+const utf8Decoder = new TextDecoder()
+const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
+
+/**
+ * The stored base64 of a byte entry, stripped of whitespace and checked, so
+ * every read of the entry - decoding it, measuring it - starts from the same
+ * validated string.
+ *
+ * node's own base64 decoder ignores what it cannot use, but a drive entry is
+ * written by the host as base64 and nothing else, so a corrupt one is a host
+ * bug: it fails here with the same complaint the worker gives when it serves the
+ * file, rather than reading as empty bytes in one place and a 500 in another.
+ */
+const cleanedBase64 = (contents) => {
+  const clean = String(contents.slice(BINARY_PREFIX.length)).replace(/\s+/g, '')
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4)
+    throw corruptEntry()
+  return clean
+}
+
+const corruptEntry = () => {
+  const error = new Error('Corrupt binary entry on the drive: not valid base64')
+  error.status = 500
+  return error
+}
+
+/**
+ * The byte length node reports for a stored entry, worked out from the stored
+ * form rather than by materialising the bytes: the drive now carries seeded
+ * project files, and a multi-megabyte archive must not be decoded to answer a
+ * stat. The arithmetic is exactly what the decoder yields for the same string
+ * (three bytes per four base64 characters, less the padding), so the size and
+ * the contents cannot disagree.
+ */
+const entrySize = (contents) => {
+  if (!isBinary(contents)) return utf8Encoder.encode(entryText(contents)).length
+  const base64 = cleanedBase64(contents)
+  return (
+    Math.floor((base64.length * 3) / 4) -
+    (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
+  )
+}
+
+/** The bytes a stored entry holds, whatever representation it is behind. */
+const entryBytes = (contents) =>
+  isBinary(contents)
+    ? base64ToBytes(cleanedBase64(contents))
+    : utf8Encoder.encode(entryText(contents))
+
+/** Two byte sets joined, as an appending write leaves the file. */
+const joinBytes = (first, second) => {
+  const out = new Uint8Array(first.length + second.length)
+  out.set(first, 0)
+  out.set(second, first.length)
+  return out
+}
+
+/** node's names for its encodings, including the aliases it accepts. */
+const ENCODINGS = [
+  'utf8',
+  'utf-8',
+  'base64',
+  'base64url',
+  'hex',
+  'binary',
+  'latin1',
+  'ascii',
+  'utf16le',
+  'utf-16le',
+  'ucs2',
+  'ucs-2'
+]
+
+const normaliseEncoding = (encoding) => {
+  const how = String(encoding || 'utf8').toLowerCase()
+  if (how === 'utf-8') return 'utf8'
+  if (how === 'ucs2' || how === 'ucs-2' || how === 'utf-16le') return 'utf16le'
+  return how
+}
+
+/** node refuses an encoding it does not implement, rather than guessing utf8. */
+const assertEncoding = (encoding) => {
+  const how = normaliseEncoding(encoding)
+  if (!ENCODINGS.includes(how))
+    throw new TypeError(`Unknown encoding: ${String(encoding)}`)
+  return how
+}
+
+const toBase64Url = (base64) =>
+  base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const fromBase64Url = (base64url) =>
+  String(base64url).replace(/-/g, '+').replace(/_/g, '/')
+
+const bytesToString = (bytes, encoding) => {
+  switch (assertEncoding(encoding)) {
+    case 'base64':
+      return bytesToBase64(bytes)
+    case 'base64url':
+      return toBase64Url(bytesToBase64(bytes))
+    case 'hex':
+      return [...bytes]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('')
+    case 'binary':
+    case 'latin1':
+      return chunked(bytes)
+    case 'ascii':
+      // node's ascii decode drops the high bit
+      return chunked(Uint8Array.from(bytes, (byte) => byte & 0x7f))
+    case 'utf16le':
+      return utf16Decoder.decode(bytes)
+    default:
+      return utf8Decoder.decode(bytes)
+  }
+}
+
+/**
+ * Gives a Uint8Array the decoding a Buffer has, and makes a view of it a Buffer
+ * too - a service that chunks a file with `subarray(i, j)` then decodes each
+ * chunk gets the chunk, not "80,75". The mark is non-enumerable and the value
+ * serialises as node's Buffer does, so a service putting one in a JSON body
+ * gets the same response from the mock as from the server.
+ */
+const decorate = (view) => {
+  // the mark and the methods stay out of Object.keys and for..in, as they are
+  // on node's Buffer, where they live on the prototype
+  const hide = (name, value) =>
+    Object.defineProperty(view, name, {
+      value,
+      writable: true,
+      configurable: true
+    })
+
+  hide(BUFFER_MARK, true)
+  hide('toString', (encoding, start, end) => {
+    // node clamps a negative start to 0 and a negative end to 0, so an end
+    // below the start yields nothing rather than counting back from the end
+    const from = Math.max(0, start === undefined ? 0 : start)
+    const to = Math.max(0, end === undefined ? view.length : end)
+    if (to <= from) return ''
+    return bytesToString(
+      Uint8Array.prototype.subarray.call(view, from, to),
+      encoding
+    )
+  })
+  hide('subarray', (start, end) =>
+    decorate(Uint8Array.prototype.subarray.call(view, start, end))
+  )
+  // node's Buffer#slice is a view over the same memory, not a copy - the same
+  // operation as subarray, and the reason a service can edit a slice and see the
+  // edit in the original
+  hide('slice', (start, end) =>
+    decorate(Uint8Array.prototype.subarray.call(view, start, end))
+  )
+  hide('toJSON', () => ({ type: 'Buffer', data: Array.from(view) }))
+  Object.defineProperties(view, UNIMPLEMENTED_BUFFER_METHODS)
+  return view
+}
+
+/**
+ * node's Buffer carries many methods; the shim implements the ones a service
+ * needs to build a body. A call to another one names the gap rather than
+ * failing as "x.write is not a function", which reads like a bug in the service.
+ */
+const UNIMPLEMENTED_BUFFER_METHODS = [
+  'write',
+  'equals',
+  'compare',
+  'indexOf',
+  'includes',
+  'copy',
+  'fill',
+  'readUInt8',
+  'readUInt16LE',
+  'readUInt16BE',
+  'readUInt32LE',
+  'readUInt32BE',
+  'readInt8',
+  'readInt16LE',
+  'readInt16BE',
+  'readInt32LE',
+  'readInt32BE',
+  'readFloatLE',
+  'readFloatBE',
+  'readDoubleLE',
+  'readDoubleBE',
+  'writeUInt8',
+  'writeUInt16LE',
+  'writeUInt16BE',
+  'writeUInt32LE',
+  'writeUInt32BE',
+  'writeInt8',
+  'writeInt16LE',
+  'writeInt16BE',
+  'writeInt32LE',
+  'writeInt32BE',
+  'swap16',
+  'swap32',
+  'swap64'
+].reduce((methods, name) => {
+  methods[name] = {
+    value: () => {
+      throw new TypeError(
+        `Buffer.${name} is not implemented in the browser host`
+      )
+    },
+    writable: true,
+    configurable: true
+  }
+  return methods
+}, {})
+
+/**
+ * A minimal Buffer, for the writes a streaming service makes:
+ * `Buffer.from(bytes)` and `Buffer.from(base64, 'base64')`. What it returns is
+ * a Uint8Array that also decodes itself, so a service writes it straight to the
+ * webout and reads it back the way node returns one.
+ */
+const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
+
+/**
+ * node's Buffer.alloc: zero-filled, or filled with the value repeated - a byte
+ * for a number, the bytes of a string in its encoding, or the bytes of a
+ * buffer. A service building a padded payload depends on the repeat.
+ */
+const allocBytes = (size, fill, encoding) => {
+  // node refuses a size that is not a number, and one it cannot make an array
+  // of - a silent empty buffer would hide a service that fails on the server
+  if (typeof size !== 'number')
+    throw new TypeError(
+      `The "size" argument must be of type number. Received ${describeValue(size)}`
+    )
+  const length = Number.isFinite(size) ? Math.trunc(size) : size
+  if (!(length >= 0) || !Number.isFinite(length))
+    throw new RangeError(
+      `The value of "size" is out of range. It must be >= 0 && <= 9007199254740991. Received ${size}`
+    )
+  const out = new Uint8Array(length)
+  if (fill === undefined || !out.length) return out
+  const bytes =
+    typeof fill === 'number'
+      ? Uint8Array.of(fill & 0xff)
+      : typeof fill === 'string'
+        ? BUFFERS.from(fill, encoding)
+        : asBytes(fill)
+  if (!bytes || !bytes.length) return out
+  for (let i = 0; i < out.length; i++) out[i] = bytes[i % bytes.length]
+  return out
+}
+
+const BUFFERS = {
+  /**
+   * node's Buffer.from overloads: (string, encoding), (arrayBuffer, byteOffset,
+   * length), and a single argument for anything else. The offset and length are
+   * read only for an ArrayBuffer - node ignores them for the contents of a view,
+   * so a chunk comes from subarray, not from a second argument.
+   */
+  from(value, offsetOrEncoding, length) {
+    if (typeof value === 'string') {
+      switch (assertEncoding(offsetOrEncoding)) {
+        case 'base64':
+          return asBuffer(base64ToBytes(value))
+        case 'base64url':
+          return asBuffer(base64ToBytes(fromBase64Url(value)))
+        case 'hex':
+          return asBuffer(hexToBytes(value))
+        case 'binary':
+        case 'latin1':
+        // node encodes 'ascii' as latin1 - the low byte of the code unit - and
+        // clears the high bit only when it decodes
+        case 'ascii':
+          return asBuffer(
+            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
+          )
+        case 'utf16le': {
+          const bytes = new Uint8Array(value.length * 2)
+          for (let i = 0; i < value.length; i++) {
+            const code = value.charCodeAt(i)
+            bytes[i * 2] = code & 0xff
+            bytes[i * 2 + 1] = code >> 8
+          }
+          return asBuffer(bytes)
+        }
+        default:
+          return asBuffer(utf8Encoder.encode(value))
+      }
+    }
+    if (value instanceof ArrayBuffer) {
+      // a non-numeric second argument is not an offset, it is node's encoding
+      // slot, and node ignores it here rather than rejecting it
+      const start =
+        typeof offsetOrEncoding === 'number' ? Math.trunc(offsetOrEncoding) : 0
+      const end =
+        typeof length === 'number'
+          ? start + Math.trunc(length)
+          : value.byteLength
+      if (start < 0 || start > value.byteLength)
+        throw new RangeError(
+          `Start offset ${String(offsetOrEncoding)} is outside the bounds of the buffer`
+        )
+      if (end < start || end > value.byteLength)
+        throw new RangeError('"length" is outside of buffer bounds')
+      return asBuffer(new Uint8Array(value, start, end - start))
+    }
+    const bytes = asBytes(value)
+    if (!bytes)
+      throw new TypeError('Buffer.from: unsupported input in the browser host')
+    return asBuffer(bytes)
+  },
+  alloc: (size, fill, encoding) => asBuffer(allocBytes(size, fill, encoding)),
+  concat(list, totalLength) {
+    const items = list || []
+    const parts = items.map((item, index) => {
+      const bytes = asBufferInput(item)
+      if (!bytes)
+        throw new TypeError(
+          `The "list[${index}]" argument must be an instance of Buffer or Uint8Array. Received ${describeValue(item)}`
+        )
+      return bytes
+    })
+    const written = parts.reduce((sum, part) => sum + part.length, 0)
+    // node pads with zeros when totalLength is longer than the parts and cuts
+    // them short when it is shorter, rather than ignoring the argument
+    const total = totalLength === undefined ? written : totalLength
+    if (typeof total !== 'number')
+      throw new TypeError(
+        `The "length" argument must be of type number. Received ${describeValue(totalLength)}`
+      )
+    if (!Number.isInteger(total) || total < 0)
+      throw new RangeError(
+        `The value of "length" is out of range. It must be ${total < 0 ? '>= 0' : 'an integer'}. Received ${total}`
+      )
+    const out = new Uint8Array(total)
+    let offset = 0
+    for (const part of parts) {
+      if (offset >= total) break
+      const room = Math.min(part.length, total - offset)
+      out.set(part.subarray(0, room), offset)
+      offset += room
+    }
+    return asBuffer(out)
+  },
+  isBuffer: (value) => !!(value && value[BUFFER_MARK]),
+  byteLength(value, encoding) {
+    if (typeof value === 'string') return BUFFERS.from(value, encoding).length
+    const bytes = asBufferInput(value)
+    if (bytes) return bytes.length
+    throw new TypeError(
+      `The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received ${describeValue(value)}`
+    )
+  }
+}
+
+BUFFERS.allocUnsafe = BUFFERS.alloc
+
 // ------------------------------------------------------------- virtual drive
 const FILES = new Map() // absolute path -> string contents
 const DIRS = new Set(['/'])
+// abs path -> { contents, size }: the measure of the entry as stored. A cached
+// entry is trusted only while it is the same string, so a write that replaces
+// the contents recomputes - the cache cannot go stale, and a stat of a
+// multi-megabyte seeded file does not scan it again.
+const SIZES = new Map()
+
+/** The byte length of an entry on the drive, measured once per stored value. */
+const entrySizeAt = (abs) => {
+  const contents = FILES.get(abs)
+  const cached = SIZES.get(abs)
+  if (cached && cached.contents === contents) return cached.size
+  const size = entrySize(contents)
+  SIZES.set(abs, { contents, size })
+  return size
+}
 
 // ------------------------------------------------------------ persistence
 // The drive lives in this worker's memory. IndexedDB is owned by the PAGE
@@ -97,6 +589,7 @@ const dumpAll = () => {
 
 const loadSnapshot = (files) => {
   FILES.clear()
+  SIZES.clear()
   DIRS.clear()
   DIRS.add('/')
   mkdirp(DRIVE_APP)
@@ -124,8 +617,26 @@ const mkdirp = (dir) => {
   }
 }
 
+/**
+ * node's writeFileSync third argument: an encoding, or an options object that
+ * carries an encoding and a flag. 'w' replaces and 'a' appends, which are the
+ * two that mean something on a drive with no file descriptors; the rest are
+ * refused rather than quietly treated as a replace.
+ */
+const writeOptions = (options) => {
+  if (options === undefined || options === null)
+    return { encoding: 'utf8', flag: 'w' }
+  const opts = typeof options === 'string' ? { encoding: options } : options
+  const flag = opts.flag || 'w'
+  if (flag !== 'w' && flag !== 'a')
+    throw new Error(
+      `Unsupported flag '${flag}' in the browser host - 'w' and 'a' only`
+    )
+  return { encoding: opts.encoding || 'utf8', flag }
+}
+
 const FS = {
-  readFileSync(p, opts) {
+  readFileSync(p, options) {
     const abs = P.resolve(String(p))
     if (!FILES.has(abs)) {
       const err = new Error(
@@ -134,21 +645,81 @@ const FS = {
       err.code = 'ENOENT'
       throw err
     }
-    return FILES.get(abs)
+    // node takes the encoding either bare or on an options object. An explicit
+    // `{ encoding: null }` is node's ask for a Buffer, so it is not the same as
+    // no encoding at all - the key has to be told apart from its value.
+    const onOptions = options && typeof options === 'object'
+    const encoding = onOptions ? options.encoding : options
+    const contents = FILES.get(abs)
+    const bytes = isBinary(contents) ? asBuffer(entryBytes(contents)) : null
+    // an encoding asks for a string, as it does in node; without one the drive
+    // hands text back as text (a service reading a config or a CSV expects
+    // that) and a byte file back as bytes
+    if (encoding) {
+      const how = assertEncoding(encoding)
+      return bytes
+        ? bytes.toString(how)
+        : BUFFERS.from(entryText(contents)).toString(how)
+    }
+    // an encoding key present but null: node hands back the Buffer, so a text
+    // entry is its utf8 bytes
+    if (onOptions && 'encoding' in options)
+      return bytes || asBuffer(utf8Encoder.encode(entryText(contents)))
+    return bytes || entryText(contents)
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
     return FILES.has(abs) || DIRS.has(abs)
   },
-  writeFileSync(p, data) {
+  writeFileSync(p, data, options) {
     const abs = P.resolve(String(p))
     mkdirp(P.dirname(abs))
-    FILES.set(abs, String(data))
+    // node's third argument is an encoding, or an object carrying one plus a
+    // flag. An appending write is honoured, because a service that streams a
+    // file in chunks produces a whole file on the server and would otherwise
+    // produce its last chunk here.
+    const { encoding, flag } = writeOptions(options)
+    const appending = flag === 'a' && FILES.has(abs)
+    const before = appending ? entryBytes(FILES.get(abs)) : null
+    const stored = appending && isBinary(FILES.get(abs))
+    // text, or the bytes node lets a service write: an array, a number or null
+    // is an error there, so it is one here too rather than a silent "1,2,3" in
+    // the file that fails on the server
+    if (typeof data !== 'string') {
+      const bytes = asBufferInput(data)
+      if (!bytes)
+        throw new TypeError(
+          `The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received ${describeValue(data)}`
+        )
+      const written = appending ? joinBytes(before, bytes) : bytes
+      FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
+      markDirty(abs)
+      return
+    }
+    const how = assertEncoding(encoding)
+    // a utf8 string lands as text, so a service that reads it back as text gets
+    // the text; anything that carries an encoding, or appends onto bytes, lands
+    // as the bytes it produces
+    if (how === 'utf8' && !stored) {
+      const text = appending ? entryText(FILES.get(abs)) + data : data
+      FILES.set(abs, encodeText(text))
+      markDirty(abs)
+      return
+    }
+    const bytes = BUFFERS.from(data, how)
+    const written = appending ? joinBytes(before, bytes) : bytes
+    FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
     markDirty(abs)
   },
-  writeFile(p, data, cb) {
+  writeFile(p, data, options, cb) {
+    // node's writeFile takes the options as its third argument, with the
+    // callback either after it or in its place
+    if (typeof options === 'function') {
+      cb = options
+      options = undefined
+    }
     try {
-      FS.writeFileSync(p, data)
+      FS.writeFileSync(p, data, options)
       if (cb) cb(null)
     } catch (e) {
       if (cb) cb(e)
@@ -181,7 +752,7 @@ const FS = {
     if (DIRS.has(abs))
       return { isDirectory: () => true, isFile: () => false, size: 0 }
     if (FILES.has(abs)) {
-      const size = FILES.get(abs).length
+      const size = entrySizeAt(abs)
       return { isDirectory: () => false, isFile: () => true, size }
     }
     const err = new Error(
@@ -193,13 +764,19 @@ const FS = {
   unlinkSync(p) {
     const abs = P.resolve(String(p))
     FILES.delete(abs)
+    SIZES.delete(abs)
     markDirty(abs)
   },
   copyFileSync(from, to) {
     const src = P.resolve(String(from))
     if (!FILES.has(src))
       throw new Error(`ENOENT: no such file, copy '${String(from)}'`)
-    FS.writeFileSync(to, FILES.get(src))
+    // copy the stored representation verbatim, so a byte file stays bytes and a
+    // text file is not re-escaped
+    const abs = P.resolve(String(to))
+    mkdirp(P.dirname(abs))
+    FILES.set(abs, FILES.get(src))
+    markDirty(abs)
   }
 }
 
@@ -379,27 +956,54 @@ if (_webout) { fs.writeFile(weboutPath, _webout, function () {}); }
 return _webout;
 `
 
-  const fn = new Function('require', 'console', 'process', source)
-
   let thrown = null
   let returned = ''
   try {
-    returned = fn(requireShim, sandboxConsole, {
-      pid: 4242,
-      env: { NODE_ENV: 'browser' }
-    })
+    // the construction sits inside the try: a service that declares a name the
+    // prelude already binds (`const Buffer = ...`) makes new Function throw a
+    // SyntaxError, which belongs in the run's error, not outside it
+    const fn = new Function('require', 'console', 'process', 'Buffer', source)
+    returned = fn(
+      requireShim,
+      sandboxConsole,
+      {
+        pid: 4242,
+        env: { NODE_ENV: 'browser' }
+      },
+      BUFFERS
+    )
   } catch (e) {
     thrown = e && e.stack ? e.stack : String(e)
     logLines.push(String(thrown))
   }
 
-  const fromFile = FILES.get(weboutPath) || ''
+  const stored = FILES.get(weboutPath) || ''
+  // binary only when the byte body is the body: an empty byte write falls back
+  // to the returned string, and flagging that as bytes would have the worker
+  // base64-decode text. A byte body is validated here the way a read is, so a
+  // corrupt one fails the run instead of reaching the worker's decoder.
+  let fromFile = ''
+  let corrupt = false
+  if (isBinary(stored)) {
+    try {
+      fromFile = validateEntry(stored)
+    } catch (e) {
+      corrupt = true
+      if (!thrown) thrown = e.message
+      logLines.push(e.message)
+    }
+  } else {
+    fromFile = entryText(stored)
+  }
+  const binary = !corrupt && !!fromFile && isBinary(stored)
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
   return {
     webout,
     log: logLines.join('\n'),
-    headers: FILES.get(headersPath) || '',
+    headers: entryText(FILES.get(headersPath) || ''),
+    // a byte body travels to the host as base64, which is how it is stored
+    binary,
     error: thrown
   }
 }
@@ -451,8 +1055,17 @@ const readDriveFile = (filePath) => {
     err.status = 404
     throw err
   }
-  return FILES.get(abs)
+  const contents = FILES.get(abs)
+  // the host turns a base64 entry back into bytes before it answers with it,
+  // and takes the escape off a text entry. A corrupt entry is refused here, so
+  // the answer is the same error the service gets when it reads the file.
+  return isBinary(contents)
+    ? { contents: validateEntry(contents), binary: true }
+    : { contents: entryText(contents), binary: false }
 }
+
+/** The stored base64 of a byte entry, once it is known to decode. */
+const validateEntry = (contents) => cleanedBase64(contents)
 
 const buildTree = () => {
   const walk = (dir) => {
@@ -548,6 +1161,7 @@ const boot = async () => {
 
 const reset = async () => {
   FILES.clear()
+  SIZES.clear()
   DIRS.clear()
   DIRS.add('/')
   dirty.clear()
@@ -600,14 +1214,14 @@ const api = {
   bootInfo: () => lastBoot,
   stats: () => ({
     files: FILES.size,
-    bytes: [...FILES.values()].reduce(
-      (total, contents) => total + contents.length,
-      0
-    )
+    // the drive's total in bytes, measured per entry the way statSync does it -
+    // the stored representation's own length would count the marker and the
+    // base64 expansion instead - and cached, so a second call scans nothing
+    bytes: [...FILES.keys()].reduce((total, abs) => total + entrySizeAt(abs), 0)
   }),
   run: (payload) => runProgram(payload),
   list: (folder) => listFolder(folder),
-  read: (file) => ({ contents: readDriveFile(file) }),
+  read: (file) => readDriveFile(file),
   tree: () => buildTree()
 }
 

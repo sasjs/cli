@@ -55,15 +55,47 @@ const copyFolder = (from: string, to: string) => {
 const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
 /**
- * A drive file is a string in the browser runtime, so a file that does not
- * survive a UTF-8 round trip (an image, an archive, a compiled artefact) cannot
- * be carried onto it. Returning null for those keeps the site honest: the app
- * sees a missing file rather than mojibake it would happily write back.
+ * The bounds on what the browser drive seeds. A byte entry is carried as base64
+ * in vfs-seed.json and held in the worker's memory, so a large artefact - an
+ * export, a media file, a vendored archive - makes the generated site
+ * unloadable: one file over the per-file bound, or enough files to pass the
+ * total, is left off the drive and named in a warning, as every non-text file
+ * was when the drive carried text only. Text has no bound: a program folder is
+ * text by nature and the drive has always carried it.
  */
-const readTextFile = (absolute: string) => {
+export const MAX_BINARY_SEED_BYTES = 10 * 1024 * 1024
+export const MAX_SEED_BYTES = 25 * 1024 * 1024
+
+/**
+ * What the drive stores for a file: its text when the bytes survive a UTF-8
+ * round trip, and behind the byte marker (BINARY_PREFIX in runtime-core.js)
+ * otherwise. An archive, an image or an xlsx therefore lands on the drive as
+ * bytes, so a service that downloads a project-supplied file finds it.
+ *
+ * Text that begins with U+0000 is escaped, because the runtime reads a leading
+ * NUL as its own marker - the same rule the runtime applies to a write.
+ */
+const DRIVE_BINARY_PREFIX = '\u0000base64:'
+const DRIVE_TEXT_PREFIX = '\u0000text:'
+
+type DriveFile = { contents: string; bytes?: number }
+
+/** A byte count in MB, for the message that names a file too large to seed. */
+const megabytes = (bytes: number) =>
+  `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`
+
+const readDriveFile = (absolute: string): DriveFile => {
   const buffer = fs.readFileSync(absolute)
   const text = buffer.toString('utf8')
-  return Buffer.from(text, 'utf8').equals(buffer) ? text : null
+  if (!Buffer.from(text, 'utf8').equals(buffer))
+    return {
+      contents: DRIVE_BINARY_PREFIX + buffer.toString('base64'),
+      // the raw size, which is what the seed bounds are measured in
+      bytes: buffer.length
+    }
+  return {
+    contents: text.startsWith('\u0000') ? DRIVE_TEXT_PREFIX + text : text
+  }
 }
 
 const seedFromBuild = (
@@ -73,8 +105,9 @@ const seedFromBuild = (
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
-  const skipped: string[] = []
+  const skipped: { key: string; bytes: number; limit: 'file' | 'total' }[] = []
   const driveBase = `/sasjs/drive/files${appLoc}`
+  let seededBytes = 0
 
   // Every folder of the build goes on the drive, so a sync folder's content (a
   // licence store, for instance) survives as well as the program folders.
@@ -82,16 +115,40 @@ const seedFromBuild = (
     .readdirSync(buildFolder, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
 
+  const candidates: { key: string; absolute: string }[] = []
   for (const entry of directories) {
     const folder = path.join(buildFolder, entry.name)
     if (excludeFolders.includes(path.resolve(folder))) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
       if (exclude.some((prefix) => key.startsWith(prefix))) continue
-      const contents = readTextFile(path.join(folder, relative))
-      if (contents === null) skipped.push(key)
-      else files[key] = contents
+      candidates.push({ key, absolute: path.join(folder, relative) })
     }
+  }
+
+  // The budget is spent in path order, not in whatever order the folder listing
+  // returns, so the same project yields the same drive - and the same warning -
+  // on every machine and filesystem.
+  candidates.sort((first, second) =>
+    first.key < second.key ? -1 : first.key > second.key ? 1 : 0
+  )
+
+  for (const candidate of candidates) {
+    const file = readDriveFile(candidate.absolute)
+    // a byte entry counts against both bounds; a text entry counts against
+    // neither, because the drive has always carried the program folders
+    if (file.bytes !== undefined) {
+      if (file.bytes > MAX_BINARY_SEED_BYTES) {
+        skipped.push({ key: candidate.key, bytes: file.bytes, limit: 'file' })
+        continue
+      }
+      if (seededBytes + file.bytes > MAX_SEED_BYTES) {
+        skipped.push({ key: candidate.key, bytes: file.bytes, limit: 'total' })
+        continue
+      }
+      seededBytes += file.bytes
+    }
+    files[candidate.key] = file.contents
   }
 
   return { files, skipped }
@@ -339,8 +396,22 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
 
   if (skipped.length) {
     process.logger?.warn(
-      `Left ${skipped.length} non-text file(s) off the mock drive, which holds text files only: ` +
-        `${skipped.slice(0, 3).join(', ')}${skipped.length > 3 ? ', ...' : ''}`
+      `Left ${skipped.length} file(s) off the mock drive, over the ${megabytes(
+        MAX_BINARY_SEED_BYTES
+      )} per-file or ${megabytes(
+        MAX_SEED_BYTES
+      )} total the browser build seeds: ` +
+        `${skipped
+          .slice(0, 3)
+          .map(
+            (file) =>
+              `${file.key} (${megabytes(file.bytes)}, ${
+                file.limit === 'file'
+                  ? 'over the per-file limit'
+                  : 'over the drive budget'
+              })`
+          )
+          .join(', ')}${skipped.length > 3 ? ', ...' : ''}`
     )
   }
 

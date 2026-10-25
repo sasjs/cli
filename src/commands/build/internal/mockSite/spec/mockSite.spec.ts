@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { buildMockSite } from '../mockSite'
+import { buildMockSite, MAX_BINARY_SEED_BYTES } from '../mockSite'
 
 const appLoc = '/Public/app/test'
 
@@ -155,7 +155,83 @@ describe('browser-hosted build', () => {
     )
   })
 
-  it('leaves non-text files off the drive instead of corrupting them', async () => {
+  it('carries a non-text file onto the drive as bytes', async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'logo.png'),
+      png
+    )
+    // text that begins with the marker's own NUL is escaped, so it cannot be
+    // mistaken for a byte entry
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'odd.txt'),
+      '\u0000base64:not really'
+    )
+
+    const result = await buildMockSite(target())
+
+    const seed = readSeed()
+    // stored behind the marker the runtime decodes, and the text files beside it
+    // stay text
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/logo.png`]
+    ).toBe('\u0000base64:' + png.toString('base64'))
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/fixtures.json`]
+    ).toBe('{}')
+    expect(seed.files[`/sasjs/drive/files${appLoc}/mock-storage/odd.txt`]).toBe(
+      '\u0000text:\u0000base64:not really'
+    )
+    expect(result.driveEntries).toBe(7) // 3 programs + 3 text files + the png
+  })
+
+  it('leaves a byte file over the seed bound off the drive, and names it', async () => {
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'export.zip'),
+      Buffer.alloc(MAX_BINARY_SEED_BYTES + 1, 0x89)
+    )
+
+    const result = await buildMockSite(target())
+
+    const seed = readSeed()
+    // one large artefact must not make the generated site unloadable
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/export.zip`]
+    ).toBeUndefined()
+    expect(result.driveEntries).toBe(5) // 3 programs + 2 text files
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('export.zip (10 MB')
+    )
+  })
+
+  it('stops seeding bytes once the drive budget is spent, and names the file', async () => {
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    // each file is under the per-file bound; together they pass the total
+    const chunk = Buffer.alloc(Math.floor(MAX_BINARY_SEED_BYTES * 0.9), 0x89)
+    for (const name of ['one.bin', 'two.bin', 'three.bin']) {
+      fs.writeFileSync(
+        path.join(root, 'sasjsbuild', 'mock-storage', name),
+        chunk
+      )
+    }
+
+    await buildMockSite(target())
+
+    // the budget is spent in path order, so the drive is the same on every host:
+    // one and three fit, two does not
+    const seed = readSeed()
+    const seeded = Object.keys(seed.files)
+      .filter((key) => key.endsWith('.bin'))
+      .map((key) => key.slice(key.lastIndexOf('/') + 1))
+    expect(seeded).toEqual(['one.bin', 'three.bin'])
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('two.bin (9 MB, over the drive budget)')
+    )
+  })
+
+  it('seeds a project file the runtime reads back as its bytes', async () => {
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
     fs.writeFileSync(
@@ -163,19 +239,23 @@ describe('browser-hosted build', () => {
       png
     )
 
-    const result = await buildMockSite(target())
+    await buildMockSite(target())
 
-    const seed = readSeed()
-    expect(Object.keys(seed.files).some((k) => k.endsWith('logo.png'))).toBe(
-      false
-    )
-    expect(
-      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/fixtures.json`]
-    ).toBe('{}')
-    expect(result.driveEntries).toBe(5) // 3 programs + 2 text files
-    expect(process.logger?.warn).toHaveBeenCalledWith(
-      expect.stringContaining('logo.png')
-    )
+    // the seed is only useful if the runtime decodes what the build wrote
+    ;(global as any).self = {}
+    jest.resetModules()
+    const runtime = require('../assets/runtime-core.js')
+    runtime.load(readSeed().files)
+    const served = runtime.run({
+      code: [
+        `const file = '/sasjs/drive/files${appLoc}/mock-storage/logo.png'`,
+        "_webout = [fs.readFileSync(file).toString('hex'), fs.statSync(file).size].join('|')"
+      ].join('\n')
+    })
+    delete (global as any).self
+
+    expect(served.error).toBeNull()
+    expect(served.webout).toBe(`${png.toString('hex')}|${png.length}`)
   })
 
   it('refuses a target whose services are SAS, and keeps the previous site', async () => {
