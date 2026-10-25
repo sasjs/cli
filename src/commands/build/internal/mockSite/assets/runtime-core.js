@@ -419,12 +419,11 @@ const BUFFERS = {
           return asBuffer(hexToBytes(value))
         case 'binary':
         case 'latin1':
-          return asBuffer(
-            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
-          )
+        // node encodes 'ascii' as latin1 and only masks the high bit when it
+        // decodes one; masking here would corrupt a body node encodes as-is
         case 'ascii':
           return asBuffer(
-            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0x7f)
+            Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
           )
         case 'utf16le': {
           const bytes = new Uint8Array(value.length * 2)

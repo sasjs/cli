@@ -319,20 +319,23 @@ describe('browser runtime', () => {
     const result = runtime.run({
       code: [
         "const codes = ['utf16le', 'ucs2', 'ascii'].map((encoding) => Buffer.from('PK', encoding).toString('hex'))",
+        // node encodes 'ascii' as latin1 and keeps the high bits
+        "const latin = Buffer.from('\\u00e9\\u00ff', 'ascii').toString('hex')",
         "const url = Buffer.from([251, 255]).toString('base64url')",
         "const back = Buffer.from('-_8', 'base64url').toString('hex')",
         "const high = Buffer.from([0xc8]).toString('ascii').charCodeAt(0)",
         'let refused = "none"',
         "try { Buffer.from('x', 'not-an-encoding') } catch (e) { refused = e.message }",
-        "_webout = [codes.join(','), url, back, high, refused].join('|')"
+        "_webout = [codes.join(','), latin, url, back, high, refused].join('|')"
       ].join('\n')
     })
 
     expect(result.error).toBeNull()
     // 'P' is 0x50 and 'K' is 0x4b, written little-endian for the utf16 pair;
-    // ascii drops the high bit of 0xc8, leaving 0x48
+    // ascii encodes as latin1 (e9ff) and drops the high bit only when decoding
+    // 0xc8, leaving 0x48
     expect(result.webout).toBe(
-      '50004b00,50004b00,504b|-_8|fbff|72|Unknown encoding: not-an-encoding'
+      '50004b00,50004b00,504b|e9ff|-_8|fbff|72|Unknown encoding: not-an-encoding'
     )
   })
 
