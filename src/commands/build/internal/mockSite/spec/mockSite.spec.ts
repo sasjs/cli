@@ -162,19 +162,28 @@ describe('browser-hosted build', () => {
       path.join(root, 'sasjsbuild', 'mock-storage', 'logo.png'),
       png
     )
+    // text that begins with the marker's own NUL is escaped, so it cannot be
+    // mistaken for a byte entry
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'odd.txt'),
+      '\u0000base64:not really'
+    )
 
     const result = await buildMockSite(target())
 
     const seed = readSeed()
-    // stored behind the marker the runtime decodes, and the text file beside it
-    // stays text
+    // stored behind the marker the runtime decodes, and the text files beside it
+    // stay text
     expect(
       seed.files[`/sasjs/drive/files${appLoc}/mock-storage/logo.png`]
     ).toBe('\u0000base64:' + png.toString('base64'))
     expect(
       seed.files[`/sasjs/drive/files${appLoc}/mock-storage/fixtures.json`]
     ).toBe('{}')
-    expect(result.driveEntries).toBe(6) // 3 programs + 2 text files + the png
+    expect(seed.files[`/sasjs/drive/files${appLoc}/mock-storage/odd.txt`]).toBe(
+      '\u0000text:\u0000base64:not really'
+    )
+    expect(result.driveEntries).toBe(7) // 3 programs + 3 text files + the png
   })
 
   it('seeds a project file the runtime reads back as its bytes', async () => {
