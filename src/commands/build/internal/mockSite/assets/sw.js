@@ -63,13 +63,17 @@ const toBytes = (base64) => {
 const RESPONSE_HEADERS = ['content-type', 'content-disposition']
 
 /**
- * Parses what the service wrote. A header value is a byte string, so everything
- * up to U+00FF is passed through as written - the same bytes node writes when
- * the server sets the same header, which is what the mock has to match. HTAB is
+ * Parses what the service wrote. A header value is a byte string, so a value up
+ * to U+00FF is passed through as written - the same bytes node writes when the
+ * server sets the same header, which is what the mock has to match. HTAB is
  * allowed inside a field value by HTTP and the server passes it through, so it
- * is part of the set. A value above U+00FF, or one with a CR, LF or NUL, would
- * make the Response constructor throw, so that header is dropped and the body is
- * still served.
+ * is part of the set.
+ *
+ * 0x7F and 0x80-0x9F are outside it: the browser's Headers implementation strips
+ * those bytes from a value without complaining, which would save a download
+ * under a name with characters missing, so such a value is refused instead and
+ * the reply keeps its default delivery. CR, LF and NUL are refused for the same
+ * reason - they make the Response constructor throw.
  *
  * A filename outside ASCII belongs in RFC 6266 form
  * (`filename*=UTF-8''r%C3%A9sum%C3%A9.csv`) - raw non-ASCII bytes in a header
@@ -89,8 +93,10 @@ const parseHeaders = (content) => {
       const name = line.slice(0, separator).trim().toLowerCase()
       const value = line.slice(separator + 1).trim()
       if (!RESPONSE_HEADERS.includes(name)) return
-      if (!HEADER_VALUE.test(value)) return
-      headers[name] = value
+      // the last line for a name wins, and a value that cannot be sent removes
+      // the header - the rule the server applies in extractHeaders
+      if (HEADER_VALUE.test(value)) headers[name] = value
+      else delete headers[name]
     })
   return headers
 }

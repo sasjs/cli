@@ -923,11 +923,13 @@ if (_webout) { fs.writeFile(weboutPath, _webout, function () {}); }
 return _webout;
 `
 
-  const fn = new Function('require', 'console', 'process', 'Buffer', source)
-
   let thrown = null
   let returned = ''
   try {
+    // the construction sits inside the try: a service that declares a name the
+    // prelude already binds (`const Buffer = ...`) makes new Function throw a
+    // SyntaxError, which belongs in the run's error, not outside it
+    const fn = new Function('require', 'console', 'process', 'Buffer', source)
     returned = fn(
       requireShim,
       sandboxConsole,
@@ -945,11 +947,22 @@ return _webout;
   const stored = FILES.get(weboutPath) || ''
   // binary only when the byte body is the body: an empty byte write falls back
   // to the returned string, and flagging that as bytes would have the worker
-  // base64-decode text
-  const fromFile = isBinary(stored)
-    ? stored.slice(BINARY_PREFIX.length)
-    : entryText(stored)
-  const binary = !!fromFile && isBinary(stored)
+  // base64-decode text. A byte body is validated here the way a read is, so a
+  // corrupt one fails the run instead of reaching the worker's decoder.
+  let fromFile = ''
+  let corrupt = false
+  if (isBinary(stored)) {
+    try {
+      fromFile = validateEntry(stored)
+    } catch (e) {
+      corrupt = true
+      if (!thrown) thrown = e.message
+      logLines.push(e.message)
+    }
+  } else {
+    fromFile = entryText(stored)
+  }
+  const binary = !corrupt && !!fromFile && isBinary(stored)
   const webout = fromFile || (typeof returned === 'string' ? returned : '')
 
   return {

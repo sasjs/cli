@@ -262,6 +262,30 @@ describe('service worker host', () => {
     )
   })
 
+  it('lets the last line for a header win, and an unusable one remove it', async () => {
+    const replaced = streaming(
+      [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: text/plain\\nContent-type: application/json')",
+        '_webout = "x"'
+      ].join('\n')
+    )
+    expect(
+      (await replaced.dispatch(downloadPath())).headers.get('content-type')
+    ).toBe('application/json')
+
+    // the server keys its header object by name and deletes a header whose value
+    // fails validation, so the mock does the same
+    const removed = streaming(
+      [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: text/plain\\nContent-type: text/html\\u0000')",
+        '_webout = "x"'
+      ].join('\n')
+    )
+    expect(
+      (await removed.dispatch(downloadPath())).headers.get('content-type')
+    ).toBe('text/plain;charset=UTF-8')
+  })
+
   it('normalises header names and ignores a line that is not a header', async () => {
     const { dispatch } = streaming(
       [

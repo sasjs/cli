@@ -492,6 +492,33 @@ describe('browser runtime', () => {
     expect(() => runtime.stats()).toThrow('Corrupt binary entry')
   })
 
+  it('fails a run whose byte body will not decode, rather than serving it', () => {
+    const runtime = loadRuntime()
+    runtime.load({
+      '/sasjs/drive/files/broken.bin': '\u0000base64:!!!not base64!!!'
+    })
+
+    const result = runtime.run({
+      code: "fs.copyFileSync('/sasjs/drive/files/broken.bin', weboutPath)"
+    })
+
+    // the body is validated where it is read, so a corrupt entry never reaches
+    // the worker's decoder as raw base64
+    expect(result.binary).toBeFalsy()
+    expect(result.error).toContain('Corrupt binary entry')
+  })
+
+  it('reports a service that redeclares a prelude name as a program error', () => {
+    const runtime = loadRuntime()
+
+    let result: any
+    expect(() => {
+      result = runtime.run({ code: "const Buffer = 1\n_webout = 'x'" })
+    }).not.toThrow()
+
+    expect(result.error).toContain('Buffer')
+  })
+
   it('measures a text file in bytes, as node does', () => {
     const runtime = loadRuntime()
 
