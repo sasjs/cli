@@ -109,11 +109,15 @@ const chunked = (bytes) => {
 const bytesToBase64 = (bytes) => btoa(chunked(bytes))
 
 /**
- * Node's base64 decoding: ignore what is not a base64 character, and a
- * leftover single character (which cannot be decoded) rather than throwing.
+ * Node's base64 decoding: the url-safe alphabet counts, anything that is not a
+ * base64 character is ignored, and a leftover single character (which cannot be
+ * decoded) is dropped rather than throwing.
  */
 const base64ToBytes = (base64) => {
-  const clean = String(base64).replace(/[^A-Za-z0-9+/]/g, '')
+  const clean = String(base64)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .replace(/[^A-Za-z0-9+/]/g, '')
   const usable = clean.length % 4 === 1 ? clean.slice(0, -1) : clean
   try {
     return Uint8Array.from(atob(usable), (char) => char.charCodeAt(0))
@@ -188,7 +192,7 @@ const encodeText = (data) =>
 
 const utf8Encoder = new TextEncoder()
 const utf8Decoder = new TextDecoder()
-const utf16Decoder = new TextDecoder('utf-16le')
+const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
 /** node's names for its encodings, including the aliases it accepts. */
 const ENCODINGS = [

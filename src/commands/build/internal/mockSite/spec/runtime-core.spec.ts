@@ -336,6 +336,23 @@ describe('browser runtime', () => {
     )
   })
 
+  it('decodes the url-safe alphabet and keeps a utf16 byte order mark', () => {
+    const runtime = loadRuntime()
+
+    // node's base64 decoder accepts the url-safe characters, and its utf16le
+    // decoder keeps a leading BOM as a character
+    const result = runtime.run({
+      code: [
+        "const bytes = Buffer.from('-_8', 'base64')",
+        'const bom = Buffer.from([0xff, 0xfe, 0x41, 0x00])',
+        "_webout = [bytes.toString('hex'), JSON.stringify(bom.toString('utf16le'))].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('fbff|"\ufeffA"')
+  })
+
   it('refuses what node refuses, with the same complaint', () => {
     const runtime = loadRuntime()
 
