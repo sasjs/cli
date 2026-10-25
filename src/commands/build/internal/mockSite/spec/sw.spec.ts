@@ -247,6 +247,21 @@ describe('service worker host', () => {
     )
   })
 
+  it('keeps a tab inside a header value, as HTTP allows it', async () => {
+    const { dispatch } = streaming(
+      [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, \'Content-Disposition: attachment;\\tfilename="a.zip"\')',
+        '_webout = "x"'
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment;\tfilename="a.zip"'
+    )
+  })
+
   it('normalises header names and ignores a line that is not a header', async () => {
     const { dispatch } = streaming(
       [
