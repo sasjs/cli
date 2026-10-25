@@ -158,7 +158,10 @@
      */
     stats: async () => {
       const answer = await askWorker({ type: 'sasjs-stats' }, 'sasjs-stats')
-      return answer.stats || answer
+      // a worker that cannot report fails the read, as the other drive reads
+      // do: a caller destructuring { files, bytes } must not be handed NaN
+      if (answer.error) throw new Error(answer.error)
+      return answer.stats
     },
     /**
      * Downloads the current drive as `mock-snapshot.json`. Drop that file in the

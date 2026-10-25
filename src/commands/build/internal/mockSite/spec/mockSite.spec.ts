@@ -155,7 +155,7 @@ describe('browser-hosted build', () => {
     )
   })
 
-  it('leaves non-text files off the drive instead of corrupting them', async () => {
+  it('carries a non-text file onto the drive as bytes', async () => {
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
     fs.writeFileSync(
@@ -166,16 +166,42 @@ describe('browser-hosted build', () => {
     const result = await buildMockSite(target())
 
     const seed = readSeed()
-    expect(Object.keys(seed.files).some((k) => k.endsWith('logo.png'))).toBe(
-      false
-    )
+    // stored behind the marker the runtime decodes, and the text file beside it
+    // stays text
+    expect(
+      seed.files[`/sasjs/drive/files${appLoc}/mock-storage/logo.png`]
+    ).toBe('\u0000base64:' + png.toString('base64'))
     expect(
       seed.files[`/sasjs/drive/files${appLoc}/mock-storage/fixtures.json`]
     ).toBe('{}')
-    expect(result.driveEntries).toBe(5) // 3 programs + 2 text files
-    expect(process.logger?.warn).toHaveBeenCalledWith(
-      expect.stringContaining('logo.png')
+    expect(result.driveEntries).toBe(6) // 3 programs + 2 text files + the png
+  })
+
+  it('seeds a project file the runtime reads back as its bytes', async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    write(path.join(root, 'sasjsbuild', 'mock-storage', 'fixtures.json'), '{}')
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'mock-storage', 'logo.png'),
+      png
     )
+
+    await buildMockSite(target())
+
+    // the seed is only useful if the runtime decodes what the build wrote
+    ;(global as any).self = {}
+    jest.resetModules()
+    const runtime = require('../assets/runtime-core.js')
+    runtime.load(readSeed().files)
+    const served = runtime.run({
+      code: [
+        `const file = '/sasjs/drive/files${appLoc}/mock-storage/logo.png'`,
+        "_webout = [fs.readFileSync(file).toString('hex'), fs.statSync(file).size].join('|')"
+      ].join('\n')
+    })
+    delete (global as any).self
+
+    expect(served.error).toBeNull()
+    expect(served.webout).toBe(`${png.toString('hex')}|${png.length}`)
   })
 
   it('refuses a target whose services are SAS, and keeps the previous site', async () => {

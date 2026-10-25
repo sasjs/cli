@@ -501,6 +501,73 @@ describe('browser runtime', () => {
     expect(result.webout).toBe('true|4|UEsDBA==|2|3')
   })
 
+  it('fills a Buffer.alloc with the value node repeats', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const bytes = Buffer.alloc(4, 0xff).toString('hex')",
+        "const pair = Buffer.alloc(3, 'ab').toString()",
+        "const latin = Buffer.alloc(3, '\\u00e9', 'latin1').toString('hex')",
+        "const zeros = Buffer.alloc(2).toString('hex')",
+        '_webout = [bytes, pair, latin, zeros].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('ffffffff|aba|e9e9e9|0000')
+  })
+
+  it('slices as a view, and names a Buffer method the shim does not carry', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const whole = Buffer.from([1, 2, 3])',
+        'const part = whole.slice(0, 2)',
+        'part[0] = 9',
+        'let named = "none"',
+        "try { whole.write('x') } catch (e) { named = e.message }",
+        '_webout = [whole.toString("hex"), part.length, named].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node's Buffer#slice is a view, so the edit reaches the original
+    expect(result.webout).toBe(
+      '090203|2|Buffer.write is not implemented in the browser host'
+    )
+  })
+
+  it('honours the encoding and the append flag node takes on a write', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        "const file = '/sasjs/drive/files/notes.md'",
+        "fs.writeFileSync(file, 'one')",
+        "fs.writeFileSync(file, '-two', { flag: 'a' })",
+        'const appended = fs.readFileSync(file)',
+        "const latin = '/sasjs/drive/files/latin.txt'",
+        "fs.writeFileSync(latin, '\\u00e9', 'latin1')",
+        "const latinHex = fs.readFileSync(latin).toString('hex')",
+        "const latinText = fs.readFileSync(latin, 'latin1')",
+        "const chunks = '/sasjs/drive/files/chunks.bin'",
+        'fs.writeFileSync(chunks, Buffer.from([1, 2]))',
+        "fs.writeFileSync(chunks, Buffer.from([3]), { flag: 'a' })",
+        "const chunked = fs.readFileSync(chunks).toString('hex')",
+        'let refused = "none"',
+        "try { fs.writeFileSync(file, 'x', { flag: 'wx' }) } catch (e) { refused = e.message }",
+        "_webout = [appended, latinHex, latinText, chunked, refused].join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe(
+      "one-two|e9|é|010203|Unsupported flag 'wx' in the browser host - 'w' and 'a' only"
+    )
+  })
+
   it('lets an assigned webout replace a byte body, as the generated program does', () => {
     const runtime = loadRuntime()
 

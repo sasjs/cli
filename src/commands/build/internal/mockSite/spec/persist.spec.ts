@@ -215,16 +215,18 @@ describe('page-side store', () => {
     await expect(pending).resolves.toEqual({ files: 2, bytes: 7 })
   })
 
-  it('hands a worker error back rather than an empty drive total', async () => {
+  it('fails the read when the worker cannot report, rather than returning NaN', async () => {
     jest.useFakeTimers()
     const { window } = loadPersist()
 
-    const pending = window.SASjsMock.stats()
+    // the assertion is attached before the timer fires: a rejection with no
+    // handler yet is an unhandled rejection, not a test result
+    const pending = expect(window.SASjsMock.stats()).rejects.toThrow(
+      'timed out waiting for sasjs-stats'
+    )
     await jest.advanceTimersByTimeAsync(20000)
 
-    await expect(pending).resolves.toEqual({
-      error: 'timed out waiting for sasjs-stats'
-    })
+    await pending
   })
 
   it('writes nothing when a change set is empty', async () => {

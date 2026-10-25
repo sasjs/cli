@@ -204,6 +204,20 @@ const entrySize = (contents) =>
     ? base64Size(contents.slice(BINARY_PREFIX.length))
     : utf8Encoder.encode(entryText(contents)).length
 
+/** The bytes a stored entry holds, whatever representation it is behind. */
+const entryBytes = (contents) =>
+  isBinary(contents)
+    ? base64ToBytes(contents.slice(BINARY_PREFIX.length))
+    : utf8Encoder.encode(entryText(contents))
+
+/** Two byte sets joined, as an appending write leaves the file. */
+const joinBytes = (first, second) => {
+  const out = new Uint8Array(first.length + second.length)
+  out.set(first, 0)
+  out.set(second, first.length)
+  return out
+}
+
 /** node's names for its encodings, including the aliases it accepts. */
 const ENCODINGS = [
   'utf8',
@@ -296,12 +310,69 @@ const decorate = (view) => {
   hide('subarray', (start, end) =>
     decorate(Uint8Array.prototype.subarray.call(view, start, end))
   )
+  // node's Buffer#slice is a view over the same memory, not a copy - the same
+  // operation as subarray, and the reason a service can edit a slice and see the
+  // edit in the original
   hide('slice', (start, end) =>
-    decorate(Uint8Array.prototype.slice.call(view, start, end))
+    decorate(Uint8Array.prototype.subarray.call(view, start, end))
   )
   hide('toJSON', () => ({ type: 'Buffer', data: Array.from(view) }))
+  Object.defineProperties(view, UNIMPLEMENTED_BUFFER_METHODS)
   return view
 }
+
+/**
+ * node's Buffer carries many methods; the shim implements the ones a service
+ * needs to build a body. A call to another one names the gap rather than
+ * failing as "x.write is not a function", which reads like a bug in the service.
+ */
+const UNIMPLEMENTED_BUFFER_METHODS = [
+  'write',
+  'equals',
+  'compare',
+  'indexOf',
+  'includes',
+  'copy',
+  'fill',
+  'readUInt8',
+  'readUInt16LE',
+  'readUInt16BE',
+  'readUInt32LE',
+  'readUInt32BE',
+  'readInt8',
+  'readInt16LE',
+  'readInt16BE',
+  'readInt32LE',
+  'readInt32BE',
+  'readFloatLE',
+  'readFloatBE',
+  'readDoubleLE',
+  'readDoubleBE',
+  'writeUInt8',
+  'writeUInt16LE',
+  'writeUInt16BE',
+  'writeUInt32LE',
+  'writeUInt32BE',
+  'writeInt8',
+  'writeInt16LE',
+  'writeInt16BE',
+  'writeInt32LE',
+  'writeInt32BE',
+  'swap16',
+  'swap32',
+  'swap64'
+].reduce((methods, name) => {
+  methods[name] = {
+    value: () => {
+      throw new TypeError(
+        `Buffer.${name} is not implemented in the browser host`
+      )
+    },
+    writable: true,
+    configurable: true
+  }
+  return methods
+}, {})
 
 /**
  * A minimal Buffer, for the writes a streaming service makes:
@@ -310,6 +381,25 @@ const decorate = (view) => {
  * webout and reads it back the way node returns one.
  */
 const asBuffer = (bytes) => decorate(new Uint8Array(bytes))
+
+/**
+ * node's Buffer.alloc: zero-filled, or filled with the value repeated - a byte
+ * for a number, the bytes of a string in its encoding, or the bytes of a
+ * buffer. A service building a padded payload depends on the repeat.
+ */
+const allocBytes = (size, fill, encoding) => {
+  const out = new Uint8Array(Number(size) || 0)
+  if (fill === undefined || !out.length) return out
+  const bytes =
+    typeof fill === 'number'
+      ? Uint8Array.of(fill & 0xff)
+      : typeof fill === 'string'
+        ? BUFFERS.from(fill, encoding)
+        : asBytes(fill)
+  if (!bytes || !bytes.length) return out
+  for (let i = 0; i < out.length; i++) out[i] = bytes[i % bytes.length]
+  return out
+}
 
 const BUFFERS = {
   /**
@@ -371,7 +461,7 @@ const BUFFERS = {
       throw new TypeError('Buffer.from: unsupported input in the browser host')
     return asBuffer(bytes)
   },
-  alloc: (size) => asBuffer(new Uint8Array(size || 0)),
+  alloc: (size, fill, encoding) => asBuffer(allocBytes(size, fill, encoding)),
   concat(list, totalLength) {
     const items = list || []
     const parts = items.map((item, index) => {
@@ -475,6 +565,24 @@ const mkdirp = (dir) => {
   }
 }
 
+/**
+ * node's writeFileSync third argument: an encoding, or an options object that
+ * carries an encoding and a flag. 'w' replaces and 'a' appends, which are the
+ * two that mean something on a drive with no file descriptors; the rest are
+ * refused rather than quietly treated as a replace.
+ */
+const writeOptions = (options) => {
+  if (options === undefined || options === null)
+    return { encoding: 'utf8', flag: 'w' }
+  const opts = typeof options === 'string' ? { encoding: options } : options
+  const flag = opts.flag || 'w'
+  if (flag !== 'w' && flag !== 'a')
+    throw new Error(
+      `Unsupported flag '${flag}' in the browser host - 'w' and 'a' only`
+    )
+  return { encoding: opts.encoding || 'utf8', flag }
+}
+
 const FS = {
   readFileSync(p, options) {
     const abs = P.resolve(String(p))
@@ -513,9 +621,17 @@ const FS = {
     const abs = P.resolve(String(p))
     return FILES.has(abs) || DIRS.has(abs)
   },
-  writeFileSync(p, data) {
+  writeFileSync(p, data, options) {
     const abs = P.resolve(String(p))
     mkdirp(P.dirname(abs))
+    // node's third argument is an encoding, or an object carrying one plus a
+    // flag. An appending write is honoured, because a service that streams a
+    // file in chunks produces a whole file on the server and would otherwise
+    // produce its last chunk here.
+    const { encoding, flag } = writeOptions(options)
+    const appending = flag === 'a' && FILES.has(abs)
+    const before = appending ? entryBytes(FILES.get(abs)) : null
+    const stored = appending && isBinary(FILES.get(abs))
     // text, or the bytes node lets a service write: an array, a number or null
     // is an error there, so it is one here too rather than a silent "1,2,3" in
     // the file that fails on the server
@@ -525,16 +641,35 @@ const FS = {
         throw new TypeError(
           `The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received ${describeValue(data)}`
         )
-      FILES.set(abs, BINARY_PREFIX + bytesToBase64(bytes))
+      const written = appending ? joinBytes(before, bytes) : bytes
+      FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
       markDirty(abs)
       return
     }
-    FILES.set(abs, encodeText(data))
+    const how = assertEncoding(encoding)
+    // a utf8 string lands as text, so a service that reads it back as text gets
+    // the text; anything that carries an encoding, or appends onto bytes, lands
+    // as the bytes it produces
+    if (how === 'utf8' && !stored) {
+      const text = appending ? entryText(FILES.get(abs)) + data : data
+      FILES.set(abs, encodeText(text))
+      markDirty(abs)
+      return
+    }
+    const bytes = BUFFERS.from(data, how)
+    const written = appending ? joinBytes(before, bytes) : bytes
+    FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
     markDirty(abs)
   },
-  writeFile(p, data, cb) {
+  writeFile(p, data, options, cb) {
+    // node's writeFile takes the options as its third argument, with the
+    // callback either after it or in its place
+    if (typeof options === 'function') {
+      cb = options
+      options = undefined
+    }
     try {
-      FS.writeFileSync(p, data)
+      FS.writeFileSync(p, data, options)
       if (cb) cb(null)
     } catch (e) {
       if (cb) cb(e)
