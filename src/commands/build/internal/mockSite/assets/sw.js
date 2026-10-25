@@ -41,25 +41,15 @@ const text = (body, status) =>
   })
 
 /**
- * A byte body travels as base64. The runtime encodes it, but a drive restored
- * from a snapshot someone edited can hold a broken entry, so a decode failure
- * becomes a reported error rather than an unhandled rejection inside the
- * worker - the caller sees the corrupt entry instead of a request that never
- * answers.
+ * A byte body travels as base64. The runtime encodes it, and refuses a drive
+ * entry that will not decode before it hands the value over, so this is a plain
+ * decode - the corrupt-entry error lives in one place, runtime-core.js.
  */
 const toBytes = (base64) => {
-  try {
-    const binary = atob(String(base64 || '').replace(/\s+/g, ''))
-    const out = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
-    return out
-  } catch (e) {
-    const error = new Error(
-      'Corrupt binary entry on the drive: not valid base64'
-    )
-    error.status = 500
-    throw error
-  }
+  const binary = atob(String(base64 || '').replace(/\s+/g, ''))
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
+  return out
 }
 
 // ------------------------------------------------------------ webout headers
