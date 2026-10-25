@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { buildMockSite, MAX_BINARY_SEED_BYTES } from '../mockSite'
+import { buildMockSite, DRIVE_FORMAT, MAX_BINARY_SEED_BYTES } from '../mockSite'
 
 const appLoc = '/Public/app/test'
 
@@ -88,6 +88,15 @@ describe('browser-hosted build', () => {
     expect(
       Object.keys(seed.files).some((k) => k.endsWith('server-ci.json'))
     ).toBe(false)
+  })
+
+  it('stamps the seed with the drive format the runtime checks', async () => {
+    await buildMockSite(target())
+
+    // the runtime ships as a plain browser script and holds its own copy of the
+    // marker format, so the seed carries the number and a mismatch is refused
+    // there by name rather than decoded as text
+    expect(readSeed().format).toBe(DRIVE_FORMAT)
   })
 
   it('writes the runtime host and the worker at the site root', async () => {

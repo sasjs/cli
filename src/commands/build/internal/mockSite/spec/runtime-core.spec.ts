@@ -38,6 +38,36 @@ describe('browser runtime', () => {
     delete (global as any).fetch
   })
 
+  it('refuses a drive file whose format it does not speak', async () => {
+    const runtime = loadRuntime()
+
+    // the seed and the snapshot both carry the storage format. A file written by
+    // a build that speaks another one would decode its markers as text - a byte
+    // file reading as a huge string, or a 500 per entry - with nothing naming
+    // the cause, so boot fails and says which numbers disagree.
+    ;(global as any).fetch = jest.fn(async (url: string) =>
+      url.includes('mock-config')
+        ? jsonResponse({ appLoc })
+        : jsonResponse({ format: 999, files: {} })
+    )
+
+    const result = await runtime.seed()
+
+    expect(result.booted).toBe(false)
+    expect(result.error).toContain('format 999')
+    expect(result.error).toContain('speaks format 1')
+  })
+
+  it('reads a drive file with no format stamp as the current format', async () => {
+    const runtime = loadRuntime()
+
+    // every snapshot taken before the stamp existed looks like this
+    await seedDrive(runtime, { [drivePath('a.txt')]: 'a' })
+
+    expect(runtime.stats().files).toBe(1)
+    expect(runtime.DRIVE_FORMAT).toBe(1)
+  })
+
   it('exposes request parameters as variables, with JSON escaping', () => {
     const runtime = loadRuntime()
 
@@ -180,6 +210,29 @@ describe('browser runtime', () => {
     })
 
     expect(result.headers).toBe('content-type: application/json')
+  })
+
+  it('reads headers written as bytes the way the server does', () => {
+    const runtime = loadRuntime()
+
+    // The server reads the headers FILE, whatever way the service wrote it, so
+    // a byte write must still reach the host as text - handing over the drive's
+    // storage marker instead would drop every declared header and leave the
+    // download with its default type and name.
+    const result = runtime.run({
+      code: [
+        'fs.writeFileSync(_SASJS_WEBOUT_HEADERS, Buffer.from([',
+        "  'Content-type: text/csv',",
+        '  \'Content-Disposition: attachment; filename="report.csv"\'',
+        '].join(String.fromCharCode(10))))',
+        'fs.writeFileSync(weboutPath, Buffer.from([97, 44, 98]))'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.binary).toBe(true)
+    expect(result.headers).toContain('Content-type: text/csv')
+    expect(result.headers).toContain('filename="report.csv"')
   })
 
   it('hands a byte body back to the host as base64', () => {
@@ -718,6 +771,27 @@ describe('browser runtime', () => {
         ].join('\n')
       }).webout
     ).toBe('504b0304')
+  })
+
+  it('does not copy an ArrayBuffer into a Buffer, and does copy a view', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: [
+        'const ab = new Uint8Array([1, 2, 3, 4]).buffer',
+        'const over = Buffer.from(ab)',
+        'over[0] = 9',
+        'const source = new Uint8Array([1, 2, 3])',
+        'const copy = Buffer.from(source)',
+        'copy[0] = 7',
+        '_webout = [over.length, new Uint8Array(ab)[0], copy[0], source[0]].join("|")'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // node returns a view for the ArrayBuffer overload, so the patch is visible
+    // in the ArrayBuffer the service kept, and copies a Uint8Array input
+    expect(result.webout).toBe('4|9|7|1')
   })
 
   it('takes the offset and length node takes for an ArrayBuffer, and a length for concat', () => {

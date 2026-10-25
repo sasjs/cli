@@ -78,6 +78,15 @@ export const MAX_SEED_BYTES = 25 * 1024 * 1024
 const DRIVE_BINARY_PREFIX = '\u0000base64:'
 const DRIVE_TEXT_PREFIX = '\u0000text:'
 
+/**
+ * The storage format these markers belong to, stamped into `vfs-seed.json` and
+ * into the snapshot the site downloads. runtime-core.js holds its own copy (it
+ * ships as a plain browser script) and refuses a file whose stamp it does not
+ * speak, so the two cannot drift silently. Bump both numbers together when the
+ * marker format changes.
+ */
+export const DRIVE_FORMAT = 1
+
 type DriveFile = { contents: string; bytes?: number }
 
 /** A byte count in MB, for the message that names a file too large to seed. */
@@ -480,7 +489,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // 3. the drive, laid out from the compile output
   fs.writeFileSync(
     path.join(hostFolder, 'vfs-seed.json'),
-    JSON.stringify({ files: seed })
+    JSON.stringify({ format: DRIVE_FORMAT, files: seed })
   )
 
   fs.writeFileSync(
