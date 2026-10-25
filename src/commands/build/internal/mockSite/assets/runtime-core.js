@@ -191,18 +191,20 @@ const utf8Decoder = new TextDecoder()
 const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
 /**
- * The bytes of a stored byte entry, refusing one that will not decode. node's
- * own base64 decoder ignores what it cannot use, but a drive entry is written by
- * the host as base64 and nothing else, so a corrupt one is a host bug: it fails
- * here with the same complaint the worker gives when it serves the file, rather
- * than reading as empty bytes in one place and a 500 in another.
+ * The stored base64 of a byte entry, stripped of whitespace and checked, so
+ * every read of the entry - decoding it, measuring it - starts from the same
+ * validated string.
+ *
+ * node's own base64 decoder ignores what it cannot use, but a drive entry is
+ * written by the host as base64 and nothing else, so a corrupt one is a host
+ * bug: it fails here with the same complaint the worker gives when it serves the
+ * file, rather than reading as empty bytes in one place and a 500 in another.
  */
-const decodeEntry = (contents) => {
-  const base64 = contents.slice(BINARY_PREFIX.length)
-  const clean = String(base64).replace(/\s+/g, '')
+const cleanedBase64 = (contents) => {
+  const clean = String(contents.slice(BINARY_PREFIX.length)).replace(/\s+/g, '')
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4)
     throw corruptEntry()
-  return base64ToBytes(clean)
+  return clean
 }
 
 const corruptEntry = () => {
@@ -211,13 +213,27 @@ const corruptEntry = () => {
   return error
 }
 
-/** The byte length node reports for a stored entry. */
-const entrySize = (contents) => entryBytes(contents).length
+/**
+ * The byte length node reports for a stored entry, worked out from the stored
+ * form rather than by materialising the bytes: the drive now carries seeded
+ * project files, and a multi-megabyte archive must not be decoded to answer a
+ * stat. The arithmetic is exactly what the decoder yields for the same string
+ * (three bytes per four base64 characters, less the padding), so the size and
+ * the contents cannot disagree.
+ */
+const entrySize = (contents) => {
+  if (!isBinary(contents)) return utf8Encoder.encode(entryText(contents)).length
+  const base64 = cleanedBase64(contents)
+  return (
+    Math.floor((base64.length * 3) / 4) -
+    (base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0)
+  )
+}
 
 /** The bytes a stored entry holds, whatever representation it is behind. */
 const entryBytes = (contents) =>
   isBinary(contents)
-    ? decodeEntry(contents)
+    ? base64ToBytes(cleanedBase64(contents))
     : utf8Encoder.encode(entryText(contents))
 
 /** Two byte sets joined, as an appending write leaves the file. */
@@ -440,8 +456,8 @@ const BUFFERS = {
           return asBuffer(hexToBytes(value))
         case 'binary':
         case 'latin1':
-        // node encodes 'ascii' as latin1 and only masks the high bit when it
-        // decodes one; masking here would corrupt a body node encodes as-is
+        // node encodes 'ascii' as latin1 - the low byte of the code unit - and
+        // clears the high bit only when it decodes
         case 'ascii':
           return asBuffer(
             Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
@@ -619,7 +635,7 @@ const FS = {
     const onOptions = options && typeof options === 'object'
     const encoding = onOptions ? options.encoding : options
     const contents = FILES.get(abs)
-    const bytes = isBinary(contents) ? asBuffer(decodeEntry(contents)) : null
+    const bytes = isBinary(contents) ? asBuffer(entryBytes(contents)) : null
     // an encoding asks for a string, as it does in node; without one the drive
     // hands text back as text (a service reading a config or a CSV expects
     // that) and a byte file back as bytes
@@ -1032,10 +1048,7 @@ const readDriveFile = (filePath) => {
 }
 
 /** The stored base64 of a byte entry, once it is known to decode. */
-const validateEntry = (contents) => {
-  decodeEntry(contents)
-  return contents.slice(BINARY_PREFIX.length)
-}
+const validateEntry = (contents) => cleanedBase64(contents)
 
 const buildTree = () => {
   const walk = (dir) => {

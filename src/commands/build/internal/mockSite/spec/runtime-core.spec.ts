@@ -492,6 +492,28 @@ describe('browser runtime', () => {
     expect(() => runtime.stats()).toThrow('Corrupt binary entry')
   })
 
+  it('measures a byte entry from its stored length, whatever the padding', () => {
+    const runtime = loadRuntime()
+    const entry = (bytes: number[]) =>
+      '\u0000base64:' + Buffer.from(bytes).toString('base64')
+    runtime.load({
+      '/sasjs/drive/files/b4.bin': entry([1, 2, 3, 4]),
+      '/sasjs/drive/files/b5.bin': entry([1, 2, 3, 4, 5]),
+      '/sasjs/drive/files/b6.bin': entry([1, 2, 3, 4, 5, 6])
+    })
+
+    const result = runtime.run({
+      code: [
+        "const paths = ['b4.bin', 'b5.bin', 'b6.bin']",
+        "_webout = paths.map((name) => { const file = '/sasjs/drive/files/' + name; return [fs.readFileSync(file).length, fs.statSync(file).size].join('/') }).join('|')"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    // the size is the bytes the entry decodes to, padding included
+    expect(result.webout).toBe('4/4|5/5|6/6')
+  })
+
   it('fails a run whose byte body will not decode, rather than serving it', () => {
     const runtime = loadRuntime()
     runtime.load({
