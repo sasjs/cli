@@ -195,12 +195,24 @@ describe('page-side store', () => {
     await expect(window.SASjsMock.readAll()).resolves.toEqual({})
 
     await window.SASjsMock.writeFiles({ '/sasjs/drive/b.txt': 'bb' })
-    await expect(window.SASjsMock.stats()).resolves.toEqual({
-      files: 1,
-      bytes: 2
+    await expect(window.SASjsMock.readAll()).resolves.toEqual({
+      '/sasjs/drive/b.txt': 'bb'
     })
     await window.SASjsMock.clear()
     await expect(window.SASjsMock.readAll()).resolves.toEqual({})
+  })
+
+  it('takes the drive total from the worker, which owns the storage format', async () => {
+    const { window, posted, reply } = loadPersist()
+
+    const pending = window.SASjsMock.stats()
+    await Promise.resolve()
+    expect(posted).toContainEqual({ type: 'sasjs-stats' })
+
+    // the worker measures a byte entry as its bytes, not as base64
+    reply({ type: 'sasjs-stats', boot: {}, stats: { files: 2, bytes: 7 } })
+
+    await expect(pending).resolves.toEqual({ files: 2, bytes: 7 })
   })
 
   it('writes nothing when a change set is empty', async () => {
