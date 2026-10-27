@@ -2,6 +2,8 @@ import path from 'path'
 import os from 'os'
 import * as compileModule from '../compile'
 import * as compileSingleFileModule from '../compileSingleFile'
+import * as identifySasFileModule from '../internal/identifySasFile'
+import { SasFileType } from '../internal'
 import { CompileCommand } from '../compileCommand'
 import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { setConstants } from '../../../utils'
@@ -208,7 +210,7 @@ describe('CompileCommand', () => {
       expect.objectContaining(expectedTarget),
       'job',
       path.join(os.homedir(), 'test.sas'),
-      expect.anything()
+      undefined
     )
   })
 
@@ -251,7 +253,7 @@ describe('CompileCommand', () => {
     expect(process.logger.error).toHaveBeenCalled()
   })
 
-  it('should return the output path for a job when specified', () => {
+  it('should return the output base for a job when specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -265,12 +267,12 @@ describe('CompileCommand', () => {
     ]
     const command = new CompileCommand(args)
 
-    const output = command.output
-
-    expect(output).toEqual(path.join(os.homedir(), 'jobs'))
+    // the base only - the type folder and the file's own path are added by
+    // compileSingleFile
+    expect(command.getOutputPath()).toEqual(os.homedir())
   })
 
-  it('should return the output path for a service when specified', () => {
+  it('should return the output base for a service when specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -284,12 +286,10 @@ describe('CompileCommand', () => {
     ]
     const command = new CompileCommand(args)
 
-    const output = command.output
-
-    expect(output).toEqual(path.join(os.homedir(), 'services'))
+    expect(command.getOutputPath()).toEqual(os.homedir())
   })
 
-  it('should return the output path for a job when not specified', () => {
+  it('should leave the destination to the compile when not specified', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -299,15 +299,13 @@ describe('CompileCommand', () => {
       '-s',
       '/dev/test.sas'
     ]
-    const { buildDestinationJobsFolder } = process.sasjsConstants
     const command = new CompileCommand(args)
 
-    const output = command.output
-
-    expect(output).toEqual(path.join(buildDestinationJobsFolder, 'dev'))
+    // the default for the type lives in compileSingleFile, not here
+    expect(command.getOutputPath()).toBeUndefined()
   })
 
-  it('should return the output path for a service when not specified', () => {
+  it('should leave the destination to the compile for a service too', () => {
     const args = [
       ...defaultArgs,
       'compile',
@@ -317,12 +315,63 @@ describe('CompileCommand', () => {
       '-s',
       '/dev/test.sas'
     ]
-    const { buildDestinationServicesFolder } = process.sasjsConstants
     const command = new CompileCommand(args)
 
-    const output = command.output
+    expect(command.getOutputPath()).toBeUndefined()
+  })
 
-    expect(output).toEqual(path.join(buildDestinationServicesFolder, 'dev'))
+  it('should pass identify through for a job source', async () => {
+    jest
+      .spyOn(identifySasFileModule, 'identifySasFile')
+      .mockImplementation(() => Promise.resolve(SasFileType.Job))
+
+    const args = [
+      ...defaultArgs,
+      'compile',
+      'identify',
+      '-t',
+      'test',
+      '-s',
+      '/dev/test.sas'
+    ]
+    const command = new CompileCommand(args)
+
+    await command.execute()
+
+    // the type is left to compileSingleFile, which is the only place that
+    // resolves 'identify'
+    expect(compileSingleFileModule.compileSingleFile).toHaveBeenCalledWith(
+      expect.anything(),
+      'identify',
+      '/dev/test.sas',
+      undefined
+    )
+  })
+
+  it('should pass identify through for a service source', async () => {
+    jest
+      .spyOn(identifySasFileModule, 'identifySasFile')
+      .mockImplementation(() => Promise.resolve(SasFileType.Service))
+
+    const args = [
+      ...defaultArgs,
+      'compile',
+      'identify',
+      '-t',
+      'test',
+      '-s',
+      '/dev/test.sas'
+    ]
+    const command = new CompileCommand(args)
+
+    await command.execute()
+
+    expect(compileSingleFileModule.compileSingleFile).toHaveBeenCalledWith(
+      expect.anything(),
+      'identify',
+      '/dev/test.sas',
+      undefined
+    )
   })
 })
 

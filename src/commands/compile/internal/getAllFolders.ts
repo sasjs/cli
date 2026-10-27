@@ -27,20 +27,20 @@ export const getAllFolders = async (
   }
 
   if (type === SasFileType.Service) {
-    config = configuration.serviceConfig
+    config = configuration?.serviceConfig
     folders = config?.serviceFolders
 
     addFolders(folders)
 
-    config = target.serviceConfig
+    config = target?.serviceConfig
     folders = config?.serviceFolders
   } else {
-    config = configuration.jobConfig
+    config = configuration?.jobConfig
     folders = config?.jobFolders
 
     addFolders(folders)
 
-    config = target.jobConfig
+    config = target?.jobConfig
     folders = config?.jobFolders
   }
 
@@ -49,6 +49,8 @@ export const getAllFolders = async (
   if (!allFolders) return []
 
   allFolders = allFolders.filter((p) => !!p)
+
+  if (!allFolders.length) return []
 
   const { buildSourceFolder } = process.sasjsConstants
 
