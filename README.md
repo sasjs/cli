@@ -16,6 +16,7 @@
 
 - Scaffold a new SAS App in seconds (`sasjs create myApp -t jobs`)
 - Compile / Build SAS Jobs, Services & Macros _locally_ and deploy / execute _remotely_, in isolation from other developers (`sasjs cbd`)
+- Compile a single Job, Service or Test without touching the rest of the build (`sasjs compile identify --source sasjs/jobs/daily/load.sas`)
 - No dependency on the server filesystem
 - Optionally synchronise a local folder onto the server filesystem using `sasjs fs`
 - Trigger Viya Jobs & Flows (`sasjs job execute` / `sasjs flow execute`)

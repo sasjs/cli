@@ -235,7 +235,7 @@ describe('sasjs compile single file', () => {
         '-s',
         './jobs/extract/makedata1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
@@ -251,7 +251,7 @@ describe('sasjs compile single file', () => {
         '-s',
         './jobs/extract/makedata1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(target, 'job', command.source, output)
       ).toResolve()
@@ -276,7 +276,7 @@ describe('sasjs compile single file', () => {
         '-s',
         'sasjs/services/common/example.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(target, 'service', command.source, output)
       ).toResolve()
@@ -293,7 +293,7 @@ describe('sasjs compile single file', () => {
         `${process.projectDir}/sasjs/services/common/example.sas`
       ])
 
-      const output = await command.output
+      const output = command.getOutputPath()
 
       await expect(
         compileSingleFile(target, 'service', command.source, output)
@@ -394,7 +394,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = command.output
+      const output = command.getOutputPath()
 
       await expect(
         compileSingleFile(
@@ -450,7 +450,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
@@ -496,7 +496,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
@@ -538,7 +538,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
@@ -592,7 +592,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(
           undefined as unknown as Target,
@@ -646,7 +646,7 @@ describe('sasjs compile outside project', () => {
         '-s',
         '../services/example1.sas'
       ])
-      const output = await command.output
+      const output = command.getOutputPath()
       await expect(
         compileSingleFile(
           undefined as unknown as Target,

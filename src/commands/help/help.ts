@@ -63,11 +63,28 @@ export async function printHelpText() {
     },
     {
       name: 'compile',
-      title: 'compile <targetName>',
+      title: 'compile [subCommand]',
       description: [
         `compiles the services specified in the ${chalk.cyanBright(
           'serviceFolders'
-        )} property of the 'serviceConfig' in your target and common configuration.`
+        )} property of the 'serviceConfig' in your target and common configuration.`,
+        `A single file is compiled by naming its type as a sub command - ${chalk.cyanBright(
+          'job'
+        )}, ${chalk.cyanBright('service')}, ${chalk.cyanBright(
+          'test'
+        )} or ${chalk.cyanBright(
+          'identify'
+        )}, which works the type out from the file itself - together with ${chalk.cyanBright(
+          '--source'
+        )} (or ${chalk.cyanBright('-s')}).`,
+        `The compiled file is written to the ${chalk.cyanBright(
+          'jobs'
+        )} or ${chalk.cyanBright(
+          'services'
+        )} folder of sasjsbuild for its type, or below ${chalk.cyanBright(
+          '--output'
+        )} (or ${chalk.cyanBright('-o')}) when given.`,
+        `command example: sasjs compile identify --source sasjs/jobs/daily/load.sas --target myTarget`
       ]
     },
     {

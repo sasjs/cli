@@ -23,7 +23,6 @@ import {
   isSasJsServerInServerMode
 } from '../../utils/'
 import axios from 'axios'
-import { getDestinationServicePath } from '../compile/internal'
 import { saveLog } from '../../utils/saveLog'
 import { parseSourceFile } from '../../utils/parseSourceFile'
 
@@ -50,14 +49,11 @@ export async function runSasCode(
 
   if (compile) {
     if (/\.sas$/i.test(filePath)) {
-      const sourcefilePathParts = path.normalize(filePath).split(path.sep)
-      sourcefilePathParts.splice(-1, 1)
-      const sourceFolderPath = sourcefilePathParts.join(path.sep)
       ;({ destinationPath: filePath } = await compileSingleFile(
         target,
         'identify',
         filePath,
-        getDestinationServicePath(sourceFolderPath),
+        undefined,
         true
       ))
       process.logger?.success(`File Compiled and placed at: ${filePath} .`)
