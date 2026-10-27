@@ -389,14 +389,14 @@ async function getContentFor(
     const filePath = path.join(folderPath, file)
 
     if (isSasFile(file)) {
-      const fileContent = removeHeader(await readFile(filePath))
+      const fileContent = removeHeader(await readFile(filePath), filePath)
       const transformedContent = getServiceText(file, fileContent, serverType)
       content += `\n${transformedContent}\n`
 
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: MemberType.service,
-        code: removeHeader(fileContent)
+        code: removeHeader(fileContent, filePath)
       })
     } else {
       const fileContentEncoded = await base64EncodeFile(filePath)

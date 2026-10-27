@@ -230,6 +230,28 @@ describe('loadDependencies', () => {
     expect(/%macro mf_existds/.test(dependencies)).toEqual(true)
   })
 
+  test('it should name the file when a file header is truncated', async () => {
+    const filePath = path.join(__dirname, './truncated-header.sas')
+
+    const error = await loadDependencies(
+      target,
+      filePath,
+      [],
+      [],
+      SASJsFileType.file,
+      compileTree
+    ).catch((e: Error) => e as Error)
+
+    // The wording belongs to @sasjs/utils; this pins the file name the CLI adds
+    // and the shape of the diagnostic, not the library's phrasing.
+    expect(error instanceof Error ? error.message : String(error)).toMatch(
+      new RegExp(`^${filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `)
+    )
+    expect(error instanceof Error ? error.message : String(error)).toMatch(
+      /\bline \d+/
+    )
+  })
+
   test(`it should load dependencies for a job ${DependencyHeader.Macro}`, async () => {
     mockGetProgram(internalModule, fakeInit, fakeTerm)
 

@@ -25,7 +25,7 @@ export async function loadDependencies(
   if (compileTree && Object.keys(compileTree).length) {
     if (type === SASJsFileType.file) {
       // If file is of a generic type SASJsFileType.file, then just read the file content without header
-      fileContent = removeHeader(await readFile(filePath))
+      fileContent = removeHeader(await readFile(filePath), filePath)
     } else {
       const leaf = compileTree.getLeaf(filePath)
 
