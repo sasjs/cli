@@ -71,8 +71,8 @@
   },
   "dependencies": {
     "@sasjs/adapter": "^5.1.1",
-    "@sasjs/core": "^6.0.0",
-    "@sasjs/utils": "^4.1.0",
+    "@sasjs/core": "^6.1.1",
+    "@sasjs/utils": "^4.1.1",
     "axios": "1.20.0",
     "chalk": "4.1.2",
     "dotenv": "18.0.8",
@@ -94,7 +94,7 @@
     "@babel/preset-env": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
     "@nogoo9/gitleaks": "8.30.1-post.2",
-    "@sasjs/lint": "^4.3.2",
+    "@sasjs/lint": "^4.4.0",
     "@types/debug": "4.1.13",
     "@types/find": "0.2.4",
     "@types/jest": "30.0.0",
@@ -124,6 +124,6 @@
     "nanoid": "3.3.18"
   },
   "peerDependencies": {
-    "@sasjs/lint": "^4.3.2"
+    "@sasjs/lint": "^4.4.0"
   }
 }
