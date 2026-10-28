@@ -631,5 +631,20 @@ describe('authLogin', () => {
       expect(mockedGetString).not.toHaveBeenCalled()
       expect(prompts).not.toHaveBeenCalled()
     })
+
+    it('should fall back to the username when the server reports no display name', async () => {
+      ;(utilsModule.getTokensWithSasjsLogin as jest.Mock).mockResolvedValue({
+        access_token: 'sasjs-access',
+        refresh_token: 'sasjs-refresh',
+        client: 'client-id-1'
+      })
+      const success = jest.spyOn(process.logger!, 'success')
+
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(success).toHaveBeenCalledWith(
+        expect.stringContaining('Logged in as test-user on')
+      )
+    })
   })
 })

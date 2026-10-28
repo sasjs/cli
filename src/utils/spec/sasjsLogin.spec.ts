@@ -187,4 +187,62 @@ describe('getTokensWithSasjsLogin', () => {
 
     expect(request.mock.calls[1][0].headers['X-XSRF-TOKEN']).toBe('abc%ZZ')
   })
+
+  it('should hand the target TLS options to the http client', async () => {
+    happyPath()
+
+    await getTokensWithSasjsLogin(
+      new Target({
+        name: 'sasjs-tls',
+        serverType: ServerType.Sasjs,
+        serverUrl: 'https://sasjs.example.com',
+        appLoc: '/Public/app',
+        httpsAgentOptions: { rejectUnauthorized: false }
+      }),
+      'user1',
+      'pass1'
+    )
+
+    const options = (axios.create as jest.Mock).mock.calls[0][0]
+    expect(options.httpsAgent).toBeDefined()
+    expect(options.maxRedirects).toBe(0)
+    // Every status is inspected rather than thrown by axios, so the flow can
+    // report a 401 or a 307 in its own words.
+    expect(options.validateStatus(500)).toBe(true)
+  })
+
+  it('should name an unnamed redirect target instead of printing undefined', async () => {
+    ;[ok('', xsrfCookie), { status: 302, headers: {}, data: {} }].forEach(
+      (response) => request.mockResolvedValueOnce(response)
+    )
+
+    await expect(
+      getTokensWithSasjsLogin(target(), 'user1', 'pass1')
+    ).rejects.toThrow(/redirect to 'unknown'/)
+  })
+
+  it('should fail when the authorize step returns no code', async () => {
+    ;[
+      ok('', xsrfCookie),
+      ok({ loggedIn: true }),
+      ok([{ clientId: 'client-1' }]),
+      ok({})
+    ].forEach((response) => request.mockResolvedValueOnce(response))
+
+    await expect(
+      getTokensWithSasjsLogin(target(), 'user1', 'pass1')
+    ).rejects.toThrow(/Authorization failed for client 'client-1' \(HTTP 200\)/)
+  })
+
+  it('should ignore a client listing that is not an array', async () => {
+    ;[
+      ok('', xsrfCookie),
+      ok({ loggedIn: true }),
+      ok({ message: 'not a list' })
+    ].forEach((response) => request.mockResolvedValueOnce(response))
+
+    await expect(
+      getTokensWithSasjsLogin(target(), 'user1', 'pass1')
+    ).rejects.toThrow(/No client id is available to authorize/)
+  })
 })
