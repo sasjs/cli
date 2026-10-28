@@ -794,8 +794,11 @@ export const saveTokens = async (
 
   if (isLocalTarget) {
     const { VERBOSE } = process.env
+    // A SASJS target is authorised by a client id alone (`sasjs auth login`),
+    // so an absent secret must not be written as an empty SECRET line - a
+    // consumer cannot tell 'no secret' from 'empty secret' otherwise.
     const clientSecretContent = client
-      ? `CLIENT=${client}\nSECRET=${secret || ''}\n`
+      ? `CLIENT=${client}\n${secret ? `SECRET=${secret}\n` : ''}`
       : ''
     const envFileContent = `${clientSecretContent}ACCESS_TOKEN=${access_token}\nREFRESH_TOKEN=${refresh_token}\n${
       VERBOSE ? 'VERBOSE=' + VERBOSE + '\n' : ''
@@ -822,7 +825,7 @@ export const saveTokens = async (
       // the desired behaviour so a later client/secret login can set them
       // without a stale value lingering.
       ...(client
-        ? { client, secret: secret || '' }
+        ? { client, secret: secret || undefined }
         : { client: undefined, secret: undefined }),
       access_token,
       refresh_token
