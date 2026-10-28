@@ -54,6 +54,18 @@ const EXEMPT = new Map([
     "Same bundled copy as GHSA-xjj6-f33q-929c above - undici 6.29.0 inside npm 11.21.1, not reachable by `overrides`, and not moved by npm 12.2.1 (measured: that tarball bundles 6.29.0). This one is the EventSource parser's memory growth; the release toolchain never constructs an EventSource, so the affected parser is not instantiated on this path at all. Clears with the same npm bump, and this entry fails the gate until it is deleted."
   ],
   [
+    'GHSA-2m5v-pch6-74hx',
+    "Same bundled copy as GHSA-xjj6-f33q-929c above - undici 6.29.0 inside npm 11.21.1, patched in 6.29.1, not reachable by `overrides` because a bundled dependency is not a resolvable node, and not moved by npm 12.2.1 (measured: that tarball also bundles 6.29.0). This one drops TLS options in an Agent, so it applies to npm's own HTTP client during publish - which talks to the registry and to the GitHub API over TLS with the CA bundle this runner ships, and no part of that exchange lets a peer choose the agent options. Clears when npm ships undici >= 6.29.1 bundled; the entry then fails the gate until it is deleted."
+  ],
+  [
+    'GHSA-qrxm-fqhp-jwvm',
+    "Same bundled copy again - undici 6.29.0 inside npm 11.21.1, patched in 6.29.1, unreachable by `overrides` and unchanged by npm 12.2.1. The TLS 1.2 certificate-changing renegotiation path needs a peer that renegotiates mid-connection; Node disables renegotiation by default and the publish endpoints are the registry and api.github.com, so nothing in this repo supplies that peer. RISK ACCEPTANCE on the publish path, not unreachability - the transport can in principle be reached if those endpoints were hostile. Clears with the bundled undici bump."
+  ],
+  [
+    'GHSA-9fm3-97px-rjf6',
+    "Same bundled copy - undici 6.29.0 inside npm 11.21.1, patched in 6.29.1, unreachable by `overrides`, unchanged by npm 12.2.1. This one is WebSocket PONG buffering; the release toolchain never opens a WebSocket, so the affected code is not instantiated on the publish path at all. Clears with the same npm bump."
+  ],
+  [
     'GHSA-rxp7-6hxx-x8q5',
     "ip-address 10.7.2, bundled inside npm 11.21.1, which @semantic-release/npm resolves from its npm ^11.6.2 range. 11.21.1 is the newest 11.x, and the version npm bundles cannot be overridden from here - adding `overrides` for ip-address to release/package.json leaves the lockfile at 10.7.2, which was measured. RISK ACCEPTANCE, not unreachability: the parse runs only on a proxy address that carries an Address6 zone identifier; the exposure is a stall during publish, and that string can arrive from standard npm proxy configuration (`npm_config_proxy`, `HTTPS_PROXY`), so the input path is reachable and the accepted risk is a publish-time stall rather than a package-supplied one. No bump in this repo moves it - forcing npm 12.2.1 inside the toolchain was measured too, and the lockfile still resolves ip-address 10.7.2 through socks 2.8.9. It clears only when npm ships ip-address >= 10.7.4 in its own bundled tree; the advisory then disappears and this entry fails the gate until it is deleted."
   ]
