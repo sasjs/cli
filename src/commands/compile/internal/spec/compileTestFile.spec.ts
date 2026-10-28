@@ -13,6 +13,7 @@ import {
   copy,
   readFile,
   fileExists,
+  createFile,
   deleteFile,
   deleteFolder,
   createFolder,
@@ -408,6 +409,74 @@ describe('compileTestFile', () => {
       expect(
         report.files[['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/')]
       ).toEqual({ Type: 'test', Coverage: 'standalone' })
+    })
+
+    it('should key the report by project-relative paths, never build machine paths', async () => {
+      const macroPath = path.join(sasjsPath, 'macros', 'uncoveredmacro.sas')
+
+      await createFile(
+        macroPath,
+        '%macro uncoveredmacro(); %mend uncoveredmacro;'
+      )
+
+      try {
+        await compile(target)
+
+        const report = JSON.parse(
+          await readFile(path.join(buildPath, coverageFileName))
+        )
+
+        // macros are keyed like services and jobs. The console table shows the
+        // absolute path, which must not reach a published artifact - two
+        // machines would then produce different JSON for the same project.
+        expect(report.files['macros/uncoveredmacro.sas']).toEqual({
+          Type: 'macro',
+          Coverage: 'not covered'
+        })
+        expect(
+          Object.keys(report.files).filter((key) => path.isAbsolute(key))
+        ).toEqual([])
+        expect(report.summary.macros).toEqual({
+          covered: 0,
+          total: 1,
+          percentage: 0
+        })
+      } finally {
+        await deleteFile(macroPath)
+      }
+    })
+
+    it('should mark covered files in the report, not just the gaps', async () => {
+      const macroPath = path.join(sasjsPath, 'macros', 'coveredmacro.sas')
+      const macroTestPath = path.join(
+        sasjsPath,
+        'macros',
+        'coveredmacro.test.sas'
+      )
+
+      await createFile(macroPath, '%macro coveredmacro(); %mend coveredmacro;')
+      await createFile(macroTestPath, '%put testing coveredmacro;')
+
+      try {
+        await compile(target)
+
+        const report = JSON.parse(
+          await readFile(path.join(buildPath, coverageFileName))
+        )
+
+        expect(report.files['macros/coveredmacro.sas']).toEqual({
+          Type: 'macro',
+          Coverage: 'covered'
+        })
+        expect(report.summary.macros).toEqual({
+          covered: 1,
+          total: 1,
+          percentage: 100
+        })
+      } finally {
+        await deleteFile(macroPath)
+        await deleteFile(macroTestPath)
+      }
     })
 
     it('should not write a coverage report when no tests were compiled', async () => {

@@ -337,6 +337,39 @@ const printTestCoverage = async (
     }
   })
 
+  // The report is keyed by project-relative paths and lists every file, so a
+  // consumer can tell a covered service from one the compile never saw. The
+  // console table keeps its own shape (the exceptions only) and the absolute
+  // macro paths that help a reader find the file on the machine that compiled.
+  // Serialising those absolute paths would make the same project produce
+  // different JSON on every build machine.
+  const reportFiles: Coverage = {}
+
+  const addToReport = (
+    type: CoverageType,
+    filesToCover: string[],
+    coveredFiles: string[]
+  ) =>
+    filesToCover.forEach((file) => {
+      reportFiles[file] = {
+        Type: type,
+        Coverage: coveredFiles.includes(file)
+          ? CoverageState.covered
+          : CoverageState.notCovered
+      }
+    })
+
+  addToReport(CoverageType.service, servicesToCover, coveredServices)
+  addToReport(CoverageType.job, jobsToCover, coveredJobs)
+  addToReport(CoverageType.macro, macrosToCover, coveredMacros)
+
+  extraTests.forEach((file) => {
+    reportFiles[file] = {
+      Type: CoverageType.test,
+      Coverage: CoverageState.standalone
+    }
+  })
+
   const summarize = (cov: string[], toCov: string[]): CoverageSummary => ({
     covered: cov.length,
     total: toCov.length,
@@ -386,7 +419,7 @@ const printTestCoverage = async (
   // The coverage numbers are already computed for the table above, so writing
   // them costs one small file - which lets a CI job publish the figures
   // instead of scraping the log.
-  const report: CoverageReport = { summary, files: coverage }
+  const report: CoverageReport = { summary, files: reportFiles }
 
   await createFile(
     path.join(buildDestinationFolder, coverageFileName),

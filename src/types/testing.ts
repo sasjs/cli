@@ -15,6 +15,7 @@ export enum CoverageType {
 
 export enum CoverageState {
   notCovered = 'not covered',
+  covered = 'covered',
   standalone = 'standalone'
 }
 
@@ -38,9 +39,16 @@ export interface CoverageSummary {
 
 /**
  * The content of the coverage report `sasjs compile` writes to
- * `coverage.json` in the build folder. `summary` carries the same totals as
- * the console output, `files` carries a row per file - the two the table
- * prints (type and state).
+ * `coverage.json` in the build folder.
+ *
+ * `summary` carries the same totals as the console output. `files` is a
+ * complete per-file map - every service, job and macro the compile found,
+ * each marked `covered` or `not covered`, plus standalone tests - keyed by
+ * project-relative path (`services/common/appinit.sas`,
+ * `macros/mymacro.sas`), never by a path from the machine that compiled it.
+ *
+ * The console table is not the same shape: it lists only the exceptions, and
+ * shows uncovered macros by absolute path to help a reader find them.
  */
 export interface CoverageReport {
   summary: {
