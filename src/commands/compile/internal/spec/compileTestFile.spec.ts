@@ -5,6 +5,7 @@ import {
   getCompileTree,
   getTestFileDestinationFragment
 } from '../'
+import { coverageFileName } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -12,6 +13,7 @@ import {
   copy,
   readFile,
   fileExists,
+  deleteFile,
   deleteFolder,
   createFolder,
   ServerType,
@@ -383,6 +385,46 @@ describe('compileTestFile', () => {
         totalCalls - 1,
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
+    })
+
+    it('should write the coverage report to the build folder', async () => {
+      await compile(target)
+
+      const report = JSON.parse(
+        await readFile(path.join(buildPath, coverageFileName))
+      )
+
+      expect(report.summary).toEqual({
+        services: { covered: 0, total: 4, percentage: 0 },
+        jobs: { covered: 0, total: 0, percentage: 0 },
+        macros: { covered: 0, total: 0, percentage: 0 },
+        overall: { covered: 0, total: 4, percentage: 0 }
+      })
+
+      // the same rows the console table lists, standalone tests included
+      expect(
+        report.files[['services', 'common', 'appinit.sas'].join('/')]
+      ).toEqual({ Type: 'service', Coverage: 'not covered' })
+      expect(
+        report.files[['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/')]
+      ).toEqual({ Type: 'test', Coverage: 'standalone' })
+    })
+
+    it('should not write a coverage report when no tests were compiled', async () => {
+      await compile(target)
+
+      const coveragePath = path.join(buildPath, coverageFileName)
+
+      // remove the report the compile wrote, so the assertion below is about
+      // the no-tests path and not about a file left over from it
+      await deleteFile(coveragePath)
+      await deleteFolder(path.join(buildPath, 'tests'))
+
+      const testFlow = await compileTestFlow(target)
+
+      expect(testFlow).toBeUndefined()
+
+      await expect(fileExists(coveragePath)).resolves.toEqual(false)
     })
 
     it('should log a warning is testFolders was used in root or target configuration', async () => {

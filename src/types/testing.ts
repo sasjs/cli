@@ -25,6 +25,33 @@ export interface Coverage {
   }
 }
 
+/**
+ * Totals for one group of files (services, jobs, macros or all of them).
+ * `percentage` is rounded to a whole number, matching the figure printed in
+ * the console summary.
+ */
+export interface CoverageSummary {
+  covered: number
+  total: number
+  percentage: number
+}
+
+/**
+ * The content of the coverage report `sasjs compile` writes to
+ * `coverage.json` in the build folder. `summary` carries the same totals as
+ * the console output, `files` carries a row per file - the two the table
+ * prints (type and state).
+ */
+export interface CoverageReport {
+  summary: {
+    services: CoverageSummary
+    jobs: CoverageSummary
+    macros: CoverageSummary
+    overall: CoverageSummary
+  }
+  files: Coverage
+}
+
 export interface TestResultDescription {
   TEST_DESCRIPTION: string
   TEST_RESULT: TestResultStatus.pass | TestResultStatus.fail

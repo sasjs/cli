@@ -17,12 +17,22 @@ import {
 } from '@sasjs/utils'
 import chalk from 'chalk'
 import path from 'path'
-import { Coverage, CoverageState, CoverageType, TestFlow } from '../../../types'
+import {
+  Coverage,
+  CoverageReport,
+  CoverageState,
+  CoverageSummary,
+  CoverageType,
+  TestFlow
+} from '../../../types'
 import { getMacroFolders, getProgramFolders } from '../../../utils/config'
 import { sasFileRegExp } from '../../../utils/file'
 import { loadDependencies } from './'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
+
+/** The coverage report `sasjs compile` writes to the build folder. */
+export const coverageFileName = 'coverage.json'
 
 /**
  * Resolves the relative destination fragment for a compiled test file inside
@@ -327,23 +337,27 @@ const printTestCoverage = async (
     }
   })
 
-  const calculateCoverage = (covered: number, from: number) =>
-    (Math.round((covered / from) * 100) || 0) + '%'
+  const summarize = (cov: string[], toCov: string[]): CoverageSummary => ({
+    covered: cov.length,
+    total: toCov.length,
+    percentage: toCov.length ? Math.round((cov.length / toCov.length) * 100) : 0
+  })
 
-  const formatCoverage = (
-    type: string,
-    covered: string[],
-    toCover: string[]
-  ) =>
-    toCover.length
+  const formatCoverage = (type: string, summary: CoverageSummary) =>
+    summary.total
       ? process.logger?.info(
-          `${type} coverage: ${covered.length}/${
-            toCover.length
-          } (${chalk.greenBright(
-            calculateCoverage(covered.length, toCover.length)
-          )})`
+          `${type} coverage: ${summary.covered}/${
+            summary.total
+          } (${chalk.greenBright(`${summary.percentage}%`)})`
         )
       : null
+
+  const summary: CoverageReport['summary'] = {
+    services: summarize(coveredServices, servicesToCover),
+    jobs: summarize(coveredJobs, jobsToCover),
+    macros: summarize(coveredMacros, macrosToCover),
+    overall: summarize(covered, toCover)
+  }
 
   process.logger?.info('Test coverage:')
 
@@ -358,14 +372,24 @@ const printTestCoverage = async (
     }
   )
 
-  formatCoverage('Services', coveredServices, servicesToCover)
-  formatCoverage('Jobs', coveredJobs, jobsToCover)
-  formatCoverage('Macros', coveredMacros, macrosToCover)
-  formatCoverage('Overall', covered, toCover)
+  formatCoverage('Services', summary.services)
+  formatCoverage('Jobs', summary.jobs)
+  formatCoverage('Macros', summary.macros)
+  formatCoverage('Overall', summary.overall)
   process.logger?.log('')
 
   await createFile(
     path.join(buildDestinationFolder, 'testFlow.json'),
     JSON.stringify(testFlow, null, 2)
+  )
+
+  // The coverage numbers are already computed for the table above, so writing
+  // them costs one small file - which lets a CI job publish the figures
+  // instead of scraping the log.
+  const report: CoverageReport = { summary, files: coverage }
+
+  await createFile(
+    path.join(buildDestinationFolder, coverageFileName),
+    JSON.stringify(report, null, 2)
   )
 }
