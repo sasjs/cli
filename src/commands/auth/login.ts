@@ -23,11 +23,17 @@ const readPasswordFromStdin = async (): Promise<string> => {
 }
 
 /**
- * Authenticates against a SASVIYA or SASJS target using a SAS username and password
- * (OAuth2 resource owner password grant against the built-in, secret-less
- * `sas.cli` client) and persists the resulting token pair. This enables all
+ * Authenticates against a SASVIYA or SASJS target using a SAS username and
+ * password, and persists the resulting token pair. This enables all
  * authenticated commands (`sasjs run`, `sasjs deploy`, etc.) on estates where
  * no administrator-registered OAuth client/secret is available.
+ *
+ * The two server types issue tokens differently: SASVIYA uses the OAuth2
+ * resource owner password grant against the built-in, secret-less `sas.cli`
+ * client, while SASJS has no password grant and is authenticated through the
+ * server's own local login (@see getTokensWithSasjsLogin). Everything else -
+ * how the credentials are obtained, and the rule that nothing is prompted for
+ * when there is no TTY - is shared by both.
  *
  * Credentials are resolved in this order (highest precedence first):
  *

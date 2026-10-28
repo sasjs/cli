@@ -237,6 +237,17 @@ export async function getTokensWithSasjsLogin(
   const baseUrl = target.serverUrl.replace(/\/+$/, '')
   const cookies = new Map<string, string>()
 
+  // Cookie values are percent-encoded by the server, but a malformed value
+  // (a bare '%', a truncated escape) must not become an uncaught URIError -
+  // fall back to the raw value and let the request fail on its merits.
+  const safeDecode = (value: string) => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
   const collectCookies = (setCookie?: string[] | string) => {
     const entries: string[] = Array.isArray(setCookie)
       ? setCookie
@@ -255,6 +266,10 @@ export async function getTokensWithSasjsLogin(
   const instance = axios.create({
     baseURL: baseUrl,
     validateStatus: () => true,
+    // The login request carries the password in a body, so a redirect must not
+    // replay it to wherever 'Location' points. A redirect is a configuration
+    // problem (proxy, SSO front end) - report it instead of following it.
+    maxRedirects: 0,
     httpsAgent: target.httpsAgentOptions
       ? new https.Agent(target.httpsAgentOptions)
       : undefined,
@@ -273,7 +288,7 @@ export async function getTokensWithSasjsLogin(
         .join('; ')
     }
     const xsrf = cookies.get('XSRF-TOKEN')
-    if (xsrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf)
+    if (xsrf) headers['X-XSRF-TOKEN'] = safeDecode(xsrf)
 
     const response = await instance.request({
       method,
@@ -281,6 +296,16 @@ export async function getTokensWithSasjsLogin(
       data,
       headers
     })
+
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(
+        `${baseUrl}${path} answered with a ${response.status} redirect to ` +
+          `'${response.headers.location || 'unknown'}'. It is not followed: ` +
+          `the sign-in request carries the password. Point the target at the ` +
+          `final URL.`
+      )
+    }
+
     collectCookies(
       response.headers['set-cookie'] as string[] | string | undefined
     )
@@ -313,6 +338,12 @@ export async function getTokensWithSasjsLogin(
     const clients = await call('get', '/SASjsApi/client')
     if (Array.isArray(clients.data) && clients.data.length) {
       client = clients.data[0].clientId
+      // Say which one was picked: the listing order is the server's, and a
+      // silent choice here is impossible to debug from the tokens alone.
+      process.logger?.info(
+        `Using the first registered client ('${client}'). Set SASJS_CLIENT ` +
+          `to authorize a specific client.`
+      )
     }
   }
   if (!client) {

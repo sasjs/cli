@@ -158,4 +158,33 @@ describe('getTokensWithSasjsLogin', () => {
       getTokensWithSasjsLogin(target(), 'user1', 'pass1')
     ).rejects.toThrow(/returned no access token/)
   })
+
+  it('should refuse to follow a redirect that would replay the password', async () => {
+    ;[
+      ok('', xsrfCookie),
+      {
+        status: 307,
+        headers: { location: 'https://elsewhere.example.com/login' },
+        data: {}
+      }
+    ].forEach((response) => request.mockResolvedValueOnce(response))
+
+    await expect(
+      getTokensWithSasjsLogin(target(), 'user1', 'pass1')
+    ).rejects.toThrow(/answered with a 307 redirect/)
+  })
+
+  it('should fall back to the raw XSRF value when it is not valid encoding', async () => {
+    ;[
+      ok('', { 'set-cookie': ['XSRF-TOKEN=abc%ZZ; Path=/'] }),
+      ok({ loggedIn: true }),
+      ok([{ clientId: 'client-1' }]),
+      ok({ code: 'the-code' }),
+      ok({ accessToken: 'access-token' })
+    ].forEach((response) => request.mockResolvedValueOnce(response))
+
+    await getTokensWithSasjsLogin(target(), 'user1', 'pass1')
+
+    expect(request.mock.calls[1][0].headers['X-XSRF-TOKEN']).toBe('abc%ZZ')
+  })
 })
