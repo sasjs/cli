@@ -413,6 +413,9 @@ describe('compileTestFile', () => {
 
     it('should key the report by project-relative paths, never build machine paths', async () => {
       const macroPath = path.join(sasjsPath, 'macros', 'uncoveredmacro.sas')
+      const tableSpy = jest
+        .spyOn(process.logger, 'table')
+        .mockImplementation(() => '')
 
       await createFile(
         macroPath,
@@ -426,9 +429,9 @@ describe('compileTestFile', () => {
           await readFile(path.join(buildPath, coverageFileName))
         )
 
-        // macros are keyed like services and jobs. The console table shows the
-        // absolute path, which must not reach a published artifact - two
-        // machines would then produce different JSON for the same project.
+        // macros are keyed like services and jobs, in the report and in the
+        // console table alike - a build machine path in either would make the
+        // same project produce different output elsewhere.
         expect(report.files['macros/uncoveredmacro.sas']).toEqual({
           Type: 'macro',
           Coverage: 'not covered'
@@ -441,6 +444,17 @@ describe('compileTestFile', () => {
           total: 1,
           percentage: 0
         })
+
+        const tableRows = tableSpy.mock.calls[0][0] as string[][]
+
+        expect(tableRows).toContainEqual([
+          'macros/uncoveredmacro.sas',
+          'macro',
+          'not covered'
+        ])
+        expect(
+          tableRows.flat().filter((cell) => path.isAbsolute(cell))
+        ).toEqual([])
       } finally {
         await deleteFile(macroPath)
       }
@@ -453,6 +467,9 @@ describe('compileTestFile', () => {
         'macros',
         'coveredmacro.test.sas'
       )
+      const tableSpy = jest
+        .spyOn(process.logger, 'table')
+        .mockImplementation(() => '')
 
       await createFile(macroPath, '%macro coveredmacro(); %mend coveredmacro;')
       await createFile(macroTestPath, '%put testing coveredmacro;')
@@ -473,6 +490,16 @@ describe('compileTestFile', () => {
           total: 1,
           percentage: 100
         })
+
+        // the table lists a covered file too, so a reader sees the whole
+        // picture rather than only the exceptions
+        const tableRows = tableSpy.mock.calls[0][0] as string[][]
+
+        expect(tableRows).toContainEqual([
+          'macros/coveredmacro.sas',
+          'macro',
+          'covered'
+        ])
       } finally {
         await deleteFile(macroPath)
         await deleteFile(macroTestPath)

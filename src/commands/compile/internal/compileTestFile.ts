@@ -8,9 +8,7 @@ import {
   fileExists,
   folderExists,
   getAbsolutePath,
-  isTestFile,
   listFilesAndSubFoldersInFolder,
-  pathSepEscaped,
   SASJsFileType,
   Target,
   testFileRegExp
@@ -278,80 +276,29 @@ const printTestCoverage = async (
   const filter = (files: string[], type: string) =>
     files.filter((file) => new RegExp(`^${type}`).test(file))
 
-  let coverage: Coverage = {}
-  const notCovered = toCover.filter((tc) => !covered.includes(tc))
-
   const coveredServices = filter(covered, CoverageType.service)
   const servicesToCover = filter(toCover, CoverageType.service)
-  const notCoveredServices = filter(notCovered, CoverageType.service)
-
-  notCoveredServices.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.service,
-      Coverage: CoverageState.notCovered
-    }
-  })
 
   const coveredJobs = filter(covered, CoverageType.job)
   const jobsToCover = filter(toCover, CoverageType.job)
-  const notCoveredJobs = filter(notCovered, CoverageType.job)
-
-  notCoveredJobs.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.job,
-      Coverage: CoverageState.notCovered
-    }
-  })
 
   const coveredMacros = filter(covered, CoverageType.macro)
   const macrosToCover = filter(toCover, CoverageType.macro)
-  let notCoveredMacros = filter(notCovered, CoverageType.macro)
 
-  if (notCoveredMacros.length) {
-    await asyncForEach(macroFolders, async (macroFolder: string) => {
-      const macros = await (
-        await listFilesAndSubFoldersInFolder(macroFolder)
-      ).filter((file: string) => !isTestFile(file))
+  // One map feeds both the console table and coverage.json: every file the
+  // compile found, keyed by its project-relative path (`macros/x.sas`,
+  // `services/common/x.sas`) and marked covered or not. Keys never carry the
+  // build machine's paths, so the same project produces the same report
+  // everywhere - and the table cannot disagree with the file beside it.
+  const coverage: Coverage = {}
 
-      const macroTypeRegExp = new RegExp(`^macros${pathSepEscaped}`)
-
-      notCoveredMacros = notCoveredMacros.map((macro: string) =>
-        macros.includes(macro.replace(macroTypeRegExp, ''))
-          ? macro.replace(macroTypeRegExp, macroFolder + path.sep)
-          : macro
-      )
-    })
-  }
-
-  notCoveredMacros.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.macro,
-      Coverage: CoverageState.notCovered
-    }
-  })
-
-  extraTests.forEach((file) => {
-    coverage[file] = {
-      Type: CoverageType.test,
-      Coverage: CoverageState.standalone
-    }
-  })
-
-  // The report is keyed by project-relative paths and lists every file, so a
-  // consumer can tell a covered service from one the compile never saw. The
-  // console table keeps its own shape (the exceptions only) and the absolute
-  // macro paths that help a reader find the file on the machine that compiled.
-  // Serialising those absolute paths would make the same project produce
-  // different JSON on every build machine.
-  const reportFiles: Coverage = {}
-
-  const addToReport = (
+  const markCoverage = (
     type: CoverageType,
     filesToCover: string[],
     coveredFiles: string[]
   ) =>
     filesToCover.forEach((file) => {
-      reportFiles[file] = {
+      coverage[file] = {
         Type: type,
         Coverage: coveredFiles.includes(file)
           ? CoverageState.covered
@@ -359,12 +306,12 @@ const printTestCoverage = async (
       }
     })
 
-  addToReport(CoverageType.service, servicesToCover, coveredServices)
-  addToReport(CoverageType.job, jobsToCover, coveredJobs)
-  addToReport(CoverageType.macro, macrosToCover, coveredMacros)
+  markCoverage(CoverageType.service, servicesToCover, coveredServices)
+  markCoverage(CoverageType.job, jobsToCover, coveredJobs)
+  markCoverage(CoverageType.macro, macrosToCover, coveredMacros)
 
   extraTests.forEach((file) => {
-    reportFiles[file] = {
+    coverage[file] = {
       Type: CoverageType.test,
       Coverage: CoverageState.standalone
     }
@@ -394,6 +341,8 @@ const printTestCoverage = async (
 
   process.logger?.info('Test coverage:')
 
+  // The table renders the same map coverage.json serialises, so a reader sees
+  // every file - covered rows included - under the key the report uses.
   process.logger?.table(
     Object.keys(coverage).map((key) => [
       key,
@@ -416,10 +365,10 @@ const printTestCoverage = async (
     JSON.stringify(testFlow, null, 2)
   )
 
-  // The coverage numbers are already computed for the table above, so writing
-  // them costs one small file - which lets a CI job publish the figures
-  // instead of scraping the log.
-  const report: CoverageReport = { summary, files: reportFiles }
+  // The numbers are already computed and rendered above, so the report costs
+  // one small file - which lets a CI job publish the figures instead of
+  // scraping the log.
+  const report: CoverageReport = { summary, files: coverage }
 
   await createFile(
     path.join(buildDestinationFolder, coverageFileName),

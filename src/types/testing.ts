@@ -47,8 +47,8 @@ export interface CoverageSummary {
  * project-relative path (`services/common/appinit.sas`,
  * `macros/mymacro.sas`), never by a path from the machine that compiled it.
  *
- * The console table is not the same shape: it lists only the exceptions, and
- * shows uncovered macros by absolute path to help a reader find them.
+ * The console table renders this same map, so the rows a reader sees and the
+ * keys a consumer reads are the same, covered rows included.
  */
 export interface CoverageReport {
   summary: {
