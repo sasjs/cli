@@ -5,6 +5,7 @@ import {
   getCompileTree,
   getTestFileDestinationFragment
 } from '../'
+import { coverageFileName } from '../compileTestFile'
 import {
   Logger,
   LogLevel,
@@ -12,6 +13,8 @@ import {
   copy,
   readFile,
   fileExists,
+  createFile,
+  deleteFile,
   deleteFolder,
   createFolder,
   ServerType,
@@ -383,6 +386,141 @@ describe('compileTestFile', () => {
         totalCalls - 1,
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
+    })
+
+    it('should write the coverage report to the build folder', async () => {
+      await compile(target)
+
+      const report = JSON.parse(
+        await readFile(path.join(buildPath, coverageFileName))
+      )
+
+      expect(report.summary).toEqual({
+        services: { covered: 0, total: 4, percentage: 0 },
+        jobs: { covered: 0, total: 0, percentage: 0 },
+        macros: { covered: 0, total: 0, percentage: 0 },
+        overall: { covered: 0, total: 4, percentage: 0 }
+      })
+
+      // the same rows the console table lists, standalone tests included
+      expect(
+        report.files[['services', 'common', 'appinit.sas'].join('/')]
+      ).toEqual({ Type: 'service', Coverage: 'not covered' })
+      expect(
+        report.files[['tests', 'jobs', 'jobs', 'testJob.test.sas'].join('/')]
+      ).toEqual({ Type: 'test', Coverage: 'standalone' })
+    })
+
+    it('should key the report by project-relative paths, never build machine paths', async () => {
+      const macroPath = path.join(sasjsPath, 'macros', 'uncoveredmacro.sas')
+      const tableSpy = jest
+        .spyOn(process.logger, 'table')
+        .mockImplementation(() => '')
+
+      await createFile(
+        macroPath,
+        '%macro uncoveredmacro(); %mend uncoveredmacro;'
+      )
+
+      try {
+        await compile(target)
+
+        const report = JSON.parse(
+          await readFile(path.join(buildPath, coverageFileName))
+        )
+
+        // macros are keyed like services and jobs, in the report and in the
+        // console table alike - a build machine path in either would make the
+        // same project produce different output elsewhere.
+        expect(report.files['macros/uncoveredmacro.sas']).toEqual({
+          Type: 'macro',
+          Coverage: 'not covered'
+        })
+        expect(
+          Object.keys(report.files).filter((key) => path.isAbsolute(key))
+        ).toEqual([])
+        expect(report.summary.macros).toEqual({
+          covered: 0,
+          total: 1,
+          percentage: 0
+        })
+
+        const tableRows = tableSpy.mock.calls[0][0] as string[][]
+
+        expect(tableRows).toContainEqual([
+          'macros/uncoveredmacro.sas',
+          'macro',
+          'not covered'
+        ])
+        expect(
+          tableRows.flat().filter((cell) => path.isAbsolute(cell))
+        ).toEqual([])
+      } finally {
+        await deleteFile(macroPath)
+      }
+    })
+
+    it('should mark covered files in the report, not just the gaps', async () => {
+      const macroPath = path.join(sasjsPath, 'macros', 'coveredmacro.sas')
+      const macroTestPath = path.join(
+        sasjsPath,
+        'macros',
+        'coveredmacro.test.sas'
+      )
+      const tableSpy = jest
+        .spyOn(process.logger, 'table')
+        .mockImplementation(() => '')
+
+      await createFile(macroPath, '%macro coveredmacro(); %mend coveredmacro;')
+      await createFile(macroTestPath, '%put testing coveredmacro;')
+
+      try {
+        await compile(target)
+
+        const report = JSON.parse(
+          await readFile(path.join(buildPath, coverageFileName))
+        )
+
+        expect(report.files['macros/coveredmacro.sas']).toEqual({
+          Type: 'macro',
+          Coverage: 'covered'
+        })
+        expect(report.summary.macros).toEqual({
+          covered: 1,
+          total: 1,
+          percentage: 100
+        })
+
+        // the table lists a covered file too, so a reader sees the whole
+        // picture rather than only the exceptions
+        const tableRows = tableSpy.mock.calls[0][0] as string[][]
+
+        expect(tableRows).toContainEqual([
+          'macros/coveredmacro.sas',
+          'macro',
+          'covered'
+        ])
+      } finally {
+        await deleteFile(macroPath)
+        await deleteFile(macroTestPath)
+      }
+    })
+
+    it('should not write a coverage report when no tests were compiled', async () => {
+      await compile(target)
+
+      const coveragePath = path.join(buildPath, coverageFileName)
+
+      // remove the report the compile wrote, so the assertion below is about
+      // the no-tests path and not about a file left over from it
+      await deleteFile(coveragePath)
+      await deleteFolder(path.join(buildPath, 'tests'))
+
+      const testFlow = await compileTestFlow(target)
+
+      expect(testFlow).toBeUndefined()
+
+      await expect(fileExists(coveragePath)).resolves.toEqual(false)
     })
 
     it('should log a warning is testFolders was used in root or target configuration', async () => {

@@ -8,21 +8,29 @@ import {
   fileExists,
   folderExists,
   getAbsolutePath,
-  isTestFile,
   listFilesAndSubFoldersInFolder,
-  pathSepEscaped,
   SASJsFileType,
   Target,
   testFileRegExp
 } from '@sasjs/utils'
 import chalk from 'chalk'
 import path from 'path'
-import { Coverage, CoverageState, CoverageType, TestFlow } from '../../../types'
+import {
+  Coverage,
+  CoverageReport,
+  CoverageState,
+  CoverageSummary,
+  CoverageType,
+  TestFlow
+} from '../../../types'
 import { getMacroFolders, getProgramFolders } from '../../../utils/config'
 import { sasFileRegExp } from '../../../utils/file'
 import { loadDependencies } from './'
 
 const getFileName = (filePath: string) => path.parse(filePath).base
+
+/** The coverage report `sasjs compile` writes to the build folder. */
+export const coverageFileName = 'coverage.json'
 
 /**
  * Resolves the relative destination fragment for a compiled test file inside
@@ -268,57 +276,39 @@ const printTestCoverage = async (
   const filter = (files: string[], type: string) =>
     files.filter((file) => new RegExp(`^${type}`).test(file))
 
-  let coverage: Coverage = {}
-  const notCovered = toCover.filter((tc) => !covered.includes(tc))
-
   const coveredServices = filter(covered, CoverageType.service)
   const servicesToCover = filter(toCover, CoverageType.service)
-  const notCoveredServices = filter(notCovered, CoverageType.service)
-
-  notCoveredServices.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.service,
-      Coverage: CoverageState.notCovered
-    }
-  })
 
   const coveredJobs = filter(covered, CoverageType.job)
   const jobsToCover = filter(toCover, CoverageType.job)
-  const notCoveredJobs = filter(notCovered, CoverageType.job)
-
-  notCoveredJobs.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.job,
-      Coverage: CoverageState.notCovered
-    }
-  })
 
   const coveredMacros = filter(covered, CoverageType.macro)
   const macrosToCover = filter(toCover, CoverageType.macro)
-  let notCoveredMacros = filter(notCovered, CoverageType.macro)
 
-  if (notCoveredMacros.length) {
-    await asyncForEach(macroFolders, async (macroFolder: string) => {
-      const macros = await (
-        await listFilesAndSubFoldersInFolder(macroFolder)
-      ).filter((file: string) => !isTestFile(file))
+  // One map feeds both the console table and coverage.json: every file the
+  // compile found, keyed by its project-relative path (`macros/x.sas`,
+  // `services/common/x.sas`) and marked covered or not. Keys never carry the
+  // build machine's paths, so the same project produces the same report
+  // everywhere - and the table cannot disagree with the file beside it.
+  const coverage: Coverage = {}
 
-      const macroTypeRegExp = new RegExp(`^macros${pathSepEscaped}`)
-
-      notCoveredMacros = notCoveredMacros.map((macro: string) =>
-        macros.includes(macro.replace(macroTypeRegExp, ''))
-          ? macro.replace(macroTypeRegExp, macroFolder + path.sep)
-          : macro
-      )
+  const markCoverage = (
+    type: CoverageType,
+    filesToCover: string[],
+    coveredFiles: string[]
+  ) =>
+    filesToCover.forEach((file) => {
+      coverage[file] = {
+        Type: type,
+        Coverage: coveredFiles.includes(file)
+          ? CoverageState.covered
+          : CoverageState.notCovered
+      }
     })
-  }
 
-  notCoveredMacros.forEach((file, i) => {
-    coverage[file] = {
-      Type: CoverageType.macro,
-      Coverage: CoverageState.notCovered
-    }
-  })
+  markCoverage(CoverageType.service, servicesToCover, coveredServices)
+  markCoverage(CoverageType.job, jobsToCover, coveredJobs)
+  markCoverage(CoverageType.macro, macrosToCover, coveredMacros)
 
   extraTests.forEach((file) => {
     coverage[file] = {
@@ -327,26 +317,32 @@ const printTestCoverage = async (
     }
   })
 
-  const calculateCoverage = (covered: number, from: number) =>
-    (Math.round((covered / from) * 100) || 0) + '%'
+  const summarize = (cov: string[], toCov: string[]): CoverageSummary => ({
+    covered: cov.length,
+    total: toCov.length,
+    percentage: toCov.length ? Math.round((cov.length / toCov.length) * 100) : 0
+  })
 
-  const formatCoverage = (
-    type: string,
-    covered: string[],
-    toCover: string[]
-  ) =>
-    toCover.length
+  const formatCoverage = (type: string, summary: CoverageSummary) =>
+    summary.total
       ? process.logger?.info(
-          `${type} coverage: ${covered.length}/${
-            toCover.length
-          } (${chalk.greenBright(
-            calculateCoverage(covered.length, toCover.length)
-          )})`
+          `${type} coverage: ${summary.covered}/${
+            summary.total
+          } (${chalk.greenBright(`${summary.percentage}%`)})`
         )
       : null
 
+  const summary: CoverageReport['summary'] = {
+    services: summarize(coveredServices, servicesToCover),
+    jobs: summarize(coveredJobs, jobsToCover),
+    macros: summarize(coveredMacros, macrosToCover),
+    overall: summarize(covered, toCover)
+  }
+
   process.logger?.info('Test coverage:')
 
+  // The table renders the same map coverage.json serialises, so a reader sees
+  // every file - covered rows included - under the key the report uses.
   process.logger?.table(
     Object.keys(coverage).map((key) => [
       key,
@@ -358,14 +354,24 @@ const printTestCoverage = async (
     }
   )
 
-  formatCoverage('Services', coveredServices, servicesToCover)
-  formatCoverage('Jobs', coveredJobs, jobsToCover)
-  formatCoverage('Macros', coveredMacros, macrosToCover)
-  formatCoverage('Overall', covered, toCover)
+  formatCoverage('Services', summary.services)
+  formatCoverage('Jobs', summary.jobs)
+  formatCoverage('Macros', summary.macros)
+  formatCoverage('Overall', summary.overall)
   process.logger?.log('')
 
   await createFile(
     path.join(buildDestinationFolder, 'testFlow.json'),
     JSON.stringify(testFlow, null, 2)
+  )
+
+  // The numbers are already computed and rendered above, so the report costs
+  // one small file - which lets a CI job publish the figures instead of
+  // scraping the log.
+  const report: CoverageReport = { summary, files: coverage }
+
+  await createFile(
+    path.join(buildDestinationFolder, coverageFileName),
+    JSON.stringify(report, null, 2)
   )
 }

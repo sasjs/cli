@@ -84,6 +84,9 @@ export async function printHelpText() {
         )} folder of sasjsbuild for its type, or below ${chalk.cyanBright(
           '--output'
         )} (or ${chalk.cyanBright('-o')}) when given.`,
+        `The test coverage report is written to ${chalk.cyanBright(
+          'coverage.json'
+        )} in the build folder alongside ${chalk.cyanBright('testFlow.json')}.`,
         `command example: sasjs compile identify --source sasjs/jobs/daily/load.sas --target myTarget`
       ]
     },

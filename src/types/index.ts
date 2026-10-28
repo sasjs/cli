@@ -5,6 +5,8 @@ export { TargetScope } from './targetScope'
 export {
   TestFlow,
   Coverage,
+  CoverageReport,
+  CoverageSummary,
   CoverageType,
   CoverageState,
   TestResults,

@@ -15,6 +15,7 @@ export enum CoverageType {
 
 export enum CoverageState {
   notCovered = 'not covered',
+  covered = 'covered',
   standalone = 'standalone'
 }
 
@@ -23,6 +24,40 @@ export interface Coverage {
     Type: CoverageType
     Coverage: CoverageState
   }
+}
+
+/**
+ * Totals for one group of files (services, jobs, macros or all of them).
+ * `percentage` is rounded to a whole number, matching the figure printed in
+ * the console summary.
+ */
+export interface CoverageSummary {
+  covered: number
+  total: number
+  percentage: number
+}
+
+/**
+ * The content of the coverage report `sasjs compile` writes to
+ * `coverage.json` in the build folder.
+ *
+ * `summary` carries the same totals as the console output. `files` is a
+ * complete per-file map - every service, job and macro the compile found,
+ * each marked `covered` or `not covered`, plus standalone tests - keyed by
+ * project-relative path (`services/common/appinit.sas`,
+ * `macros/mymacro.sas`), never by a path from the machine that compiled it.
+ *
+ * The console table renders this same map, so the rows a reader sees and the
+ * keys a consumer reads are the same, covered rows included.
+ */
+export interface CoverageReport {
+  summary: {
+    services: CoverageSummary
+    jobs: CoverageSummary
+    macros: CoverageSummary
+    overall: CoverageSummary
+  }
+  files: Coverage
 }
 
 export interface TestResultDescription {
