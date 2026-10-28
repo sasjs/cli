@@ -16,16 +16,18 @@ const usage = 'sasjs auth login --target <target-name> | sasjs auth [options]'
 const description =
   `Authenticates against the specified target.\n` +
   `With the 'login' subCommand, authentication is performed with a SAS username and password ` +
-  `(no OAuth client/secret required, SASVIYA targets only) and the resulting tokens are saved.\n` +
+  `(no OAuth client/secret required) and the resulting tokens are saved. ` +
+  `Supported on SASVIYA targets, and on SASJS targets, where the server's own local login is used.\n` +
   `Without a subCommand, behaves like 'sasjs add cred' (client/secret based authentication).\n` +
   `\n` +
   `Non-interactive use (CI/agents): set SAS_USERNAME and SAS_PASSWORD environment variables, ` +
-  `or pipe the password and use --password-stdin.`
+  `or pipe the password and use --password-stdin. On a SASJS target, set SASJS_CLIENT to the ` +
+  `registered client id when the account is not an administrator.`
 const examples: CommandExample[] = [
   {
     command: 'sasjs auth login --target <target-name>',
     description:
-      'Logs in with SAS username/password (no client/secret required).'
+      'Logs in with SAS username/password (no client/secret required) on a SASVIYA or SASJS target.'
   },
   {
     command: 'sasjs auth login -t <target-name>',

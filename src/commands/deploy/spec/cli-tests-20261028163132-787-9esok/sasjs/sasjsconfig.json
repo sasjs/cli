@@ -1,0 +1,99 @@
+{
+  "$schema": "https://cli.sasjs.io/sasjsconfig-schema.json",
+  "buildConfig": {
+    "initProgram": "sasjs/build/buildinit.sas",
+    "termProgram": "sasjs/build/buildterm.sas",
+    "macroVars": {
+      "name": "value",
+      "numvar": "42"
+    }
+  },
+  "deployConfig": {
+    "deployScripts": [
+      "sasjs/build/deployscript.sh"
+    ]
+  },
+  "serviceConfig": {
+    "serviceFolders": [
+      "sasjs/services/common",
+      "sasjs/services/admin"
+    ],
+    "initProgram": "sasjs/build/serviceinit.sas",
+    "termProgram": "sasjs/build/serviceterm.sas",
+    "macroVars": {
+      "name": "value",
+      "numvar": "42"
+    }
+  },
+  "macroFolders": [
+    "sasjs/macros"
+  ],
+  "programFolders": [
+    "sasjs/programs"
+  ],
+  "binaryFolders": [
+    "sasjs/binaries"
+  ],
+  "defaultTarget": "viya",
+  "targets": [
+    {
+      "name": "viya",
+      "serverType": "SASVIYA",
+      "serverUrl": "",
+      "appLoc": "/Public/app",
+      "contextName": "SAS Job Execution compute context",
+      "buildConfig": {
+        "buildOutputFileName": "myviyadeploy.sas",
+        "initProgram": "sasjs/build/buildinitviya.sas",
+        "termProgram": "sasjs/targets/viya/viyabuildterm.sas",
+        "macroVars": {
+          "name": "viyavalue",
+          "extravar": "this too"
+        }
+      },
+      "serviceConfig": {
+        "serviceFolders": [
+          "sasjs/targets/viya/services/admin"
+        ],
+        "initProgram": "sasjs/build/serviceinit.sas",
+        "termProgram": "sasjs/build/serviceinit.sas",
+        "macroVars": {
+          "name": "viyavalue",
+          "extravar": "this too"
+        }
+      },
+      "macroFolders": [
+        "sasjs/targets/viya/macros"
+      ]
+    },
+    {
+      "name": "sas9",
+      "serverType": "SAS9",
+      "serverUrl": "",
+      "appLoc": "/User Folders/&sysuserid/My Folder",
+      "serverName": "Foundation",
+      "repositoryName": "SASApp",
+      "deployConfig": {
+        "deployScripts": [
+          "sasjs/build/deploysas9.sh"
+        ],
+        "deployServicePack": false
+      },
+      "serviceConfig": {
+        "serviceFolders": [
+          "sasjs/targets/sas9/services/admin"
+        ],
+        "termProgram": "sasjs/build/servicetermother.sas"
+      },
+      "macroFolders": [
+        "sasjs/targets/sas9/macros"
+      ]
+    },
+    {
+      "name": "sasjs",
+      "serverType": "SASJS",
+      "serverUrl": "",
+      "appLoc": "/Public/app"
+    }
+  ]
+}

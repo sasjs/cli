@@ -1,3 +1,5 @@
+import axios from 'axios'
+import * as https from 'https'
 import { getString, ServerType, Target } from '@sasjs/utils'
 import SASjs, {
   CertificateError,
@@ -195,4 +197,183 @@ export async function getNewAccessToken(
     })
 
   return { access_token, refresh_token }
+}
+
+/**
+ * Mints a token pair from the local login of a SASjs Server target.
+ *
+ * SASjs Server has no secret-less OAuth client and no password grant: the
+ * tokens it issues come from its own sign-in flow, the one its web app uses.
+ * Reproducing that flow here is what makes `sasjs auth login` usable on a SASjs
+ * target from CI, where there is no browser to visit /SASjsLogon and no
+ * administrator-registered client secret to fall back on:
+ *
+ *   GET  /                     sets the XSRF-TOKEN cookie
+ *   POST /SASLogon/login       creates the session
+ *   POST /SASLogon/authorize   returns a single-use authorization code
+ *   POST /SASjsApi/auth/token  exchanges it for an access/refresh pair
+ *
+ * @param {Target} target - the SASJS target to authenticate against.
+ * @param {string} user - the SASjs Server username.
+ * @param {string} pass - the SASjs Server password.
+ * @param {string} [clientId] - the registered client to authorize, usually from
+ *   the SASJS_CLIENT environment variable. When absent, the target's configured
+ *   client is used, and failing that the first registered client if the account
+ *   is an administrator.
+ * @returns the token pair, the client that was authorized, and the display name
+ *   the server reports for the user.
+ */
+export async function getTokensWithSasjsLogin(
+  target: Target,
+  user: string,
+  pass: string,
+  clientId?: string
+): Promise<{
+  access_token: string
+  refresh_token: string
+  client: string
+  displayName?: string
+}> {
+  const baseUrl = target.serverUrl.replace(/\/+$/, '')
+  const cookies = new Map<string, string>()
+
+  // Cookie values are percent-encoded by the server, but a malformed value
+  // (a bare '%', a truncated escape) must not become an uncaught URIError -
+  // fall back to the raw value and let the request fail on its merits.
+  const safeDecode = (value: string) => {
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
+  const collectCookies = (setCookie?: string[] | string) => {
+    const entries: string[] = Array.isArray(setCookie)
+      ? setCookie
+      : setCookie
+        ? [setCookie]
+        : []
+    entries.forEach((entry) => {
+      const pair = entry.split(';')[0]
+      const index = pair.indexOf('=')
+      if (index > 0) {
+        cookies.set(pair.slice(0, index).trim(), pair.slice(index + 1).trim())
+      }
+    })
+  }
+
+  const instance = axios.create({
+    baseURL: baseUrl,
+    validateStatus: () => true,
+    // The login request carries the password in a body, so a redirect must not
+    // replay it to wherever 'Location' points. A redirect is a configuration
+    // problem (proxy, SSO front end) - report it instead of following it.
+    maxRedirects: 0,
+    httpsAgent: target.httpsAgentOptions
+      ? new https.Agent(target.httpsAgentOptions)
+      : undefined,
+    headers: { Accept: 'application/json' }
+  })
+
+  const call = async (
+    method: 'get' | 'post',
+    path: string,
+    data?: Record<string, unknown>
+  ) => {
+    const headers: Record<string, string> = {}
+    if (cookies.size) {
+      headers.Cookie = [...cookies]
+        .map(([name, value]) => `${name}=${value}`)
+        .join('; ')
+    }
+    const xsrf = cookies.get('XSRF-TOKEN')
+    if (xsrf) headers['X-XSRF-TOKEN'] = safeDecode(xsrf)
+
+    const response = await instance.request({
+      method,
+      url: path,
+      data,
+      headers
+    })
+
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(
+        `${baseUrl}${path} answered with a ${response.status} redirect to ` +
+          `'${response.headers.location || 'unknown'}'. It is not followed: ` +
+          `the sign-in request carries the password. Point the target at the ` +
+          `final URL.`
+      )
+    }
+
+    collectCookies(
+      response.headers['set-cookie'] as string[] | string | undefined
+    )
+    return response
+  }
+
+  const fail = (message: string) =>
+    new Error(
+      `${message}\nCheck that '${user}' can sign in to ${target.serverUrl}, and that ` +
+        `the client id is set (SASJS_CLIENT) if the account is not an administrator.`
+    )
+
+  // GET / serves the single page app but sets the XSRF cookie the login needs.
+  await call('get', '/')
+
+  const login = await call('post', '/SASLogon/login', {
+    username: user,
+    password: pass
+  })
+  if (login.status !== 200 || !login.data?.loggedIn) {
+    throw fail(
+      `Login failed for user '${user}' on ${target.serverUrl} (HTTP ${login.status}).`
+    )
+  }
+
+  let client = clientId || target.authConfig?.client || ''
+  if (!client) {
+    // Only an administrator may list the registered clients; a 403 here is not
+    // an error worth reporting on its own - the message below covers it.
+    const clients = await call('get', '/SASjsApi/client')
+    if (Array.isArray(clients.data) && clients.data.length) {
+      client = clients.data[0].clientId
+      // Say which one was picked: the listing order is the server's, and a
+      // silent choice here is impossible to debug from the tokens alone.
+      process.logger?.info(
+        `Using the first registered client ('${client}'). Set SASJS_CLIENT ` +
+          `to authorize a specific client.`
+      )
+    }
+  }
+  if (!client) {
+    throw fail('No client id is available to authorize.')
+  }
+
+  const authorized = await call('post', '/SASLogon/authorize', {
+    clientId: client
+  })
+  const code = authorized.data?.code
+  if (!code) {
+    throw fail(
+      `Authorization failed for client '${client}' (HTTP ${authorized.status}).`
+    )
+  }
+
+  const tokens = await call('post', '/SASjsApi/auth/token', {
+    clientId: client,
+    code
+  })
+  if (!tokens.data?.accessToken) {
+    throw fail(
+      `The token endpoint returned no access token (HTTP ${tokens.status}).`
+    )
+  }
+
+  return {
+    access_token: tokens.data.accessToken,
+    refresh_token: tokens.data.refreshToken || '',
+    client,
+    displayName: login.data?.user?.displayName || login.data?.user?.username
+  }
 }

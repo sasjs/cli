@@ -3,6 +3,7 @@ import { getString, ServerType, Target } from '@sasjs/utils'
 import {
   fetchLoggedInUser,
   getTokensWithPasswordGrant,
+  getTokensWithSasjsLogin,
   saveTokens
 } from '../../utils'
 
@@ -22,11 +23,17 @@ const readPasswordFromStdin = async (): Promise<string> => {
 }
 
 /**
- * Authenticates against a SASVIYA target using a SAS username and password
- * (OAuth2 resource owner password grant against the built-in, secret-less
- * `sas.cli` client) and persists the resulting token pair. This enables all
+ * Authenticates against a SASVIYA or SASJS target using a SAS username and
+ * password, and persists the resulting token pair. This enables all
  * authenticated commands (`sasjs run`, `sasjs deploy`, etc.) on estates where
  * no administrator-registered OAuth client/secret is available.
+ *
+ * The two server types issue tokens differently: SASVIYA uses the OAuth2
+ * resource owner password grant against the built-in, secret-less `sas.cli`
+ * client, while SASJS has no password grant and is authenticated through the
+ * server's own local login (@see getTokensWithSasjsLogin). Everything else -
+ * how the credentials are obtained, and the rule that nothing is prompted for
+ * when there is no TTY - is shared by both.
  *
  * Credentials are resolved in this order (highest precedence first):
  *
@@ -57,9 +64,12 @@ export const authLogin = async (
   insecure = false,
   passwordStdin = false
 ): Promise<void> => {
-  if (target.serverType !== ServerType.SasViya) {
+  if (
+    target.serverType !== ServerType.SasViya &&
+    target.serverType !== ServerType.Sasjs
+  ) {
     throw new Error(
-      `'sasjs auth login' is only supported for SASVIYA targets. ` +
+      `'sasjs auth login' is supported for SASVIYA and SASJS targets. ` +
         `Target '${target.name}' is of type '${target.serverType}'. ` +
         `Use 'sasjs add cred -t ${target.name}' instead.`
     )
@@ -149,6 +159,31 @@ export const authLogin = async (
         `Set the SAS_PASSWORD environment variable, or pipe the password and use --password-stdin ` +
         `(e.g. echo "$SAS_PASSWORD" | sasjs auth login --password-stdin -t ${target.name}).`
     )
+  }
+
+  if (target.serverType === ServerType.Sasjs) {
+    // SASjs Server issues tokens from its own sign-in flow, not from an OAuth
+    // password grant, so it has its own minting call. Everything before this
+    // point - the credential resolution and the env/stdin rules that make it
+    // usable from CI - is shared with the SASVIYA path.
+    const { access_token, refresh_token, client, displayName } =
+      await getTokensWithSasjsLogin(
+        target,
+        user,
+        pass,
+        process.env.SASJS_CLIENT
+      )
+
+    await saveTokens(target.name, access_token, refresh_token, client)
+
+    process.logger?.success(
+      `Logged in as ${displayName || user} on ${target.serverUrl}.`
+    )
+    process.logger?.info(
+      `The access token is valid for the duration configured on the server ` +
+        `(24 hours by default). When it expires, re-run 'sasjs auth login -t ${target.name}'.`
+    )
+    return
   }
 
   const { access_token, refresh_token } = await getTokensWithPasswordGrant(

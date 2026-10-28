@@ -28,6 +28,7 @@ import { getString as mockedGetString } from '@sasjs/utils'
 jest.mock('../../../utils', () => ({
   ...jest.requireActual('../../../utils'),
   getTokensWithPasswordGrant: jest.fn(),
+  getTokensWithSasjsLogin: jest.fn(),
   fetchLoggedInUser: jest.fn(),
   saveTokens: jest.fn()
 }))
@@ -38,6 +39,13 @@ const viyaTarget = new Target({
   serverUrl: 'https://viya.example.com',
   appLoc: '/Public/test',
   contextName: 'test context'
+})
+
+const sasjsTarget = new Target({
+  name: 'sasjs-test',
+  serverType: ServerType.Sasjs,
+  serverUrl: 'https://sasjs.example.com',
+  appLoc: '/Public/app'
 })
 
 const sas9Target = new Target({
@@ -96,9 +104,9 @@ describe('authLogin', () => {
   // ---------------------------------------------------------------------------
   // Guard 1: Non-Viya rejection
   // ---------------------------------------------------------------------------
-  it('should reject when target.serverType is not SASVIYA', async () => {
+  it('should reject when target.serverType is SAS9', async () => {
     await expect(authLoginModule.authLogin(sas9Target)).rejects.toThrow(
-      `'sasjs auth login' is only supported for SASVIYA targets.`
+      `'sasjs auth login' is supported for SASVIYA and SASJS targets.`
     )
 
     expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
@@ -547,5 +555,96 @@ describe('authLogin', () => {
         configurable: true
       })
     }
+  })
+
+  // ---------------------------------------------------------------------------
+  // SASJS: local login against a SASjs Server target
+  // ---------------------------------------------------------------------------
+  describe('SASJS target', () => {
+    beforeEach(() => {
+      delete process.env.SASJS_CLIENT
+      ;(utilsModule.getTokensWithSasjsLogin as jest.Mock).mockResolvedValue({
+        access_token: 'sasjs-access',
+        refresh_token: 'sasjs-refresh',
+        client: 'client-id-1',
+        displayName: 'SASJS Test User'
+      })
+    })
+
+    afterEach(() => {
+      delete process.env.SASJS_CLIENT
+    })
+
+    it('should mint tokens with the SASJS login flow instead of the password grant', async () => {
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(utilsModule.getTokensWithPasswordGrant).not.toHaveBeenCalled()
+      expect(utilsModule.getTokensWithSasjsLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'sasjs-test' }),
+        'test-user',
+        'test-pass',
+        undefined
+      )
+    })
+
+    it('should persist the client alongside the tokens', async () => {
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(utilsModule.saveTokens).toHaveBeenCalledWith(
+        'sasjs-test',
+        'sasjs-access',
+        'sasjs-refresh',
+        'client-id-1'
+      )
+      expect(utilsModule.fetchLoggedInUser).not.toHaveBeenCalled()
+    })
+
+    it('should pass SASJS_CLIENT through so CI can pin the client', async () => {
+      process.env.SASJS_CLIENT = 'pinned-client'
+
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(utilsModule.getTokensWithSasjsLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'sasjs-test' }),
+        'test-user',
+        'test-pass',
+        'pinned-client'
+      )
+    })
+
+    it('should authenticate from env vars with no TTY, as CI would', async () => {
+      process.env.SAS_USERNAME = 'ci-user'
+      process.env.SAS_PASSWORD = 'ci-pass'
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: false,
+        configurable: true
+      })
+
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(utilsModule.getTokensWithSasjsLogin).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'sasjs-test' }),
+        'ci-user',
+        'ci-pass',
+        undefined
+      )
+      expect(mockedGetString).not.toHaveBeenCalled()
+      expect(prompts).not.toHaveBeenCalled()
+    })
+
+    it('should fall back to the username when the server reports no display name', async () => {
+      ;(utilsModule.getTokensWithSasjsLogin as jest.Mock).mockResolvedValue({
+        access_token: 'sasjs-access',
+        refresh_token: 'sasjs-refresh',
+        client: 'client-id-1'
+      })
+      const success = jest.spyOn(process.logger!, 'success')
+
+      await authLoginModule.authLogin(sasjsTarget)
+
+      expect(success).toHaveBeenCalledWith(
+        expect.stringContaining('Logged in as test-user on')
+      )
+    })
   })
 })
