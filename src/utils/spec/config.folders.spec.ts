@@ -106,7 +106,10 @@ describe('config folder accessors', () => {
 
       expect(
         await getMacroFolders(targetWith({ macroFolders: ['moremacros'] }))
-      ).toEqual(['/project/sasjsbuild/macros', '/project/sasjsbuild/moremacros'])
+      ).toEqual([
+        '/project/sasjsbuild/macros',
+        '/project/sasjsbuild/moremacros'
+      ])
     })
   })
 
@@ -117,7 +120,10 @@ describe('config folder accessors', () => {
 
     it('takes the configuration stream settings', async () => {
       ;(process as any).sasjsConfig = {
-        streamConfig: { streamServiceName: 'from_config', streamWebFolder: 'web' }
+        streamConfig: {
+          streamServiceName: 'from_config',
+          streamWebFolder: 'web'
+        }
       }
 
       expect(await getStreamConfig()).toEqual({
@@ -126,7 +132,7 @@ describe('config folder accessors', () => {
       })
     })
 
-    it("lets the target override the configuration", async () => {
+    it('lets the target override the configuration', async () => {
       ;(process as any).sasjsConfig = {
         streamConfig: { streamServiceName: 'from_config' }
       }
@@ -212,7 +218,9 @@ describe('config folder accessors', () => {
     })
 
     it("returns the target's testTearDown without looking at the local config", async () => {
-      const target = targetWith({ testConfig: { testTearDown: 'teardown.sas' } })
+      const target = targetWith({
+        testConfig: { testTearDown: 'teardown.sas' }
+      })
 
       expect(await getTestTearDown(target)).toEqual('teardown.sas')
     })
