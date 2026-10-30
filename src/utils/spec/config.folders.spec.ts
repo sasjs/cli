@@ -151,9 +151,18 @@ describe('config folder accessors', () => {
     const originalUsername = process.env.SAS_USERNAME
     const originalPassword = process.env.SAS_PASSWORD
 
+    // Assigning `undefined` to process.env stores the string "undefined", so an
+    // absent variable has to be put back with a delete. The suite runs with
+    // --runInBand, so a leaked "undefined" would be visible to every spec file
+    // that follows and to anything asserting there are no SAS9 credentials.
+    const restore = (name: 'SAS_USERNAME' | 'SAS_PASSWORD', value?: string) => {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+
     afterEach(() => {
-      process.env.SAS_USERNAME = originalUsername
-      process.env.SAS_PASSWORD = originalPassword
+      restore('SAS_USERNAME', originalUsername)
+      restore('SAS_PASSWORD', originalPassword)
     })
 
     it("takes the credentials from the target's authConfigSas9", () => {
