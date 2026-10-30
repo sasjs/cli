@@ -6,6 +6,17 @@ name: Run mocked tests on Windows
 on:
   pull_request:
 
+# a newer commit on the same pull request supersedes the run in flight, so a
+# stale push does not hold a Windows runner for a suite nobody will read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# the same default as run-tests.yml: this workflow only reads the repository,
+# so the token carries no write scope
+permissions:
+  contents: read
+
 env:
   # the same pin as run-tests.yml and npmpublish.yml, for the same reason: the
   # tarball a pull request validates is packed with the npm that publishes it
@@ -17,6 +28,9 @@ jobs:
   # that name on every pull request.
   windows:
     runs-on: windows-latest
+    # Windows runs the slowest leg of the suite and starts a server; a hung
+    # start must fail here rather than hold a runner for the 360-minute default
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
