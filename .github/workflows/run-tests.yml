@@ -269,7 +269,9 @@ jobs:
           missing=fail
 
           if [ -z "$run_id" ]; then
-            for candidate in $(echo "$runs" | awk 'NR <= 10 { print $1 }'); do
+            # every published baseline, newest first - not the first ten: main
+            # can move many runs past the base commit of a stacked pull request
+            for candidate in $(echo "$runs" | awk '{ print $1 }'); do
               # "ahead" means the base commit is ahead of the candidate, so the
               # candidate is an ancestor; "identical" is the same commit
               status=$(gh api \

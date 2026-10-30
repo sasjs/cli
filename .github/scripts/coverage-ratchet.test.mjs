@@ -164,6 +164,34 @@ test('an improvement passes and is reported as such', () => {
   )
 })
 
+test('the tolerance is applied before rounding', () => {
+  // 79.946 - 80 is -0.054: it rounds to -0.05, which is exactly the tolerance,
+  // so a rounding-first comparison would read it as unchanged and let it through
+  const base = withTotals({
+    statements: 80,
+    branches: 70,
+    functions: 79,
+    lines: 86
+  })
+  const head = withTotals({
+    statements: 79.946,
+    branches: 70,
+    functions: 79,
+    lines: 86
+  })
+
+  const { regressions, rows } = compareToBase(head, base)
+
+  assert.equal(regressions.length, 1)
+  assert.equal(regressions[0].metric, 'statements')
+  // the reported figure is still rounded
+  assert.equal(regressions[0].delta, -0.05)
+  assert.equal(
+    rows.find((row) => row.metric === 'statements').verdict,
+    'regressed'
+  )
+})
+
 test('every metric is checked, not just statements', () => {
   const base = withTotals({
     statements: 80,

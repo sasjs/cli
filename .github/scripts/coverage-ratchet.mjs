@@ -80,7 +80,9 @@ export const compareToBase = (head, base, tolerance = DEFAULT_TOLERANCE) => {
     const headPct = percentage(head, metric, 'head')
     const basePct = percentage(base, metric, 'base')
 
-    const delta = round(headPct - basePct)
+    // the tolerance is applied to the unrounded difference: rounding first
+    // would turn a 0.054pt drop into -0.05 and let it pass as unchanged
+    const delta = headPct - basePct
     const verdict =
       delta < -tolerance
         ? 'regressed'
@@ -88,9 +90,20 @@ export const compareToBase = (head, base, tolerance = DEFAULT_TOLERANCE) => {
           ? 'improved'
           : 'unchanged'
 
-    rows.push({ metric, base: basePct, head: headPct, delta, verdict })
+    rows.push({
+      metric,
+      base: basePct,
+      head: headPct,
+      delta: round(delta),
+      verdict
+    })
     if (verdict === 'regressed') {
-      regressions.push({ metric, base: basePct, head: headPct, delta })
+      regressions.push({
+        metric,
+        base: basePct,
+        head: headPct,
+        delta: round(delta)
+      })
     }
   }
 

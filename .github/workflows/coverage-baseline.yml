@@ -18,8 +18,12 @@ permissions:
   contents: read
 
 concurrency:
+  # Deliberately not cancel-in-progress: a baseline is per commit, and a pull
+  # request based on that commit needs it after a newer commit on main has
+  # landed. Cancelling the older run would leave that commit with no baseline at
+  # all, which is worse than running two suites a few minutes apart.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   # the same pin as run-tests.yml and npmpublish.yml
