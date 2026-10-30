@@ -48,6 +48,24 @@ describe('InitCommand', () => {
       new Error('Test Error')
     )
   })
+
+  it('should report an already-initialised folder on one line', async () => {
+    const message =
+      'This folder is already a SASjs project (sasjs/sasjsconfig.json exists). Aborting without making changes.'
+    jest
+      .spyOn(initModule, 'init')
+      .mockImplementation(() =>
+        Promise.reject(new initModule.AlreadyInitialisedError(message))
+      )
+
+    const args = [...defaultArgs, 'init']
+    const command = new InitCommand(args)
+
+    const returnCode = await command.execute()
+
+    expect(returnCode).toEqual(ReturnCode.InternalError)
+    expect(process.logger.error).toHaveBeenCalledWith(message)
+  })
 })
 
 const setupMocks = () => {

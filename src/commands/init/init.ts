@@ -9,9 +9,31 @@ import {
 import { fileExists, createFile } from '@sasjs/utils'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
+export class AlreadyInitialisedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'AlreadyInitialisedError'
+    // The build targets ES5, where extending a built-in does not repair the
+    // prototype chain - without this, `instanceof` is false at runtime.
+    Object.setPrototypeOf(this, AlreadyInitialisedError.prototype)
+  }
+}
+
 export async function init() {
   process.logger?.info('Initialising SASjs...')
   const parentFolderName = '.'
+
+  const existingConfigPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    'sasjs',
+    'sasjsconfig.json'
+  )
+  if (await fileExists(existingConfigPath)) {
+    throw new AlreadyInitialisedError(
+      'This folder is already a SASjs project (sasjs/sasjsconfig.json exists). Aborting without making changes.'
+    )
+  }
 
   await setupNpmProject(parentFolderName)
 

@@ -1,4 +1,4 @@
-import { init } from './init'
+import { init, AlreadyInitialisedError } from './init'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { CommandBase } from '../../types'
 
@@ -32,7 +32,13 @@ export class InitCommand extends CommandBase {
         return ReturnCode.Success
       })
       .catch((err: any) => {
-        process.logger?.error('Error initialising SASjs: ', err)
+        // Refusing an already-initialised folder is an expected outcome, not a
+        // crash - report it on one line instead of dumping a stack trace.
+        if (err instanceof AlreadyInitialisedError) {
+          process.logger?.error(err.message)
+        } else {
+          process.logger?.error('Error initialising SASjs: ', err)
+        }
         return ReturnCode.InternalError
       })
   }
