@@ -33,12 +33,13 @@ export class InitCommand extends CommandBase {
       })
       .catch((err: any) => {
         // Refusing an already-initialised folder is an expected outcome, not a
-        // crash - report it on one line instead of dumping a stack trace.
+        // crash: report it on one line, and exit with a code a script can tell
+        // apart from a genuine failure.
         if (err instanceof AlreadyInitialisedError) {
           process.logger?.error(err.message)
-        } else {
-          process.logger?.error('Error initialising SASjs: ', err)
+          return ReturnCode.InvalidCommand
         }
+        process.logger?.error('Error initialising SASjs: ', err)
         return ReturnCode.InternalError
       })
   }
