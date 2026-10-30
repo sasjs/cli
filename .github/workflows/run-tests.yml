@@ -16,10 +16,6 @@ on:
 
 permissions:
   contents: read
-  # the coverage action creates and updates its pull request comment
-  checks: write
-  pull-requests: write
-  issues: write
 
 env:
   # the versions a pull request validates and the release publishes with have to
@@ -31,6 +27,7 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         node-version: [22]
@@ -52,6 +49,7 @@ jobs:
   audit:
     name: audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         node-version: [22]
@@ -63,6 +61,12 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+
+      - name: Update npm
+        # audit behaviour is npm-version dependent, and the env comment above
+        # says the npm a pull request validates with is the one the release
+        # publishes with, so this job runs the same pin
+        run: npm install -g npm@${{ env.NPM_VERSION }}
 
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
@@ -85,6 +89,7 @@ jobs:
   docs:
     name: docs
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         node-version: [22]
@@ -101,7 +106,9 @@ jobs:
         run: npm ci
 
       - name: Install Compodoc
-        run: npm i -g @compodoc/compodoc
+        # pinned: an unpinned install changes what renders the docs, and the
+        # coverage threshold this step enforces, with no commit to review
+        run: npm i -g @compodoc/compodoc@2.0.0
 
       - name: Generate development documentation and test level of documentation coverage
         run: npm run doc
@@ -109,6 +116,7 @@ jobs:
   build-and-smoke:
     name: build-and-smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         node-version: [22]
@@ -123,9 +131,6 @@ jobs:
 
       - name: Update npm
         run: npm install -g npm@${{ env.NPM_VERSION }}
-
-      - name: Install production dependencies
-        run: npm ci --omit=dev --ignore-scripts
 
       - name: Install dependencies
         run: npm ci
@@ -148,6 +153,13 @@ jobs:
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-latest
+    # only this job writes: the coverage action creates and updates its comment
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      issues: write
+    timeout-minutes: 30
     strategy:
       # the floor the package declares (engines >=22) and the next LTS, so a
       # forward-compatibility break shows up here rather than for a user
@@ -197,6 +209,9 @@ jobs:
   server-tests:
     name: server-tests
     runs-on: ubuntu-latest
+    # the suite starts a server and deploys to it; a hung start must fail here
+    # rather than hold a runner for the 360-minute default
+    timeout-minutes: 30
     strategy:
       matrix:
         node-version: [22, 24]
@@ -291,6 +306,7 @@ jobs:
     needs: [lint, audit, docs, build-and-smoke, unit-tests, server-tests]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       matrix:
         node-version: [22]
