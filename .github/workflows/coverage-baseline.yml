@@ -1,0 +1,77 @@
+name: Coverage baseline
+
+# Publishes the coverage a pull request is measured against. It runs on every
+# push to main, so the baseline is the tree the next pull request is diffed
+# against, and on demand, so it can be refreshed after a failed run.
+#
+# The pull request workflow (.github/workflows/run-tests.yml, step "Ratchet the
+# coverage") downloads this artifact and fails a pull request that lowers any
+# metric. See CONTRIBUTING.md.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Deliberately not cancel-in-progress: a baseline is per commit, and a pull
+  # request based on that commit needs it after a newer commit on main has
+  # landed. Cancelling the older run would leave that commit with no baseline at
+  # all, which is worse than running two suites a few minutes apart.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # the same pin as run-tests.yml and npmpublish.yml
+  NPM_VERSION: 12.2.0
+
+jobs:
+  baseline:
+    name: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Update npm
+        run: npm install -g npm@${{ env.NPM_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Test Package Install
+        # version.spec.ts runs `npm list -g @sasjs/cli`, so the suite needs the
+        # CLI installed globally
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
+
+      - name: Generate the coverage summary
+        # plain jest, not the coverage-report action: there is no pull request to
+        # comment on here, and the action's failure would skip the upload
+        run: npx jest --config=jest.config.js --silent --runInBand --ci --coverage
+
+      - name: Publish the coverage baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          retention-days: 90
