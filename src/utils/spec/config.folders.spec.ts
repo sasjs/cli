@@ -79,8 +79,10 @@ describe('config folder accessors', () => {
     it('leaves an absolute folder path alone', async () => {
       ;(process as any).sasjsConfig = { programFolders: ['/somewhere/else'] }
 
+      // kept absolute rather than joined onto the build folder, but
+      // `getAbsolutePath` normalises it, which on Windows means backslashes
       expect(await getProgramFolders(targetWith({}))).toEqual([
-        '/somewhere/else'
+        path.normalize('/somewhere/else')
       ])
     })
   })
