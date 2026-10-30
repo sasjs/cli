@@ -51,6 +51,11 @@ jobs:
       - name: Check code style
         run: npm run lint
 
+      - name: Test the CI scripts
+        # node's own runner: this needs no dependencies beyond the node the job
+        # already sets up, and it runs in well under a second
+        run: node --test .github/scripts/coverage-ratchet.test.mjs
+
   audit:
     name: audit
     runs-on: ubuntu-latest
@@ -167,9 +172,11 @@ jobs:
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-latest
-    # only this job writes: the coverage action creates and updates its comment
+    # only this job writes: the coverage action creates and updates its comment.
+    # actions: read is for the coverage baseline it downloads from main's run.
     permissions:
       contents: read
+      actions: read
       checks: write
       pull-requests: write
       issues: write
@@ -227,6 +234,49 @@ jobs:
       - name: Run mocked tests
         if: matrix.node-version != 22
         run: npx jest --config=jest.config.js --silent --runInBand --ci
+
+      - name: Publish the coverage baseline
+        # main's own run is the baseline a pull request is measured against, and
+        # the artifact is a few KB. The ratchet reads it; the committed
+        # coverageThreshold is only the floor for an accepted drop.
+        if: github.event_name == 'push' && matrix.node-version == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          retention-days: 90
+
+      - name: Find the base branch's coverage baseline
+        id: coverage-baseline
+        if: github.event_name == 'pull_request' && matrix.node-version == 22
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # a pull request from a fork, or a repository with no successful run on
+          # main yet, has no baseline - the ratchet then falls back to the
+          # committed floor rather than passing silently
+          run_id=$(gh api             "repos/${GITHUB_REPOSITORY}/actions/workflows/run-tests.yml/runs?branch=main&status=success&per_page=1"             --jq '.workflow_runs[0].id // empty' 2>/dev/null || true)
+          echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the coverage baseline
+        if: >-
+          github.event_name == 'pull_request' && matrix.node-version == 22 &&
+          steps.coverage-baseline.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage-base
+          run-id: ${{ steps.coverage-baseline.outputs.run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ratchet the coverage
+        # fixes the direction the thresholds could not: a pull request may not
+        # lower any metric below the base branch. See the script's header.
+        if: github.event_name == 'pull_request' && matrix.node-version == 22
+        run: >-
+          node .github/scripts/coverage-ratchet.mjs
+          --head coverage/coverage-summary.json
+          --base coverage-base/coverage-summary.json
 
   server-tests:
     name: server-tests

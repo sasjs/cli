@@ -25,6 +25,18 @@ Commit messages must follow the [Conventional Commits](https://www.conventionalc
 
 `npm run lint` runs `prettier --check` over `src` and `test`.
 
+## Coverage thresholds
+
+`coverageThreshold.global` in `jest.config.js` is a **floor, not a target**. Do not raise it to track improvements: the ratchet does that by comparison, not by a number in the repo.
+
+- On `main`, the `unit-tests` job publishes `coverage/coverage-summary.json` as a workflow artifact.
+- On a pull request, `.github/scripts/coverage-ratchet.mjs` downloads the baseline from `main`'s last successful run and fails the job if any of the four metrics dropped by more than 0.05pt. That is the gate: coverage cannot go backwards, so the effective bar is always `main`'s current figure.
+- With no baseline available (the artifact expires after 90 days, or `main` has not run the new workflow yet) the script enforces the committed floor and says so. A missing baseline never reads as a pass.
+
+If a drop is intended - deleting code that had tests, or a jest/toolchain upgrade that counts differently - lower `coverageThreshold` in that same pull request and say why in the description. That is the only reason to edit the numbers; a reviewer sees the change in the diff.
+
+The script's own behaviour is pinned by `.github/scripts/coverage-ratchet.test.mjs` (`node --test .github/scripts/coverage-ratchet.test.mjs`), which the `lint` job runs.
+
 ## CI runners - Ubuntu and Windows
 
 Tests run on both `ubuntu-latest` and `windows-latest` (`run-tests.yml` and `run-tests-windows.yml`), so a spec that passes locally on Linux can still fail CI on the Windows leg. `chmod` is a no-op on NTFS and unprivileged symlink creation is blocked, so any spec that asserts unix mode bits (for example the exec bit on a `.git-hooks` file) or creates a symlink must guard the assertion and return early:
