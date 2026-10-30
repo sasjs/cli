@@ -1,3 +1,5 @@
+import path from 'path'
+
 import { Target } from '@sasjs/utils'
 
 import {
@@ -20,6 +22,11 @@ import {
  */
 
 const buildSourceFolder = '/project/sasjsbuild'
+
+// `getAbsolutePath` joins with the platform separator, so an expectation has to
+// be built the same way: a hardcoded '/project/sasjsbuild/sas' is only right on
+// a POSIX runner, and the Windows job runs this suite too.
+const inBuild = (...parts: string[]) => path.join(buildSourceFolder, ...parts)
 
 const sas9CredentialsError = 'SAS9 credentials are required.'
 
@@ -50,9 +57,7 @@ describe('config folder accessors', () => {
     it('resolves the configuration folders against the build source folder', async () => {
       ;(process as any).sasjsConfig = { programFolders: ['sas'] }
 
-      expect(await getProgramFolders(targetWith({}))).toEqual([
-        '/project/sasjsbuild/sas'
-      ])
+      expect(await getProgramFolders(targetWith({}))).toEqual([inBuild('sas')])
     })
 
     it("appends the target's own folders after the configuration ones", async () => {
@@ -60,7 +65,7 @@ describe('config folder accessors', () => {
 
       expect(
         await getProgramFolders(targetWith({ programFolders: ['extra'] }))
-      ).toEqual(['/project/sasjsbuild/sas', '/project/sasjsbuild/extra'])
+      ).toEqual([inBuild('sas'), inBuild('extra')])
     })
 
     it('collapses a folder named in both places', async () => {
@@ -68,7 +73,7 @@ describe('config folder accessors', () => {
 
       expect(
         await getProgramFolders(targetWith({ programFolders: ['sas'] }))
-      ).toEqual(['/project/sasjsbuild/sas'])
+      ).toEqual([inBuild('sas')])
     })
 
     it('leaves an absolute folder path alone', async () => {
@@ -92,7 +97,7 @@ describe('config folder accessors', () => {
         await getBinaryFolders(
           targetWith({ binaryFolders: ['macros/bin', 'bin'] })
         )
-      ).toEqual(['/project/sasjsbuild/bin', '/project/sasjsbuild/macros/bin'])
+      ).toEqual([inBuild('bin'), inBuild('macros', 'bin')])
     })
   })
 
@@ -106,10 +111,7 @@ describe('config folder accessors', () => {
 
       expect(
         await getMacroFolders(targetWith({ macroFolders: ['moremacros'] }))
-      ).toEqual([
-        '/project/sasjsbuild/macros',
-        '/project/sasjsbuild/moremacros'
-      ])
+      ).toEqual([inBuild('macros'), inBuild('moremacros')])
     })
   })
 
