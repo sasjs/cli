@@ -158,8 +158,10 @@ module.exports = {
     // `sasjs create` and `sasjs init` scaffold apps into the working directory
     // while the tests run, and those apps carry spec files of their own: without
     // these, jest walks into them and collects them as part of this suite.
-    'test-app-create-',
-    'test-app-init-'
+    // Anchored on whole path segments so the exclusion cannot widen by accident
+    // to any file whose name merely contains the prefix.
+    '(^|[\\\\/])test-app-create-[^\\\\/]+[\\\\/]',
+    '(^|[\\\\/])test-app-init-[^\\\\/]+[\\\\/]'
   ],
 
   // The regexp pattern or array of patterns that Jest uses to detect test files
