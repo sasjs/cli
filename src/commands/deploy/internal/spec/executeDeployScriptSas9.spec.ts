@@ -140,6 +140,24 @@ describe('executeDeployScriptSas9', () => {
     expect(process.logger?.success).not.toHaveBeenCalled()
   })
 
+  it('should fail the deploy when the runner returns no execution log', async () => {
+    executeScript.mockResolvedValue(undefined)
+
+    await expect(
+      executeDeployScriptSas9(
+        deployScriptName,
+        target,
+        linesToExecute,
+        logFilePath
+      )
+    ).rejects.toThrow('Deployment failed.')
+
+    expect(process.logger?.error).toHaveBeenCalledWith(
+      `Deployment failed: the runner returned no execution log for ${deployScriptName}.`
+    )
+    expect(process.logger?.success).not.toHaveBeenCalled()
+  })
+
   it('should print the web app URL for a streaming target', async () => {
     executeScript.mockResolvedValue('NOTE: Services deployed.')
 

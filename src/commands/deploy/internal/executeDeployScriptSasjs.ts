@@ -39,14 +39,11 @@ export async function executeDeployScriptSasjs(
     .catch((err: any) => {
       const errorString = formatErrorString(err)
       process.logger.error('executeScript Error:', errorString)
+      completedWithError = true
       return errorString
     })
 
-  const logContent = completedWithError
-    ? executionResult.result
-    : executionResult
-
-  await createFile(logFilePath, logContent ?? '')
+  await createFile(logFilePath, executionResult ?? '')
 
   if (completedWithError) {
     process.logger?.error(
