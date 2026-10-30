@@ -172,12 +172,11 @@ jobs:
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-latest
-    # only this job writes: the coverage action creates and updates its comment.
-    # actions: read is for the coverage baseline it downloads from main's run.
+    # only this job writes: the coverage comment on the pull request.
+    # actions: read is for the baseline artifact it downloads.
     permissions:
       contents: read
       actions: read
-      checks: write
       pull-requests: write
       issues: write
     timeout-minutes: 30
@@ -217,72 +216,125 @@ jobs:
           npm pack
           npm install -g ./sasjs-cli-5.0.0.tgz
 
-      # Mocked (*.spec.ts) tests. The coverage action is the reporter for the
-      # suite, so it runs on one node version only - a second run would post a
-      # second comment for the same test suite.
-      - name: Generate coverage report
+      # Mocked (*.spec.ts) tests. Node 22 produces the coverage summary the
+      # ratchet reads; node 24 runs the same suite without coverage, as a
+      # forward-compatibility check on the next LTS.
+      #
+      # The summary comes from jest itself rather than from a coverage-reporting
+      # action. The ArtiomTr action checks the pull request's base branch out
+      # into this workspace, and only switches back when it can name the branch
+      # it started on; a `pull_request` run sits on a detached merge commit, so
+      # the switch back is skipped and every later step of the job sees the base
+      # tree. The ratchet step failed exactly that way with
+      # `Cannot find module .../coverage-ratchet.mjs` (run 41109073336).
+      - name: Run mocked tests with coverage
         if: matrix.node-version == 22
-        # pinned to the commit of v2.0-rc.2, not the tag: this action runs with
-        # checks/pull-requests/issues write, and a mutable pre-release tag would
-        # hand that token to whatever it points at next. (#1511 replaces this
-        # step with the repo's own `npx jest --coverage` and comparison script.)
-        uses: ArtiomTr/jest-coverage-report-action@a96b79242b424a860043dfdcb8769c7199630437
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
+        run: npx jest --config=jest.config.js --silent --runInBand --ci --coverage
 
       - name: Run mocked tests
         if: matrix.node-version != 22
         run: npx jest --config=jest.config.js --silent --runInBand --ci
 
-      - name: Publish the coverage baseline
-        # main's own run is the baseline a pull request is measured against, and
-        # the artifact is a few KB. The ratchet reads it; the committed
-        # coverageThreshold is only the floor for an accepted drop.
-        if: github.event_name == 'push' && matrix.node-version == 22
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-summary
-          path: coverage/coverage-summary.json
-          retention-days: 90
-
-      - name: Find the base branch's coverage baseline
+      - name: Find the coverage baseline
         id: coverage-baseline
-        if: github.event_name == 'pull_request' && matrix.node-version == 22
+        if: matrix.node-version == 22
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # a pull request from a fork, or a repository with no successful run on
-          # main yet, has no baseline - the ratchet then falls back to the
-          # committed floor rather than passing silently
-          run_id=$(gh api             "repos/${GITHUB_REPOSITORY}/actions/workflows/run-tests.yml/runs?branch=main&status=success&per_page=1"             --jq '.workflow_runs[0].id // empty' 2>/dev/null || true)
+          # The artifact published for the commit this pull request is diffed
+          # against - not "the newest run on main", which measures a branch cut
+          # from an older base against a different tree, and freezes as soon as
+          # a run on main fails.
+          #
+          # `gh api` rather than a download action: the artifact list already
+          # carries the commit each artifact was built from, so the match
+          # happens here instead of in a third-party step.
+          published=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=coverage-summary&per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | "\(.workflow_run.head_sha) \(.workflow_run.id)"')
+
+          run_id=$(echo "$published" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
+          source="the base commit ${BASE_SHA}"
+          missing=fail
+
+          if [ -z "$run_id" ]; then
+            # a branch based on another branch (a stacked pull request) has no
+            # artifact of its own until that branch reaches main
+            fallback=$(echo "$published" | head -1 | awk '{ print $2 }')
+            if [ -n "$fallback" ]; then
+              run_id="$fallback"
+              source="the newest published baseline, because no baseline exists for the base commit ${BASE_SHA}"
+              echo "::warning::No coverage baseline was published for the base commit ${BASE_SHA}. Comparing against the newest published baseline instead."
+            fi
+          fi
+
+          if [ -z "$run_id" ] && gh api --include \
+            "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/coverage-baseline.yml?ref=${BASE_SHA}" \
+            2>/dev/null | head -1 | grep -q ' 404'; then
+            # the pull request that introduces the mechanism: its base commit
+            # has no baseline and cannot get one until this lands. The skip
+            # retires itself - once the workflow is on the base branch, the
+            # check above finds it and a missing baseline fails again.
+            missing=skip
+            echo "::warning::The base commit ${BASE_SHA} predates the coverage-baseline workflow, so this pull request has nothing to compare against."
+          fi
+
           echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
+          echo "source=${source}" >> "$GITHUB_OUTPUT"
+          echo "missing=${missing}" >> "$GITHUB_OUTPUT"
 
       - name: Download the coverage baseline
-        # continue-on-error: the newest run of main may predate this workflow
-        # carrying the artifact, and a fork pull request may not be allowed to
-        # read it. The ratchet then falls back to the committed floor and says
-        # so - a missing baseline must not fail the build, and must not pass it
-        # silently either.
-        continue-on-error: true
-        if: >-
-          github.event_name == 'pull_request' && matrix.node-version == 22 &&
-          steps.coverage-baseline.outputs.run-id != ''
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-summary
-          path: coverage-base
-          run-id: ${{ steps.coverage-baseline.outputs.run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        # fails the job when there is nothing to download: a missing baseline is
+        # a broken gate, and the step that notices should be this one rather
+        # than a green tick with a warning buried in the log
+        if: matrix.node-version == 22 && steps.coverage-baseline.outputs.run-id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          gh run download ${{ steps.coverage-baseline.outputs.run-id }}
+          --name coverage-summary
+          --dir coverage-base
 
       - name: Ratchet the coverage
-        # fixes the direction the thresholds could not: a pull request may not
-        # lower any metric below the base branch. See the script's header.
-        if: github.event_name == 'pull_request' && matrix.node-version == 22
+        id: ratchet
+        # continue-on-error so the comment below is posted either way; the
+        # "Fail on a coverage regression" step turns the outcome into the job's
+        # result. See the script's header for why the comparison is the gate.
+        continue-on-error: true
+        if: matrix.node-version == 22
         run: >-
           node .github/scripts/coverage-ratchet.mjs
           --head coverage/coverage-summary.json
           --base coverage-base/coverage-summary.json
+          --markdown coverage-comment.md
+          --missing-baseline ${{ steps.coverage-baseline.outputs.missing }}
+          --note "Compared against ${{ steps.coverage-baseline.outputs.source }}."
+
+      - name: Report the coverage
+        # one comment per pull request, edited in place on each push
+        if: matrix.node-version == 22 && hashFiles('coverage-comment.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          existing=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+            --jq '.[] | select(.body | startswith("<!-- coverage-ratchet -->")) | .id' | head -1)
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" \
+              -f body="$(cat coverage-comment.md)" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$(cat coverage-comment.md)" > /dev/null
+          fi
+
+      - name: Fail on a coverage regression
+        if: matrix.node-version == 22 && steps.ratchet.outcome != 'success'
+        run: |
+          echo "::error::The coverage ratchet did not pass - see the coverage comment."
+          exit 1
 
   server-tests:
     name: server-tests
