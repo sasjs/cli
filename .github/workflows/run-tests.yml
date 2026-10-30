@@ -1,84 +1,160 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+# Continuous integration for @sasjs/cli.
+#
+# The work is split across jobs so a run reports which phase failed and the
+# phases run at the same time instead of one after another: lint, dependency
+# audits, documentation coverage, build plus package smoke test, the mocked jest
+# suite, and the server suite against a locally started @sasjs/server.
+#
+# `test` at the end is a fan-in that carries the name this workflow's single job
+# used to report ("test (22)"), so a required status check on the base branch
+# keeps resolving after the split.
 
 name: Node.js CI
 
 on:
   pull_request:
 
+# a newer commit on the same pull request supersedes the run in flight
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # the versions a pull request validates and the release publishes with have to
+  # be the same npm - see "Update npm" in npmpublish.yml
+  NPM_VERSION: 12.2.0
+  SERVER_VERSION: 3.6.2
+
 jobs:
-  test:
+  lint:
+    name: lint
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
-      issues: write
-
+    timeout-minutes: 10
     strategy:
       matrix:
         node-version: [22]
-
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check code style
+        run: npm run lint
+
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node-version: [22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Update npm
-        # The same pin as the Update npm step in npmpublish.yml, and it is here
-        # for Test Package Install below: that step packs and installs the
-        # tarball a pull request validates, and the release job packs and
-        # publishes it. Both have to use the same npm or the artifact a PR
-        # checks is not the artifact that ships - npm 12 changed the shape of
-        # `npm pack --json`, and in sasjs/adapter that difference appeared in a
-        # release run rather than a pull request. Bump both together.
-        run: npm install -g npm@12.2.0
+        # audit behaviour is npm-version dependent, and the env comment above
+        # says the npm a pull request validates with is the one the release
+        # publishes with, so this job runs the same pin
+        run: npm install -g npm@${{ env.NPM_VERSION }}
+
+      - name: Install production dependencies
+        # The production set resolves and installs on its own here, without the
+        # dev tree. `npm ci` in the other jobs installs it too, so this is about
+        # the shape a consumer gets rather than a second opinion - and note that
+        # npm has no "fail on warning" mode, so install warnings stay warnings.
+        run: npm ci --omit=dev --ignore-scripts
+
 
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
+
+      - name: Install the release toolchain
+        # The audit below reads the lockfile only, so drift between
+        # release/package.json and release/package-lock.json is invisible to it -
+        # the install is the check: it fails when they disagree. Running it here,
+        # before the audit that inspects the locked tree, keeps the two in the
+        # order a reader expects. Same step as sasjs/adapter's
+        # build-unit-tests.yml.
+        run: npm ci --prefix release --ignore-scripts
 
       - name: Audit the release toolchain
         # Its own scope: the toolchain is not shipped, so it must not gate the
         # package, but it runs with publish credentials, so it must not be
         # invisible either. Fails on anything outside the named exemptions in
-        # release/audit.mjs.
+        # release/audit.mjs. Reads the lockfile only, so it needs no install.
         run: node release/audit.mjs
 
-      - name: Install the release toolchain
-        # The audit above reads the lockfile only, so drift between
-        # release/package.json and release/package-lock.json is invisible to
-        # it. This install is what makes that drift fail on a pull request
-        # rather than in the publish run on main. Same step as sasjs/adapter's
-        # build-unit-tests.yml.
-        run: npm ci --prefix release --ignore-scripts
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: [22]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Install production dependencies (fail if any warning)
-        run: |
-          npm ci --omit=dev --ignore-scripts
-      #          sh ./npm-production-install.sh
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
       - name: Install dependencies
-        run: |
-          npm config set registry http://registry.npmjs.org
-          npm ci
+        run: npm ci
 
       - name: Install Compodoc
-        run: npm i -g @compodoc/compodoc
+        # pinned: an unpinned install changes what renders the docs, and the
+        # coverage threshold this step enforces, with no commit to review
+        run: npm i -g @compodoc/compodoc@2.0.0
 
       - name: Generate development documentation and test level of documentation coverage
         run: npm run doc
 
-      - name: Check code style
-        run: npm run lint
+  build-and-smoke:
+    name: build-and-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        node-version: [22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Update npm
+        run: npm install -g npm@${{ env.NPM_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build Project
         run: npm run build
 
       - name: Test Package Install
+        # packs and installs the tarball a pull request validates; the release
+        # job packs and publishes the same one
         run: |
           npm version "5.0.0" --no-git-tag-version
           npm pack
@@ -88,18 +164,112 @@ jobs:
       - name: Run smoke tests
         run: sh ./test.sh
 
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    # only this job writes: the coverage action creates and updates its comment
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      issues: write
+    timeout-minutes: 30
+    strategy:
+      # the floor the package declares (engines >=22) and the next LTS, so a
+      # forward-compatibility break shows up here rather than for a user
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Update npm
+        run: npm install -g npm@${{ env.NPM_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Doxygen
         run: sudo apt-get install -y doxygen
 
-      # Mocked (*.spec.ts) tests will be conducted during this step
+      - name: Build Project
+        run: npm run build
+
+      - name: Test Package Install
+        # Not decoration: src/commands/version/spec/version.spec.ts runs
+        # `npm list -g @sasjs/cli` and parses the result, so the suite fails
+        # without the CLI installed globally. The tarball packed here is the one
+        # a user installs.
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
+
+      # Mocked (*.spec.ts) tests. The coverage action is the reporter for the
+      # suite, so it runs on one node version only - a second run would post a
+      # second comment for the same test suite.
       - name: Generate coverage report
-        uses: artiomtr/jest-coverage-report-action@v2.0-rc.2
+        if: matrix.node-version == 22
+        # pinned to the commit of v2.0-rc.2, not the tag: this action runs with
+        # checks/pull-requests/issues write, and a mutable pre-release tag would
+        # hand that token to whatever it points at next. (#1511 replaces this
+        # step with the repo's own `npx jest --coverage` and comparison script.)
+        uses: ArtiomTr/jest-coverage-report-action@a96b79242b424a860043dfdcb8769c7199630437
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-script: npx jest --config=jest.config.js --silent --runInBand --ci --coverage --testLocationInResults --json --outputFile="report.json"
 
+      - name: Run mocked tests
+        if: matrix.node-version != 22
+        run: npx jest --config=jest.config.js --silent --runInBand --ci
+
+  server-tests:
+    name: server-tests
+    runs-on: ubuntu-latest
+    # the suite starts a server and deploys to it; a hung start must fail here
+    # rather than hold a runner for the 360-minute default
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Update npm
+        run: npm install -g npm@${{ env.NPM_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Test Package Install
+        # `sasjs cbd` below runs the packed CLI, so it is installed globally
+        run: |
+          npm version "5.0.0" --no-git-tag-version
+          npm pack
+          npm install -g ./sasjs-cli-5.0.0.tgz
+
       - name: Install PM2
-        run: npm i -g pm2
+        # pinned: a pm2 major changes `pm2 start` semantics and the process
+        # listing the wait step greps, and an unpinned global install would land
+        # that change on a pull request with no commit to review
+        run: npm i -g pm2@7.1.1
 
       - name: Create .env file for sasjs/server
         run: |
@@ -115,7 +285,7 @@ jobs:
         # suite tests the server named here instead of whatever the latest
         # release happens to be. Bump the pin deliberately when moving the
         # tested version, which is also when a server regression should show up.
-        run: pm2 start npx --name sasjs-server -- --yes @sasjs/server@3.6.2
+        run: pm2 start npx --name sasjs-server -- --yes @sasjs/server@${{ env.SERVER_VERSION }}
 
       - name: Wait for sasjs server to be ready
         run: |
@@ -151,3 +321,35 @@ jobs:
           SASJS_SERVER_URL: http://localhost:5000
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           REFRESH_TOKEN: ${{ secrets.REFRESH_TOKEN }}
+
+  test:
+    # Fan-in: the check this workflow reported before the split was "test (22)",
+    # and a required status check that never resolves blocks every pull request.
+    # It starts only once every job above has finished, and fails if any of them
+    # did not succeed - a skipped job does not count as a pass.
+    name: test
+    needs: [lint, audit, docs, build-and-smoke, unit-tests, server-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        node-version: [22]
+    steps:
+      - name: Check every job succeeded
+        run: |
+          failed=0
+          for result in \
+            "lint=${{ needs.lint.result }}" \
+            "audit=${{ needs.audit.result }}" \
+            "docs=${{ needs.docs.result }}" \
+            "build-and-smoke=${{ needs.build-and-smoke.result }}" \
+            "unit-tests=${{ needs.unit-tests.result }}" \
+            "server-tests=${{ needs.server-tests.result }}"; do
+            echo "$result"
+            case "$result" in
+              *=success) ;;
+              *) failed=1 ;;
+            esac
+          done
+          exit $failed
