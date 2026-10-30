@@ -115,7 +115,7 @@ jobs:
         # suite tests the server named here instead of whatever the latest
         # release happens to be. Bump the pin deliberately when moving the
         # tested version, which is also when a server regression should show up.
-        run: pm2 start npx --name sasjs-server -- --yes @sasjs/server@3.6.1
+        run: pm2 start npx --name sasjs-server -- --yes @sasjs/server@3.6.2
 
       - name: Wait for sasjs server to be ready
         run: |
