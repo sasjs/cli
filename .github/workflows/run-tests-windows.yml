@@ -7,20 +7,19 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # Named `windows`, not `test`: the Linux workflow's fan-in job reports
+  # "test (22)", and until this was renamed both jobs produced a check run with
+  # that name on every pull request.
+  windows:
     runs-on: windows-latest
-
-    strategy:
-      matrix:
-        node-version: [22]
 
     steps:
       - uses: actions/checkout@v2
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: npm
 
       - name: Update npm
