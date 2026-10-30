@@ -1,5 +1,4 @@
 import { getSASjsAndAuthConfig } from '../../../utils/config'
-import { displaySasjsRunnerError } from '../../../utils/utils'
 import {
   createFile,
   Target,
@@ -42,7 +41,11 @@ export async function executeDeployScriptSas9(
     })
 
   if (!executionResult) {
-    return process.logger?.error('Error getting execution log')
+    process.logger?.error(
+      `Deployment failed: the runner returned no execution log for ${deployScriptName}.`
+    )
+
+    throw new Error(`Deployment failed.`)
   }
 
   const logContent = completedWithError
