@@ -110,14 +110,12 @@ jobs:
           # wait step below polls port 5000.
           echo "HTTP_PORT=5000" >> .env
 
-      - name: Download sasjs/server package
-        run: curl -L https://github.com/sasjs/server/releases/latest/download/linux.zip -o linux.zip
-
-      - name: Unzip downloaded package
-        run: unzip linux.zip
-
       - name: Run sasjs server
-        run: pm2 start api-linux
+        # npm channel rather than the release zip: one pinned version, so the
+        # suite tests the server named here instead of whatever the latest
+        # release happens to be. Bump the pin deliberately when moving the
+        # tested version, which is also when a server regression should show up.
+        run: pm2 start npx --name sasjs-server -- --yes @sasjs/server@3.6.2
 
       - name: Wait for sasjs server to be ready
         run: |
@@ -130,7 +128,7 @@ jobs:
             sleep 5
           done
           echo "sasjs server failed to start"
-          pm2 logs api-linux --nostream --lines 50
+          pm2 logs sasjs-server --nostream --lines 50
           exit 1
 
       - name: Deploy SAS9 tests
