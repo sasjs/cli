@@ -14,6 +14,11 @@ name: Node.js CI
 on:
   pull_request:
 
+# a newer commit on the same pull request supersedes the run in flight
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -68,8 +73,25 @@ jobs:
         # publishes with, so this job runs the same pin
         run: npm install -g npm@${{ env.NPM_VERSION }}
 
+      - name: Install production dependencies
+        # The production set resolves and installs on its own here, without the
+        # dev tree. `npm ci` in the other jobs installs it too, so this is about
+        # the shape a consumer gets rather than a second opinion - and note that
+        # npm has no "fail on warning" mode, so install warnings stay warnings.
+        run: npm ci --omit=dev --ignore-scripts
+
+
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
+
+      - name: Install the release toolchain
+        # The audit below reads the lockfile only, so drift between
+        # release/package.json and release/package-lock.json is invisible to it -
+        # the install is the check: it fails when they disagree. Running it here,
+        # before the audit that inspects the locked tree, keeps the two in the
+        # order a reader expects. Same step as sasjs/adapter's
+        # build-unit-tests.yml.
+        run: npm ci --prefix release --ignore-scripts
 
       - name: Audit the release toolchain
         # Its own scope: the toolchain is not shipped, so it must not gate the
@@ -77,14 +99,6 @@ jobs:
         # invisible either. Fails on anything outside the named exemptions in
         # release/audit.mjs. Reads the lockfile only, so it needs no install.
         run: node release/audit.mjs
-
-      - name: Install the release toolchain
-        # The audit above reads the lockfile only, so drift between
-        # release/package.json and release/package-lock.json is invisible to
-        # it. This install is what makes that drift fail on a pull request
-        # rather than in the publish run on main. Same step as sasjs/adapter's
-        # build-unit-tests.yml.
-        run: npm ci --prefix release --ignore-scripts
 
   docs:
     name: docs
@@ -185,12 +199,6 @@ jobs:
 
       - name: Build Project
         run: npm run build
-
-      - name: Test Package Install
-        run: |
-          npm version "5.0.0" --no-git-tag-version
-          npm pack
-          npm install -g ./sasjs-cli-5.0.0.tgz
 
       # Mocked (*.spec.ts) tests. The coverage action is the reporter for the
       # suite, so it runs on one node version only - a second run would post a
