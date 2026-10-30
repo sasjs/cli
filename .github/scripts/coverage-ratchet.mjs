@@ -14,7 +14,9 @@
  * - the `coverage-baseline` workflow publishes `coverage/coverage-summary.json`
  *   as a workflow artifact on every push to `main`;
  * - a pull request compares its own summary with the one published for its base
- *   commit, and any metric more than `--tolerance` below it fails the job;
+ *   commit - or, when that commit has none, for the newest commit the base
+ *   commit descends from, named in the comment - and any metric more than
+ *   `--tolerance` below it fails the job;
  * - an improvement passes and is reported, so the effective bar tracks the
  *   repository without a commit;
  * - no baseline is a failure, not a pass. A gate that silently degrades to the

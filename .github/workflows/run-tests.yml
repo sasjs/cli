@@ -242,42 +242,65 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # The artifact published for the commit this pull request is diffed
-          # against - not "the newest run on main", which measures a branch cut
-          # from an older base against a different tree, and freezes as soon as
-          # a run on main fails.
+          # The baseline this pull request is measured against, chosen in this
+          # order and never by "whatever is newest":
           #
-          # `gh api` rather than a download action: the artifact list already
-          # carries the commit each artifact was built from, so the match
-          # happens here instead of in a third-party step.
-          published=$(gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=coverage-summary&per_page=100" \
-            --jq '.artifacts[] | select(.expired == false) | "\(.workflow_run.head_sha) \(.workflow_run.id)"')
+          # 1. the run for the base commit itself - the tree the pull request is
+          #    diffed against;
+          # 2. a run for a commit the base commit descends from, when the base
+          #    commit has none (a stacked pull request, or a baseline run that
+          #    has not finished yet). An ancestor is a tree this pull request
+          #    extends, so the comparison cannot invent a pass out of someone
+          #    else's later work, and the note in the comment names the commit;
+          # 3. nothing - the job fails.
+          #
+          # Listed by workflow, not by artifact name: an unrelated workflow that
+          # one day uploads a `coverage-summary` artifact is not a candidate.
+          # `|| true`: this endpoint 404s until the workflow exists on the
+          # default branch, which is exactly the state of the pull request that
+          # introduces it - an empty list is handled below, a failed step is not.
+          runs=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/coverage-baseline.yml/runs?per_page=100" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | "\(.head_sha) \(.id)"' \
+            2>/dev/null || true)
 
-          run_id=$(echo "$published" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
-          source="the base commit ${BASE_SHA}"
+          run_id=$(echo "$runs" | awk -v sha="$BASE_SHA" '$1 == sha { print $2 }' | head -1)
+          source="the baseline published for the base commit ${BASE_SHA}"
           missing=fail
 
           if [ -z "$run_id" ]; then
-            # a branch based on another branch (a stacked pull request) has no
-            # artifact of its own until that branch reaches main
-            fallback=$(echo "$published" | head -1 | awk '{ print $2 }')
-            if [ -n "$fallback" ]; then
-              run_id="$fallback"
-              source="the newest published baseline, because no baseline exists for the base commit ${BASE_SHA}"
-              echo "::warning::No coverage baseline was published for the base commit ${BASE_SHA}. Comparing against the newest published baseline instead."
-            fi
+            for candidate in $(echo "$runs" | awk 'NR <= 10 { print $1 }'); do
+              # "ahead" means the base commit is ahead of the candidate, so the
+              # candidate is an ancestor; "identical" is the same commit
+              status=$(gh api \
+                "repos/${GITHUB_REPOSITORY}/compare/${candidate}...${BASE_SHA}" \
+                --jq '.status' 2>/dev/null || true)
+              if [ "$status" = "ahead" ] || [ "$status" = "identical" ]; then
+                run_id=$(echo "$runs" | awk -v sha="$candidate" '$1 == sha { print $2 }' | head -1)
+                source="the baseline published for ${candidate}, the newest commit the base commit ${BASE_SHA} descends from"
+                echo "::warning::No baseline was published for the base commit ${BASE_SHA}. Comparing against ${candidate}, which the base commit descends from."
+                break
+              fi
+            done
           fi
 
-          if [ -z "$run_id" ] && gh api --include \
-            "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/coverage-baseline.yml?ref=${BASE_SHA}" \
-            2>/dev/null | head -1 | grep -q ' 404'; then
-            # the pull request that introduces the mechanism: its base commit
-            # has no baseline and cannot get one until this lands. The skip
-            # retires itself - once the workflow is on the base branch, the
-            # check above finds it and a missing baseline fails again.
-            missing=skip
-            echo "::warning::The base commit ${BASE_SHA} predates the coverage-baseline workflow, so this pull request has nothing to compare against."
+          if [ -z "$run_id" ]; then
+            # The pull request that introduces the mechanism has a base commit
+            # with no baseline, and cannot get one until this lands. Proven by
+            # the workflow file being absent at that commit, and by reading the
+            # HTTP status rather than a pipeline's exit code - `gh api` fails on
+            # a 404, so a shell that ran with `pipefail` would invert an exit-code
+            # test here. The skip retires itself: once the workflow is on the
+            # base branch the file is found and a missing baseline fails again.
+            probe=$(gh api --include \
+              "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/coverage-baseline.yml?ref=${BASE_SHA}" \
+              2>/dev/null || true)
+            status=$(printf '%s\n' "$probe" | awk 'NR == 1 { print $2 }')
+
+            if [ "$status" = "404" ]; then
+              missing=skip
+              echo "::warning::The base commit ${BASE_SHA} predates the coverage-baseline workflow, so this pull request has nothing to compare against."
+            fi
           fi
 
           echo "run-id=${run_id}" >> "$GITHUB_OUTPUT"
