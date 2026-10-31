@@ -26,6 +26,24 @@ describe('TestCommand', () => {
     expect(command.subCommand).toEqual('')
   })
 
+  it('should parse the t shorthand', () => {
+    const args = [...defaultArgs, 't']
+
+    const command = new TestCommand(args)
+
+    expect(command.name).toEqual('test')
+    expect(command.subCommand).toEqual('')
+  })
+
+  it('should accept filtering strings after the t shorthand', () => {
+    const args = [...defaultArgs, 't', 'pattern-1', '-t', 'testTarget']
+
+    const command = new TestCommand(args)
+
+    expect(command.name).toEqual('test')
+    expect((command as any).parsed.filteringString).toEqual(['pattern-1'])
+  })
+
   it('should parse a sasjs test command with all arguments', async () => {
     const args = [
       ...defaultArgs,

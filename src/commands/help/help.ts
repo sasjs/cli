@@ -105,6 +105,17 @@ export async function printHelpText() {
       ]
     },
     {
+      name: 'builddeploy',
+      title: 'builddeploy <targetName>',
+      description: [
+        `builds the project and deploys the result to the target's server.`,
+        `Unlike ${chalk.greenBright(
+          'compilebuilddeploy'
+        )} it does not recompile first - it ships the compiled services already in the build folder, and compiles only when that folder is missing.`,
+        `Use ${chalk.cyanBright('sasjs bd')} as a shorthand.`
+      ]
+    },
+    {
       name: 'compilebuild',
       title: 'compilebuild <targetName>',
       description: [
@@ -389,6 +400,7 @@ export async function printHelpText() {
 
   const aliases = [
     { name: 'build', aliases: ['b'] },
+    { name: 'builddeploy', aliases: ['bd'] },
     { name: 'compile', aliases: ['c'] },
     { name: 'compilebuild', aliases: ['cb'] },
     { name: 'compilebuilddeploy', aliases: ['cbd'] },
@@ -398,6 +410,7 @@ export async function printHelpText() {
     { name: 'help', aliases: ['h'] },
     { name: 'request', aliases: ['rq'] },
     { name: 'run', aliases: ['r'] },
+    { name: 'test', aliases: ['t'] },
     { name: 'version', aliases: ['v', '-v', '--version'] },
     { name: 'web', aliases: ['w'] }
   ]

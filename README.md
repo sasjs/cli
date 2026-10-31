@@ -16,6 +16,7 @@
 
 - Scaffold a new SAS App in seconds (`sasjs create myApp -t jobs`)
 - Compile / Build SAS Jobs, Services & Macros _locally_ and deploy / execute _remotely_, in isolation from other developers (`sasjs cbd`)
+- Build and deploy without recompiling - for when the services on disk are already the ones you want to ship (`sasjs bd`)
 - Compile a single Job, Service or Test without touching the rest of the build (`sasjs compile identify --source sasjs/jobs/daily/load.sas`)
 - Write the test coverage report to `sasjsbuild/coverage.json` on every compile, ready for a CI job to publish
 - No dependency on the server filesystem
