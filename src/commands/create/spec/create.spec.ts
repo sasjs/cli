@@ -23,7 +23,6 @@ describe('sasjs create', () => {
   })
 
   beforeEach(() => {
-    npmCommands.length = 0
     stubNpm()
   })
 
@@ -151,6 +150,11 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
 
   await verifyFolder(fileStructure)
   await verifyPackageJsonContent(appName)
+
+  // A seed app carries its dependencies in the template's package.json, so the
+  // command create issues for it is a plain install - the same trade as above:
+  // the stub writes what npm would, and this asserts the CLI asked for it.
+  expect(npmCommands).toContain('npm install')
 }
 
 const verifyCreate = async (parentFolderName: string, appType: string) => {
