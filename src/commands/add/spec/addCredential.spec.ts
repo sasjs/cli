@@ -46,6 +46,68 @@ describe('addCredential', () => {
   })
 })
 
+describe('addCredential - insecure connections', () => {
+  const viyaTarget = () =>
+    new Target({
+      name: 'test-insecure',
+      serverUrl: 'https://sas.example.com',
+      serverType: ServerType.SasViya,
+      appLoc: '/test',
+      contextName
+    })
+
+  beforeEach(() => {
+    process.projectDir = '.'
+    setupMocks()
+  })
+
+  afterEach(async () => {
+    jest.restoreAllMocks()
+    await fileUtils.deleteFile(path.join('.', '.env.test-insecure'))
+  })
+
+  it('uses an insecure agent for the token request when insecure is true', async () => {
+    const getSASjsSpy = jest.spyOn(configUtils, 'getSASjs')
+
+    await addCredential(viyaTarget(), true, TargetScope.Local)
+
+    expect(getSASjsSpy).toHaveBeenCalled()
+
+    const requestTarget = getSASjsSpy.mock.calls[0][0] as Target
+
+    expect(requestTarget.httpsAgentOptions).toEqual(
+      expect.objectContaining({
+        allowInsecureRequests: true,
+        rejectUnauthorized: false
+      })
+    )
+  })
+
+  it('does not write the insecure options to the saved target', async () => {
+    jest.spyOn(configUtils, 'getSASjs')
+
+    await addCredential(viyaTarget(), true, TargetScope.Local)
+
+    const saveSpy = configUtils.saveToLocalConfig as jest.Mock
+
+    expect(saveSpy).toHaveBeenCalled()
+
+    for (const call of saveSpy.mock.calls) {
+      expect((call[0] as Target).httpsAgentOptions).toBeUndefined()
+    }
+  })
+
+  it('leaves the request target alone when insecure is false', async () => {
+    const getSASjsSpy = jest.spyOn(configUtils, 'getSASjs')
+
+    await addCredential(viyaTarget(), false, TargetScope.Local)
+
+    const requestTarget = getSASjsSpy.mock.calls[0][0] as Target
+
+    expect(requestTarget.httpsAgentOptions).toBeUndefined()
+  })
+})
+
 describe('validateTargetName', () => {
   it('should return the target name if valid', () => {
     const targetName = 'validTarget'

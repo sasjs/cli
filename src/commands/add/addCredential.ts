@@ -3,7 +3,8 @@ import { ServerType, Target, HttpsAgentOptions } from '@sasjs/utils/types'
 import {
   getNewAccessToken,
   isSasJsServerInServerMode,
-  getSASjs
+  getSASjs,
+  targetWithInsecureHttps
 } from '../../utils'
 import { createFile } from '@sasjs/utils'
 import {
@@ -28,14 +29,6 @@ export const addCredential = async (
   insecure: boolean,
   targetScope: TargetScope
 ): Promise<Target> => {
-  const httpsAgentOptions = insecure
-    ? {
-        ...target.httpsAgentOptions,
-        allowInsecureRequests: true,
-        rejectUnauthorized: false
-      }
-    : target.httpsAgentOptions
-
   if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   if (!target.serverUrl) {
@@ -46,13 +39,17 @@ export const addCredential = async (
     process.logger?.info(`Target configuration has been saved to ${filePath} .`)
   }
 
+  // Every request this command makes goes through requestTarget: `--insecure`
+  // applies to them, while the target that is saved below stays clean.
+  const requestTarget = targetWithInsecureHttps(target, insecure)
+
   switch (target.serverType) {
     case ServerType.SasViya:
       {
         const { client, secret } = await getCredentialsInputForViya(target.name)
 
         const { access_token, refresh_token } = await getTokens(
-          target,
+          requestTarget,
           client,
           secret
         ).catch((err) => {
@@ -95,7 +92,7 @@ export const addCredential = async (
       break
     case ServerType.Sasjs:
       {
-        if (!(await isSasJsServerInServerMode(target))) {
+        if (!(await isSasJsServerInServerMode(requestTarget))) {
           process.logger.info(
             'No need to authenticate against the sasjs server running in desktop mode.'
           )
@@ -105,7 +102,7 @@ export const addCredential = async (
         const { client } = await getCredentialsInputSasjs(target)
 
         const { access_token, refresh_token } = await getTokens(
-          target,
+          requestTarget,
           client,
           ''
         )

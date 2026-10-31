@@ -10,7 +10,11 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { TargetScope } from '../../../types/targetScope'
 import { CommonFields } from '../../../types/commonFields'
-import { findTargetInConfiguration, getSASjs } from '../../../utils'
+import {
+  findTargetInConfiguration,
+  getSASjs,
+  targetWithInsecureHttps
+} from '../../../utils'
 
 export async function getCommonFields(): Promise<CommonFields> {
   const scope = await getAndValidateScope()
@@ -197,32 +201,7 @@ export async function getAndValidateSasViyaFields(
   if (await shouldAuthenticate()) {
     target = await authenticateCallback(target, insecure, scope)
 
-    const httpsAgentOptions = insecure
-      ? {
-          ...target.httpsAgentOptions,
-          allowInsecureRequests: true,
-          rejectUnauthorized: false
-        }
-      : target.httpsAgentOptions
-
-    const sasjs = getSASjs(target)
-    let contexts: any[] = []
-    if (scope === TargetScope.Local) {
-      dotenv.config({
-        path: path.join(process.projectDir, `.env.${target.name}`)
-      })
-      contexts = await sasjs.getComputeContexts(
-        process.env.ACCESS_TOKEN as string
-      )
-    } else {
-      if (!target.authConfig || !target.authConfig.access_token) {
-        throw new Error(
-          `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${target.name}\` to authenticate.`
-        )
-      }
-
-      contexts = await sasjs.getComputeContexts(target.authConfig.access_token)
-    }
+    const contexts = await getComputeContexts(target, scope, insecure)
 
     const contextNumberErrorMessage = `Context number must be between 1 and ${contexts.length}`
     const contextNumber = await getChoice(
@@ -257,6 +236,36 @@ export async function getAndValidateSasjsFields(
     target = await authenticateCallback(target, insecure, scope)
 
   return { target }
+}
+
+/**
+ * Lists the compute contexts a target can execute in.
+ *
+ * `insecure` is the user's `--insecure` choice, and it is carried by the
+ * request only: the target that is saved afterwards is the one passed in.
+ */
+export async function getComputeContexts(
+  target: Target,
+  scope: TargetScope,
+  insecure: boolean
+): Promise<any[]> {
+  const sasjs = getSASjs(targetWithInsecureHttps(target, insecure))
+
+  if (scope === TargetScope.Local) {
+    dotenv.config({
+      path: path.join(process.projectDir, `.env.${target.name}`)
+    })
+
+    return sasjs.getComputeContexts(process.env.ACCESS_TOKEN as string)
+  }
+
+  if (!target.authConfig || !target.authConfig.access_token) {
+    throw new Error(
+      `No access token available for target ${target.name}. Please run \`sasjs add cred -t ${target.name}\` to authenticate.`
+    )
+  }
+
+  return sasjs.getComputeContexts(target.authConfig.access_token)
 }
 
 async function getAndValidateAppLoc(
