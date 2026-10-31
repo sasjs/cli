@@ -11,6 +11,11 @@ import {
 import { initFiles } from './initFiles'
 import { init, AlreadyInitialisedError } from '../init'
 import { setConstants } from '../../../utils'
+import {
+  findTargetInConfiguration,
+  getLocalConfig
+} from '../../../utils/config'
+import { compile } from '../../compile/compile'
 
 describe('sasjs init', () => {
   beforeAll(() => {
@@ -53,6 +58,28 @@ describe('sasjs init', () => {
     const packageJson = JSON.parse(await readFile(packageJsonPath))
     expect(packageJson.name).toEqual('my-existing-project')
     expect(packageJson.scripts.build).toEqual('exit 0')
+  })
+
+  it('should produce a project that compiles straight away', async () => {
+    await setupProjectFolder('test-app-init-compile-')
+
+    await expect(init()).toResolve()
+
+    // Reading the target validates its serverUrl, and compile() reads every
+    // folder the config names - the two things that stopped a freshly
+    // initialised project from compiling.
+    // compile() reads process.sasjsConfig and the build folders, which the CLI
+    // sets up from its target command - do the same from a test.
+    process.currentDir = process.projectDir
+    process.sasjsConfig = await getLocalConfig()
+    await setConstants()
+
+    const { target } = await findTargetInConfiguration('mytarget')
+    await expect(compile(target)).toResolve()
+
+    await expect(
+      fileExists(path.join(process.projectDir, 'sasjsbuild'))
+    ).resolves.toEqual(true)
   })
 
   it('should abort without changes when the folder is already a SASjs project', async () => {
@@ -123,9 +150,17 @@ const verifyInit = async () => {
   expect(config.targets[0]).toEqual({
     name: 'mytarget',
     serverType: 'SASJS',
-    serverUrl: ' ',
+    serverUrl: '',
     appLoc: '/Public/apps/myapp'
   })
+
+  // The folder the config points at has to exist, with a file in it so git
+  // keeps it: an absent macro folder fails `sasjs compile` with ENOENT.
+  const macroFolderPath = path.join(process.projectDir, 'sasjs', 'macros')
+  await expect(fileExists(macroFolderPath)).resolves.toEqual(true)
+  await expect(
+    fileExists(path.join(macroFolderPath, '.gitkeep'))
+  ).resolves.toEqual(true)
 
   const lintConfigPath = path.join(process.projectDir, '.sasjslint')
   await expect(fileExists(lintConfigPath)).resolves.toEqual(true)

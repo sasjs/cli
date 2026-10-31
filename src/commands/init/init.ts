@@ -6,7 +6,7 @@ import {
   setupDoxygen
 } from '../../utils/utils'
 
-import { fileExists, createFile } from '@sasjs/utils'
+import { fileExists, createFile, createFolder } from '@sasjs/utils'
 import { createLintConfigFile } from '../shared/createLintConfigFile'
 
 export class AlreadyInitialisedError extends Error {
@@ -43,6 +43,8 @@ export async function init() {
 
   await createConfigFile(parentFolderName)
 
+  await createMacroFolder(parentFolderName)
+
   const lintConfigPath = path.join(
     process.projectDir,
     parentFolderName,
@@ -53,8 +55,32 @@ export async function init() {
 }
 
 /**
+ * Creates the macro folder that the generated `macroFolders` points at.
+ * `sasjs compile` fails with ENOENT when that folder is absent, so an
+ * initialised project compiles before the user has written a macro.
+ * The folder carries a `.gitkeep` because git does not track empty directories -
+ * without it the folder disappears on clone and compilation breaks again.
+ * @param {string} parentFolderName- the name of the project folder.
+ */
+export const createMacroFolder = async (parentFolderName: string) => {
+  const macroFolderPath = path.join(
+    process.projectDir,
+    parentFolderName,
+    'sasjs',
+    'macros'
+  )
+  await createFolder(macroFolderPath)
+
+  const gitKeepPath = path.join(macroFolderPath, '.gitkeep')
+  if (!(await fileExists(gitKeepPath))) await createFile(gitKeepPath, '')
+}
+
+/**
  * Creates a SASjs configuration file.
  * Its name will be of the form 'sasjsconfig.json'
+ * The target's `serverUrl` is empty rather than a placeholder URL: an empty
+ * value reads as "not configured yet", while any non-empty placeholder has to
+ * pass URL validation every time the config is read.
  * @param {string} parentFolderName- the name of the project folder.
  */
 export const createConfigFile = async (parentFolderName: string) => {
@@ -66,7 +92,7 @@ export const createConfigFile = async (parentFolderName: string) => {
       {
         name: 'mytarget',
         serverType: 'SASJS',
-        serverUrl: ' ',
+        serverUrl: '',
         appLoc: '/Public/apps/myapp'
       }
     ]
