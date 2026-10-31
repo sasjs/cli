@@ -17,7 +17,7 @@ import {
   terminateProcess,
   isSasJsServerInServerMode
 } from '../utils'
-import { mockProcessExit, generateUniqueTimestamp } from '../test'
+import { mockProcessExit, generateUniqueTimestamp, stubNpm } from '../test'
 import axios from 'axios'
 import {
   createFile,
@@ -329,6 +329,8 @@ describe('utils', () => {
 
   describe('createReactApp', () => {
     it('should create React app', async () => {
+      stubNpm()
+
       const reactFolder = 'react-seed-app'
 
       const reactFolderPath = path.join(__dirname, reactFolder)
