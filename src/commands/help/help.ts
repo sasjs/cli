@@ -398,7 +398,7 @@ export async function printHelpText() {
     { name: 'help', aliases: ['h'] },
     { name: 'request', aliases: ['rq'] },
     { name: 'run', aliases: ['r'] },
-    { name: 'version', aliases: ['v'] },
+    { name: 'version', aliases: ['v', '-v', '--version'] },
     { name: 'web', aliases: ['w'] }
   ]
 

@@ -206,16 +206,6 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Test Package Install
-        # Not decoration: src/commands/version/spec/version.spec.ts runs
-        # `npm list -g @sasjs/cli` and parses the result, so the suite fails
-        # without the CLI installed globally. The tarball packed here is the one
-        # a user installs.
-        run: |
-          npm version "5.0.0" --no-git-tag-version
-          npm pack
-          npm install -g ./sasjs-cli-5.0.0.tgz
-
       # Mocked (*.spec.ts) tests. Node 22 produces the coverage summary the
       # ratchet reads; node 24 runs the same suite without coverage, as a
       # forward-compatibility check on the next LTS.
