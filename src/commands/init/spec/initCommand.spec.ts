@@ -63,7 +63,7 @@ describe('InitCommand', () => {
 
     const returnCode = await command.execute()
 
-    expect(returnCode).toEqual(ReturnCode.InvalidCommand)
+    expect(returnCode).toEqual(ReturnCode.AlreadyInitialised)
     expect(process.logger.error).toHaveBeenCalledWith(message)
   })
 })

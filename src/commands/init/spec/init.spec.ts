@@ -16,6 +16,7 @@ import {
   getLocalConfig
 } from '../../../utils/config'
 import { compile } from '../../compile/compile'
+import { create } from '../../create/create'
 
 describe('sasjs init', () => {
   beforeAll(() => {
@@ -27,6 +28,10 @@ describe('sasjs init', () => {
     // matches anything on disk, silently leaving every test's real (timestamped)
     // folder behind. Delete the actual folder each test just created instead.
     if (process.projectDir) await deleteFolder(process.projectDir)
+    // The compile spec sets these; leaving them set would hand later specs a
+    // configuration and build folders belonging to a deleted project.
+    process.currentDir = ''
+    process.sasjsConfig = undefined as any
   })
 
   it('should initialise in an empty current folder', async () => {
@@ -80,6 +85,27 @@ describe('sasjs init', () => {
     await expect(
       fileExists(path.join(process.projectDir, 'sasjsbuild'))
     ).resolves.toEqual(true)
+  })
+
+  it('should abort over a project sasjs create has just scaffolded', async () => {
+    await setupProjectFolder('test-app-init-created-')
+
+    await expect(create('.', '')).toResolve()
+
+    // create() writes a fuller config than init does, so running init over it
+    // must not replace that configuration.
+    const configPath = path.join(
+      process.projectDir,
+      'sasjs',
+      'sasjsconfig.json'
+    )
+    const createdConfig = JSON.parse(await readFile(configPath))
+    expect(createdConfig.defaultTarget).not.toEqual('mytarget')
+
+    const error = await init().catch((err) => err)
+    expect(error).toBeInstanceOf(AlreadyInitialisedError)
+
+    expect(JSON.parse(await readFile(configPath))).toEqual(createdConfig)
   })
 
   it('should abort without changes when the folder is already a SASjs project', async () => {

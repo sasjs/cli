@@ -37,7 +37,7 @@ export class InitCommand extends CommandBase {
         // apart from a genuine failure.
         if (err instanceof AlreadyInitialisedError) {
           process.logger?.error(err.message)
-          return ReturnCode.InvalidCommand
+          return ReturnCode.AlreadyInitialised
         }
         process.logger?.error('Error initialising SASjs: ', err)
         return ReturnCode.InternalError
