@@ -4,7 +4,9 @@ import {
   generateUniqueTimestamp,
   verifyFolder,
   verifyPackageJsonContent,
-  verifyGitNotPresent
+  verifyGitNotPresent,
+  stubNpm,
+  npmCommands
 } from '../../../utils/test'
 import { createFolder, deleteFolder } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
@@ -14,8 +16,6 @@ import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
-import * as shell from '../../../utils/shell'
-import { ChildProcess } from 'child_process'
 
 describe('sasjs create', () => {
   beforeAll(() => {
@@ -23,18 +23,7 @@ describe('sasjs create', () => {
   })
 
   beforeEach(() => {
-    const exec = shell.exec
-
-    jest.spyOn(shell, 'exec').mockImplementation((command: string) => {
-      if (!command.includes('npm install')) {
-        return exec(command, {
-          silent: true
-        })
-      }
-
-      // The real install is skipped; the caller ignores the result.
-      return { stdout: '', stderr: '', code: 0 }
-    })
+    stubNpm()
   })
 
   afterEach(async () => {
@@ -55,6 +44,10 @@ describe('sasjs create', () => {
     await expect(create('.', '')).toResolve()
 
     await verifyCreate('.', '')
+
+    // verifyCreate's package.json assertion is only meaningful if create asked
+    // npm to add the dependency - the stub writes what that command writes.
+    expect(npmCommands).toContain('npm i @sasjs/core --save')
   })
 
   it(`should set up a 'sasonly' app in the current folder`, async () => {
@@ -157,6 +150,11 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
 
   await verifyFolder(fileStructure)
   await verifyPackageJsonContent(appName)
+
+  // A seed app carries its dependencies in the template's package.json, so the
+  // command create issues for it is a plain install - the same trade as above:
+  // the stub writes what npm would, and this asserts the CLI asked for it.
+  expect(npmCommands).toContain('npm install')
 }
 
 const verifyCreate = async (parentFolderName: string, appType: string) => {

@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import dotenv from 'dotenv'
 import {
@@ -38,6 +39,7 @@ import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
+import * as shell from './shell'
 
 /**
  * A name for a test app or output folder that two specs cannot collide on.
@@ -53,7 +55,169 @@ export const generateUniqueTimestamp = () =>
     .toString(36)
     .slice(2, 7)}`
 
+/**
+ * Every npm command the stub has answered since it was last installed, in order
+ * - so a spec can assert the command the CLI issued, not only the package.json
+ * it left behind. `stubNpm` empties it, so one test sees only its own commands.
+ */
+export const npmCommands: string[] = []
+
+/** The marker this helper puts on the mock it installs. */
+const stubMarker = Symbol('stubNpm')
+
+/**
+ * Answers the npm commands `create` and `init` issue, and runs everything else
+ * for real.
+ *
+ * Scaffolding an app shells out to npm three ways: `npm init` (about 0.6s), an
+ * install of @sasjs/core (about 1.3s) and, for a seed app, that app's whole
+ * dependency tree (about 3s for minimal, 27s for react). Every spec that
+ * creates an app pays all of it, again and again, and every one of those calls
+ * needs the registry to answer - so the "mocked" suite is neither fast nor
+ * offline.
+ *
+ * None of it is the CLI's own behaviour. The CLI owns the command it issues and
+ * the package.json a project is left with, so the stub answers those three
+ * commands with exactly that effect and records them in `npmCommands`; every
+ * other command - the template downloads, compiles, builds and docs - still runs
+ * for real.
+ *
+ * Call it where the app is created: from `beforeEach`, or from a helper that
+ * runs there. Jest restores spies before each test, so a stub installed in
+ * `beforeAll` is gone before the first test body runs - and because `npmCommands`
+ * is emptied on installation, a spec asserting on it must install the stub in
+ * the same test that creates the app.
+ */
+export const stubNpm = () => {
+  // Re-install when jest has restored the previous stub: the marker goes with the
+  // mock, so its absence is what tells a restored stub from a live one. The
+  // marker also distinguishes this stub from a spy a spec installed for its own
+  // reasons - a bare `isMockFunction` check cannot, and would leave the npm calls
+  // running for real.
+  if ((shell.exec as { [stubMarker]?: boolean })[stubMarker]) return
+
+  npmCommands.length = 0
+
+  const realExec = shell.exec
+
+  const stub = jest
+    .spyOn(shell, 'exec')
+    .mockImplementation((command: string, options: shell.ExecOptions = {}) => {
+      const call = npmCall(command)
+
+      if (!call) return realExec(command, options)
+
+      npmCommands.push(call.command)
+      call.run()
+
+      return { stdout: '', stderr: '', code: 0 }
+    })
+
+  ;(stub as { [stubMarker]?: boolean })[stubMarker] = true
+}
+
+/**
+ * Parses one of the CLI's shell commands into the npm call it stands for, or
+ * null when it is a command that must really run.
+ */
+const npmCall = (
+  command: string
+): { command: string; run: () => void } | null => {
+  // Every npm command is issued as `cd "<folder>" && npm ...`.
+  const parsed = /^cd "([^"]+)" && (npm .*)$/.exec(command)
+
+  if (!parsed) return null
+
+  const [, folder, npm] = parsed
+
+  if (/^npm init\b/.test(npm))
+    return { command: npm, run: () => writePackageJson(folder) }
+
+  if (/^npm i(nstall)? @sasjs\/core\b/.test(npm))
+    return { command: npm, run: () => addCoreDependency(folder) }
+
+  // A seed app's own tree. The template's package.json already declares it and
+  // no spec reads node_modules, so there is nothing here to install.
+  if (/^npm install$/.test(npm)) return { command: npm, run: () => {} }
+
+  // An npm command this stub does not answer would go to the registry and cost
+  // seconds per call, with nothing here to show for it - so say so instead of
+  // quietly running it. A new npm call in the CLI means teaching this stub.
+  throw new Error(
+    `stubNpm does not know how to answer the npm command: ${command}`
+  )
+}
+
+/** The package.json `npm init --yes` writes into an otherwise empty folder. */
+const writePackageJson = (folder: string) => {
+  const filePath = path.join(folder, 'package.json')
+
+  if (fs.existsSync(filePath)) return
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(
+      {
+        name: path.basename(folder),
+        version: '1.0.0',
+        description: '',
+        main: 'index.js',
+        scripts: { test: 'echo "Error: no test specified" && exit 1' },
+        keywords: [],
+        author: '',
+        license: 'ISC'
+      },
+      null,
+      2
+    )
+  )
+}
+
+/** What `npm i @sasjs/core --save` does to package.json and the lockfile. */
+const addCoreDependency = (folder: string) => {
+  const filePath = path.join(folder, 'package.json')
+  const packageJson = fs.existsSync(filePath)
+    ? JSON.parse(fs.readFileSync(filePath, 'utf8'))
+    : {}
+
+  packageJson.dependencies = {
+    ...(packageJson.dependencies || {}),
+    // The range the CLI itself declares. Any range satisfies the specs, and
+    // reading it here means the stub cannot drift from the package it tests.
+    '@sasjs/core': cliPackageJson().dependencies['@sasjs/core']
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(packageJson, null, 2))
+
+  // An install leaves a lockfile behind, and specs assert on its presence.
+  fs.writeFileSync(
+    path.join(folder, 'package-lock.json'),
+    JSON.stringify(
+      {
+        name: packageJson.name,
+        version: packageJson.version,
+        lockfileVersion: 3,
+        packages: {
+          '': {
+            name: packageJson.name,
+            version: packageJson.version,
+            dependencies: packageJson.dependencies
+          }
+        }
+      },
+      null,
+      2
+    )
+  )
+}
+
+const cliPackageJson = () =>
+  JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')
+  )
+
 export const createTestApp = async (parentFolder: string, appName: string) => {
+  stubNpm()
   process.projectDir = parentFolder
   await create(appName, '')
   process.projectDir = path.join(parentFolder, appName)
@@ -66,6 +230,7 @@ export const createTestJobsApp = async (
   parentFolder: string,
   appName: string
 ) => {
+  stubNpm()
   process.projectDir = parentFolder
   await create(appName, 'jobs')
   process.projectDir = path.join(parentFolder, appName)
@@ -79,6 +244,7 @@ export const createTestMinimalApp = async (
   parentFolder: string,
   appName: string
 ) => {
+  stubNpm()
   process.projectDir = parentFolder
   await create(appName, 'minimal')
   process.projectDir = path.join(parentFolder, appName)
