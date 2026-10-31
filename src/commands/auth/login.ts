@@ -4,7 +4,8 @@ import {
   fetchLoggedInUser,
   getTokensWithPasswordGrant,
   getTokensWithSasjsLogin,
-  saveTokens
+  saveTokens,
+  targetWithInsecureHttps
 } from '../../utils'
 
 /**
@@ -81,17 +82,9 @@ export const authLogin = async (
     )
   }
 
-  if (insecure) {
-    target = new Target({
-      ...target.toJson(false),
-      httpsAgentOptions: {
-        ...target.httpsAgentOptions,
-        allowInsecureRequests: true,
-        rejectUnauthorized: false
-      }
-    })
-    process.logger?.warn('Executing with insecure connection.')
-  }
+  target = targetWithInsecureHttps(target, insecure)
+
+  if (insecure) process.logger?.warn('Executing with insecure connection.')
 
   const isTty = !!process.stdin.isTTY
   const envUser = process.env.SAS_USERNAME
