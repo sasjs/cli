@@ -1,7 +1,16 @@
-import { Logger, LogLevel } from '@sasjs/utils/logger'
+import { Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import { ReturnCode } from '../../../types/command'
 import * as dbModule from '../db'
 import { DbCommand } from '../dbCommand'
+import * as configUtils from '../../../utils/config'
+import * as setConstantsUtils from '../../../utils/setConstants'
+
+const target = new Target({
+  name: 'test-target',
+  serverUrl: 'https://sas.example.com',
+  serverType: ServerType.SasViya,
+  appLoc: '/Public/app'
+})
 
 describe('DbCommand', () => {
   const defaultArgs = ['node', 'sasjs']
@@ -29,6 +38,25 @@ describe('DbCommand', () => {
     expect(process.logger.success).toHaveBeenCalledWith('DB build completed!')
   })
 
+  it('should resolve the target - and so set the constants - before building', async () => {
+    // buildDB reads buildSourceDbFolder / buildDestinationDbFolder from
+    // process.sasjsConstants, which only getTargetInfo sets.
+    const calls: string[] = []
+
+    ;(setConstantsUtils.setConstants as jest.Mock).mockImplementation(
+      async () => {
+        calls.push('setConstants')
+      }
+    )
+    jest.spyOn(dbModule, 'buildDB').mockImplementation(async () => {
+      calls.push('buildDB')
+    })
+
+    await new DbCommand([...defaultArgs, 'db']).execute()
+
+    expect(calls).toEqual(['setConstants', 'buildDB'])
+  })
+
   it('should return an error code when the execution errors out', async () => {
     const args = [...defaultArgs, 'db']
     jest
@@ -50,6 +78,18 @@ const setupMocks = () => {
   jest.resetAllMocks()
   jest.mock('../db')
   jest.spyOn(dbModule, 'buildDB').mockImplementation(() => Promise.resolve())
+
+  jest
+    .spyOn(configUtils, 'findTargetInConfiguration')
+    .mockImplementation(() => Promise.resolve({ target, isLocal: true }))
+
+  jest
+    .spyOn(configUtils, 'getLocalConfig')
+    .mockImplementation(() => Promise.resolve({} as any))
+
+  jest
+    .spyOn(setConstantsUtils, 'setConstants')
+    .mockImplementation(() => Promise.resolve())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'success')

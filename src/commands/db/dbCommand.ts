@@ -1,6 +1,6 @@
 import { buildDB } from './db'
 import { CommandExample, ReturnCode } from '../../types/command'
-import { CommandBase } from '../../types'
+import { TargetCommand } from '../../types/command/targetCommand'
 
 const syntax = 'db'
 const aliases = ['build-DB', 'build-db']
@@ -14,7 +14,7 @@ const examples: CommandExample[] = [
   }
 ]
 
-export class DbCommand extends CommandBase {
+export class DbCommand extends TargetCommand {
   constructor(args: string[]) {
     super(args, {
       syntax,
@@ -26,6 +26,10 @@ export class DbCommand extends CommandBase {
   }
 
   public async execute() {
+    // Resolving the target is what sets process.sasjsConstants - buildDB reads
+    // the source and destination db folders from there.
+    await this.getTargetInfo()
+
     return await buildDB()
       .then(() => {
         process.logger?.success('DB build completed!')
