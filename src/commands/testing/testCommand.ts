@@ -7,6 +7,7 @@ const syntax = 'test [filteringString..]'
 const usage =
   'Usage: sasjs test [filtering-strings..] --source <test-flow-path> --outDirectory <folder-path> --target <target-name> --force'
 const description = 'Triggers SAS unit tests.'
+const aliases = ['t']
 const examples: CommandExample[] = [
   {
     command:
@@ -45,7 +46,8 @@ export class TestCommand extends TargetCommand {
       syntax,
       usage,
       description,
-      examples
+      examples,
+      aliases
     })
   }
 

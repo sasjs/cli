@@ -1,5 +1,6 @@
 export const aliasMap = new Map<string, string[]>([
   ['build', ['b']],
+  ['builddeploy', ['bd']],
   ['compile', ['c']],
   ['compilebuild', ['cb']],
   ['compilebuilddeploy', ['cbd']],
@@ -9,6 +10,7 @@ export const aliasMap = new Map<string, string[]>([
   ['help', ['h']],
   ['request', ['rq']],
   ['run', ['r']],
+  ['test', ['t']],
   ['version', ['v', '-v', '--version']],
   ['web', ['w']]
 ])

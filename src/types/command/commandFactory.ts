@@ -1,6 +1,7 @@
 import { AddCommand } from '../../commands/add/addCommand'
 import { AuthCommand } from '../../commands/auth/authCommand'
 import { BuildCommand } from '../../commands/build/buildCommand'
+import { BuildDeployCommand } from '../../commands/build/buildDeployCommand'
 import { CompileBuildCommand } from '../../commands/build/compileBuildCommand'
 import { CompileCommand } from '../../commands/compile/compileCommand'
 import { ContextCommand } from '../../commands/context/contextCommand'
@@ -28,6 +29,7 @@ export const commandFactory = new Map<string, Function>([
   ['add', (args: string[]) => new AddCommand(args)],
   ['auth', (args: string[]) => new AuthCommand(args)],
   ['build', (args: string[]) => new BuildCommand(args)],
+  ['builddeploy', (args: string[]) => new BuildDeployCommand(args)],
   ['compile', (args: string[]) => new CompileCommand(args)],
   ['compilebuild', (args: string[]) => new CompileBuildCommand(args)],
   [
