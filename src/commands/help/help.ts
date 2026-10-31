@@ -8,7 +8,8 @@ export async function printHelpText() {
       description: [
         `Creates the 'sasjs' folder and doxy subfolder (with content files + configuration) for docs`,
         `- Inserted in the current working directory.`,
-        `- If an existing NPM project, package.json is updated with the @sasjs/core dependency.`
+        `- If an existing NPM project, package.json is updated with the @sasjs/core dependency.`,
+        `- Aborts without changing anything if this folder already contains sasjs/sasjsconfig.json.`
       ]
     },
     {

@@ -13,6 +13,11 @@ export const initFiles: Folder = {
       files: [{ fileName: 'sasjsconfig.json' }],
       subFolders: [
         {
+          folderName: 'macros',
+          files: [{ fileName: '.gitkeep' }],
+          subFolders: []
+        },
+        {
           folderName: 'doxy',
           files: [
             { fileName: 'Doxyfile' },
