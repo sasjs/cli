@@ -72,7 +72,7 @@
   "dependencies": {
     "@sasjs/adapter": "^5.1.1",
     "@sasjs/core": "^6.1.1",
-    "@sasjs/lint": "4.8.1",
+    "@sasjs/lint": "4.9.0",
     "@sasjs/utils": "^4.1.2",
     "axios": "1.20.0",
     "chalk": "4.1.2",
