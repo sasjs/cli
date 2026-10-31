@@ -87,6 +87,26 @@ describe('sasjs init', () => {
     ).resolves.toEqual(true)
   })
 
+  it('should abort over a template scaffold that ships its own config', async () => {
+    await setupProjectFolder('test-app-init-sasonly-')
+
+    // The templates carry their own sasjs/sasjsconfig.json, so they reach the
+    // guard by a different route than createFileStructure does.
+    await expect(create('.', 'sasonly')).toResolve()
+
+    const configPath = path.join(
+      process.projectDir,
+      'sasjs',
+      'sasjsconfig.json'
+    )
+    const templateConfig = JSON.parse(await readFile(configPath))
+
+    const error = await init().catch((err) => err)
+    expect(error).toBeInstanceOf(AlreadyInitialisedError)
+
+    expect(JSON.parse(await readFile(configPath))).toEqual(templateConfig)
+  })
+
   it('should abort over a project sasjs create has just scaffolded', async () => {
     await setupProjectFolder('test-app-init-created-')
 
