@@ -23,6 +23,15 @@ Commit messages must follow the [Conventional Commits](https://www.conventionalc
   npm test              # both, in that order
 ```
 
+`npm run test:mocked` runs the real `doxygen` binary - the specs under `src/commands/docs` generate documentation and assert on what it produces - so install it before running the suite:
+
+```
+  sudo apt-get install -y doxygen   # Debian/Ubuntu, what the unit-tests job installs in CI
+  brew install doxygen              # macOS
+```
+
+Without it those specs fail with `The Doxygen application is not installed or configured` rather than skipping, which is intended: a suite that skipped them would pass while checking nothing. `npm run test:server` does not use doxygen.
+
 `npm run lint` runs `prettier --check` over `src` and `test`.
 
 ## Coverage thresholds
