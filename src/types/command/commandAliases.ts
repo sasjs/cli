@@ -9,7 +9,7 @@ export const aliasMap = new Map<string, string[]>([
   ['help', ['h']],
   ['request', ['rq']],
   ['run', ['r']],
-  ['version', ['v']],
+  ['version', ['v', '-v', '--version']],
   ['web', ['w']]
 ])
 
