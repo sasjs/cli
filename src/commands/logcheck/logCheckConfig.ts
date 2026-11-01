@@ -188,22 +188,45 @@ export const mergeConfig = (
 /**
  * Whether a log path is excluded by one of the `ignorePaths` entries.
  *
- * An entry with no wildcard is a substring, so `sasjsresults/legacy` covers a
- * whole folder without the user having to write a glob. An entry with a
- * wildcard is a glob over the display path, where `**` crosses folders and
- * `*` does not.
+ * An entry with no wildcard is matched against whole path segments, not as a
+ * bare substring of the text: `test` covers `test/run.log` and
+ * `sasjsresults/test/run.log`, but not `latest.log`, and `logs` does not cover
+ * `nested-logs/x.log`. A suppression rule that quietly covers files the author
+ * did not name is the failure mode this whole config guards against, so an
+ * entry has to name a path, not a fragment of one.
+ *
+ * An entry with a wildcard is a glob over the display path, anchored at both
+ * ends, where `**&#47;` crosses folders and `*` does not.
  */
 export const matchesPath = (displayPath: string, pattern: string): boolean => {
   const subject = toPosix(displayPath)
-  const candidate = toPosix(pattern).trim()
+  const candidate = normalisePattern(toPosix(pattern))
 
   if (!candidate) return false
 
   if (!candidate.includes('*') && !candidate.includes('?')) {
-    return subject.includes(candidate)
+    return matchesSegments(subject, candidate)
   }
 
   return globToRegExp(candidate).test(subject)
+}
+
+/**
+ * A non-glob entry matches when it names the path itself, or a run of whole
+ * segments inside it.
+ *
+ * Padding both sides with a separator makes one `includes` do the work: the
+ * needle can only be found where it begins at a segment boundary and ends at
+ * one, which is exactly the difference between `test` and `latest`.
+ */
+export const matchesSegments = (
+  subject: string,
+  candidate: string
+): boolean => {
+  const haystack = `/${stripSlashes(subject)}/`
+  const needle = `/${stripSlashes(candidate)}/`
+
+  return haystack.includes(needle)
 }
 
 export const isIgnoredPath = (
@@ -235,6 +258,16 @@ export const globToRegExp = (pattern: string): RegExp => {
 /** Path text as it appears in a report: forward slashes, no wrapping quotes. */
 export const toPosix = (value: string): string =>
   value.split(path.sep).join('/')
+
+/**
+ * A suppression entry as it is compared: no `./` lead-in, no trailing
+ * separators, so `./logs/` and `logs` are one entry rather than two.
+ */
+const normalisePattern = (value: string): string =>
+  stripSlashes(value.trim().replace(/^(?:\.\/)+/, ''))
+
+const stripSlashes = (value: string): string =>
+  value.replace(/^\/+/, '').replace(/\/+$/, '')
 
 const stringList = (value: unknown, name: string, source: string): string[] => {
   if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {

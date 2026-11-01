@@ -16,7 +16,12 @@ export type OutputFormat = 'human' | 'json' | 'annotations'
  * override them, and the flags on the command line override both.
  */
 export interface LogCheckConfig {
-  /** Lowest severity that fails the check - see {@link FailOn}. */
+  /**
+   * Lowest severity that fails the check - see {@link FailOn}.
+   *
+   * `never` does not disable `maxWarnings`: a budget is a specific
+   * instruction and still fails the run when it is exceeded.
+   */
   failOn: FailOn
   /**
    * Number of warnings tolerated before the check fails, whatever `failOn`
@@ -92,6 +97,8 @@ export interface LogCheckSummary {
   skipped: SkippedFile[]
   /** Paths the user named that do not exist. */
   missing: string[]
+  /** Folders the check could not list, so their logs were never looked at. */
+  unreadable: SkippedFile[]
   /** Whether the paths were defaulted rather than named by the user. */
   usedDefaultInput: boolean
   /** Folders and files that were searched, as shown in the report. */

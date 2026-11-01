@@ -204,13 +204,32 @@ describe('mergeConfig', () => {
 })
 
 describe('matchesPath', () => {
-  it('matches a plain entry as a substring', () => {
+  it('matches a plain entry as whole path segments', () => {
     expect(
       matchesPath('sasjsresults/legacy/run.log', 'sasjsresults/legacy')
     ).toBe(true)
     expect(matchesPath('sasjsresults/run.log', 'sasjsresults/legacy')).toBe(
       false
     )
+    expect(matchesPath('sasjsresults/legacy', 'sasjsresults/legacy')).toBe(true)
+  })
+
+  it('does not let a fragment of a name silence a file', () => {
+    // The reviewer's case: `test` silencing `latest.log`, and `logs` silencing
+    // anything that merely contains it.
+    expect(matchesPath('latest.log', 'test')).toBe(false)
+    expect(matchesPath('sasjsresults/nested-logs/run.log', 'logs')).toBe(false)
+    expect(matchesPath('sasjsresults/run.log', 'run')).toBe(false)
+  })
+
+  it('matches at any depth, on a segment boundary', () => {
+    expect(matchesPath('test/run.log', 'test')).toBe(true)
+    expect(matchesPath('sasjsresults/test/run.log', 'test')).toBe(true)
+    expect(matchesPath('sasjsresults/latest-test/run.log', 'test')).toBe(false)
+  })
+
+  it('ignores a leading `./` and a trailing separator', () => {
+    expect(matchesPath('logs/run.log', './logs/')).toBe(true)
   })
 
   it('matches a single wildcard without crossing folders', () => {

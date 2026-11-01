@@ -95,6 +95,24 @@ describe('collectLogFiles', () => {
     expect(files[0]).toEqual(path.join(folder, 'a.log'))
   })
 
+  it('reports a folder it cannot list instead of treating it as empty', async () => {
+    const folder = await tempFolder()
+    await writeFiles(folder, { 'logs/a.log': sasLog })
+    const readdir = jest
+      .spyOn(require('fs/promises'), 'readdir')
+      .mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }))
+
+    const { files, unreadable } = await collectLogFiles([
+      path.join(folder, 'logs')
+    ])
+
+    readdir.mockRestore()
+
+    expect(files).toEqual([])
+    expect(unreadable).toHaveLength(1)
+    expect(unreadable[0].reason).toEqual('could not be listed (EACCES)')
+  })
+
   it('reports a path that does not exist instead of failing', async () => {
     const folder = await tempFolder()
 

@@ -15,6 +15,15 @@ export interface CollectedFiles {
   files: string[]
   /** Paths the user named that do not exist. */
   missing: string[]
+  /**
+   * Folders that could not be listed, with the reason.
+   *
+   * A folder the process cannot read is not an empty folder: the logs inside
+   * it were never looked at, so it has to reach the report and it has to fail
+   * the gate - a check that goes green on a directory it could not open is
+   * worse than no check.
+   */
+  unreadable: SkippedFile[]
 }
 
 /**
@@ -30,6 +39,7 @@ export const collectLogFiles = async (
 ): Promise<CollectedFiles> => {
   const files = new Set<string>()
   const missing: string[] = []
+  const unreadable: SkippedFile[] = []
 
   for (const candidate of paths) {
     const resolved = path.resolve(candidate)
@@ -41,7 +51,7 @@ export const collectLogFiles = async (
     }
 
     if (info.isDirectory()) {
-      for (const found of await walk(resolved)) files.add(found)
+      for (const found of await walk(resolved, unreadable)) files.add(found)
       continue
     }
 
@@ -50,19 +60,35 @@ export const collectLogFiles = async (
 
   return {
     files: Array.from(files).sort((a, b) => a.localeCompare(b)),
-    missing
+    missing,
+    unreadable
   }
 }
 
 /**
- * Recursively lists the files under a folder.
+ * Recursively lists the files under a folder, recording any folder it cannot
+ * read rather than treating it as empty.
  *
  * Symlinks are not followed: a link back up the tree would make the walk
  * endless, and a log reached through a link is not something to report on
  * twice.
  */
-const walk = async (folder: string): Promise<string[]> => {
-  const entries = await readdir(folder, { withFileTypes: true }).catch(() => [])
+const walk = async (
+  folder: string,
+  unreadable: SkippedFile[] = []
+): Promise<string[]> => {
+  const entries = await readdir(folder, { withFileTypes: true }).catch(
+    (error: NodeJS.ErrnoException) => {
+      unreadable.push({
+        displayPath: toDisplayPath(folder),
+        reason: error?.code
+          ? `could not be listed (${error.code})`
+          : 'could not be listed'
+      })
+
+      return []
+    }
+  )
   const found: string[] = []
 
   for (const entry of entries) {
@@ -72,7 +98,7 @@ const walk = async (folder: string): Promise<string[]> => {
 
     if (entry.isDirectory()) {
       if (IGNORED_FOLDERS.includes(entry.name)) continue
-      found.push(...(await walk(fullPath)))
+      found.push(...(await walk(fullPath, unreadable)))
       continue
     }
 

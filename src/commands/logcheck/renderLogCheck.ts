@@ -91,6 +91,13 @@ export const renderHuman = (
     )
   }
 
+  for (const folder of summary.unreadable) {
+    lines.push(
+      chalk.red(`  Could not read: ${folder.displayPath}`) +
+        chalk.dim(`  (${folder.reason}) - its logs were not checked`)
+    )
+  }
+
   const scanned = summary.logs.filter((entry) => !entry.skippedReason)
 
   if (!scanned.length) {
@@ -365,6 +372,10 @@ export const toJson = (summary: LogCheckSummary, config: LogCheckConfig) => ({
   },
   searched: summary.searched,
   missing: summary.missing,
+  unreadable: summary.unreadable.map((folder) => ({
+    folder: folder.displayPath,
+    reason: folder.reason
+  })),
   logs: summary.logs.map((entry) => ({
     file: entry.displayPath,
     errors: entry.counts.errors,

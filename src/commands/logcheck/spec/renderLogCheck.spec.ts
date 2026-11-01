@@ -39,6 +39,7 @@ const summary = (
   logs: [],
   skipped: [],
   missing: [],
+  unreadable: [],
   usedDefaultInput: false,
   searched: ['sasjsresults'],
   totals: {
@@ -180,6 +181,29 @@ describe('renderHuman', () => {
     expect(printed).toContain('Path not found: sasjsresults')
     expect(printed).toContain('nothing has run yet, or pass a path')
     expect(printed).not.toContain('No logs found at the path searched.')
+  })
+
+  it('reports a folder it could not read, and why', () => {
+    const { output } = setupLogger()
+
+    renderHuman(
+      summary({
+        unreadable: [
+          {
+            displayPath: 'sasjsresults/locked',
+            reason: 'could not be listed (EACCES)'
+          }
+        ],
+        failure: '1 folder could not be read'
+      }),
+      config
+    )
+
+    const printed = output()
+
+    expect(printed).toContain('Could not read: sasjsresults/locked')
+    expect(printed).toContain('could not be listed (EACCES)')
+    expect(printed).toContain('Logcheck failed: 1 folder could not be read')
   })
 
   it('says when a folder holds nothing to check', () => {
@@ -410,6 +434,21 @@ describe('toJson', () => {
     const json = toJson(summary({ logs: [log({ issues: [issue()] })] }), config)
 
     expect(json.logs[0].issues[0]).not.toHaveProperty('code')
+  })
+
+  it('lists a folder it could not read', () => {
+    const json = toJson(
+      summary({
+        unreadable: [
+          { displayPath: 'logs/locked', reason: 'could not be listed' }
+        ]
+      }),
+      config
+    )
+
+    expect(json.unreadable).toEqual([
+      { folder: 'logs/locked', reason: 'could not be listed' }
+    ])
   })
 
   it('carries the counts, the policy and the verdict', () => {

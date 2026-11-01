@@ -14,6 +14,7 @@ const summary = (
   logs: [],
   skipped: [],
   missing: [],
+  unreadable: [],
   usedDefaultInput: false,
   searched: ['sasjsresults'],
   totals: {

@@ -113,6 +113,10 @@ describe('processLogCheck', () => {
     expect(summary.skipped).toEqual([
       { displayPath: 'legacy.log', reason: 'excluded by ignorePaths' }
     ])
+    // The count in the summary and the entries in the report describe the same
+    // run: the excluded file is a file that was passed over, not a file that
+    // never existed.
+    expect(summary.totals.skipped).toEqual(summary.skipped.length)
     expect(summary.failure).toBeUndefined()
   })
 
@@ -142,6 +146,27 @@ describe('processLogCheck', () => {
 
     expect(summary.missing).toEqual([path.join(folder, 'nope.log')])
     expect(summary.failure).toEqual('1 path not found')
+  })
+
+  it('fails on a folder it could not list', async () => {
+    const folder = await tempFolder()
+    process.projectDir = folder
+    await fs.mkdir(path.join(folder, 'logs'))
+    const readdir = jest
+      .spyOn(require('fs/promises'), 'readdir')
+      .mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }))
+
+    const summary = await processLogCheck({
+      paths: [path.join(folder, 'logs')],
+      config: config()
+    })
+
+    readdir.mockRestore()
+
+    expect(summary.unreadable).toEqual([
+      { displayPath: 'logs', reason: 'could not be listed (EACCES)' }
+    ])
+    expect(summary.failure).toEqual('1 folder could not be read')
   })
 
   it('reports the default folder as missing rather than throwing', async () => {
@@ -224,10 +249,19 @@ describe('describeFailure', () => {
     ).toEqual('2 notes')
   })
 
-  it('never fails under the never policy', () => {
+  it('never fails under the never policy, when no budget is set', () => {
     expect(
       describeFailure(totals(9, 9, 9), config({ failOn: 'never' }))
     ).toBeUndefined()
+  })
+
+  it('still fails on an exceeded budget under the never policy', () => {
+    expect(
+      describeFailure(
+        totals(0, 3, 0),
+        config({ failOn: 'never', maxWarnings: 0 })
+      )
+    ).toEqual('3 warnings (budget 0)')
   })
 
   it('fails when the warnings exceed the budget', () => {
@@ -237,6 +271,15 @@ describe('describeFailure', () => {
     expect(
       describeFailure(totals(0, 2, 0), config({ maxWarnings: 2 }))
     ).toBeUndefined()
+  })
+
+  it('fails on a folder it could not read, before any issue', () => {
+    expect(describeFailure(totals(4, 0, 0), config(), 0, 1)).toEqual(
+      '1 folder could not be read'
+    )
+    expect(describeFailure(totals(0, 0, 0), config(), 0, 2)).toEqual(
+      '2 folders could not be read'
+    )
   })
 
   it('reports a missing path before any issue', () => {

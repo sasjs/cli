@@ -38,7 +38,7 @@ export const processLogCheck = async ({
     toDisplayPath(path.resolve(inputPath))
   )
 
-  const { files, missing } = await collectLogFiles(inputPaths)
+  const { files, missing, unreadable } = await collectLogFiles(inputPaths)
 
   const skipped: SkippedFile[] = []
   const toScan: string[] = []
@@ -64,16 +64,20 @@ export const processLogCheck = async ({
     ...logs.filter((log) => log.skippedReason).map((log) => toSkippedFile(log))
   )
 
-  const totals = sumTotals(scanned, logs.length)
+  // Every collected file is accounted for in `totals`, whether it was read,
+  // excluded by a rule, or declined by the scanner - the count in the summary
+  // and the entries in the report have to describe the same run.
+  const totals = sumTotals(scanned, files.length)
 
   return {
     logs,
     skipped: sortSkipped(skipped),
     missing,
+    unreadable,
     usedDefaultInput: !paths.length,
     searched,
     totals,
-    failure: describeFailure(totals, config, missing.length)
+    failure: describeFailure(totals, config, missing.length, unreadable.length)
   }
 }
 
@@ -119,16 +123,39 @@ export const sumTotals = (
  * An ERROR always fails unless the policy is `never`; warnings and notes fail
  * only when the policy asks for them, because notable notes are what legacy
  * code emits in bulk and a gate that is red on its first run is a gate that
- * gets commented out. A warnings budget fails the run whatever the policy
- * says, since a budget that a policy can override is not a budget.
+ * gets commented out.
+ *
+ * A warnings budget is checked first and applies even under `never`: writing
+ * `maxWarnings: 0` is a specific instruction, and a specific instruction
+ * outranks a blanket one. `never` therefore means "do not fail on what you
+ * find", not "ignore the budget I also asked for".
+ *
+ * A path that could not be checked fails the run ahead of everything else: the
+ * answer to "is this log clean" is unknown, and unknown is not a pass.
  */
 export const describeFailure = (
   totals: LogCheckSummary['totals'],
   config: LogCheckConfig,
-  missingCount: number = 0
+  missingCount: number = 0,
+  unreadableCount: number = 0
 ): string | undefined => {
   if (missingCount) {
     return `${missingCount} path${missingCount === 1 ? '' : 's'} not found`
+  }
+
+  if (unreadableCount) {
+    return `${unreadableCount} folder${
+      unreadableCount === 1 ? '' : 's'
+    } could not be read`
+  }
+
+  if (
+    config.maxWarnings !== undefined &&
+    totals.warnings > config.maxWarnings
+  ) {
+    return `${plural(totals.warnings, 'warning')} (budget ${
+      config.maxWarnings
+    })`
   }
 
   if (config.failOn === 'never') return undefined
@@ -141,15 +168,6 @@ export const describeFailure = (
 
   if (config.failOn === 'note' && totals.notes) {
     return plural(totals.notes, 'note')
-  }
-
-  if (
-    config.maxWarnings !== undefined &&
-    totals.warnings > config.maxWarnings
-  ) {
-    return `${plural(totals.warnings, 'warning')} (budget ${
-      config.maxWarnings
-    })`
   }
 
   return undefined
