@@ -18,6 +18,7 @@ import {
 import * as utilsModule from '../../../utils/utils'
 import { TargetScope } from '../../../types'
 import { build } from '../../build/build'
+import { compile } from '../../compile/compile'
 import { deploy } from '../deploy'
 import { createLocalTarget, updateLocalTarget } from './utils'
 import {
@@ -83,6 +84,8 @@ describe('sasjs cbd with server type SASJS', () => {
       target.name,
       TargetScope.Local
     )
+
+    await compile(customTarget)
 
     await expect(build(customTarget)).toResolve()
 

@@ -76,7 +76,10 @@ describe('CompileCommand', () => {
     const command = new CompileCommand(args)
     await command.execute()
 
-    expect(compileModule.compile).toHaveBeenCalledWith(target, true)
+    // The command no longer forces a recompile: checkCompileStatus compares a
+    // content manifest, so an unchanged project is skipped and a changed one is
+    // recompiled without the caller passing anything.
+    expect(compileModule.compile).toHaveBeenCalledWith(target)
   })
 
   it('should log success and return the success code when execution is successful', async () => {

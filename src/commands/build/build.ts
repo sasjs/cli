@@ -25,7 +25,6 @@ import {
 import { compressAndSave } from '../../utils/compressAndSave'
 import { getMacroFolders, getStreamConfig } from '../../utils/config'
 import { isSasFile } from '../../utils/file'
-import { compile } from '../compile/compile'
 import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
@@ -45,11 +44,18 @@ export async function build(target: Target) {
   }
   process.logger?.info(`@sasjs/core found at ${macroCorePath}`)
 
+  // build packages the build folder, it does not produce it: compiling here
+  // would make `build` and `bd` compile on a fresh clone, where the documented
+  // workflow is to run compile (or cbd) first and treat the build folder as the
+  // input - including when it has been adjusted by hand.
   if (
     process.sasjsConstants.buildDestinationFolder &&
     !(await folderExists(process.sasjsConstants.buildDestinationFolder))
   ) {
-    await compile(target)
+    throw new Error(
+      `The build folder ${process.sasjsConstants.buildDestinationFolder} does not exist.\n` +
+        `Run 'sasjs compile' (or 'sasjs cbd') first.`
+    )
   }
 
   await createFinalSasFiles(target)
@@ -60,6 +66,32 @@ export async function build(target: Target) {
   if (target.streamConfig?.mockWeb) {
     await buildMockSite(target)
   }
+}
+
+/**
+ * Reports what the pack holds. A SASjs target can legitimately produce a pack
+ * with no SAS services at all - the services are stored programs for another
+ * runtime - and that is exactly the case where an unreported zero would look
+ * like a successful deploy.
+ */
+const logPackedFileCounts = (tree: FileTree | FolderMember) => {
+  const counts = { services: 0, files: 0 }
+
+  const walk = (folder: FileTree | FolderMember) => {
+    for (const member of folder.members ?? []) {
+      if (member.type === MemberType.service) counts.services++
+      else if (member.type === MemberType.file) counts.files++
+      else walk(member as FolderMember)
+    }
+  }
+
+  walk(tree)
+
+  process.logger?.info(
+    `Packing ${counts.services} SAS ${
+      counts.services === 1 ? 'service' : 'services'
+    } and ${counts.files} ${counts.files === 1 ? 'file' : 'files'}.`
+  )
 }
 
 async function createFinalSasFiles(target: Target) {
@@ -106,6 +138,8 @@ async function createFinalSasFiles(target: Target) {
 
   const { folderContent, folderContentJSON } =
     await getFolderContent(serverType)
+
+  logPackedFileCounts(folderContentJSON)
 
   const servicePackSASjs: ServicePackSASjs = {
     appLoc: target.appLoc,

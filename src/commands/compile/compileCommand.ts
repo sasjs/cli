@@ -88,7 +88,7 @@ export class CompileCommand extends TargetCommand {
     const { target } = await this.getTargetInfo()
     const { buildDestinationFolder } = process.sasjsConstants
 
-    return await compile(target, true)
+    return await compile(target)
       .then(() => {
         process.logger?.success(
           `The project was successfully compiled for ${target.serverType} using target '${target.name}'\nThe compile output is located in the ${buildDestinationFolder} directory.`

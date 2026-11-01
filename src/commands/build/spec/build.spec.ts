@@ -8,6 +8,8 @@ import {
   LogLevel,
   readFile,
   createFile,
+  folderExists,
+  deleteFolder,
   ServerType
 } from '@sasjs/utils'
 import { findTargetInConfiguration } from '../../../utils'
@@ -33,6 +35,8 @@ describe('sasjs build', () => {
       await createTestApp(__dirname, appName)
       const target = (await findTargetInConfiguration('viya')).target
 
+      await compile(target)
+
       await expect(build(target)).toResolve()
     },
     2 * 60 * 1000
@@ -48,6 +52,26 @@ describe('sasjs build', () => {
 
       await compile(target)
       await expect(build(target)).toResolve()
+    },
+    2 * 60 * 1000
+  )
+
+  it(
+    'reports a missing build folder instead of compiling one',
+    async () => {
+      appName = `test-app-build-${generateUniqueTimestamp()}`
+
+      await createTestApp(__dirname, appName)
+      const target = (await findTargetInConfiguration('viya')).target
+
+      const { buildDestinationFolder } = process.sasjsConstants
+
+      if (await folderExists(buildDestinationFolder))
+        await deleteFolder(buildDestinationFolder)
+
+      await expect(build(target)).rejects.toThrow(
+        /Run 'sasjs compile' \(or 'sasjs cbd'\) first/
+      )
     },
     2 * 60 * 1000
   )

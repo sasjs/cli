@@ -374,16 +374,19 @@ describe('compileTestFile', () => {
 
       await compile(target)
 
-      const totalCalls = 16
+      const loggedLines = (process.logger.info as jest.Mock).mock.calls.map(
+        (call) => String(call[0])
+      )
 
-      expect(process.logger.info).toHaveBeenCalledTimes(totalCalls)
-      expect(process.logger.info).toHaveBeenNthCalledWith(13, `Test coverage:`)
-      expect(process.logger.info).toHaveBeenNthCalledWith(
-        14,
+      // The intent is the absence of a 0/0 line, not a particular number of
+      // log calls - asserting a total turns every future log line into a
+      // failure of this test.
+      expect(loggedLines.some((line) => line.includes('0/0'))).toBeFalse()
+      expect(loggedLines).toContain('Test coverage:')
+      expect(loggedLines).toContain(
         `Services coverage: 0/4 (${chalk.greenBright('0%')})`
       )
-      expect(process.logger.info).toHaveBeenNthCalledWith(
-        totalCalls - 1,
+      expect(loggedLines).toContain(
         `Overall coverage: 0/4 (${chalk.greenBright('0%')})`
       )
     })

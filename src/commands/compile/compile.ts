@@ -26,6 +26,9 @@ import * as compileModule from './compile'
 import {
   checkCompileStatus,
   compileFile,
+  getManifestFolders,
+  getManifestStamps,
+  writeCompileManifest,
   compileTestFile,
   compileTestFlow,
   copyTestMacroFiles,
@@ -48,6 +51,8 @@ export async function compile(target: Target, forceCompile = false) {
     return
   }
 
+  if (!result.compiled) process.logger?.info(`Compiling: ${result.message}`)
+
   await compileModule.copyFilesToBuildFolder(target).catch((error) => {
     process.logger?.error('Project compilation has failed.')
 
@@ -57,6 +62,11 @@ export async function compile(target: Target, forceCompile = false) {
   const compileTree = getCompileTree(target)
 
   await compileModule.compileJobsServicesTests(target, compileTree)
+
+  await writeCompileManifest(
+    await getManifestFolders(target),
+    await getManifestStamps(target)
+  )
 
   let macroFolders: string[] = await getMacroFolders(target)
 
@@ -104,6 +114,8 @@ export async function compile(target: Target, forceCompile = false) {
   await compileWeb(target)
 
   await syncFolder(target)
+
+  await logCopiedFileCounts()
 }
 
 export async function copyFilesToBuildFolder(target: Target) {
@@ -198,6 +210,56 @@ export async function compileJobsServicesTests(
   } catch (error) {
     throw error
   }
+}
+
+/**
+ * Reports what the build folder holds, SAS and otherwise.
+ *
+ * A JS-only services folder is a legitimate shape for a SASjs server, and it is
+ * also the shape where a silent "compiled" would hide an empty build - the
+ * counts make the difference between "0 and 45" and "nothing happened" visible.
+ */
+const logCopiedFileCounts = async () => {
+  const { buildDestinationServicesFolder, buildDestinationJobsFolder } =
+    process.sasjsConstants
+
+  const countFiles = async (folder: string) => {
+    const counts = { sas: 0, runtime: 0 }
+
+    if (!(await folderExists(folder))) return counts
+
+    const walk = async (dir: string) => {
+      for (const fileName of await listFilesInFolder(dir)) {
+        if (isSasFile(fileName)) counts.sas++
+        else counts.runtime++
+      }
+
+      for (const subFolder of await listSubFoldersInFolder(dir)) {
+        await walk(path.join(dir, subFolder))
+      }
+    }
+
+    await walk(folder)
+
+    return counts
+  }
+
+  const services = await countFiles(buildDestinationServicesFolder)
+  const jobs = await countFiles(buildDestinationJobsFolder)
+
+  const sas = services.sas + jobs.sas
+  const runtime = services.runtime + jobs.runtime
+
+  const runtimeNote =
+    runtime === 0
+      ? ''
+      : `; ${runtime} ${
+          runtime === 1 ? 'file' : 'files'
+        } copied through unchanged (not SAS programs)`
+
+  process.logger?.info(
+    `Compiled ${sas} SAS ${sas === 1 ? 'file' : 'files'}${runtimeNote}.`
+  )
 }
 
 async function recreateBuildFolder() {
