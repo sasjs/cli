@@ -1,6 +1,9 @@
 import { Target, asyncForEach, folderExists } from '@sasjs/utils'
 import {
   compareFolders,
+  getChangedFiles,
+  getManifestFolders,
+  getManifestStamps,
   getAllFolders,
   SasFileType,
   getDestinationJobPath,
@@ -29,14 +32,39 @@ export async function checkCompileStatus(
     exceptions
   )
 
-  const compiled = areServiceFoldersMatching && areJobFoldersMatching
+  if (!areServiceFoldersMatching || !areJobFoldersMatching) {
+    // Name only the side that is missing - the previous message always listed
+    // both, so a job-only difference read as "Missing Services: " with nothing
+    // after it.
+    const reasons: string[] = []
+
+    if (!areServiceFoldersMatching)
+      reasons.push(`Missing Services: ${serviceReasons.join(', ')}`)
+
+    if (!areJobFoldersMatching)
+      reasons.push(`Missing jobs: ${jobReasons.join(', ')}`)
+
+    return { compiled: false, message: reasons.join('\n') }
+  }
+
+  // Every file being present is not the same as every file being current: a
+  // service that was edited keeps its name, so the folder check alone would
+  // skip the compile and leave the stale copy in the build folder.
+  const changedFiles = await getChangedFiles(
+    await getManifestFolders(target),
+    await getManifestStamps(target)
+  )
+
+  if (changedFiles.length) {
+    return {
+      compiled: false,
+      message: `Changed since the last compile: ${changedFiles.join(', ')}`
+    }
+  }
+
   return {
-    compiled,
-    message: compiled
-      ? 'All services and jobs are already present.'
-      : `Missing Services: ${serviceReasons.join(
-          ', '
-        )}\nMissing jobs: ${jobReasons.join(', ')}`
+    compiled: true,
+    message: 'All services and jobs are already present and up to date.'
   }
 }
 

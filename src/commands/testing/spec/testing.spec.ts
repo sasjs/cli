@@ -19,7 +19,7 @@ import {
 } from '../../../utils/test'
 import { contextName } from '../../../utils/setConstants'
 import dotenv from 'dotenv'
-import { build } from '../..'
+import { build, compile } from '../..'
 import SASjs, { SASjsConfig } from '@sasjs/adapter/node'
 import * as sasJsModules from '../../../utils/createSASjsInstance'
 import { testResponses } from './mockedAdapter/testResponses'
@@ -117,6 +117,7 @@ end_of_record`
     beforeAll(async () => {
       await createTestApp(__dirname, target.name)
       await copyTestFiles(target.name)
+      await compile(target)
       await build(target)
 
       process.logger = new Logger(LogLevel.Off)
@@ -551,6 +552,7 @@ testteardown,tests/testteardown.sas,sasjs_test_id,not provided,,${testUrlLink(
     beforeAll(async () => {
       await createTestApp(__dirname, target.name)
       await copyTestFiles(target.name)
+      await compile(target)
       await build(target)
 
       process.logger = new Logger(LogLevel.Off)

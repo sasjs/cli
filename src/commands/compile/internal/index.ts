@@ -1,3 +1,5 @@
+export * from './compileManifest'
+export * from './passThrough'
 export * from './checkCompileStatus'
 export * from './compareFolders'
 export * from './compileFile'
