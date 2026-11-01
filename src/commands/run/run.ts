@@ -25,6 +25,7 @@ import {
 import axios from 'axios'
 import { saveLog } from '../../utils/saveLog'
 import { parseSourceFile } from '../../utils/parseSourceFile'
+import { checkLog } from '../../utils/logcheck'
 
 /**
  * Runs SAS code from a given file on the specified target.
@@ -78,14 +79,17 @@ export async function runSasCode(
     await deleteFile(filePath)
   }
 
-  switch (target.serverType) {
-    case ServerType.SasViya:
-      return await executeOnSasViya(filePath, target, linesToExecute, logFile)
-    case ServerType.Sas9:
-      return await executeOnSas9(target, linesToExecute, logFile)
-    case ServerType.Sasjs:
-      return await executeOnSasJS(filePath, target, linesToExecute, logFile)
-  }
+  const result = await (target.serverType === ServerType.SasViya
+    ? executeOnSasViya(filePath, target, linesToExecute, logFile)
+    : target.serverType === ServerType.Sas9
+      ? executeOnSas9(target, linesToExecute, logFile)
+      : executeOnSasJS(filePath, target, linesToExecute, logFile))
+
+  // Only a run that claims to have worked is worth checking: an executor that
+  // threw has already written the log it failed on, truncated at the failure.
+  await checkLog(result?.log, path.basename(filePath))
+
+  return result
 }
 
 async function executeOnSasViya(

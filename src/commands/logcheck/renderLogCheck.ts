@@ -357,6 +357,7 @@ export const toJson = (summary: LogCheckSummary, config: LogCheckConfig) => ({
   config: {
     failOn: config.failOn,
     maxWarnings: config.maxWarnings ?? null,
+    autoCheck: config.autoCheck === true,
     ignoreCodes: config.ignoreCodes,
     ignorePaths: config.ignorePaths
   },

@@ -38,7 +38,7 @@ export const parseLogCheckSection = (
     )
   }
 
-  const { failOn, maxWarnings, ignoreCodes, ignorePaths, folder } =
+  const { failOn, maxWarnings, ignoreCodes, ignorePaths, folder, autoCheck } =
     section as Record<string, unknown>
 
   if (failOn !== undefined) {
@@ -81,6 +81,17 @@ export const parseLogCheckSection = (
       `${CONFIG_KEY}.ignorePaths`,
       source
     )
+  }
+
+  if (autoCheck !== undefined) {
+    if (typeof autoCheck !== 'boolean') {
+      throw new Error(
+        `The \`${CONFIG_KEY}.autoCheck\` property in ${source} must be true or false - received \`${String(
+          autoCheck
+        )}\`.`
+      )
+    }
+    config.autoCheck = autoCheck
   }
 
   if (folder !== undefined) {

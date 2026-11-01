@@ -2,6 +2,7 @@ import SASjs from '@sasjs/adapter/node'
 import { MacroVars } from '@sasjs/utils'
 import { saveLog, saveOutput } from '../utils'
 import { parseSourceFile } from '../../../../utils/parseSourceFile'
+import { checkLog } from '../../../../utils/logcheck'
 
 /**
  * Triggers an existing Stored Process for execution as a "job".  See online documentation here: https://cli.sasjs.io/job/
@@ -39,6 +40,8 @@ export async function executeJobSas9(
       process.logger.success(
         `Job executed successfully! in ${(endTime - startTime) / 1000} seconds`
       )
+
+      await checkLog(result.log, jobPath)
 
       // save log if it is present
       if (!!logFile && result.log) await saveLog(result.log, logFile, jobPath)

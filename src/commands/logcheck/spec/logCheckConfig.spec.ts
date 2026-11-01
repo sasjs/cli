@@ -31,7 +31,8 @@ describe('parseLogCheckSection', () => {
       maxWarnings: 4,
       ignoreCodes: ['49-169'],
       ignorePaths: ['sasjsresults/legacy'],
-      folder: 'logs'
+      folder: 'logs',
+      autoCheck: true
     })
 
     expect(config).toEqual({
@@ -39,8 +40,15 @@ describe('parseLogCheckSection', () => {
       maxWarnings: 4,
       ignoreCodes: ['49-169'],
       ignorePaths: ['sasjsresults/legacy'],
-      folder: 'logs'
+      folder: 'logs',
+      autoCheck: true
     })
+  })
+
+  it('refuses an autoCheck that is not a boolean', () => {
+    expect(() => parseLogCheckSection({ autoCheck: 'yes' })).toThrow(
+      'must be true or false'
+    )
   })
 
   it('refuses a failOn that is not one of the four policies', () => {

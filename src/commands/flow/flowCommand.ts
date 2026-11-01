@@ -5,6 +5,11 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError, getAuthConfig, getSASjs } from '../../utils'
 import { execute } from './execute'
+import {
+  isLogCheckFailure,
+  logCheckModeOf,
+  setLogCheckMode
+} from '../../utils/logcheck'
 
 enum FlowSubCommand {
   Execute = 'execute'
@@ -48,6 +53,12 @@ const executeParseOptions = {
     type: 'boolean',
     description:
       'Flag indicating whether the logs should be streamed to a local file as the job executes.'
+  },
+  logcheck: {
+    type: 'boolean',
+    default: undefined,
+    description:
+      'Check the log of every job in the flow, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
   }
 }
 
@@ -66,6 +77,8 @@ export class FlowCommand extends TargetCommand {
   }
 
   public async execute() {
+    setLogCheckMode(logCheckModeOf(this.parsed.logcheck))
+
     const { target } = await this.getTargetInfo()
     const sasjs = getSASjs(target)
 
@@ -107,6 +120,8 @@ export class FlowCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         displayError(err, 'An error has occurred when executing this flow.')
 
         return ReturnCode.InternalError
