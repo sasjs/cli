@@ -373,6 +373,15 @@ export async function printHelpText() {
       ]
     },
     {
+      name: 'logcheck',
+      title: 'logcheck [paths..]',
+      description: [
+        `Checks SAS logs for the messages SAS printed - ERRORs, WARNINGs and the notes that flag a problem - and fails when the failure policy is broken.`,
+        `[2spaces]With no path, the project's results folder is checked. No target, no login and no project are needed, so a log produced elsewhere checks the same way.`,
+        `[2spaces]command example: sasjs logcheck --fail-on warning --format json`
+      ]
+    },
+    {
       name: 'test',
       title: 'test',
       description: [
@@ -408,6 +417,7 @@ export async function printHelpText() {
     { name: 'deploy', aliases: ['d'] },
     { name: 'doc', aliases: ['docs'] },
     { name: 'help', aliases: ['h'] },
+    { name: 'logcheck', aliases: ['lc'] },
     { name: 'request', aliases: ['rq'] },
     { name: 'run', aliases: ['r'] },
     { name: 'test', aliases: ['t'] },
