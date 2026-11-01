@@ -4,6 +4,11 @@ import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
+import {
+  LogCheckFailure,
+  getLogCheckMode,
+  setLogCheckMode
+} from '../../../utils/logcheck'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
@@ -20,6 +25,35 @@ const logPath = './log.txt'
 describe('RequestCommand', () => {
   beforeEach(() => {
     setupMocks()
+  })
+
+  afterEach(() => setLogCheckMode('auto'))
+
+  it('should return the logcheck code when the log check failed the request', async () => {
+    jest
+      .spyOn(requestModule, 'runSasJob')
+      .mockImplementation(() => Promise.reject(new LogCheckFailure('1 error')))
+
+    const command = new RequestCommand([
+      ...defaultArgs,
+      'request',
+      sasProgramPath
+    ])
+
+    expect(await command.execute()).toEqual(ReturnCode.LogCheckError)
+  })
+
+  it('should switch the log check off for --no-logcheck', async () => {
+    const command = new RequestCommand([
+      ...defaultArgs,
+      'request',
+      sasProgramPath,
+      '--no-logcheck'
+    ])
+
+    await command.execute()
+
+    expect(getLogCheckMode()).toEqual('off')
   })
 
   it('should parse sasjs request command', async () => {

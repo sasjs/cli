@@ -44,6 +44,14 @@ export interface LogCheckConfig {
    * against the project folder.
    */
   folder?: string
+  /**
+   * Whether the commands that receive a SAS log (`run`, `request`, `job
+   * execute`, `flow execute`) fail on it as well as reporting it. Off by
+   * default: those commands' exit codes are already load-bearing in pipelines,
+   * and a job that prints a notable note is not a failed job. `--logcheck` and
+   * `--no-logcheck` override it per run.
+   */
+  autoCheck?: boolean
 }
 
 export const defaultLogCheckConfig: LogCheckConfig = {

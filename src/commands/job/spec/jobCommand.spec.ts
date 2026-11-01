@@ -7,6 +7,11 @@ import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as SasjsUtilsFilesModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import { ReturnCode } from '../../../types/command'
+import {
+  LogCheckFailure,
+  getLogCheckMode,
+  setLogCheckMode
+} from '../../../utils/logcheck'
 import * as utilsModule from '../internal/utils'
 
 const defaultArgs = ['node', 'sasjs', 'job', 'execute']
@@ -52,6 +57,28 @@ describe('JobCommand', () => {
   describe('for server type viya', () => {
     beforeEach(() => {
       setupMocksForViya()
+    })
+
+    afterEach(() => setLogCheckMode('auto'))
+
+    it('should return the logcheck code when the log check failed the job', async () => {
+      jest
+        .spyOn(viyaExecuteModule, 'executeJobViya')
+        .mockImplementation(() =>
+          Promise.reject(new LogCheckFailure('2 errors'))
+        )
+
+      const args = [...defaultArgs, jobPath]
+
+      expect(await new JobCommand(args).execute()).toEqual(
+        ReturnCode.LogCheckError
+      )
+    })
+
+    it('should switch the log check off for --no-logcheck', async () => {
+      await executeCommandWrapper([jobPath, '--no-logcheck'])
+
+      expect(getLogCheckMode()).toEqual('off')
     })
 
     it('should parse sasjs job execute command', async () => {

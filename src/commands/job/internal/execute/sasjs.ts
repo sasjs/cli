@@ -1,6 +1,7 @@
 import { AuthConfig, Target } from '@sasjs/utils'
 import { saveLog, saveOutput } from '../utils'
 import SASjs from '@sasjs/adapter/node'
+import { checkLog } from '../../../../utils/logcheck'
 
 /**
  * Triggers existing job for execution on SASJS server.
@@ -30,6 +31,8 @@ export async function executeJobSasjs(
   if (response) {
     // handle success
     process.logger?.success('Job executed successfully!')
+
+    await checkLog(response.log, jobPath)
 
     // save log if it is present
     if (!!logFile && response.log) await saveLog(response.log, logFile, jobPath)

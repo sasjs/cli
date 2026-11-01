@@ -12,6 +12,12 @@ import { getSASjs, getSASjsAndAuthConfig } from '../../utils'
 import { getLogFilePath } from '../../utils/getLogFilePath'
 import { prefixAppLoc } from '../../utils/prefixAppLoc'
 import {
+  isLogCheckFailure,
+  logCheckModeOf,
+  setLogCheckMode
+} from '../../utils/logcheck'
+
+import {
   executeJobViya,
   executeJobSasjs,
   executeJobSas9
@@ -90,6 +96,12 @@ const executeParseOptions = {
     alias: 'v',
     default: false,
     description: `If present, CLI will return status 0, 1 or 2 together with HTTP response summaries. If set to 'bleached', HTTP response summaries will be logged without extra colors.`
+  },
+  logcheck: {
+    type: 'boolean',
+    default: undefined,
+    description:
+      'Check the SAS log this job returned, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
   }
 }
 
@@ -124,6 +136,8 @@ export class JobCommand extends TargetCommand {
    * @returns - promise that resolves into return code.
    */
   public async execute() {
+    setLogCheckMode(logCheckModeOf(this.parsed.logcheck))
+
     // returnStatusOnly flag is deprecated and is left to display warning if used
     const returnStatusOnly = !!this.parsed.returnStatusOnly
     if (returnStatusOnly) {
@@ -217,6 +231,8 @@ export class JobCommand extends TargetCommand {
       .then(() => ReturnCode.Success)
       .catch((err) => {
         // handle job execution failure
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError
@@ -256,6 +272,8 @@ export class JobCommand extends TargetCommand {
       .then(() => ReturnCode.Success)
       .catch((err) => {
         // handle job execution failure
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError
@@ -303,6 +321,8 @@ export class JobCommand extends TargetCommand {
       .then(() => ReturnCode.Success)
       .catch((err) => {
         // handle job execution failure
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         process.logger?.error('Error executing job: ', err)
 
         return ReturnCode.InternalError

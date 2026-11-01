@@ -5,6 +5,7 @@ import { displayError } from '../../../utils/displayResult'
 import { parseLogLines } from '../../../utils/utils'
 import { fetchLogFileContent } from '../../shared/fetchLogFileContent'
 import { generateFileName } from './generateFileName'
+import { checkLog } from '../../../utils/logcheck'
 
 // REFACTOR: move to utility
 export const saveLog = async (
@@ -35,6 +36,8 @@ export const saveLog = async (
     )
 
     const logParsed = parseLogLines(logJson)
+
+    await checkLog(logParsed, `${flowName}/${jobLocation}`)
 
     let logName = generateFileName(flowName, jobLocation)
 
