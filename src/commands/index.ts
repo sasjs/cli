@@ -35,3 +35,5 @@ export { runTest } from './testing/test'
 export { processLint } from './lint/processLint'
 
 export { initLint } from './lint/initLint'
+
+export { processLogCheck } from './logcheck/processLogCheck'
