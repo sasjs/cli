@@ -21,6 +21,7 @@ import { RequestCommand } from '../../commands/request/requestCommand'
 import { HelpCommand } from '../../commands/help/helpCommand'
 import { JobCommand } from '../../commands/job/jobCommand'
 import { LintCommand } from '../../commands/lint/lintCommand'
+import { LogCheckCommand } from '../../commands/logcheck/logcheckCommand'
 import { FlowCommand } from '../../commands/flow/flowCommand'
 import { FSCommand } from '../../commands/fs/fsCommand'
 import { SnippetsCommand } from '../../commands/snippets/snippetsCommand'
@@ -47,6 +48,7 @@ export const commandFactory = new Map<string, Function>([
   ['init', (args: string[]) => new InitCommand(args)],
   ['job', (args: string[]) => new JobCommand(args)],
   ['lint', (args: string[]) => new LintCommand(args)],
+  ['logcheck', (args: string[]) => new LogCheckCommand(args)],
   ['flow', (args: string[]) => new FlowCommand(args)],
   ['request', (args: string[]) => new RequestCommand(args)],
   ['run', (args: string[]) => new RunCommand(args)],
