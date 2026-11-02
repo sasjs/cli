@@ -79,11 +79,18 @@ export async function runSasCode(
     await deleteFile(filePath)
   }
 
-  const result = await (target.serverType === ServerType.SasViya
-    ? executeOnSasViya(filePath, target, linesToExecute, logFile)
-    : target.serverType === ServerType.Sas9
-      ? executeOnSas9(target, linesToExecute, logFile)
-      : executeOnSasJS(filePath, target, linesToExecute, logFile))
+  let result: any
+
+  switch (target.serverType) {
+    case ServerType.SasViya:
+      result = await executeOnSasViya(filePath, target, linesToExecute, logFile)
+      break
+    case ServerType.Sas9:
+      result = await executeOnSas9(target, linesToExecute, logFile)
+      break
+    case ServerType.Sasjs:
+      result = await executeOnSasJS(filePath, target, linesToExecute, logFile)
+  }
 
   // Only a run that claims to have worked is worth checking: an executor that
   // threw has already written the log it failed on, truncated at the failure.

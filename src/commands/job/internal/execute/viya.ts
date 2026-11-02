@@ -232,12 +232,12 @@ export async function executeJobViya(
               logCount
             )
 
+            await saveLog(logData, logFile, jobPath)
+
             await checkLog(
               typeof logData === 'string' ? logData : parseLogLines(logData),
               jobPath
             )
-
-            await saveLog(logData, logFile, jobPath)
           }
         }
 

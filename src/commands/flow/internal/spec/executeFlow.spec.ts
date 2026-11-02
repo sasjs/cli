@@ -4,6 +4,7 @@ import { executeFlow } from '../executeFlow'
 import * as saveLogModule from '../saveLog'
 import * as saveToCsvModule from '../saveToCsv'
 import * as normalizeFilePath from '../normalizeFilePath'
+import * as logcheckModule from '../../../../utils/logcheck'
 import csvColumns from '../csvColumns'
 
 const pollOptions: PollOptions = {
@@ -31,7 +32,9 @@ describe('executeFlow', () => {
   beforeEach(() => {
     jest
       .spyOn(saveLogModule, 'saveLog')
-      .mockImplementation(() => Promise.resolve(fakeLogFileName))
+      .mockImplementation(() =>
+        Promise.resolve({ fileName: fakeLogFileName, logText: '' })
+      )
     jest
       .spyOn(saveToCsvModule, 'saveToCsv')
       .mockImplementation(() => Promise.resolve())
@@ -182,6 +185,57 @@ describe('executeFlow', () => {
       ''
     ]
     validateSaveToCsv([csvDataFailed])
+  })
+
+  it('writes the report and the log before a failing check stops the flow', async () => {
+    const flowName = 'checkedFlow'
+    const flow = {
+      name: flowName,
+      jobs: [{ location: 'jobs/testJob/job' }],
+      predecessors: []
+    }
+
+    jest
+      .spyOn(sasjs, 'startComputeJob')
+      .mockResolvedValue({ job: { state: 'success' } } as any)
+
+    const saveLogSpy = jest
+      .spyOn(saveLogModule, 'saveLog')
+      .mockImplementation(() =>
+        Promise.resolve({ fileName: fakeLogFileName, logText: 'ERROR 22-322' })
+      )
+
+    const csvSpy = jest
+      .spyOn(saveToCsvModule, 'saveToCsv')
+      .mockImplementation(() => Promise.resolve())
+
+    // last test in the file: the rejecting spy is restored before it ends, so
+    // it cannot leak into another case
+    const checkSpy = jest
+      .spyOn(logcheckModule, 'checkLog')
+      .mockRejectedValue(new Error('SAS log check failed'))
+
+    await expect(
+      executeFlow(
+        flow as any,
+        sasjs,
+        pollOptions,
+        target,
+        {} as any as AuthConfig,
+        ''
+      )
+    ).rejects.toThrow('SAS log check failed')
+
+    // the job whose log fails the check is the job a reader has to find in the
+    // CSV, with its log on disk
+    expect(saveLogSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      checkSpy.mock.invocationCallOrder[0]
+    )
+    expect(csvSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      checkSpy.mock.invocationCallOrder[0]
+    )
+
+    checkSpy.mockRestore()
   })
 })
 

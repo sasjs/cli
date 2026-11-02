@@ -18,6 +18,7 @@ import {
 import csvColumns from './csvColumns'
 import { FlowWave, FlowWaveJob } from '../../../types'
 import { FlowWaveJobStatus } from '../../../types/flow'
+import { checkLog } from '../../../utils/logcheck'
 
 interface executeFlowReturn {
   jobStatus: boolean
@@ -83,7 +84,7 @@ export const executeFlow = async (
             }
           }
 
-          let logName = await saveLog(
+          const savedLog = await saveLog(
             err?.job?.links ?? [],
             flowName,
             jobLocation,
@@ -96,7 +97,9 @@ export const executeFlow = async (
             displayError(err, 'Error while saving log file.')
           })
 
-          logName = logName ? `${logFolder}/${logName}` : ''
+          logName = savedLog?.fileName
+            ? `${logFolder}/${savedLog.fileName}`
+            : ''
 
           const predecessors = flow.predecessors?.length
             ? flow.predecessors
@@ -114,6 +117,11 @@ export const executeFlow = async (
               displayError(err, 'Error while saving CSV file.')
             }
           )
+
+          // after the report and the log file: a check that fails is still a job
+          // someone has to find in the CSV, with its log on disk
+          if (savedLog?.logText)
+            await checkLog(savedLog.logText, `${flowName}/${jobLocation}`)
 
           job.status = FlowWaveJobStatus.Failure
 
@@ -138,9 +146,12 @@ export const executeFlow = async (
         const details = parseJobDetails(submittedJob)
 
         // If the log was being streamed, it should already be present
-        // at the specified log path
+        // at the specified log path, and its text never passes through here -
+        // so a streamed flow is logged but not checked
+        let jobLogText = ''
+
         if (!pollOptions.streamLog) {
-          logName = (await saveLog(
+          const savedLog = await saveLog(
             submittedJob.links,
             flowName,
             jobLocation,
@@ -151,9 +162,13 @@ export const executeFlow = async (
             details?.lineCount
           ).catch((err: any) => {
             displayError(err, 'Error while saving log file.')
-          })) as string
+          })
 
-          logName = logName ? `${logFolder}/${logName}` : ''
+          logName = savedLog?.fileName
+            ? `${logFolder}/${savedLog.fileName}`
+            : ''
+
+          jobLogText = savedLog?.logText ?? ''
         }
 
         const predecessors = flow.predecessors?.length
@@ -170,6 +185,10 @@ export const executeFlow = async (
         await saveToCsv(csvFile, data, Object.values(csvColumns), 'id').catch(
           (err) => displayError(err, 'Error while saving CSV file.')
         )
+
+        // after the report and the log file: a check that fails is still a job
+        // someone has to find in the CSV, with its log on disk
+        if (jobLogText) await checkLog(jobLogText, `${flowName}/${jobLocation}`)
 
         job.status =
           submittedJob.state === 'completed'

@@ -163,9 +163,11 @@ const saveLogFile = async (
       logFile = path.join(logPath, `${filename}-${timestamp}.log`)
     }
 
-    if (check) await checkLog(currentRequestLog.logFile, sasJobLocation)
-
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
+
+    // after the write, not before: a request that fails the check is the one
+    // whose log is wanted on disk
+    if (check) await checkLog(currentRequestLog.logFile, sasJobLocation)
   }
 }
 

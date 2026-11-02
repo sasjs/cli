@@ -58,7 +58,7 @@ const executeParseOptions = {
     type: 'boolean',
     default: undefined,
     description:
-      'Check the log of every job in the flow, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
+      'Check the log of every job in the flow, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off. A log streamed with --streamLog goes straight to its file and is not checked.'
   }
 }
 
