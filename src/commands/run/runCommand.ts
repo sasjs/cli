@@ -1,6 +1,11 @@
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError } from '../../utils'
+import {
+  isLogCheckFailure,
+  logCheckModeOf,
+  setLogCheckMode
+} from '../../utils/logcheck'
 import { runSasCode } from './run'
 
 const syntax = 'run <sasFilePath> [options]'
@@ -54,6 +59,12 @@ export class RunCommand extends TargetCommand {
           type: 'string',
           alias: 's',
           description: 'Path to an input JSON containing job variables.'
+        },
+        logcheck: {
+          type: 'boolean',
+          default: undefined,
+          description:
+            'Check the SAS log this command received, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
         }
       },
       syntax,
@@ -68,6 +79,8 @@ export class RunCommand extends TargetCommand {
 
     const { sasFilePath, compile, log, source } = this.parsed
 
+    setLogCheckMode(logCheckModeOf(this.parsed.logcheck))
+
     return await runSasCode(
       target,
       sasFilePath as string,
@@ -79,6 +92,8 @@ export class RunCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         displayError(err, 'An error has occurred when running your SAS code.')
         return ReturnCode.InternalError
       })

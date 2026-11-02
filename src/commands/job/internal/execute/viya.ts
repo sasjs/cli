@@ -1,6 +1,8 @@
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { isJsonFile } from '../../../../utils/file'
 import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
+import { checkLog } from '../../../../utils/logcheck'
+import { parseLogLines } from '../../../../utils/utils'
 import path from 'path'
 import SASjs, {
   Link,
@@ -231,6 +233,11 @@ export async function executeJobViya(
             )
 
             await saveLog(logData, logFile, jobPath)
+
+            await checkLog(
+              typeof logData === 'string' ? logData : parseLogLines(logData),
+              jobPath
+            )
           }
         }
 

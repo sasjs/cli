@@ -4,6 +4,11 @@ import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError, getAuthConfig, prefixAppLoc } from '../../utils'
 import { runSasJob } from './request'
 import { getLogFilePath } from '../../utils/getLogFilePath'
+import {
+  isLogCheckFailure,
+  logCheckModeOf,
+  setLogCheckMode
+} from '../../utils/logcheck'
 
 const syntax = 'request <sasProgramPath> [options]'
 const usage =
@@ -60,6 +65,12 @@ export class RequestCommand extends TargetCommand {
           alias: 'o',
           description:
             'path where output of the finished job execution will be saved.'
+        },
+        logcheck: {
+          type: 'boolean',
+          default: undefined,
+          description:
+            'Check the SAS log this request received, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
         }
       },
       syntax,
@@ -70,6 +81,8 @@ export class RequestCommand extends TargetCommand {
   }
 
   public async execute() {
+    setLogCheckMode(logCheckModeOf(this.parsed.logcheck))
+
     const { target, isLocal } = await this.getTargetInfo()
     const jobPath = prefixAppLoc(target.appLoc, process.currentDir as string)
     const log = this.parsed.log
@@ -111,6 +124,8 @@ export class RequestCommand extends TargetCommand {
         return ReturnCode.Success
       })
       .catch((err) => {
+        if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
         displayError(err, 'An error has occurred when running your SAS job.')
 
         return ReturnCode.InternalError

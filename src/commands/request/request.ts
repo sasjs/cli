@@ -15,7 +15,8 @@ import {
   saveLog,
   displayError,
   displaySuccess,
-  getSASjs
+  getSASjs,
+  checkLog
 } from '../../utils'
 
 export async function runSasJob(
@@ -123,7 +124,7 @@ export async function runSasJob(
 
       if (!!output) await writeOutput(outputPathParam, output, sasJobLocation)
 
-      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath)
+      await saveLogFile(sasjs, sasJobLocation, logFile, jobPath, true)
 
       result = true
     })
@@ -140,7 +141,8 @@ const saveLogFile = async (
   sasjs: SASjs,
   sasJobLocation: string,
   logFile: string | undefined,
-  jobPath?: string | null
+  jobPath?: string | null,
+  check: boolean = false
 ) => {
   const sasRequests: SASjsRequest[] = sasjs.getSasRequests()
   const currentRequestLog = sasRequests.find(
@@ -162,6 +164,10 @@ const saveLogFile = async (
     }
 
     await saveLog(currentRequestLog.logFile, logFile, jobPath || '', false)
+
+    // after the write, not before: a request that fails the check is the one
+    // whose log is wanted on disk
+    if (check) await checkLog(currentRequestLog.logFile, sasJobLocation)
   }
 }
 

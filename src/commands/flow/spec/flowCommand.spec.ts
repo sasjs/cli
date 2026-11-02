@@ -4,6 +4,11 @@ import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
 import * as setConstantsUtils from '../../../utils/setConstants'
 import { ReturnCode } from '../../../types/command'
+import {
+  LogCheckFailure,
+  getLogCheckMode,
+  setLogCheckMode
+} from '../../../utils/logcheck'
 
 const defaultArgs = ['node', 'sasjs']
 const target = new Target({
@@ -19,6 +24,39 @@ const csvFile = 'path/to/csv/file'
 describe('FlowCommand', () => {
   beforeEach(() => {
     setupMocks()
+  })
+
+  afterEach(() => setLogCheckMode('auto'))
+
+  it('should return the logcheck code when the log check failed the flow', async () => {
+    jest
+      .spyOn(executeModule, 'execute')
+      .mockImplementation(() => Promise.reject(new LogCheckFailure('3 errors')))
+
+    const command = new FlowCommand([
+      ...defaultArgs,
+      'flow',
+      'execute',
+      '--source',
+      source
+    ])
+
+    expect(await command.execute()).toEqual(ReturnCode.LogCheckError)
+  })
+
+  it('should switch the log check off for --no-logcheck', async () => {
+    const command = new FlowCommand([
+      ...defaultArgs,
+      'flow',
+      'execute',
+      '--source',
+      source,
+      '--no-logcheck'
+    ])
+
+    await command.execute()
+
+    expect(getLogCheckMode()).toEqual('off')
   })
 
   it('should parse sasjs flow execute command', async () => {

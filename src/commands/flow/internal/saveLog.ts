@@ -6,6 +6,18 @@ import { parseLogLines } from '../../../utils/utils'
 import { fetchLogFileContent } from '../../shared/fetchLogFileContent'
 import { generateFileName } from './generateFileName'
 
+/**
+ * A job's log, both as written and as text.
+ *
+ * The caller checks the text after the file is on disk: a job whose log fails
+ * the check is exactly the job whose log is wanted for reading, so writing it
+ * first is the difference between a diagnosable failure and an empty folder.
+ */
+export interface SavedFlowLog {
+  fileName: string | null
+  logText: string
+}
+
 // REFACTOR: move to utility
 export const saveLog = async (
   links: any[],
@@ -16,7 +28,7 @@ export const saveLog = async (
   serverUrl: string,
   access_token: string,
   lineCount: number = 1000000
-) => {
+): Promise<SavedFlowLog> => {
   if (!logFolder) throw 'No log folder provided'
   if (!links) throw 'No links provided'
 
@@ -50,8 +62,8 @@ export const saveLog = async (
       displayError(err, 'Error while creating log file.')
     )
 
-    return logName
+    return { fileName: logName, logText: logParsed }
   }
 
-  return null
+  return { fileName: null, logText: '' }
 }

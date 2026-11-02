@@ -23,7 +23,7 @@
 - Optionally synchronise a local folder onto the server filesystem using `sasjs fs`
 - Trigger Viya Jobs & Flows (`sasjs job execute` / `sasjs flow execute`)
 - Enforce code quality rules with `sasjs lint`
-- Check what SAS actually printed, and fail a pipeline on it, with `sasjs logcheck`
+- Check what SAS actually printed, and fail a pipeline on it, with `sasjs logcheck` - the same check reports the log of `run`, `request`, `job execute` and `flow execute`, and can fail those commands too via `logCheck.autoCheck`
 - Generate HTML5 documentation (requires doxygen) with `sasjs doc`
 - Create and execute SAS tests (`sasjs test`)
 
