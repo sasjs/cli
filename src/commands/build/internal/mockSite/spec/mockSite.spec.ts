@@ -117,6 +117,27 @@ describe('browser-hosted build', () => {
     expect(readConfig().appLoc).toBe(appLoc)
   })
 
+  it('ships the webout() block with sentinels the runtime fills in', async () => {
+    await buildMockSite(target())
+
+    const prelude = JSON.parse(
+      fs.readFileSync(path.join(out(), 'host', 'webout-prelude.json'), 'utf8')
+    )
+
+    // The block is the one @sasjs/utils generates for the server. It travels
+    // with sentinel values because the run's paths and user are not known at
+    // build time, and the sentinel names travel with it so the two sides cannot
+    // disagree about them.
+    expect(prelude.template).toContain('webout(')
+    expect(prelude.template).toContain('_sasjs_webout.finalise')
+    expect(prelude.template).toContain('content-type: application/json')
+    expect(prelude.sentinels.weboutPath).toEqual('__SASJS_WEBOUT_PATH__')
+
+    for (const sentinel of Object.values(prelude.sentinels)) {
+      expect(prelude.template).toContain(JSON.stringify(sentinel))
+    }
+  })
+
   it('points the app at itself and installs the boot loader', async () => {
     await buildMockSite(target())
 

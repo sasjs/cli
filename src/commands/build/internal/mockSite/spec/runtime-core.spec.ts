@@ -1,4 +1,5 @@
-export {}
+import { getWeboutPrelude } from '@sasjs/utils'
+import { WEBOUT_SENTINELS } from '../mockSite'
 
 /**
  * The parity claim of a browser-hosted build is that a service runs in the
@@ -23,10 +24,18 @@ const jsonResponse = (body: any) => ({
   json: async () => body
 })
 
-const seedDrive = async (runtime: any, files: { [path: string]: string }) => {
+const seedDrive = async (
+  runtime: any,
+  files: { [path: string]: string },
+  prelude?: { sentinels: any; template: string }
+) => {
   ;(global as any).fetch = jest.fn(async (url: string) => {
     if (url.includes('mock-config')) return jsonResponse({ appLoc })
     if (url.includes('vfs-seed')) return jsonResponse({ files })
+    if (url.includes('webout-prelude'))
+      return prelude
+        ? jsonResponse(prelude)
+        : { ok: false, json: async () => ({}) }
     return { ok: false, json: async () => ({}) }
   })
   await runtime.seed()
@@ -66,6 +75,65 @@ describe('browser runtime', () => {
 
     expect(runtime.stats().files).toBe(1)
     expect(runtime.DRIVE_FORMAT).toBe(1)
+  })
+
+  it('sends data back the way the server does, through webout()', async () => {
+    const runtime = loadRuntime()
+
+    // A mock build ships the same block the server generates, with sentinel
+    // values runtime-core fills per run. Without it a service written with
+    // webout() fails in a mock build with "webout is not defined", which is the
+    // gap this closes.
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: WEBOUT_SENTINELS,
+        template: getWeboutPrelude({
+          weboutPath: WEBOUT_SENTINELS.weboutPath,
+          headersPath: WEBOUT_SENTINELS.headersPath,
+          program: WEBOUT_SENTINELS.program,
+          debug: WEBOUT_SENTINELS.debug,
+          username: WEBOUT_SENTINELS.username,
+          userId: WEBOUT_SENTINELS.userId,
+          apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
+        })
+      }
+    )
+
+    const result = runtime.run({
+      code: `
+webout('OPEN')
+webout('OBJ', 'users', [{ name: 'ann' }, { name: 'bob' }])
+webout('CLOSE')`
+    })
+
+    expect(result.error).toBeNull()
+
+    const parsed = JSON.parse(result.webout)
+
+    expect(parsed.users).toEqual([{ name: 'ann' }, { name: 'bob' }])
+    expect(parsed.SYSDATE).toMatch(/^\d{2}[A-Z]{3}\d{4}$/)
+    expect(parsed.MF_GETUSER).toEqual('DEMO')
+    expect(parsed.SYSPROCESSNAME).toEqual('Browser')
+    expect(parsed.SYSSCPL).toEqual('browser')
+
+    // The content type is the point: the block sets it, so the worker hands the
+    // app JSON rather than a string. The mock seeds the file empty (the server
+    // seeds text/html), so the block's record is the only one here.
+    expect(result.headers).toContain('content-type: application/json')
+  })
+
+  it('leaves the headers alone for a service that only assigns _webout', async () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({ code: `_webout = '<h1>raw</h1>'` })
+
+    expect(result.error).toBeNull()
+    expect(result.webout).toEqual('<h1>raw</h1>')
+    // Unchanged behaviour: a raw assignment declares no type here, and the
+    // worker's binary fallback depends on this file staying empty.
+    expect(result.headers).toEqual('')
   })
 
   it('exposes request parameters as variables, with JSON escaping', () => {
