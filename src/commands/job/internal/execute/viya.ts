@@ -271,6 +271,16 @@ export async function executeJobViya(
             'An error has occurred when retrieving the job log.'
           )
         }
+      } else {
+        // A log was asked for and the job carries none. Staying quiet here is
+        // the same "flag that does nothing" this block exists to remove: it
+        // reaches the end with the job's own status and exits 0.
+        result = false
+
+        displayError(
+          null,
+          'An error has occurred: the job returned no log to check or save.'
+        )
       }
     }
 

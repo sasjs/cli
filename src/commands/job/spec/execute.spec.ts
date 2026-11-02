@@ -259,6 +259,47 @@ describe('executeJobViya', () => {
       'An error has occurred when retrieving the job log.'
     )
   })
+
+  it('fails a verdict asked for from a job that carries no log link', async () => {
+    jest.spyOn(logcheckModule, 'logCheckWantsVerdict').mockResolvedValue(true)
+
+    jest.spyOn(sasjs, 'startComputeJob').mockResolvedValue({
+      job: {
+        state: 'completed',
+        links: [],
+        logStatistics: { lineCount: 0 }
+      }
+    } as any)
+
+    const fetchSpy = jest.spyOn(
+      fetchLogFileContentModule,
+      'fetchLogFileContent'
+    )
+    const checkSpy = jest.spyOn(logcheckModule, 'checkLog')
+    const displaySpy = jest.spyOn(displayResultModule, 'displayError')
+
+    const result = await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      false
+    )
+
+    expect(result).toBe(false)
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(checkSpy).not.toHaveBeenCalled()
+    expect(displaySpy).toHaveBeenCalledWith(
+      null,
+      'An error has occurred: the job returned no log to check or save.'
+    )
+  })
 })
 
 describe('executeJobSasjs', () => {
