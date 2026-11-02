@@ -1,7 +1,7 @@
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { isJsonFile } from '../../../../utils/file'
 import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
-import { checkLog } from '../../../../utils/logcheck'
+import { checkLog, isLogCheckFailure } from '../../../../utils/logcheck'
 import { parseLogLines } from '../../../../utils/utils'
 import path from 'path'
 import SASjs, {
@@ -243,6 +243,11 @@ export async function executeJobViya(
 
         result = submittedJob
       } catch (error) {
+        // A log-check failure is the verdict the caller asked for, not a parse
+        // error: swallowing it here printed "Logcheck failed" and then exited 0,
+        // which is the green pipeline the feature exists to prevent.
+        if (isLogCheckFailure(error)) throw error
+
         // handle use case when submitted job can't be parsed
         result = false
 

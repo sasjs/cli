@@ -9,6 +9,9 @@ import {
 } from '../../../utils'
 import * as utilsModule from '../../../utils/utils'
 import * as configUtils from '../../../utils/config'
+import * as logcheckModule from '../../../utils/logcheck'
+import * as fetchLogFileContentModule from '../../shared/fetchLogFileContent'
+import { LogCheckFailure } from '../../../utils/logcheck'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
@@ -132,6 +135,42 @@ describe('executeJobViya', () => {
     expect(typeof onTokensRefreshed).toEqual('function')
 
     spy.mockRestore()
+  })
+
+  it('propagates a log-check failure instead of reporting a parse error', async () => {
+    // a job whose log fails the check used to print the verdict and then exit 0,
+    // because this function's catch-all treated the failure as a bad output
+    jest.spyOn(sasjs, 'startComputeJob').mockResolvedValue({
+      job: {
+        state: 'completed',
+        links: [{ rel: 'log', method: 'GET', href: '/log' }],
+        logStatistics: { lineCount: 5 }
+      }
+    } as any)
+
+    jest
+      .spyOn(fetchLogFileContentModule, 'fetchLogFileContent')
+      .mockResolvedValue('ERROR: deliberate' as any)
+
+    const failure = new LogCheckFailure('SAS log check failed for test/job')
+
+    jest.spyOn(logcheckModule, 'checkLog').mockRejectedValue(failure)
+
+    await expect(
+      executeJobViya(
+        sasjs,
+        mockAuthConfig,
+        'test/job',
+        target,
+        true,
+        false,
+        testLogsPath,
+        undefined,
+        false,
+        undefined,
+        false
+      )
+    ).rejects.toBe(failure)
   })
 })
 
