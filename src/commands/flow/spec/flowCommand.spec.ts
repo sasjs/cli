@@ -1,4 +1,5 @@
 import * as executeModule from '../execute'
+import { FlowExecutionError } from '../execute'
 import { FlowCommand } from '../flowCommand'
 import { AuthConfig, Logger, LogLevel, ServerType, Target } from '@sasjs/utils'
 import * as configUtils from '../../../utils/config'
@@ -161,6 +162,42 @@ describe('FlowCommand', () => {
     const returnCode = await command.execute()
 
     expect(returnCode).toEqual(ReturnCode.Success)
+  })
+
+  it('should return the flow code when the flow did not succeed', async () => {
+    jest
+      .spyOn(executeModule, 'execute')
+      .mockImplementation(() =>
+        Promise.reject(new FlowExecutionError('badJob (failure)'))
+      )
+
+    const command = new FlowCommand([
+      ...defaultArgs,
+      'flow',
+      'execute',
+      '--source',
+      source
+    ])
+
+    expect(await command.execute()).toEqual(ReturnCode.FlowError)
+  })
+
+  it('should treat a resolve without a CSV path as an internal error', async () => {
+    // execute() resolves a path or rejects; anything else is a contract
+    // violation, and must not be reported as a green flow
+    jest
+      .spyOn(executeModule, 'execute')
+      .mockImplementation(() => Promise.resolve(false as any))
+
+    const command = new FlowCommand([
+      ...defaultArgs,
+      'flow',
+      'execute',
+      '--source',
+      source
+    ])
+
+    expect(await command.execute()).toEqual(ReturnCode.InternalError)
   })
 
   it('should log the error and return the error code when execution is unsuccessful', async () => {

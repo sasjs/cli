@@ -10,6 +10,70 @@ import {
   checkPredecessorDeadlock
 } from './internal'
 import { FlowWave } from '../../types'
+import { FlowWaveJobStatus } from '../../types/flow'
+
+/**
+ * A flow that finished without every job succeeding.
+ *
+ * It carries the jobs that did not, so the command can say which ones rather
+ * than reporting a JavaScript fault two frames later - which is what happened
+ * when `execute()` resolved `false` instead and the command called `.replace`
+ * on it.
+ *
+ * The marker flag rather than `instanceof`: this package compiles to es5, where
+ * a subclass of a built-in loses its prototype chain and `instanceof` answers
+ * false in the built artefact.
+ */
+export class FlowExecutionError extends Error {
+  readonly flowFailure = true
+  readonly csvFilePath?: string
+
+  /**
+   * @param message what did not succeed.
+   * @param csvFilePath the flow results file, which records every job and its
+   *   outcome. It is the diagnostic for a failed run, so it belongs in the
+   *   message: without it the failure path says less than the success path,
+   *   which prints the same path.
+   */
+  constructor(message: string, csvFilePath?: string) {
+    super(
+      csvFilePath
+        ? `${message} The flow results were written to ${csvFilePath}.`
+        : message
+    )
+    this.name = 'FlowExecutionError'
+    this.csvFilePath = csvFilePath
+  }
+}
+
+export const isFlowFailure = (error: unknown): error is FlowExecutionError =>
+  (error as FlowExecutionError | undefined)?.flowFailure === true
+
+/**
+ * Names the jobs that did not succeed, so the message a pipeline sees is about
+ * the flow rather than about the code that reported it.
+ *
+ * A job with no status never ran - its flow was failed by a predecessor - and is
+ * left out. The test is against `undefined` rather than truthiness: a status
+ * constant added later that happens to be falsy would otherwise be dropped from
+ * the message, and the message is the whole diagnosis.
+ */
+export const describeFailedJobs = (flows: {
+  [key: string]: FlowWave
+}): string => {
+  const failed = Object.values(flows).flatMap((flow) =>
+    flow.jobs
+      .filter(
+        (job) =>
+          job.status !== undefined && job.status !== FlowWaveJobStatus.Success
+      )
+      .map((job) => `${job.location} (${job.status})`)
+  )
+
+  return failed.length
+    ? `The flow did not complete with all jobs successful: ${failed.join(', ')}.`
+    : 'The flow did not complete with all jobs successful.'
+}
 
 export async function execute(
   target: Target,
@@ -94,8 +158,14 @@ export async function execute(
 
       const { completed, completedWithAllSuccess } = allFlowsCompleted(flows!)
       if (completed) {
+        // a flow that did not succeed is a failure of the flow, not of the CLI:
+        // reject with what did not run, so the command can report it and exit
+        // with a code that means "the flow failed"
         if (completedWithAllSuccess) resolve(csvFileRealPath)
-        else resolve(false)
+        else
+          reject(
+            new FlowExecutionError(describeFailedJobs(flows!), csvFileRealPath)
+          )
       }
     }
 

@@ -9,6 +9,10 @@ export enum ReturnCode {
   AlreadyInitialised,
   // `logcheck` found issues at or above the configured failure policy. Kept
   // apart from LintError so a pipeline can tell a code-quality failure from a
-  // run that SAS complained about.
-  LogCheckError
+  // run SAS complained about.
+  LogCheckError,
+  // A flow finished without every job succeeding. Distinct from InternalError,
+  // which also covers a bad source file or an unreachable server, so a pipeline
+  // can tell "the flow failed" from "the CLI could not run the flow".
+  FlowError
 }
