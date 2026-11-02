@@ -18,9 +18,16 @@ enum FlowSubCommand {
 const syntax = 'flow <subCommand> [options]'
 
 const usage = 'sasjs flow <execute> --source <flowPath> [options]'
-const description =
+// the codes are read from the enum rather than written out, so a member
+// inserted ahead of them cannot make this text describe numbers the command no
+// longer returns. A function rather than a constant: `types/command/index.ts`
+// re-exports `parse` before `ReturnCode`, and `parse` loads every command, so
+// reading the enum while this module initialises finds it undefined.
+const commandDescription = () =>
   'Performs operations on flows of jobs.\n' +
-  'Exits non-zero when a flow does not complete: 6 when a job did not succeed, 2 when the flow could not be executed at all.'
+  `Exits ${ReturnCode.FlowError} when a flow finishes with a job that did not ` +
+  `succeed, and ${ReturnCode.InternalError} when the flow could not be executed ` +
+  'at all.'
 const examples: CommandExample[] = [
   {
     command:
@@ -72,7 +79,7 @@ export class FlowCommand extends TargetCommand {
     super(args, {
       parseOptions,
       usage,
-      description,
+      description: commandDescription(),
       examples,
       syntax
     })
