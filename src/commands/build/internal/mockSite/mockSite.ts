@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import { folderExists, Target } from '@sasjs/utils'
+import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
 export interface MockSiteResult {
   outputFolder: string
@@ -13,6 +13,25 @@ export interface MockSiteResult {
   webFileCount: number
   /** True when a captured drive snapshot was shipped with the site. */
   snapshot: boolean
+}
+
+/**
+ * The webout() block is the one @sasjs/utils generates for the server, emitted
+ * here with sentinel values and filled in per run by runtime-core.js. That is
+ * what makes a service behave identically as a stored program and in a mock
+ * build: one copy of the block, one set of paths, one envelope.
+ *
+ * The sentinels are quoted in the emitted text (they are JSON string literals),
+ * so the substitution replaces the whole literal and never a fragment.
+ */
+export const WEBOUT_SENTINELS = {
+  weboutPath: '__SASJS_WEBOUT_PATH__',
+  headersPath: '__SASJS_WEBOUT_HEADERS__',
+  program: '__SASJS_WEBOUT_PROGRAM__',
+  debug: '__SASJS_WEBOUT_DEBUG__',
+  username: '__SASJS_WEBOUT_USERNAME__',
+  userId: '__SASJS_WEBOUT_USERID__',
+  apiServerUrl: '__SASJS_WEBOUT_APIURL__'
 }
 
 const ASSETS_FOLDER = path.join(__dirname, 'assets')
@@ -453,13 +472,32 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     path.join(outputFolder, 'sw.js')
   )
 
-  // 2a. cache busting. Static hosts keep these files for a long time and their
+  // 2a. the webout() block, generated once with sentinels that runtime-core.js
+  // fills in per run. It is the same text the server emits, from @sasjs/utils,
+  // so a service cannot behave differently in a mock build.
+  fs.writeFileSync(
+    path.join(hostFolder, 'webout-prelude.json'),
+    JSON.stringify({
+      sentinels: WEBOUT_SENTINELS,
+      template: getWeboutPrelude({
+        weboutPath: WEBOUT_SENTINELS.weboutPath,
+        headersPath: WEBOUT_SENTINELS.headersPath,
+        program: WEBOUT_SENTINELS.program,
+        debug: WEBOUT_SENTINELS.debug,
+        username: WEBOUT_SENTINELS.username,
+        userId: WEBOUT_SENTINELS.userId,
+        apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
+      })
+    })
+  )
+
+  // 2b. cache busting. Static hosts keep these files for a long time and their
   // names never change, so a returning visitor would otherwise run the host
   // code from the previous build - including the worker, which imports
   // runtime-core.js through the same cache.
   const hostVersion = createHash('md5')
     .update(
-      ['runtime-core.js', 'persist.js', 'intercept.js']
+      ['runtime-core.js', 'persist.js', 'intercept.js', 'webout-prelude.json']
         .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
         .reduce((all, buf) => Buffer.concat([all, buf]), Buffer.alloc(0))
     )
@@ -477,7 +515,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       )
   )
 
-  // 2b. a captured drive, if the project keeps one. This is how a site ships
+  // 2c. a captured drive, if the project keeps one. This is how a site ships
   // with data already in it: seed once in a browser, export the drive with
   // window.SASjsMock.download(), and place the file here.
   const snapshotSource = path.join(buildFolder, 'mock-snapshot.json')
