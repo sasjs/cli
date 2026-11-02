@@ -13,6 +13,7 @@ import * as logcheckModule from '../../../utils/logcheck'
 import * as fetchLogFileContentModule from '../../shared/fetchLogFileContent'
 import { LogCheckFailure } from '../../../utils/logcheck'
 import * as jobUtils from '../internal/utils'
+import * as displayResultModule from '../../../utils/displayResult'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
@@ -178,7 +179,7 @@ describe('executeJobViya', () => {
     // otherwise the flag prints nothing and exits 0, which reads as a clean log
     jest.spyOn(logcheckModule, 'logCheckWantsVerdict').mockResolvedValue(true)
 
-    jest.spyOn(jobUtils, 'saveLog').mockResolvedValue(undefined)
+    const saveSpy = jest.spyOn(jobUtils, 'saveLog').mockResolvedValue(undefined)
 
     jest.spyOn(sasjs, 'startComputeJob').mockResolvedValue({
       job: {
@@ -213,6 +214,50 @@ describe('executeJobViya', () => {
     ).rejects.toBe(failure)
 
     expect(fetchSpy).toHaveBeenCalled()
+
+    // the log was fetched for the verdict, not asked for: writing it would
+    // leave a file in the project directory that nobody requested
+    expect(saveSpy).not.toHaveBeenCalled()
+  })
+
+  it('names the log fetch, not the job output, when the log cannot be retrieved', async () => {
+    jest.spyOn(logcheckModule, 'logCheckWantsVerdict').mockResolvedValue(true)
+
+    jest.spyOn(sasjs, 'startComputeJob').mockResolvedValue({
+      job: {
+        state: 'completed',
+        links: [{ rel: 'log', method: 'GET', href: '/log' }],
+        logStatistics: { lineCount: 5 }
+      }
+    } as any)
+
+    jest
+      .spyOn(fetchLogFileContentModule, 'fetchLogFileContent')
+      .mockRejectedValue(new Error('502 Bad Gateway'))
+
+    const checkSpy = jest.spyOn(logcheckModule, 'checkLog')
+    const displaySpy = jest.spyOn(displayResultModule, 'displayError')
+
+    const result = await executeJobViya(
+      sasjs,
+      mockAuthConfig,
+      'test/job',
+      target,
+      false,
+      false,
+      undefined,
+      undefined,
+      false,
+      undefined,
+      false
+    )
+
+    expect(result).toBe(false)
+    expect(checkSpy).not.toHaveBeenCalled()
+    expect(displaySpy).toHaveBeenCalledWith(
+      null,
+      'An error has occurred when retrieving the job log.'
+    )
   })
 })
 
