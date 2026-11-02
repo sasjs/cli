@@ -2,6 +2,7 @@ import path from 'path'
 import os from 'os'
 import { promises as fs } from 'fs'
 import {
+  configCandidates,
   globToRegExp,
   isIgnoredPath,
   matchesPath,
@@ -131,6 +132,39 @@ describe('readLogCheckConfig', () => {
     expect(await readLogCheckConfig()).toEqual(defaultLogCheckConfig)
   })
 
+  it('reads the config from the SASjs convention, sasjs/sasjsconfig.json', async () => {
+    // The rest of the CLI reads this path. A project that follows the
+    // convention is the common case, and a root-level file must not shadow it.
+    const folder = await tempFolder()
+    process.projectDir = folder
+    await fs.mkdir(path.join(folder, 'sasjs'))
+    await fs.writeFile(
+      path.join(folder, 'sasjs', 'sasjsconfig.json'),
+      JSON.stringify({ logCheck: { failOn: 'warning', autoCheck: true } })
+    )
+
+    const config = await readLogCheckConfig()
+
+    expect(config.failOn).toEqual('warning')
+    expect(config.autoCheck).toBeTrue()
+  })
+
+  it('prefers sasjs/sasjsconfig.json when a root file also exists', async () => {
+    const folder = await tempFolder()
+    process.projectDir = folder
+    await fs.mkdir(path.join(folder, 'sasjs'))
+    await fs.writeFile(
+      path.join(folder, 'sasjs', 'sasjsconfig.json'),
+      JSON.stringify({ logCheck: { failOn: 'note' } })
+    )
+    await fs.writeFile(
+      path.join(folder, 'sasjsconfig.json'),
+      JSON.stringify({ logCheck: { failOn: 'never' } })
+    )
+
+    expect((await readLogCheckConfig()).failOn).toEqual('note')
+  })
+
   it('reads the section from the top level of the config', async () => {
     await withConfig({ logCheck: { failOn: 'note' } })
 
@@ -162,6 +196,15 @@ describe('readLogCheckConfig', () => {
     await withConfig('{ "logCheck": ')
 
     await expect(readLogCheckConfig()).rejects.toThrow('Could not parse')
+  })
+})
+
+describe('configCandidates', () => {
+  it('tries the SASjs convention before the project root', () => {
+    expect(configCandidates(path.join('some', 'project'))).toEqual([
+      path.join('some', 'project', 'sasjs', 'sasjsconfig.json'),
+      path.join('some', 'project', 'sasjsconfig.json')
+    ])
   })
 })
 

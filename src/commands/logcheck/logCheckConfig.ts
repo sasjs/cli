@@ -107,6 +107,21 @@ export const parseLogCheckSection = (
 }
 
 /**
+ * Where a project's config may be, in the order they are tried.
+ *
+ * `sasjs/sasjsconfig.json` is the SASjs convention and the one the rest of the
+ * CLI reads, so it wins. A `sasjsconfig.json` at the project root is still
+ * honoured, because a folder holding a single log and a hand-written config is
+ * exactly the case this command is meant to serve - but the two are never
+ * confused for each other, and the convention cannot be shadowed by a stray
+ * file next to it.
+ */
+export const configCandidates = (projectDir: string): string[] => [
+  path.join(projectDir, 'sasjs', 'sasjsconfig.json'),
+  path.join(projectDir, 'sasjsconfig.json')
+]
+
+/**
  * Reads the `logCheck` policy from the project's `sasjsconfig.json`.
  *
  * A missing file, or one without the section, is not an error - the command
@@ -115,12 +130,18 @@ export const parseLogCheckSection = (
  */
 export const readLogCheckConfig = async (): Promise<LogCheckConfig> => {
   const projectDir = process.projectDir || process.cwd()
-  const configPath = path.join(projectDir, 'sasjsconfig.json')
-  const raw = await readFile(configPath).catch(() => undefined)
 
-  if (!raw)
-    return { ...defaultLogCheckConfig, ignoreCodes: [], ignorePaths: [] }
+  for (const configPath of configCandidates(projectDir)) {
+    const raw = await readFile(configPath).catch(() => undefined)
 
+    if (raw) return readConfigAt(configPath, raw)
+  }
+
+  return { ...defaultLogCheckConfig, ignoreCodes: [], ignorePaths: [] }
+}
+
+/** Parses one config document into the policy - see {@link readLogCheckConfig}. */
+const readConfigAt = (configPath: string, raw: string): LogCheckConfig => {
   let parsed: any
 
   try {
