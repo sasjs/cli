@@ -244,9 +244,11 @@ export class FSCommand extends TargetCommand {
       await executeCode(target, program).then(async ({ log }) => {
         await saveLog(log, path.join(outputFolder, 'deploy.log'), '', false)
 
-        // after the log file is written: a deploy whose log fails the check is
-        // the deploy whose record someone needs to read
-        await checkLog(log, 'fs deploy')
+        // After the log file is written: a deploy whose log fails the check is
+        // the deploy whose record someone needs to read. Fatal, because a
+        // deploy that aborted still has to fail the build - reporting it and
+        // then printing "successfully deployed" is the bug in sasjs/cli#1535.
+        await checkLog(log, 'fs deploy', { fatal: true })
       })
 
       process.logger?.success(

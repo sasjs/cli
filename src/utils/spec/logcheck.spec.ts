@@ -7,6 +7,7 @@ import {
   getLogCheckMode,
   isLogCheckFailure,
   logCheckModeOf,
+  logCheckWantsVerdict,
   setLogCheckMode,
   LogCheckFailure
 } from '../logcheck'
@@ -137,6 +138,14 @@ describe('checkLog', () => {
     )
   })
 
+  it('fails a command that cannot succeed on a bad log, whatever the config says', async () => {
+    await withProject()
+
+    await expect(
+      checkLog(logWithError, 'fs deploy', { fatal: true })
+    ).rejects.toBeInstanceOf(LogCheckFailure)
+  })
+
   it('does not fail on a note under the default policy', async () => {
     await withProject({ autoCheck: true })
 
@@ -175,6 +184,56 @@ describe('checkLog', () => {
     expect(output).toContain('1 note')
     expect(output).toContain('1 issue suppressed by message code (22-322)')
     expect(output).not.toContain('Logcheck failed')
+  })
+})
+
+describe('logCheckWantsVerdict', () => {
+  const originalProjectDir = process.projectDir
+
+  const withProject = async (logCheck?: object) => {
+    const folder = await tempFolder()
+    process.projectDir = folder
+
+    if (logCheck !== undefined) {
+      await fs.writeFile(
+        path.join(folder, 'sasjsconfig.json'),
+        JSON.stringify({ logCheck })
+      )
+    }
+  }
+
+  afterEach(() => {
+    process.projectDir = originalProjectDir
+    setLogCheckMode('auto')
+  })
+
+  it('is true under --logcheck and false under --no-logcheck', async () => {
+    await withProject()
+
+    setLogCheckMode('on')
+    expect(await logCheckWantsVerdict()).toBe(true)
+
+    setLogCheckMode('off')
+    expect(await logCheckWantsVerdict()).toBe(false)
+  })
+
+  it('follows autoCheck when the mode is auto', async () => {
+    await withProject({ autoCheck: true })
+    expect(await logCheckWantsVerdict()).toBe(true)
+
+    await withProject()
+    expect(await logCheckWantsVerdict()).toBe(false)
+
+    await withProject({ autoCheck: false })
+    expect(await logCheckWantsVerdict()).toBe(false)
+  })
+
+  it('asks for no log when the config cannot be read', async () => {
+    const folder = await tempFolder()
+    process.projectDir = folder
+    await fs.writeFile(path.join(folder, 'sasjsconfig.json'), '{ "logCheck": ')
+
+    expect(await logCheckWantsVerdict()).toBe(false)
   })
 })
 

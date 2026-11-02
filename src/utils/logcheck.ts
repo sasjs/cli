@@ -59,6 +59,26 @@ export class LogCheckFailure extends Error {
   }
 }
 
+/**
+ * Whether a log reaching this command has to be fetched at all.
+ *
+ * Reporting is free once a command owns a log, but a command that never
+ * receives one - a Viya job run without `--log` - has to ask for it. It asks
+ * when the verdict counts: `--logcheck`, or `logCheck.autoCheck` in the project
+ * config. A check nobody asked for is not worth an extra request.
+ */
+export const logCheckWantsVerdict = async (): Promise<boolean> => {
+  if (mode === 'off') return false
+
+  if (mode === 'on') return true
+
+  try {
+    return (await readLogCheckConfig()).autoCheck === true
+  } catch {
+    return false
+  }
+}
+
 export const isLogCheckFailure = (error: unknown): error is LogCheckFailure =>
   (error as LogCheckFailure | undefined)?.logCheckFailure === true
 
@@ -72,7 +92,8 @@ export const isLogCheckFailure = (error: unknown): error is LogCheckFailure =>
  */
 export const checkLog = async (
   logText: string | undefined | null,
-  label: string
+  label: string,
+  options: { fatal?: boolean } = {}
 ): Promise<void> => {
   if (mode === 'off' || !logText) return
 
@@ -98,7 +119,8 @@ export const checkLog = async (
   if (!issues.length) return
 
   const counts = countIssues(issues)
-  const failing = mode === 'on' || config.autoCheck === true
+  const failing =
+    options.fatal === true || mode === 'on' || config.autoCheck === true
   const totals = {
     ...counts,
     suppressed: suppressed.length,

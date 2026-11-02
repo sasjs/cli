@@ -1,7 +1,11 @@
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { isJsonFile } from '../../../../utils/file'
 import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
-import { checkLog, isLogCheckFailure } from '../../../../utils/logcheck'
+import {
+  checkLog,
+  isLogCheckFailure,
+  logCheckWantsVerdict
+} from '../../../../utils/logcheck'
 import { parseLogLines } from '../../../../utils/utils'
 import path from 'path'
 import SASjs, {
@@ -176,7 +180,11 @@ export async function executeJobViya(
   if (submittedJob && submittedJob.links) {
     if (!result) result = true
 
-    if (output || logFile) {
+    // `--logcheck` (or autoCheck) needs the log even when no file was named: a
+    // check nobody can run is a flag that does nothing.
+    const wantsVerdict = await logCheckWantsVerdict()
+
+    if (output) {
       // try to convert submitted job into an object
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
@@ -212,48 +220,66 @@ export async function executeJobViya(
           ;(process.logger || console).log(outputJson)
         }
 
-        // If the log was being streamed, it should already be present
-        // at the specified log path
-        if (logFile && !pollOptions.streamLog) {
-          // get a link object of the log
-          const logObj = submittedJob.links.find(
-            (link: Link) => link.rel === 'log' && link.method === 'GET'
-          )
-
-          // retrieve log
-          if (logObj) {
-            const logUrl = target.serverUrl + logObj.href
-            const logCount = submittedJob.logStatistics.lineCount
-
-            const logData = await fetchLogFileContent(
-              sasjs,
-              authConfig.access_token,
-              logUrl,
-              logCount
-            )
-
-            await saveLog(logData, logFile, jobPath)
-
-            await checkLog(
-              typeof logData === 'string' ? logData : parseLogLines(logData),
-              jobPath
-            )
-          }
-        }
-
         result = submittedJob
       } catch (error) {
-        // A log-check failure is the verdict the caller asked for, not a parse
-        // error: swallowing it here printed "Logcheck failed" and then exited 0,
-        // which is the green pipeline the feature exists to prevent.
-        if (isLogCheckFailure(error)) throw error
-
         // handle use case when submitted job can't be parsed
         result = false
 
         displayError(
           null,
           'An error has occurred when parsing an output of the job.'
+        )
+      }
+    }
+
+    // The verdict needs the log even when no path was named; only a path the
+    // caller gave is written, so a check does not scatter log files into the
+    // project directory. A log that cannot be retrieved gets its own message:
+    // blaming the job output for a failed fetch sends the operator looking in
+    // the wrong place.
+    if (!pollOptions.streamLog && (Boolean(logFile) || wantsVerdict)) {
+      const logObj = submittedJob.links.find(
+        (link: Link) => link.rel === 'log' && link.method === 'GET'
+      )
+
+      if (logObj) {
+        try {
+          const logUrl = target.serverUrl + logObj.href
+          const logCount = submittedJob.logStatistics.lineCount
+
+          const logData = await fetchLogFileContent(
+            sasjs,
+            authConfig.access_token,
+            logUrl,
+            logCount
+          )
+
+          if (logFile) await saveLog(logData, logFile, jobPath)
+
+          await checkLog(
+            typeof logData === 'string' ? logData : parseLogLines(logData),
+            jobPath
+          )
+        } catch (error) {
+          // the verdict the caller asked for, not a failed fetch
+          if (isLogCheckFailure(error)) throw error
+
+          result = false
+
+          displayError(
+            null,
+            'An error has occurred when retrieving the job log.'
+          )
+        }
+      } else {
+        // A log was asked for and the job carries none. Staying quiet here is
+        // the same "flag that does nothing" this block exists to remove: it
+        // reaches the end with the job's own status and exits 0.
+        result = false
+
+        displayError(
+          null,
+          'An error has occurred: the job returned no log to check or save.'
         )
       }
     }

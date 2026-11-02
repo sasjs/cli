@@ -7,6 +7,8 @@ import * as FileModule from '@sasjs/utils/file'
 import * as configUtils from '../../../utils/config'
 import * as setConstantsUtils from '../../../utils/setConstants'
 import * as executeCodeModule from '../internal/executeCode'
+import * as logcheckModule from '../../../utils/logcheck'
+import { LogCheckFailure, setLogCheckMode } from '../../../utils/logcheck'
 
 const defaultArgs = ['node', 'sasjs', 'fs']
 
@@ -108,6 +110,22 @@ describe('FSCommand', () => {
         'remoteFolder'
       ])
       expect(returnCode).toEqual(ReturnCode.InternalError)
+    })
+
+    it('should return the logcheck code when the deploy log fails the check', async () => {
+      jest
+        .spyOn(logcheckModule, 'checkLog')
+        .mockImplementation(() =>
+          Promise.reject(new LogCheckFailure('2 errors'))
+        )
+
+      const returnCode = await executeCommandWrapper([
+        'deploy',
+        'localFolder',
+        'remoteFolder'
+      ])
+
+      expect(returnCode).toEqual(ReturnCode.LogCheckError)
     })
   })
 
@@ -231,6 +249,85 @@ describe('FSCommand', () => {
       expect(process.logger.info).toHaveBeenCalledWith(
         'There are no differences between Remote and Local directory. Already synced.'
       )
+    })
+
+    it('should return the logcheck code when the sync log fails the check', async () => {
+      jest
+        .spyOn(logcheckModule, 'checkLog')
+        .mockImplementation(() =>
+          Promise.reject(new LogCheckFailure('1 error'))
+        )
+
+      jest.spyOn(FSModule, 'extractHashArray').mockImplementationOnce(() => [])
+
+      const returnCode = await executeCommandWrapper([
+        'sync',
+        '-l',
+        'localFolder',
+        '-r',
+        'remoteFolder'
+      ])
+
+      expect(returnCode).toEqual(ReturnCode.LogCheckError)
+    })
+  })
+
+  describe('log check mode', () => {
+    beforeEach(() => {
+      process.logger = new Logger(LogLevel.Off)
+      jest.spyOn(process.logger, 'info')
+
+      setupMocks()
+
+      jest
+        .spyOn(FSModule, 'generateCompileProgram')
+        .mockImplementation(() => Promise.resolve(''))
+
+      jest
+        .spyOn(FileModule, 'createFile')
+        .mockImplementation(() => Promise.resolve())
+
+      jest
+        .spyOn(executeCodeModule, 'executeCode')
+        .mockImplementation(() => Promise.resolve({ log: '' }))
+
+      jest
+        .spyOn(logcheckModule, 'checkLog')
+        .mockImplementation(() => Promise.resolve())
+    })
+
+    it('should switch the log check on for --logcheck', async () => {
+      const spy = jest.spyOn(logcheckModule, 'setLogCheckMode')
+
+      await executeCommandWrapper([
+        'deploy',
+        'localFolder',
+        'remoteFolder',
+        '--logcheck'
+      ])
+
+      expect(spy).toHaveBeenCalledWith('on')
+    })
+
+    it('should switch the log check off for --no-logcheck', async () => {
+      const spy = jest.spyOn(logcheckModule, 'setLogCheckMode')
+
+      await executeCommandWrapper([
+        'deploy',
+        'localFolder',
+        'remoteFolder',
+        '--no-logcheck'
+      ])
+
+      expect(spy).toHaveBeenCalledWith('off')
+    })
+
+    it('should leave the log check on auto when no flag is given', async () => {
+      const spy = jest.spyOn(logcheckModule, 'setLogCheckMode')
+
+      await executeCommandWrapper(['deploy', 'localFolder', 'remoteFolder'])
+
+      expect(spy).toHaveBeenCalledWith('auto')
     })
   })
 
