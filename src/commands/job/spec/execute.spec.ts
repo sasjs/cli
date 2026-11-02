@@ -12,6 +12,7 @@ import * as configUtils from '../../../utils/config'
 import * as logcheckModule from '../../../utils/logcheck'
 import * as fetchLogFileContentModule from '../../shared/fetchLogFileContent'
 import { LogCheckFailure } from '../../../utils/logcheck'
+import * as jobUtils from '../internal/utils'
 import { executeJobViya, executeJobSasjs } from '../internal/execute'
 import { mockAuthConfig } from './mocks'
 
@@ -171,6 +172,47 @@ describe('executeJobViya', () => {
         false
       )
     ).rejects.toBe(failure)
+  })
+
+  it('fetches the log under --logcheck even when no log file was named', async () => {
+    // otherwise the flag prints nothing and exits 0, which reads as a clean log
+    jest.spyOn(logcheckModule, 'logCheckWantsVerdict').mockResolvedValue(true)
+
+    jest.spyOn(jobUtils, 'saveLog').mockResolvedValue(undefined)
+
+    jest.spyOn(sasjs, 'startComputeJob').mockResolvedValue({
+      job: {
+        state: 'completed',
+        links: [{ rel: 'log', method: 'GET', href: '/log' }],
+        logStatistics: { lineCount: 5 }
+      }
+    } as any)
+
+    const fetchSpy = jest
+      .spyOn(fetchLogFileContentModule, 'fetchLogFileContent')
+      .mockResolvedValue('ERROR: deliberate' as any)
+
+    const failure = new LogCheckFailure('SAS log check failed for test/job')
+
+    jest.spyOn(logcheckModule, 'checkLog').mockRejectedValue(failure)
+
+    await expect(
+      executeJobViya(
+        sasjs,
+        mockAuthConfig,
+        'test/job',
+        target,
+        true,
+        false,
+        undefined,
+        undefined,
+        false,
+        undefined,
+        false
+      )
+    ).rejects.toBe(failure)
+
+    expect(fetchSpy).toHaveBeenCalled()
   })
 })
 

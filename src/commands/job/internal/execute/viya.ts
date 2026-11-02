@@ -1,7 +1,11 @@
 import { displayError, displaySuccess } from '../../../../utils/displayResult'
 import { isJsonFile } from '../../../../utils/file'
 import { fetchLogFileContent } from '../../../shared/fetchLogFileContent'
-import { checkLog, isLogCheckFailure } from '../../../../utils/logcheck'
+import {
+  checkLog,
+  isLogCheckFailure,
+  logCheckWantsVerdict
+} from '../../../../utils/logcheck'
 import { parseLogLines } from '../../../../utils/utils'
 import path from 'path'
 import SASjs, {
@@ -176,7 +180,11 @@ export async function executeJobViya(
   if (submittedJob && submittedJob.links) {
     if (!result) result = true
 
-    if (output || logFile) {
+    // `--logcheck` (or autoCheck) needs the log even when no file was named:
+    // a check nobody can run is a flag that does nothing.
+    const wantsLog = Boolean(logFile) || (await logCheckWantsVerdict())
+
+    if (output || wantsLog) {
       // try to convert submitted job into an object
       try {
         const outputJson = JSON.stringify(submittedJob, null, 2)
@@ -213,8 +221,8 @@ export async function executeJobViya(
         }
 
         // If the log was being streamed, it should already be present
-        // at the specified log path
-        if (logFile && !pollOptions.streamLog) {
+        // at the specified log path.
+        if (wantsLog && !pollOptions.streamLog) {
           // get a link object of the log
           const logObj = submittedJob.links.find(
             (link: Link) => link.rel === 'log' && link.method === 'GET'
