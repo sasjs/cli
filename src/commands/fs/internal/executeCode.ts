@@ -7,6 +7,12 @@ import {
   persistTokensRefreshedByAdapter
 } from '../../../utils/'
 
+/**
+ * Runs generated SAS and returns the log it came back with.
+ *
+ * The caller saves that log and then checks it - not here, because a check that
+ * throws before the log file is written is a failed run nobody can read.
+ */
 export const executeCode = async (target: Target, code: string) => {
   if (target.serverType === ServerType.SasViya)
     return await executeOnSasViya(target, code)

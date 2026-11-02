@@ -25,6 +25,12 @@ import {
 } from '@sasjs/utils/fs'
 import { CommandOptions } from '../../types/command/commandBase'
 import { executeCode } from './internal/executeCode'
+import {
+  checkLog,
+  isLogCheckFailure,
+  logCheckModeOf,
+  setLogCheckMode
+} from '../../utils/logcheck'
 
 enum FsSubCommand {
   Compile = 'compile',
@@ -36,7 +42,13 @@ const syntax = 'fs <subCommand> [options]'
 const usage = 'Usage: sasjs fs <subCommand> [options]'
 const description = 'Handles operations around file system synchronisation'
 const parseOptions = {
-  output: { type: 'string', alias: 'o' }
+  output: { type: 'string', alias: 'o' },
+  logcheck: {
+    type: 'boolean',
+    default: undefined,
+    description:
+      'Check the SAS log this command received, and fail when logCheck in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off.'
+  }
 }
 
 const compileCommandSyntax = 'fs <subCommand> <local> [options]'
@@ -174,6 +186,8 @@ export class FSCommand extends TargetCommand {
   }
 
   public async execute() {
+    setLogCheckMode(logCheckModeOf(this.parsed.logcheck))
+
     if (this.parsed.subCommand === FsSubCommand.Compile) {
       return await this.compile()
     }
@@ -229,6 +243,10 @@ export class FSCommand extends TargetCommand {
       process.logger?.info('executing program to deploy a local directory tree')
       await executeCode(target, program).then(async ({ log }) => {
         await saveLog(log, path.join(outputFolder, 'deploy.log'), '', false)
+
+        // after the log file is written: a deploy whose log fails the check is
+        // the deploy whose record someone needs to read
+        await checkLog(log, 'fs deploy')
       })
 
       process.logger?.success(
@@ -237,6 +255,10 @@ export class FSCommand extends TargetCommand {
 
       return ReturnCode.Success
     } catch (error) {
+      // the verdict the caller asked for, not an internal failure: it carries
+      // its own exit code and has already printed the report
+      if (isLogCheckFailure(error)) return ReturnCode.LogCheckError
+
       const logPath = path.join(outputFolder, 'error.log')
 
       await createErrorLogFile(error, logPath)
@@ -286,6 +308,8 @@ export class FSCommand extends TargetCommand {
           '',
           false
         )
+
+        await checkLog(log, 'fs sync')
 
         process.logger?.info('extracting hashes from log')
         const remoteHashes = extractHashArray(log)
@@ -338,6 +362,8 @@ export class FSCommand extends TargetCommand {
         const { log: syncLog } = await executeCode(target, syncProgram)
         await saveLog(syncLog, path.join(outputFolder, 'sync.log'), '', false)
 
+        await checkLog(syncLog, 'fs sync')
+
         const syncedHash = extractHashArray(syncLog)
         await createHashFile(
           JSON.stringify(syncedHash, null, 2),
@@ -383,6 +409,8 @@ export class FSCommand extends TargetCommand {
           })
         }
       } catch (error: any) {
+        if (isLogCheckFailure(error)) return ReturnCode.LogCheckError
+
         const logPath = path.join(outputFolder, 'error.log')
 
         await createErrorLogFile(error, logPath)
