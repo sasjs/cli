@@ -4,7 +4,7 @@ import SASjs from '@sasjs/adapter/node'
 import { CommandExample, ReturnCode } from '../../types/command'
 import { TargetCommand } from '../../types/command/targetCommand'
 import { displayError, getAuthConfig, getSASjs } from '../../utils'
-import { execute } from './execute'
+import { execute, isFlowFailure } from './execute'
 import {
   isLogCheckFailure,
   logCheckModeOf,
@@ -18,7 +18,16 @@ enum FlowSubCommand {
 const syntax = 'flow <subCommand> [options]'
 
 const usage = 'sasjs flow <execute> --source <flowPath> [options]'
-const description = 'Performs operations on flows of jobs.'
+// the codes are read from the enum rather than written out, so an inserted
+// member cannot make this text describe numbers the command no longer returns.
+// A function rather than a constant: `types/command/index.ts` re-exports
+// `parse` before `ReturnCode`, and `parse` loads every command, so reading the
+// enum while this module initialises finds it undefined.
+const commandDescription = () =>
+  'Performs operations on flows of jobs.\n' +
+  `Exits ${ReturnCode.FlowError} when a flow finishes with a job that did not ` +
+  `succeed, and ${ReturnCode.InternalError} when the flow could not be executed ` +
+  'at all.'
 const examples: CommandExample[] = [
   {
     command:
@@ -70,7 +79,7 @@ export class FlowCommand extends TargetCommand {
     super(args, {
       parseOptions,
       usage,
-      description,
+      description: commandDescription(),
       examples,
       syntax
     })
@@ -110,17 +119,36 @@ export class FlowCommand extends TargetCommand {
       streamLog
     )
       .then((csvFilePath) => {
+        // execute() resolves a path or rejects. Anything else is a contract
+        // violation, and reporting it as a successful flow would hide it - the
+        // shape that used to arrive here was `false` for a failed flow, which is
+        // what turned a failure into a TypeError
+        if (typeof csvFilePath !== 'string') {
+          displayError(
+            new Error(
+              `The flow reported completion without a CSV path (resolved ${typeof csvFilePath}).`
+            ),
+            'An error has occurred when executing this flow.'
+          )
+
+          return ReturnCode.InternalError
+        }
+
         const pathSepRegExp = new RegExp(path.sep.replace(/\\/g, '\\\\'), 'g')
         process.logger?.info(
-          `CSV file located at: ${(csvFilePath as string).replace(
-            pathSepRegExp,
-            '/'
-          )}`
+          `CSV file located at: ${csvFilePath.replace(pathSepRegExp, '/')}`
         )
+
         return ReturnCode.Success
       })
       .catch((err) => {
         if (isLogCheckFailure(err)) return ReturnCode.LogCheckError
+
+        if (isFlowFailure(err)) {
+          displayError(err, 'The flow did not complete successfully.')
+
+          return ReturnCode.FlowError
+        }
 
         displayError(err, 'An error has occurred when executing this flow.')
 
