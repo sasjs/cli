@@ -1,3 +1,5 @@
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sasjs/cli/badge)](https://scorecard.dev/viewer/?uri=github.com/sasjs/cli)
+
 # SASjs CLI
 
 [![npm package][npm-image]][npm-url]
