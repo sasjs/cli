@@ -28,6 +28,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The gate below is read out of this file, so a change that repoints it at an
+      # older sasjs/utils would take the gate with it. This compares the pin in the
+      # file against the commit the repository expects, which makes that a
+      # two-place change a reviewer sees - the durable protection is the required
+      # check on this job plus the default-branch ruleset, both of which live
+      # outside the repository and cannot be edited by a pull request.
+      - name: The pin is the commit this repository reviewed
+        env:
+          EXPECTED_PIN: 59f9be6d4301bd9ee62324ec359e07a6c1e9da7d
+        run: |
+          used="$(grep -oE 'sasjs/utils/\.github/actions/action-pins@[0-9a-f]{40}' \
+            .github/workflows/action-pins.yml | head -1 | cut -d@ -f2)"
+
+          if [ "$used" != "$EXPECTED_PIN" ]; then
+            echo "::error::action-pins is pinned at ${used:-nothing}, expected ${EXPECTED_PIN}"
+            echo "To change it deliberately, update the pin and EXPECTED_PIN in the same commit."
+            exit 1
+          fi
+
       - name: Every action is pinned to a commit, and that commit exists
         uses: sasjs/utils/.github/actions/action-pins@59f9be6d4301bd9ee62324ec359e07a6c1e9da7d
         env:
