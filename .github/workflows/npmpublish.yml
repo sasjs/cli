@@ -8,14 +8,17 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write  # https://docs.npmjs.com/trusted-publishers
-  contents: write  # semantic-release needs to push tags and create releases
-  issues: write  # semantic-release comments on issues on failure
+# read-only by default; the release job asks for the three writes it needs, so a
+# workflow that stops needing one of them cannot keep it by accident
+permissions: read-all
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # https://docs.npmjs.com/trusted-publishers
+      contents: write  # semantic-release pushes tags and creates releases
+      issues: write  # semantic-release comments on issues when it fails
 
     strategy:
       matrix:

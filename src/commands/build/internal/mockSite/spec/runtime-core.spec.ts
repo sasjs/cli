@@ -119,21 +119,29 @@ webout('CLOSE')`
     expect(parsed.SYSSCPL).toEqual('browser')
 
     // The content type is the point: the block sets it, so the worker hands the
-    // app JSON rather than a string. The mock seeds the file empty (the server
-    // seeds text/html), so the block's record is the only one here.
+    // app JSON rather than a string. The session seed is text/html, so this
+    // record has to come last for the last-line-wins rule to land on JSON.
     expect(result.headers).toContain('content-type: application/json')
+    expect(result.headers.trim().split('\n').pop()).toEqual(
+      'content-type: application/json'
+    )
   })
 
-  it('leaves the headers alone for a service that only assigns _webout', async () => {
+  it('seeds the headers the way a JS session does, for a service that only assigns _webout', async () => {
     const runtime = loadRuntime()
 
     const result = runtime.run({ code: `_webout = '<h1>raw</h1>'` })
 
     expect(result.error).toBeNull()
     expect(result.webout).toEqual('<h1>raw</h1>')
-    // Unchanged behaviour: a raw assignment declares no type here, and the
-    // worker's binary fallback depends on this file staying empty.
-    expect(result.headers).toEqual('')
+    // A service that declares nothing answers text/html on a server, so the
+    // mock starts from the same line rather than from an empty file. The worker
+    // treats this value as undeclared for a byte body, which is why the seed
+    // does not turn a download into text/html.
+    expect(result.headers).toEqual('content-type: text/html; charset=utf-8\n')
+    expect(runtime.HEADERS_SEED).toEqual(
+      'content-type: text/html; charset=utf-8\n'
+    )
   })
 
   it('exposes request parameters as variables, with JSON escaping', () => {
