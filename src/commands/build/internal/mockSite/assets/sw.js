@@ -11,12 +11,13 @@
  * receives the changed files back after every run.
  *
  * TRUST MODEL: this is a single-user, no-auth host. It answers every /SASjsApi/
- * path on the site's origin, runs whatever program the request names, and runs
- * the code a code/execute request carries - the same contract a SASjs server
- * offers, minus the server. Nothing here is a boundary: a page at this origin
- * can already do all of it, because a visitor's own browser is the client. So
- * a site holding anything private, or one served from a shared origin, belongs
- * behind a real server rather than a static host.
+ * path on the site's origin, writes to the drive when a drive request names a
+ * path, runs whatever program the request names, and runs the code a
+ * code/execute request carries - the same contract a SASjs server offers, minus
+ * the server. Nothing here is a boundary: a page at this origin can already do
+ * all of it, because a visitor's own browser is the client. So a site holding
+ * anything private, or one served from a shared origin, belongs behind a real
+ * server rather than a static host.
  */
 importScripts('/host/runtime-core.js')
 
@@ -159,6 +160,74 @@ const readPayload = async (request) => {
   return { params: body.params || {}, tables: body.tables || [], json: body }
 }
 
+// ---------------------------------------------------------------- requests
+/** A request body as JSON, and {} when it is not JSON - a client that posts a
+ * form where the route wants JSON gets the missing-field answer rather than a
+ * parse error. */
+const readJson = async (request) => {
+  try {
+    return (await request.json()) || {}
+  } catch (e) {
+    return {}
+  }
+}
+
+const badRequest = (message) => {
+  const error = new Error(message)
+  error.status = 400
+  return error
+}
+
+/**
+ * The value a route needs, or the 400 the server answers with when it is absent.
+ * The message is Joi's, because that is what a client sees from the real API.
+ */
+const required = (value, name) => {
+  if (typeof value === 'string' && value.length) return value
+  throw badRequest(`"${name}" is required`)
+}
+
+/**
+ * sasjs/server refuses a file path with one of these extensions (filePathSchema
+ * in api/src/utils/validation.ts). Nothing is executable on a static host, but a
+ * client that would be refused on deploy should hear it here too.
+ */
+const BLOCKED_FILE = /\.(exe|sh|htaccess)$/i
+
+const fileTarget = (value, name) => {
+  const given = required(value, name)
+  if (BLOCKED_FILE.test(given)) throw badRequest('Invalid file extension')
+  return given
+}
+
+/** The bytes of an uploaded file, from the multipart field the API names. */
+const uploadBytes = async (request) => {
+  const form = await request.formData().catch(() => null)
+  const upload = form && form.get('file')
+  if (!upload || typeof upload === 'string')
+    throw badRequest('"file" is not present.')
+  const target = form.get('filePath')
+  return {
+    bytes: new Uint8Array(await upload.arrayBuffer()),
+    filePath: target === null ? undefined : target
+  }
+}
+
+/**
+ * Runs one drive mutation and then hands the page the entries it changed. The
+ * worker can be terminated between requests, so a write is only durable once the
+ * page has put it in IndexedDB.
+ *
+ * Await it at the call site: a bare `return driveResponse(...)` hands the
+ * promise back through handle's try without running its catch, so a refused
+ * write would reach the page as an unhandled rejection instead of its status.
+ */
+const driveResponse = async (runner) => {
+  const result = runner()
+  await persistChanges()
+  return json(result)
+}
+
 const handle = async (request, url) => {
   const path = url.pathname.replace(/\/+$/, '')
   const query = {}
@@ -178,20 +247,67 @@ const handle = async (request, url) => {
     }
 
     if (path.endsWith('/SASjsApi/drive/folder')) {
-      return json(await R.list(query._folderPath || ''))
+      if (request.method === 'GET')
+        return json(await R.list(query._folderPath || ''))
+
+      if (request.method === 'POST') {
+        const body = await readJson(request)
+        return await driveResponse(() =>
+          R.mkdir(required(body.folderPath, 'folderPath'))
+        )
+      }
+
+      if (request.method === 'DELETE') {
+        // an empty path names the drive root, which the server refuses at
+        // validation rather than deleting everything
+        const folderPath = required(query._folderPath, '_folderPath')
+        return await driveResponse(() => R.rmdir(folderPath))
+      }
     }
 
     if (path.endsWith('/SASjsApi/drive/filetree')) {
       return json(R.tree())
     }
 
-    if (path.endsWith('/SASjsApi/drive/file') && request.method === 'GET') {
-      const file = R.read(query._filePath || '')
-      return file.binary
-        ? new Response(toBytes(file.contents), {
-            headers: { 'content-type': 'application/octet-stream' }
-          })
-        : text(file.contents)
+    if (path.endsWith('/SASjsApi/drive/rename')) {
+      if (request.method === 'POST') {
+        const body = await readJson(request)
+        const oldPath = required(body.oldPath, 'oldPath')
+        const newPath = required(body.newPath, 'newPath')
+        return await driveResponse(() => R.rename(oldPath, newPath))
+      }
+    }
+
+    if (path.endsWith('/SASjsApi/drive/file')) {
+      if (request.method === 'GET') {
+        const file = R.read(query._filePath || '')
+        return file.binary
+          ? new Response(toBytes(file.contents), {
+              headers: { 'content-type': 'application/octet-stream' }
+            })
+          : text(file.contents)
+      }
+
+      if (request.method === 'DELETE') {
+        const filePath = fileTarget(query._filePath, '_filePath')
+        return await driveResponse(() => R.remove(filePath))
+      }
+
+      // POST creates (409 when the path is taken) and PATCH replaces (404 when
+      // it is not there) - the split the server's routes make, so a client that
+      // keys on the status code behaves the same way
+      if (request.method === 'POST' || request.method === 'PATCH') {
+        const upload = await uploadBytes(request)
+        const filePath = fileTarget(
+          query._filePath || upload.filePath,
+          '_filePath'
+        )
+        return await driveResponse(() =>
+          request.method === 'PATCH'
+            ? R.update(filePath, upload.bytes)
+            : R.save(filePath, upload.bytes)
+        )
+      }
     }
 
     if (
@@ -238,6 +354,12 @@ const handle = async (request, url) => {
   } catch (e) {
     const message = (e && e.stack) || String(e)
     broadcast({ type: 'sasjs-host-error', path, message })
+    // A drive refusal is the message itself, in plain text: the server answers
+    // these with `res.status(code).send(err.message)`, and its own suite asserts
+    // `res.text`. The other routes answer JSON, because a program failure
+    // carries more than a message (`status`, `error`), so they keep the envelope.
+    if (path.includes('/SASjsApi/drive/') && e && e.status)
+      return text((e && e.message) || String(e), e.status)
     return json(
       { message: (e && e.message) || String(e) },
       (e && e.status) || 500
