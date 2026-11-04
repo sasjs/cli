@@ -219,7 +219,9 @@ describe('service worker host', () => {
 
     const response = await dispatch(downloadPath())
 
-    expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    expect(response.headers.get('content-type')).toBe(
+      'text/html; charset=utf-8'
+    )
   })
 
   it('answers text/html for a service that declares no type, as a server does', async () => {
