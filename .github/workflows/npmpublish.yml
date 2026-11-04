@@ -8,14 +8,17 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write  # https://docs.npmjs.com/trusted-publishers
-  contents: write  # semantic-release needs to push tags and create releases
-  issues: write  # semantic-release comments on issues on failure
+# read-only by default; the release job asks for the three writes it needs, so a
+# workflow that stops needing one of them cannot keep it by accident
+permissions: read-all
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # https://docs.npmjs.com/trusted-publishers
+      contents: write  # semantic-release pushes tags and creates releases
+      issues: write  # semantic-release comments on issues when it fails
 
     strategy:
       matrix:
@@ -23,12 +26,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0      # semantic-release needs full history + tags
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
