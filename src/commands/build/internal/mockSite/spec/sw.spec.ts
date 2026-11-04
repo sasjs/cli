@@ -191,6 +191,37 @@ describe('service worker host', () => {
     )
   })
 
+  it('keeps a header appended without a leading newline on its own line', async () => {
+    // the server's JS session seeds the header file with a trailing newline, so an
+    // append that assumes one is clean rather than concatenating onto the seed
+    const { dispatch } = streaming(
+      [
+        "fs.appendFileSync(_SASJS_WEBOUT_HEADERS, 'Content-type: application/json')",
+        "_webout = '{}'"
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe('application/json')
+    expect(await response.text()).toBe('{}')
+  })
+
+  it('keeps a declared type that happens to equal the seed', async () => {
+    // a service that writes the seeded value itself has declared it, so a byte
+    // body keeps it: only the untouched seed means "nothing declared"
+    const { dispatch } = streaming(
+      [
+        "fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'content-type: text/html; charset=utf-8')",
+        'fs.writeFileSync(weboutPath, Uint8Array.from([1, 2, 3]))'
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+  })
+
   it('answers text/html for a service that declares no type, as a server does', async () => {
     const { dispatch } = seeded()
 

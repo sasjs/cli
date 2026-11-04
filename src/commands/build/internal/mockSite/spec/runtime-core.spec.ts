@@ -138,9 +138,9 @@ webout('CLOSE')`
     // mock starts from the same line rather than from an empty file. The worker
     // treats this value as undeclared for a byte body, which is why the seed
     // does not turn a download into text/html.
-    expect(result.headers).toEqual('content-type: text/html; charset=utf-8')
+    expect(result.headers).toEqual('content-type: text/html; charset=utf-8\n')
     expect(runtime.HEADERS_SEED).toEqual(
-      'content-type: text/html; charset=utf-8'
+      'content-type: text/html; charset=utf-8\n'
     )
   })
 
