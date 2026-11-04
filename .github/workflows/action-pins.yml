@@ -58,19 +58,34 @@ jobs:
       - name: The checker behaves as its tests say
         # the gating run below uses the base branch's copy, so that copy is what the
         # tests have to cover; the copy in this change is tested as well, because it
-        # is what will run from the next pull request onward.
+        # is what will run from the next pull request onward. Each copy is tested by
+        # ITS OWN suite: the base branch's cases describe the base branch's
+        # behaviour, and a suite this change adds or tightens cannot pass against a
+        # checker that predates it.
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           work="$RUNNER_TEMP/self-test"
-          mkdir -p "$work/.github/scripts"
-          cp .github/scripts/check-action-pins.test.py "$work/.github/scripts/"
+          base_suite="$RUNNER_TEMP/check-action-pins/check-action-pins.test.py"
+          mkdir -p "$work/.github/scripts" "$(dirname "$base_suite")"
+          if [ -n "$BASE_REF" ] && git cat-file -e "origin/${BASE_REF}:.github/scripts/check-action-pins.test.py" 2>/dev/null; then
+            git show "origin/${BASE_REF}:.github/scripts/check-action-pins.test.py" > "$base_suite"
+            echo "using the base branch's suite for the base copy"
+          else
+            cp .github/scripts/check-action-pins.test.py "$base_suite"
+            echo "the base branch has no suite - the base copy is tested by this change's cases"
+          fi
           for which in base change; do
             if [ "$which" = base ]; then
               src="$RUNNER_TEMP/check-action-pins/check-action-pins.py"
+              suite="$base_suite"
             else
               src=".github/scripts/check-action-pins.py"
+              suite=".github/scripts/check-action-pins.test.py"
             fi
             cp "$src" "$work/.github/scripts/check-action-pins.py"
-            echo "testing the $which copy"
+            cp "$suite" "$work/.github/scripts/check-action-pins.test.py"
+            echo "testing the $which copy with its own suite"
             ( cd "$work" && python3 .github/scripts/check-action-pins.test.py )
           done
 

@@ -3,10 +3,18 @@
 
     python3 .github/scripts/check-action-pins.test.py
 
-Every way this check has been wrong so far has been a way of interpreting an
-answer: a `uses:` inside a `run:` block scalar read as an action, a quoted ref
-compared with its quotes, a flow-style step missed entirely, a refused token
-counted as an unverifiable pin. Those readings are what these cases pin.
+The cases pin four invariants:
+
+- what counts as an action reference: a `uses:` key in a step or a job, never
+  the same text inside a `run:` block scalar, quoted or flow-style values
+  included;
+- how a reference is compared: a quoted ref is unquoted before it is tested, and
+  only a full 40-character commit is accepted as pinned;
+- how an API answer is classified: 404 and 422 mean no such commit, 401 and 403
+  mean the token cannot answer, and 429, 5xx and network failures mean the pin
+  could not be checked;
+- which of those classifications fail the run: an unpinned reference, a missing
+  commit and a refused token exit non-zero; an unverifiable one warns.
 
 `refs_in()` is exercised against real files; `resolves()` and `main()` against a
 stubbed `api()`, so no case needs a token or a network.
