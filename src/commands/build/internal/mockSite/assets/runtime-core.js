@@ -960,12 +960,18 @@ const resolveProgram = (program) => {
  * declares no type answers text/html rather than leaving the choice to the
  * browser - a mock build matches that here.
  *
+ * The trailing newline is part of it: the server writes it for a JS session
+ * (`'content-type: text/html; charset=utf-8\n'` in Session.ts, as against the
+ * SAS 9 session's seed with no newline), and it is what keeps a service that
+ * appends a header without a leading newline on its own line - otherwise the two
+ * concatenate into one unusable value.
+ *
  * It is a default, not a declaration: the worker ignores it for a byte body,
  * so a service that writes bytes and names no type is still an undeclared
  * download rather than being labelled text/html. The worker reads the value
  * from HEADERS_SEED below, so the seed and the rule cannot drift.
  */
-const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8'
+const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8\n'
 
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code

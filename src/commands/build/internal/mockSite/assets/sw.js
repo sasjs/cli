@@ -107,9 +107,7 @@ const parseHeaders = (content) => {
  * so the value is taken from it rather than repeated here: a byte body that
  * carries only this type is an undeclared download, not a text/html one.
  */
-const SEEDED_CONTENT_TYPE = String(R.HEADERS_SEED)
-  .replace(/^[^:]+:/, '')
-  .trim()
+const SEEDED_HEADERS = String(R.HEADERS_SEED)
 
 /**
  * The reply a run produces: the webout, in the shape and under the name the
@@ -124,9 +122,11 @@ const weboutResponse = (result, debug) => {
 
   const headers = parseHeaders(result.headers)
   if (result.binary) {
-    // the seed is a default, so a byte body that still carries it declares
-    // nothing: it keeps the type an undeclared download gets
-    if (headers['content-type'] === SEEDED_CONTENT_TYPE)
+    // the seed is a default, so a byte body that leaves the seeded file untouched
+    // declares nothing: it keeps the type an undeclared download gets. Compared as
+    // the raw text rather than as the parsed value, so a service that declares
+    // this same content type itself keeps it - only the untouched seed is dropped.
+    if (String(result.headers) === SEEDED_HEADERS)
       delete headers['content-type']
     if (!headers['content-type'])
       headers['content-type'] = 'application/octet-stream'
