@@ -1,11 +1,6 @@
 # SASjs CLI
 
-[![npm package][npm-image]][npm-url]
-[![Github Workflow][githubworkflow-image]][githubworkflow-url]
-[![npm](https://img.shields.io/npm/dt/@sasjs/cli)](<>)
-![GitHub top language](https://img.shields.io/github/languages/top/sasjs/cli)
-[![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/sasjs/cli)](https://github.com/sasjs/cli/issues?q=is%3Aissue+is%3Aclosed)
-[![GitHub issues](https://img.shields.io/github/issues-raw/sasjs/cli)](https://github.com/sasjs/cli/issues)
+[![npm package][npm-image]][npm-url] [![Github Workflow][githubworkflow-image]][githubworkflow-url] [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sasjs/cli/badge)](https://scorecard.dev/viewer/?uri=github.com/sasjs/cli) [![npm](https://img.shields.io/npm/dt/@sasjs/cli)](<>) ![GitHub top language](https://img.shields.io/github/languages/top/sasjs/cli) [![GitHub closed issues](https://img.shields.io/github/issues-closed-raw/sasjs/cli)](https://github.com/sasjs/cli/issues?q=is%3Aissue+is%3Aclosed) [![GitHub issues](https://img.shields.io/github/issues-raw/sasjs/cli)](https://github.com/sasjs/cli/issues)
 
 [npm-image]: https://img.shields.io/npm/v/@sasjs/cli.svg
 [npm-url]: http://npmjs.org/package/@sasjs/cli

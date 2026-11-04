@@ -1,0 +1,95 @@
+# Fails a pull request - and a push to the default branch - when an action this
+# repository uses is not pinned to a commit, or is pinned to one that does not
+# exist.
+#
+# The check itself is .github/scripts/check-action-pins.py: the rules, and the two
+# shapes it has to tell apart (a `uses:` inside a `run:` block scalar is shell text,
+# and a quoted ref carries its quotes), are documented there.
+name: Action pins
+
+on:
+  pull_request:
+  # a direct push can add an unpinned action, and the next scorecard run is the
+  # only thing that would notice
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    # the script retries a rate-limited or 5xx lookup (5s then 10s per ref), so
+    # the job has to outlast its own retry budget rather than being killed midway
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # the check below reads the base branch's copy, so it has to be fetched
+          fetch-depth: 0
+
+      - name: The checker is the one from the base branch, not from this change
+        # a pull request that edits the checker could otherwise switch off the gate
+        # it is meant to pass through. The base ref is resolved before anything is
+        # read: a checkout that did not fetch it fails here rather than quietly
+        # falling back to the copy in the change.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          target="$RUNNER_TEMP/check-action-pins/check-action-pins.py"
+          mkdir -p "$(dirname "$target")"
+          ref="origin/${BASE_REF}"
+          if [ -z "$BASE_REF" ]; then
+            echo "no base ref - not a pull request, so the copy in this change is used"
+            cp .github/scripts/check-action-pins.py "$target"
+          elif ! git rev-parse --verify --quiet "$ref" > /dev/null; then
+            echo "::error::$ref is not in this checkout, so the reviewed copy of the checker cannot be read"
+            exit 1
+          elif git cat-file -e "$ref:.github/scripts/check-action-pins.py" 2>/dev/null; then
+            git show "$ref:.github/scripts/check-action-pins.py" > "$target"
+            echo "using the checker from $ref"
+          else
+            echo "$ref has no checker - using the copy in this change, which is the PR that adds it"
+            cp .github/scripts/check-action-pins.py "$target"
+          fi
+
+      - name: The checker behaves as its tests say
+        # the gating run below uses the base branch's copy, so that copy is what the
+        # tests have to cover; the copy in this change is tested as well, because it
+        # is what will run from the next pull request onward. Each copy is tested by
+        # ITS OWN suite: the base branch's cases describe the base branch's
+        # behaviour, and a suite this change adds or tightens cannot pass against a
+        # checker that predates it.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          work="$RUNNER_TEMP/self-test"
+          base_suite="$RUNNER_TEMP/check-action-pins/check-action-pins.test.py"
+          mkdir -p "$work/.github/scripts" "$(dirname "$base_suite")"
+          if [ -n "$BASE_REF" ] && git cat-file -e "origin/${BASE_REF}:.github/scripts/check-action-pins.test.py" 2>/dev/null; then
+            git show "origin/${BASE_REF}:.github/scripts/check-action-pins.test.py" > "$base_suite"
+            echo "using the base branch's suite for the base copy"
+          else
+            cp .github/scripts/check-action-pins.test.py "$base_suite"
+            echo "the base branch has no suite - the base copy is tested by this change's cases"
+          fi
+          for which in base change; do
+            if [ "$which" = base ]; then
+              src="$RUNNER_TEMP/check-action-pins/check-action-pins.py"
+              suite="$base_suite"
+            else
+              src=".github/scripts/check-action-pins.py"
+              suite=".github/scripts/check-action-pins.test.py"
+            fi
+            cp "$src" "$work/.github/scripts/check-action-pins.py"
+            cp "$suite" "$work/.github/scripts/check-action-pins.test.py"
+            echo "testing the $which copy with its own suite"
+            ( cd "$work" && python3 .github/scripts/check-action-pins.test.py )
+          done
+
+      - name: Every action is pinned to a commit, and that commit exists
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 "$RUNNER_TEMP/check-action-pins/check-action-pins.py"
