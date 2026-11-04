@@ -1048,4 +1048,185 @@ webout('CLOSE')`
       /Program not found in drive/
     )
   })
+
+  describe('drive writes', () => {
+    // the write API speaks drive-relative paths, and the seed holds absolute
+    // ones, so both sides go through the same root here
+    const root = '/sasjs/drive/files'
+
+    const seededRuntime = async () => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {
+        [`${root}/data/keep.csv`]: 'a,b\n1,2\n'
+      })
+      // boot marks the whole drive dirty, so the page persists a complete
+      // snapshot; clearing it here leaves each test with only its own writes
+      runtime.takeDirty()
+      return runtime
+    }
+
+    const status = (fn: () => any) => {
+      try {
+        fn()
+      } catch (e: any) {
+        return e.status
+      }
+      return 200
+    }
+
+    it('creates a file, and the page is told to persist it', async () => {
+      const runtime = await seededRuntime()
+
+      expect(runtime.save('/data/new/deep/up.csv', 'x,y\n')).toEqual({
+        status: 'success'
+      })
+
+      // the write is what the page receives after the request: a worker is
+      // terminated between requests, so without this the upload is gone
+      expect(runtime.takeDirty()).toEqual({
+        [`${root}/data/new/deep/up.csv`]: 'x,y\n'
+      })
+      expect(runtime.read('/data/new/deep/up.csv')).toEqual({
+        contents: 'x,y\n',
+        binary: false
+      })
+    })
+
+    it('stores an upload as bytes, the way the server stores one', async () => {
+      const runtime = await seededRuntime()
+
+      runtime.save('/data/pack.zip', Uint8Array.from([80, 75, 3, 4]))
+
+      expect(runtime.read('/data/pack.zip')).toEqual({
+        contents: 'UEsDBA==',
+        binary: true
+      })
+      // and a service reading it gets a Buffer, as it does on the server
+      expect(
+        runtime.run({
+          code: `_webout = typeof require('fs').readFileSync('${root}/data/pack.zip');`
+        }).webout
+      ).toBe('object')
+      expect(
+        runtime.run({
+          code: `_webout = require('fs').readFileSync('${root}/data/pack.zip', 'base64');`
+        }).webout
+      ).toBe('UEsDBA==')
+    })
+
+    it('refuses to create a file over one that exists', async () => {
+      const runtime = await seededRuntime()
+
+      expect(status(() => runtime.save('/data/keep.csv', 'x'))).toBe(409)
+    })
+
+    it('replaces a file, and refuses one that is not there', async () => {
+      const runtime = await seededRuntime()
+
+      expect(runtime.update('/data/keep.csv', 'replaced')).toEqual({
+        status: 'success'
+      })
+      expect(runtime.read('/data/keep.csv').contents).toBe('replaced')
+      expect(status(() => runtime.update('/data/missing.csv', 'x'))).toBe(404)
+    })
+
+    it('deletes a file, and reports a deletion to the page', async () => {
+      const runtime = await seededRuntime()
+
+      expect(runtime.remove('/data/keep.csv')).toEqual({ status: 'success' })
+
+      expect(runtime.takeDirty()).toEqual({
+        [`${root}/data/keep.csv`]: null
+      })
+      expect(status(() => runtime.read('/data/keep.csv'))).toBe(404)
+      expect(status(() => runtime.remove('/data/keep.csv'))).toBe(404)
+    })
+
+    it('creates a folder, and refuses one that already exists', async () => {
+      const runtime = await seededRuntime()
+
+      expect(runtime.mkdir('/data/reports')).toEqual({ status: 'success' })
+      expect(runtime.list('/data').folders).toContain('reports')
+      expect(status(() => runtime.mkdir('/data/reports'))).toBe(409)
+    })
+
+    it('deletes a folder with everything under it', async () => {
+      const runtime = await seededRuntime()
+      runtime.mkdir('/data/reports')
+      runtime.save('/data/reports/a.csv', 'a')
+      runtime.save('/data/reports/nested/b.csv', 'b')
+
+      expect(runtime.rmdir('/data/reports')).toEqual({ status: 'success' })
+
+      expect(runtime.list('/data').folders).not.toContain('reports')
+      expect(status(() => runtime.read('/data/reports/a.csv'))).toBe(404)
+      expect(status(() => runtime.read('/data/reports/nested/b.csv'))).toBe(404)
+      // the deletions are all handed to the page, or IndexedDB keeps them
+      const cleared = runtime.takeDirty()
+      expect(cleared[`${root}/data/reports/a.csv`]).toBeNull()
+      expect(cleared[`${root}/data/reports/nested/b.csv`]).toBeNull()
+    })
+
+    it('renames a file, and moves a folder with its contents', async () => {
+      const runtime = await seededRuntime()
+      runtime.mkdir('/data/reports')
+      runtime.save('/data/reports/a.csv', 'a')
+
+      expect(runtime.rename('/data/keep.csv', '/data/kept.csv')).toEqual({
+        status: 'success'
+      })
+      expect(runtime.read('/data/kept.csv').contents).toBe('a,b\n1,2\n')
+      expect(status(() => runtime.read('/data/keep.csv'))).toBe(404)
+
+      expect(runtime.rename('/data/reports', '/archive')).toEqual({
+        status: 'success'
+      })
+      expect(runtime.read('/archive/a.csv').contents).toBe('a')
+      expect(status(() => runtime.read('/data/reports/a.csv'))).toBe(404)
+      expect(runtime.list('/archive').files).toEqual(['a.csv'])
+    })
+
+    it('refuses a rename onto something that exists', async () => {
+      const runtime = await seededRuntime()
+      runtime.save('/data/other.csv', 'o')
+
+      expect(
+        status(() => runtime.rename('/data/keep.csv', '/data/other.csv'))
+      ).toBe(409)
+      expect(
+        status(() => runtime.rename('/data/nope.csv', '/data/x.csv'))
+      ).toBe(404)
+    })
+
+    it('refuses any path that lands outside the drive', async () => {
+      const runtime = await seededRuntime()
+
+      // a leading slash is drive-relative, and '..' is resolved before the
+      // containment test - the rule the server applies in resolveWithinDrive
+      expect(status(() => runtime.save('/../escape.csv', 'x'))).toBe(400)
+      expect(status(() => runtime.save('/data/../../escape.csv', 'x'))).toBe(
+        400
+      )
+      expect(status(() => runtime.remove('/../../etc/passwd'))).toBe(400)
+      expect(status(() => runtime.rename('/../x', '/data/y'))).toBe(400)
+      expect(status(() => runtime.rename('/data/keep.csv', '/../y'))).toBe(400)
+      // a file whose NAME starts with dots is not a traversal
+      expect(runtime.save('/data/..weird.csv', 'x')).toEqual({
+        status: 'success'
+      })
+    })
+
+    it('keeps the bytes of an entry it moves', async () => {
+      const runtime = await seededRuntime()
+      runtime.save('/data/pack.zip', Uint8Array.from([1, 2, 3]))
+
+      runtime.rename('/data/pack.zip', '/data/moved.zip')
+
+      expect(runtime.read('/data/moved.zip')).toEqual({
+        contents: 'AQID',
+        binary: true
+      })
+      expect(runtime.stats().files).toBe(2)
+    })
+  })
 })

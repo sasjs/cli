@@ -398,7 +398,7 @@ describe('service worker host', () => {
     )
 
     expect(response.status).toBe(404)
-    expect((await response.json()).message).toBe('File not found')
+    expect(await response.text()).toBe(`File doesn't exist.`)
   })
 
   it('leaves a request to another origin alone', () => {
@@ -444,7 +444,7 @@ describe('service worker host', () => {
     )
 
     expect(response.status).toBe(500)
-    expect((await response.json()).message).toContain('Corrupt binary entry')
+    expect(await response.text()).toContain('Corrupt binary entry')
   })
 
   it('frames the log behind the separator when _debug is set', async () => {
@@ -607,5 +607,290 @@ describe('service worker host', () => {
     const { dispatch } = seeded()
 
     expect(dispatch('/index.html')).toBeUndefined()
+  })
+
+  describe('drive writes', () => {
+    /**
+     * The response as a client sees it. A drive refusal is plain text (the
+     * server sends `res.status(code).send(err.message)`), a success is JSON.
+     */
+    const answer = async (response: Promise<Response>) => {
+      const resolved = await response
+      const type = resolved.headers.get('content-type') || ''
+      return {
+        status: resolved.status,
+        body: type.includes('application/json')
+          ? await resolved.json()
+          : await resolved.text()
+      }
+    }
+
+    it('answers a drive refusal as text, the way the server sends one', async () => {
+      const { dispatch } = seeded()
+
+      const response = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/missing.csv')
+      )
+
+      // the server's drive routes answer `res.status(code).send(err.message)`,
+      // and its own suite asserts `res.text` - so a client that reads the body
+      // as text must get the message here too, not a JSON envelope
+      expect(response.status).toBe(404)
+      expect(response.headers.get('content-type')).toContain('text/plain')
+      expect(await response.text()).toBe(`File doesn't exist.`)
+    })
+
+    it('creates a file, which the drive then serves', async () => {
+      const { dispatch } = seeded()
+
+      const created = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/users.csv'),
+          (() => {
+            const form = new FormData()
+            form.set('file', new Blob(['id,name\n1,Ann\n']), 'users.csv')
+            return { method: 'POST', body: form }
+          })()
+        )
+      )
+
+      expect(created).toEqual({ status: 200, body: { status: 'success' } })
+
+      const read = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/users.csv')
+      )
+      expect(await read.text()).toBe('id,name\n1,Ann\n')
+    })
+
+    it('creates a file at the path in the form when the query has none', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['x']), 'x.txt')
+      form.set('filePath', '/data/from-form.txt')
+
+      const created = await answer(
+        dispatch('/SASjsApi/drive/file', { method: 'POST', body: form })
+      )
+
+      expect(created.body).toEqual({ status: 'success' })
+      const read = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/from-form.txt')
+      )
+      expect(await read.text()).toBe('x')
+    })
+
+    it('answers 409 for a create over an existing file, 404 for a replace of a missing one', async () => {
+      const { dispatch } = seeded()
+      const form = () => {
+        const f = new FormData()
+        f.set('file', new Blob(['x']), 'x.csv')
+        return f
+      }
+
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/x.csv'),
+        { method: 'POST', body: form() }
+      )
+      const again = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/x.csv'),
+          { method: 'POST', body: form() }
+        )
+      )
+      expect(again.status).toBe(409)
+      expect(again.body).toEqual('File already exists.')
+
+      const missing = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/missing.csv'),
+          { method: 'PATCH', body: form() }
+        )
+      )
+      expect(missing.status).toBe(404)
+      expect(missing.body).toEqual(`File doesn't exist.`)
+    })
+
+    it('replaces a file and deletes one', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['v1']), 'v.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/v.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const replacement = new FormData()
+      replacement.set('file', new Blob(['v2']), 'v.csv')
+      const replaced = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/v.csv'),
+          { method: 'PATCH', body: replacement }
+        )
+      )
+      expect(replaced.body).toEqual({ status: 'success' })
+
+      const read = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/v.csv')
+      )
+      expect(await read.text()).toBe('v2')
+
+      const removed = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/v.csv'),
+          { method: 'DELETE' }
+        )
+      )
+      expect(removed.body).toEqual({ status: 'success' })
+
+      const gone = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/v.csv')
+      )
+      expect(gone.status).toBe(404)
+    })
+
+    it('refuses an upload with no file, no path, or a blocked extension', async () => {
+      const { dispatch } = seeded()
+
+      const empty = new FormData()
+      const noFile = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/x.csv'),
+          { method: 'POST', body: empty }
+        )
+      )
+      expect(noFile.status).toBe(400)
+      expect(noFile.body).toEqual('"file" is not present.')
+
+      const form = new FormData()
+      form.set('file', new Blob(['x']), 'x.csv')
+      const noPath = await answer(
+        dispatch('/SASjsApi/drive/file', { method: 'POST', body: form })
+      )
+      expect(noPath.status).toBe(400)
+      expect(noPath.body).toEqual('"_filePath" is required')
+
+      const sh = new FormData()
+      sh.set('file', new Blob(['x']), 'run.sh')
+      const blocked = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/run.sh'),
+          { method: 'POST', body: sh }
+        )
+      )
+      expect(blocked.status).toBe(400)
+      expect(blocked.body).toEqual('Invalid file extension')
+    })
+
+    it('refuses a path outside the drive on every write route', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['x']), 'x.csv')
+
+      const outside = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/../escape.csv'),
+          { method: 'POST', body: form }
+        )
+      )
+      expect(outside.status).toBe(400)
+
+      const rename = await answer(
+        dispatch('/SASjsApi/drive/rename', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ oldPath: '/../x', newPath: '/data/y' })
+        })
+      )
+      expect(rename.status).toBe(400)
+    })
+
+    it('creates a folder, lists it, and deletes it with its contents', async () => {
+      const { dispatch } = seeded()
+
+      const made = await answer(
+        dispatch('/SASjsApi/drive/folder', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ folderPath: '/data/reports' })
+        })
+      )
+      expect(made.body).toEqual({ status: 'success' })
+
+      const form = new FormData()
+      form.set('file', new Blob(['a']), 'a.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/reports/a.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const listed = await dispatch(
+        '/SASjsApi/drive/folder?_folderPath=' + encodeURIComponent('/data')
+      )
+      expect(await listed.json()).toEqual({
+        files: [],
+        folders: ['reports']
+      })
+
+      const removed = await answer(
+        dispatch(
+          '/SASjsApi/drive/folder?_folderPath=' +
+            encodeURIComponent('/data/reports'),
+          { method: 'DELETE' }
+        )
+      )
+      expect(removed.body).toEqual({ status: 'success' })
+
+      const gone = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/reports/a.csv')
+      )
+      expect(gone.status).toBe(404)
+    })
+
+    it('refuses a folder delete with no path', async () => {
+      const { dispatch } = seeded()
+
+      const removed = await answer(
+        dispatch('/SASjsApi/drive/folder', { method: 'DELETE' })
+      )
+
+      expect(removed.status).toBe(400)
+      expect(removed.body).toEqual('"_folderPath" is required')
+    })
+
+    it('renames a file through the route the API documents', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['r']), 'r.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/old.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const renamed = await answer(
+        dispatch('/SASjsApi/drive/rename', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            oldPath: '/data/old.csv',
+            newPath: '/data/new.csv'
+          })
+        })
+      )
+
+      expect(renamed.body).toEqual({ status: 'success' })
+      const read = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/new.csv')
+      )
+      expect(await read.text()).toBe('r')
+    })
   })
 })
