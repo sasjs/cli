@@ -102,6 +102,16 @@ const parseHeaders = (content) => {
 }
 
 /**
+ * The content type a session's header file is seeded with - the server's
+ * default, not something the service asked for. The runtime owns the seed line,
+ * so the value is taken from it rather than repeated here: a byte body that
+ * carries only this type is an undeclared download, not a text/html one.
+ */
+const SEEDED_CONTENT_TYPE = String(R.HEADERS_SEED)
+  .replace(/^[^:]+:/, '')
+  .trim()
+
+/**
  * The reply a run produces: the webout, in the shape and under the name the
  * service asked for. A debug reply is the webout framed with the log, so it
  * stays text - honouring a download there would put the frame in the file.
@@ -114,6 +124,10 @@ const weboutResponse = (result, debug) => {
 
   const headers = parseHeaders(result.headers)
   if (result.binary) {
+    // the seed is a default, so a byte body that still carries it declares
+    // nothing: it keeps the type an undeclared download gets
+    if (headers['content-type'] === SEEDED_CONTENT_TYPE)
+      delete headers['content-type']
     if (!headers['content-type'])
       headers['content-type'] = 'application/octet-stream'
     return new Response(toBytes(result.webout), { status: 200, headers })

@@ -954,6 +954,19 @@ const resolveProgram = (program) => {
   return null
 }
 
+/**
+ * The header file a session starts with. sasjs/server seeds this exact line
+ * into a JS session (controllers/internal/Session.ts), so a service that
+ * declares no type answers text/html rather than leaving the choice to the
+ * browser - a mock build matches that here.
+ *
+ * It is a default, not a declaration: the worker ignores it for a byte body,
+ * so a service that writes bytes and names no type is still an undeclared
+ * download rather than being labelled text/html. The worker reads the value
+ * from HEADERS_SEED below, so the seed and the rule cannot drift.
+ */
+const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8'
+
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
@@ -977,7 +990,7 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const headersPath = `${sessionDir}/stpsrv_header.txt`
   const tokenFile = `${sessionDir}/reqHeaders.txt`
   FILES.set(weboutPath, '')
-  FILES.set(headersPath, '')
+  FILES.set(headersPath, SEEDED_HEADERS)
   FILES.set(tokenFile, '')
 
   const varStatements = Object.entries(params)
@@ -1338,6 +1351,9 @@ const api = {
   list: (folder) => listFolder(folder),
   read: (file) => readDriveFile(file),
   tree: () => buildTree(),
+  // the content type a session's header file is seeded with, so the worker can
+  // tell a default from a declaration rather than carrying a second literal
+  HEADERS_SEED: SEEDED_HEADERS,
   // the format the snapshot download stamps, so persist.js writes the number
   // this runtime reads rather than a second literal
   DRIVE_FORMAT
