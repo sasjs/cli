@@ -191,6 +191,38 @@ describe('service worker host', () => {
     )
   })
 
+  it('answers text/html for a service that declares no type, as a server does', async () => {
+    const { dispatch } = seeded()
+
+    const response = await dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/getdata`)
+    )
+
+    // The session header file is seeded with the server's line, so a service
+    // that assigns _webout and stops answers with a content type instead of
+    // leaving the choice to the browser.
+    expect(response.headers.get('content-type')).toBe(
+      'text/html; charset=utf-8'
+    )
+    expect(await response.text()).toBe('seeded')
+  })
+
+  it('keeps a declared text/html on a byte body, and ignores only the seed', async () => {
+    const { dispatch } = streaming(
+      [
+        "fs.appendFileSync(_SASJS_WEBOUT_HEADERS, '\\nContent-type: text/html')",
+        'fs.writeFileSync(weboutPath, Uint8Array.from([1, 2, 3]))'
+      ].join('\n')
+    )
+
+    const response = await dispatch(downloadPath())
+
+    // only the seeded value is treated as undeclared; the same type written by
+    // the service is a declaration and is applied
+    expect(response.headers.get('content-type')).toBe('text/html')
+  })
+
   it('keeps a debug reply text, as the body is the framed log', async () => {
     const { dispatch } = streaming(
       [
