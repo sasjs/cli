@@ -866,6 +866,150 @@ describe('service worker host', () => {
       expect(removed.body).toEqual('"_folderPath" is required')
     })
 
+    it('refuses a rename that would produce a blocked extension', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['r']), 'r.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/old.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const toBlocked = await answer(
+        dispatch('/SASjsApi/drive/rename', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            oldPath: '/data/old.csv',
+            newPath: '/data/x.sh'
+          })
+        })
+      )
+
+      // DELETE and PATCH run the same check on the path they are given, so a file
+      // renamed into a blocked name could not be removed or replaced afterwards
+      expect(toBlocked.status).toBe(400)
+
+      const fromBlocked = await answer(
+        dispatch('/SASjsApi/drive/rename', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            oldPath: '/data/x.sh',
+            newPath: '/data/new.csv'
+          })
+        })
+      )
+      expect(fromBlocked.status).toBe(400)
+    })
+
+    it('refuses a file where a folder already holds the path', async () => {
+      const { dispatch } = seeded()
+
+      await dispatch('/SASjsApi/drive/folder', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ folderPath: '/data/reports' })
+      })
+
+      const form = new FormData()
+      form.set('file', new Blob(['r']), 'r.csv')
+      const atFolder = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/reports'),
+          { method: 'POST', body: form }
+        )
+      )
+
+      // the server fails this at the filesystem (EISDIR); naming it as a conflict
+      // keeps the drive from holding one path as both a file and a folder
+      expect(atFolder.status).toBe(409)
+    })
+
+    it('refuses a file under a path that is already a file', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['a']), 'a.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/a.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const child = new FormData()
+      child.set('file', new Blob(['b']), 'b.csv')
+      const under = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/a.csv/child.csv'),
+          { method: 'POST', body: child }
+        )
+      )
+
+      // mkdirp would otherwise turn the file into a folder to hold the child
+      expect(under.status).toBe(400)
+      expect(under.body).toBe('An ancestor of the path is a file: /data/a.csv')
+
+      const stillAFile = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/a.csv')
+      )
+      expect(await stillAFile.text()).toBe('a')
+    })
+
+    it('serves a download with the type its extension implies', async () => {
+      const { dispatch } = seeded()
+      const form = new FormData()
+      form.set('file', new Blob(['id,name\n1,Ann\n']), 'users.csv')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/users.csv'),
+        { method: 'POST', body: form }
+      )
+
+      const csv = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/data/users.csv')
+      )
+
+      // an upload is stored as bytes, as multer leaves it on the server; the
+      // extension is what makes it answer text/csv rather than octet-stream
+      expect(csv.headers.get('content-type')).toBe('text/csv')
+      expect(await csv.text()).toBe('id,name\n1,Ann\n')
+
+      const sas = new FormData()
+      sas.set('file', new Blob(['data _null_; run;']), 'p.sas')
+      await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/p.sas'),
+        { method: 'POST', body: sas }
+      )
+      const program = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/p.sas')
+      )
+      expect(program.headers.get('content-type')).toBe('text/plain')
+    })
+
+    it('refuses an upload larger than the host allows, before reading it', async () => {
+      const { dispatch } = seeded()
+      const { runtime } = loadWorker()
+      const form = new FormData()
+      form.set(
+        'file',
+        new Blob([new Uint8Array(runtime.MAX_UPLOAD_BYTES + 1)]),
+        'big.bin'
+      )
+
+      const response = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/big.bin'),
+          { method: 'POST', body: form }
+        )
+      )
+
+      expect(response.status).toBe(413)
+      expect(response.body).toContain('larger than the browser host allows')
+    })
+
     it('renames a file through the route the API documents', async () => {
       const { dispatch } = seeded()
       const form = new FormData()
