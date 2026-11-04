@@ -192,6 +192,16 @@ const badRequest = (message) => {
   return error
 }
 
+const payloadTooLarge = (limit) => {
+  const error = new Error(
+    `The upload is larger than the browser host allows (${Math.round(
+      limit / (1024 * 1024)
+    )} MB).`
+  )
+  error.status = 413
+  return error
+}
+
 /**
  * The value a route needs, or the 400 the server answers with when it is absent.
  * The message is Joi's, because that is what a client sees from the real API.
@@ -220,11 +230,50 @@ const uploadBytes = async (request) => {
   const upload = form && form.get('file')
   if (!upload || typeof upload === 'string')
     throw badRequest('"file" is not present.')
+  // refused from the File's size, before the body is read: a worker holds the
+  // whole payload in memory, so an oversized upload there is an out-of-memory
+  // failure rather than an answer a client can act on
+  if (typeof upload.size === 'number' && upload.size > R.MAX_UPLOAD_BYTES)
+    throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
   const target = form.get('filePath')
   return {
     bytes: new Uint8Array(await upload.arrayBuffer()),
     filePath: target === null ? undefined : target
   }
+}
+
+/**
+ * The content type `sendFile` would answer with for this path - by extension,
+ * because that is what express does, and because a byte entry would otherwise be
+ * served as `application/octet-stream` however text-like it is.
+ */
+const CONTENT_TYPES = {
+  '.csv': 'text/csv',
+  '.json': 'application/json',
+  '.sas': 'text/plain',
+  '.txt': 'text/plain',
+  '.log': 'text/plain',
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.zip': 'application/zip',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.pdf': 'application/pdf',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml'
+}
+
+const contentTypeFor = (filePath, binary) => {
+  const name = String(filePath || '').toLowerCase()
+  const dot = name.lastIndexOf('.')
+  const known = dot > 0 ? CONTENT_TYPES[name.slice(dot)] : undefined
+  if (known) return known
+  return binary ? 'application/octet-stream' : 'text/plain'
 }
 
 /**
@@ -286,8 +335,11 @@ const handle = async (request, url) => {
     if (path.endsWith('/SASjsApi/drive/rename')) {
       if (request.method === 'POST') {
         const body = await readJson(request)
-        const oldPath = required(body.oldPath, 'oldPath')
-        const newPath = required(body.newPath, 'newPath')
+        // both ends go through the extension check: without it a file could be
+        // renamed into a blocked name and then be unreachable by DELETE and PATCH,
+        // which apply the same check to the path they are given
+        const oldPath = fileTarget(body.oldPath, 'oldPath')
+        const newPath = fileTarget(body.newPath, 'newPath')
         return await driveResponse(() => R.rename(oldPath, newPath))
       }
     }
@@ -295,11 +347,18 @@ const handle = async (request, url) => {
     if (path.endsWith('/SASjsApi/drive/file')) {
       if (request.method === 'GET') {
         const file = R.read(query._filePath || '')
-        return file.binary
-          ? new Response(toBytes(file.contents), {
-              headers: { 'content-type': 'application/octet-stream' }
-            })
-          : text(file.contents)
+        // the server answers this with `sendFile`, so the type comes from the
+        // extension: a .csv is text/csv whether it was uploaded as bytes or
+        // written by a service as text
+        return new Response(
+          file.binary ? toBytes(file.contents) : file.contents,
+          {
+            status: 200,
+            headers: {
+              'content-type': contentTypeFor(query._filePath, file.binary)
+            }
+          }
+        )
       }
 
       if (request.method === 'DELETE') {

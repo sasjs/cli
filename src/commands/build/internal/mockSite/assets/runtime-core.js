@@ -973,6 +973,16 @@ const resolveProgram = (program) => {
  */
 const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8\n'
 
+/**
+ * The largest body a single upload may carry.
+ *
+ * A browser worker holds the whole payload in memory, so an oversized upload is
+ * an out-of-memory failure rather than a limit a client can act on. This is the
+ * same 10 MB a deploy allows for one file, and it is checked from the File's
+ * `size` before the body is read.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
@@ -1218,8 +1228,14 @@ const drivePath = (unsafePath) => {
 /**
  * Writes one entry: bytes stay bytes (behind the base64 marker the drive reads
  * them back from), a string is text, and the entry is marked for persistence.
- * This is the same representation writeFileSync produces, so a service reading
- * an upload back gets what it would get from a file a service wrote.
+ *
+ * An upload arrives as bytes and is stored as bytes, which is also what the
+ * server does: multer writes the request body to disk and `saveFile` moves that
+ * file, so an uploaded CSV is a byte file there too - a program reading it
+ * without an encoding gets a Buffer on both hosts, and with `'utf8'` a string.
+ * The difference a client actually sees is the content type a download is served
+ * with, and that is decided by the extension on the GET route, as `sendFile`
+ * does on the server.
  */
 const storeEntry = (abs, data) => {
   const bytes = asBytes(data)
@@ -1233,11 +1249,40 @@ const storeEntry = (abs, data) => {
   markDirty(abs)
 }
 
+/**
+ * The ancestor of a path that is itself a file, if there is one. `mkdirp` would
+ * happily turn `/data/x.csv` into a folder to hold `/data/x.csv/child`, leaving a
+ * path that is a file and has children at the same time - a state the server
+ * never reaches, because the filesystem refuses it (ENOTDIR).
+ */
+const fileAncestorOf = (abs) => {
+  const parts = abs.split('/').filter(Boolean)
+  let acc = ''
+  for (const part of parts.slice(0, -1)) {
+    acc += '/' + part
+    if (FILES.has(acc)) return acc
+  }
+  return null
+}
+
 const saveDriveFile = (filePath, data) => {
   const abs = drivePath(filePath)
   if (!abs || abs === DRIVE_FILES())
     throw driveError(400, `Can't put file outside drive.`)
-  if (FILES.has(abs)) throw driveError(409, 'File already exists.')
+  // a folder at the same path would leave one path present as both, which the
+  // server fails at the filesystem (EISDIR) rather than reporting as a conflict
+  if (FILES.has(abs) || DIRS.has(abs))
+    throw driveError(409, 'File already exists.')
+  // the server fails this at the filesystem with ENOTDIR and answers a 500; a
+  // named refusal is more use to a client than reproducing that, so it is a 400
+  const ancestor = fileAncestorOf(abs)
+  if (ancestor)
+    // the drive-relative path, never the host's absolute one: a client has no
+    // business knowing where the drive lives
+    throw driveError(
+      400,
+      `An ancestor of the path is a file: ${ancestor.slice(DRIVE_FILES().length) || '/'}`
+    )
   mkdirp(P.dirname(abs))
   storeEntry(abs, data)
   return { status: 'success' }
@@ -1333,7 +1378,6 @@ const renameDriveEntry = (oldPath, newPath) => {
     for (const path of [...FILES.keys()]) {
       if (path.startsWith(prefix)) moveEntry(path, to + path.slice(from.length))
     }
-    mkdirp(to)
     return { status: 'success' }
   }
 
@@ -1537,6 +1581,9 @@ const api = {
   // the content type a session's header file is seeded with, so the worker can
   // tell a default from a declaration rather than carrying a second literal
   HEADERS_SEED: SEEDED_HEADERS,
+  // the largest single upload the host accepts, so the worker can refuse a body
+  // before materialising it and the specs and docs read the same number
+  MAX_UPLOAD_BYTES: MAX_UPLOAD_BYTES,
   // the format the snapshot download stamps, so persist.js writes the number
   // this runtime reads rather than a second literal
   DRIVE_FORMAT
