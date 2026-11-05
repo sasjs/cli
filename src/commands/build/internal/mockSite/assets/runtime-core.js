@@ -207,6 +207,15 @@ const cleanedBase64 = (contents) => {
   return clean
 }
 
+/**
+ * The stored base64 of a byte entry, once it is known to decode: the run's read
+ * of the webout file uses this, so a corrupt entry fails the run that produced it
+ * rather than reaching the worker's decoder without the drive's name in the
+ * message. Drive *reads* go through `driveStore`, which decodes through the same
+ * check.
+ */
+const validateEntry = (contents) => cleanedBase64(contents)
+
 const corruptEntry = () => {
   const error = new Error('Corrupt binary entry on the drive: not valid base64')
   error.status = 500
@@ -1130,100 +1139,7 @@ return _webout;
   }
 }
 
-const listFolder = (folderPath) => {
-  const abs = folderPath
-    ? P.resolve(
-        DRIVE_APP,
-        String(folderPath)
-          .replace(/^\/+/, '')
-          .replace(new RegExp('^' + APP_LOC + '/'), '')
-      )
-    : DRIVE_APP
-  const alt = folderPath
-    ? P.resolve(DRIVE_ROOT, 'files', String(folderPath).replace(/^\/+/, ''))
-    : DRIVE_APP
-  const target = DIRS.has(abs) ? abs : alt
-  if (!DIRS.has(target) && !FILES.has(target)) {
-    const err = new Error(`Folder doesn't exist.`)
-    err.status = 404
-    throw err
-  }
-  const pre = target === '/' ? '/' : target + '/'
-  const files = []
-  const folders = []
-  for (const k of FILES.keys()) {
-    if (k.startsWith(pre)) {
-      const rest = k.slice(pre.length)
-      if (!rest.includes('/')) files.push(rest)
-    }
-  }
-  for (const d of DIRS) {
-    if (d.startsWith(pre)) {
-      const rest = d.slice(pre.length)
-      if (rest && !rest.includes('/')) folders.push(rest)
-    }
-  }
-  return { files: files.sort(), folders: folders.sort() }
-}
-
-const readDriveFile = (filePath) => {
-  const abs = P.resolve(
-    DRIVE_ROOT,
-    'files',
-    String(filePath).replace(/^\/+/, '')
-  )
-  if (!FILES.has(abs)) {
-    // the server's wording, because a client prints this: GET /drive/file
-    // answers `res.status(404).send(err.message)`
-    const err = new Error(`File doesn't exist.`)
-    err.status = 404
-    throw err
-  }
-  const contents = FILES.get(abs)
-  // the host turns a base64 entry back into bytes before it answers with it,
-  // and takes the escape off a text entry. A corrupt entry is refused here, so
-  // the answer is the same error the service gets when it reads the file.
-  return isBinary(contents)
-    ? { contents: validateEntry(contents), binary: true }
-    : { contents: entryText(contents), binary: false }
-}
-
-/** The stored base64 of a byte entry, once it is known to decode. */
-const validateEntry = (contents) => cleanedBase64(contents)
-
-// ------------------------------------------------------------- drive writes
-// The /drive endpoints answer the same contract sasjs/server serves, so a client
-// that uploads, renames or deletes needs no change for a mock build - only the
-// storage differs (a Map here, a folder on the server). Every mutation marks the
-// entry dirty, which is how the page learns to persist it: the worker can be
-// terminated between requests, so a write it did not hand back would live only
-// until the next reload.
-
 const DRIVE_FILES = () => `${DRIVE_ROOT}/files`
-
-const driveError = (status, message) => {
-  const error = new Error(message)
-  error.status = status
-  return error
-}
-
-/**
- * A caller-supplied path as the absolute path under the drive root, or null when
- * it lands outside - the rule sasjs/server applies in resolveWithinDrive. A
- * leading slash means "under the drive root", never filesystem absolute, and the
- * test is on the whole normalised path rather than a substring: `/drive/filesx`
- * is not inside `/drive/files`.
- */
-const drivePath = (unsafePath) => {
-  const root = DRIVE_FILES()
-  const normalised = String(
-    unsafePath === undefined || unsafePath === null ? '' : unsafePath
-  )
-    .replace(/\\/g, '/')
-    .replace(/^\/+/, '')
-  const resolved = P.resolve(root, normalised)
-  return resolved === root || resolved.startsWith(root + '/') ? resolved : null
-}
 
 /**
  * Writes one entry: bytes stay bytes (behind the base64 marker the drive reads
@@ -1250,10 +1166,13 @@ const storeEntry = (abs, data) => {
 }
 
 /**
- * The ancestor of a path that is itself a file, if there is one. `mkdirp` would
- * happily turn `/data/x.csv` into a folder to hold `/data/x.csv/child`, leaving a
- * path that is a file and has children at the same time - a state the server
- * never reaches, because the filesystem refuses it (ENOTDIR).
+ * The ancestor of a path that is itself a file, if there is one.
+ *
+ * `mkdirp` would happily turn `/data/x.csv` into a folder to hold
+ * `/data/x.csv/child`, leaving a path that is a file and has children at the
+ * same time - a state the server never reaches, because the filesystem refuses
+ * it (ENOTDIR). The server answers that with a 500, so this does too: it is a
+ * refusal either way, and reproducing the host failure is the point.
  */
 const fileAncestorOf = (abs) => {
   const parts = abs.split('/').filter(Boolean)
@@ -1265,108 +1184,158 @@ const fileAncestorOf = (abs) => {
   return null
 }
 
-const saveDriveFile = (filePath, data) => {
-  const abs = drivePath(filePath)
-  if (!abs || abs === DRIVE_FILES())
-    throw driveError(400, `Can't put file outside drive.`)
-  // a folder at the same path would leave one path present as both, which the
-  // server fails at the filesystem (EISDIR) rather than reporting as a conflict
-  if (FILES.has(abs) || DIRS.has(abs))
-    throw driveError(409, 'File already exists.')
-  // the server fails this at the filesystem with ENOTDIR and answers a 500; a
-  // named refusal is more use to a client than reproducing that, so it is a 400
-  const ancestor = fileAncestorOf(abs)
-  if (ancestor)
-    // the drive-relative path, never the host's absolute one: a client has no
-    // business knowing where the drive lives
-    throw driveError(
-      400,
-      `An ancestor of the path is a file: ${ancestor.slice(DRIVE_FILES().length) || '/'}`
+/**
+ * A drive-relative path - the form the API uses - as the key the map holds.
+ *
+ * The containment test is the storage boundary's own rule, not a second copy of
+ * the API's: `driveStore` is handed out on `self.SASjsMockRuntime`, so a caller
+ * that skips the package can still name `../..` and this must not resolve it out
+ * of the drive. The API refuses such a path first, with the wording a client
+ * sees; reaching this refusal means something bypassed it.
+ */
+const absDrivePath = (driveRelative) => {
+  const relative = String(
+    driveRelative === undefined || driveRelative === null ? '' : driveRelative
+  )
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+  const root = DRIVE_FILES()
+  const abs = relative ? P.resolve(root, relative) : root
+  if (abs !== root && !abs.startsWith(root + '/')) {
+    const err = new Error(
+      `Can't reach a path outside the drive: ${driveRelative}`
     )
-  mkdirp(P.dirname(abs))
-  storeEntry(abs, data)
-  return { status: 'success' }
+    err.status = 400
+    throw err
+  }
+  return abs
 }
 
-const updateDriveFile = (filePath, data) => {
-  const abs = drivePath(filePath)
-  if (!abs || abs === DRIVE_FILES())
-    throw driveError(400, `Can't modify file outside drive.`)
-  if (!FILES.has(abs)) throw driveError(404, `File doesn't exist.`)
-  storeEntry(abs, data)
-  return { status: 'success' }
-}
-
-const removeDriveFile = (filePath) => {
-  const abs = drivePath(filePath)
-  if (!abs || abs === DRIVE_FILES())
-    throw driveError(400, `Can't delete file outside drive.`)
-  if (!FILES.has(abs)) throw driveError(404, `File doesn't exist.`)
-  FILES.delete(abs)
-  SIZES.delete(abs)
-  markDirty(abs)
-  return { status: 'success' }
-}
-
-const addDriveFolder = (folderPath) => {
-  const abs = drivePath(folderPath)
-  if (!abs || abs === DRIVE_FILES())
-    throw driveError(400, `Can't put folder outside drive.`)
-  if (DIRS.has(abs) || FILES.has(abs))
-    throw driveError(409, 'Folder already exists.')
-  mkdirp(abs)
-  return { status: 'success' }
-}
+/** The drive-relative form of an absolute key, for a message a client reads. */
+const driveRelative = (abs) => abs.slice(DRIVE_FILES().length) || '/'
 
 /**
- * Deletes a folder and everything under it. The drive is a flat map of paths, so
- * this is the entries' prefix rather than a directory walk - and each file it
- * removes is marked dirty (as a deletion) so the page drops it from IndexedDB
- * too. An empty folder is not represented in the persisted drive, which is a
- * map of files; see the note on the docs page.
+ * The drive as the API package's storage port.
+ *
+ * `@sasjs/api` owns the drive's *rules* - the statuses, the messages, the order
+ * of the checks, whether a path climbs out of the drive - and asks a host for
+ * eight operations over the bytes. This is those eight over the map above, which
+ * is also what a program running in this host sees through `FS`: a file written
+ * by a service and a file uploaded over HTTP are the same entry.
+ *
+ * Paths arrive drive-relative (`data/x.csv`), the way the API names them; the
+ * drive's own root is added here and never appears in an answer.
  */
-const removeDriveFolder = (folderPath) => {
-  const abs = drivePath(folderPath)
-  if (!abs || abs === DRIVE_FILES())
-    throw driveError(400, `Can't delete folder outside drive.`)
-  if (!DIRS.has(abs)) throw driveError(404, `Folder doesn't exist.`)
-  const prefix = abs + '/'
-  for (const path of [...FILES.keys()]) {
-    if (!path.startsWith(prefix)) continue
-    FILES.delete(path)
-    SIZES.delete(path)
-    markDirty(path)
-  }
-  for (const dir of [...DIRS]) {
-    if (dir === abs || dir.startsWith(prefix)) DIRS.delete(dir)
-  }
-  return { status: 'success' }
-}
+const driveStore = {
+  async read(drivePath) {
+    const abs = absDrivePath(drivePath)
+    const stored = FILES.get(abs)
+    if (stored === undefined) {
+      // the API checks existence first, so this is a store that was handed a
+      // path it does not hold - refused in the drive's own words rather than
+      // answering undefined
+      const err = new Error(`File doesn't exist.`)
+      err.status = 404
+      throw err
+    }
+    return isBinary(stored) ? entryBytes(stored) : entryText(stored)
+  },
 
-/** Moves one stored file, leaving both paths for the page to persist. */
-const moveEntry = (from, to) => {
-  FILES.set(to, FILES.get(from))
-  FILES.delete(from)
-  SIZES.delete(from)
-  SIZES.delete(to)
-  markDirty(to)
-  markDirty(from)
-}
+  async write(drivePath, contents) {
+    const abs = absDrivePath(drivePath)
+    const ancestor = fileAncestorOf(abs)
+    if (ancestor)
+      throw new Error(
+        `ENOTDIR: an ancestor of the path is a file: ${driveRelative(ancestor)}`
+      )
+    mkdirp(P.dirname(abs))
+    storeEntry(abs, contents)
+  },
 
-const renameDriveEntry = (oldPath, newPath) => {
-  const from = drivePath(oldPath)
-  if (!from || from === DRIVE_FILES())
-    throw driveError(400, `Old path can't be outside of drive.`)
-  const to = drivePath(newPath)
-  if (!to || to === DRIVE_FILES())
-    throw driveError(400, `New path can't be outside of drive.`)
+  async exists(drivePath) {
+    const abs = absDrivePath(drivePath)
+    return FILES.has(abs) || DIRS.has(abs)
+  },
 
-  if (DIRS.has(from)) {
-    // the server fails this at the filesystem; naming it here says why
-    if (to.startsWith(from + '/'))
-      throw driveError(400, `New path can't be inside the folder being moved.`)
-    if (DIRS.has(to) || FILES.has(to))
-      throw driveError(409, 'Folder with new name already exists.')
+  async stat(drivePath) {
+    const abs = absDrivePath(drivePath)
+    if (DIRS.has(abs)) return { directory: true, size: 0 }
+    if (FILES.has(abs)) return { directory: false, size: entrySizeAt(abs) }
+    const err = new Error(
+      `ENOENT: no such file or directory, stat '${drivePath}'`
+    )
+    err.code = 'ENOENT'
+    throw err
+  },
+
+  async list(drivePath) {
+    const abs = absDrivePath(drivePath)
+    const pre = abs === '/' ? '/' : abs + '/'
+    const files = []
+    const folders = []
+    for (const key of FILES.keys()) {
+      if (!key.startsWith(pre)) continue
+      const rest = key.slice(pre.length)
+      if (rest && !rest.includes('/')) files.push(rest)
+    }
+    for (const dir of DIRS) {
+      if (!dir.startsWith(pre)) continue
+      const rest = dir.slice(pre.length)
+      if (rest && !rest.includes('/')) folders.push(rest)
+    }
+    return { files: files.sort(), folders: folders.sort() }
+  },
+
+  async mkdirp(drivePath) {
+    mkdirp(absDrivePath(drivePath))
+  },
+
+  /**
+   * Removes a file, or a folder with everything under it. The drive is a flat
+   * map of paths, so this is the entries' prefix rather than a directory walk -
+   * and each file it removes is marked dirty (as a deletion) so the page drops
+   * it from IndexedDB too. An empty folder is not represented in the persisted
+   * drive, which is a map of files; see the note on the docs page.
+   */
+  async remove(drivePath) {
+    const abs = absDrivePath(drivePath)
+    if (FILES.has(abs)) {
+      FILES.delete(abs)
+      SIZES.delete(abs)
+      markDirty(abs)
+      return
+    }
+    const prefix = abs + '/'
+    for (const path of [...FILES.keys()]) {
+      if (!path.startsWith(prefix)) continue
+      FILES.delete(path)
+      SIZES.delete(path)
+      markDirty(path)
+    }
+    for (const dir of [...DIRS]) {
+      if (dir === abs || dir.startsWith(prefix)) DIRS.delete(dir)
+    }
+  },
+
+  /** Moves a file, or a folder with everything under it, and marks both ends. */
+  async move(fromPath, toPath) {
+    const from = absDrivePath(fromPath)
+    const to = absDrivePath(toPath)
+    const moveEntry = (source, target) => {
+      FILES.set(target, FILES.get(source))
+      FILES.delete(source)
+      SIZES.delete(source)
+      mkdirp(P.dirname(target))
+      markDirty(target)
+      markDirty(source)
+    }
+
+    if (FILES.has(from)) {
+      moveEntry(from, to)
+      return
+    }
+    if (!DIRS.has(from)) throw new Error(`ENOENT: no such folder '${fromPath}'`)
+
     const prefix = from + '/'
     mkdirp(P.dirname(to))
     for (const dir of [...DIRS]) {
@@ -1378,46 +1347,7 @@ const renameDriveEntry = (oldPath, newPath) => {
     for (const path of [...FILES.keys()]) {
       if (path.startsWith(prefix)) moveEntry(path, to + path.slice(from.length))
     }
-    return { status: 'success' }
   }
-
-  if (FILES.has(from)) {
-    if (FILES.has(to) || DIRS.has(to))
-      throw driveError(409, 'File with new name already exists.')
-    mkdirp(P.dirname(to))
-    moveEntry(from, to)
-    return { status: 'success' }
-  }
-
-  throw driveError(404, 'No file/folder found for provided path.')
-}
-
-const buildTree = () => {
-  const walk = (dir) => {
-    const node = {
-      name: P.basename(dir) || 'files',
-      relativePath: dir.slice(DRIVE_ROOT.length + '/files'.length),
-      absolutePath: dir,
-      isFolder: true,
-      children: []
-    }
-    node.relativePath = node.relativePath === '' ? '' : node.relativePath
-    for (const child of FS.readdirSync(dir)) {
-      const childAbs = `${dir}/${child}`
-      if (DIRS.has(childAbs)) node.children.push(walk(childAbs))
-      else {
-        node.children.push({
-          name: child,
-          relativePath: childAbs.slice(DRIVE_ROOT.length + '/files'.length),
-          absolutePath: childAbs,
-          isFolder: false,
-          children: []
-        })
-      }
-    }
-    return node
-  }
-  return { status: 'success', tree: walk(`${DRIVE_ROOT}/files`) }
 }
 
 // -------------------------------------------------------------------- boot
@@ -1567,17 +1497,9 @@ const api = {
     bytes: [...FILES.keys()].reduce((total, abs) => total + entrySizeAt(abs), 0)
   }),
   run: (payload) => runProgram(payload),
-  list: (folder) => listFolder(folder),
-  read: (file) => readDriveFile(file),
-  // the write half of the drive API: each one answers the server's success body
-  // or throws an error carrying the server's status and message
-  save: (filePath, data) => saveDriveFile(filePath, data),
-  update: (filePath, data) => updateDriveFile(filePath, data),
-  remove: (filePath) => removeDriveFile(filePath),
-  mkdir: (folderPath) => addDriveFolder(folderPath),
-  rmdir: (folderPath) => removeDriveFolder(folderPath),
-  rename: (oldPath, newPath) => renameDriveEntry(oldPath, newPath),
-  tree: () => buildTree(),
+  // the drive's bytes, for @sasjs/api's services: the rules that decide a
+  // status are the package's, so this host hands over storage and nothing else
+  driveStore,
   // the content type a session's header file is seeded with, so the worker can
   // tell a default from a declaration rather than carrying a second literal
   HEADERS_SEED: SEEDED_HEADERS,

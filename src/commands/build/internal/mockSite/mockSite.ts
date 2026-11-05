@@ -36,6 +36,28 @@ export const WEBOUT_SENTINELS = {
 
 const ASSETS_FOLDER = path.join(__dirname, 'assets')
 
+/**
+ * The browser build of @sasjs/api, from the installed package rather than a copy
+ * in this folder: the worker answers the drive with the same rules sasjs/server
+ * does, so the version that ships is the version the CLI resolves - and a stale
+ * second copy is exactly the drift the package exists to remove.
+ *
+ * The path is walked from `require.resolve` because `exports` in @sasjs/api
+ * exposes only the package root - `require.resolve('@sasjs/api/browser.js')`
+ * fails with ERR_PACKAGE_PATH_NOT_EXPORTED, and no subpath can reach
+ * `build/browser.js`. The walk lands on that file only while `main` stays
+ * `build/cjs/index.js`; a change to `main` or `exports` in the package repoints
+ * it silently, so a missing file is reported by name rather than as a bare
+ * ENOENT three levels up.
+ */
+const API_BROWSER_BUILD = path.join(
+  path.dirname(require.resolve('@sasjs/api')),
+  '..',
+  '..',
+  'build',
+  'browser.js'
+)
+
 const toPosix = (value: string) => value.split(path.sep).join('/')
 
 const listFiles = (folder: string, base = folder): string[] => {
@@ -422,6 +444,18 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   }
 
+  // The package supplies the drive rules the worker answers with, so an install
+  // without its browser build is a build that cannot run. Checked here, with the
+  // other refusals, so a missing dependency leaves the previous site in place -
+  // and named, rather than a bare ENOENT from a path three levels up.
+  if (!fs.existsSync(API_BROWSER_BUILD)) {
+    throw new Error(
+      `The @sasjs/api browser build is missing: expected it at ${API_BROWSER_BUILD}. ` +
+        'Reinstall dependencies (npm ci) so the package that ships the drive rules is present, ' +
+        'or check that @sasjs/api still publishes build/browser.js.'
+    )
+  }
+
   if (skipped.length) {
     process.logger?.warn(
       `Left ${skipped.length} file(s) off the mock drive, over the ${megabytes(
@@ -465,6 +499,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       path.join(hostFolder, asset)
     )
   }
+  fs.copyFileSync(API_BROWSER_BUILD, path.join(hostFolder, 'api-browser.js'))
   // sw.js sits at the site root: a worker can only control the folder it is
   // served from, and the app has to be controlled from /
   fs.copyFileSync(
@@ -497,7 +532,13 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // runtime-core.js through the same cache.
   const hostVersion = createHash('md5')
     .update(
-      ['runtime-core.js', 'persist.js', 'intercept.js', 'webout-prelude.json']
+      [
+        'runtime-core.js',
+        'persist.js',
+        'intercept.js',
+        'api-browser.js',
+        'webout-prelude.json'
+      ]
         .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
         .reduce((all, buf) => Buffer.concat([all, buf]), Buffer.alloc(0))
     )
@@ -512,6 +553,10 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       .replace(
         "importScripts('/host/runtime-core.js')",
         `importScripts('/host/runtime-core.js?v=${hostVersion}')`
+      )
+      .replace(
+        "importScripts('/host/api-browser.js')",
+        `importScripts('/host/api-browser.js?v=${hostVersion}')`
       )
   )
 

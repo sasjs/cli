@@ -106,7 +106,8 @@ describe('browser-hosted build', () => {
       'md5.js',
       'runtime-core.js',
       'persist.js',
-      'intercept.js'
+      'intercept.js',
+      'api-browser.js'
     ]) {
       expect(fs.existsSync(path.join(out(), 'host', asset))).toBe(true)
     }
@@ -115,6 +116,133 @@ describe('browser-hosted build', () => {
     expect(fs.existsSync(path.join(out(), 'sw.js'))).toBe(true)
     expect(fs.existsSync(path.join(out(), 'host', 'sw.js'))).toBe(false)
     expect(readConfig().appLoc).toBe(appLoc)
+  })
+
+  it('ships the @sasjs/api build the CLI resolves, and versions both imports', async () => {
+    await buildMockSite(target())
+
+    // the same file the installed package carries: a vendored copy is exactly
+    // how the worker and the server drift apart
+    const shipped = fs.readFileSync(path.join(out(), 'host', 'api-browser.js'))
+    const installed = fs.readFileSync(
+      path.join(
+        path.dirname(require.resolve('@sasjs/api')),
+        '..',
+        '..',
+        'build',
+        'browser.js'
+      )
+    )
+    expect(shipped.equals(installed)).toBe(true)
+
+    const sw = fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')
+    // both imports carry the host version: a worker caches what it imports, so
+    // a rebuild that changes either file has to change the URL
+    expect(sw).toMatch(
+      /importScripts\('\/host\/runtime-core\.js\?v=[0-9a-f]{10}'\)/
+    )
+    expect(sw).toMatch(
+      /importScripts\('\/host\/api-browser\.js\?v=[0-9a-f]{10}'\)/
+    )
+    expect(sw).not.toContain("importScripts('/host/runtime-core.js')")
+  })
+
+  it('names the package when its browser build is missing, and keeps the previous site', async () => {
+    await buildMockSite(target())
+    write(path.join(out(), 'stale.txt'), 'previous')
+
+    // The walk from require.resolve is the only thing that knows where the
+    // build is, so an install without it (or a package that stops publishing
+    // it) has to say so - not surface as an ENOENT from a path three levels up.
+    // Reported missing for that one path only, so the rest of the build keeps
+    // its real filesystem.
+    const browserBuild = path.join(
+      path.dirname(require.resolve('@sasjs/api')),
+      '..',
+      '..',
+      'build',
+      'browser.js'
+    )
+    const exists = jest.spyOn(fs, 'existsSync')
+    exists.mockImplementation((checked) => String(checked) !== browserBuild)
+    try {
+      await expect(buildMockSite(target())).rejects.toThrow(
+        /@sasjs\/api browser build is missing/
+      )
+    } finally {
+      exists.mockRestore()
+    }
+
+    // and the refusal lands before anything is written, so the site that was
+    // there is still there
+    expect(fs.existsSync(path.join(out(), 'stale.txt'))).toBe(true)
+    expect(fs.readFileSync(path.join(out(), 'stale.txt'), 'utf8')).toBe(
+      'previous'
+    )
+  })
+
+  /**
+   * The worker's scripts share one global scope, so a name declared at the top
+   * level of two of them is a SyntaxError in the browser - and invisible to this
+   * suite, where each file is a module of its own. `importScripts` is the
+   * browser's rule: evaluate the files the build wrote, in one context, once.
+   */
+  it('evaluates the shipped scripts in one global scope, the way a worker does', async () => {
+    await buildMockSite(target())
+    const vm = require('vm')
+
+    const sandbox: any = {
+      console,
+      Request,
+      Response,
+      Headers,
+      URL,
+      FormData,
+      Blob,
+      TextEncoder,
+      TextDecoder,
+      Uint8Array,
+      ArrayBuffer,
+      atob,
+      btoa,
+      setTimeout,
+      clearTimeout,
+      location: { origin: 'https://mock.example.com' },
+      clients: { claim: () => {}, matchAll: async () => [] },
+      skipWaiting: () => {},
+      addEventListener: () => {},
+      fetch: async () =>
+        new Response('{}', { headers: { 'content-type': 'application/json' } })
+    }
+    sandbox.self = sandbox
+    const context = vm.createContext(sandbox)
+
+    // a worker imports a URL once; md5.js is imported by the worker and again
+    // by the runtime
+    const imported = new Set<string>()
+    sandbox.importScripts = (url: string) => {
+      if (imported.has(url)) return
+      imported.add(url)
+      const file = path.join(out(), url.replace(/^\//, '').split('?')[0])
+      vm.runInContext(fs.readFileSync(file, 'utf8'), context, {
+        filename: file
+      })
+    }
+
+    expect(() =>
+      vm.runInContext(
+        fs.readFileSync(path.join(out(), 'sw.js'), 'utf8'),
+        context,
+        {
+          filename: 'sw.js'
+        }
+      )
+    ).not.toThrow()
+
+    // both scripts are loaded, and the drive the API is handed came from the
+    // runtime rather than a second implementation
+    expect(Object.keys(sandbox.SASjsMockRuntime)).toContain('driveStore')
+    expect(typeof sandbox.SASjsApi.createDriveService).toBe('function')
   })
 
   it('ships the webout() block with sentinels the runtime fills in', async () => {

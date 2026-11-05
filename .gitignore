@@ -8,3 +8,4 @@ sasjsbuild
 .DS_Store
 /coverage
 /documentation
+src/commands/job/spec/logs

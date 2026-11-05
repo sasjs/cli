@@ -1,3 +1,7 @@
+import path from 'path'
+import { DRIVE_CORPUS } from '@sasjs/api'
+import type { CorpusCase } from '@sasjs/api'
+
 export {}
 
 /**
@@ -12,6 +16,19 @@ const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 const drivePath = (relative: string) =>
   `/sasjs/drive/files${appLoc}/${relative}`
 
+/**
+ * The browser build of @sasjs/api that mockSite.ts copies into the site, from the
+ * installed package - the worker under test must be the worker the build ships.
+ */
+const apiBrowserBuild = () =>
+  path.join(
+    path.dirname(require.resolve('@sasjs/api')),
+    '..',
+    '..',
+    'build',
+    'browser.js'
+  )
+
 const loadWorker = () => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
@@ -25,9 +42,11 @@ const loadWorker = () => {
     clients: { claim: () => {}, matchAll: async () => [] }
   }
   ;(global as any).self = self
-  // sw.js imports the runtime by URL; the test loads the same file from source.
+  // sw.js imports the runtime and the package by URL; the test loads the same
+  // files from source, so the worker here answers with the code the site ships.
   ;(global as any).importScripts = (path: string) => {
     if (path.includes('md5')) return
+    if (path.includes('api-browser')) return require(apiBrowserBuild())
     require('../assets/runtime-core.js')
   }
   require('../assets/sw.js')
@@ -866,7 +885,7 @@ describe('service worker host', () => {
       expect(removed.body).toEqual('"_folderPath" is required')
     })
 
-    it('refuses a rename that would produce a blocked extension', async () => {
+    it('refuses a rename into a blocked extension, as the server does', async () => {
       const { dispatch } = seeded()
       const form = new FormData()
       form.set('file', new Blob(['r']), 'r.csv')
@@ -886,21 +905,25 @@ describe('service worker host', () => {
         })
       )
 
-      // DELETE and PATCH run the same check on the path they are given, so a file
-      // renamed into a blocked name could not be removed or replaced afterwards
+      // The extension rule is the drive's file-path rule, and a rename is a
+      // file operation: sasjs/api (since 0.2.1, sasjs/api#12) applies the rule
+      // to a rename whose target is a file, so both hosts refuse the move and
+      // no entry can be created that the API itself cannot read back. A folder
+      // is not subject to the file-path schema, so renaming a folder to a
+      // dotted name stays allowed.
       expect(toBlocked.status).toBe(400)
+      expect(toBlocked.body).toBe('Invalid file extension')
 
-      const fromBlocked = await answer(
-        dispatch('/SASjsApi/drive/rename', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            oldPath: '/data/x.sh',
-            newPath: '/data/new.csv'
-          })
-        })
+      // ...and the file is still readable under its original name, so the
+      // refusal left the drive exactly as it found it.
+      const read = await answer(
+        dispatch(
+          '/SASjsApi/drive/file?_filePath=' +
+            encodeURIComponent('/data/old.csv')
+        )
       )
-      expect(fromBlocked.status).toBe(400)
+      expect(read.status).toBe(200)
+      expect(read.body).toBe('r')
     })
 
     it('refuses a file where a folder already holds the path', async () => {
@@ -946,9 +969,14 @@ describe('service worker host', () => {
         )
       )
 
-      // mkdirp would otherwise turn the file into a folder to hold the child
-      expect(under.status).toBe(400)
-      expect(under.body).toBe('An ancestor of the path is a file: /data/a.csv')
+      // mkdirp would otherwise turn the file into a folder to hold the child.
+      // The server loses this at the filesystem (ENOTDIR) and answers a 500, so
+      // this answers a 500 too: the refusal is the point, the status is the
+      // server's class, and the message says which path was in the way.
+      expect(under.status).toBe(500)
+      expect(under.body).toEqual({
+        message: 'ENOTDIR: an ancestor of the path is a file: /data/a.csv'
+      })
 
       const stillAFile = await dispatch(
         '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/a.csv')
@@ -1036,5 +1064,84 @@ describe('service worker host', () => {
       )
       expect(await read.text()).toBe('r')
     })
+  })
+
+  describe('conformance corpus', () => {
+    /**
+     * The corpus is what "the same API" means: the cases @sasjs/api runs against
+     * its own services, and against a live sasjs/server, run here against this
+     * worker's HTTP surface. A case that answers differently is this host
+     * drifting from the server - the failure mode the hand-written drive routes
+     * used to have - and it is a test rather than a review.
+     */
+    const httpFor = (testCase: CorpusCase) => {
+      const [method, routePath] = testCase.route.split(' ')
+      const query = new URLSearchParams()
+      for (const [key, value] of Object.entries(testCase.request.query || {})) {
+        if (value !== undefined) query.set(key, String(value))
+      }
+      const suffix = query.toString() ? `?${query}` : ''
+      const init: any = { method }
+
+      const file = testCase.request.file
+      if (file) {
+        const form = new FormData()
+        // the Blob types want a view over an ArrayBuffer; a Uint8Array from the
+        // corpus is typed over ArrayBufferLike, which a Blob does not accept
+        const bytes =
+          typeof file.contents === 'string'
+            ? new TextEncoder().encode(file.contents)
+            : new Uint8Array(file.contents)
+        form.set('file', new Blob([bytes as BlobPart]), file.name)
+        const formPath = testCase.request.body?.filePath
+        if (formPath !== undefined) form.set('filePath', String(formPath))
+        init.body = form
+      } else if (testCase.request.body) {
+        init.body = JSON.stringify(testCase.request.body)
+        init.headers = { 'content-type': 'application/json' }
+      }
+      return { path: routePath + suffix, init }
+    }
+
+    /**
+     * The case's own files, at the paths the drive stores them under. `load`
+     * restores the seed snapshot, which is a map of strings - a byte entry is a
+     * snapshot of an upload, so it goes in through the store the way an upload
+     * does.
+     */
+    const seedDrive = async (
+      runtime: any,
+      testCase: CorpusCase
+    ): Promise<void> => {
+      const text: Record<string, string> = {}
+      for (const [file, contents] of Object.entries(testCase.seed || {})) {
+        if (typeof contents === 'string')
+          text[`/sasjs/drive/files${file}`] = contents
+      }
+      await runtime.load(text)
+      for (const [file, contents] of Object.entries(testCase.seed || {})) {
+        if (typeof contents !== 'string')
+          await runtime.driveStore.write(file, contents)
+      }
+    }
+
+    for (const testCase of DRIVE_CORPUS) {
+      it(testCase.id, async () => {
+        const worker = loadWorker()
+        await seedDrive(worker.runtime, testCase)
+
+        const { path: requestPath, init } = httpFor(testCase)
+        const response = await worker.dispatch(requestPath, init)
+
+        expect(response.status).toBe(testCase.expect.status)
+        if (testCase.expect.error !== undefined) {
+          expect(await response.text()).toBe(testCase.expect.error)
+        }
+        const want = testCase.expect.contents
+        if (typeof want === 'string') expect(await response.text()).toBe(want)
+        else if (want !== undefined)
+          expect(new Uint8Array(await response.arrayBuffer())).toEqual(want)
+      })
+    }
   })
 })

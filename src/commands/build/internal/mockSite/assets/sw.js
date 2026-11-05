@@ -20,8 +20,25 @@
  * server rather than a static host.
  */
 importScripts('/host/runtime-core.js')
+importScripts('/host/api-browser.js')
 
 const R = self.SASjsMockRuntime
+
+// @sasjs/api is the package sasjs/server answers with: the drive's rules - the
+// statuses, the messages, the order of the checks - are its, and this worker is
+// one of its two hosts. `HANDLED_ROUTES` is what it answers today, so the routes
+// below are the ones this host still owns (info, the program routes, session).
+const SASJS_API = self.SASjsApi
+const DRIVE_SERVICES = { drive: SASJS_API.createDriveService(R.driveStore) }
+// The services above are the drive's, so only the drive's operations are
+// dispatched: a route the package adds outside /SASjsApi/drive/ would otherwise
+// be sent to a host that has no service behind it, instead of falling through to
+// the routes below that this worker owns (info, the program routes, session).
+const DRIVE_ROUTES = new Set(
+  SASJS_API.HANDLED_ROUTES.filter((id) =>
+    id.split(' ')[1].includes('/SASjsApi/drive/')
+  )
+)
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -108,7 +125,7 @@ const parseHeaders = (content) => {
  * so the value is taken from it rather than repeated here: a byte body that
  * carries only this type is an undeclared download, not a text/html one.
  */
-const SEEDED_HEADERS = String(R.HEADERS_SEED)
+const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
 
 /**
  * The reply a run produces: the webout, in the shape and under the name the
@@ -127,7 +144,7 @@ const weboutResponse = (result, debug) => {
     // declares nothing: it keeps the type an undeclared download gets. Compared as
     // the raw text rather than as the parsed value, so a service that declares
     // this same content type itself keeps it - only the untouched seed is dropped.
-    if (String(result.headers) === SEEDED_HEADERS)
+    if (String(result.headers) === SEEDED_HEADER_LINE)
       delete headers['content-type']
     if (!headers['content-type'])
       headers['content-type'] = 'application/octet-stream'
@@ -202,28 +219,6 @@ const payloadTooLarge = (limit) => {
   return error
 }
 
-/**
- * The value a route needs, or the 400 the server answers with when it is absent.
- * The message is Joi's, because that is what a client sees from the real API.
- */
-const required = (value, name) => {
-  if (typeof value === 'string' && value.length) return value
-  throw badRequest(`"${name}" is required`)
-}
-
-/**
- * sasjs/server refuses a file path with one of these extensions (filePathSchema
- * in api/src/utils/validation.ts). Nothing is executable on a static host, but a
- * client that would be refused on deploy should hear it here too.
- */
-const BLOCKED_FILE = /\.(exe|sh|htaccess)$/i
-
-const fileTarget = (value, name) => {
-  const given = required(value, name)
-  if (BLOCKED_FILE.test(given)) throw badRequest('Invalid file extension')
-  return given
-}
-
 /** The bytes of an uploaded file, from the multipart field the API names. */
 const uploadBytes = async (request) => {
   const form = await request.formData().catch(() => null)
@@ -237,6 +232,7 @@ const uploadBytes = async (request) => {
     throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
   const target = form.get('filePath')
   return {
+    name: upload.name,
     bytes: new Uint8Array(await upload.arrayBuffer()),
     filePath: target === null ? undefined : target
   }
@@ -277,18 +273,44 @@ const contentTypeFor = (filePath, binary) => {
 }
 
 /**
- * Runs one drive mutation and then hands the page the entries it changed. The
- * worker can be terminated between requests, so a write is only durable once the
- * page has put it in IndexedDB.
+ * One drive operation, answered by the package.
  *
- * Await it at the call site: a bare `return driveResponse(...)` hands the
- * promise back through handle's try without running its catch, so a refused
- * write would reach the page as an unhandled rejection instead of its status.
+ * The transport stays here - a Request is not an ApiRequest, and a multipart body
+ * has to be read before anything can look at it - and the decisions are the
+ * package's. A write is followed by `persistChanges()` because the worker can be
+ * terminated between requests: the answer is only durable once the page has put
+ * it in IndexedDB.
  */
-const driveResponse = async (runner) => {
-  const result = runner()
-  await persistChanges()
-  return json(result)
+const driveRoute = async (route, request, query) => {
+  const apiRequest = { query }
+  const contentType = request.headers.get('content-type') || ''
+
+  if (request.method === 'POST' || request.method === 'PATCH') {
+    if (contentType.includes('multipart/form-data')) {
+      const upload = await uploadBytes(request)
+      apiRequest.file = { name: upload.name, contents: upload.bytes }
+      if (upload.filePath !== undefined)
+        apiRequest.body = { filePath: upload.filePath }
+    } else {
+      // the routes that take their paths as JSON: folder create, rename
+      apiRequest.body = await readJson(request)
+    }
+  }
+
+  const answer = await SASJS_API.dispatch(DRIVE_SERVICES, route.id, apiRequest)
+  if (request.method !== 'GET') await persistChanges()
+
+  // the one route that answers with the file itself rather than JSON
+  if (answer.contents !== undefined) {
+    const binary = typeof answer.contents !== 'string'
+    return new Response(answer.contents, {
+      status: answer.status,
+      headers: {
+        'content-type': contentTypeFor(query._filePath, binary)
+      }
+    })
+  }
+  return json(answer.body, answer.status)
 }
 
 const handle = async (request, url) => {
@@ -309,79 +331,12 @@ const handle = async (request, url) => {
       })
     }
 
-    if (path.endsWith('/SASjsApi/drive/folder')) {
-      if (request.method === 'GET')
-        return json(await R.list(query._folderPath || ''))
-
-      if (request.method === 'POST') {
-        const body = await readJson(request)
-        return await driveResponse(() =>
-          R.mkdir(required(body.folderPath, 'folderPath'))
-        )
-      }
-
-      if (request.method === 'DELETE') {
-        // an empty path names the drive root, which the server refuses at
-        // validation rather than deleting everything
-        const folderPath = required(query._folderPath, '_folderPath')
-        return await driveResponse(() => R.rmdir(folderPath))
-      }
-    }
-
-    if (path.endsWith('/SASjsApi/drive/filetree')) {
-      return json(R.tree())
-    }
-
-    if (path.endsWith('/SASjsApi/drive/rename')) {
-      if (request.method === 'POST') {
-        const body = await readJson(request)
-        // both ends go through the extension check: without it a file could be
-        // renamed into a blocked name and then be unreachable by DELETE and PATCH,
-        // which apply the same check to the path they are given
-        const oldPath = fileTarget(body.oldPath, 'oldPath')
-        const newPath = fileTarget(body.newPath, 'newPath')
-        return await driveResponse(() => R.rename(oldPath, newPath))
-      }
-    }
-
-    if (path.endsWith('/SASjsApi/drive/file')) {
-      if (request.method === 'GET') {
-        const file = R.read(query._filePath || '')
-        // the server answers this with `sendFile`, so the type comes from the
-        // extension: a .csv is text/csv whether it was uploaded as bytes or
-        // written by a service as text
-        return new Response(
-          file.binary ? toBytes(file.contents) : file.contents,
-          {
-            status: 200,
-            headers: {
-              'content-type': contentTypeFor(query._filePath, file.binary)
-            }
-          }
-        )
-      }
-
-      if (request.method === 'DELETE') {
-        const filePath = fileTarget(query._filePath, '_filePath')
-        return await driveResponse(() => R.remove(filePath))
-      }
-
-      // POST creates (409 when the path is taken) and PATCH replaces (404 when
-      // it is not there) - the split the server's routes make, so a client that
-      // keys on the status code behaves the same way
-      if (request.method === 'POST' || request.method === 'PATCH') {
-        const upload = await uploadBytes(request)
-        const filePath = fileTarget(
-          query._filePath || upload.filePath,
-          '_filePath'
-        )
-        return await driveResponse(() =>
-          request.method === 'PATCH'
-            ? R.update(filePath, upload.bytes)
-            : R.save(filePath, upload.bytes)
-        )
-      }
-    }
+    // the nine drive operations are the package's, matched off its own table
+    // rather than a suffix chain, so a path this host does not own falls through
+    // to its routes below instead of being answered twice
+    const matched = SASJS_API.findRoute(request.method, path)
+    if (matched && DRIVE_ROUTES.has(matched.route.id))
+      return await driveRoute(matched.route, request, query)
 
     if (
       path.endsWith('/SASjsApi/stp/execute') ||
