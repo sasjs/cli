@@ -10,11 +10,14 @@ import {
   getAbsolutePath
 } from '@sasjs/utils'
 import { getStreamConfig } from '../../utils/config'
+import fs from 'fs'
 import path from 'path'
 import jsdom from 'jsdom'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import { createAssetServices } from './internal/createAssetServices'
 import { updateAllTags } from './internal/updateAllTags'
+import { getSasjsTags } from './internal/getTags'
+import { updateSasjsTag } from './internal/updateSasjsTag'
 import { createClickMeService } from './internal/sas9'
 import { createClickMeFile } from './internal/sasViya'
 
@@ -47,6 +50,22 @@ export async function createWebAppServices(target: Target) {
   if (target.serverType === ServerType.Sasjs) {
     process.logger?.info(`Copying web app files for target ${target.name}...`)
     await copy(webSourcePathFull, destinationPath)
+
+    /*
+      The copied app carries whatever appLoc the frontend was built with, and
+      an AppStream app gets no appLoc from its URL - so a deployment to any
+      appLoc but that default sends every service call to the default one. The
+      tag is set from the target here, which is the value this build deploys to.
+    */
+    const copiedIndex = path.join(destinationPath, 'index.html')
+    const indexHtml = new jsdom.JSDOM(await readFile(copiedIndex))
+    const sasjsTags = getSasjsTags(indexHtml)
+
+    if (sasjsTags.length) {
+      updateSasjsTag(sasjsTags[0], target)
+      await fs.promises.writeFile(copiedIndex, indexHtml.serialize())
+    }
+
     return
   }
   process.logger?.info(
