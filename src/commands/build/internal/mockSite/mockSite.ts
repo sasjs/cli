@@ -256,77 +256,65 @@ const countJsPrograms = (files: { [path: string]: string }) =>
     return inProgramFolder && key.toLowerCase().endsWith('.js')
   }).length
 
-const loaderScript = (mainScript: string, version: string) => `<script>
-    // Boot order: register the service worker that hosts the mock backend, wait
-    // until it controls this page, hand it the persisted drive, install the XHR
-    // bridge, then start the app.
-    (function () {
-      function load(src, next, isModule) {
-        var s = document.createElement('script')
-        if (isModule) s.type = 'module'
-        s.src = src
-        s.onload = next
-        s.onerror = function () { console.error('[mock] failed to load ' + src); next() }
-        document.body.appendChild(s)
-      }
-      function start() {
-        load('host/persist.js?v=${version}', function () {
-          Promise.resolve(window.__sasjsMockReady).then(function (boot) {
-            if (boot && boot.error) console.error('[mock] boot: ' + boot.error)
-            load('host/intercept.js?v=${version}', function () {
-              load('${mainScript}', function () {}, true)
-            })
-          })
-        })
-      }
-      if (!('serviceWorker' in navigator)) {
-        console.error('[mock] service workers are unavailable - the mock backend cannot run')
-        start()
-        return
-      }
-      navigator.serviceWorker
-        // The worker script's own URL is the only thing a returning visitor
-        // cannot bypass: the host files behind it are cache-busted with a
-        // version query, but a cached sw.js keeps serving the previous
-        // build's worker until the browser next revalidates it - and that
-        // worker imports the previous runtime, which may know nothing of
-        // what this build deploys. Stamping the script URL makes the new
-        // worker a different script, so it installs and takes over at once;
-        // updateViaCache keeps a proxy from answering the check with the
-        // old copy.
-        .register('/sw.js?v=${version}', { scope: '/', updateViaCache: 'none' })
-        .then(function () { return navigator.serviceWorker.ready })
-        .then(function () {
-          if (navigator.serviceWorker.controller) return
-          return new Promise(function (resolve) {
-            var timer = setTimeout(resolve, 4000)
-            navigator.serviceWorker.addEventListener('controllerchange', function () {
-              clearTimeout(timer)
-              resolve()
-            })
-          })
-        })
-        .then(function () {
-          if (navigator.serviceWorker.controller) return start()
-          if (!sessionStorage.getItem('mock-sw-reloaded')) {
-            sessionStorage.setItem('mock-sw-reloaded', '1')
-            location.reload()
-            return
-          }
-          console.error('[mock] no service worker controller - requests will fail')
-          start()
-        })
-        .catch(function (err) {
-          console.error('[mock] service worker registration failed: ' + err)
-          start()
-        })
-    })()
-  </script>`
+/** The script-tag attributes that change how an app's script runs. */
+const REPLAYED_ATTRIBUTES: { [attribute: string]: string } = {
+  type: 'type',
+  id: 'id',
+  crossorigin: 'crossOrigin',
+  integrity: 'integrity',
+  nomodule: 'noModule'
+}
+
+const parseAttributes = (source: string) => {
+  const attributes: { [name: string]: string } = {}
+  const pattern =
+    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g
+  let match
+  while ((match = pattern.exec(source))) {
+    const value = match[2] ?? match[3] ?? match[4] ?? ''
+    attributes[match[1].toLowerCase()] = value
+  }
+  return attributes
+}
+
+const escapeAttribute = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 
 /**
- * Points the app at its own origin and replaces its bundle tag with the
- * boot loader. Both changes are reported when the expected markup is absent,
- * rather than producing a site that silently talks to a real server.
+ * The boot loader is a FILE rather than an inline script: an app with a strict
+ * Content-Security-Policy (`default-src 'self'`, no `unsafe-inline`) refuses an
+ * inline one, and the builder cannot add a hash or nonce to a policy it does
+ * not own.
+ *
+ * The app's script tags travel to it in `data-scripts`, in document order. Any
+ * number of tags works - one bundle, or several plain scripts a page loads in
+ * order, plus the inline snippets some pages use to set up a global before the
+ * bundle runs - so the host does not dictate how the app is built.
+ */
+const bootTag = (scripts: { [key: string]: string }[], version: string) =>
+  `<script src="host/boot.js?v=${version}" data-scripts='${escapeAttribute(
+    JSON.stringify(scripts)
+  )}'></script>`
+
+/**
+ * Script types the browser executes. Anything else (`application/ld+json`, a
+ * template) is data the page keeps for later, so it stays where it is.
+ */
+const EXECUTABLE_TYPES = [
+  '',
+  'module',
+  'text/javascript',
+  'application/javascript'
+]
+
+/**
+ * Points the app at its own origin and replaces its script tags with the boot
+ * loader. Both changes are reported when the expected markup is absent, rather
+ * than producing a site that silently talks to a real server.
  */
 const patchIndexHtml = (html: string, version: string) => {
   const warnings: string[] = []
@@ -347,16 +335,47 @@ const patchIndexHtml = (html: string, version: string) => {
     )
   }
 
-  const mainMatch = patched.match(
-    /<script[^>]*src="([^"]*main[^"]*\.js)"[^>]*><\/script>/i
+  const scripts: { [key: string]: string }[] = []
+  const tagPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>[ \t]*\r?\n?/gi
+
+  patched = patched.replace(
+    tagPattern,
+    (tag: string, source: string, body: string) => {
+      const attributes = parseAttributes(source)
+      const type = (attributes.type || '').trim().toLowerCase()
+      const inlined = !attributes.src
+
+      // data blocks stay in the page; they are not scripts to replay
+      if (!EXECUTABLE_TYPES.includes(type)) return tag
+
+      const spec: { [key: string]: string } = inlined
+        ? {}
+        : { src: attributes.src }
+      if (inlined) {
+        const code = body.trim()
+        // an empty inline tag (a placeholder, or a commented-out block) is not
+        // worth a round trip
+        if (!code) return ''
+        spec.code = code
+      }
+      for (const attribute of Object.keys(REPLAYED_ATTRIBUTES)) {
+        if (attributes[attribute] === undefined) continue
+        if (attribute === 'type' && !attributes.type) continue
+        const name = REPLAYED_ATTRIBUTES[attribute]
+        spec[name] = attribute === 'nomodule' ? 'true' : attributes[attribute]
+      }
+      scripts.push(spec)
+      return ''
+    }
   )
 
-  if (mainMatch) {
-    patched = patched.replace(mainMatch[0], loaderScript(mainMatch[1], version))
+  if (scripts.length) {
+    const tag = bootTag(scripts, version)
+    patched = /<\/body>/i.test(patched)
+      ? patched.replace(/<\/body>/i, `${tag}\n</body>`)
+      : patched + tag
   } else {
-    warnings.push(
-      'no main bundle script tag found - the mock loader was not installed'
-    )
+    warnings.push('no script tags found - the mock loader was not installed')
   }
 
   return { patched, warnings }
@@ -501,7 +520,8 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     'md5.js',
     'runtime-core.js',
     'persist.js',
-    'intercept.js'
+    'intercept.js',
+    'boot.js'
   ]) {
     fs.copyFileSync(
       path.join(ASSETS_FOLDER, asset),
@@ -545,6 +565,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         'runtime-core.js',
         'persist.js',
         'intercept.js',
+        'boot.js',
         'api-browser.js',
         'webout-prelude.json'
       ]
