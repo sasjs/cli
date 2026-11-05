@@ -273,7 +273,11 @@ describe('browser-hosted build', () => {
     expect(html).toContain('serverurl=""')
     expect(html).toContain('loginmechanism="Default"')
     expect(html).not.toContain('https://sas.example.com')
-    expect(html).toContain("register('/sw.js'")
+    expect(html).toContain("register('/sw.js?v=")
+    // A cached worker script must not keep a returning visitor on the previous
+    // build's runtime: the URL carries the host version, and the check skips
+    // the HTTP cache.
+    expect(html).toContain("updateViaCache: 'none'")
     expect(html).toContain('host/persist.js')
     expect(html).toContain('main.abc123.js')
   })

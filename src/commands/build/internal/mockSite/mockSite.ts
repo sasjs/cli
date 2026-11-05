@@ -285,7 +285,16 @@ const loaderScript = (mainScript: string, version: string) => `<script>
         return
       }
       navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
+        // The worker script's own URL is the only thing a returning visitor
+        // cannot bypass: the host files behind it are cache-busted with a
+        // version query, but a cached sw.js keeps serving the previous
+        // build's worker until the browser next revalidates it - and that
+        // worker imports the previous runtime, which may know nothing of
+        // what this build deploys. Stamping the script URL makes the new
+        // worker a different script, so it installs and takes over at once;
+        // updateViaCache keeps a proxy from answering the check with the
+        // old copy.
+        .register('/sw.js?v=${version}', { scope: '/', updateViaCache: 'none' })
         .then(function () { return navigator.serviceWorker.ready })
         .then(function () {
           if (navigator.serviceWorker.controller) return
