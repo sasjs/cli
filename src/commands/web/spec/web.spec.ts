@@ -8,7 +8,7 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { createFile, StreamConfig } from '@sasjs/utils'
+import { createFile, readFile, ServerType, StreamConfig } from '@sasjs/utils'
 import { createWebAppServices } from '../web'
 import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 
@@ -165,6 +165,46 @@ describe('sasjs web', () => {
       await expect(
         verifyFolder(webBuiltFilesSAS9(streamServiceName))
       ).resolves.toEqual(true)
+    },
+    2 * 60 * 1000
+  )
+
+  it(
+    `should stamp the target's appLoc into the copied app for a SASjs target`,
+    async () => {
+      // The app reads its appLoc from the <sasjs> tag, and an AppStream app
+      // gets no appLoc from its URL - so a copy that kept the frontend's own
+      // value would call services on the default appLoc whatever was deployed.
+      const sourceFolder = 'websrc'
+      await createFile(
+        path.join(__dirname, appName, sourceFolder, 'index.html'),
+        '<html><head><sasjs appLoc="/Public/app/default" serverType="SASJS"></sasjs></head><body></body></html>'
+      )
+
+      const sasjsTarget: any = {
+        name: 'sasjs-loc',
+        serverType: ServerType.Sasjs,
+        appLoc: '/Public/app/AnotherLoc',
+        streamConfig: {
+          ...streamConfig,
+          webSourcePath: sourceFolder,
+          streamWebFolder: 'websas'
+        }
+      }
+
+      await expect(createWebAppServices(sasjsTarget)).toResolve()
+
+      const copied = await readFile(
+        path.join(
+          process.sasjsConstants.buildDestinationServicesFolder,
+          'websas',
+          'index.html'
+        )
+      )
+
+      // jsdom serialises attribute names in lower case
+      expect(copied.toLowerCase()).toContain('apploc="/public/app/anotherloc"')
+      expect(copied.toLowerCase()).not.toContain('/public/app/default')
     },
     2 * 60 * 1000
   )
