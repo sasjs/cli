@@ -107,6 +107,7 @@ describe('browser-hosted build', () => {
       'runtime-core.js',
       'persist.js',
       'intercept.js',
+      'boot.js',
       'api-browser.js'
     ]) {
       expect(fs.existsSync(path.join(out(), 'host', asset))).toBe(true)
@@ -273,13 +274,49 @@ describe('browser-hosted build', () => {
     expect(html).toContain('serverurl=""')
     expect(html).toContain('loginmechanism="Default"')
     expect(html).not.toContain('https://sas.example.com')
-    expect(html).toContain("register('/sw.js?v=")
-    // A cached worker script must not keep a returning visitor on the previous
-    // build's runtime: the URL carries the host version, and the check skips
-    // the HTTP cache.
-    expect(html).toContain("updateViaCache: 'none'")
-    expect(html).toContain('host/persist.js')
-    expect(html).toContain('main.abc123.js')
+    // the loader is a file, never an inline script: an app with a strict
+    // Content-Security-Policy would refuse an inline one
+    expect(html).toContain('<script src="host/boot.js?v=')
+    expect(html).not.toContain('<script>')
+    expect(fs.existsSync(path.join(out(), 'host', 'boot.js'))).toBe(true)
+    // the app's own tags are replayed by the loader, in the order the page has
+    // them, and are gone from the page itself
+    expect(html).not.toContain('<script src="main.abc123.js"')
+    expect(html).toContain('"src":"main.abc123.js","type":"module"')
+  })
+
+  it('replays every script tag a page loads, not just a bundled entry point', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><body>',
+        '<sasjs serverurl="https://sas.example.com" apploc="/Public/app/test"></sasjs>',
+        '<script type="application/ld+json">{"name":"app"}</script>',
+        '<script defer id="sasjs-adapter" src="sasjs.js"></script>',
+        '<script>window.__boot = {ready: false}</script>',
+        '<script src="js/backend.js"></script>',
+        '<script src="js/game.js" crossorigin="anonymous"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const tag = html.match(/data-scripts='([^']*)'/)
+    expect(tag).toBeTruthy()
+    const specs = JSON.parse(
+      tag![1].replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    )
+    expect(specs).toEqual([
+      { src: 'sasjs.js', id: 'sasjs-adapter' },
+      { code: 'window.__boot = {ready: false}' },
+      { src: 'js/backend.js' },
+      { src: 'js/game.js', crossOrigin: 'anonymous' }
+    ])
+    expect(html).not.toContain('<script src="js/backend.js"')
+    // a data block is not a script: it stays in the page
+    expect(html).toContain('<script type="application/ld+json">')
   })
 
   it('ships a captured drive snapshot when the project has one', async () => {
@@ -473,7 +510,7 @@ describe('browser-hosted build', () => {
       expect.stringContaining('no <sasjs> element found')
     )
     expect(process.logger?.warn).toHaveBeenCalledWith(
-      expect.stringContaining('no main bundle script tag found')
+      expect.stringContaining('no script tags found')
     )
   })
 
