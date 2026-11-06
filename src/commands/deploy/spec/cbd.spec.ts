@@ -152,7 +152,7 @@ describe('sasjs cbd with server type SASJS', () => {
                     {
                       name: 'appinit',
                       type: 'service',
-                      code: getCode(appinit)
+                      code: getCode(removeHeader(appinit))
                     },
                     {
                       name: 'getdata.js',
@@ -162,7 +162,7 @@ describe('sasjs cbd with server type SASJS', () => {
                     {
                       name: 'getdata',
                       type: 'service',
-                      code: getCode(getdata)
+                      code: getCode(removeHeader(getdata))
                     }
                   ]
                 }
