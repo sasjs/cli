@@ -115,7 +115,8 @@ webout('CLOSE')`
     const parsed = JSON.parse(result.webout)
 
     expect(parsed.users).toEqual([{ name: 'ann' }, { name: 'bob' }])
-    expect(parsed.SYSDATE).toMatch(/^\d{2}[A-Z]{3}\d{4}$/)
+    // &SYSDATE is DATE7 - ddMMMyy - which is what %mm_webout writes
+    expect(parsed.SYSDATE).toMatch(/^\d{2}[A-Z]{3}\d{2}$/)
     expect(parsed.MF_GETUSER).toEqual('DEMO')
     expect(parsed.SYSPROCESSNAME).toEqual('Browser')
     expect(parsed.SYSSCPL).toEqual('browser')
