@@ -76,7 +76,7 @@
     "@sasjs/lint": "5.0.0",
     "@sasjs/utils": "4.9.0",
     "axios": "1.20.0",
-    "chalk": "4.1.2",
+    "chalk": "6.0.1",
     "dotenv": "18.0.8",
     "js-base64": "3.9.4",
     "jsdom": "26.0.0",
