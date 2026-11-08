@@ -322,12 +322,25 @@ const handle = async (request, url) => {
     await R.ensureReady()
 
     if (path.endsWith('/SASjsApi/info')) {
+      // The document's InfoResponse, field for field. A static host has no
+      // listener of its own (both ports null), no accounts to sign in to, one
+      // run time, and no CORS allow-list to publish - the whitelist is
+      // deliberately absent from a public answer, and `protocol` was never a
+      // documented property. `cors` is the server's own word for the setting,
+      // `disable`, not `disabled`. `version` carries no build identity for the
+      // same reason a hand-built server binary has none, and spells it the way
+      // that binary does (`formatBuildInfo()` over `version: 'dev'`,
+      // `gitHash: 'unknown'`, `buildDate: null`) rather than inventing a
+      // version for a site a static host serves.
       return json({
         mode: 'desktop',
-        cors: 'disabled',
-        whiteList: [],
-        protocol: 'browser',
-        runTimes: ['js']
+        cors: 'disable',
+        httpPort: null,
+        httpsPort: null,
+        runTimes: ['js'],
+        authProviders: [],
+        localLoginEnabled: false,
+        version: 'dev (unknown), build date unknown'
       })
     }
 
