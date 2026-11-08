@@ -285,6 +285,18 @@ describe('browser-hosted build', () => {
     expect(html).toContain('"src":"main.abc123.js","type":"module"')
   })
 
+  it('states in the page that the API is answered here', async () => {
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+
+    // The interface reads this to tell a browser host from a server: the API
+    // cannot, because a browser host answers the same routes and the same
+    // /SASjsApi/info shape. Only the host knows, so the host says.
+    expect(html).toContain('<meta name="sasjs-host" content="browser" />')
+    expect(html.indexOf('sasjs-host')).toBeLessThan(html.indexOf('</head>'))
+  })
+
   it('replays every script tag a page loads, not just a bundled entry point', async () => {
     write(
       path.join(root, 'client', 'dist', 'index.html'),
