@@ -32,6 +32,7 @@ const apiBrowserBuild = () =>
 const loadWorker = () => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
+  let refusingWrites = false
   const self: any = {
     location: { origin },
     addEventListener: (type: string, fn: (event: any) => any) => {
@@ -48,6 +49,25 @@ const loadWorker = () => {
     if (path.includes('md5')) return
     if (path.includes('api-browser')) return require(apiBrowserBuild())
     require('../assets/runtime-core.js')
+    // The corpus needs the same drive with its writes refused, without building
+    // a second site. The flag is flipped after the case has seeded, because a
+    // store that refused during seeding could not be seeded - the package seeds
+    // its refusing store through the constructor for the same reason.
+    const base = self.SASjsMockRuntime.driveStore
+    const refused = () =>
+      Promise.reject(new Error('the store refused the write'))
+    self.SASjsMockRuntime.driveStore = {
+      read: (file: string) => base.read(file),
+      exists: (file: string) => base.exists(file),
+      stat: (file: string) => base.stat(file),
+      list: (folder: string) => base.list(folder),
+      remove: (file: string) => base.remove(file),
+      move: (from: string, to: string) => base.move(from, to),
+      write: (file: string, contents: unknown) =>
+        refusingWrites ? refused() : base.write(file, contents),
+      mkdirp: (folder: string) =>
+        refusingWrites ? refused() : base.mkdirp(folder)
+    }
   }
   require('../assets/sw.js')
 
@@ -98,7 +118,16 @@ const loadWorker = () => {
     ;(handlers[type] || []).forEach((fn) => fn(event))
   }
 
-  return { runtime, dispatch, message, lifecycle, self }
+  return {
+    runtime,
+    dispatch,
+    message,
+    lifecycle,
+    self,
+    refuseWrites: (value: boolean) => {
+      refusingWrites = value
+    }
+  }
 }
 
 const jsonResponse = (body: any) => ({
@@ -1129,6 +1158,7 @@ describe('service worker host', () => {
       it(testCase.id, async () => {
         const worker = loadWorker()
         await seedDrive(worker.runtime, testCase)
+        worker.refuseWrites(Boolean(testCase.unwritable))
 
         const { path: requestPath, init } = httpFor(testCase)
         const response = await worker.dispatch(requestPath, init)
