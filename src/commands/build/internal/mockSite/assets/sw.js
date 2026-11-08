@@ -322,12 +322,20 @@ const handle = async (request, url) => {
     await R.ensureReady()
 
     if (path.endsWith('/SASjsApi/info')) {
+      // The documented body field for field. `cors` is the document's CorsType
+      // - `enable` or `disable` - and a browser host has no listeners, no
+      // external providers and no database accounts to switch off. A property
+      // the document does not state would be this host describing an API the
+      // server does not serve, which is the drift the package exists to stop.
       return json({
         mode: 'desktop',
-        cors: 'disabled',
-        whiteList: [],
-        protocol: 'browser',
-        runTimes: ['js']
+        cors: 'disable',
+        httpPort: null,
+        httpsPort: null,
+        runTimes: ['js'],
+        authProviders: [],
+        localLoginEnabled: true,
+        version: 'browser host'
       })
     }
 
