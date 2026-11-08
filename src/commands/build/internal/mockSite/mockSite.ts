@@ -320,6 +320,17 @@ const patchIndexHtml = (html: string, version: string) => {
   const warnings: string[] = []
   let patched = html
 
+  // States where this page's API comes from, for anything in the page that
+  // wants to say so: the server's own interface reads it to describe the host
+  // it is running on, and a browser host is a different thing to explain than a
+  // server process. Absence means the server answered the page.
+  if (!/<meta\s+name=["']sasjs-host["']/i.test(patched))
+    patched = patched.replace(
+      /<head(\s[^>]*)?>/i,
+      (head: string) =>
+        `${head}\n    <meta name="sasjs-host" content="browser" />`
+    )
+
   if (/<sasjs[^>]*>/i.test(patched)) {
     patched = patched.replace(
       /(<sasjs[^>]*?)\sserverurl="[^"]*"/i,
