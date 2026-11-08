@@ -536,9 +536,19 @@ describe('service worker host', () => {
     const { dispatch } = seeded()
 
     const info = await dispatch('/SASjsApi/info')
-    expect(await info.json()).toEqual(
-      expect.objectContaining({ protocol: 'browser', runTimes: ['js'] })
-    )
+    // the document's eight required properties and nothing else: a mock that
+    // answered `protocol`/`whiteList`, or `cors: 'disabled'`, sent a client a
+    // body the server would never send
+    expect(await info.json()).toEqual({
+      mode: 'desktop',
+      cors: 'disable',
+      httpPort: null,
+      httpsPort: null,
+      runTimes: ['js'],
+      authProviders: [],
+      localLoginEnabled: false,
+      version: 'dev'
+    })
 
     const folder = await dispatch(
       '/SASjsApi/drive/folder?_folderPath=' +
