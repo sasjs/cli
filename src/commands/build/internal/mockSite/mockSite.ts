@@ -1,6 +1,8 @@
 import { createHash } from 'crypto'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import { buildSync as esbuildSync } from 'esbuild'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
 export interface MockSiteResult {
@@ -59,6 +61,167 @@ const API_BROWSER_BUILD = path.join(
 )
 
 const toPosix = (value: string) => value.split(path.sep).join('/')
+
+/**
+ * The linter, as a service worker can run it.
+ *
+ * `@sasjs/api/code` is a node-only entry because `@sasjs/lint` resolves its
+ * configuration by walking a filesystem - but the linter's core (`lintText`,
+ * `formatText`) reads only the text it is given and the configuration it is
+ * passed, so the two can run anywhere the module graph can be built. This
+ * bundle is that graph: the package's own code service, the linter it wraps, and
+ * shims for the four node modules reached at import time (`path` and `os` for
+ * resolution, `fs` and `@sasjs/utils/file` for the config lookup that a mock
+ * never makes, because it hands the linter the default configuration).
+ *
+ * It is built from the installed @sasjs/api and @sasjs/lint on every mock
+ * build, so the rules a client sees are the version the CLI resolved - a
+ * committed bundle would be a second copy to drift.
+ */
+const LINT_BUNDLE_FILES: { [name: string]: string } = {
+  'entry.js': [
+    "import './process.js'",
+    "import { createCodeService } from '@sasjs/api/code'",
+    'globalThis.SASjsCode = { createCodeService }'
+  ].join('\n'),
+  'process.js': [
+    '// the linter reads process.env for a default and process.cwd() for a root;',
+    '// neither is a real lookup in a worker, and both are answered in one place',
+    'if (typeof globalThis.process === "undefined")',
+    '  globalThis.process = {',
+    '    env: {},',
+    '    platform: "browser",',
+    '    cwd: () => "/",',
+    '    versions: {},',
+    '    argv: [],',
+    '    version: "v0"',
+    '  }'
+  ].join('\n'),
+  'fs.js': [
+    'const unavailable = (name) => () => {',
+    '  throw new Error(name + " is not available in the browser host")',
+    '}',
+    'module.exports = {',
+    '  readFileSync: unavailable("readFileSync"),',
+    '  writeFileSync: unavailable("writeFileSync"),',
+    '  existsSync: () => false,',
+    '  promises: {}',
+    '}'
+  ].join('\n'),
+  'os.js': [
+    'module.exports = {',
+    '  homedir: () => "/",',
+    '  platform: () => "browser",',
+    '  tmpdir: () => "/tmp",',
+    '  EOL: "\\n"',
+    '}'
+  ].join('\n'),
+  'utils-file.js': [
+    'const unavailable = (name) => async () => {',
+    '  throw new Error(name + " is not available in the browser host")',
+    '}',
+    'module.exports = {',
+    '  readFile: unavailable("readFile"),',
+    '  writeFile: unavailable("writeFile"),',
+    '  fileExists: async () => false,',
+    '  listFilesInFolder: async () => []',
+    '}'
+  ].join('\n'),
+  'path.js': String.raw`// the posix half of path, which is all the linter uses: the rules name files,
+// and a mock hands the linter no folder to walk
+const SEP = String.fromCharCode(92)
+const clean = (value) =>
+  String(value).split(SEP).join("/").replace(/\/+/g, "/")
+const strip = (value) => clean(value).replace(/\/+$/, "")
+const basename = (value) => strip(value).split("/").pop() || ""
+const extname = (value) => {
+  const base = basename(value)
+  const dot = base.lastIndexOf(".")
+  return dot > 0 ? base.slice(dot) : ""
+}
+const dirname = (value) => {
+  const parts = clean(value).split("/")
+  parts.pop()
+  return parts.join("/") || "."
+}
+const join = (...parts) => clean(parts.filter(Boolean).join("/"))
+module.exports = {
+  sep: "/",
+  delimiter: ":",
+  basename,
+  extname,
+  dirname,
+  join,
+  resolve: (...parts) => clean(parts.filter(Boolean).join("/")),
+  relative: (from, to) => clean(to).replace(clean(from) + "/", ""),
+  isAbsolute: (value) => String(value).startsWith("/"),
+  normalize: clean,
+  parse: (value) => ({
+    root: "",
+    dir: dirname(value),
+    base: basename(value),
+    ext: extname(value),
+    name: basename(value).slice(0, basename(value).length - extname(value).length)
+  })
+}`
+}
+
+/**
+ * The `node_modules` the CLI's own dependency lives in.
+ *
+ * esbuild resolves a bare import from the entry file upwards, which is wrong for
+ * a scratch entry outside the install: the walk would miss the installed
+ * packages entirely. `nodePaths` states where to look instead, and it is taken
+ * from `require.resolve` so it is the tree the CLI actually loaded from - a
+ * hoisted install, a nested one, and a pnpm store symlink all answer with their
+ * own location.
+ */
+const NODE_MODULES = (() => {
+  const resolved = require.resolve('@sasjs/api')
+  const marker = `${path.sep}node_modules${path.sep}`
+  const index = resolved.lastIndexOf(marker)
+  return index < 0 ? undefined : resolved.slice(0, index + marker.length - 1)
+})()
+
+/**
+ * Builds `lint-browser.js` from the installed packages.
+ *
+ * The shim sources are written to the system temp folder, never beside this
+ * module: an installed package can be read-only (a global install, a pnpm store
+ * symlink, a container that builds as another user), and a build that writes
+ * inside it fails with EACCES for exactly the users least able to diagnose it.
+ * Resolution is kept by naming the CLI's `node_modules` through `nodePaths`.
+ */
+export const buildLintBundle = (destination: string) => {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-lint-'))
+  try {
+    for (const [name, contents] of Object.entries(LINT_BUNDLE_FILES))
+      fs.writeFileSync(path.join(work, name), contents)
+    esbuildSync({
+      entryPoints: [path.join(work, 'entry.js')],
+      bundle: true,
+      platform: 'browser',
+      format: 'iife',
+      outfile: destination,
+      nodePaths: NODE_MODULES ? [NODE_MODULES] : [],
+      alias: {
+        fs: path.join(work, 'fs.js'),
+        path: path.join(work, 'path.js'),
+        os: path.join(work, 'os.js'),
+        '@sasjs/utils/file': path.join(work, 'utils-file.js')
+      },
+      logLevel: 'silent'
+    })
+  } catch (error: any) {
+    throw new Error(
+      `The browser lint bundle could not be built from @sasjs/api/code: ${
+        (error && error.message) || error
+      }`
+    )
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true })
+  }
+}
 
 const listFiles = (folder: string, base = folder): string[] => {
   const entries = fs.readdirSync(folder, { withFileTypes: true })
@@ -565,6 +728,9 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   }
   fs.copyFileSync(API_BROWSER_BUILD, path.join(hostFolder, 'api-browser.js'))
+  // 2. the linter, bundled from the installed packages so the code routes answer
+  // with the rules this CLI resolved rather than a second implementation
+  await buildLintBundle(path.join(hostFolder, 'lint-browser.js'))
   // sw.js sits at the site root: a worker can only control the folder it is
   // served from, and the app has to be controlled from /
   fs.copyFileSync(
@@ -603,6 +769,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         'intercept.js',
         'boot.js',
         'api-browser.js',
+        'lint-browser.js',
         'webout-prelude.json'
       ]
         .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
@@ -623,6 +790,10 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       .replace(
         "importScripts('/host/api-browser.js')",
         `importScripts('/host/api-browser.js?v=${hostVersion}')`
+      )
+      .replace(
+        "importScripts('/host/lint-browser.js')",
+        `importScripts('/host/lint-browser.js?v=${hostVersion}')`
       )
   )
 

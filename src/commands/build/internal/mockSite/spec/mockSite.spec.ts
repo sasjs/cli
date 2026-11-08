@@ -108,7 +108,8 @@ describe('browser-hosted build', () => {
       'persist.js',
       'intercept.js',
       'boot.js',
-      'api-browser.js'
+      'api-browser.js',
+      'lint-browser.js'
     ]) {
       expect(fs.existsSync(path.join(out(), 'host', asset))).toBe(true)
     }
@@ -145,7 +146,30 @@ describe('browser-hosted build', () => {
     expect(sw).toMatch(
       /importScripts\('\/host\/api-browser\.js\?v=[0-9a-f]{10}'\)/
     )
+    expect(sw).toMatch(
+      /importScripts\('\/host\/lint-browser\.js\?v=[0-9a-f]{10}'\)/
+    )
     expect(sw).not.toContain("importScripts('/host/runtime-core.js')")
+  })
+
+  it('bundles the linter from the installed packages, ready for a worker', async () => {
+    await buildMockSite(target())
+
+    const bundle = fs.readFileSync(
+      path.join(out(), 'host', 'lint-browser.js'),
+      'utf8'
+    )
+    // the bundle carries the package's code service, not a second linter
+    expect(bundle).toContain('SASjsCode')
+    expect(bundle).toContain('createCodeService')
+
+    // and it runs: evaluating it in a bare realm exposes the factory
+    const vm = require('vm')
+    const realm: any = { globalThis: null, console }
+    realm.globalThis = realm
+    vm.createContext(realm)
+    vm.runInContext(bundle, realm)
+    expect(typeof realm.SASjsCode.createCodeService).toBe('function')
   })
 
   it('names the package when its browser build is missing, and keeps the previous site', async () => {
