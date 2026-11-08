@@ -10,35 +10,53 @@
  * between the page and its worker. The page hands in the drive at boot and
  * receives the changed files back after every run.
  *
- * TRUST MODEL: this is a single-user, no-auth host. It answers every /SASjsApi/
- * path on the site's origin, writes to the drive when a drive request names a
- * path, runs whatever program the request names, and runs the code a
- * code/execute request carries - the same contract a SASjs server offers, minus
- * the server. Nothing here is a boundary: a page at this origin can already do
- * all of it, because a visitor's own browser is the client. So a site holding
- * anything private, or one served from a shared origin, belongs behind a real
- * server rather than a static host.
+ * TRUST MODEL: this is a single-user host on the site's own origin. It answers
+ * the API the way a SASjs server does, but there is no boundary behind it: a page
+ * at this origin can already reach everything here, because a visitor's browser
+ * is the client. The identity is the package's demo fixture (@sasjs/api's
+ * `DEFAULT_IDENTITY`: `sasjsadmin` and `sasjsuser`, both `Orion123`), and a
+ * request that carries no credential is read as the fixture administrator - the
+ * visitor, on a host with no login wall. A site holding anything private, or one
+ * served from a shared origin, belongs behind a real server rather than a static
+ * host.
+ *
+ * The drive is persisted by the page (host/persist.js) and the identity is not:
+ * an account, group, permission rule or client created through these routes
+ * lives in this worker's memory, so a worker the browser terminates starts again
+ * from the fixture. Edits that must survive a restart belong on a server.
  */
 importScripts('/host/runtime-core.js')
 importScripts('/host/api-browser.js')
 
 const R = self.SASjsMockRuntime
 
-// @sasjs/api is the package sasjs/server answers with: the drive's rules - the
-// statuses, the messages, the order of the checks - are its, and this worker is
-// one of its two hosts. `HANDLED_ROUTES` is what it answers today, so the routes
-// below are the ones this host still owns (info, the program routes, session).
-const SASJS_API = self.SASjsApi
-const DRIVE_SERVICES = { drive: SASJS_API.createDriveService(R.driveStore) }
-// The services above are the drive's, so only the drive's operations are
-// dispatched: a route the package adds outside /SASjsApi/drive/ would otherwise
-// be sent to a host that has no service behind it, instead of falling through to
-// the routes below that this worker owns (info, the program routes, session).
-const DRIVE_ROUTES = new Set(
-  SASJS_API.HANDLED_ROUTES.filter((id) =>
-    id.split(' ')[1].includes('/SASjsApi/drive/')
-  )
-)
+// @sasjs/api is the package sasjs/server answers with. Every route in its table
+// is answered here from its services; what this file owns is the transport (a
+// Request is not an ApiRequest), the work (a runner over the browser's drive)
+// and the few capabilities a static origin does not have, which the package
+// reports as a 501 naming the missing service.
+const API = self.SASjsApi
+
+const DRIVE_STORE = R.driveStore
+const IDENTITY_STORE = new API.MemoryIdentityStore(API.DEFAULT_IDENTITY)
+const IDENTITY = API.createIdentityService(IDENTITY_STORE)
+const RECORDS = API.createRecordService(IDENTITY_STORE)
+
+/**
+ * The caller a request without a credential is talking as.
+ *
+ * This host has no login wall - that is its trust model, not an oversight - so
+ * a page that does not sign in is not anonymous, it is the visitor. The fixture
+ * administrator is the account the demo exists to give a client, and naming it
+ * here keeps a mock site usable with no `/SASLogon/login` call. A request that
+ * does carry a token is that token's subject, so the sign-in flow, the fixture's
+ * two accounts and their permission rules all behave as the package decides.
+ */
+const IMPLICIT_CALLER = {
+  userId: (API.DEFAULT_IDENTITY.users.find((user) => user.isAdmin) || {}).uid,
+  clientId: ((API.DEFAULT_IDENTITY.clients || [])[0] || {}).clientId
+}
+
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 
 self.addEventListener('install', () => self.skipWaiting())
@@ -69,6 +87,18 @@ const toBytes = (base64) => {
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
   return out
 }
+
+const toBase64 = (bytes) => {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk)
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+  return btoa(binary)
+}
+
+const decoder = new TextDecoder()
+const toText = (bytes) =>
+  typeof bytes === 'string' ? bytes : decoder.decode(bytes)
 
 // ------------------------------------------------------------ webout headers
 // A service declares the response it wants by writing `Name: value` lines to
@@ -128,17 +158,32 @@ const parseHeaders = (content) => {
 const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
 
 /**
- * The reply a run produces: the webout, in the shape and under the name the
+ * The reply a run produced: the webout, in the shape and under the name the
  * service asked for. A debug reply is the webout framed with the log, so it
  * stays text - honouring a download there would put the frame in the file.
+ *
+ * The headers travel with the artefact rather than being applied here, because
+ * both the execute answer and a triggered session's `/output` are that same
+ * artefact: one place decides what a service declared, and the transport reads
+ * it.
  */
-const weboutResponse = (result, debug) => {
+const artifactOf = (result, debug) => {
   if (debug)
-    return text(
-      [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR].join('\n')
-    )
+    return {
+      contents: [
+        result.webout,
+        LOGS_SEPARATOR,
+        result.log,
+        LOGS_SEPARATOR
+      ].join('\n'),
+      // the frame is text, and the service's own type and disposition are not
+      // applied to it - a download there would put the frame in the file
+      headers: { 'content-type': 'text/plain' },
+      log: result.log
+    }
 
   const headers = parseHeaders(result.headers)
+  let contents = result.webout
   if (result.binary) {
     // the seed is a default, so a byte body that leaves the seeded file untouched
     // declares nothing: it keeps the type an undeclared download gets. Compared as
@@ -148,10 +193,19 @@ const weboutResponse = (result, debug) => {
       delete headers['content-type']
     if (!headers['content-type'])
       headers['content-type'] = 'application/octet-stream'
-    return new Response(toBytes(result.webout), { status: 200, headers })
+    contents = toBytes(result.webout)
   }
-  return new Response(result.webout, { status: 200, headers })
+  return { contents, headers, log: result.log }
 }
+
+/** The response an artefact becomes, with the headers its service declared. */
+const artifactResponse = (artifact) =>
+  new Response(
+    artifact.contents === undefined || artifact.contents === null
+      ? ''
+      : artifact.contents,
+    { status: 200, headers: artifact.headers || {} }
+  )
 
 const broadcast = async (message) => {
   const clients = await self.clients.matchAll({ includeUncontrolled: true })
@@ -164,32 +218,121 @@ const persistChanges = async () => {
     await broadcast({ type: 'sasjs-persist', files })
 }
 
-const readPayload = async (request) => {
-  if (request.method === 'GET' || request.method === 'HEAD')
-    return { params: {}, tables: [] }
-  const type = request.headers.get('content-type') || ''
-  if (!type.includes('application/json')) {
-    try {
-      const form = await request.formData()
-      const params = {}
-      const tables = []
-      for (const [k, v] of form.entries()) {
-        if (typeof v === 'string') params[k] = v
-        else
-          tables.push({
-            name: k,
-            filename: v.name || k + '.csv',
-            csv: await v.text()
-          })
-      }
-      return { params, tables }
-    } catch (e) {
-      return { params: {}, tables: [] }
-    }
+// ---------------------------------------------------------------- the runner
+/**
+ * The work a run does, over the browser's drive.
+ *
+ * `@sasjs/api` decides everything a client observes about a run - which
+ * program, which run time, who may start it, the session record - and this
+ * performs it. It is also the host's session store, because a session the
+ * trigger route created has to be one the session routes can read: two maps
+ * behind two ports would let a trigger write a record nothing can poll.
+ */
+class BrowserRuntime extends API.MemorySessionHost {
+  constructor() {
+    // no fixture sessions: every session this host reports was run here
+    super({}, {}, {}, {})
   }
-  const body = await request.json()
-  return { params: body.params || {}, tables: body.tables || [], json: body }
+
+  async run(request) {
+    const program = request.program || {}
+    const params = Object.assign({}, request.vars || {})
+    const payload = { params, tables: tablesOf(request.files) }
+    if (program.code !== undefined) payload.code = program.code
+    else payload.program = program.path
+
+    const result = R.run(payload)
+    if (result.error) throw runFailure(result.error)
+
+    const artifact = artifactOf(result, params._debug !== undefined)
+    const session = request.session
+    if (session) {
+      const stamp = new Date().toISOString()
+      const summary = {
+        sessionId: session.sessionId,
+        state: 'completed',
+        creationTimeStamp: stamp,
+        deathTimeStamp: stamp
+      }
+      if (session.expiresAfterMins !== undefined)
+        summary.expiresAfterMins = {
+          mins: session.expiresAfterMins,
+          used: false
+        }
+      this.sessions[session.sessionId] = { owner: session.owner, summary }
+      this.states[session.sessionId] = { state: 'completed' }
+      this.logs[session.sessionId] = artifact.log || ''
+      this.outputs[session.sessionId] = artifact
+    }
+    return { output: artifact }
+  }
 }
+
+/**
+ * A run that failed, as the service stringifies it.
+ *
+ * The runtime catches whatever the runner throws and answers its documented
+ * `Job execution failed.` envelope with `String(error)`, so the message a
+ * service's stack carries has to survive that call unchanged - a wrapper Error
+ * would add its own prefix to a stack that already has one.
+ */
+const runFailure = (message) => {
+  const error = new Error(message)
+  error.toString = () => message
+  return error
+}
+
+/**
+ * The multipart files a request carried, as the runtime's `_WEBIN_*` tables.
+ *
+ * The field name is the table's name and the uploaded file's name is its
+ * filename, which is what a stored program reads (`_WEBIN_NAME1`,
+ * `_WEBIN_FILENAME1`, `_WEBIN_FILEREF1`). The package's transport carries the
+ * bytes; the names are this host's, because they are the form the browser sent.
+ */
+const tablesOf = (files) => {
+  if (!files) return []
+  const list = Array.isArray(files)
+    ? files
+    : Object.keys(files).map((name) => ({ name, contents: files[name] }))
+  return list.map((file, index) => ({
+    name: file.name || `file${index + 1}`,
+    filename: file.filename || file.name || `file${index + 1}`,
+    csv: toText(file.csv !== undefined ? file.csv : file.contents)
+  }))
+}
+
+const RUNTIME = new BrowserRuntime()
+
+const SERVICES = {
+  drive: API.createDriveService(DRIVE_STORE),
+  info: API.createInfoService(API.BROWSER_INFO),
+  identity: IDENTITY,
+  records: RECORDS,
+  runtime: API.createRuntimeService(IDENTITY_STORE, RUNTIME, {
+    // the one run time a browser holds; a stored program asks for another and
+    // is refused with the package's own message
+    runTimes: ['js']
+  }),
+  session: API.createSessionService(IDENTITY_STORE, RUNTIME),
+  authConfig: API.createAuthConfigService({})
+  // `admin`, `directory`, `code` and `home` are deliberately absent: this host
+  // has no process to report on, no LDAP connection to import from, and the
+  // linter is a node-only dependency. The package answers a 501 naming the
+  // capability rather than a 404 that reads like a typo in the caller.
+}
+
+/** The routes this host performs itself, because the answer is not JSON. */
+const RUN_ROUTES = new Set([
+  'GET /SASjsApi/stp/execute',
+  'POST /SASjsApi/stp/execute',
+  'POST /SASjsApi/stp/trigger',
+  'POST /SASjsApi/code/execute',
+  'POST /SASjsApi/code/trigger'
+])
+
+const SESSION_OUTPUT = 'GET /SASjsApi/session/{sessionId}/output'
+const DEPLOY_UPLOAD = 'POST /SASjsApi/drive/deploy/upload'
 
 // ---------------------------------------------------------------- requests
 /** A request body as JSON, and {} when it is not JSON - a client that posts a
@@ -204,38 +347,103 @@ const readJson = async (request) => {
 }
 
 const badRequest = (message) => {
-  const error = new Error(message)
-  error.status = 400
+  const error = new API.ApiError(400, message)
   return error
 }
 
 const payloadTooLarge = (limit) => {
-  const error = new Error(
+  return new API.ApiError(
+    413,
     `The upload is larger than the browser host allows (${Math.round(
       limit / (1024 * 1024)
     )} MB).`
   )
-  error.status = 413
-  return error
 }
 
-/** The bytes of an uploaded file, from the multipart field the API names. */
-const uploadBytes = async (request) => {
-  const form = await request.formData().catch(() => null)
-  const upload = form && form.get('file')
-  if (!upload || typeof upload === 'string')
-    throw badRequest('"file" is not present.')
-  // refused from the File's size, before the body is read: a worker holds the
-  // whole payload in memory, so an oversized upload there is an out-of-memory
-  // failure rather than an answer a client can act on
-  if (typeof upload.size === 'number' && upload.size > R.MAX_UPLOAD_BYTES)
-    throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
-  const target = form.get('filePath')
-  return {
-    name: upload.name,
-    bytes: new Uint8Array(await upload.arrayBuffer()),
-    filePath: target === null ? undefined : target
+/**
+ * A JSON body, unwrapped from the envelope the page bridge posts.
+ *
+ * `host/intercept.js` turns an XHR body into `{ params, tables }` before it
+ * reaches the worker: reading a multipart body from an XHR-originated request is
+ * unreliable in a worker, so the page - where a FormData is trivial - does it.
+ * That envelope is this build's own wire format for page traffic, and a client
+ * that posts JSON directly (a `fetch` from the console, a test) sends its fields
+ * flat, so both shapes are read.
+ */
+const readJsonBody = async (request) => {
+  const body = await readJson(request)
+  if (
+    body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    Array.isArray(body.tables) &&
+    body.params &&
+    typeof body.params === 'object'
+  ) {
+    return {
+      body: body.params,
+      files: body.tables.map((table, index) => ({
+        name: table.name || `table${index + 1}`,
+        filename:
+          table.filename || `${table.name || 'table' + (index + 1)}.csv`,
+        contents: table.csv === undefined ? '' : table.csv
+      }))
+    }
   }
+  return { body, files: [] }
+}
+
+/**
+ * A request's payload: the form fields as a body, and the files apart from them.
+ *
+ * The two have to be separated here rather than in the package: a multipart
+ * body is the transport's, and the API names a file by a field the host reads.
+ */
+const readPayload = async (request, allowLargeFile = false) => {
+  const parsed = { body: {}, files: [] }
+  if (request.method === 'GET' || request.method === 'HEAD') return parsed
+  const type = request.headers.get('content-type') || ''
+  if (!type.includes('multipart/form-data')) return await readJsonBody(request)
+  const form = await request.formData().catch(() => null)
+  if (!form) return parsed
+  for (const [name, value] of form.entries()) {
+    if (typeof value === 'string') {
+      parsed.body[name] = value
+      continue
+    }
+    // refused from the File's size, before the body is read: a worker holds the
+    // whole payload in memory, so an oversized upload there is an out-of-memory
+    // failure rather than an answer a client can act on. The deploy archive is
+    // the exception - the package measures the tree it expands to, which is the
+    // cap the document states for that route - and it is read here to be
+    // expanded before that measurement can run.
+    if (
+      !allowLargeFile &&
+      typeof value.size === 'number' &&
+      value.size > R.MAX_UPLOAD_BYTES
+    )
+      throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
+    parsed.files.push({
+      name,
+      filename: value.name || name,
+      contents: new Uint8Array(await value.arrayBuffer())
+    })
+  }
+  return parsed
+}
+
+/**
+ * The multipart file the API names `file`, for the routes that take one.
+ *
+ * Every route that carries a single file names the field `file`; the deploy
+ * upload is the exception, because its archive is expanded into a tree before
+ * the drive sees it.
+ */
+const singleFile = (parsed) => {
+  const match =
+    parsed.files.find((file) => file.name === 'file') || parsed.files[0]
+  if (!match) return undefined
+  return { name: match.filename, contents: match.contents }
 }
 
 /**
@@ -272,133 +480,255 @@ const contentTypeFor = (filePath, binary) => {
   return binary ? 'application/octet-stream' : 'text/plain'
 }
 
+// ------------------------------------------------------------- a deployment
 /**
- * One drive operation, answered by the package.
+ * The members of a zip archive, as the deploy route's tree.
  *
- * The transport stays here - a Request is not an ApiRequest, and a multipart body
- * has to be read before anything can look at it - and the decisions are the
- * package's. A write is followed by `persistChanges()` because the worker can be
- * terminated between requests: the answer is only durable once the page has put
- * it in IndexedDB.
+ * The server's transport is multer plus a zip library; a worker has
+ * `DecompressionStream`, so parsing the archive is this host's. Only the two
+ * methods a deploy archive uses are read - stored and deflate - and anything
+ * else is refused by name rather than half-expanded.
+ *
+ * Directory entries are dropped and a folder is derived from the members'
+ * names, which is how the tree the server builds from the same archive is
+ * shaped.
  */
-const driveRoute = async (route, request, query) => {
-  const apiRequest = { query }
-  const contentType = request.headers.get('content-type') || ''
+const unzip = async (bytes) => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const u16 = (at) => view.getUint16(at, true)
+  const u32 = (at) => view.getUint32(at, true)
 
-  if (request.method === 'POST' || request.method === 'PATCH') {
-    if (contentType.includes('multipart/form-data')) {
-      const upload = await uploadBytes(request)
-      apiRequest.file = { name: upload.name, contents: upload.bytes }
-      if (upload.filePath !== undefined)
-        apiRequest.body = { filePath: upload.filePath }
-    } else {
-      // the routes that take their paths as JSON: folder create, rename
-      apiRequest.body = await readJson(request)
+  // the end-of-central-directory record is the last signature in the file, and
+  // it sits within 22 + 65535 bytes of the end (a comment is the only tail)
+  let eocd = -1
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (u32(i) === 0x06054b50) {
+      eocd = i
+      break
     }
   }
+  if (eocd < 0) throw badRequest('The archive is not a zip file.')
 
-  const answer = await SASJS_API.dispatch(DRIVE_SERVICES, route.id, apiRequest)
-  if (request.method !== 'GET') await persistChanges()
+  const count = u16(eocd + 10)
+  let offset = u32(eocd + 16)
 
-  // the one route that answers with the file itself rather than JSON
-  if (answer.contents !== undefined) {
-    const binary = typeof answer.contents !== 'string'
-    return new Response(answer.contents, {
-      status: answer.status,
-      headers: {
-        'content-type': contentTypeFor(query._filePath, binary)
-      }
-    })
+  const entries = []
+  for (let n = 0; n < count; n++) {
+    if (u32(offset) !== 0x02014b50)
+      throw badRequest('The archive is not a zip file.')
+    const method = u16(offset + 10)
+    const compressedSize = u32(offset + 20)
+    const nameLength = u16(offset + 28)
+    const extraLength = u16(offset + 30)
+    const commentLength = u16(offset + 32)
+    const localOffset = u32(offset + 42)
+    const name = decoder.decode(
+      bytes.subarray(offset + 46, offset + 46 + nameLength)
+    )
+    offset += 46 + nameLength + extraLength + commentLength
+
+    if (name.endsWith('/')) continue
+    if (u32(localOffset) !== 0x04034b50)
+      throw badRequest('The archive is not a zip file.')
+    const start =
+      localOffset + 30 + u16(localOffset + 26) + u16(localOffset + 28)
+    const data = bytes.subarray(start, start + compressedSize)
+
+    let contents
+    if (method === 0) contents = data
+    else if (method === 8) {
+      const stream = new Blob([data])
+        .stream()
+        .pipeThrough(new DecompressionStream('deflate-raw'))
+      contents = new Uint8Array(await new Response(stream).arrayBuffer())
+    } else
+      throw badRequest(
+        `The archive uses compression method ${method}, which this host does not read.`
+      )
+    entries.push({ name, contents })
   }
-  return json(answer.body, answer.status)
+  return entries
+}
+
+/** The nested tree the deploy route writes, from the archive's member names. */
+const deployTree = (entries) => {
+  const root = { members: [] }
+  const folders = { '': root }
+  const folderFor = (path) => {
+    if (folders[path]) return folders[path]
+    const cut = path.lastIndexOf('/')
+    const parent = folderFor(cut < 0 ? '' : path.slice(0, cut))
+    const name = cut < 0 ? path : path.slice(cut + 1)
+    const folder = { name, type: 'folder', members: [] }
+    parent.members.push(folder)
+    folders[path] = folder
+    return folder
+  }
+  entries.forEach((entry) => {
+    const cut = entry.name.lastIndexOf('/')
+    const parent = folderFor(cut < 0 ? '' : entry.name.slice(0, cut))
+    parent.members.push({
+      name: cut < 0 ? entry.name : entry.name.slice(cut + 1),
+      type: 'file',
+      code: toBase64(entry.contents)
+    })
+  })
+  return root
+}
+
+// ---------------------------------------------------------------- the routes
+/** The subject a request is talking as, from its bearer token or the implicit
+ * caller when it carries none. An unknown token is the package's 401. */
+const subjectOf = async (request, query) => {
+  const header = request.headers.get('authorization') || ''
+  const token =
+    header.replace(/^Bearer\s+/i, '').trim() ||
+    String(query.access_token || '').trim() ||
+    undefined
+  if (!token) return IMPLICIT_CALLER
+  const subject = await IDENTITY.authenticate(token)
+  if (!subject) throw new API.ApiError(401, 'Unauthorized')
+  return subject
+}
+
+/**
+ * One run, answered by the runtime service.
+ *
+ * The service is called directly rather than through `dispatch` because a run's
+ * answer is the webout *with the headers its service declared*
+ * (`content-disposition` is how a service names a download), and the artefact
+ * the service returns is where those headers are. Everything a client observes
+ * about the request - who may run it, which field names the program, what
+ * `_debug` means - is still the package's decision.
+ */
+const runRoute = async (routeId, payload, subject) => {
+  const query = payload.query
+  const body = payload.body
+  const tables = payload.files.map((file) => ({
+    name: file.name,
+    filename: file.filename,
+    csv: toText(file.contents)
+  }))
+  const code =
+    routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')
+  const trigger = routeId.endsWith('/trigger')
+  const vars = Object.assign({}, query, body)
+
+  const runRequest = {
+    source: code ? 'code' : 'program',
+    vars,
+    files: tables
+  }
+  if (code) {
+    runRequest.code = body.code
+    runRequest.runTime = body.runTime
+  } else {
+    // the query wins over the body, which is the order the server resolves them in
+    runRequest.program = query._program || body._program
+  }
+
+  if (trigger) {
+    runRequest.expiresAfterMins =
+      query.expiresAfterMins !== undefined
+        ? query.expiresAfterMins
+        : body.expiresAfterMins
+    const answer = await SERVICES.runtime.trigger(subject, runRequest)
+    await persistChanges()
+    return json(answer, 200)
+  }
+
+  const artifact = await SERVICES.runtime.execute(subject, runRequest)
+  await persistChanges()
+  return artifactResponse(artifact)
+}
+
+/**
+ * A triggered session's output, from the session service.
+ *
+ * Called directly for the same reason as a run: the artefact carries the content
+ * type and disposition its service declared, and a JSON-shaped answer would lose
+ * them.
+ */
+const outputRoute = async (request, params, subject) => {
+  const artifact = await SERVICES.session.output(subject, params.sessionId)
+  return artifactResponse(artifact)
+}
+
+/** The response a `contents` answer becomes, typed by the path it names. */
+const contentsResponse = (answer, path) => {
+  const binary = typeof answer.contents !== 'string'
+  return new Response(answer.contents, {
+    status: answer.status,
+    headers: { 'content-type': contentTypeFor(path, binary) }
+  })
 }
 
 const handle = async (request, url) => {
-  const path = url.pathname.replace(/\/+$/, '')
+  const path = url.pathname.replace(/\/+$/, '') || '/'
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
   try {
     await R.ensureReady()
 
-    if (path.endsWith('/SASjsApi/info')) {
-      // The documented body field for field, with the values @sasjs/api's
-      // BROWSER_INFO states for this host: `cors` is the document's CorsType
-      // (`enable` | `disable`), both ports are null because a static origin has
-      // no listener, and `localLoginEnabled` is false because there is no
-      // account to sign in to - true would render a login form with no route
-      // behind it. `version` is `dev`, the fallback a server reports when it
-      // carries no build stamp. This block goes when the release carrying the
-      // package's own info service lands; until then the two answers agree.
-      return json({
-        mode: 'desktop',
-        cors: 'disable',
-        httpPort: null,
-        httpsPort: null,
-        runTimes: ['js'],
-        authProviders: [],
-        localLoginEnabled: false,
-        version: 'dev'
+    // The package's own matcher, so a route is recognised however its path is
+    // cased and its parameters are read the way the document states them.
+    const matched = API.findRoute(request.method, path)
+    if (!matched) return json({ message: 'Not part of the API: ' + path }, 404)
+
+    const routeId = matched.route.id
+    const subject = await subjectOf(request, query)
+    const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
+    payload.query = query
+
+    if (RUN_ROUTES.has(routeId))
+      return await runRoute(routeId, payload, subject)
+
+    const apiRequest = {
+      query,
+      params: matched.params,
+      subject,
+      body: payload.body
+    }
+    const file = singleFile(payload)
+    if (file) apiRequest.file = file
+    if (payload.files.length > 1) apiRequest.files = payload.files
+
+    if (routeId === SESSION_OUTPUT)
+      return await outputRoute(request, matched.params, subject)
+
+    // The upload route's transport is the archive: it is expanded here and the
+    // drive is handed the same tree the JSON route takes.
+    if (routeId === DEPLOY_UPLOAD) {
+      if (!payload.files.length) throw badRequest('"file" is not present.')
+      const entries = await unzip(payload.files[0].contents)
+      apiRequest.body = Object.assign({}, payload.body, {
+        fileTree: deployTree(entries)
       })
     }
 
-    // the nine drive operations are the package's, matched off its own table
-    // rather than a suffix chain, so a path this host does not own falls through
-    // to its routes below instead of being answered twice
-    const matched = SASJS_API.findRoute(request.method, path)
-    if (matched && DRIVE_ROUTES.has(matched.route.id))
-      return await driveRoute(matched.route, request, query)
+    const answer = await API.dispatch(SERVICES, routeId, apiRequest)
+    if (request.method !== 'GET') await persistChanges()
 
-    if (
-      path.endsWith('/SASjsApi/stp/execute') ||
-      path.endsWith('/SASjsApi/code/execute')
-    ) {
-      const payload = await readPayload(request)
-      const merged = Object.assign({}, query, payload.params)
-      const program = merged._program
-      const code =
-        payload.json && payload.json.code ? payload.json.code : undefined
-      if (!program && !code)
-        return json({ message: '_program is required' }, 400)
-
-      const result = R.run({
-        program,
-        code,
-        params: merged,
-        tables: payload.tables
-      })
-      await persistChanges()
-      if (result.error) {
-        return json(
-          {
-            status: 'failure',
-            message: 'Job execution failed.',
-            error: result.error
-          },
-          500
-        )
-      }
-      const debug = String(merged._debug || '').length > 0
-      return weboutResponse(result, debug)
-    }
-
-    if (path.includes('/SASjsApi/session')) {
-      return json({ state: 'completed' })
-    }
-
-    return json(
-      { message: 'Not implemented by the browser host: ' + path },
-      404
-    )
+    if (answer.contents !== undefined)
+      return contentsResponse(
+        answer,
+        query._filePath || payload.body.filePath || path
+      )
+    return json(answer.body, answer.status)
   } catch (e) {
     const message = (e && e.stack) || String(e)
     broadcast({ type: 'sasjs-host-error', path, message })
-    // A drive refusal is the message itself, in plain text: the server answers
-    // these with `res.status(code).send(err.message)`, and its own suite asserts
-    // `res.text`. The other routes answer JSON, because a program failure
-    // carries more than a message (`status`, `error`), so they keep the envelope.
-    if (path.includes('/SASjsApi/drive/') && e && e.status)
-      return text((e && e.message) || String(e), e.status)
+    // A refusal the API decided on carries its status and, where the route
+    // answers an envelope, the body to send. The drive's routes send the message
+    // itself as plain text - the server answers them with `res.status(code)
+    // .send(err.message)` - so those stay text; everything else keeps the JSON
+    // envelope the other routes already answer with.
+    if (API.isApiError(e)) {
+      if (e.body !== undefined) return json(e.body, e.status)
+      if (path.includes('/SASjsApi/drive/')) return text(e.message, e.status)
+      return json({ message: e.message }, e.status)
+    }
     return json(
       { message: (e && e.message) || String(e) },
       (e && e.status) || 500
@@ -409,7 +739,12 @@ const handle = async (request, url) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
-  if (!url.pathname.includes('/SASjsApi/')) return
+  // The site's own page is the home route, and the static host serves it: a
+  // worker that answered `/` with the page it copied would be serving the app
+  // from two places. The API's own paths are answered here, including one the
+  // table does not have - falling through to the static host would put the SPA's
+  // index.html behind a typo in a caller's URL.
+  if (!/^\/(SASjsApi|SASLogon)(\/|$)/i.test(url.pathname)) return
   event.respondWith(handle(event.request, url))
 })
 

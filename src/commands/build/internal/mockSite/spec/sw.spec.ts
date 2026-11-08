@@ -1,6 +1,7 @@
 import path from 'path'
 import { DRIVE_CORPUS } from '@sasjs/api'
 import type { CorpusCase } from '@sasjs/api'
+import yazl from 'yazl'
 
 export {}
 
@@ -134,6 +135,24 @@ const jsonResponse = (body: any) => ({
   ok: true,
   json: async () => body
 })
+
+/** A zip archive of text members, written the way a deploy upload ships one.
+ * The first member is stored rather than deflated, so both methods the reader
+ * accepts are exercised by the one case. */
+const zipOf = (files: { [name: string]: string }) =>
+  new Promise<Buffer>((resolve, reject) => {
+    const zip = new yazl.ZipFile()
+    Object.keys(files).forEach((name, index) =>
+      zip.addBuffer(Buffer.from(files[name]), name, {
+        compress: index !== 0
+      })
+    )
+    zip.end()
+    const chunks: Buffer[] = []
+    zip.outputStream.on('data', (chunk: Buffer) => chunks.push(chunk))
+    zip.outputStream.on('end', () => resolve(Buffer.concat(chunks)))
+    zip.outputStream.on('error', reject)
+  })
 
 const runRequest = (body: any) => ({
   method: 'POST',
@@ -427,15 +446,255 @@ describe('service worker host', () => {
     expect(await response.text()).toBe('')
   })
 
-  it('answers the session state, and names a route it does not implement', async () => {
+  it('answers the session route with the caller, and names a route it does not have', async () => {
     const { dispatch } = seeded()
 
+    // no credential: this host reads the visitor as the fixture administrator,
+    // which is the account the package's session route names
     const session = await dispatch('/SASjsApi/session')
-    expect(await session.json()).toEqual({ state: 'completed' })
+    expect(await session.json()).toEqual({
+      uid: 'user-admin',
+      username: 'sasjsadmin',
+      displayName: 'Demo Admin',
+      isAdmin: true,
+      needsToUpdatePassword: false
+    })
+
+    // a token that does not resolve is still a refusal: the implicit caller is
+    // for a request with no credential, not for one with a bad one
+    const refused = await dispatch('/SASjsApi/session', {
+      headers: { authorization: 'Bearer not-a-token' }
+    })
+    expect(refused.status).toBe(401)
+    expect((await refused.json()).message).toBe('Unauthorized')
 
     const unknown = await dispatch('/SASjsApi/unknown/route')
     expect(unknown.status).toBe(404)
-    expect((await unknown.json()).message).toContain('Not implemented')
+    expect((await unknown.json()).message).toContain('Not part of the API')
+  })
+
+  describe('the API surface the package carries', () => {
+    it('answers the sign-in flow, and the record routes as that caller', async () => {
+      const worker = seeded()
+
+      const signedIn = await worker.dispatch(
+        '/SASLogon/login',
+        runRequest({ username: 'sasjsadmin', password: 'Orion123' })
+      )
+      expect(signedIn.status).toBe(200)
+      expect((await signedIn.json()).user.username).toBe('sasjsadmin')
+
+      const refused = await worker.dispatch(
+        '/SASLogon/login',
+        runRequest({ username: 'sasjsadmin', password: 'nope' })
+      )
+      expect(refused.status).toBe(401)
+      expect((await refused.json()).message).toBe('Invalid Password.')
+
+      // the flow a Default-login adapter follows: authorize (the implicit
+      // caller), exchange the code for a token, then call as that subject
+      const authorized = await worker.dispatch(
+        '/SASLogon/authorize',
+        runRequest({ clientId: 'web_app' })
+      )
+      const { code } = await authorized.json()
+      const exchanged = await worker.dispatch(
+        '/SASjsApi/auth/token',
+        runRequest({ clientId: 'web_app', code })
+      )
+      const pair = await exchanged.json()
+      expect(pair.accessToken).toBeTruthy()
+
+      const users = await worker.dispatch('/SASjsApi/user', {
+        headers: { authorization: `Bearer ${pair.accessToken}` }
+      })
+      expect(
+        (await users.json()).map((user: any) => user.username).sort()
+      ).toEqual(['sasjsadmin', 'sasjsuser'])
+    })
+
+    it('answers the administration records the fixture seeds', async () => {
+      const { dispatch } = seeded()
+
+      const groups = await dispatch('/SASjsApi/group')
+      expect(
+        (await groups.json()).map((group: any) => group.name).sort()
+      ).toEqual(['Admins', 'DCGroup'])
+
+      const permissions = await dispatch('/SASjsApi/permission')
+      expect((await permissions.json()).length).toBe(3)
+
+      const clients = await dispatch('/SASjsApi/client')
+      expect(
+        (await clients.json()).map((client: any) => client.clientId).sort()
+      ).toEqual(['sasjs', 'web_app'])
+
+      const mine = await dispatch('/SASjsApi/info/myAuthorizedRoutes')
+      expect(Object.keys(await mine.json()).length).toBeGreaterThan(0)
+    })
+
+    it('answers the documented 501 for the capabilities a static origin lacks', async () => {
+      const { dispatch } = seeded()
+
+      const cases: [string, string, string][] = [
+        ['GET', '/SASjsApi/admin/diagnostics', 'admin service'],
+        ['GET', '/SASjsApi/admin/logs', 'admin service'],
+        ['GET', '/SASjsApi/admin/logs/app.log', 'admin service'],
+        [
+          'POST',
+          '/SASjsApi/authConfig/synchroniseWithLDAP',
+          'directory service'
+        ]
+      ]
+      for (const [method, url, capability] of cases) {
+        const response = await dispatch(url, { method })
+        expect(response.status).toBe(501)
+        expect((await response.json()).message).toContain(capability)
+      }
+
+      for (const url of ['/SASjsApi/code/lint', '/SASjsApi/code/format']) {
+        const response = await dispatch(url, runRequest({ code: 'data a;' }))
+        expect(response.status).toBe(501)
+        expect((await response.json()).message).toContain('code service')
+      }
+    })
+
+    it('matches a path whatever its casing, as the API does', async () => {
+      const { dispatch } = seeded()
+
+      const response = await dispatch('/sasjsapi/INFO')
+
+      expect(response.status).toBe(200)
+      expect((await response.json()).mode).toBe('desktop')
+    })
+
+    it('starts a session, then reads its state, log and output', async () => {
+      const { dispatch } = seeded()
+      const program = encodeURIComponent(`${appLoc}/services/public/getdata`)
+
+      const triggered = await dispatch(
+        '/SASjsApi/stp/trigger?_program=' + program,
+        runRequest({ params: {} })
+      )
+      expect(triggered.status).toBe(200)
+      const { sessionId } = await triggered.json()
+      expect(sessionId).toBeTruthy()
+
+      const state = await dispatch(`/SASjsApi/session/${sessionId}/state`)
+      expect(await state.json()).toEqual({ state: 'completed' })
+
+      // the artefact the run produced, under the type its service declared
+      const output = await dispatch(`/SASjsApi/session/${sessionId}/output`)
+      expect(output.status).toBe(200)
+      expect(await output.text()).toBe('seeded')
+
+      const log = await dispatch(`/SASjsApi/session/${sessionId}/log`)
+      expect(log.status).toBe(200)
+
+      // a session id nobody ran is the 404 that hides whether it exists
+      const missing = await dispatch('/SASjsApi/session/not-a-session/state')
+      expect(missing.status).toBe(404)
+    })
+
+    it('refuses a deploy upload with no archive, and one that is not a zip', async () => {
+      const { dispatch } = seeded()
+
+      const empty = await dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: new FormData()
+      })
+      expect(empty.status).toBe(400)
+      expect(await empty.text()).toBe('"file" is not present.')
+
+      const form = new FormData()
+      form.set('file', new Blob([new Uint8Array([1, 2, 3])]), 'not-a-zip.zip')
+      const notZip = await dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: form
+      })
+      expect(notZip.status).toBe(400)
+      expect(await notZip.text()).toBe('The archive is not a zip file.')
+    })
+
+    it('takes a token from the query when a link cannot carry a header', async () => {
+      const worker = seeded()
+
+      const authorized = await worker.dispatch(
+        '/SASLogon/authorize',
+        runRequest({ clientId: 'web_app' })
+      )
+      const { code } = await authorized.json()
+      const exchanged = await worker.dispatch(
+        '/SASjsApi/auth/token',
+        runRequest({ clientId: 'web_app', code })
+      )
+      const pair = await exchanged.json()
+
+      const users = await worker.dispatch(
+        `/SASjsApi/user?access_token=${encodeURIComponent(pair.accessToken)}`
+      )
+
+      expect(users.status).toBe(200)
+      expect((await users.json()).length).toBe(2)
+    })
+
+    it('names a table the page did not name, and takes an archive under any field', async () => {
+      const worker = seeded()
+      worker.runtime.load({
+        [drivePath('services/public/echo.js')]:
+          '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+      })
+
+      const unnamed = await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/echo`),
+        runRequest({ params: {}, tables: [{ csv: 'A,B\r\n1,2' }] })
+      )
+      expect(await unnamed.text()).toBe('table1|A,B\r\n1,2')
+
+      const form = new FormData()
+      form.set('appLoc', appLoc)
+      form.set(
+        'archive',
+        new Blob([new Uint8Array(await zipOf({ 'x.txt': 'x' }))]),
+        'deploy.zip'
+      )
+      const upload = await worker.dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: form
+      })
+      expect(upload.status).toBe(200)
+    })
+
+    it('expands an uploaded archive into the drive', async () => {
+      const { dispatch } = seeded()
+      const archive = await zipOf({
+        'services/public/run.js': '_webout = "deployed";',
+        'docs/readme.txt': 'hello'
+      })
+
+      const form = new FormData()
+      form.set('appLoc', appLoc)
+      form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+      const response = await dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: form
+      })
+      expect(response.status).toBe(200)
+
+      const tree = await dispatch(
+        '/SASjsApi/drive/filetree?_folderPath=' + encodeURIComponent(appLoc)
+      )
+      const listing = JSON.stringify(await tree.json())
+      expect(listing).toContain('run.js')
+      expect(listing).toContain('readme.txt')
+
+      const file = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent(`${appLoc}/docs/readme.txt`)
+      )
+      expect(await file.text()).toBe('hello')
+    })
   })
 
   it('answers 404 for a drive file the drive does not hold', async () => {
@@ -517,10 +776,10 @@ describe('service worker host', () => {
     const response = await dispatch('/SASjsApi/stp/execute')
 
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ message: '_program is required' })
+    expect(await response.json()).toEqual({ message: '"_program" is required' })
   })
 
-  it('answers 500 with the failure shape when the service throws', async () => {
+  it('answers the documented failure envelope when the service throws', async () => {
     const { runtime, dispatch } = seeded()
     runtime.load({
       [drivePath('services/public/broken.js')]: 'throw new Error("boom")'
@@ -532,8 +791,11 @@ describe('service worker host', () => {
     )
     const body = await response.json()
 
-    expect(response.status).toBe(500)
+    // the package's decision, and the server's: a run that failed is a 400
+    // carrying the failure envelope, not a 500 that blames the transport
+    expect(response.status).toBe(400)
     expect(body.status).toBe('failure')
+    expect(body.message).toBe('Job execution failed.')
     expect(body.error).toContain('boom')
   })
 
@@ -542,10 +804,41 @@ describe('service worker host', () => {
 
     const response = await dispatch(
       '/SASjsApi/code/execute',
-      runRequest({ code: '_webout = "inline";', params: {} })
+      runRequest({ code: '_webout = "inline";', runTime: 'js', params: {} })
     )
 
-    expect(await response.text()).toBe('inline')
+    // a code route's documented body is the webout framed with the log, so the
+    // run's output is the first section rather than the whole body
+    expect((await response.text()).split(LOGS_SEPARATOR)[0].trim()).toBe(
+      'inline'
+    )
+  })
+
+  it('reads the table envelope the page bridge posts for an XHR', async () => {
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/echo.js')]:
+        '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
+      runRequest({
+        params: {},
+        tables: [
+          {
+            name: 'SASControlTable',
+            filename: 'SASControlTable.csv',
+            csv: 'A,B\r\n1,2'
+          }
+        ]
+      })
+    )
+
+    // the bridge hands the worker `{params, tables}`; a stored program sees the
+    // tables as its _WEBIN variables, not as one `tables` session variable
+    expect(await response.text()).toBe('SASControlTable|A,B\r\n1,2')
   })
 
   it('serves a file off the drive', async () => {
@@ -1176,12 +1469,26 @@ describe('service worker host', () => {
 
         expect(response.status).toBe(testCase.expect.status)
         if (testCase.expect.error !== undefined) {
-          expect(await response.text()).toBe(testCase.expect.error)
+          const body = await response.text()
+          // the routes that answer an envelope - the two deploy routes - send
+          // `{status, message}`; the rest send the message itself as text, which
+          // is what the server's `res.status(code).send(err.message)` does
+          if (
+            (response.headers.get('content-type') || '').includes(
+              'application/json'
+            )
+          )
+            expect(JSON.parse(body)).toEqual({
+              status: 'failure',
+              message: testCase.expect.error
+            })
+          else expect(body).toBe(testCase.expect.error)
+        } else {
+          const want = testCase.expect.contents
+          if (typeof want === 'string') expect(await response.text()).toBe(want)
+          else if (want !== undefined)
+            expect(new Uint8Array(await response.arrayBuffer())).toEqual(want)
         }
-        const want = testCase.expect.contents
-        if (typeof want === 'string') expect(await response.text()).toBe(want)
-        else if (want !== undefined)
-          expect(new Uint8Array(await response.arrayBuffer())).toEqual(want)
       })
     }
   })
