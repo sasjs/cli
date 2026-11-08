@@ -565,9 +565,19 @@ describe('service worker host', () => {
     const { dispatch } = seeded()
 
     const info = await dispatch('/SASjsApi/info')
-    expect(await info.json()).toEqual(
-      expect.objectContaining({ protocol: 'browser', runTimes: ['js'] })
-    )
+    // the documented body, field for field: `cors` is the document's CorsType,
+    // and a property the document does not state is this host describing an
+    // API the server does not serve
+    expect(await info.json()).toEqual({
+      mode: 'desktop',
+      cors: 'disable',
+      httpPort: null,
+      httpsPort: null,
+      runTimes: ['js'],
+      authProviders: [],
+      localLoginEnabled: true,
+      version: 'browser host'
+    })
 
     const folder = await dispatch(
       '/SASjsApi/drive/folder?_folderPath=' +
