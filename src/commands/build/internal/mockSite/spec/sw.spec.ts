@@ -1,7 +1,9 @@
 import path from 'path'
 import { DRIVE_CORPUS } from '@sasjs/api'
 import type { CorpusCase } from '@sasjs/api'
+import os from 'os'
 import yazl from 'yazl'
+import { buildLintBundle } from '../mockSite'
 
 export {}
 
@@ -30,6 +32,20 @@ const apiBrowserBuild = () =>
     'browser.js'
   )
 
+/**
+ * The lint bundle the site ships, built once for the suite from the installed
+ * packages - the same call `sasjs build` makes, so the worker under test answers
+ * the code routes with the code the site carries.
+ */
+let lintBundlePath: string | undefined
+const lintBundle = () => {
+  if (!lintBundlePath) {
+    lintBundlePath = path.join(os.tmpdir(), `sasjs-lint-${process.pid}.js`)
+    buildLintBundle(lintBundlePath)
+  }
+  return lintBundlePath
+}
+
 const loadWorker = () => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
@@ -49,6 +65,13 @@ const loadWorker = () => {
   ;(global as any).importScripts = (path: string) => {
     if (path.includes('md5')) return
     if (path.includes('api-browser')) return require(apiBrowserBuild())
+    if (path.includes('lint-browser')) {
+      // the bundle assigns globalThis.SASjsCode, and this harness keeps the
+      // worker's `self` apart from the module global
+      require(lintBundle())
+      self.SASjsCode = (global as any).SASjsCode
+      return
+    }
     require('../assets/runtime-core.js')
     // The corpus needs the same drive with its writes refused, without building
     // a second site. The flag is flipped after the case has seeded, because a
@@ -74,15 +97,28 @@ const loadWorker = () => {
 
   // A seed request re-boots the runtime from /host/vfs-seed.json, so the
   // harness answers that one path the way the static host does.
-  ;(global as any).fetch = jest.fn(async (url: string) =>
-    String(url).includes('vfs-seed')
+  ;(global as any).fetch = jest.fn(async (input: any) => {
+    const target =
+      typeof input === 'string' ? input : (input && input.url) || String(input)
+    // a navigation back to the site root: the static host's copy of the page
+    if (new URL(target, origin).pathname === '/')
+      return new Response('<html><body>static page</body></html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' }
+      })
+    if (target.includes('index.html'))
+      return new Response(
+        '<!doctype html><html><head><title>App</title></head><body>home</body></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } }
+      )
+    return target.includes('vfs-seed')
       ? jsonResponse({
           files: {
             [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
           }
         })
       : jsonResponse({ appLoc })
-  )
+  })
 
   const runtime = self.SASjsMockRuntime
 
@@ -533,29 +569,142 @@ describe('service worker host', () => {
       expect(Object.keys(await mine.json()).length).toBeGreaterThan(0)
     })
 
-    it('answers the documented 501 for the capabilities a static origin lacks', async () => {
+    it('answers the Admin reports from the worker activity log', async () => {
       const { dispatch } = seeded()
 
-      const cases: [string, string, string][] = [
-        ['GET', '/SASjsApi/admin/diagnostics', 'admin service'],
-        ['GET', '/SASjsApi/admin/logs', 'admin service'],
-        ['GET', '/SASjsApi/admin/logs/app.log', 'admin service'],
-        [
-          'POST',
-          '/SASjsApi/authConfig/synchroniseWithLDAP',
-          'directory service'
-        ]
-      ]
-      for (const [method, url, capability] of cases) {
-        const response = await dispatch(url, { method })
-        expect(response.status).toBe(501)
-        expect((await response.json()).message).toContain(capability)
-      }
+      // the first request of all: nothing has been logged yet, so there is no
+      // file and no mtime to report
+      const empty = await dispatch('/SASjsApi/admin/diagnostics')
+      expect((await empty.json()).logs).toEqual({
+        folder: 'worker memory',
+        fileCount: 0,
+        totalBytes: 0,
+        newestFile: null,
+        newestModified: null
+      })
 
-      for (const url of ['/SASjsApi/code/lint', '/SASjsApi/code/format']) {
-        const response = await dispatch(url, runRequest({ code: 'data a;' }))
-        expect(response.status).toBe(501)
-        expect((await response.json()).message).toContain('code service')
+      // from here the diagnostics request itself is in the log
+      const afterFirst = await dispatch('/SASjsApi/admin/logs')
+      expect((await afterFirst.json()).files.length).toBe(1)
+
+      // the file's mtime is the last write, not the moment a report was read:
+      // /info was the request immediately before this listing
+      await dispatch('/SASjsApi/info')
+      const listed = (await (await dispatch('/SASjsApi/admin/logs')).json())
+        .files[0]
+      const lines = (
+        await (await dispatch('/SASjsApi/admin/logs/app.log?lines=20')).json()
+      ).content.split('\n')
+      const infoLines = lines.filter((line: string) =>
+        line.includes('GET /SASjsApi/info 200')
+      )
+      expect(infoLines.length).toBe(1)
+      expect(infoLines[0].startsWith(listed.modified)).toBe(true)
+
+      const diagnostics = await dispatch('/SASjsApi/admin/diagnostics')
+      expect(diagnostics.status).toBe(200)
+      const report = await diagnostics.json()
+      expect(report.server.mode).toBe('browser')
+      expect(report.filesystem).toBeNull()
+      expect(report.logs.fileCount).toBe(1)
+      expect(typeof report.memory.heapTotalBytes).toBe('number')
+
+      const logs = await dispatch('/SASjsApi/admin/logs')
+      expect((await logs.json()).files.map((file: any) => file.name)).toEqual([
+        'app.log'
+      ])
+
+      const tail = await dispatch('/SASjsApi/admin/logs/app.log?lines=5')
+      const tailBody = await tail.json()
+      expect(tail.status).toBe(200)
+      expect(tailBody.content).toContain('GET /SASjsApi/info 200')
+
+      // the package's name rule (a bare name ending in .log) and its 404 for a
+      // name the folder does not hold
+      const wrongName = await dispatch('/SASjsApi/admin/logs/secret.txt')
+      expect(wrongName.status).toBe(400)
+      const missing = await dispatch('/SASjsApi/admin/logs/other.log')
+      expect(missing.status).toBe(404)
+    })
+
+    it('imports the fixture directory, and unpublishes the site itself', async () => {
+      const { dispatch } = seeded()
+
+      // every account and group the source names is already present
+      const synced = await dispatch(
+        '/SASjsApi/authConfig/synchroniseWithLDAP',
+        { method: 'POST' }
+      )
+      expect(synced.status).toBe(200)
+      expect(await synced.json()).toEqual({ userCount: 0, groupCount: 0 })
+
+      const unpublished = await dispatch('/SASjsApi/drive/deploy', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          streamServiceName: 'Test',
+          appLoc
+        })
+      })
+      expect(unpublished.status).toBe(200)
+      expect(await unpublished.json()).toEqual({ status: 'success' })
+
+      const other = await dispatch('/SASjsApi/drive/deploy', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          streamServiceName: 'Other',
+          appLoc: '/Public/app/other'
+        })
+      })
+      expect(other.status).toBe(404)
+    })
+
+    it('lints and formats a buffer with the bundled linter', async () => {
+      const { dispatch } = seeded()
+
+      const linted = await dispatch(
+        '/SASjsApi/code/lint',
+        runRequest({ code: 'data a;\nrun;\n' })
+      )
+      expect(linted.status).toBe(200)
+      const diagnostics = await linted.json()
+      expect(Array.isArray(diagnostics)).toBe(true)
+      expect(diagnostics.length).toBeGreaterThan(0)
+      expect(diagnostics[0].message).toContain('Doxygen')
+
+      const formatted = await dispatch(
+        '/SASjsApi/code/format',
+        runRequest({ code: 'data a;set b;run;' })
+      )
+      expect(formatted.status).toBe(200)
+      expect(await formatted.text()).toContain('@brief')
+    })
+
+    it('serves the build page at the home route, and falls back when it fails', async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch('/')
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/html')
+      expect(await response.text()).toContain('<body>home</body>')
+
+      // a home route that fails must not take the page down: the navigation
+      // falls back to the static host, which holds the same document
+      const runtime = (worker as any).self.SASjsMockRuntime
+      const original = runtime.ensureReady
+      runtime.ensureReady = async () => {
+        throw new Error('home route exploded')
+      }
+      try {
+        const fallback = await worker.dispatch('/')
+        expect(fallback.status).toBe(200)
+        const body = await fallback.text()
+        expect(body).toContain('static page')
+        expect(body).not.toContain('home route exploded')
+      } finally {
+        runtime.ensureReady = original
       }
     })
 

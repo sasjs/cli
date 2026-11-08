@@ -23,10 +23,19 @@
  * The drive is persisted by the page (host/persist.js) and the identity is not:
  * an account, group, permission rule or client created through these routes
  * lives in this worker's memory, so a worker the browser terminates starts again
- * from the fixture. Edits that must survive a restart belong on a server.
+ * from the fixture. Edits that must survive a restart belong on a server. The
+ * activity log the Admin routes report is in this worker's memory for the same
+ * reason.
+ *
+ * Every operation in @sasjs/api's route table is answered here: the drive, the
+ * sign-in flow, the records, the runs, the sessions, the diagnostics and logs,
+ * the directory import, the app-stream delete, the linter and the home page. The
+ * services are the package's; this file supplies the transport, the worker's own
+ * activity, and the browser's answers to questions a server asks its process.
  */
 importScripts('/host/runtime-core.js')
 importScripts('/host/api-browser.js')
+importScripts('/host/lint-browser.js')
 
 const R = self.SASjsMockRuntime
 
@@ -36,6 +45,10 @@ const R = self.SASjsMockRuntime
 // and the few capabilities a static origin does not have, which the package
 // reports as a 501 naming the missing service.
 const API = self.SASjsApi
+// The linter, bundled at build time from the installed @sasjs/api/code and
+// @sasjs/lint (see mockSite.ts). It is a separate script because the linter is
+// not part of the root package a service worker can import.
+const CODE = self.SASjsCode
 
 const DRIVE_STORE = R.driveStore
 const IDENTITY_STORE = new API.MemoryIdentityStore(API.DEFAULT_IDENTITY)
@@ -304,6 +317,175 @@ const tablesOf = (files) => {
 
 const RUNTIME = new BrowserRuntime()
 
+// ------------------------------------------------------------- host reports
+// The Admin routes ask a host what it is doing. A browser has no process, but it
+// does have a page, a heap and this worker's own activity, so the reports are
+// built from those rather than refused: the request log below is the log file,
+// and the memory reading is `performance.memory` where the browser exposes it.
+const STARTED = Date.now()
+const HOST_LOG_LIMIT = 2000
+const HOST_LOG = []
+const LOG_FILE = 'app.log'
+// the moment the last line was written, which is the file's mtime - not the
+// moment a report read it
+let LOG_UPDATED = null
+
+const logEntry = (line) => {
+  LOG_UPDATED = new Date().toISOString()
+  HOST_LOG.push(`${LOG_UPDATED} ${line}`)
+  if (HOST_LOG.length > HOST_LOG_LIMIT)
+    HOST_LOG.splice(0, HOST_LOG.length - HOST_LOG_LIMIT)
+}
+
+const logText = () => HOST_LOG.join('\n')
+const bytesOf = (text) => new TextEncoder().encode(String(text)).length
+
+const adminReports = {
+  diagnostics: async () => {
+    const perf = self.performance || {}
+    const heap = perf.memory || {}
+    const deviceBytes = Number(navigator.deviceMemory || 0) * 1024 ** 3
+    const total = Number(heap.jsHeapSizeLimit || deviceBytes || 0)
+    const used = Number(heap.usedJSHeapSize || 0)
+    return {
+      build: { version: 'dev', gitHash: 'unknown', buildDate: null },
+      server: {
+        // a page is not a process: the fields exist so a diagnostics screen
+        // renders, and their values describe this worker rather than inventing
+        // one behind it
+        mode: 'browser',
+        uptimeSeconds: (Date.now() - STARTED) / 1000,
+        startedAt: new Date(STARTED).toISOString(),
+        pid: 0,
+        nodeVersion: 'n/a',
+        platform: navigator.platform || 'browser',
+        arch: 'browser',
+        cpuCount: navigator.hardwareConcurrency || 1,
+        cpuModel: 'unknown',
+        loadAverage: [],
+        runTimes: ['js'],
+        sasjsRoot: '/'
+      },
+      memory: {
+        rssBytes: used,
+        heapTotalBytes: total,
+        heapUsedBytes: used,
+        externalBytes: 0,
+        systemTotalBytes: deviceBytes || total,
+        systemFreeBytes: Math.max(0, (deviceBytes || total) - used)
+      },
+      // a static origin cannot read the device's filesystem, which the document
+      // allows the host to state
+      filesystem: null,
+      folders: [],
+      logs: {
+        folder: 'worker memory',
+        // no file until a request has written one, and the stamp is the last
+        // write rather than the moment this report was assembled
+        fileCount: HOST_LOG.length ? 1 : 0,
+        totalBytes: bytesOf(logText()),
+        newestFile: HOST_LOG.length ? LOG_FILE : null,
+        newestModified: LOG_UPDATED
+      }
+    }
+  },
+  logs: async () =>
+    HOST_LOG.length
+      ? [
+          {
+            name: LOG_FILE,
+            sizeBytes: bytesOf(logText()),
+            modified: LOG_UPDATED
+          }
+        ]
+      : [],
+  logTail: async (fileName, lines) => {
+    if (fileName !== LOG_FILE || !HOST_LOG.length) return undefined
+    const tail = HOST_LOG.slice(-lines)
+    const content = tail.join('\n')
+    return {
+      fileName,
+      lines: tail.length,
+      bytesRead: bytesOf(content),
+      truncated: tail.length < HOST_LOG.length,
+      content
+    }
+  }
+}
+
+/**
+ * The directory the LDAP import reads.
+ *
+ * A browser has no bind to make, so the source is the fixture this host already
+ * signs in with: every account and group it names is present, so the import
+ * answers the route (the package owns the idempotency) and creates nothing. A
+ * host with a real directory supplies its own source.
+ */
+const directorySource = {
+  users: async () =>
+    API.DEFAULT_IDENTITY.users.map((user) => ({
+      username: user.username,
+      displayName: user.displayName
+    })),
+  groups: async () =>
+    API.DEFAULT_IDENTITY.groups.map((group) => ({
+      name: group.name,
+      members: group.users || []
+    }))
+}
+
+/**
+ * The app streams this host published: the site itself.
+ *
+ * The folder is the identity, so unpublishing the app the site was built for
+ * answers `success`; any other folder is the documented 404. The static files
+ * stay where they are - a worker cannot delete the site it is served from - so
+ * this is a record of the publication, not a filesystem operation.
+ */
+let registryPromise
+const registry = () => {
+  if (!registryPromise)
+    registryPromise = (async () => {
+      let appLoc
+      try {
+        const config = await (await fetch('/host/mock-config.json')).json()
+        appLoc = config && config.appLoc
+      } catch (e) {
+        appLoc = undefined
+      }
+      return new API.MemoryAppStreamRegistry(appLoc ? [appLoc] : [])
+    })()
+  return registryPromise
+}
+
+/**
+ * The page at `/`.
+ *
+ * The site's own index.html is already in the build, so the home route reads it
+ * from the static host and hands the package the page and a token of its
+ * contents. The package decides what to do with the token; these builds do not
+ * reference `index.bundle.js`, so in practice it is returned unchanged.
+ */
+const contentVersion = (text) => {
+  let hash = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16)
+}
+
+const homeService = API.createHomeService(async () => {
+  try {
+    const response = await fetch('/index.html', { cache: 'no-store' })
+    if (!response.ok) return undefined
+    const html = await response.text()
+    return { html, version: contentVersion(html) }
+  } catch (e) {
+    return undefined
+  }
+})
+
 const SERVICES = {
   drive: API.createDriveService(DRIVE_STORE),
   info: API.createInfoService(API.BROWSER_INFO),
@@ -315,11 +497,17 @@ const SERVICES = {
     runTimes: ['js']
   }),
   session: API.createSessionService(IDENTITY_STORE, RUNTIME),
-  authConfig: API.createAuthConfigService({})
-  // `admin`, `directory`, `code` and `home` are deliberately absent: this host
-  // has no process to report on, no LDAP connection to import from, and the
-  // linter is a node-only dependency. The package answers a 501 naming the
-  // capability rather than a 404 that reads like a typo in the caller.
+  authConfig: API.createAuthConfigService({}),
+  admin: API.createAdminService(adminReports),
+  directory: API.createDirectoryService(IDENTITY_STORE, directorySource),
+  registry: {
+    unpublish: async (appLoc) => (await registry()).unpublish(appLoc)
+  },
+  home: homeService,
+  // the package's own code service over the bundled linter; the host passes no
+  // lint config, so a buffer is linted against the linter's defaults - a mock
+  // has no `.sasjslint` tree to resolve one from
+  code: CODE.createCodeService({})
 }
 
 /** The routes this host performs itself, because the answer is not JSON. */
@@ -663,7 +851,7 @@ const contentsResponse = (answer, path) => {
   })
 }
 
-const handle = async (request, url) => {
+const routeRequest = async (request, url) => {
   const path = url.pathname.replace(/\/+$/, '') || '/'
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
@@ -710,6 +898,14 @@ const handle = async (request, url) => {
     const answer = await API.dispatch(SERVICES, routeId, apiRequest)
     if (request.method !== 'GET') await persistChanges()
 
+    // the shell is a page, not a file the caller named: the document states
+    // text/html for it, and the extension of `/` says nothing
+    if (routeId === 'GET /')
+      return new Response(answer.contents, {
+        status: answer.status,
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })
+
     if (answer.contents !== undefined)
       return contentsResponse(
         answer,
@@ -718,6 +914,7 @@ const handle = async (request, url) => {
     return json(answer.body, answer.status)
   } catch (e) {
     const message = (e && e.stack) || String(e)
+    logEntry(`${request.method} ${path} ERROR ${(e && e.message) || message}`)
     broadcast({ type: 'sasjs-host-error', path, message })
     // A refusal the API decided on carries its status and, where the route
     // answers an envelope, the body to send. The drive's routes send the message
@@ -736,14 +933,51 @@ const handle = async (request, url) => {
   }
 }
 
+/**
+ * One request, answered and written to the host's activity log.
+ *
+ * The log is what the Admin routes report: a browser has no server log file, so
+ * the worker keeps its own - method, path, status and how long it took - and the
+ * three admin routes read it back.
+ */
+const handle = async (request, url) => {
+  const started = Date.now()
+  const response = await routeRequest(request, url)
+  logEntry(
+    `${request.method} ${url.pathname} ${response.status} ${
+      Date.now() - started
+    }ms`
+  )
+  return response
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
-  // The site's own page is the home route, and the static host serves it: a
-  // worker that answered `/` with the page it copied would be serving the app
-  // from two places. The API's own paths are answered here, including one the
-  // table does not have - falling through to the static host would put the SPA's
-  // index.html behind a typo in a caller's URL.
+
+  // The site's own page is answered by the home route, but a navigation must
+  // never be at the API's mercy: if that route throws or answers an error, the
+  // request falls back to the static host, which holds the same index.html. A
+  // broken API route can cost a client its data; it must not cost the app its
+  // page.
+  if (url.pathname === '/') {
+    event.respondWith(
+      (async () => {
+        try {
+          const response = await handle(event.request, url)
+          if (response && response.status < 400) return response
+        } catch (e) {
+          /* fall through to the static host */
+        }
+        return fetch(event.request)
+      })()
+    )
+    return
+  }
+
+  // The API's own paths are answered here, including one the table does not
+  // have - falling through to the static host would put the SPA's index.html
+  // behind a typo in a caller's URL.
   if (!/^\/(SASjsApi|SASLogon)(\/|$)/i.test(url.pathname)) return
   event.respondWith(handle(event.request, url))
 })
