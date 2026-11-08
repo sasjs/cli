@@ -322,11 +322,14 @@ const handle = async (request, url) => {
     await R.ensureReady()
 
     if (path.endsWith('/SASjsApi/info')) {
-      // The documented body field for field. `cors` is the document's CorsType
-      // - `enable` or `disable` - and a browser host has no listeners, no
-      // external providers and no database accounts to switch off. A property
-      // the document does not state would be this host describing an API the
-      // server does not serve, which is the drift the package exists to stop.
+      // The documented body field for field, with the values @sasjs/api's
+      // BROWSER_INFO states for this host: `cors` is the document's CorsType
+      // (`enable` | `disable`), both ports are null because a static origin has
+      // no listener, and `localLoginEnabled` is false because there is no
+      // account to sign in to - true would render a login form with no route
+      // behind it. `version` is `dev`, the fallback a server reports when it
+      // carries no build stamp. This block goes when the release carrying the
+      // package's own info service lands; until then the two answers agree.
       return json({
         mode: 'desktop',
         cors: 'disable',
@@ -334,8 +337,8 @@ const handle = async (request, url) => {
         httpsPort: null,
         runTimes: ['js'],
         authProviders: [],
-        localLoginEnabled: true,
-        version: 'browser host'
+        localLoginEnabled: false,
+        version: 'dev'
       })
     }
 
