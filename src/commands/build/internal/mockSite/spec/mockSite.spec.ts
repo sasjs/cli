@@ -293,8 +293,75 @@ describe('browser-hosted build', () => {
     // The interface reads this to tell a browser host from a server: the API
     // cannot, because a browser host answers the same routes and the same
     // /SASjsApi/info shape. Only the host knows, so the host says.
+    const tag = '<meta name="sasjs-host" content="browser" />'
+    expect(html).toContain(tag)
+    expect(html.indexOf(tag)).toBeLessThan(html.indexOf('</head>'))
+    // once: the tag it inserts is the one the guard then finds
+    expect(html.split('sasjs-host').length - 1).toBe(1)
+  })
+
+  it('leaves a page that already carries the host tag alone', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head>',
+        '<meta name="sasjs-host" content="browser">',
+        '</head><body><script src="main.abc123.js"></script></body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html.split('sasjs-host').length - 1).toBe(1)
+  })
+
+  it('inserts the tag when the page only mentions it outside the head', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title></head><body>',
+        '<script src="main.abc123.js"></script>',
+        '<template><meta name="sasjs-host" content="browser"></template>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    // the template's copy is not the page's tag: the head gets its own
+    expect(html.split('sasjs-host').length - 1).toBe(2)
+    expect(html.indexOf('content="browser" />')).toBeLessThan(
+      html.indexOf('</head>')
+    )
+  })
+
+  it('marks a page whose head is never closed', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<!doctype html><html><head><title>App</title><body><script src="main.abc123.js"></script></body></html>'
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
     expect(html).toContain('<meta name="sasjs-host" content="browser" />')
-    expect(html.indexOf('sasjs-host')).toBeLessThan(html.indexOf('</head>'))
+  })
+
+  it('warns when a page has no head to mark', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<!doctype html><html><body><script src="main.abc123.js"></script></body></html>'
+    )
+
+    await buildMockSite(target())
+
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('no <head> element found')
+    )
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).not.toContain('sasjs-host')
   })
 
   it('replays every script tag a page loads, not just a bundled entry point', async () => {

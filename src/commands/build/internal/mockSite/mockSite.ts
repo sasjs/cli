@@ -312,6 +312,40 @@ const EXECUTABLE_TYPES = [
 ]
 
 /**
+ * Tells the interface that this page is answered by the browser host.
+ *
+ * A mock site is the server's own interface running against a service worker,
+ * and nothing in the document said so: the API answers the same routes, the same
+ * mode and the same run times a desktop server does, so an interface could not
+ * tell a visitor what they were looking at. sasjs/server reads the tag and, where
+ * it is absent, knows the server answered the page.
+ *
+ * The insertion is reported when the page has no `<head>`, the way the other two
+ * rewrites report markup they could not find - silently leaving the tag off a
+ * page the browser host cannot mark is what the reader of the absence rule would
+ * misread as "a server answered this". The check for an existing tag is scoped
+ * to the head, because a page may mention the tag in a script or a template
+ * without carrying it, and a document-wide test would then insert nothing.
+ */
+const HOST_TAG = '<meta name="sasjs-host" content="browser" />'
+const HOST_TAG_PATTERN = /<meta\s+name=["']sasjs-host["']/i
+
+const markBrowserHost = (html: string, warnings: string[]) => {
+  const head = /<head(\s[^>]*)?>/i.exec(html)
+  if (!head) {
+    warnings.push(
+      'no <head> element found - the sasjs-host tag was not added, so the page will read as server-answered'
+    )
+    return html
+  }
+  const start = head.index + head[0].length
+  const close = html.toLowerCase().indexOf('</head>', start)
+  const inHead = close < 0 ? html.slice(start) : html.slice(start, close)
+  if (HOST_TAG_PATTERN.test(inHead)) return html
+  return html.slice(0, start) + HOST_TAG + html.slice(start)
+}
+
+/**
  * Points the app at its own origin and replaces its script tags with the boot
  * loader. Both changes are reported when the expected markup is absent, rather
  * than producing a site that silently talks to a real server.
@@ -320,16 +354,7 @@ const patchIndexHtml = (html: string, version: string) => {
   const warnings: string[] = []
   let patched = html
 
-  // States where this page's API comes from, for anything in the page that
-  // wants to say so: the server's own interface reads it to describe the host
-  // it is running on, and a browser host is a different thing to explain than a
-  // server process. Absence means the server answered the page.
-  if (!/<meta\s+name=["']sasjs-host["']/i.test(patched))
-    patched = patched.replace(
-      /<head(\s[^>]*)?>/i,
-      (head: string) =>
-        `${head}\n    <meta name="sasjs-host" content="browser" />`
-    )
+  patched = markBrowserHost(patched, warnings)
 
   if (/<sasjs[^>]*>/i.test(patched)) {
     patched = patched.replace(
