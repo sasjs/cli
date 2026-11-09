@@ -70,7 +70,17 @@ const createIndexedDB = () => {
 }
 
 const loadPersist = (
-  options: { controller?: any; ready?: Promise<any>; seeded?: any } = {}
+  options: {
+    controller?: any
+    ready?: Promise<any>
+    seeded?: any
+    /** The stamp the stored drive was written by; omitted means "none kept". */
+    storedStamp?: string
+    /** The stamp this build publishes; omitted means a site with no stamp. */
+    buildStamp?: string
+    /** Set to make localStorage throw, as a browser that refuses storage does. */
+    storageUnavailable?: boolean
+  } = {}
 ) => {
   jest.resetModules()
   const posted: any[] = []
@@ -101,6 +111,29 @@ const loadPersist = (
   ;(global as any).window = window
   ;(global as any).navigator = { serviceWorker }
 
+  // the page reads its build stamp and what the stored drive was written by
+  const local = new Map<string, string>()
+  if (options.storedStamp !== undefined)
+    local.set('sasjs-mock-build', options.storedStamp)
+  ;(global as any).localStorage = options.storageUnavailable
+    ? {
+        getItem: () => {
+          throw new Error('storage is denied')
+        },
+        setItem: () => {
+          throw new Error('storage is denied')
+        }
+      }
+    : {
+        getItem: (key: string) => (local.has(key) ? local.get(key) : null),
+        setItem: (key: string, value: string) => local.set(key, value)
+      }
+  ;(global as any).document = { baseURI: 'https://host.test/' }
+  ;(global as any).fetch = jest.fn(async (url: string) => ({
+    ok: true,
+    json: async () => ({ buildStamp: options.buildStamp || '' })
+  }))
+
   const idb = options.seeded
     ? (() => {
         const fake = createIndexedDB()
@@ -116,7 +149,15 @@ const loadPersist = (
 
   const reply = (data: any) => [...listeners].forEach((fn) => fn({ data }))
 
-  return { window, listeners, removed, posted, reply, rows: idb.rows }
+  return {
+    window,
+    listeners,
+    removed,
+    posted,
+    reply,
+    rows: idb.rows,
+    stored: local
+  }
 }
 
 describe('page-side store', () => {
@@ -125,6 +166,9 @@ describe('page-side store', () => {
     delete (global as any).window
     delete (global as any).navigator
     delete (global as any).indexedDB
+    delete (global as any).localStorage
+    delete (global as any).document
+    delete (global as any).fetch
   })
 
   it('asks the worker for a snapshot and drops the listener when it replies', async () => {
@@ -327,5 +371,120 @@ describe('page-side store', () => {
     expect(controller.postMessage).toHaveBeenCalledWith({
       type: 'sasjs-seed'
     })
+  })
+
+  /**
+   * Answers whatever the page asks, so a boot test can assert on which question
+   * was asked rather than on the reply.
+   */
+  const answerBoot = (controller: any, listeners: ((event: any) => void)[]) => {
+    const answering = setInterval(() => {
+      const asked = controller.postMessage.mock.calls
+      if (!asked.length) return
+      const type = asked[0][0].type
+      ;[...listeners].forEach((fn) => fn({ data: { type: type + '-ack' } }))
+    }, 5)
+    return () => clearInterval(answering)
+  }
+
+  it("drops a drive written by another build and takes this build's seed", async () => {
+    // the drive outlives the build that wrote it, so a returning visitor kept
+    // running the previous build's services - the ones this build no longer
+    // matches. A stamp on the seed, kept beside the drive, is what tells the two
+    // apart.
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, stored, rows } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      buildStamp: 'build-b',
+      storedStamp: 'build-a'
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
+    expect(stored.get('sasjs-mock-build')).toBe('build-b')
+    // the old drive is gone rather than merged with the new seed
+    expect(rows.size).toBe(0)
+  })
+
+  it('seeds over a drive from a build before the stamp existed', async () => {
+    // no stamp is the same answer as a different one: the drive predates the
+    // build that would have written it, so nothing says which services are in it
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      buildStamp: 'build-b'
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
+  })
+
+  it('keeps a drive this build wrote', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      buildStamp: 'build-b',
+      storedStamp: 'build-b'
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
+  })
+
+  it('keeps the drive when the site publishes no stamp', async () => {
+    // a site built before stamps keeps the behaviour it had: its drives are its
+    // own business
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
+  })
+
+  it('keeps the drive when storage is refused, instead of seeding every load', async () => {
+    // a browser that denies localStorage cannot remember which build wrote the
+    // drive, and must not read that as "another build" on every visit
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      buildStamp: 'build-b',
+      storageUnavailable: true
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
   })
 })

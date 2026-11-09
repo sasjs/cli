@@ -90,6 +90,27 @@ describe('browser-hosted build', () => {
     ).toBe(false)
   })
 
+  it('stamps the config with the build, so a page can tell one drive from another', async () => {
+    await buildMockSite(target())
+    const first = readConfig()
+
+    expect(first.buildStamp).toMatch(/^[0-9a-f]{10}$/)
+
+    // an identical build keeps its stamp: a rebuild that changes nothing must
+    // not throw a returning visitor's drive away
+    await buildMockSite(target())
+    expect(readConfig().buildStamp).toBe(first.buildStamp)
+
+    // a changed service changes the stamp, which is what makes the page re-seed
+    // rather than run the previous build's program
+    fs.writeFileSync(
+      path.join(root, 'sasjsbuild', 'services', 'public', 'getdata.js'),
+      'const a = 999\n'
+    )
+    await buildMockSite(target())
+    expect(readConfig().buildStamp).not.toBe(first.buildStamp)
+  })
+
   it('stamps the seed with the drive format the runtime checks', async () => {
     await buildMockSite(target())
 
