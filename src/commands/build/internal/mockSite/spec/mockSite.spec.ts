@@ -334,7 +334,7 @@ describe('browser-hosted build', () => {
     expect(html).not.toContain('https://sas.example.com')
     // the loader is a file, never an inline script: an app with a strict
     // Content-Security-Policy would refuse an inline one
-    expect(html).toContain('<script src="/host/boot.js?v=')
+    expect(html).toContain('<script src="host/boot.js?v=')
     expect(html).not.toContain('<script>')
     expect(fs.existsSync(path.join(out(), 'host', 'boot.js'))).toBe(true)
     // the app's own tags are replayed by the loader, in the order the page has
