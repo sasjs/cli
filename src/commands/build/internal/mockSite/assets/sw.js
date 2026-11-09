@@ -859,6 +859,22 @@ const routeRequest = async (request, url) => {
   try {
     await R.ensureReady()
 
+    // The app stream's listing is the server's own web route rather than one of
+    // the API's: a static site publishes nothing, and answering the listing is
+    // what lets an interface say so instead of parsing this site's index.html as
+    // JSON and reporting a parse error.
+    if (/^\/AppStream(\/|$)/i.test(path)) {
+      if (/\/apps\.json$/i.test(path)) return json({ apps: [] })
+
+      return json(
+        {
+          message:
+            'This browser host serves no apps: nothing is published on a static site.'
+        },
+        404
+      )
+    }
+
     // The package's own matcher, so a route is recognised however its path is
     // cased and its parameters are read the way the document states them.
     const matched = API.findRoute(request.method, path)
@@ -975,10 +991,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // The API's own paths are answered here, including one the table does not
+  // The host's own paths are answered here, including one the table does not
   // have - falling through to the static host would put the SPA's index.html
-  // behind a typo in a caller's URL.
-  if (!/^\/(SASjsApi|SASLogon)(\/|$)/i.test(url.pathname)) return
+  // behind a typo in a caller's URL, or behind a listing an interface parses as
+  // JSON. `/AppStream` is one of those: the package serves app deployments, but
+  // the listing is the server's web route, and an interface that lists apps asks
+  // for it on every visit.
+  if (!/^\/(SASjsApi|SASLogon|AppStream)(\/|$)/i.test(url.pathname)) return
   event.respondWith(handle(event.request, url))
 })
 

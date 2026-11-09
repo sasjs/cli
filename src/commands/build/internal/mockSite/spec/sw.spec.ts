@@ -857,6 +857,21 @@ describe('service worker host', () => {
     expect(await response.text()).toBe(`File doesn't exist.`)
   })
 
+  it('answers the app listing, because a static host publishes nothing', async () => {
+    const { dispatch } = seeded()
+
+    // The listing is the server's web route rather than the API's, and an
+    // interface asks for it on every visit: unanswered, the request reaches the
+    // static host and the page parses index.html as JSON.
+    const listing = await dispatch('/AppStream/apps.json')
+    expect(listing.status).toBe(200)
+    expect(await listing.json()).toEqual({ apps: [] })
+
+    const app = await dispatch('/AppStream/Demo/')
+    expect(app.status).toBe(404)
+    expect((await app.json()).message).toContain('serves no apps')
+  })
+
   it('leaves a request to another origin alone', () => {
     const { dispatch } = seeded()
 
