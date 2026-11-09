@@ -64,13 +64,18 @@ const loadBoot = (specs: any[], options: Options = {}) => {
     return element
   }
 
-  // The loader is served from <base>/host/, which is where it works out both
-  // the worker's URL and the scope: the page URL decides the folder, and the
-  // page may not end in a slash.
+  // The page carries an absolute boot tag, `<base>/host/boot.js`, so the
+  // loader's own URL names the folder whether or not the page URL ends in a
+  // slash - a relative tag would resolve against the page and, at `/demo`, name
+  // the origin root.
   const pageHref = options.href || 'http://localhost:8123/'
+  const page = new URL(pageHref)
+  const basePath = page.pathname.replace(/\/+$/, '')
   const loaderSrc =
-    new URL('host/boot.js', pageHref.endsWith('/') ? pageHref : pageHref + '/')
-      .href + (options.noStamp ? '' : '?v=abc123')
+    page.origin +
+    basePath +
+    '/host/boot.js' +
+    (options.noStamp ? '' : '?v=abc123')
 
   const document: any = {
     currentScript: options.noScript

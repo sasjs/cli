@@ -118,9 +118,10 @@
   // scoped to the folder above it: the site is served from the origin root on
   // one host and from a folder on another (a demonstration site beside its own
   // docs). The page cannot be the reference - at `<base>` with no trailing
-  // slash, a page-relative URL names the origin root and './' resolves to '/',
-  // which is the mis-registration this is here to avoid - and the loader's own
-  // position always names `<base>` exactly.
+  // slash a page-relative URL names the origin root, and './' resolves to '/',
+  // which is the mis-registration this is here to avoid. The tag the build
+  // emits is absolute (`<base>/host/boot.js`), so the loader's own URL carries
+  // `<base>` however the page was addressed.
   var loaderSrc = (script && script.src) || location.href
   navigator.serviceWorker
     .register(new URL('../sw.js' + stamp, loaderSrc).href, {
