@@ -308,6 +308,14 @@ describe('browser-hosted build', () => {
     await expect(
       buildMockSite(target({ mockWebBasePath: '../escape' }))
     ).rejects.toThrow(/mockWebBasePath/)
+    // the schema refuses a trailing slash and a blank value, and so does the
+    // builder: an editor and a build have to accept the same folder strings
+    await expect(
+      buildMockSite(target({ mockWebBasePath: '/demo/' }))
+    ).rejects.toThrow(/mockWebBasePath/)
+    await expect(
+      buildMockSite(target({ mockWebBasePath: '' }))
+    ).rejects.toThrow(/mockWebBasePath/)
   })
 
   it('points the app at itself and installs the boot loader', async () => {

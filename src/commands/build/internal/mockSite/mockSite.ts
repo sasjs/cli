@@ -484,27 +484,30 @@ const EXECUTABLE_TYPES = [
  * demonstration site beside its documentation (a GitHub Pages site whose root is
  * the docs) names the folder here, and every path the build emits follows it.
  */
+const BASE_PATH =
+  /^(?:\/)?(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+(?:\/(?!\.{1,2}(?:\/|$))[A-Za-z0-9._~-]+)*$/
+
+/**
+ * The folder the site is published under, with a leading slash and no trailing
+ * one.
+ *
+ * Empty for the origin root, which is the ordinary case. A host that serves the
+ * demonstration site beside its documentation (a GitHub Pages site whose root is
+ * the docs) names the folder here, and every path the build emits follows it.
+ *
+ * The shape is the one the sasjsconfig schema states - one or more segments, an
+ * optional leading slash, no dot segments and no trailing slash - so an editor
+ * and the build accept exactly the same values.
+ */
 const normaliseBasePath = (value?: string) => {
-  if (!value) return ''
-  let base = String(value).trim()
-  if (!base.startsWith('/')) base = '/' + base
-  base = base.replace(/\/+$/, '')
-  const segments = base.split('/').slice(1)
-  if (
-    !segments.length ||
-    segments.some(
-      (segment) =>
-        !/^[A-Za-z0-9._~-]+$/.test(segment) ||
-        segment === '.' ||
-        segment === '..'
-    )
-  )
+  if (value === undefined || value === null) return ''
+  if (typeof value !== 'string' || !BASE_PATH.test(value))
     throw new Error(
       `mockWebBasePath is not a folder path: ${JSON.stringify(
         value
-      )}. Use a path such as "/demo", or leave it unset for the origin root.`
+      )}. Use a path such as "/demo" - no trailing slash, no dot segments - or leave it unset for the origin root.`
     )
-  return base
+  return value.startsWith('/') ? value : '/' + value
 }
 
 /**

@@ -1,6 +1,10 @@
 /**
  * `mockWebBasePath` on a stream config.
  *
+ * A `.ts` rather than a `.d.ts` so it compiles into `build/types/` with the
+ * rest of the package: tsc does not emit an ambient input file, and this one
+ * would otherwise type the CLI's own build and vanish from the published one.
+ *
  * The option belongs to the mock target the CLI reads, but `StreamConfig` in
  * @sasjs/utils 4.9.0 predates it, so without this the property is invisible to
  * anyone typing a sasjsconfig and to anything that round-trips a target through
@@ -8,7 +12,7 @@
  * that release, delete this file and the declaration merges from the package
  * itself.
  */
-import '@sasjs/utils/types/config'
+export {}
 
 declare module '@sasjs/utils/types/config' {
   interface StreamConfig {
