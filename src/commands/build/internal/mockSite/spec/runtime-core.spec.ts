@@ -83,6 +83,26 @@ describe('browser runtime', () => {
     expect(result.error).toContain('speaks format 1')
   })
 
+  it('replaces the drive when a seed arrives, rather than merging the two', async () => {
+    const runtime = loadRuntime()
+
+    await seedDrive(runtime, { [drivePath('first.txt')]: 'one' })
+
+    // a worker outlives the page that seeded it, so a later seed - a page that
+    // found a drive from another build, or a reset - arrives with the previous
+    // drive still in memory. A file only that drive had must not survive it.
+    ;(global as any).fetch = jest.fn(async (url: string) =>
+      url.includes('mock-config')
+        ? jsonResponse({ appLoc })
+        : jsonResponse({ files: { [drivePath('second.txt')]: 'two' } })
+    )
+
+    const info = await runtime.seed()
+
+    expect(info.files).toBe(1)
+    expect(Object.keys(runtime.dumpAll())).toEqual([drivePath('second.txt')])
+  })
+
   it('reads a drive file with no format stamp as the current format', async () => {
     const runtime = loadRuntime()
 
@@ -249,6 +269,33 @@ webout('CLOSE')`
     expect(result.error).toContain('boom')
     expect(result.log).toContain('boom')
     expect(result.webout).toBe('')
+  })
+
+  it('carries the message when the stack does not, as WebKit reports one', () => {
+    const runtime = loadRuntime()
+
+    // WebKit's Error.stack is frames only - V8's opens with the message - so the
+    // body a service failure returns had the reason nowhere in it there, which is
+    // what a stack of "Function:219:1" in an app's error dialog looks like.
+    const result = runtime.run({
+      code: [
+        'const error = new Error("webout is not defined")',
+        'error.stack = "global code@https://host.test/sw.js:1:1"',
+        'throw error'
+      ].join('\n')
+    })
+
+    expect(result.error).toBe(
+      'webout is not defined\nglobal code@https://host.test/sw.js:1:1'
+    )
+  })
+
+  it('does not repeat a message the stack already carries', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({ code: 'throw new Error("boom")' })
+
+    expect(result.error.match(/boom/g)).toHaveLength(1)
   })
 
   /**
