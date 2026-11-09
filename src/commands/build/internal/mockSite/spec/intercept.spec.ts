@@ -131,6 +131,28 @@ describe('page-side bridge', () => {
     expect(xhr.responseText).toBe('{"status":"success"}')
   })
 
+  it('carries a binary file as base64 rather than as damaged text', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"status":"success"}'))
+    const { XHR } = loadBridge(fetchImpl)
+
+    // a PNG's signature: valid UTF-8 it is not
+    const bytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+    ])
+
+    const form = new FormData()
+    form.append('file', new Blob([bytes], { type: 'image/png' }), 'logo.png')
+
+    const xhr = new XHR()
+    await run(xhr, 'POST', '/SASjsApi/drive/file', form)
+
+    const [, init] = fetchImpl.mock.calls[0] as any
+    const payload = JSON.parse(init.body)
+
+    expect(payload.tables[0].binary).toBe(true)
+    expect(payload.tables[0].csv).toBe(btoa('PNG\r\n\n'))
+  })
+
   it('parses the response when the app asked for json', async () => {
     const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{"a":1}')))
     const xhr = new XHR()

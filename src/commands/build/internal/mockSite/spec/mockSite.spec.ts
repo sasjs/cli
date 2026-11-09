@@ -560,10 +560,12 @@ describe('browser-hosted build', () => {
     expect(served.webout).toBe(`${png.toString('hex')}|${png.length}`)
   })
 
-  it('refuses a target whose services are SAS, and keeps the previous site', async () => {
-    await buildMockSite(target())
-    write(path.join(out(), 'stale.txt'), 'previous')
-
+  /**
+   * A SAS backend does not run in a browser, but the programs are still worth
+   * shipping: the drive holds them, so a visitor can open them in Studio and
+   * read what a deployment's services do. The build warns and carries on.
+   */
+  it('builds a target whose services are SAS, and warns they cannot run', async () => {
     fs.rmSync(path.join(root, 'sasjsbuild', 'services'), {
       recursive: true,
       force: true
@@ -573,11 +575,23 @@ describe('browser-hosted build', () => {
       '%put sas;\n'
     )
 
-    await expect(buildMockSite(target())).rejects.toThrow(/No \.js programs/)
-    // the failure is not allowed to take the last good site with it
-    expect(fs.readFileSync(path.join(out(), 'stale.txt'), 'utf8')).toBe(
-      'previous'
+    const warn = jest.spyOn(process.logger ?? console, 'warn')
+
+    const result = await buildMockSite(target())
+
+    expect(result.jsPrograms).toBe(0)
+    expect(result.driveEntries).toBeGreaterThan(0)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('cannot run in a browser')
     )
+
+    // the program is on the drive, where Studio can open it
+    const seed = readSeed()
+    expect(
+      Object.keys(seed.files).some((key) => key.endsWith('/getdata.sas'))
+    ).toBe(true)
+
+    warn.mockRestore()
   })
 
   /**
