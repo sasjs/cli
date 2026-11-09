@@ -125,8 +125,11 @@
     xhr.dispatchEvent(new ProgressEvent('loadend'))
   }
 
+  // `/api` is the short spelling of the API and `/SASjsApi` the canonical one:
+  // the build bridges both, so a caller that uses either reaches the mock.
   const isSasjs = (url) =>
-    typeof url === 'string' && url.indexOf('/SASjsApi/') >= 0
+    typeof url === 'string' &&
+    (url.indexOf('/SASjsApi/') >= 0 || url.indexOf('/api/') >= 0)
 
   const proto = XMLHttpRequest.prototype
   const nativeOpen = proto.open

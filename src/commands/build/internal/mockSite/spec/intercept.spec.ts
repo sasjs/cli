@@ -97,11 +97,27 @@ describe('page-side bridge', () => {
     const { XHR } = loadBridge(fetchImpl)
 
     const xhr = new XHR()
-    xhr.open('GET', '/api/health')
+    xhr.open('GET', '/health')
     xhr.send()
 
     expect(xhr.sentWith).toBeUndefined()
     expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('bridges the short API spelling as well as the canonical one', async () => {
+    // `/api` is the default spelling now: a caller that uses it has to be
+    // bridged, or its answers would come from the static host instead of the
+    // mock API.
+    const fetchImpl = jest.fn(async () => jsonResponse('{"status":"ok"}'))
+    const { XHR } = loadBridge(fetchImpl)
+
+    const xhr = new XHR()
+    await run(xhr, 'GET', '/api/info')
+
+    const [url] = fetchImpl.mock.calls[0] as any
+    expect(url).toBe('/api/info')
+    expect(xhr.status).toBe(200)
+    expect(xhr.responseText).toBe('{"status":"ok"}')
   })
 
   it('converts a multipart body to JSON and replays the response onto the XHR', async () => {
@@ -191,7 +207,7 @@ describe('page-side bridge', () => {
     expect(Object.getPrototypeOf(second.XHR.prototype)).toBe(FakeXHR.prototype)
 
     const xhr = new second.XHR()
-    xhr.open('GET', '/api/health')
+    xhr.open('GET', '/health')
     xhr.send()
 
     expect(xhr.nativeSendCount).toBe(1)
