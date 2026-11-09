@@ -341,7 +341,7 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present, CLI will return status '0', when the job state is warning.`,
         `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response. If set to 'bleached', CLI will log summary of every HTTP response without extra colors.`,
         `[2spaces]NOTE: Providing source flag (--source or -s) is optional. It points to a JSON file of job variables, of the form {"macroVars": {"var1": "val1"}}.`,
-        `[2spaces]NOTE: Providing returnStatusOnly (--returnStatusOnly or -r) flag is optional. With --wait, CLI returns the job status only - 0 for success, 1 for warning, 2 for error - rather than the response JSON.`,
+        `[2spaces]NOTE: Providing returnStatusOnly (--returnStatusOnly or -r) is deprecated and has no effect: passing it prints a deprecation warning. The job status is returned with --verbose.`,
         `[2spaces]NOTE: Providing statusFile flag (--statusFile) is optional. The job status is fetched and saved to the given path; with no path it is printed to the console.`,
         `[2spaces]NOTE: Providing streamLog flag (--streamLog) is optional. As the job runs, its log is streamed into the local file given here, rather than fetched once at the end.`,
         `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log the job returned, and fails when the logCheck setting in sasjsconfig.json says so.`
@@ -358,7 +358,7 @@ export async function printHelpText() {
         `[2spaces]command example: sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv`,
         ``,
         `[2spaces]NOTE: Providing streamLog flag (--streamLog) is optional. As each job in the flow runs, its log is streamed into the log folder, rather than fetched once the job finishes.`,
-        `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log of every job in the flow, and fails when the logCheck setting in sasjsconfig.json says so.`
+        `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log of every job in the flow, and fails when the logCheck setting in sasjsconfig.json says so. A log streamed with --streamLog goes straight to its file and is not checked.`
       ]
     },
     {
@@ -398,8 +398,8 @@ export async function printHelpText() {
         `[2spaces]With no path, the project's results folder is checked. No target, no login and no project are needed, so a log produced elsewhere checks the same way.`,
         `[2spaces]command example: sasjs logcheck --fail-on warning --format json`,
         ``,
-        `[2spaces]Flags: --fail-on error|warning|note|never (default error), --max-warnings <n>, --ignore-code <49-169>, --ignore-path <substring|glob>, --format human|json|annotations, --json, --verbose.`,
-        `[2spaces]The same settings live in the logCheck section of sasjsconfig.json; a flag adds to what the file says rather than replacing it.`,
+        `[2spaces]Flags: --fail-on error|warning|note|never (defaults to logCheck.failOn in sasjsconfig.json, else error), --max-warnings <n>, --ignore-code <49-169>, --ignore-path <substring|glob>, --format human|json|annotations, --json, --verbose.`,
+        `[2spaces]The same settings live in the logCheck section of sasjsconfig.json: --ignore-code and --ignore-path add to what the file lists, while --fail-on and --max-warnings replace the file's value when they are given.`,
         `[2spaces]The exit code is 5 when the policy is broken, which is distinct from lint's 3, so a pipeline can tell a run SAS complained about from code-quality failures.`
       ]
     },
