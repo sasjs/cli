@@ -64,15 +64,21 @@ const loadBoot = (specs: any[], options: Options = {}) => {
     return element
   }
 
+  // The loader is served from <base>/host/, which is where it works out both
+  // the worker's URL and the scope: the page URL decides the folder, and the
+  // page may not end in a slash.
+  const pageHref = options.href || 'http://localhost:8123/'
+  const loaderSrc =
+    new URL('host/boot.js', pageHref.endsWith('/') ? pageHref : pageHref + '/')
+      .href + (options.noStamp ? '' : '?v=abc123')
+
   const document: any = {
     currentScript: options.noScript
       ? null
       : {
           // the builder stamps the boot tag with the host version, and the
           // loader reuses that query for the worker's own URL
-          src: options.noStamp
-            ? 'http://localhost:8123/host/boot.js'
-            : 'http://localhost:8123/host/boot.js?v=abc123',
+          src: loaderSrc,
           getAttribute: (name: string) => {
             if (name !== 'data-scripts') return null
             return options.brokenConfig ? 'not json' : JSON.stringify(specs)
@@ -130,7 +136,7 @@ const loadBoot = (specs: any[], options: Options = {}) => {
     }
   }
   ;(global as any).location = {
-    href: options.href || 'http://localhost:8123/',
+    href: pageHref,
     reload: () => timeline.push('reload')
   }
   jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -168,7 +174,7 @@ describe('the boot loader', () => {
     // root on one host and from /demo beside its docs on another.
     expect(registered).toEqual([
       'http://localhost:8123/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: './', updateViaCache: 'none' })
+        JSON.stringify({ scope: '/', updateViaCache: 'none' })
     ])
   })
 
@@ -178,7 +184,20 @@ describe('the boot loader', () => {
 
     expect(registered).toEqual([
       'http://localhost:8123/demo/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: './', updateViaCache: 'none' })
+        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
+    ])
+  })
+
+  it('registers under the folder when the page has no trailing slash', async () => {
+    // `/demo` is a URL the site answers: the host redirects to `/demo/` on a
+    // static host, but a page-relative worker URL would have named the origin
+    // root here, and './' would have resolved to '/'
+    const { registered } = loadBoot([], { href: 'http://localhost:8123/demo' })
+    await settle()
+
+    expect(registered).toEqual([
+      'http://localhost:8123/demo/sw.js?v=abc123 ' +
+        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
     ])
   })
 

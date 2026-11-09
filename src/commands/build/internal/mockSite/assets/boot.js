@@ -114,13 +114,17 @@
     stamp = ''
   }
 
-  // Registered relative to the page, and scoped to the directory it sits in:
-  // the site is served from the origin root on one host and from a folder on
-  // another (a demonstration site beside its own docs), and the worker's scope
-  // has to follow the page rather than assume the root.
+  // Registered against the loader's own URL, which sits in <base>/host/, and
+  // scoped to the folder above it: the site is served from the origin root on
+  // one host and from a folder on another (a demonstration site beside its own
+  // docs). The page cannot be the reference - at `<base>` with no trailing
+  // slash, a page-relative URL names the origin root and './' resolves to '/',
+  // which is the mis-registration this is here to avoid - and the loader's own
+  // position always names `<base>` exactly.
+  var loaderSrc = (script && script.src) || location.href
   navigator.serviceWorker
-    .register(new URL('sw.js' + stamp, location.href).href, {
-      scope: './',
+    .register(new URL('../sw.js' + stamp, loaderSrc).href, {
+      scope: new URL('../', loaderSrc).pathname,
       updateViaCache: 'none'
     })
     .then(function () {
