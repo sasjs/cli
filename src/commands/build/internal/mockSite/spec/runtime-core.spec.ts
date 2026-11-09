@@ -26,6 +26,20 @@ const jsonResponse = (body: any) => ({
   json: async () => body
 })
 
+/** The webout() block the build ships, with its sentinels still in place. */
+const weboutPrelude = () => ({
+  sentinels: WEBOUT_SENTINELS,
+  template: getWeboutPrelude({
+    weboutPath: WEBOUT_SENTINELS.weboutPath,
+    headersPath: WEBOUT_SENTINELS.headersPath,
+    program: WEBOUT_SENTINELS.program,
+    debug: WEBOUT_SENTINELS.debug,
+    username: WEBOUT_SENTINELS.username,
+    userId: WEBOUT_SENTINELS.userId,
+    apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
+  })
+})
+
 const seedDrive = async (
   runtime: any,
   files: { [path: string]: string },
@@ -86,22 +100,7 @@ describe('browser runtime', () => {
     // values runtime-core fills per run. Without it a service written with
     // webout() fails in a mock build with "webout is not defined", which is the
     // gap this closes.
-    await seedDrive(
-      runtime,
-      {},
-      {
-        sentinels: WEBOUT_SENTINELS,
-        template: getWeboutPrelude({
-          weboutPath: WEBOUT_SENTINELS.weboutPath,
-          headersPath: WEBOUT_SENTINELS.headersPath,
-          program: WEBOUT_SENTINELS.program,
-          debug: WEBOUT_SENTINELS.debug,
-          username: WEBOUT_SENTINELS.username,
-          userId: WEBOUT_SENTINELS.userId,
-          apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
-        })
-      }
-    )
+    await seedDrive(runtime, {}, weboutPrelude())
 
     const result = runtime.run({
       code: `
@@ -128,6 +127,43 @@ webout('CLOSE')`
     expect(result.headers.trim().split('\n').pop()).toEqual(
       'content-type: application/json'
     )
+  })
+
+  it('restores a persisted drive with the host files, so webout() still runs', async () => {
+    // A visitor who has opened the site before: the page hands this worker the
+    // drive it persisted, so seed() never runs here. The webout() block and the
+    // site's appLoc are host files rather than drive contents, and used to be
+    // loaded on the seed path only - so every service written with webout()
+    // failed with "webout is not defined" for exactly those visitors, and one
+    // naming its program without a folder could not be resolved either.
+    const runtime = loadRuntime()
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config')) return jsonResponse({ appLoc })
+      if (url.includes('webout-prelude')) return jsonResponse(weboutPrelude())
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.load({
+      [drivePath('services/public/svc.js')]: `
+webout('OPEN')
+webout('OBJ', 'users', [{ name: 'ann' }])
+webout('CLOSE')`
+    })
+
+    // the first failure on a restored drive was this one: the block is a host
+    // file, so webout() was not defined at all
+    const result = runtime.run({
+      program: `${appLoc}/services/public/svc.js`
+    })
+
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout).users).toEqual([{ name: 'ann' }])
+
+    // and the appLoc from the config file is a host file too: without it a
+    // program referenced without its folder does not resolve
+    const byName = runtime.run({ program: 'public/svc' })
+    expect(byName.error).toBeNull()
   })
 
   it('seeds the headers the way a JS session does, for a service that only assigns _webout', async () => {
