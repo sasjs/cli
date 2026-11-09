@@ -575,6 +575,14 @@ const markBrowserHost = (html: string, warnings: string[]) => {
  * A src that names no file in the output is left alone: a page may load a
  * script from somewhere this build does not own, and guessing a version for it
  * would break it.
+ *
+ * The tags in the page are all this covers. A chunk the entry point loads later
+ * - `import('./chunk.js')`, a lazy route - keeps its own URL and is cached for
+ * the same window, because the request for it is made by the bundle's runtime
+ * and never passes through this file. Versioning those would mean rewriting the
+ * chunk map inside the bundle, which is the bundler's business, not the host's;
+ * a page whose chunks matter more than its entry should name them in the page,
+ * where this does reach them.
  */
 const versionScripts = (
   scripts: { [key: string]: string }[],
