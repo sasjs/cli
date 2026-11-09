@@ -361,8 +361,19 @@ describe('browser-hosted build', () => {
     // the app's own tags are replayed by the loader, in the order the page has
     // them, and are gone from the page itself
     expect(html).not.toContain('<script src="main.abc123.js"')
-    expect(html).toContain('"src":"main.abc123.js?v=')
-    expect(html).toContain('","type":"module"')
+
+    // one spec, and it is the module tag: two `toContain` calls would pass with
+    // the src in one spec and the type in another
+    const specs = JSON.parse(
+      html
+        .match(/data-scripts='([^']*)'/)![1]
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+    )
+
+    expect(specs).toHaveLength(1)
+    expect(specs[0].type).toBe('module')
+    expect(specs[0].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
   })
 
   /**
