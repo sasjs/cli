@@ -114,8 +114,15 @@
     stamp = ''
   }
 
+  // Registered relative to the page, and scoped to the directory it sits in:
+  // the site is served from the origin root on one host and from a folder on
+  // another (a demonstration site beside its own docs), and the worker's scope
+  // has to follow the page rather than assume the root.
   navigator.serviceWorker
-    .register('/sw.js' + stamp, { scope: '/', updateViaCache: 'none' })
+    .register(new URL('sw.js' + stamp, location.href).href, {
+      scope: './',
+      updateViaCache: 'none'
+    })
     .then(function () {
       return navigator.serviceWorker.ready
     })

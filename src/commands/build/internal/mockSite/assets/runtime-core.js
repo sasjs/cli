@@ -32,7 +32,7 @@
  * encoding returns a string for either, as node does.
  */
 
-if (typeof importScripts === 'function') importScripts('/host/md5.js')
+if (typeof importScripts === 'function') importScripts('host/md5.js')
 
 // ---------------------------------------------------------------- posix path
 const P = {
@@ -841,8 +841,8 @@ const DRIVE_ROOT = '/sasjs/drive'
 // Rewritten at boot from host/mock-config.json, which the mock build writes.
 let APP_LOC = '/Public/app'
 let DRIVE_APP = `${DRIVE_ROOT}/files${APP_LOC}`
-const SEED_PATH = '/host/vfs-seed.json'
-const SNAPSHOT_PATH = '/host/vfs-snapshot.json'
+let SEED_PATH = 'host/vfs-seed.json'
+const SNAPSHOT_PATH = 'host/vfs-snapshot.json'
 
 /**
  * The drive storage format, stamped into the seed and the snapshot. The markers
@@ -864,12 +864,17 @@ const DRIVE_FORMAT = 1
  */
 const loadMockConfig = async () => {
   try {
-    const res = await fetch('/host/mock-config.json', { cache: 'no-store' })
+    const res = await fetch('host/mock-config.json', { cache: 'no-store' })
     if (!res.ok) return
     const cfg = await res.json()
     if (cfg && typeof cfg.appLoc === 'string' && cfg.appLoc.trim()) {
       APP_LOC = '/' + cfg.appLoc.replace(/^\/+/, '').replace(/\/+$/, '')
       DRIVE_APP = `${DRIVE_ROOT}/files${APP_LOC}`
+    }
+    // the build names the seed it wrote; the default above covers a site built
+    // before the config carried it
+    if (cfg && typeof cfg.seedPath === 'string' && cfg.seedPath.trim()) {
+      SEED_PATH = cfg.seedPath
     }
   } catch (e) {
     /* keep the defaults */
@@ -887,7 +892,7 @@ let weboutSentinels = null
 
 const loadWeboutPrelude = async () => {
   try {
-    const res = await fetch('/host/webout-prelude.json', { cache: 'no-store' })
+    const res = await fetch('host/webout-prelude.json', { cache: 'no-store' })
     if (!res.ok) return
     const cfg = await res.json()
     if (cfg && typeof cfg.template === 'string') {

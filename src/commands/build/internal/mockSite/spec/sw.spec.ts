@@ -46,12 +46,13 @@ const lintBundle = () => {
   return lintBundlePath
 }
 
-const loadWorker = () => {
+const loadWorker = (base = '') => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
   let refusingWrites = false
   const self: any = {
-    location: { origin },
+    // the worker's own location names the folder the site is served from
+    location: { origin, pathname: `${base}/sw.js` },
     addEventListener: (type: string, fn: (event: any) => any) => {
       handlers[type] = handlers[type] || []
       handlers[type].push(fn)
@@ -679,6 +680,45 @@ describe('service worker host', () => {
       )
       expect(formatted.status).toBe(200)
       expect(await formatted.text()).toContain('@brief')
+    })
+
+    it('answers every route under the folder the site is published in', async () => {
+      const worker = loadWorker('/demo')
+      worker.runtime.load({
+        [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+      })
+
+      // the adapter is pointed at /demo, so the worker sees the folder prefix
+      const info = await worker.dispatch('/demo/SASjsApi/info')
+      expect(info.status).toBe(200)
+      expect((await info.json()).mode).toBe('desktop')
+
+      const page = await worker.dispatch('/demo/')
+      expect(page.status).toBe(200)
+      expect(page.headers.get('content-type')).toContain('text/html')
+
+      // the folder itself, with no trailing slash, is the home page too
+      const folder = await worker.dispatch('/demo')
+      expect(folder.status).toBe(200)
+      expect(folder.headers.get('content-type')).toContain('text/html')
+
+      // the AppStream answers are decided on the path with its trailing slash,
+      // so the folder has to come off before that, and the redirect has to stay
+      // inside it
+      const stream = await worker.dispatch('/demo/AppStream')
+      expect(stream.status).toBe(301)
+      expect(stream.headers.get('location')).toBe('/demo/AppStream/')
+
+      const landing = await worker.dispatch('/demo/AppStream/')
+      expect(landing.status).toBe(200)
+      expect(landing.headers.get('content-type')).toContain('text/html')
+
+      const apps = await worker.dispatch('/demo/AppStream/apps.json')
+      expect(apps.status).toBe(200)
+      expect(await apps.json()).toEqual({ apps: [] })
+
+      // a path outside the folder is not the site's to answer
+      expect(worker.dispatch('/other/SASjsApi/info')).toBeUndefined()
     })
 
     it('serves the build page at the home route, and falls back when it fails', async () => {

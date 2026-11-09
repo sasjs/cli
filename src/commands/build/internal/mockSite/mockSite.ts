@@ -478,6 +478,36 @@ const EXECUTABLE_TYPES = [
 ]
 
 /**
+ * The folder the site is published under, as a path with no trailing slash.
+ *
+ * Empty for the origin root, which is the ordinary case. A host that serves the
+ * demonstration site beside its documentation (a GitHub Pages site whose root is
+ * the docs) names the folder here, and every path the build emits follows it.
+ */
+const normaliseBasePath = (value?: string) => {
+  if (!value) return ''
+  let base = String(value).trim()
+  if (!base.startsWith('/')) base = '/' + base
+  base = base.replace(/\/+$/, '')
+  const segments = base.split('/').slice(1)
+  if (
+    !segments.length ||
+    segments.some(
+      (segment) =>
+        !/^[A-Za-z0-9._~-]+$/.test(segment) ||
+        segment === '.' ||
+        segment === '..'
+    )
+  )
+    throw new Error(
+      `mockWebBasePath is not a folder path: ${JSON.stringify(
+        value
+      )}. Use a path such as "/demo", or leave it unset for the origin root.`
+    )
+  return base
+}
+
+/**
  * Tells the interface that this page is answered by the browser host.
  *
  * A mock site is the server's own interface running against a service worker,
@@ -516,16 +546,19 @@ const markBrowserHost = (html: string, warnings: string[]) => {
  * loader. Both changes are reported when the expected markup is absent, rather
  * than producing a site that silently talks to a real server.
  */
-const patchIndexHtml = (html: string, version: string) => {
+const patchIndexHtml = (html: string, version: string, basePath = '') => {
   const warnings: string[] = []
   let patched = html
 
   patched = markBrowserHost(patched, warnings)
 
   if (/<sasjs[^>]*>/i.test(patched)) {
+    // the app talks to the origin root by default; on a site published under a
+    // folder it has to name that folder, or its API calls leave the worker's
+    // scope and meet the static host
     patched = patched.replace(
       /(<sasjs[^>]*?)\sserverurl="[^"]*"/i,
-      '$1 serverurl=""'
+      `$1 serverurl="${basePath}"`
     )
     patched = patched.replace(
       /(<sasjs[^>]*?)\sloginmechanism="[^"]*"/i,
@@ -616,6 +649,8 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       `Build folder not found: ${buildFolder}. Run \`sasjs compile\` first.`
     )
   }
+
+  const basePath = normaliseBasePath(target.streamConfig?.mockWebBasePath)
 
   const webSourceRaw = target.streamConfig?.webSourcePath
   if (!webSourceRaw) {
@@ -803,16 +838,16 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     fs
       .readFileSync(swPath, 'utf8')
       .replace(
-        "importScripts('/host/runtime-core.js')",
-        `importScripts('/host/runtime-core.js?v=${hostVersion}')`
+        "importScripts('host/runtime-core.js')",
+        `importScripts('host/runtime-core.js?v=${hostVersion}')`
       )
       .replace(
-        "importScripts('/host/api-browser.js')",
-        `importScripts('/host/api-browser.js?v=${hostVersion}')`
+        "importScripts('host/api-browser.js')",
+        `importScripts('host/api-browser.js?v=${hostVersion}')`
       )
       .replace(
-        "importScripts('/host/lint-browser.js')",
-        `importScripts('/host/lint-browser.js?v=${hostVersion}')`
+        "importScripts('host/lint-browser.js')",
+        `importScripts('host/lint-browser.js?v=${hostVersion}')`
       )
   )
 
@@ -836,7 +871,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     JSON.stringify(
       {
         appLoc,
-        seedPath: '/host/vfs-seed.json',
+        seedPath: 'host/vfs-seed.json',
         driveEntries,
         jsPrograms,
         programFolders: PROGRAM_FOLDERS,
@@ -852,7 +887,8 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const indexPath = path.join(outputFolder, 'index.html')
   const { patched, warnings } = patchIndexHtml(
     fs.readFileSync(indexPath, 'utf8'),
-    hostVersion
+    hostVersion,
+    basePath
   )
   fs.writeFileSync(indexPath, patched)
   warnings.forEach((warning) => process.logger?.warn(warning))
