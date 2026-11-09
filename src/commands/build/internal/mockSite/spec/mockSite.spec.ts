@@ -317,9 +317,9 @@ describe('browser-hosted build', () => {
 
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
     expect(html).toContain('serverurl="/demo"')
-    // the loader and the host's files stay relative to the page, so the same
-    // build works at the origin root and under the folder
-    expect(html).toContain('<script src="host/boot.js?v=')
+    // the boot tag is absolute and names the folder, so a page at `/demo` with
+    // no trailing slash still loads the loader from `/demo/host/`
+    expect(html).toContain('<script src="/demo/host/boot.js?v=')
   })
 
   it('refuses a base path that is not a folder path', async () => {
@@ -329,6 +329,21 @@ describe('browser-hosted build', () => {
     await expect(
       buildMockSite(target({ mockWebBasePath: '../escape' }))
     ).rejects.toThrow(/mockWebBasePath/)
+  })
+
+  it('normalises the folder shapes the released build already accepts', async () => {
+    // a patch release must not fail a configuration that builds today, so a
+    // trailing slash, surrounding space and a bare name are normalised
+    for (const value of ['/demo/', ' /demo ', 'demo']) {
+      await buildMockSite(target({ mockWebBasePath: value }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      expect(html).toContain('serverurl="/demo"')
+    }
+
+    // explicit empty is the origin root, as it was before the option existed
+    await buildMockSite(target({ mockWebBasePath: '' }))
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toContain('serverurl=""')
   })
 
   it('points the app at itself and installs the boot loader', async () => {

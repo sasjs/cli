@@ -114,13 +114,41 @@
     stamp = ''
   }
 
-  // Registered relative to the page, and scoped to the directory it sits in:
-  // the site is served from the origin root on one host and from a folder on
-  // another (a demonstration site beside its own docs), and the worker's scope
-  // has to follow the page rather than assume the root.
+  // Registered against the loader's own URL, which sits in <base>/host/, and
+  // scoped to the folder above it: the site is served from the origin root on
+  // one host and from a folder on another (a demonstration site beside its own
+  // docs). The page cannot be the reference - at `<base>` with no trailing
+  // slash a page-relative URL names the origin root, and './' resolves to '/',
+  // which is the mis-registration this is here to avoid.
+  //
+  // The tag the build emits is absolute (`<base>/host/boot.js`) when the target
+  // names a folder, and relative (`host/boot.js`) when it does not - so a site
+  // published in a folder without naming it depends on its own URL ending in a
+  // slash - and in both cases the loader's own URL then carries `<base>`. The
+  // fallback below is for the case where there is no currentScript to read.
+  var loaderSrc = (script && script.src) || loaderUrl()
+
+  // The loader always sits in <base>/host/, so without a currentScript the page
+  // still names the base. A path that does not end in a slash is ambiguous: it
+  // is the folder when its last segment has no dot (`/demo`), and a file when it
+  // does (`/demo/index.html`) - only the second has a segment to drop.
+  // `location.href` cannot do this: one level above `/demo` is the origin root.
+  function loaderUrl() {
+    var page = location.pathname
+    var lastSegment = page.slice(page.lastIndexOf('/') + 1)
+    var base
+
+    if (lastSegment.indexOf('.') === -1) {
+      base = page.charAt(page.length - 1) === '/' ? page : page + '/'
+    } else {
+      base = page.slice(0, page.lastIndexOf('/') + 1)
+    }
+
+    return location.origin + base + 'host/boot.js'
+  }
   navigator.serviceWorker
-    .register(new URL('sw.js' + stamp, location.href).href, {
-      scope: './',
+    .register(new URL('../sw.js' + stamp, loaderSrc).href, {
+      scope: new URL('../', loaderSrc).pathname,
       updateViaCache: 'none'
     })
     .then(function () {

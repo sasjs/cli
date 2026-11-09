@@ -461,8 +461,14 @@ const escapeAttribute = (value: string) =>
  * order, plus the inline snippets some pages use to set up a global before the
  * bundle runs - so the host does not dictate how the app is built.
  */
-const bootTag = (scripts: { [key: string]: string }[], version: string) =>
-  `<script src="host/boot.js?v=${version}" data-scripts='${escapeAttribute(
+const bootTag = (
+  scripts: { [key: string]: string }[],
+  version: string,
+  basePath = ''
+) =>
+  `<script src="${
+    basePath ? `${basePath}/host/boot.js` : 'host/boot.js'
+  }?v=${version}" data-scripts='${escapeAttribute(
     JSON.stringify(scripts)
   )}'></script>`
 
@@ -478,25 +484,36 @@ const EXECUTABLE_TYPES = [
 ]
 
 /**
- * The folder the site is published under, as a path with no trailing slash.
+ * The folder the site is published under, with a leading slash and no trailing
+ * one.
  *
  * Empty for the origin root, which is the ordinary case. A host that serves the
  * demonstration site beside its documentation (a GitHub Pages site whose root is
  * the docs) names the folder here, and every path the build emits follows it.
+ *
+ * The shapes the released build accepts keep working - a bare `demo`, a leading
+ * or trailing slash, surrounding space - and are normalised rather than
+ * refused, because a `fix(mock)` release must not fail a build that passes
+ * today. The sasjsconfig schema states the canonical form; this only rejects
+ * what could never have worked, a segment that is `.`, `..` or empty.
  */
 const normaliseBasePath = (value?: string) => {
   if (!value) return ''
-  let base = String(value).trim()
-  if (!base.startsWith('/')) base = '/' + base
-  base = base.replace(/\/+$/, '')
-  const segments = base.split('/').slice(1)
+
+  const segments = String(value)
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '')
+    .split('/')
+
   if (
     !segments.length ||
     segments.some(
       (segment) =>
-        !/^[A-Za-z0-9._~-]+$/.test(segment) ||
+        !segment ||
         segment === '.' ||
-        segment === '..'
+        segment === '..' ||
+        !/^[A-Za-z0-9._~-]+$/.test(segment)
     )
   )
     throw new Error(
@@ -504,7 +521,8 @@ const normaliseBasePath = (value?: string) => {
         value
       )}. Use a path such as "/demo", or leave it unset for the origin root.`
     )
-  return base
+
+  return '/' + segments.join('/')
 }
 
 /**
@@ -605,7 +623,7 @@ const patchIndexHtml = (html: string, version: string, basePath = '') => {
   )
 
   if (scripts.length) {
-    const tag = bootTag(scripts, version)
+    const tag = bootTag(scripts, version, basePath)
     patched = /<\/body>/i.test(patched)
       ? patched.replace(/<\/body>/i, `${tag}\n</body>`)
       : patched + tag
