@@ -680,13 +680,13 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   }
 
-  // Nothing at all in the build folder is a different thing again: a compile
-  // that produced nothing, or a stale sasjsbuild from an unrelated command. The
-  // site would ship with an empty drive, so it is said out loud rather than
-  // mistaken for an interface.
-  if (driveEntries === 0) {
+  // No PROGRAMS is a different thing again: a compile that produced nothing, or
+  // a stale sasjsbuild from an unrelated command - `sasjs doc` leaves a folder
+  // behind that is not a program folder but does reach the drive, so the count
+  // that decides this is of programs, not of files.
+  if (jsPrograms + sasPrograms === 0) {
     process.logger?.warn(
-      `${buildFolder} holds no programs, so this site ships with an empty drive. ` +
+      `No compiled programs in ${buildFolder}: this site ships with an empty drive. ` +
         'That is expected for an interface with no services; for anything else, check that compile wrote the target.'
     )
   }

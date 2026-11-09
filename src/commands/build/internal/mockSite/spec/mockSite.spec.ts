@@ -609,6 +609,36 @@ describe('browser-hosted build', () => {
     warn.mockRestore()
   })
 
+  /**
+   * A stale build folder is the case the warning exists for: `sasjs doc` and
+   * other commands leave folders behind that are not program folders, so a count
+   * of files on the drive says nothing about whether anything was compiled.
+   */
+  it('warns when the build folder holds only folders that are not programs', async () => {
+    for (const folder of ['services', 'mock-storage']) {
+      fs.rmSync(path.join(root, 'sasjsbuild', folder), {
+        recursive: true,
+        force: true
+      })
+    }
+
+    write(path.join(root, 'sasjsbuild', 'docs', 'index.html'), '<html></html>')
+
+    const warn = jest.spyOn(process.logger ?? console, 'warn')
+
+    const result = await buildMockSite(target())
+
+    // the drive is NOT empty - the docs folder reaches it - so the file count
+    // alone would have kept quiet
+    expect(result.driveEntries).toBeGreaterThan(0)
+    expect(result.jsPrograms).toBe(0)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('No compiled programs')
+    )
+
+    warn.mockRestore()
+  })
+
   it('refuses to build without a web app', async () => {
     await expect(
       buildMockSite(target({ webSourcePath: './does-not-exist' }))

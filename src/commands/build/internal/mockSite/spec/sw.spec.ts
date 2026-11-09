@@ -857,7 +857,7 @@ describe('service worker host', () => {
     expect(await response.text()).toBe(`File doesn't exist.`)
   })
 
-  it('answers the app listing, because a static host publishes nothing', async () => {
+  it('answers the app stream as the server does, with nothing in it', async () => {
     const { dispatch } = seeded()
 
     // The listing is the server's web route rather than the API's, and an
@@ -867,6 +867,19 @@ describe('service worker host', () => {
     expect(listing.status).toBe(200)
     expect(await listing.json()).toEqual({ apps: [] })
 
+    // The two spellings of the stream root answer as sasjs/server answers them:
+    // a redirect to the slash, then the landing page - not a JSON refusal, which
+    // would make the site's own stream root look like a missing app.
+    const root = await dispatch('/AppStream')
+    expect(root.status).toBe(301)
+    expect(root.headers.get('location')).toBe('/AppStream/')
+
+    const landing = await dispatch('/AppStream/')
+    expect(landing.status).toBe(200)
+    expect(landing.headers.get('content-type')).toContain('text/html')
+    expect(await landing.text()).toContain('serves no apps')
+
+    // A name under it is a missing app, which the server also refuses.
     const app = await dispatch('/AppStream/Demo/')
     expect(app.status).toBe(404)
     expect((await app.json()).message).toContain('serves no apps')
