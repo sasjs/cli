@@ -76,7 +76,7 @@ export class LogCheckCommand extends CommandBase {
         'ignore-path': {
           type: 'array',
           description:
-            'Log path to leave out, as a substring or a glob. Repeatable.'
+            'Log path to leave out, as a path segment or a glob. A non-glob entry matches whole segments only, so `test` covers `test/run.log` but not `latest.log`. Repeatable.'
         },
         format: {
           type: 'string',

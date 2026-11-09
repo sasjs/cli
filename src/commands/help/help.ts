@@ -270,7 +270,7 @@ export async function printHelpText() {
         `Providing log flag (--log or -l) is optional. If not present, the log is stored locally with a timestamp. If present, CLI will fetch and save the log to the specified location. If a relative location, it will be relative to the directory in which the command is invoked.`,
         `Providing source flag (--source or -s) is optional. It should point to a JSON file with the following structure:  {"macroVars": {"var1": "val1", "var2": "val2"}}. These will be parsed into SAS "%let" statements and pre-append to the SAS code being run.`,
         `Providing compile flag (--compile or -c) is optional. It is used to compile the program prior to execution. Useful for including dependent macros and includes. More info here: https://cli.sasjs.io/compile`,
-        `Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log this run returned and fails when the logCheck setting in sasjsconfig.json says so, or when --fail-on is given on the command line. --no-logcheck switches both the report and the verdict off for this run.`
+        `Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log this run returned and fails when the logCheck setting in sasjsconfig.json says so. --no-logcheck switches both the report and the verdict off for this run.`
       ]
     },
     {
@@ -398,7 +398,7 @@ export async function printHelpText() {
         `[2spaces]With no path, the project's results folder is checked. No target, no login and no project are needed, so a log produced elsewhere checks the same way.`,
         `[2spaces]command example: sasjs logcheck --fail-on warning --format json`,
         ``,
-        `[2spaces]Flags: --fail-on error|warning|note|never (defaults to logCheck.failOn in sasjsconfig.json, else error), --max-warnings <n>, --ignore-code <49-169>, --ignore-path <substring|glob>, --format human|json|annotations, --json, --verbose.`,
+        `[2spaces]Flags: --fail-on error|warning|note|never (defaults to logCheck.failOn in sasjsconfig.json, else error), --max-warnings <n>, --ignore-code <49-169>, --ignore-path <path segment|glob>, --format human|json|annotations, --json, --verbose.`,
         `[2spaces]The same settings live in the logCheck section of sasjsconfig.json: --ignore-code and --ignore-path add to what the file lists, while --fail-on and --max-warnings replace the file's value when they are given.`,
         `[2spaces]The exit code is 5 when the policy is broken, which is distinct from lint's 3, so a pipeline can tell a run SAS complained about from code-quality failures.`
       ]
