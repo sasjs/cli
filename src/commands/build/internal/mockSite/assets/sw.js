@@ -462,7 +462,7 @@ const adminReports = {
         cpuCount: navigator.hardwareConcurrency || 1,
         cpuModel: 'unknown',
         loadAverage: [],
-        runTimes: ['js'],
+        runTimes: ['js', 'sas'],
         sasjsRoot: '/'
       },
       memory: {
@@ -591,11 +591,12 @@ const SERVICES = {
   identity: IDENTITY,
   records: RECORDS,
   runtime: API.createRuntimeService(IDENTITY_STORE, RUNTIME, {
-    // The one run time this host executes. A recorded SAS session is answered
-    // before the runner (see SAS_TRANSCRIPT below), not by claiming a `sas` run
-    // time - a .sas program with no recording must still be refused, and a route
-    // that accepted `sas` would compile SAS source as JavaScript instead.
-    runTimes: ['js']
+    // `js` is executed here; `sas` is offered so a SAS program can be run at all
+    // in the demo, and answered from the recording when one names it. A `.sas`
+    // program with no recording is refused in the runner, deliberately - it must
+    // not be handed to the JavaScript runtime as source, which is what the
+    // resolveProgram guard in BrowserRuntime.run prevents.
+    runTimes: ['js', 'sas']
   }),
   session: API.createSessionService(IDENTITY_STORE, RUNTIME),
   authConfig: API.createAuthConfigService({}),
