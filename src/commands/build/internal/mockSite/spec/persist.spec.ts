@@ -80,6 +80,10 @@ const loadPersist = (
     buildStamp?: string
     /** Set to make localStorage throw, as a browser that refuses storage does. */
     storageUnavailable?: boolean
+    /** Where the worker sits, for a site published from a folder. */
+    scriptURL?: string
+    /** The page's own URL, as the browser reports it. */
+    baseURI?: string
   } = {}
 ) => {
   jest.resetModules()
@@ -90,6 +94,10 @@ const loadPersist = (
     options.controller === undefined
       ? { postMessage: (message: any) => posted.push(message) }
       : options.controller
+  // a real controller names the site folder, which is how the page finds the
+  // config file; every case gets one unless it is testing that it is missing
+  if (controller && !controller.scriptURL)
+    controller.scriptURL = options.scriptURL || 'https://host.test/sw.js'
 
   const serviceWorker = {
     controller,
@@ -128,7 +136,10 @@ const loadPersist = (
         getItem: (key: string) => (local.has(key) ? local.get(key) : null),
         setItem: (key: string, value: string) => local.set(key, value)
       }
-  ;(global as any).document = { baseURI: 'https://host.test/' }
+  // the page URL, which a folder site must NOT be used to resolve the config
+  ;(global as any).document = {
+    baseURI: options.baseURI || 'https://host.test/'
+  }
   ;(global as any).fetch = jest.fn(async (url: string) => ({
     ok: true,
     json: async () => ({ buildStamp: options.buildStamp || '' })
@@ -166,8 +177,8 @@ describe('page-side store', () => {
     delete (global as any).window
     delete (global as any).navigator
     delete (global as any).indexedDB
-    delete (global as any).localStorage
     delete (global as any).document
+    delete (global as any).localStorage
     delete (global as any).fetch
   })
 
@@ -486,5 +497,32 @@ describe('page-side store', () => {
     expect(controller.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sasjs-load' })
     )
+  })
+
+  it('reads the config from the folder the worker sits in, not the page URL', async () => {
+    // a site published from a folder: a page reached at /demo (no trailing
+    // slash) has a baseURI of https://host/demo, which resolves host/... one
+    // level too high - and the fetch 404s, so the re-seed never happens. The
+    // worker's own URL is the definition of the site folder.
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      buildStamp: 'build-b',
+      storedStamp: 'build-a',
+      scriptURL: 'https://host.test/demo/sw.js',
+      baseURI: 'https://host.test/demo'
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    const [url, init] = (global as any).fetch.mock.calls[0]
+    expect(String(url)).toBe('https://host.test/demo/host/mock-config.json')
+    expect(init).toEqual({ cache: 'no-store' })
+    // and the stamp it read is acted on
+    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
   })
 })
