@@ -1,5 +1,5 @@
 import { VersionCommand } from '../../../commands/version/versionCommand'
-import { normaliseArgs, parse } from '../parse'
+import { normaliseArgs, parse, requestedCommandName } from '../parse'
 
 describe('parse', () => {
   it.each(['version', 'v', '-v', '--version'])(
@@ -8,14 +8,40 @@ describe('parse', () => {
       const command = parse(['node', 'sasjs', token])
 
       expect(command).toBeInstanceOf(VersionCommand)
-      expect(command.name).toEqual('version')
+      expect(command!.name).toEqual('version')
     }
   )
 
   it('leaves another command as it is', () => {
     const command = parse(['node', 'sasjs', 'help'])
 
-    expect(command.name).toEqual('help')
+    expect(command!.name).toEqual('help')
+  })
+
+  it('returns undefined for a command it does not register', () => {
+    expect(parse(['node', 'sasjs', 'frobnicate'])).toBeUndefined()
+  })
+
+  it('returns undefined when no command is given', () => {
+    expect(parse(['node', 'sasjs'])).toBeUndefined()
+  })
+})
+
+describe('requestedCommandName', () => {
+  it('reports the command as typed', () => {
+    expect(requestedCommandName(['node', 'sasjs', 'frobnicate'])).toEqual(
+      'frobnicate'
+    )
+  })
+
+  it('reports the version command for a version flag', () => {
+    expect(requestedCommandName(['node', 'sasjs', '--version'])).toEqual(
+      'version'
+    )
+  })
+
+  it('reports an empty name when there is no command', () => {
+    expect(requestedCommandName(['node', 'sasjs'])).toEqual('')
   })
 })
 
