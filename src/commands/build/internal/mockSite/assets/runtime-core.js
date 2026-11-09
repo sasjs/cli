@@ -1475,9 +1475,16 @@ const api = {
   // Called by the host with the persisted drive; skips seeding entirely.
   load: (files) => {
     started = true
+    // The site's configuration and the webout() block are host files, not drive
+    // contents, so a restore needs them exactly as a seed does: only the seed
+    // used to load them, and every service written with webout() then failed
+    // with "webout is not defined" for a visitor the drive had been restored
+    // for. The drive itself is loaded synchronously, so callers that read it
+    // straight away still can; the promise is what a worker awaits.
+    const hostFiles = Promise.all([loadMockConfig(), loadWeboutPrelude()])
     const info = loadSnapshot(files)
-    ready = Promise.resolve(info)
-    if (resolveBoot) resolveBoot(info)
+    ready = hostFiles.then(() => info)
+    if (resolveBoot) resolveBoot(ready)
     return ready
   },
   seed: () => {
