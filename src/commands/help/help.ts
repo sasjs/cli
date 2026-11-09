@@ -237,6 +237,8 @@ export async function printHelpText() {
       description: [
         `lets the user add a build target to either the local project configuration, or to the global .sasjsrc file.`,
         ``,
+        `[2spaces]NOTE: Providing insecure flag (--insecure or -i) is optional. It allows the command to bypass the HTTPS requirement, and is not recommended.`,
+        ``,
         `NOTE: This command requires the user to input all the required parameters. More information available in the online documentation: ${chalk.cyanBright(
           'https://sasjs.io/sasjs-cli-add'
         )}`
@@ -249,6 +251,9 @@ export async function printHelpText() {
         `lets the user authenticate against a target.`,
         `With the 'login' sub command (SASVIYA targets only), authentication is performed with a SAS username and password - no OAuth client/secret required - and the resulting tokens are saved.`,
         `Without a sub command, behaves like 'sasjs add cred' (client/secret based authentication).`,
+        ``,
+        `[2spaces]NOTE: Providing insecure flag (--insecure or -i) is optional. It allows the command to bypass the HTTPS requirement, and is not recommended.`,
+        `[2spaces]NOTE: Providing password-stdin flag (--passwordStdin) is optional. The password is read from stdin instead of being prompted for, which is how a pipeline passes it without a terminal.`,
         ``,
         `NOTE: This command requires the user to input all the required parameters. More information available in the online documentation: ${chalk.cyanBright(
           'https://cli.sasjs.io/auth/'
@@ -264,7 +269,8 @@ export async function printHelpText() {
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
         `Providing log flag (--log or -l) is optional. If not present, the log is stored locally with a timestamp. If present, CLI will fetch and save the log to the specified location. If a relative location, it will be relative to the directory in which the command is invoked.`,
         `Providing source flag (--source or -s) is optional. It should point to a JSON file with the following structure:  {"macroVars": {"var1": "val1", "var2": "val2"}}. These will be parsed into SAS "%let" statements and pre-append to the SAS code being run.`,
-        `Providing compile flag (--compile or -c) is optional. It is used to compile the program prior to execution. Useful for including dependent macros and includes. More info here: https://cli.sasjs.io/compile`
+        `Providing compile flag (--compile or -c) is optional. It is used to compile the program prior to execution. Useful for including dependent macros and includes. More info here: https://cli.sasjs.io/compile`,
+        `Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log this run returned and fails when the logCheck setting in sasjsconfig.json says so, or when --fail-on is given on the command line. --no-logcheck switches both the report and the verdict off for this run.`
       ]
     },
     {
@@ -277,7 +283,9 @@ export async function printHelpText() {
         `The target can exist either in the local project configuration or in the global .sasjsrc file.`,
         `<sasProgramPath> - if this has a leading slash (eg /Public/app/folder/servicename) then it must be the full path. If it is a relative path (eg path/servicename) then it will be pre-pended with the appLoc - which must then be defined in the sasjs config.`,
         `<path/to/log> - Location in which to store the log file. If not provided AND current directory is a sasjs project, it will be saved in sasjsresults else in the current directory`,
-        `<path/to/output> - Location to store the output file. If not provided AND current directory is a sasjs project, an output file  will be saved in the sasjsresults folder else in current directory.`
+        `<path/to/output> - Location to store the output file. If not provided AND current directory is a sasjs project, an output file  will be saved in the sasjsresults folder else in current directory.`,
+        `<path/to/datafile> - (--data or -d) the json file holding the input data passed to the request. --config (-c) takes the json config for the execution itself.`,
+        `Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log this request returned and fails when the logCheck setting in sasjsconfig.json says so.`
       ]
     },
     {
@@ -312,7 +320,8 @@ export async function printHelpText() {
         )} - Compiles a SAS program with the contents of a local directory.`,
         `[2spaces]command example: sasjs fs compile /Public/folder --output ./outputProgram`,
         ``,
-        `[2spaces]NOTE: If output flag (-o or --output) is not provided, output will be stored in './fs-compile/{timestamp}' directory relative to working directory.`
+        `[2spaces]NOTE: If output flag (-o or --output) is not provided, output will be stored in './fs-compile/{timestamp}' directory relative to working directory.`,
+        `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log the compile returned, and fails when the logCheck setting in sasjsconfig.json says so.`
       ]
     },
     {
@@ -330,7 +339,12 @@ export async function printHelpText() {
         `[2spaces]NOTE: Providing output flag (--output or -o) is optional. If present, CLI will immediately print out the response JSON. If value is provided, it will be treated as file path to save the response JSON.`,
         `[2spaces]NOTE: Providing log flag (--log or -l) is optional. If present, CLI will fetch and save job log to local file.`,
         `[2spaces]NOTE: Providing ignore warnings (--ignoreWarnings or -i) flag is optional. If present, CLI will return status '0', when the job state is warning.`,
-        `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response. If set to 'bleached', CLI will log summary of every HTTP response without extra colors.`
+        `[2spaces]NOTE: Providing verbose (--verbose or -v) flag is optional. If present, CLI will log summary of every HTTP response. If set to 'bleached', CLI will log summary of every HTTP response without extra colors.`,
+        `[2spaces]NOTE: Providing source flag (--source or -s) is optional. It points to a JSON file of job variables, of the form {"macroVars": {"var1": "val1"}}.`,
+        `[2spaces]NOTE: Providing returnStatusOnly (--returnStatusOnly or -r) flag is optional. With --wait, CLI returns the job status only - 0 for success, 1 for warning, 2 for error - rather than the response JSON.`,
+        `[2spaces]NOTE: Providing statusFile flag (--statusFile) is optional. The job status is fetched and saved to the given path; with no path it is printed to the console.`,
+        `[2spaces]NOTE: Providing streamLog flag (--streamLog) is optional. As the job runs, its log is streamed into the local file given here, rather than fetched once at the end.`,
+        `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log the job returned, and fails when the logCheck setting in sasjsconfig.json says so.`
       ]
     },
     {
@@ -341,7 +355,10 @@ export async function printHelpText() {
         `[2spaces]* ${chalk.cyanBright(
           'execute'
         )} - triggers flow for execution.`,
-        `[2spaces]command example: sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv`
+        `[2spaces]command example: sasjs flow execute --source /local/flow.json --logFolder /local/log/folder --csvFile /local/some.csv`,
+        ``,
+        `[2spaces]NOTE: Providing streamLog flag (--streamLog) is optional. As each job in the flow runs, its log is streamed into the log folder, rather than fetched once the job finishes.`,
+        `[2spaces]NOTE: Providing logcheck flag (--logcheck or --no-logcheck) is optional. It checks the log of every job in the flow, and fails when the logCheck setting in sasjsconfig.json says so.`
       ]
     },
     {
@@ -379,7 +396,11 @@ export async function printHelpText() {
       description: [
         `Checks SAS logs for the messages SAS printed - ERRORs, WARNINGs and the notes that flag a problem - and fails when the failure policy is broken.`,
         `[2spaces]With no path, the project's results folder is checked. No target, no login and no project are needed, so a log produced elsewhere checks the same way.`,
-        `[2spaces]command example: sasjs logcheck --fail-on warning --format json`
+        `[2spaces]command example: sasjs logcheck --fail-on warning --format json`,
+        ``,
+        `[2spaces]Flags: --fail-on error|warning|note|never (default error), --max-warnings <n>, --ignore-code <49-169>, --ignore-path <substring|glob>, --format human|json|annotations, --json, --verbose.`,
+        `[2spaces]The same settings live in the logCheck section of sasjsconfig.json; a flag adds to what the file says rather than replacing it.`,
+        `[2spaces]The exit code is 5 when the policy is broken, which is distinct from lint's 3, so a pipeline can tell a run SAS complained about from code-quality failures.`
       ]
     },
     {
