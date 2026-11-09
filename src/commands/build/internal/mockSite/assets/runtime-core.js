@@ -1100,7 +1100,16 @@ return _webout;
       BUFFERS
     )
   } catch (e) {
-    thrown = e && e.stack ? e.stack : String(e)
+    // The stack alone is not an error message: WebKit's carries frames only, so
+    // a failure there arrives at the app as "anonymous@... > Function:219:1" with
+    // the reason nowhere in it. V8's stack already opens with the message, so it
+    // is prepended only when it is missing rather than repeated.
+    const message = e && e.message ? String(e.message) : ''
+    const stack = e && e.stack ? String(e.stack) : ''
+    thrown =
+      stack && message && stack.indexOf(message) < 0
+        ? message + '\n' + stack
+        : stack || String(e)
     logLines.push(String(thrown))
   }
 
@@ -1415,6 +1424,13 @@ const boot = async () => {
   await loadMockConfig()
   await loadWeboutPrelude()
   const { source, files: seed } = await fetchDrive()
+  // a seed replaces the drive, it does not merge into one: the worker survives
+  // page loads, so it can still hold the drive it was given last time, and any
+  // file only that drive had would otherwise outlive the build that wrote it
+  FILES.clear()
+  SIZES.clear()
+  DIRS.clear()
+  DIRS.add('/')
   mkdirp(DRIVE_APP)
   mkdirp(`${DRIVE_ROOT}/files`)
   for (const [path, contents] of Object.entries(seed)) {

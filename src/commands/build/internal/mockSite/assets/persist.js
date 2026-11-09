@@ -89,6 +89,55 @@
 
   const clearAll = () => withStore('readwrite', (store) => store.clear())
 
+  /**
+   * The build this site is, as the page can see it: mock-config.json carries the
+   * stamp the build wrote over its host code and the seed it lays out. Read here
+   * rather than passed down, because the page decides whether to keep a stored
+   * drive before the worker is asked anything.
+   *
+   * Empty when the config cannot be read, which leaves the drive alone: a page
+   * that cannot tell which build it is has no business dropping one.
+   */
+  const readBuildStamp = async () => {
+    try {
+      const res = await fetch(
+        new URL('host/mock-config.json', document.baseURI),
+        { cache: 'no-store' }
+      )
+      if (!res.ok) return ''
+      const config = await res.json()
+      return config && typeof config.buildStamp === 'string'
+        ? config.buildStamp
+        : ''
+    } catch (e) {
+      return ''
+    }
+  }
+
+  /** Where the stamp of the build that wrote the stored drive is kept. */
+  const BUILD_STAMP_KEY = 'sasjs-mock-build'
+
+  /**
+   * The stamp recorded for the stored drive, '' when there is none (a drive
+   * from a build before stamps existed) and null when storage cannot be read at
+   * all - which is not the same answer, and must not drop a drive on every load.
+   */
+  const storedBuildStamp = () => {
+    try {
+      return localStorage.getItem(BUILD_STAMP_KEY) || ''
+    } catch (e) {
+      return null
+    }
+  }
+
+  const keepBuildStamp = (stamp) => {
+    try {
+      if (stamp) localStorage.setItem(BUILD_STAMP_KEY, stamp)
+    } catch (e) {
+      /* a browser that refuses storage still runs the site */
+    }
+  }
+
   const waitForController = () =>
     new Promise((resolve) => {
       if (navigator.serviceWorker.controller)
@@ -210,6 +259,32 @@
       console.error('[sasjs-mock] could not read storage: ' + e)
     }
 
+    // A stored drive outlives the build that wrote it, so a returning visitor
+    // would keep running that build's services - including ones the app being
+    // loaded no longer matches. This build stamps the seed it ships, and a drive
+    // whose stamp is absent or different is dropped rather than merged: a
+    // partial drive from two builds is the one thing that cannot be reasoned
+    // about. A site whose config carries no stamp keeps its drives, which is the
+    // behaviour every build before this one had.
+    const stamp = await readBuildStamp()
+    const previous = storedBuildStamp()
+    if (
+      Object.keys(files).length &&
+      stamp &&
+      previous !== null &&
+      previous !== stamp
+    ) {
+      console.info(
+        '[sasjs-mock] the stored drive is from another build - seeding this one'
+      )
+      try {
+        await clearAll()
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear storage: ' + e)
+      }
+      files = {}
+    }
+
     if (Object.keys(files).length) {
       window.__sasjsMockBoot = await askWorker(
         { type: 'sasjs-load', files },
@@ -221,6 +296,8 @@
         'sasjs-seed-ack'
       )
     }
+    if (window.__sasjsMockBoot && !window.__sasjsMockBoot.error)
+      keepBuildStamp(stamp)
     return window.__sasjsMockBoot
   })()
 })()

@@ -850,6 +850,22 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     .digest('hex')
     .slice(0, 10)
 
+  // The identity of this build's drive: the seed itself. The host files are
+  // re-fetched on every load, so a change to them needs no re-seed; a change to
+  // the seed does, because the drive a visitor already has was written by the
+  // seed of the build before this one. A page that finds a drive stamped with
+  // another value drops it and takes this build's seed.
+  const buildStamp = createHash('md5')
+    .update(
+      JSON.stringify(
+        Object.keys(seed)
+          .sort()
+          .map((key) => [key, seed[key]])
+      )
+    )
+    .digest('hex')
+    .slice(0, 10)
+
   const swPath = path.join(outputFolder, 'sw.js')
   fs.writeFileSync(
     swPath,
@@ -894,6 +910,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         jsPrograms,
         programFolders: PROGRAM_FOLDERS,
         snapshot: hasSnapshot,
+        buildStamp,
         builtAt: new Date().toISOString()
       },
       null,
