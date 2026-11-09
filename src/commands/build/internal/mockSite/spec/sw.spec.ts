@@ -58,7 +58,12 @@ const loadWorker = (base = '') => {
       handlers[type].push(fn)
     },
     skipWaiting: () => {},
-    clients: { claim: () => {}, matchAll: async () => [] }
+    // a test can put a client here to observe what the host broadcasts; with
+    // none, a message reaches nobody and nothing can be asserted about it
+    clients: {
+      claim: () => {},
+      matchAll: async () => (global as any).__mockHostClients ?? []
+    }
   }
   ;(global as any).self = self
   // sw.js imports the runtime and the package by URL; the test loads the same
@@ -918,6 +923,47 @@ describe('service worker host', () => {
 
     expect(read.status).toBe(200)
     expect(new Uint8Array(await read.arrayBuffer())).toEqual(image)
+  })
+
+  /**
+   * A refusal is the API's answer, and the page that asked gets it. Reporting it
+   * as a host error put console errors on screens that had handled the refusal
+   * themselves - Studio's 409 being the one that started this.
+   */
+  it('reports a host failure to the page, and stays quiet about a refusal', async () => {
+    const worker = seeded()
+    const messages: any[] = []
+    ;(global as any).__mockHostClients = [
+      { postMessage: (message: any) => messages.push(message) }
+    ]
+
+    const write = () => {
+      const form = new FormData()
+      form.set('file', new Blob(['x']), 'new.txt')
+      return worker.dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/Public/new.txt'),
+        { method: 'POST', body: form }
+      )
+    }
+    const hostErrors = () =>
+      messages.filter((message) => message.type === 'sasjs-host-error').length
+
+    // a drive that cannot be written: a failure of the host, not an answer
+    worker.refuseWrites(true)
+    const failed = await write()
+    expect(failed.status).toBeGreaterThanOrEqual(500)
+    expect(hostErrors()).toBe(1)
+
+    // a create over a file that is already there: the API answered, and the
+    // caller handles it
+    messages.length = 0
+    worker.refuseWrites(false)
+    expect((await write()).status).toBe(200)
+    expect((await write()).status).toBe(409)
+    expect(hostErrors()).toBe(0)
+
+    delete (global as any).__mockHostClients
   })
 
   it('keeps the payload of a JSON body the page bridge forwarded', async () => {
