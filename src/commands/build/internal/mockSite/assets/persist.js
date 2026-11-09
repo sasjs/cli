@@ -95,15 +95,23 @@
    * rather than passed down, because the page decides whether to keep a stored
    * drive before the worker is asked anything.
    *
+   * The base is the worker's script URL, not the page's: the site can be served
+   * from a folder, and a page reached at `/demo` (no trailing slash) has a
+   * baseURI of `https://host/demo`, which resolves `host/mock-config.json` one
+   * level too high. The worker sits at `<base>/sw.js` and fetches the same file
+   * relative to itself, so its URL is the one definition of the site folder.
+   *
    * Empty when the config cannot be read, which leaves the drive alone: a page
    * that cannot tell which build it is has no business dropping one.
    */
-  const readBuildStamp = async () => {
+  const readBuildStamp = async (controller) => {
     try {
-      const res = await fetch(
-        new URL('host/mock-config.json', document.baseURI),
-        { cache: 'no-store' }
-      )
+      const script = controller && controller.scriptURL
+      // no controller URL means no way to name the site folder; keep the drive
+      if (!script) return ''
+      const res = await fetch(new URL('host/mock-config.json', script), {
+        cache: 'no-store'
+      })
       if (!res.ok) return ''
       const config = await res.json()
       return config && typeof config.buildStamp === 'string'
@@ -266,7 +274,7 @@
     // partial drive from two builds is the one thing that cannot be reasoned
     // about. A site whose config carries no stamp keeps its drives, which is the
     // behaviour every build before this one had.
-    const stamp = await readBuildStamp()
+    const stamp = await readBuildStamp(controller)
     const previous = storedBuildStamp()
     if (
       Object.keys(files).length &&
