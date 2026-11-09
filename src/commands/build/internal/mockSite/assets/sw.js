@@ -575,6 +575,19 @@ const payloadTooLarge = (limit) => {
  */
 const readJsonBody = async (request) => {
   const body = await readJson(request)
+
+  // The bridge forwards a JSON body as `json` - a request the page made with
+  // `JSON.stringify` has no fields for the envelope it wraps everything in, so
+  // the payload is the whole point of the message. Reading only `params` here
+  // dropped it: `code/execute` and `code/lint` arrived with no code.
+  if (
+    body &&
+    typeof body === 'object' &&
+    body.json &&
+    typeof body.json === 'object'
+  )
+    return { body: body.json, files: [] }
+
   if (
     body &&
     typeof body === 'object' &&
@@ -988,8 +1001,21 @@ const routeRequest = async (request, url) => {
     return json(answer.body, answer.status)
   } catch (e) {
     const message = (e && e.stack) || String(e)
-    logEntry(`${request.method} ${path} ERROR ${(e && e.message) || message}`)
-    broadcast({ type: 'sasjs-host-error', path, message })
+    const status = (e && e.status) || 500
+    const refusal = status >= 400 && status < 500
+
+    // A 4xx is an ANSWER: the API decided, the caller was told, and a client
+    // that expected it (Studio creates its default program and accepts the 409)
+    // has already handled it. Broadcasting it put four console errors on a page
+    // whose only fault was opening a file that was already there. A 5xx is the
+    // host failing, and that is worth reporting to the page.
+    logEntry(
+      `${request.method} ${path} ${refusal ? 'refused' : 'ERROR'} ${
+        (e && e.message) || message
+      }`
+    )
+
+    if (!refusal) broadcast({ type: 'sasjs-host-error', path, message })
     // A refusal the API decided on carries its status and, where the route
     // answers an envelope, the body to send. The drive's routes send the message
     // itself as plain text - the server answers them with `res.status(code)

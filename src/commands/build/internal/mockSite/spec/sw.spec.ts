@@ -920,6 +920,34 @@ describe('service worker host', () => {
     expect(new Uint8Array(await read.arrayBuffer())).toEqual(image)
   })
 
+  it('keeps the payload of a JSON body the page bridge forwarded', async () => {
+    const { dispatch } = seeded()
+
+    // what host/intercept.js posts for a request the app made with a JSON body:
+    // no fields for the envelope, and the payload under `json`. The linter is the
+    // sharpest answer to "did the body arrive": with no code it refuses with 400,
+    // and with the code it answers findings.
+    const body = JSON.stringify({
+      params: {},
+      tables: [],
+      json: { code: 'data _null_;\n  x = 1; \nrun;\n', filePath: '/a.sas' }
+    })
+
+    const response = await dispatch('/SASjsApi/code/lint', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body
+    })
+
+    expect(response.status).toBe(200)
+
+    // the finding for the trailing space is only reachable if THAT text arrived,
+    // which is what the bridge's envelope would otherwise have dropped
+    const findings = await response.json()
+    expect(Array.isArray(findings)).toBe(true)
+    expect(JSON.stringify(findings)).toContain('trailing spaces')
+  })
+
   it('answers 404 for a drive file the drive does not hold', async () => {
     const { dispatch } = seeded()
 
