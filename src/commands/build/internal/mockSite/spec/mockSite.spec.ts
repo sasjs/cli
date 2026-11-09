@@ -580,6 +580,35 @@ describe('browser-hosted build', () => {
     )
   })
 
+  /**
+   * The case this build exists for: an interface with no services at all.
+   * sasjs/server's own frontend compiles to nothing, and the worker answers its
+   * API - so the target must build, ship the web app, and say out loud that the
+   * drive it ships is empty.
+   */
+  it('builds an interface that has no services, and says the drive is empty', async () => {
+    // nothing a drive could be seeded from: no services, no sync folder
+    for (const folder of ['services', 'mock-storage']) {
+      fs.rmSync(path.join(root, 'sasjsbuild', folder), {
+        recursive: true,
+        force: true
+      })
+    }
+
+    const warn = jest.spyOn(process.logger ?? console, 'warn')
+
+    const result = await buildMockSite(target())
+
+    expect(result.jsPrograms).toBe(0)
+    expect(result.driveEntries).toBe(0)
+    expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('ships with an empty drive')
+    )
+
+    warn.mockRestore()
+  })
+
   it('refuses to build without a web app', async () => {
     await expect(
       buildMockSite(target({ webSourcePath: './does-not-exist' }))
