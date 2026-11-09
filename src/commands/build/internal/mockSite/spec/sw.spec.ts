@@ -117,6 +117,10 @@ const loadWorker = (base = '') => {
         '<!doctype html><html><head><title>App</title></head><body>home</body></html>',
         { status: 200, headers: { 'content-type': 'text/html' } }
       )
+    if (target.includes('sas-transcript')) {
+      const fixture = (global as any).__sasTranscript
+      return fixture ? jsonResponse(fixture) : new Response('', { status: 404 })
+    }
     return target.includes('vfs-seed')
       ? jsonResponse({
           files: {
@@ -228,6 +232,90 @@ describe('service worker host', () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('seeded')
+  })
+
+  it('answers a recorded SAS session with its log, listing and webout', async () => {
+    // A browser has no SAS binary. A project may ship the transcript of one real
+    // session, and a program it names is answered with it - framed the way the
+    // adapter and the Studio split the three parts: webout SEP log SEP listing.
+    ;(global as any).__sasTranscript = {
+      [`${appLoc}/services/public/report.sas`]: {
+        webout: '{"SYSSITE":"00000000"}',
+        log: 'NOTE: Copyright (c) 2016 by SAS Institute Inc., Cary, NC, USA.',
+        print: 'The SAS System\n\n  Obs    customer\n    1    Northwind Ltd'
+      }
+    }
+
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/report.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/report`) +
+        '&_debug=131'
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('NOTE: Copyright')
+    expect(body).toContain('Northwind Ltd')
+    expect(body).toContain('"SYSSITE":"00000000"')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('gives a recorded run the seeded content type when not debugging', async () => {
+    // Without `_debug` the body is the webout alone, and it still has to carry
+    // the type a session is seeded with - an empty header set leaves the choice
+    // to the browser, which is the case the seed exists to prevent.
+    ;(global as any).__sasTranscript = {
+      [`${appLoc}/services/public/report.sas`]: {
+        webout: '{"SYSSITE":"00000000"}',
+        log: 'NOTE: recorded',
+        print: 'The SAS System'
+      }
+    }
+
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/report.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/report`)
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/html')
+    expect(await response.text()).toBe('{"SYSSITE":"00000000"}')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('refuses a .sas program no recording names, as it always did', async () => {
+    // The recording is data, not a run time. Every other SAS program keeps the
+    // refusal the host gave before the recording existed - and in particular is
+    // not compiled as JavaScript, which would answer a SyntaxError quoting the
+    // SAS source instead of saying the run time is not available.
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/other.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/other`)
+    )
+
+    expect(response.status).toBe(400)
+
+    const body = await response.text()
+    expect(body).toContain('runTime')
+    expect(body).not.toContain('SyntaxError')
   })
 
   /**
@@ -794,6 +882,37 @@ describe('service worker host', () => {
       // a session id nobody ran is the 404 that hides whether it exists
       const missing = await dispatch('/SASjsApi/session/not-a-session/state')
       expect(missing.status).toBe(404)
+    })
+
+    it('keeps a trigger a JSON answer, not the recorded transcript', async () => {
+      // A recording answers a run, not a trigger: the trigger route answers with
+      // the session record a client parses as JSON, so returning the framed
+      // webout there would break triggerProgram and the Studio.
+      ;(global as any).__sasTranscript = {
+        [`${appLoc}/services/public/report.sas`]: {
+          webout: '{"SYSSITE":"00000000"}',
+          log: 'NOTE: recorded',
+          print: 'The SAS System'
+        }
+      }
+
+      const worker = loadWorker()
+      worker.runtime.load({
+        [drivePath('services/public/report.sas')]: 'data work.class; run;'
+      })
+
+      const response = await worker.dispatch(
+        '/SASjsApi/stp/trigger?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/report`),
+        runRequest({ params: {} })
+      )
+
+      expect(response.headers.get('content-type')).toContain('application/json')
+
+      const body = await response.json()
+      expect(body).not.toHaveProperty('webout')
+
+      delete (global as any).__sasTranscript
     })
 
     it('refuses a deploy upload with no archive, and one that is not a zip', async () => {

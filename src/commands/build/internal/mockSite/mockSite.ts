@@ -15,6 +15,8 @@ export interface MockSiteResult {
   webFileCount: number
   /** True when a captured drive snapshot was shipped with the site. */
   snapshot: boolean
+  /** True when a recorded SAS session was shipped, for .sas runs to answer. */
+  sasTranscript: boolean
 }
 
 /**
@@ -894,6 +896,19 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     fs.copyFileSync(snapshotSource, path.join(hostFolder, 'vfs-snapshot.json'))
   }
 
+  // 2d. a recorded SAS session, if the project ships one. A browser has no SAS
+  // binary, so a .sas program the recording names is answered with it - the log,
+  // listing and webout of a session already run - and every program it does not
+  // name is refused as before. It is data in the project, not a behaviour of the
+  // host: nothing is invented for a project that does not ship the file.
+  const transcriptSource = path.join(buildFolder, 'sas-transcript.json')
+  const hasTranscript = fs.existsSync(transcriptSource)
+  if (hasTranscript)
+    fs.copyFileSync(
+      transcriptSource,
+      path.join(hostFolder, 'sas-transcript.json')
+    )
+
   // 3. the drive, laid out from the compile output
   fs.writeFileSync(
     path.join(hostFolder, 'vfs-seed.json'),
@@ -910,6 +925,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         jsPrograms,
         programFolders: PROGRAM_FOLDERS,
         snapshot: hasSnapshot,
+        sasTranscript: hasTranscript,
         buildStamp,
         builtAt: new Date().toISOString()
       },
@@ -934,6 +950,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     driveEntries,
     jsPrograms,
     webFileCount,
-    snapshot: hasSnapshot
+    snapshot: hasSnapshot,
+    sasTranscript: hasTranscript
   }
 }
