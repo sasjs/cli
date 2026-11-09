@@ -859,13 +859,47 @@ const routeRequest = async (request, url) => {
   try {
     await R.ensureReady()
 
-    // The app stream's listing is the server's own web route rather than one of
-    // the API's: a static site publishes nothing, and answering the listing is
-    // what lets an interface say so instead of parsing this site's index.html as
-    // JSON and reporting a parse error.
-    if (/^\/AppStream(\/|$)/i.test(path)) {
-      if (/\/apps\.json$/i.test(path)) return json({ apps: [] })
+    // The app stream is the server's own web surface rather than part of the
+    // API: the listing, the landing page and the redirect from one to the other
+    // are routes sasjs/server answers, and an interface asks for the listing on
+    // every visit. Unanswered, those requests reach the static host and the page
+    // parses this site's index.html as JSON.
+    //
+    // The answers mirror the server's, because a caller cannot tell the two
+    // hosts apart otherwise: `/AppStream` redirects to `/AppStream/`, the landing
+    // page is served, and only a name under it is missing. The listing is empty
+    // rather than read from `registry()`, which records this deployment's own
+    // folder so the delete route has something to remove: the stream really does
+    // serve nothing at `/AppStream/<name>/` here, and a listing that named it
+    // would offer a tile that 404s.
+    // `path` has its trailing slashes stripped, and these four answers differ by
+    // exactly that, so they are decided on the request's own pathname.
+    const stream = url.pathname
 
+    if (/^\/AppStream$/i.test(stream))
+      return new Response(null, {
+        status: 301,
+        headers: { location: '/AppStream/' }
+      })
+
+    if (
+      /^\/AppStream\/$/i.test(stream) ||
+      /^\/AppStream\/index\.html$/i.test(stream)
+    )
+      return new Response(
+        [
+          '<!doctype html><html><head><meta charset="utf-8">',
+          '<title>App Stream</title></head><body>',
+          '<h1>SASjs App Stream</h1>',
+          '<p>This browser host serves no apps: nothing is published on a static site.</p>',
+          '</body></html>'
+        ].join(''),
+        { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
+      )
+
+    if (/^\/AppStream\/apps\.json$/i.test(stream)) return json({ apps: [] })
+
+    if (/^\/AppStream\//i.test(stream)) {
       return json(
         {
           message:
