@@ -707,20 +707,26 @@ describe('service worker host', () => {
       expect(folder.status).toBe(200)
       expect(folder.headers.get('content-type')).toContain('text/html')
 
-      // the AppStream answers are decided on the path with its trailing slash,
+      // the app stream answers are decided on the path with its trailing slash,
       // so the folder has to come off before that, and the redirect has to stay
-      // inside it
+      // inside it. The canonical root redirects to the short path, as the server
+      // does.
       const stream = await worker.dispatch('/demo/AppStream')
       expect(stream.status).toBe(301)
-      expect(stream.headers.get('location')).toBe('/demo/AppStream/')
+      expect(stream.headers.get('location')).toBe('/demo/app')
 
-      const landing = await worker.dispatch('/demo/AppStream/')
+      const landing = await worker.dispatch('/demo/app')
       expect(landing.status).toBe(200)
       expect(landing.headers.get('content-type')).toContain('text/html')
 
-      const apps = await worker.dispatch('/demo/AppStream/apps.json')
+      const apps = await worker.dispatch('/demo/app/apps.json')
       expect(apps.status).toBe(200)
       expect(await apps.json()).toEqual({ apps: [] })
+
+      // the API answers on the short spelling too, inside the folder
+      const aliased = await worker.dispatch('/demo/api/info')
+      expect(aliased.status).toBe(200)
+      expect((await aliased.json()).mode).toBe('desktop')
 
       // a path outside the folder is not the site's to answer
       expect(worker.dispatch('/other/SASjsApi/info')).toBeUndefined()
@@ -1005,32 +1011,72 @@ describe('service worker host', () => {
     expect(await response.text()).toBe(`File doesn't exist.`)
   })
 
-  it('answers the app stream as the server does, with nothing in it', async () => {
+  it('answers the app stream on the short path, and the canonical one as an alias', async () => {
     const { dispatch } = seeded()
 
     // The listing is the server's web route rather than the API's, and an
     // interface asks for it on every visit: unanswered, the request reaches the
-    // static host and the page parses index.html as JSON.
-    const listing = await dispatch('/AppStream/apps.json')
-    expect(listing.status).toBe(200)
-    expect(await listing.json()).toEqual({ apps: [] })
+    // static host and the page parses index.html as JSON. `/app` is the default
+    // spelling; `/AppStream` answers too, because a client built before the short
+    // paths existed asks for it.
+    for (const path of ['/app/apps.json', '/AppStream/apps.json']) {
+      const listing = await dispatch(path)
+      expect(listing.status).toBe(200)
+      expect(await listing.json()).toEqual({ apps: [] })
+    }
 
-    // The two spellings of the stream root answer as sasjs/server answers them:
-    // a redirect to the slash, then the landing page - not a JSON refusal, which
-    // would make the site's own stream root look like a missing app.
+    // The landing page answers on the short path, with or without the slash, and
+    // the canonical root redirects to it - exactly as sasjs/server redirects it.
+    for (const path of ['/app', '/app/', '/app/index.html']) {
+      const landing = await dispatch(path)
+      expect(landing.status).toBe(200)
+      expect(landing.headers.get('content-type')).toContain('text/html')
+      expect(await landing.text()).toContain('serves no apps')
+    }
+
     const root = await dispatch('/AppStream')
     expect(root.status).toBe(301)
-    expect(root.headers.get('location')).toBe('/AppStream/')
+    expect(root.headers.get('location')).toBe('/app')
 
-    const landing = await dispatch('/AppStream/')
-    expect(landing.status).toBe(200)
-    expect(landing.headers.get('content-type')).toContain('text/html')
-    expect(await landing.text()).toContain('serves no apps')
+    const canonicalLanding = await dispatch('/AppStream/')
+    expect(canonicalLanding.status).toBe(200)
+    expect(await canonicalLanding.text()).toContain('serves no apps')
 
-    // A name under it is a missing app, which the server also refuses.
-    const app = await dispatch('/AppStream/Demo/')
-    expect(app.status).toBe(404)
-    expect((await app.json()).message).toContain('serves no apps')
+    // A name under either spelling is a missing app, which the server also
+    // refuses.
+    for (const path of ['/app/Demo/', '/AppStream/Demo/']) {
+      const app = await dispatch(path)
+      expect(app.status).toBe(404)
+      expect((await app.json()).message).toContain('serves no apps')
+    }
+  })
+
+  it('answers the API on /api as well as on /SASjsApi', async () => {
+    const { dispatch } = seeded()
+
+    // The short spelling is the default one now, so a client that uses it has to
+    // get the same answers - not a 404 from the static host.
+    const canonical = await dispatch('/SASjsApi/info')
+    const short = await dispatch('/api/info')
+
+    expect(short.status).toBe(200)
+    expect(await short.json()).toEqual(await canonical.json())
+
+    // A refusal keeps its shape on the alias: the drive routes answer plain
+    // text, not the JSON envelope the other routes use. That branch keys on the
+    // path, so it has to see the canonical spelling.
+    const missing = await dispatch(
+      '/api/drive/file?_filePath=' + encodeURIComponent('/missing.txt')
+    )
+    expect(missing.status).toBe(404)
+    expect(missing.headers.get('content-type')).toContain('text/plain')
+    expect(await missing.text()).toBe(`File doesn't exist.`)
+
+    // The documentation page is a file the build copies into the site, so the
+    // worker leaves `/api` and `/api/` to the static host instead of answering
+    // them as routes.
+    expect(dispatch('/api')).toBeUndefined()
+    expect(dispatch('/api/')).toBeUndefined()
   })
 
   it('leaves a request to another origin alone', () => {

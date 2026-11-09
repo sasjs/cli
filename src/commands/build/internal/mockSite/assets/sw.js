@@ -327,6 +327,15 @@ const RUNTIME = new BrowserRuntime()
  */
 const BASE = (self.location.pathname || '').replace(/\/sw\.js.*$/, '')
 
+/**
+ * The short spelling of the App Stream landing page.
+ *
+ * It is the default: the interface links to `/app`, and sasjs/server serves it
+ * there while keeping `/AppStream` as a redirect. The worker mirrors that, so a
+ * link the interface builds reaches the same page on the static demo.
+ */
+const SHORT_APP_STREAM_PATH = '/app'
+
 const withoutBase = (pathname) =>
   BASE && pathname.startsWith(BASE)
     ? pathname.slice(BASE.length) || '/'
@@ -889,6 +898,11 @@ const contentsResponse = (answer, path) => {
 
 const routeRequest = async (request, url) => {
   const path = withoutBase(url.pathname).replace(/\/+$/, '') || '/'
+  // `/api` is the short spelling of the API, and `/SASjsApi` the canonical one:
+  // both are answered, so the alias is stripped once here and everything below -
+  // the route lookup, the drive routes' plain-text refusals, the log - works
+  // from one path.
+  const apiPath = path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
@@ -901,27 +915,31 @@ const routeRequest = async (request, url) => {
     // every visit. Unanswered, those requests reach the static host and the page
     // parses this site's index.html as JSON.
     //
-    // The answers mirror the server's, because a caller cannot tell the two
-    // hosts apart otherwise: `/AppStream` redirects to `/AppStream/`, the landing
-    // page is served, and only a name under it is missing. The listing is empty
-    // rather than read from `registry()`, which records this deployment's own
-    // folder so the delete route has something to remove: the stream really does
-    // serve nothing at `/AppStream/<name>/` here, and a listing that named it
-    // would offer a tile that 404s.
-    // `path` has its trailing slashes stripped, and these four answers differ by
-    // exactly that, so they are decided on the request's own pathname - minus
-    // the folder the site is served from, which the four patterns do not name.
+    // `/app` is the spelling the interface links to and the server serves; the
+    // canonical `/AppStream` still answers, because a client built before the
+    // short paths existed asks for it. The answers are the same either way, so
+    // `/AppStream` redirects to `/app` - exactly as the server redirects it -
+    // and the landing page, the listing and the missing-name refusal are decided
+    // on both.
+    //
+    // The listing is empty rather than read from `registry()`, which records this
+    // deployment's own folder so the delete route has something to remove: the
+    // stream really does serve nothing at `/app/<name>/` here, and a listing that
+    // named it would offer a tile that 404s.
+    // `path` has its trailing slashes stripped, and the landing answers differ by
+    // exactly that, so they are decided on the request's own pathname - minus the
+    // folder the site is served from, which the patterns do not name.
     const stream = withoutBase(url.pathname)
 
     if (/^\/AppStream$/i.test(stream))
       return new Response(null, {
         status: 301,
-        headers: { location: `${BASE}/AppStream/` }
+        headers: { location: `${BASE}${SHORT_APP_STREAM_PATH}` }
       })
 
     if (
-      /^\/AppStream\/$/i.test(stream) ||
-      /^\/AppStream\/index\.html$/i.test(stream)
+      /^\/(app|AppStream)\/?$/i.test(stream) ||
+      /^\/(app|AppStream)\/index\.html$/i.test(stream)
     )
       return new Response(
         [
@@ -934,9 +952,10 @@ const routeRequest = async (request, url) => {
         { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
       )
 
-    if (/^\/AppStream\/apps\.json$/i.test(stream)) return json({ apps: [] })
+    if (/^\/(app|AppStream)\/apps\.json$/i.test(stream))
+      return json({ apps: [] })
 
-    if (/^\/AppStream\//i.test(stream)) {
+    if (/^\/(app|AppStream)\//i.test(stream)) {
       return json(
         {
           message:
@@ -948,8 +967,9 @@ const routeRequest = async (request, url) => {
 
     // The package's own matcher, so a route is recognised however its path is
     // cased and its parameters are read the way the document states them.
-    const matched = API.findRoute(request.method, path)
-    if (!matched) return json({ message: 'Not part of the API: ' + path }, 404)
+    const matched = API.findRoute(request.method, apiPath)
+    if (!matched)
+      return json({ message: 'Not part of the API: ' + apiPath }, 404)
 
     const routeId = matched.route.id
     const subject = await subjectOf(request, query)
@@ -1023,7 +1043,7 @@ const routeRequest = async (request, url) => {
     // envelope the other routes already answer with.
     if (API.isApiError(e)) {
       if (e.body !== undefined) return json(e.body, e.status)
-      if (path.includes('/SASjsApi/drive/')) return text(e.message, e.status)
+      if (apiPath.includes('/SASjsApi/drive/')) return text(e.message, e.status)
       return json({ message: e.message }, e.status)
     }
     return json(
@@ -1079,10 +1099,17 @@ self.addEventListener('fetch', (event) => {
   // The host's own paths are answered here, including one the table does not
   // have - falling through to the static host would put the SPA's index.html
   // behind a typo in a caller's URL, or behind a listing an interface parses as
-  // JSON. `/AppStream` is one of those: the package serves app deployments, but
-  // the listing is the server's web route, and an interface that lists apps asks
-  // for it on every visit.
-  if (!/^\/(SASjsApi|SASLogon|AppStream)(\/|$)/i.test(path)) return
+  // JSON. `/app` is one of those: the package serves app deployments, but the
+  // listing is the server's web route, and an interface that lists apps asks for
+  // it on every visit.
+  //
+  // `/api` and `/api/` on their own are the API's documentation page - a file
+  // the build copies into the site - so the worker stays out of the way there
+  // and the static host answers it. Every other `/api/...` is an API call on the
+  // short spelling, which routeRequest canonicalises to `/SASjsApi`.
+  if (/^\/api\/?$/i.test(path)) return
+
+  if (!/^\/(SASjsApi|SASLogon|AppStream|api|app)(\/|$)/i.test(path)) return
   event.respondWith(handle(event.request, url))
 })
 
