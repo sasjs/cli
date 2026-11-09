@@ -411,12 +411,15 @@ const assertSafeOutputFolder = (
     throw refusal('that folder is outside the project')
 }
 
-const countJsPrograms = (files: { [path: string]: string }) =>
+const countPrograms = (
+  files: { [path: string]: string },
+  extension: '.js' | '.sas'
+) =>
   Object.keys(files).filter((key) => {
     const inProgramFolder = PROGRAM_FOLDERS.some((folder) =>
       key.includes(`/${folder}/`)
     )
-    return inProgramFolder && key.toLowerCase().endsWith('.js')
+    return inProgramFolder && key.toLowerCase().endsWith(extension)
   }).length
 
 /** The script-tag attributes that change how an app's script runs. */
@@ -661,13 +664,30 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     excluded,
     [outputFolder]
   )
-  const jsPrograms = countJsPrograms(seed)
+  const jsPrograms = countPrograms(seed, '.js')
+  const sasPrograms = countPrograms(seed, '.sas')
   const driveEntries = Object.keys(seed).length
 
-  if (jsPrograms === 0) {
+  // A build holding SAS and no JavaScript is a SAS target: its services cannot
+  // run here, and seeding them would produce a site whose buttons answer 400.
+  // A build holding NEITHER is a frontend host - the app is the whole thing and
+  // the worker answers its API - which is what an interface with no services
+  // compiles to, and the case this site is built for.
+  if (jsPrograms === 0 && sasPrograms > 0) {
     throw new Error(
-      `No .js programs in ${buildFolder}/services, /jobs or /tests. This target builds SAS code, which cannot run in a browser. ` +
+      `No .js programs in ${buildFolder}/services, /jobs or /tests, but ${sasPrograms} SAS program(s). This target builds SAS code, which cannot run in a browser. ` +
         'Build a target whose services are JavaScript (typically a mocks project).'
+    )
+  }
+
+  // Nothing at all in the build folder is a different thing again: a compile
+  // that produced nothing, or a stale sasjsbuild from an unrelated command. The
+  // site would ship with an empty drive, so it is said out loud rather than
+  // mistaken for an interface.
+  if (driveEntries === 0) {
+    process.logger?.warn(
+      `${buildFolder} holds no programs, so this site ships with an empty drive. ` +
+        'That is expected for an interface with no services; for anything else, check that compile wrote the target.'
     )
   }
 
