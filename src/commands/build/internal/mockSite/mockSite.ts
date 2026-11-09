@@ -562,11 +562,55 @@ const markBrowserHost = (html: string, warnings: string[]) => {
 }
 
 /**
+ * Each app script's URL carries a hash of the script's own contents.
+ *
+ * A static host caches an asset for as long as it says to, and GitHub Pages says
+ * two hours - while the app's bundle name never changes from one build to the
+ * next. So a publish that changes only the app reuses the previous URL, and a
+ * visitor inside that window runs the previous build against the new page: the
+ * screens the new build adds simply never appear, and the ones it removed keep
+ * working. Only the host's own files were versioned before (`?v=` on boot.js and
+ * the worker's imports), and those change with the CLI, not with the app.
+ *
+ * A src that names no file in the output is left alone: a page may load a
+ * script from somewhere this build does not own, and guessing a version for it
+ * would break it.
+ */
+const versionScripts = (
+  scripts: { [key: string]: string }[],
+  outputFolder: string
+) =>
+  scripts.map((script) => {
+    const src = script.src
+
+    if (!src) return script
+
+    const [pathname, query] = src.split('?')
+    const file = path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
+
+    if (!fs.existsSync(file)) return script
+
+    const hash = createHash('md5')
+      .update(fs.readFileSync(file))
+      .digest('hex')
+      .slice(0, 10)
+
+    return Object.assign({}, script, {
+      src: `${pathname}?v=${hash}${query ? `&${query}` : ''}`
+    })
+  })
+
+/**
  * Points the app at its own origin and replaces its script tags with the boot
  * loader. Both changes are reported when the expected markup is absent, rather
  * than producing a site that silently talks to a real server.
  */
-const patchIndexHtml = (html: string, version: string, basePath = '') => {
+const patchIndexHtml = (
+  html: string,
+  version: string,
+  basePath = '',
+  outputFolder = ''
+) => {
   const warnings: string[] = []
   let patched = html
 
@@ -625,7 +669,10 @@ const patchIndexHtml = (html: string, version: string, basePath = '') => {
   )
 
   if (scripts.length) {
-    const tag = bootTag(scripts, version, basePath)
+    const versioned = outputFolder
+      ? versionScripts(scripts, outputFolder)
+      : scripts
+    const tag = bootTag(versioned, version, basePath)
     patched = /<\/body>/i.test(patched)
       ? patched.replace(/<\/body>/i, `${tag}\n</body>`)
       : patched + tag
@@ -939,7 +986,8 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const { patched, warnings } = patchIndexHtml(
     fs.readFileSync(indexPath, 'utf8'),
     hostVersion,
-    basePath
+    basePath,
+    outputFolder
   )
   fs.writeFileSync(indexPath, patched)
   warnings.forEach((warning) => process.logger?.warn(warning))

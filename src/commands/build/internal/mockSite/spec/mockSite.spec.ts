@@ -361,7 +361,54 @@ describe('browser-hosted build', () => {
     // the app's own tags are replayed by the loader, in the order the page has
     // them, and are gone from the page itself
     expect(html).not.toContain('<script src="main.abc123.js"')
-    expect(html).toContain('"src":"main.abc123.js","type":"module"')
+    expect(html).toContain('"src":"main.abc123.js?v=')
+    expect(html).toContain('","type":"module"')
+  })
+
+  /**
+   * A publish that changes only the app has to reach a reader whose browser
+   * still holds the previous copy. The host caches an asset for two hours and the
+   * bundle's name never changes, so the URL is what has to change.
+   */
+  it('gives each app script a URL that follows its contents', async () => {
+    const specs = () => {
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const tag = html.match(/data-scripts='([^']*)'/)
+
+      return JSON.parse(
+        tag![1].replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+      ) as { src?: string; type?: string }[]
+    }
+
+    await buildMockSite(target())
+    const first = specs()[0].src
+
+    expect(first).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
+
+    // the same file twice: nothing about the URL changes
+    await buildMockSite(target())
+    expect(specs()[0].src).toBe(first)
+
+    // a different bundle: a different URL, which is the caching bust
+    write(
+      path.join(root, 'client', 'dist', 'main.abc123.js'),
+      'console.log(2)\n'
+    )
+    await buildMockSite(target())
+    expect(specs()[0].src).not.toBe(first)
+
+    // and a script this build does not own is left exactly as the page asked
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title></head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
+        '<script src="https://cdn.example.com/lib.js"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+    await buildMockSite(target())
+    expect(specs()[0].src).toBe('https://cdn.example.com/lib.js')
   })
 
   it('states in the page that the API is answered here', async () => {
