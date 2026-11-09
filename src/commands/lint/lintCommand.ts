@@ -4,15 +4,42 @@ import { CommandExample, ReturnCode } from '../../types/command'
 import { CommandBase } from '../../types'
 import { displayError, displaySuccess } from '../../utils'
 
+const subCommands = ['init', 'fix', 'find']
+const failOnValues = ['error', 'warning']
+
+type FailOn = 'error' | 'warning'
+
 const syntax = 'lint <subCommand> [filterStrings..]'
-const usage = 'sasjs lint [ find | fix | init ]'
+const usage = 'sasjs lint [ find | fix | init ] [--fail-on error|warning]'
 const description = `Provides the capability to identify, for SAS file, whether there are any ERRORs or WARNINGs present and if so, which line number they are on.`
+
+/**
+ * Inserts the default `find` subcommand unless the first argument is already a
+ * subcommand, so `sasjs lint --fail-on warning` and `sasjs lint src/app.sas`
+ * both report rather than fail to parse. The check is made on the arguments
+ * rather than on their number, because an option and its value count as
+ * arguments and used to push the subcommand out of position.
+ */
+const withDefaultSubCommand = (args: string[]): string[] => {
+  const firstPositional = args.slice(3).find((arg) => !arg.startsWith('-'))
+
+  return firstPositional && subCommands.includes(firstPositional)
+    ? args
+    : [...args.slice(0, 3), 'find', ...args.slice(3)]
+}
+
 const examples: CommandExample[] = [
   {
     command: 'sasjs lint',
     description:
       'Lints all .sas files in the current project.\n' +
       'All the exceptions (along with line / column numbers) will be shown in the console.'
+  },
+  {
+    command: 'sasjs lint --fail-on warning',
+    description:
+      'Lints all .sas files in the current project and fails on a warning as well as an error.\n' +
+      'The same can be set for every run by adding `"default": "error"` to `severityLevel` in `.sasjslint`.'
   },
   {
     command: 'sasjs lint find mf_a mf_b',
@@ -64,20 +91,38 @@ const examples: CommandExample[] = [
 
 export class LintCommand extends CommandBase {
   constructor(args: string[]) {
-    if (args.length < 4) {
-      args.splice(3, 0, 'find')
-    }
-
-    super(args, {
+    super(withDefaultSubCommand(args), {
       syntax,
       usage,
       description,
-      examples
+      examples,
+      parseOptions: {
+        'fail-on': {
+          type: 'string',
+          description: `Lowest severity that fails the command: ${failOnValues.join(
+            ', '
+          )}. Defaults to error, so a warning is reported without failing. Applies to the report run, not to lint fix.`
+        }
+      }
     })
   }
 
   public async execute() {
-    const { subCommand, filterStrings } = this.parsed
+    const { subCommand, filterStrings, failOn } = this.parsed
+
+    if (failOn !== undefined && !failOnValues.includes(failOn as FailOn)) {
+      displayError(
+        new Error(
+          `Invalid value for --fail-on: ${failOn}. Use one of ${failOnValues.join(
+            ', '
+          )}.`
+        )
+      )
+
+      return ReturnCode.InvalidCommand
+    }
+
+    const failOnSeverity: FailOn = (failOn as FailOn) ?? 'error'
 
     if (subCommand === 'init') {
       return await initLint()
@@ -117,6 +162,15 @@ export class LintCommand extends CommandBase {
       .then((result) => {
         if (result.errors) {
           displayError('Please fix the identified lint errors.')
+          return ReturnCode.LintError
+        }
+        if (result.warnings && failOnSeverity === 'warning') {
+          const count = result.warningCount
+          displayError(
+            count === 1
+              ? '1 lint warning treated as an error because of --fail-on warning. Please fix it.'
+              : `${count} lint warnings treated as errors because of --fail-on warning. Please fix them.`
+          )
           return ReturnCode.LintError
         }
         if (result.warnings) {

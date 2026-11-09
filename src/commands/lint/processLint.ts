@@ -11,9 +11,20 @@ import {
 } from '@sasjs/lint'
 import { asyncForEach, listSasFilesInFolder } from '@sasjs/utils'
 
+/**
+ * `sasjs lint` is documented to work without a `sasjsconfig.json`, and loading
+ * that file is the only thing that sets `process.projectDir` - so a filter
+ * string is resolved against the current directory when no project was loaded.
+ */
+const getProjectDir = () => process.projectDir || process.cwd()
+
 interface LintResult {
   warnings: boolean
   errors: boolean
+  /** Number of WARNING diagnostics found, across every linted file. */
+  warningCount: number
+  /** Number of ERROR diagnostics found, across every linted file. */
+  errorCount: number
 }
 
 /**
@@ -63,7 +74,7 @@ export async function lintFix(filterArray: string[] = []) {
         .join('|')
 
       const regex = new RegExp(regexPattern)
-      const sasFiles = await listSasFilesInFolder(process.projectDir, true, [
+      const sasFiles = await listSasFilesInFolder(getProjectDir(), true, [
         'node_modules'
       ])
 
@@ -124,7 +135,12 @@ export async function lintFix(filterArray: string[] = []) {
 export async function processLint(
   filterArray: string[] = []
 ): Promise<LintResult> {
-  const found: LintResult = { warnings: false, errors: false }
+  const found: LintResult = {
+    warnings: false,
+    errors: false,
+    warningCount: 0,
+    errorCount: 0
+  }
   let sasjsDiagnosticsMap: Map<string, Diagnostic[]> = new Map<
     string,
     Diagnostic[]
@@ -153,14 +169,14 @@ export async function processLint(
         .join('|')
 
       const regex = new RegExp(regexPattern)
-      const sasFiles = await listSasFilesInFolder(process.projectDir, true, [
+      const sasFiles = await listSasFilesInFolder(getProjectDir(), true, [
         'node_modules'
       ])
 
       const filesToLint = sasFiles.filter((file) => regex.test(file))
 
       await asyncForEach(filesToLint, async (file) => {
-        const filePath = path.join(process.projectDir, file)
+        const filePath = path.join(getProjectDir(), file)
         sasjsDiagnosticsMap.set(filePath, await lintFile(filePath))
       })
     }
@@ -171,16 +187,14 @@ export async function processLint(
 
   sasjsDiagnosticsMap.forEach(
     (sasjsDiagnostics: Diagnostic[], filePath: string) => {
-      found.warnings =
-        found.warnings ||
-        !!sasjsDiagnostics.find(
-          (d: Diagnostic) => d.severity === Severity.Warning
-        )
-      found.errors =
-        found.errors ||
-        !!sasjsDiagnostics.find(
-          (d: Diagnostic) => d.severity === Severity.Error
-        )
+      found.warningCount += sasjsDiagnostics.filter(
+        (d: Diagnostic) => d.severity === Severity.Warning
+      ).length
+      found.errorCount += sasjsDiagnostics.filter(
+        (d: Diagnostic) => d.severity === Severity.Error
+      ).length
+      found.warnings = found.warnings || found.warningCount > 0
+      found.errors = found.errors || found.errorCount > 0
       if (sasjsDiagnostics.length) {
         displayDiagnostics(filePath, sasjsDiagnostics)
       }
