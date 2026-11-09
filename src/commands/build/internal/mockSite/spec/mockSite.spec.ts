@@ -503,6 +503,42 @@ describe('browser-hosted build', () => {
     expect(readConfig().snapshot).toBe(true)
   })
 
+  it('ships a recorded SAS session when the project has one', async () => {
+    // Without a recording a .sas run is refused; with one, the host answers the
+    // program it names with that session. The file is data in the project, so
+    // the build only has to carry it into the site.
+    const recording = {
+      [`/sasjs/drive/files${appLoc}/services/public/report.sas`]: {
+        log: 'NOTE: Copyright (c) 2016 by SAS Institute Inc., Cary, NC, USA.',
+        print: 'The SAS System',
+        webout: '{"SYSSITE":"00000000"}'
+      }
+    }
+    write(
+      path.join(root, 'sasjsbuild', 'sas-transcript.json'),
+      JSON.stringify(recording)
+    )
+
+    const result = await buildMockSite(target())
+
+    expect(result.sasTranscript).toBe(true)
+    expect(
+      JSON.parse(
+        fs.readFileSync(path.join(out(), 'host', 'sas-transcript.json'), 'utf8')
+      )
+    ).toEqual(recording)
+    expect(readConfig().sasTranscript).toBe(true)
+  })
+
+  it('ships no recording when the project has none', async () => {
+    const result = await buildMockSite(target())
+
+    expect(result.sasTranscript).toBe(false)
+    expect(fs.existsSync(path.join(out(), 'host', 'sas-transcript.json'))).toBe(
+      false
+    )
+  })
+
   it('ships no snapshot when the project has none', async () => {
     const result = await buildMockSite(target())
 

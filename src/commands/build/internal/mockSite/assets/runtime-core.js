@@ -1525,6 +1525,9 @@ const api = {
     bytes: [...FILES.keys()].reduce((total, abs) => total + entrySizeAt(abs), 0)
   }),
   run: (payload) => runProgram(payload),
+  // the file a program names, so the host can tell a .sas program from a .js one
+  // and refuse the former instead of compiling SAS source as JavaScript
+  resolveProgram: (program) => resolveProgram(program),
   // the drive's bytes, for @sasjs/api's services: the rules that decide a
   // status are the package's, so this host hands over storage and nothing else
   driveStore,

@@ -181,19 +181,21 @@ const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
  * it.
  */
 const artifactOf = (result, debug) => {
-  if (debug)
+  if (debug) {
+    // webout SEP log SEP [listing] - the framing @sasjs/adapter and the Studio's
+    // parser both split on, so a recorded session reads the same as a real one.
+    const framed = [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR]
+
+    if (result.print) framed.push(result.print)
+
     return {
-      contents: [
-        result.webout,
-        LOGS_SEPARATOR,
-        result.log,
-        LOGS_SEPARATOR
-      ].join('\n'),
+      contents: framed.join('\n'),
       // the frame is text, and the service's own type and disposition are not
       // applied to it - a download there would put the frame in the file
       headers: { 'content-type': 'text/plain' },
       log: result.log
     }
+  }
 
   const headers = parseHeaders(result.headers)
   let contents = result.webout
@@ -231,6 +233,66 @@ const persistChanges = async () => {
     await broadcast({ type: 'sasjs-persist', files })
 }
 
+// ----------------------------------------------------------- the SAS transcript
+/**
+ * A recorded SAS session, for a project that ships one.
+ *
+ * A browser has no SAS binary. Rather than let a Run on a .sas program be a
+ * surprise, a project may record a session once and commit it as
+ * `sas-transcript.json`: the build copies it into the site and this answers a
+ * run of a program it names with that session's log, listing and webout. The
+ * recording is the demo's own data, so nothing here is invented for a project
+ * that does not ship one - those runs reach the runner and are refused exactly
+ * as before.
+ *
+ * Shape: `{ "<program path>": {"log": "...", "print": "...", "webout": "..."} }`,
+ * all three strings. The path is matched as written apart from the
+ * `/sasjs/drive/files` prefix and the `.sas` suffix, so a recording keeps the
+ * path a person sees; a bare file name is not enough, because that would answer
+ * every file of that name in the drive.
+ */
+const SAS_TRANSCRIPT = 'host/sas-transcript.json'
+let TRANSCRIPT = null
+
+const transcript = async () => {
+  if (TRANSCRIPT) return TRANSCRIPT
+  try {
+    const response = await fetch(SAS_TRANSCRIPT, { cache: 'no-cache' })
+    TRANSCRIPT = response.ok ? await response.json() : {}
+  } catch (e) {
+    TRANSCRIPT = {}
+  }
+  return TRANSCRIPT
+}
+
+/**
+ * The drive path without its mount prefix or extension.
+ *
+ * A recording is written with the path a person sees (`/sasjs/drive/files/...`,
+ * ending in `.sas`); the route hands the request the path relative to the app,
+ * and Studio asks for it without the extension. Comparing the logical path makes
+ * those the same program without widening the match to the file name alone,
+ * which would answer every `report.sas` in the drive with a session recorded for
+ * some other file.
+ */
+const logicalPath = (value) =>
+  String(value || '')
+    .replace(/^\/sasjs\/drive\/files/i, '')
+    .replace(/\.sas$/i, '')
+
+/** The recording naming this program, if the project shipped one. */
+const transcriptFor = async (programPath) => {
+  const requested = logicalPath(programPath)
+  if (!requested) return undefined
+
+  const recorded = await transcript()
+
+  for (const key of Object.keys(recorded))
+    if (logicalPath(key) === requested) return recorded[key]
+
+  return undefined
+}
+
 // ---------------------------------------------------------------- the runner
 /**
  * The work a run does, over the browser's drive.
@@ -250,6 +312,19 @@ class BrowserRuntime extends API.MemorySessionHost {
   async run(request) {
     const program = request.program || {}
     const params = Object.assign({}, request.vars || {})
+
+    // A SAS program the recording does not name. This host has no SAS binary, so
+    // the answer is the refusal a client already understands - not a JavaScript
+    // SyntaxError quoting the SAS source, which is what handing it to the runner
+    // would produce. The file is resolved because the request may name the
+    // program without its extension.
+    if (program.code === undefined) {
+      const resolved = R.resolveProgram(program.path)
+
+      if (resolved && /\.sas$/i.test(resolved))
+        throw runFailure('"runTime" must be one of [js]')
+    }
+
     const payload = { params, tables: tablesOf(request.files) }
     if (program.code !== undefined) payload.code = program.code
     else payload.program = program.path
@@ -516,8 +591,10 @@ const SERVICES = {
   identity: IDENTITY,
   records: RECORDS,
   runtime: API.createRuntimeService(IDENTITY_STORE, RUNTIME, {
-    // the one run time a browser holds; a stored program asks for another and
-    // is refused with the package's own message
+    // The one run time this host executes. A recorded SAS session is answered
+    // before the runner (see SAS_TRANSCRIPT below), not by claiming a `sas` run
+    // time - a .sas program with no recording must still be refused, and a route
+    // that accepted `sas` would compile SAS source as JavaScript instead.
     runTimes: ['js']
   }),
   session: API.createSessionService(IDENTITY_STORE, RUNTIME),
@@ -858,6 +935,33 @@ const runRoute = async (routeId, payload, subject) => {
   } else {
     // the query wins over the body, which is the order the server resolves them in
     runRequest.program = query._program || body._program
+  }
+
+  // A recorded SAS session is answered here, ahead of the run time check: a
+  // transcript is data, not a run time, and this host holds only `js`. Accepting
+  // `sas` instead would make the package compile SAS source as JavaScript and
+  // hand back a SyntaxError where every other .sas program gets a refusal.
+  // Neither a code run nor a trigger: a trigger has to answer with the session
+  // record the route builds, which a client parses as JSON, so a recording is not
+  // an answer there.
+  if (!code && !trigger) {
+    const recording = await transcriptFor(runRequest.program)
+
+    if (recording)
+      return artifactResponse(
+        artifactOf(
+          {
+            webout: recording.webout || '',
+            log: recording.log || '',
+            print: recording.print || '',
+            // the seed every session starts with, so a run without `_debug`
+            // answers text/html rather than leaving the type to the browser -
+            // the same rule runtime-core applies to a service that declares none
+            headers: SEEDED_HEADER_LINE
+          },
+          vars._debug !== undefined
+        )
+      )
   }
 
   if (trigger) {
