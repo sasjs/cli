@@ -369,7 +369,8 @@ export async function printHelpText() {
       name: 'lint',
       title: 'lint',
       description: [
-        `Provides the capability to identify, for SAS file, whether there are any ERRORs or WARNINGs present and if so, which line number they are on.`
+        `Provides the capability to identify, for SAS file, whether there are any ERRORs or WARNINGs present and if so, which line number they are on.`,
+        `[2spaces]command example: sasjs lint --fail-on warning`
       ]
     },
     {
