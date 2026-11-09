@@ -33,9 +33,9 @@
  * services are the package's; this file supplies the transport, the worker's own
  * activity, and the browser's answers to questions a server asks its process.
  */
-importScripts('/host/runtime-core.js')
-importScripts('/host/api-browser.js')
-importScripts('/host/lint-browser.js')
+importScripts('host/runtime-core.js')
+importScripts('host/api-browser.js')
+importScripts('host/lint-browser.js')
 
 const R = self.SASjsMockRuntime
 
@@ -317,6 +317,21 @@ const tablesOf = (files) => {
 
 const RUNTIME = new BrowserRuntime()
 
+/**
+ * The folder this site is served from.
+ *
+ * Empty at the origin root, `/demo` where a host publishes the demonstration
+ * site beside its own docs. The worker sits at `<base>/sw.js`, so its own
+ * location names the base and the route table can keep matching the paths the
+ * document states.
+ */
+const BASE = (self.location.pathname || '').replace(/\/sw\.js.*$/, '')
+
+const withoutBase = (pathname) =>
+  BASE && pathname.startsWith(BASE)
+    ? pathname.slice(BASE.length) || '/'
+    : pathname
+
 // ------------------------------------------------------------- host reports
 // The Admin routes ask a host what it is doing. A browser has no process, but it
 // does have a page, a heap and this worker's own activity, so the reports are
@@ -448,7 +463,7 @@ const registry = () => {
     registryPromise = (async () => {
       let appLoc
       try {
-        const config = await (await fetch('/host/mock-config.json')).json()
+        const config = await (await fetch('host/mock-config.json')).json()
         appLoc = config && config.appLoc
       } catch (e) {
         appLoc = undefined
@@ -477,7 +492,7 @@ const contentVersion = (text) => {
 
 const homeService = API.createHomeService(async () => {
   try {
-    const response = await fetch('/index.html', { cache: 'no-store' })
+    const response = await fetch('index.html', { cache: 'no-store' })
     if (!response.ok) return undefined
     const html = await response.text()
     return { html, version: contentVersion(html) }
@@ -860,7 +875,7 @@ const contentsResponse = (answer, path) => {
 }
 
 const routeRequest = async (request, url) => {
-  const path = url.pathname.replace(/\/+$/, '') || '/'
+  const path = withoutBase(url.pathname).replace(/\/+$/, '') || '/'
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
@@ -881,13 +896,14 @@ const routeRequest = async (request, url) => {
     // serve nothing at `/AppStream/<name>/` here, and a listing that named it
     // would offer a tile that 404s.
     // `path` has its trailing slashes stripped, and these four answers differ by
-    // exactly that, so they are decided on the request's own pathname.
-    const stream = url.pathname
+    // exactly that, so they are decided on the request's own pathname - minus
+    // the folder the site is served from, which the four patterns do not name.
+    const stream = withoutBase(url.pathname)
 
     if (/^\/AppStream$/i.test(stream))
       return new Response(null, {
         status: 301,
-        headers: { location: '/AppStream/' }
+        headers: { location: `${BASE}/AppStream/` }
       })
 
     if (
@@ -1012,13 +1028,14 @@ const handle = async (request, url) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
+  const path = withoutBase(url.pathname)
 
   // The site's own page is answered by the home route, but a navigation must
   // never be at the API's mercy: if that route throws or answers an error, the
   // request falls back to the static host, which holds the same index.html. A
   // broken API route can cost a client its data; it must not cost the app its
   // page.
-  if (url.pathname === '/') {
+  if (path === '/') {
     event.respondWith(
       (async () => {
         try {
@@ -1039,7 +1056,7 @@ self.addEventListener('fetch', (event) => {
   // JSON. `/AppStream` is one of those: the package serves app deployments, but
   // the listing is the server's web route, and an interface that lists apps asks
   // for it on every visit.
-  if (!/^\/(SASjsApi|SASLogon|AppStream)(\/|$)/i.test(url.pathname)) return
+  if (!/^\/(SASjsApi|SASLogon|AppStream)(\/|$)/i.test(path)) return
   event.respondWith(handle(event.request, url))
 })
 

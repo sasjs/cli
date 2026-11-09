@@ -141,13 +141,13 @@ describe('browser-hosted build', () => {
     // both imports carry the host version: a worker caches what it imports, so
     // a rebuild that changes either file has to change the URL
     expect(sw).toMatch(
-      /importScripts\('\/host\/runtime-core\.js\?v=[0-9a-f]{10}'\)/
+      /importScripts\('host\/runtime-core\.js\?v=[0-9a-f]{10}'\)/
     )
     expect(sw).toMatch(
-      /importScripts\('\/host\/api-browser\.js\?v=[0-9a-f]{10}'\)/
+      /importScripts\('host\/api-browser\.js\?v=[0-9a-f]{10}'\)/
     )
     expect(sw).toMatch(
-      /importScripts\('\/host\/lint-browser\.js\?v=[0-9a-f]{10}'\)/
+      /importScripts\('host\/lint-browser\.js\?v=[0-9a-f]{10}'\)/
     )
     expect(sw).not.toContain("importScripts('/host/runtime-core.js')")
   })
@@ -289,6 +289,25 @@ describe('browser-hosted build', () => {
     for (const sentinel of Object.values(prelude.sentinels)) {
       expect(prelude.template).toContain(JSON.stringify(sentinel))
     }
+  })
+
+  it('serves the site under a folder when the target names one', async () => {
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toContain('serverurl="/demo"')
+    // the loader and the host's files stay relative to the page, so the same
+    // build works at the origin root and under the folder
+    expect(html).toContain('<script src="host/boot.js?v=')
+  })
+
+  it('refuses a base path that is not a folder path', async () => {
+    await expect(
+      buildMockSite(target({ mockWebBasePath: '/demo?x=1' }))
+    ).rejects.toThrow(/mockWebBasePath/)
+    await expect(
+      buildMockSite(target({ mockWebBasePath: '../escape' }))
+    ).rejects.toThrow(/mockWebBasePath/)
   })
 
   it('points the app at itself and installs the boot loader', async () => {

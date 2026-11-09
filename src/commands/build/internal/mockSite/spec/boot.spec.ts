@@ -41,6 +41,8 @@ type Options = {
   noStamp?: boolean
   /** srcs whose script fails to load */
   failSrcs?: string[]
+  /** the page's own URL, which decides where the worker is registered */
+  href?: string
 }
 
 const loadBoot = (specs: any[], options: Options = {}) => {
@@ -127,7 +129,10 @@ const loadBoot = (specs: any[], options: Options = {}) => {
       stored[key] = value
     }
   }
-  ;(global as any).location = { reload: () => timeline.push('reload') }
+  ;(global as any).location = {
+    href: options.href || 'http://localhost:8123/',
+    reload: () => timeline.push('reload')
+  }
   jest.spyOn(console, 'error').mockImplementation(() => {})
 
   require('../assets/boot.js')
@@ -153,15 +158,27 @@ describe('the boot loader', () => {
     delete (global as any).location
   })
 
-  it("registers the worker at the site root, at the build's version", async () => {
+  it("registers the worker beside the page, at the build's version", async () => {
     const { registered } = loadBoot([])
     await settle()
 
     // a cached sw.js would keep a returning visitor on the previous build's
-    // worker, so the URL carries the host version and the check skips the cache
+    // worker, so the URL carries the host version and the check skips the cache.
+    // The scope is the page's own folder: the site is served from the origin
+    // root on one host and from /demo beside its docs on another.
     expect(registered).toEqual([
-      '/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: '/', updateViaCache: 'none' })
+      'http://localhost:8123/sw.js?v=abc123 ' +
+        JSON.stringify({ scope: './', updateViaCache: 'none' })
+    ])
+  })
+
+  it('registers the worker under the folder the page is served from', async () => {
+    const { registered } = loadBoot([], { href: 'http://localhost:8123/demo/' })
+    await settle()
+
+    expect(registered).toEqual([
+      'http://localhost:8123/demo/sw.js?v=abc123 ' +
+        JSON.stringify({ scope: './', updateViaCache: 'none' })
     ])
   })
 
@@ -259,7 +276,7 @@ describe('the boot loader', () => {
     const { registered } = loadBoot([], { noStamp: true })
     await settle()
 
-    expect(registered[0]).toMatch(/^\/sw\.js /)
+    expect(registered[0]).toMatch(/\/sw\.js \{/)
   })
 
   it('boots the host with no app scripts when the tag carries no config', async () => {
@@ -335,7 +352,10 @@ describe('the boot loader', () => {
     ;(global as any).navigator = {}
     ;(global as any).window = {}
     ;(global as any).sessionStorage = { getItem: () => null, setItem: () => {} }
-    ;(global as any).location = { reload: () => {} }
+    ;(global as any).location = {
+      href: 'http://localhost:8123/',
+      reload: () => {}
+    }
     jest.spyOn(console, 'error').mockImplementation(() => {})
 
     require('../assets/boot.js')
