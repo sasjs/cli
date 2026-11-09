@@ -5,20 +5,30 @@ import { commandFactory } from './commandFactory'
 // `sasjs version`, `sasjs v`, `sasjs -v` and `sasjs --version` all mean the
 // same thing. yargs reads a leading `-v`/`--version` as an option rather than
 // a command, and its own version handling is switched off, so the token is
-// rewritten to the command name before dispatch.
+// rewritten to the command name before dispatch. The help flags get the same
+// treatment: `sasjs --help` is the first thing most people try, and letting it
+// fall through made the root answer "Invalid SASjs command: --help".
 const versionFlags = ['-v', '--version']
+const helpFlags = ['-h', '--help']
 
 /**
- * Rewrites a version flag in the command position to the `version` command.
+ * Rewrites a version or help flag in the command position to the command it
+ * stands for.
  *
  * @param args - the process arguments, as `[node, sasjs, ...]`
  */
 export const normaliseArgs = (args: string[]): string[] => {
   const [, , command] = args
 
-  return versionFlags.includes(command)
-    ? [...args.slice(0, 2), 'version', ...args.slice(3)]
-    : args
+  if (versionFlags.includes(command)) {
+    return [...args.slice(0, 2), 'version', ...args.slice(3)]
+  }
+
+  if (helpFlags.includes(command)) {
+    return [...args.slice(0, 2), 'help', ...args.slice(3)]
+  }
+
+  return args
 }
 
 /**

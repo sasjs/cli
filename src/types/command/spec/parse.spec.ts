@@ -12,6 +12,15 @@ describe('parse', () => {
     }
   )
 
+  it.each(['help', '-h', '--help'])(
+    'resolves `sasjs %s` to the help command',
+    (token: string) => {
+      const command = parse(['node', 'sasjs', token])
+
+      expect(command!.name).toEqual('help')
+    }
+  )
+
   it('leaves another command as it is', () => {
     const command = parse(['node', 'sasjs', 'help'])
 
@@ -53,6 +62,17 @@ describe('normaliseArgs', () => {
         'node',
         'sasjs',
         'version'
+      ])
+    }
+  )
+
+  it.each(['-h', '--help'])(
+    'rewrites %s in the command position to the help command',
+    (flag: string) => {
+      expect(normaliseArgs(['node', 'sasjs', flag])).toEqual([
+        'node',
+        'sasjs',
+        'help'
       ])
     }
   )
