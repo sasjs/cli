@@ -41,8 +41,10 @@ type Options = {
   noStamp?: boolean
   /** srcs whose script fails to load */
   failSrcs?: string[]
-  /** the page's own URL, which decides where the worker is registered */
+  /** the page's own URL */
   href?: string
+  /** the folder the site is published in, as the target would name it */
+  basePath?: string
 }
 
 const loadBoot = (specs: any[], options: Options = {}) => {
@@ -69,13 +71,12 @@ const loadBoot = (specs: any[], options: Options = {}) => {
   // slash - a relative tag would resolve against the page and, at `/demo`, name
   // the origin root.
   const pageHref = options.href || 'http://localhost:8123/'
-  const page = new URL(pageHref)
-  const basePath = page.pathname.replace(/\/+$/, '')
-  const loaderSrc =
-    page.origin +
-    basePath +
-    '/host/boot.js' +
-    (options.noStamp ? '' : '?v=abc123')
+  const stamp = options.noStamp ? '' : '?v=abc123'
+  // the tag the build emits: absolute when the target names a folder, relative
+  // to the page when it does not
+  const loaderSrc = options.basePath
+    ? `${new URL(pageHref).origin}${options.basePath}/host/boot.js${stamp}`
+    : new URL('host/boot.js' + stamp, pageHref).href
 
   const document: any = {
     currentScript: options.noScript
@@ -142,6 +143,8 @@ const loadBoot = (specs: any[], options: Options = {}) => {
   }
   ;(global as any).location = {
     href: pageHref,
+    pathname: new URL(pageHref).pathname,
+    origin: new URL(pageHref).origin,
     reload: () => timeline.push('reload')
   }
   jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -184,7 +187,10 @@ describe('the boot loader', () => {
   })
 
   it('registers the worker under the folder the page is served from', async () => {
-    const { registered } = loadBoot([], { href: 'http://localhost:8123/demo/' })
+    const { registered } = loadBoot([], {
+      href: 'http://localhost:8123/demo/',
+      basePath: '/demo'
+    })
     await settle()
 
     expect(registered).toEqual([
@@ -197,11 +203,32 @@ describe('the boot loader', () => {
     // `/demo` is a URL the site answers: the host redirects to `/demo/` on a
     // static host, but a page-relative worker URL would have named the origin
     // root here, and './' would have resolved to '/'
-    const { registered } = loadBoot([], { href: 'http://localhost:8123/demo' })
+    const { registered } = loadBoot([], {
+      href: 'http://localhost:8123/demo',
+      basePath: '/demo'
+    })
     await settle()
 
     expect(registered).toEqual([
       'http://localhost:8123/demo/sw.js?v=abc123 ' +
+        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
+    ])
+  })
+
+  it('finds the folder from the page when the document has no currentScript', async () => {
+    // a loader injected without a currentScript still knows where it sits: the
+    // page's folder, one level below the worker it registers
+    const { registered } = loadBoot([], {
+      href: 'http://localhost:8123/demo/',
+      basePath: '/demo',
+      noScript: true
+    })
+    await settle()
+
+    // no tag, no version: the fallback cannot carry the build's stamp, so this
+    // path registers the folder's worker without a cache-busting query
+    expect(registered).toEqual([
+      'http://localhost:8123/demo/sw.js ' +
         JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
     ])
   })

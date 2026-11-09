@@ -466,7 +466,9 @@ const bootTag = (
   version: string,
   basePath = ''
 ) =>
-  `<script src="${basePath}/host/boot.js?v=${version}" data-scripts='${escapeAttribute(
+  `<script src="${
+    basePath ? `${basePath}/host/boot.js` : 'host/boot.js'
+  }?v=${version}" data-scripts='${escapeAttribute(
     JSON.stringify(scripts)
   )}'></script>`
 

@@ -122,7 +122,18 @@
   // which is the mis-registration this is here to avoid. The tag the build
   // emits is absolute (`<base>/host/boot.js`), so the loader's own URL carries
   // `<base>` however the page was addressed.
-  var loaderSrc = (script && script.src) || location.href
+  var loaderSrc = (script && script.src) || loaderUrl()
+
+  // The loader always sits in <base>/host/, so without a currentScript the page
+  // still names the base: the path up to and including its last slash, unless it
+  // is already a folder. `location.href` cannot do this - one level above `/demo`
+  // is the origin root.
+  function loaderUrl() {
+    var page = location.pathname
+    var base =
+      page.charAt(page.length - 1) === '/' ? page : page.replace(/[^/]*$/, '')
+    return location.origin + base + 'host/boot.js'
+  }
   navigator.serviceWorker
     .register(new URL('../sw.js' + stamp, loaderSrc).href, {
       scope: new URL('../', loaderSrc).pathname,
