@@ -233,6 +233,36 @@ describe('the boot loader', () => {
     ])
   })
 
+  it('treats a path with no trailing slash as the folder, not a file', async () => {
+    // `/demo` is a URL the site answers; the last segment has no dot, so it
+    // names the folder and the loader sits one level below it
+    const { registered } = loadBoot([], {
+      href: 'http://localhost:8123/demo',
+      basePath: '/demo',
+      noScript: true
+    })
+    await settle()
+
+    expect(registered).toEqual([
+      'http://localhost:8123/demo/sw.js ' +
+        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
+    ])
+  })
+
+  it('drops a file name from the path, and keeps the folder above it', async () => {
+    const { registered } = loadBoot([], {
+      href: 'http://localhost:8123/demo/index.html',
+      basePath: '/demo',
+      noScript: true
+    })
+    await settle()
+
+    expect(registered).toEqual([
+      'http://localhost:8123/demo/sw.js ' +
+        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
+    ])
+  })
+
   it('boots the host before the app, then replays every tag in order', async () => {
     const { timeline } = loadBoot([
       { src: 'sasjs.js', id: 'sasjs-adapter' },
