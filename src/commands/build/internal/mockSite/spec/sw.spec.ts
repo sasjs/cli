@@ -846,6 +846,40 @@ describe('service worker host', () => {
     })
   })
 
+  it('writes a binary upload as its bytes, not as the text it decodes to', async () => {
+    const { dispatch } = seeded()
+
+    // what the page bridge posts for a file it could not read as UTF-8
+    const image = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+    ])
+
+    const created = await dispatch('/SASjsApi/drive/file', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        params: { filePath: '/Public/logo.png' },
+        tables: [
+          {
+            name: 'file',
+            filename: 'logo.png',
+            csv: btoa(String.fromCharCode.apply(null, Array.from(image))),
+            binary: true
+          }
+        ]
+      })
+    })
+
+    expect(created.status).toBe(200)
+
+    const read = await dispatch(
+      '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/Public/logo.png')
+    )
+
+    expect(read.status).toBe(200)
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(image)
+  })
+
   it('answers 404 for a drive file the drive does not hold', async () => {
     const { dispatch } = seeded()
 

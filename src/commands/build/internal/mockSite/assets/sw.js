@@ -574,7 +574,15 @@ const readJsonBody = async (request) => {
         name: table.name || `table${index + 1}`,
         filename:
           table.filename || `${table.name || 'table' + (index + 1)}.csv`,
-        contents: table.csv === undefined ? '' : table.csv
+        // A file the bridge could not read as UTF-8 travels as base64 with a
+        // flag: writing its text would replace the bytes and store the damage
+        // under a success status, which is what a binary upload used to do.
+        contents:
+          table.csv === undefined
+            ? ''
+            : table.binary
+              ? toBytes(table.csv)
+              : table.csv
       }))
     }
   }

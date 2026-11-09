@@ -668,15 +668,14 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const sasPrograms = countPrograms(seed, '.sas')
   const driveEntries = Object.keys(seed).length
 
-  // A build holding SAS and no JavaScript is a SAS target: its services cannot
-  // run here, and seeding them would produce a site whose buttons answer 400.
-  // A build holding NEITHER is a frontend host - the app is the whole thing and
-  // the worker answers its API - which is what an interface with no services
-  // compiles to, and the case this site is built for.
+  // A build whose services are SAS is still a site worth having, and it is built:
+  // the programs are seeded on the drive, where a visitor can open them in Studio
+  // and read them - which is how a deployment's own backend code is inspected
+  // without a SAS licence and without a login. What they cannot do is run here,
+  // so the build says so rather than letting a Run button be the surprise.
   if (jsPrograms === 0 && sasPrograms > 0) {
-    throw new Error(
-      `No .js programs in ${buildFolder}/services, /jobs or /tests, but ${sasPrograms} SAS program(s). This target builds SAS code, which cannot run in a browser. ` +
-        'Build a target whose services are JavaScript (typically a mocks project).'
+    process.logger?.warn(
+      `${sasPrograms} SAS program(s) and no JavaScript in ${buildFolder}: they are placed on the drive to read, and cannot run in a browser.`
     )
   }
 
