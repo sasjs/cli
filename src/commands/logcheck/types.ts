@@ -35,8 +35,10 @@ export interface LogCheckConfig {
    */
   ignoreCodes: string[]
   /**
-   * Log paths to leave out, as a plain substring (`sasjsresults/legacy`) or a
+   * Log paths to leave out, as a path segment (`sasjsresults/legacy`) or a
    * glob (`**&#47;build*.log`). Matched against the path shown in the report.
+   * A non-glob entry matches whole segments, so `test` covers `test/run.log`
+   * and not `latest.log`.
    */
   ignorePaths: string[]
   /**
