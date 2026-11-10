@@ -351,7 +351,8 @@
       return Object.keys(files).length
     },
     reset: async () => {
-      await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
+      const answer = await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
+      if (answer.error) throw new Error(answer.error)
       await clearAll()
       await clearIdentity()
       return true
@@ -430,10 +431,15 @@
       )
       try {
         await clearAll()
+        // the identity is part of what this build ships, so a visitor who kept
+        // the previous build's fixture would never see a changed
+        // `mock-identity.json`: it goes with the drive, as it does on reset
+        await clearIdentity()
       } catch (e) {
         console.error('[sasjs-mock] could not clear storage: ' + e)
       }
       files = {}
+      stored = null
     }
 
     window.__sasjsMockBoot = await boot(files, stored)

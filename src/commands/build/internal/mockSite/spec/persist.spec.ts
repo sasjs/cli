@@ -411,12 +411,15 @@ describe('page-side store', () => {
     // the drive outlives the build that wrote it, so a returning visitor kept
     // running the previous build's services - the ones this build no longer
     // matches. A stamp on the seed, kept beside the drive, is what tells the two
-    // apart.
+    // apart. The identity goes with it: the fixture is part of what a build
+    // ships, so a changed `mock-identity.json` has to reach a returning visitor
+    // rather than being filtered out by the fixture they already had.
     const controller = { postMessage: jest.fn() }
     const { window, listeners, stored, rows } = loadPersist({
       controller,
       ready: Promise.resolve({}),
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' },
       buildStamp: 'build-b',
       storedStamp: 'build-a'
     })
@@ -432,7 +435,7 @@ describe('page-side store', () => {
       subject: undefined
     })
     expect(stored.get('sasjs-mock-build')).toBe('build-b')
-    // the old drive is gone rather than merged with the new seed
+    // the old drive and the old fixture are gone, not merged with the new build
     expect(rows.size).toBe(0)
   })
 
@@ -729,6 +732,22 @@ describe('page-side store', () => {
     stop()
 
     expect(rows.has('current')).toBe(false)
+  })
+
+  it('reset reports a refusal from the worker rather than claiming success', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({ controller })
+
+    const stop = answerAll(controller, listeners, (_index, type) =>
+      type === 'sasjs-reset'
+        ? { error: 'host/identity.json cannot be used: it is not readable' }
+        : {}
+    )
+
+    await expect(window.SASjsMock.reset()).rejects.toThrow(
+      'host/identity.json cannot be used'
+    )
+    stop()
   })
 
   it('reset clears the identity beside the drive', async () => {
