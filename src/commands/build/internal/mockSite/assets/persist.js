@@ -3,29 +3,40 @@
  *
  * The service worker hosts the runtime but may be terminated between requests,
  * so it holds no durable state. On boot this script reads the persisted drive
- * and hands it to the worker; after every service run the worker sends back the
- * files it changed and they are written here.
+ * and identity and hands them to the worker; after every service run the worker
+ * sends back the files it changed and the identity store's snapshot when a route
+ * changed it, and both are written here.
  */
 ;(function () {
   const DB_NAME = 'sasjs-mock-host'
-  const STORE = 'files'
+  const FILES = 'files'
+  /**
+   * The identity the visitor last had: the fixture the worker's store reported
+   * and the account the visitor chose to view the app as. One row, because the
+   * two are written together - a subject without the fixture it names would be a
+   * boot signed in as an account the store no longer holds.
+   */
+  const IDENTITY = 'identity'
+  const IDENTITY_KEY = 'current'
 
   const openDb = () =>
     new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1)
+      const req = indexedDB.open(DB_NAME, 2)
       req.onupgradeneeded = () => {
         const db = req.result
-        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE)
+        if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES)
+        if (!db.objectStoreNames.contains(IDENTITY))
+          db.createObjectStore(IDENTITY)
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
     })
 
-  const withStore = async (mode, run) => {
+  const withStore = async (mode, run, name = FILES) => {
     const db = await openDb()
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, mode)
-      const store = tx.objectStore(STORE)
+      const tx = db.transaction(name, mode)
+      const store = tx.objectStore(name)
       let result
       try {
         result = run(store)
@@ -44,15 +55,15 @@
       try {
         const db = await openDb()
         const keysReq = db
-          .transaction(STORE, 'readonly')
-          .objectStore(STORE)
+          .transaction(FILES, 'readonly')
+          .objectStore(FILES)
           .getAllKeys()
         keysReq.onsuccess = () => {
           const keys = keysReq.result
           if (!keys.length) return resolve({})
           const valsReq = db
-            .transaction(STORE, 'readonly')
-            .objectStore(STORE)
+            .transaction(FILES, 'readonly')
+            .objectStore(FILES)
             .getAll()
           valsReq.onsuccess = () => {
             const files = {}
@@ -88,6 +99,36 @@
   }
 
   const clearAll = () => withStore('readwrite', (store) => store.clear())
+
+  /**
+   * The stored identity, `null` when there is none. A row whose shape is not the
+   * one this script writes is ignored rather than handed on: the worker refuses a
+   * fixture it cannot read by name, and re-sending a value that is not a row at
+   * all would blame the fixture for a corrupt database.
+   */
+  const readIdentity = () =>
+    new Promise(async (resolve, reject) => {
+      try {
+        const db = await openDb()
+        const req = db
+          .transaction(IDENTITY, 'readonly')
+          .objectStore(IDENTITY)
+          .get(IDENTITY_KEY)
+        req.onsuccess = () => {
+          const row = req.result
+          resolve(row && typeof row === 'object' && row.fixture ? row : null)
+        }
+        req.onerror = () => reject(req.error)
+      } catch (e) {
+        reject(e)
+      }
+    })
+
+  const writeIdentity = (row) =>
+    withStore('readwrite', (store) => store.put(row, IDENTITY_KEY), IDENTITY)
+
+  const clearIdentity = () =>
+    withStore('readwrite', (store) => store.delete(IDENTITY_KEY), IDENTITY)
 
   /**
    * The build this site is, as the page can see it: mock-config.json carries the
@@ -191,13 +232,29 @@
       })
     })
 
-  // Persist whatever the worker reports as changed.
+  // Persist whatever the worker reports as changed: drive files, and the
+  // identity store's snapshot when a route created, changed or removed anything.
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
-    if (data.type === 'sasjs-persist')
+    if (data.type === 'sasjs-persist') {
       writeFiles(data.files).catch((e) =>
         console.error('[sasjs-mock] persist failed', e)
       )
+      if (data.identity)
+        readIdentity()
+          .then((row) =>
+            // `undefined`, not null: no stored subject means the fixture's own
+            // administrator, which is not the same as the anonymous caller a
+            // null would name
+            writeIdentity({
+              fixture: data.identity,
+              subject: row ? row.subject : undefined
+            })
+          )
+          .catch((e) =>
+            console.error('[sasjs-mock] identity persist failed', e)
+          )
+    }
     if (data.type === 'sasjs-host-error')
       console.error('[sasjs-mock] ' + data.path + ': ' + data.message)
   })
@@ -206,7 +263,52 @@
     readAll,
     writeFiles,
     clear: clearAll,
+    identity: readIdentity,
     snapshot: () => askWorker({ type: 'sasjs-snapshot' }, 'sasjs-snapshot'),
+    /**
+     * Views the app as another account: `as('sasjsuser')` for a restricted user,
+     * `as()` or `as('admin')` to return to the fixture's administrator.
+     *
+     * The worker issues a token pair for the account and answers as it from then
+     * on; the subject and the fixture are stored here so a reload stays that
+     * account, and the app is restarted so every screen redraws its menus and
+     * refusals. The pair is returned for a caller who wants to send it as a
+     * bearer token - nothing signs it, and no password is checked.
+     */
+    as: async (username) => {
+      const answer = await askWorker(
+        { type: 'sasjs-as', username },
+        'sasjs-as-ack'
+      )
+      if (answer.error) throw new Error(answer.error)
+
+      try {
+        await writeIdentity({
+          fixture: answer.identity,
+          subject: answer.username
+        })
+      } catch (e) {
+        // the subject still applies to this run; it just will not outlive it
+        console.error('[sasjs-mock] could not store the subject: ' + e)
+      }
+
+      const pair = {
+        username: answer.username,
+        accessToken: answer.accessToken,
+        refreshToken: answer.refreshToken
+      }
+
+      // a task, so the caller's promise resolves with the pair first
+      setTimeout(() => {
+        try {
+          window.location.reload()
+        } catch (e) {
+          /* a page that cannot reload keeps the subject it already has */
+        }
+      }, 0)
+
+      return pair
+    },
     /**
      * The drive total in bytes, measured by the worker: it owns the stored
      * representation, so the figure stays the one `statSync` reports rather than
@@ -251,8 +353,47 @@
     reset: async () => {
       await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
       await clearAll()
+      await clearIdentity()
       return true
     }
+  }
+
+  /**
+   * Boots the worker with what is stored, and recovers when the stored identity
+   * is one this build cannot read.
+   *
+   * A fixture outlives the build that wrote it, exactly as the drive does, and
+   * the worker refuses one whose format stamp it does not speak - by name. The
+   * stored row is then dropped and the site boots from the fixture it ships, so
+   * a visitor gets a working demo and the reason in the console instead of a
+   * boot that never answers.
+   */
+  const boot = async (files, stored) => {
+    const loading = Object.keys(files).length > 0
+    const type = loading ? 'sasjs-load' : 'sasjs-seed'
+    const ack = loading ? 'sasjs-load-ack' : 'sasjs-seed-ack'
+
+    const answer = await askWorker(
+      {
+        type,
+        files,
+        identity: stored ? stored.fixture : undefined,
+        subject: stored ? stored.subject : undefined
+      },
+      ack
+    )
+
+    if (answer.error && stored) {
+      console.info('[sasjs-mock] ' + answer.error)
+      try {
+        await clearIdentity()
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear the stored identity: ' + e)
+      }
+      return await askWorker({ type, files }, ack)
+    }
+
+    return answer
   }
 
   window.__sasjsMockReady = (async () => {
@@ -261,8 +402,10 @@
     if (!controller) return { error: 'no service worker controller' }
 
     let files = {}
+    let stored = null
     try {
       files = await readAll()
+      stored = await readIdentity()
     } catch (e) {
       console.error('[sasjs-mock] could not read storage: ' + e)
     }
@@ -293,17 +436,7 @@
       files = {}
     }
 
-    if (Object.keys(files).length) {
-      window.__sasjsMockBoot = await askWorker(
-        { type: 'sasjs-load', files },
-        'sasjs-load-ack'
-      )
-    } else {
-      window.__sasjsMockBoot = await askWorker(
-        { type: 'sasjs-seed' },
-        'sasjs-seed-ack'
-      )
-    }
+    window.__sasjsMockBoot = await boot(files, stored)
     if (window.__sasjsMockBoot && !window.__sasjsMockBoot.error)
       keepBuildStamp(stamp)
     return window.__sasjsMockBoot

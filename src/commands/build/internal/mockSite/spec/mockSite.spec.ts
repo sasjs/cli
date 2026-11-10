@@ -892,4 +892,106 @@ describe('browser-hosted build', () => {
       true
     )
   })
+
+  /**
+   * The fixture the site signs in with: one file, and which fixture wins is
+   * decided at build time. A project replaces it the same way it replaces the
+   * drive seed, so a site ships the identity its author chose rather than one
+   * the runtime happens to hold.
+   */
+  it('ships the packaged identity fixture when the project has none', async () => {
+    const result = await buildMockSite(target())
+
+    expect(result.identitySource).toBe('default')
+    expect(readConfig().identity).toBe('default')
+
+    const shipped = JSON.parse(
+      fs.readFileSync(path.join(out(), 'host', 'identity.json'), 'utf8')
+    )
+    expect(shipped.format).toBe(1)
+    expect(shipped.users.map((user: any) => user.username)).toEqual([
+      'sasjsadmin',
+      'sasjsuser'
+    ])
+    // the same fixture the package ships, so a mock signs in with no config
+    expect(shipped.clients.map((client: any) => client.clientId)).toEqual([
+      'web_app',
+      'sasjs'
+    ])
+  })
+
+  it("ships the project's mock-identity.json instead of the packaged fixture", async () => {
+    const fixture = {
+      format: 1,
+      users: [
+        {
+          uid: 'user-auditor',
+          username: 'auditor',
+          displayName: 'Auditor',
+          password: 'Orion123',
+          isAdmin: true,
+          isActive: true,
+          needsToUpdatePassword: false
+        }
+      ],
+      groups: [],
+      permissions: [],
+      clients: [
+        {
+          clientId: 'audit_app',
+          clientSecret: 'audit_app',
+          accessTokenExpiration: 3600,
+          refreshTokenExpiration: 86400
+        }
+      ]
+    }
+    write(
+      path.join(root, 'sasjsbuild', 'mock-identity.json'),
+      JSON.stringify(fixture)
+    )
+
+    const result = await buildMockSite(target())
+
+    expect(result.identitySource).toBe('mock-identity.json')
+    expect(readConfig().identity).toBe('mock-identity.json')
+    expect(
+      JSON.parse(
+        fs.readFileSync(path.join(out(), 'host', 'identity.json'), 'utf8')
+      )
+    ).toEqual(fixture)
+  })
+
+  it('refuses a mock-identity.json it cannot read, leaving the previous site in place', async () => {
+    await buildMockSite(target())
+    const before = fs.readFileSync(
+      path.join(out(), 'host', 'identity.json'),
+      'utf8'
+    )
+
+    write(path.join(root, 'sasjsbuild', 'mock-identity.json'), '{ not json')
+
+    await expect(buildMockSite(target())).rejects.toThrow(
+      /mock-identity\.json is not valid JSON/
+    )
+    expect(
+      fs.readFileSync(path.join(out(), 'host', 'identity.json'), 'utf8')
+    ).toBe(before)
+
+    // a fixture this build cannot read is refused by name, with the reason
+    const wrongFormat = {
+      format: 0,
+      users: [],
+      groups: [],
+      permissions: [],
+      clients: []
+    }
+    write(
+      path.join(root, 'sasjsbuild', 'mock-identity.json'),
+      JSON.stringify(wrongFormat)
+    )
+
+    await expect(buildMockSite(target())).rejects.toThrow(
+      /mock-identity\.json cannot be used: The identity fixture states format 0/
+    )
+  })
 })

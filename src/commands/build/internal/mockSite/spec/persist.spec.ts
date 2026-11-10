@@ -33,6 +33,7 @@ const createIndexedDB = () => {
       data().delete(key)
     },
     clear: () => data().clear(),
+    get: (key: string) => request(() => data().get(key)),
     getAllKeys: () => request(() => [...data().keys()]),
     getAll: () => request(() => [...data().values()])
   }
@@ -84,6 +85,11 @@ const loadPersist = (
     scriptURL?: string
     /** The page's own URL, as the browser reports it. */
     baseURI?: string
+    /**
+     * The identity row the page stored: the fixture the worker reported and the
+     * subject the visitor chose.
+     */
+    seededIdentity?: { fixture: any; subject?: string | null }
   } = {}
 ) => {
   jest.resetModules()
@@ -145,15 +151,15 @@ const loadPersist = (
     json: async () => ({ buildStamp: options.buildStamp || '' })
   }))
 
-  const idb = options.seeded
-    ? (() => {
-        const fake = createIndexedDB()
-        Object.entries(options.seeded).forEach(([key, value]) =>
-          fake.rows.set(key, value)
-        )
-        return fake
-      })()
-    : createIndexedDB()
+  const idb = (() => {
+    const fake = createIndexedDB()
+    Object.entries(options.seeded || {}).forEach(([key, value]) =>
+      fake.rows.set(key, value)
+    )
+    // the identity row lives beside the drive, under its own key
+    if (options.seededIdentity) fake.rows.set('current', options.seededIdentity)
+    return fake
+  })()
   ;(global as any).indexedDB = idb
 
   require('../assets/persist.js')
@@ -380,7 +386,10 @@ describe('page-side store', () => {
     clearInterval(answering)
 
     expect(controller.postMessage).toHaveBeenCalledWith({
-      type: 'sasjs-seed'
+      type: 'sasjs-seed',
+      files: {},
+      identity: undefined,
+      subject: undefined
     })
   })
 
@@ -416,7 +425,12 @@ describe('page-side store', () => {
     await window.__sasjsMockReady
     stop()
 
-    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-seed',
+      files: {},
+      identity: undefined,
+      subject: undefined
+    })
     expect(stored.get('sasjs-mock-build')).toBe('build-b')
     // the old drive is gone rather than merged with the new seed
     expect(rows.size).toBe(0)
@@ -437,7 +451,12 @@ describe('page-side store', () => {
     await window.__sasjsMockReady
     stop()
 
-    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-seed',
+      files: {},
+      identity: undefined,
+      subject: undefined
+    })
   })
 
   it('keeps a drive this build wrote', async () => {
@@ -523,6 +542,194 @@ describe('page-side store', () => {
     expect(String(url)).toBe('https://host.test/demo/host/mock-config.json')
     expect(init).toEqual({ cache: 'no-store' })
     // and the stamp it read is acted on
-    expect(controller.postMessage).toHaveBeenCalledWith({ type: 'sasjs-seed' })
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-seed',
+      files: {},
+      identity: undefined,
+      subject: undefined
+    })
+  })
+
+  /**
+   * The fixture a stored identity carries. The page never reads inside it - the
+   * worker parses it - so this only has to be the object that was stored.
+   */
+  const FIXTURE = {
+    format: 1,
+    users: [{ username: 'sasjsadmin' }, { username: 'sasjsuser' }],
+    groups: [],
+    permissions: [],
+    clients: [{ clientId: 'web_app' }]
+  }
+
+  /**
+   * Answers every question the page has asked, once each.
+   *
+   * The page asks the worker more than one thing at boot (a seed or a load, and
+   * whatever a caller asked for next), and the order is not fixed: both go
+   * through `waitForController`. Answering "the last call" therefore answers the
+   * wrong one as often as the right one.
+   */
+  const answerAll = (
+    controller: any,
+    listeners: ((event: any) => void)[],
+    payload: (index: number, type: string) => any
+  ) => {
+    const answered = new Set<number>()
+    const answering = setInterval(() => {
+      controller.postMessage.mock.calls.forEach(
+        ([message]: any[], index: number) => {
+          if (answered.has(index)) return
+          answered.add(index)
+          ;[...listeners].forEach((fn) =>
+            fn({
+              data: {
+                type: message.type + '-ack',
+                ...payload(index, message.type)
+              }
+            })
+          )
+        }
+      )
+    }, 5)
+    return () => clearInterval(answering)
+  }
+
+  it('hands a stored fixture and subject to the worker at boot', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockReady
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'sasjs-load',
+        identity: FIXTURE,
+        subject: 'sasjsuser'
+      })
+    )
+  })
+
+  it('stores the fixture the worker reports when a route changed it', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply, rows } = loadPersist({ controller })
+
+    reply({ type: 'sasjs-persist', files: {}, identity: FIXTURE })
+    await new Promise((resolve) => setTimeout(resolve, 5))
+
+    expect(rows.get('current')).toEqual({
+      fixture: FIXTURE,
+      subject: undefined
+    })
+  })
+
+  it('drops a stored fixture this build cannot read, and boots from its own', async () => {
+    // a store written by an older build is refused by the worker BY NAME; the
+    // page then boots from the fixture the site ships rather than waiting out a
+    // boot that never answers
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, rows } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      seededIdentity: { fixture: { ...FIXTURE, format: 0 }, subject: null }
+    })
+
+    const stop = answerAll(controller, listeners, (index) =>
+      index === 0
+        ? { error: 'The identity fixture states format 0.' }
+        : { booted: true }
+    )
+
+    const boot = await window.__sasjsMockReady
+    stop()
+
+    expect(boot).toEqual({ type: 'sasjs-load-ack', booted: true })
+    // the retry carries the drive, and none of the fixture it could not read
+    expect(controller.postMessage.mock.calls[1][0]).toEqual({
+      type: 'sasjs-load',
+      files: { '/sasjs/drive/stored.txt': 'stored' }
+    })
+    expect(rows.has('current')).toBe(false)
+  })
+
+  it('as() stores the subject, returns the pair and restarts the app', async () => {
+    const controller = { postMessage: jest.fn() }
+    // no boot: `ready` never resolves, so the only question asked is `as()`'s
+    const { window, listeners, rows } = loadPersist({ controller })
+    window.location = { reload: jest.fn() }
+
+    const stop = answerAll(controller, listeners, (_index, type) =>
+      type === 'sasjs-as'
+        ? {
+            username: 'sasjsuser',
+            accessToken: 'access-for-user2',
+            refreshToken: 'refresh-for-user2',
+            identity: FIXTURE
+          }
+        : {}
+    )
+
+    const pair = await window.SASjsMock.as('sasjsuser')
+    stop()
+
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-as',
+      username: 'sasjsuser'
+    })
+    expect(pair).toEqual({
+      username: 'sasjsuser',
+      accessToken: 'access-for-user2',
+      refreshToken: 'refresh-for-user2'
+    })
+
+    // the subject outlives the restart, beside the fixture it names
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(rows.get('current')).toEqual({
+      fixture: FIXTURE,
+      subject: 'sasjsuser'
+    })
+    expect(window.location.reload).toHaveBeenCalled()
+  })
+
+  it('surfaces a refusal from the worker rather than storing a subject', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, rows } = loadPersist({ controller })
+
+    const stop = answerAll(controller, listeners, (_index, type) =>
+      type === 'sasjs-as' ? { error: 'no account named "nobody"' } : {}
+    )
+
+    await expect(window.SASjsMock.as('nobody')).rejects.toThrow(
+      'no account named "nobody"'
+    )
+    stop()
+
+    expect(rows.has('current')).toBe(false)
+  })
+
+  it('reset clears the identity beside the drive', async () => {
+    const controller = { postMessage: jest.fn() }
+    // no boot: the stored rows are what reset has to clear
+    const { window, listeners, rows } = loadPersist({
+      controller,
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerAll(controller, listeners, () => ({}))
+
+    await window.SASjsMock.reset()
+    stop()
+
+    expect(rows.has('current')).toBe(false)
+    expect(rows.has('/sasjs/drive/stored.txt')).toBe(false)
   })
 })

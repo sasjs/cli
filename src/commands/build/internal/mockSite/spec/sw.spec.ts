@@ -1,6 +1,11 @@
 import path from 'path'
-import { DRIVE_CORPUS } from '@sasjs/api'
-import type { CorpusCase } from '@sasjs/api'
+import {
+  DEFAULT_IDENTITY,
+  DRIVE_CORPUS,
+  IDENTITY_CORPUS,
+  RECORD_CORPUS
+} from '@sasjs/api'
+import type { CorpusCase, IdentityFixture } from '@sasjs/api'
 import os from 'os'
 import yazl from 'yazl'
 import { buildLintBundle } from '../mockSite'
@@ -117,6 +122,13 @@ const loadWorker = (base = '') => {
         '<!doctype html><html><head><title>App</title></head><body>home</body></html>',
         { status: 200, headers: { 'content-type': 'text/html' } }
       )
+    if (target.includes('identity.json')) {
+      // the fixture the build shipped: the package's demo fixture unless a test
+      // names its own, and `'missing'` for a site built before it existed
+      const fixture = (global as any).__sasjsIdentity
+      if (fixture === 'missing') return new Response('', { status: 404 })
+      return jsonResponse(fixture || DEFAULT_IDENTITY)
+    }
     if (target.includes('sas-transcript')) {
       const fixture = (global as any).__sasTranscript
       return fixture ? jsonResponse(fixture) : new Response('', { status: 404 })
@@ -211,6 +223,8 @@ describe('service worker host', () => {
     delete (global as any).self
     delete (global as any).importScripts
     delete (global as any).fetch
+    delete (global as any).__sasjsIdentity
+    delete (global as any).__mockHostClients
   })
 
   const seeded = () => {
@@ -732,24 +746,24 @@ describe('service worker host', () => {
       expect(synced.status).toBe(200)
       expect(await synced.json()).toEqual({ userCount: 0, groupCount: 0 })
 
+      // the id is the app (sasjs/server#544): sw.js indexes the site itself under
+      // this id, so a test and a reviewer have one handle to name
+      const siteAppId = '6f1c1c1e-6a1e-4c4a-9d1a-1b2c3d4e5f60'
+
       const unpublished = await dispatch('/SASjsApi/drive/deploy', {
         method: 'DELETE',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          streamServiceName: 'Test',
-          appLoc
-        })
+        body: JSON.stringify({ id: siteAppId })
       })
       expect(unpublished.status).toBe(200)
-      expect(await unpublished.json()).toEqual({ status: 'success' })
+      const removed = await unpublished.json()
+      expect(removed.status).toBe('success')
+      expect(removed.app.id).toBe(siteAppId)
 
       const other = await dispatch('/SASjsApi/drive/deploy', {
         method: 'DELETE',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          streamServiceName: 'Other',
-          appLoc: '/Public/app/other'
-        })
+        body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000000' })
       })
       expect(other.status).toBe(404)
     })
@@ -1981,5 +1995,310 @@ describe('service worker host', () => {
         }
       })
     }
+  })
+
+  /**
+   * The identity and record corpora, over the worker's HTTP surface.
+   *
+   * The same cases @sasjs/api runs against its own services, and the server runs
+   * against a live sasjs/server. A failure here is this host's transport, the
+   * fixture it booted, or a route it does not answer - never the decisions, which
+   * are the package's.
+   */
+  describe('identity and record conformance', () => {
+    /**
+     * Boots the worker from a fixture, the way the page does: the case's own
+     * identity, and `subject: null` for no implicit caller, so a case that
+     * expects the answer an anonymous request gets is not silently answered as
+     * the fixture's administrator.
+     */
+    const boot = async (
+      worker: any,
+      identity: IdentityFixture,
+      subject: string | null = null
+    ) => {
+      const { pending } = worker.message({
+        type: 'sasjs-seed',
+        identity,
+        subject
+      })
+      await pending
+    }
+
+    /** The request a case describes, as HTTP: path parameters filled, token sent. */
+    const httpForCase = (testCase: CorpusCase) => {
+      const [method, routePath] = testCase.route.split(' ')
+      const filled = routePath.replace(/\{(\w+)\}/g, (_match, name: string) =>
+        encodeURIComponent(String((testCase.request.params || {})[name]))
+      )
+      const query = new URLSearchParams()
+      for (const [key, value] of Object.entries(testCase.request.query || {})) {
+        if (value !== undefined) query.set(key, String(value))
+      }
+      const suffix = query.toString() ? `?${query}` : ''
+      const headers: Record<string, string> = {}
+      const init: any = { method, headers }
+
+      if (testCase.request.token)
+        headers.authorization = 'Bearer ' + testCase.request.token
+
+      if (testCase.request.body !== undefined) {
+        init.body = JSON.stringify(testCase.request.body)
+        headers['content-type'] = 'application/json'
+      }
+
+      return { path: filled + suffix, init }
+    }
+
+    /** The assertions the package's own corpus makes, against an HTTP answer. */
+    const expectAnswer = async (testCase: CorpusCase, response: Response) => {
+      expect({ case: testCase.id, status: response.status }).toEqual({
+        case: testCase.id,
+        status: testCase.expect.status
+      })
+
+      const want = testCase.expect
+      const contentType = response.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json')
+
+      if (want.contents !== undefined) {
+        const sent =
+          want.encoding === 'text'
+            ? await response.text()
+            : new Uint8Array(await response.arrayBuffer())
+        const expected =
+          typeof want.contents === 'string'
+            ? want.encoding === 'text'
+              ? want.contents
+              : new TextEncoder().encode(want.contents)
+            : want.contents
+        expect(sent).toEqual(expected)
+        return
+      }
+
+      if (want.error !== undefined) {
+        const error = isJson
+          ? (await response.json()).message
+          : await response.text()
+        expect({ case: testCase.id, error }).toEqual({
+          case: testCase.id,
+          error: want.error
+        })
+        return
+      }
+
+      if (
+        want.body === undefined &&
+        want.partial === undefined &&
+        want.keys === undefined &&
+        want.shape === undefined
+      )
+        return
+
+      const body = await response.json()
+
+      if (want.body !== undefined) expect(body).toEqual(want.body)
+
+      if (want.partial !== undefined) expect(body).toMatchObject(want.partial)
+
+      if (want.keys !== undefined)
+        expect(Object.keys(body as object).sort()).toEqual(
+          want.keys.slice().sort()
+        )
+
+      if (want.shape !== undefined) {
+        const { required, optional = [] } = want.shape
+        const present = Object.keys(body as object)
+        const allowed = [...required, ...optional]
+
+        expect({
+          case: testCase.id,
+          missing: required.filter((key) => !present.includes(key)),
+          unexpected: present.filter((key) => !allowed.includes(key))
+        }).toEqual({ case: testCase.id, missing: [], unexpected: [] })
+      }
+    }
+
+    for (const testCase of [...IDENTITY_CORPUS, ...RECORD_CORPUS]) {
+      it(`${testCase.id}: ${testCase.description}`, async () => {
+        const worker = loadWorker()
+        await boot(worker, testCase.identity || DEFAULT_IDENTITY)
+
+        const { path: requestPath, init } = httpForCase(testCase)
+        await expectAnswer(testCase, await worker.dispatch(requestPath, init))
+      })
+    }
+
+    it('answers as the fixture administrator when no subject was chosen', async () => {
+      const worker = loadWorker()
+
+      const response = await worker.dispatch('/SASjsApi/permission')
+      const rules = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(rules.length).toBe(3)
+      expect(rules.map((rule: any) => rule.uid)).toEqual([
+        'rule-routes',
+        'rule-execute',
+        'rule-code'
+      ])
+    })
+
+    it('signs in as another account, changing the permission answer and the token subject', async () => {
+      const worker = loadWorker()
+
+      const { replies, pending } = worker.message({
+        type: 'sasjs-as',
+        username: 'sasjsuser'
+      })
+      await pending
+
+      const ack = replies[0]
+      expect(ack.username).toBe('sasjsuser')
+      expect(ack.accessToken).toBeTruthy()
+
+      // what the site now sees: only the routes the restricted account is granted
+      const routes = await worker.dispatch('/SASjsApi/info/myAuthorizedRoutes')
+      expect((await routes.json()).paths).toEqual([
+        '/AppStream',
+        '/SASjsApi/stp/execute',
+        '/SASjsApi/drive/file'
+      ])
+
+      // and the pair names that account, so a caller can send it as a token
+      const session = await worker.dispatch('/SASjsApi/session', {
+        headers: { authorization: 'Bearer ' + ack.accessToken }
+      })
+      expect(session.status).toBe(200)
+      expect((await session.json()).username).toBe('sasjsuser')
+    })
+
+    it('returns to the administrator with no account named, or with "admin"', async () => {
+      const worker = loadWorker()
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+      const back = worker.message({ type: 'sasjs-as', username: 'admin' })
+      await back.pending
+
+      expect(back.replies[0].username).toBe('sasjsadmin')
+
+      const routes = await worker.dispatch('/SASjsApi/info/myAuthorizedRoutes')
+      // a route only the administrator's rules reach: the restricted account's
+      // list is the three entries the corpus pins
+      expect((await routes.json()).paths).toContain('/SASjsApi/code/execute')
+    })
+
+    it('refuses an unknown account by name, naming the accounts the fixture holds', async () => {
+      const worker = loadWorker()
+
+      const { replies, pending } = worker.message({
+        type: 'sasjs-as',
+        username: 'nobody'
+      })
+      await pending
+
+      expect(replies[0].error).toContain('no account named "nobody"')
+      expect(replies[0].error).toContain('sasjsadmin')
+      expect(replies[0].accessToken).toBeUndefined()
+    })
+
+    it('refuses a persisted fixture in a format this build does not read, by name', async () => {
+      const worker = loadWorker()
+
+      const { replies, pending } = worker.message({
+        type: 'sasjs-seed',
+        identity: { ...DEFAULT_IDENTITY, format: 0 },
+        subject: null
+      })
+      await pending
+
+      expect(replies[0].error).toContain('states format 0')
+      expect(replies[0].error).toContain('Rebuild the site')
+    })
+
+    it('refuses a shipped fixture it cannot read, naming the file', async () => {
+      ;(global as any).__sasjsIdentity = { ...DEFAULT_IDENTITY, format: 7 }
+      const worker = loadWorker()
+
+      const response = await worker.dispatch('/SASjsApi/permission')
+      const body = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(body.message).toContain('host/identity.json cannot be used')
+      expect(body.message).toContain('states format 7')
+    })
+
+    it('falls back to the packaged fixture when the site ships no identity file', async () => {
+      ;(global as any).__sasjsIdentity = 'missing'
+      const worker = loadWorker()
+
+      const response = await worker.dispatch('/SASjsApi/permission')
+      const rules = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(rules.length).toBe(3)
+    })
+
+    it('reports an account created through the routes, so the page can store it', async () => {
+      const worker = loadWorker()
+      const sent: any[] = []
+      ;(global as any).__mockHostClients = [
+        { postMessage: (message: any) => sent.push(message) }
+      ]
+
+      const response = await worker.dispatch('/SASjsApi/user', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'newuser',
+          displayName: 'New User',
+          password: 'newpass',
+          isAdmin: false,
+          isActive: true
+        })
+      })
+
+      expect(response.status).toBe(200)
+
+      const persisted = sent.find(
+        (message) => message.type === 'sasjs-persist' && message.identity
+      )
+      expect(
+        persisted.identity.users.map((user: any) => user.username)
+      ).toContain('newuser')
+
+      delete (global as any).__mockHostClients
+    })
+
+    it('restores the shipped fixture on reset', async () => {
+      const worker = loadWorker()
+
+      await worker.dispatch('/SASjsApi/user', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: 'newuser',
+          displayName: 'New User',
+          password: 'newpass',
+          isAdmin: false,
+          isActive: true
+        })
+      })
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+
+      await worker.message({ type: 'sasjs-reset' }).pending
+
+      const users = await worker.dispatch('/SASjsApi/user')
+      expect((await users.json()).map((user: any) => user.username)).toEqual([
+        'sasjsadmin',
+        'sasjsuser'
+      ])
+
+      // the caller is the administrator again, not the account that was chosen
+      const routes = await worker.dispatch('/SASjsApi/info/myAuthorizedRoutes')
+      // a route only the administrator's rules reach: the restricted account's
+      // list is the three entries the corpus pins
+      expect((await routes.json()).paths).toContain('/SASjsApi/code/execute')
+    })
   })
 })

@@ -13,19 +13,21 @@
  * TRUST MODEL: this is a single-user host on the site's own origin. It answers
  * the API the way a SASjs server does, but there is no boundary behind it: a page
  * at this origin can already reach everything here, because a visitor's browser
- * is the client. The identity is the package's demo fixture (@sasjs/api's
- * `DEFAULT_IDENTITY`: `sasjsadmin` and `sasjsuser`, both `Orion123`), and a
- * request that carries no credential is read as the fixture administrator - the
- * visitor, on a host with no login wall. A site holding anything private, or one
- * served from a shared origin, belongs behind a real server rather than a static
- * host.
+ * is the client. The identity is a fixture the build ships as `host/identity.json`
+ * (@sasjs/api's demo fixture unless the project supplies its own: `sasjsadmin`
+ * and `sasjsuser`, both `Orion123`), and a request that carries no credential is
+ * read as the fixture administrator - the visitor, on a host with no login wall.
+ * The subject is switchable (`window.SASjsMock.as('sasjsuser')`) so a reviewer can
+ * see the refusals a restricted account gets. Passwords are plain text in the
+ * fixture and tokens are opaque strings nobody signs: this is a fixture, not an
+ * identity provider, and a site holding anything private, or one served from a
+ * shared origin, belongs behind a real server rather than a static host.
  *
- * The drive is persisted by the page (host/persist.js) and the identity is not:
- * an account, group, permission rule or client created through these routes
- * lives in this worker's memory, so a worker the browser terminates starts again
- * from the fixture. Edits that must survive a restart belong on a server. The
- * activity log the Admin routes report is in this worker's memory for the same
- * reason.
+ * The drive and the identity are both persisted by the page (host/persist.js): an
+ * account, group, permission rule or client created through these routes survives
+ * a reload because the page stores the store's own snapshot, and a visitor who
+ * chose a subject stays that subject. The activity log the Admin routes report is
+ * in this worker's memory, so it restarts with the worker.
  *
  * Every operation in @sasjs/api's route table is answered here: the drive, the
  * sign-in flow, the records, the runs, the sessions, the diagnostics and logs,
@@ -51,23 +53,158 @@ const API = self.SASjsApi
 const CODE = self.SASjsCode
 
 const DRIVE_STORE = R.driveStore
-const IDENTITY_STORE = new API.MemoryIdentityStore(API.DEFAULT_IDENTITY)
+
+/**
+ * The identity this site signs in with.
+ *
+ * It ships as `host/identity.json`, which the build writes from the package's
+ * demo fixture unless the project drops a `mock-identity.json` beside the build.
+ * One file, one load path: the runtime reads the fixture rather than holding an
+ * object literal, so the documented format is the one in use, a project replaces
+ * it without touching this file, and which fixture wins is decided at build time
+ * rather than at run time.
+ *
+ * The store sits behind a port because everything below is built once, while the
+ * fixture arrives after this module is evaluated (it is a fetch). `SERVICES`,
+ * `IDENTITY` and `RECORDS` therefore speak to whichever store is current, which
+ * is what lets a boot replace the fixture, `as()` re-point the caller, and
+ * `reset()` put the shipped one back.
+ */
+const IDENTITY_FILE = 'host/identity.json'
+
+const IDENTITY_STATE = {
+  store: new API.MemoryIdentityStore(API.DEFAULT_IDENTITY),
+  /** The fixture the store last reported to the page, as JSON. */
+  persisted: '',
+  /** The fixture the build shipped; `reset()` returns to this one. */
+  shipped: null,
+  /** True once a fixture has been seeded, so a boot is not overwritten. */
+  seeded: false
+}
+
+const IDENTITY_STORE = new Proxy(
+  {},
+  {
+    get:
+      (_target, method) =>
+      (...args) =>
+        IDENTITY_STATE.store[method](...args)
+  }
+)
 const IDENTITY = API.createIdentityService(IDENTITY_STORE)
 const RECORDS = API.createRecordService(IDENTITY_STORE)
+
+const adminUser = () =>
+  IDENTITY_STATE.store.snapshot().users.find((user) => user.isAdmin)
+
+const firstClient = () => (IDENTITY_STATE.store.snapshot().clients || [])[0]
 
 /**
  * The caller a request without a credential is talking as.
  *
  * This host has no login wall - that is its trust model, not an oversight - so
- * a page that does not sign in is not anonymous, it is the visitor. The fixture
- * administrator is the account the demo exists to give a client, and naming it
- * here keeps a mock site usable with no `/SASLogon/login` call. A request that
- * does carry a token is that token's subject, so the sign-in flow, the fixture's
- * two accounts and their permission rules all behave as the package decides.
+ * a page that does not sign in is not anonymous, it is the visitor. `undefined`
+ * is the fixture's administrator, a username is that account, and `null` means
+ * no caller at all: the last is how the conformance corpus asks for the answers
+ * an anonymous request gets, which a static host otherwise never produces.
+ * Naming the account here keeps a mock site usable with no `/SASLogon/login`
+ * call, while giving `as()` something to change.
  */
-const IMPLICIT_CALLER = {
-  userId: (API.DEFAULT_IDENTITY.users.find((user) => user.isAdmin) || {}).uid,
-  clientId: ((API.DEFAULT_IDENTITY.clients || [])[0] || {}).clientId
+let CALLER_USERNAME
+let IMPLICIT_CALLER
+
+/** Names the caller from the current fixture, resolving it to a subject. */
+const resolveCaller = () => {
+  const user =
+    CALLER_USERNAME === null
+      ? undefined
+      : CALLER_USERNAME === undefined
+        ? adminUser()
+        : IDENTITY_STATE.store
+            .snapshot()
+            .users.find((candidate) => candidate.username === CALLER_USERNAME)
+
+  const client = firstClient()
+
+  IMPLICIT_CALLER =
+    user && client ? { userId: user.uid, clientId: client.clientId } : undefined
+}
+
+const seedIdentity = (fixture) => {
+  IDENTITY_STATE.store = new API.MemoryIdentityStore(fixture)
+  IDENTITY_STATE.persisted = JSON.stringify(IDENTITY_STATE.store.snapshot())
+  IDENTITY_STATE.seeded = true
+  resolveCaller()
+}
+
+/**
+ * The fixture the build ships, read once from the site.
+ *
+ * A build always writes the file, so a malformed one is refused by name: a
+ * store seeded from a fixture whose format this package cannot read would answer
+ * the sign-in flow with accounts it half-understands. An ABSENT file is the one
+ * case that falls back - a site deployed from a build before the fixture existed
+ * still runs, as the demo fixture, with the fact written to the host log rather
+ * than passing silently.
+ */
+let SHIPPED = null
+const shippedIdentity = () => {
+  if (!SHIPPED)
+    SHIPPED = (async () => {
+      const response = await fetch(IDENTITY_FILE, { cache: 'no-store' })
+
+      if (!response.ok) {
+        logEntry(
+          `identity ${IDENTITY_FILE} answered ${response.status}: using the packaged demo fixture`
+        )
+        IDENTITY_STATE.shipped = API.DEFAULT_IDENTITY
+        return IDENTITY_STATE.shipped
+      }
+
+      const raw = await response.json()
+      try {
+        IDENTITY_STATE.shipped = API.parseIdentity(raw)
+      } catch (e) {
+        throw new Error(
+          `${IDENTITY_FILE} cannot be used: ${(e && e.message) || String(e)}`
+        )
+      }
+      return IDENTITY_STATE.shipped
+    })()
+  return SHIPPED
+}
+
+let IDENTITY_READY = null
+/** The identity is usable once a fixture has been seeded. */
+const ensureIdentity = () => {
+  if (!IDENTITY_READY)
+    IDENTITY_READY = shippedIdentity().then((fixture) => {
+      if (!IDENTITY_STATE.seeded) seedIdentity(fixture)
+      return fixture
+    })
+  return IDENTITY_READY
+}
+
+/**
+ * Boots the identity the page hands over: the fixture it persisted (a store
+ * written by an older build is refused by name by `parseIdentity`) and the
+ * subject the visitor last chose.
+ */
+const bootIdentity = async (data) => {
+  await ensureIdentity()
+
+  const fixture = data.identity
+    ? API.parseIdentity(data.identity)
+    : IDENTITY_STATE.shipped
+
+  CALLER_USERNAME =
+    data.subject === null
+      ? null
+      : data.subject === undefined
+        ? undefined
+        : String(data.subject)
+
+  seedIdentity(fixture)
 }
 
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
@@ -227,10 +364,27 @@ const broadcast = async (message) => {
   clients.forEach((client) => client.postMessage(message))
 }
 
+/**
+ * Hands the page what changed: the drive files the runtime marked dirty, and the
+ * identity store's own snapshot when a route changed it.
+ *
+ * The identity travels as the fixture `snapshot()` emits, which is exactly what
+ * a boot seeds from - one shape for the file a person reads, the object the page
+ * stores and the store it seeds. It is sent only when it differs from the last
+ * report, so a drive-only request carries no fixture and an identity-only change
+ * still reaches storage.
+ */
 const persistChanges = async () => {
   const files = R.takeDirty()
-  if (Object.keys(files).length)
-    await broadcast({ type: 'sasjs-persist', files })
+  const fixture = IDENTITY_STATE.store.snapshot()
+  const asJson = IDENTITY_STATE.seeded ? JSON.stringify(fixture) : ''
+  const identity =
+    asJson && asJson !== IDENTITY_STATE.persisted ? fixture : null
+
+  if (identity) IDENTITY_STATE.persisted = asJson
+
+  if (Object.keys(files).length || identity)
+    await broadcast({ type: 'sasjs-persist', files, identity })
 }
 
 // ----------------------------------------------------------- the SAS transcript
@@ -522,12 +676,12 @@ const adminReports = {
  */
 const directorySource = {
   users: async () =>
-    API.DEFAULT_IDENTITY.users.map((user) => ({
+    IDENTITY_STATE.store.snapshot().users.map((user) => ({
       username: user.username,
       displayName: user.displayName
     })),
   groups: async () =>
-    API.DEFAULT_IDENTITY.groups.map((group) => ({
+    IDENTITY_STATE.store.snapshot().groups.map((group) => ({
       name: group.name,
       members: group.users || []
     }))
@@ -536,15 +690,23 @@ const directorySource = {
 /**
  * The app streams this host published: the site itself.
  *
+ * The index is the package's, so the contract is the package's - an app is its
+ * id, one app per `appLoc`, and unpublish takes the id (sasjs/server#544). The id
+ * is fixed here rather than minted: this host publishes exactly one app, the
+ * folder the site was built for, and a stable id is a handle a test and a
+ * reviewer can both name.
+ *
  * The folder is the identity, so unpublishing the app the site was built for
- * answers `success`; any other folder is the documented 404. The static files
+ * answers with that app; any other id is the documented 404. The static files
  * stay where they are - a worker cannot delete the site it is served from - so
  * this is a record of the publication, not a filesystem operation.
  */
-let registryPromise
-const registry = () => {
-  if (!registryPromise)
-    registryPromise = (async () => {
+const SITE_APP_ID = '6f1c1c1e-6a1e-4c4a-9d1a-1b2c3d4e5f60'
+
+let appStreamPromise
+const appStreamService = () => {
+  if (!appStreamPromise)
+    appStreamPromise = (async () => {
       let appLoc
       try {
         const config = await (await fetch('host/mock-config.json')).json()
@@ -552,10 +714,36 @@ const registry = () => {
       } catch (e) {
         appLoc = undefined
       }
-      return new API.MemoryAppStreamRegistry(appLoc ? [appLoc] : [])
+
+      return API.createAppStreamService(
+        new API.MemoryAppStreamStore(
+          appLoc
+            ? [
+                {
+                  id: SITE_APP_ID,
+                  name: API.defaultAppName(appLoc),
+                  appLoc,
+                  streamWebFolder: 'web',
+                  publishedAt: new Date(0).toISOString()
+                }
+              ]
+            : []
+        )
+      )
     })()
-  return registryPromise
+  return appStreamPromise
 }
+
+/** The package's service, built once the config names the folder. */
+const APP_STREAM = new Proxy(
+  {},
+  {
+    get:
+      (_target, method) =>
+      (...args) =>
+        appStreamService().then((service) => service[method](...args))
+  }
+)
 
 /**
  * The page at `/`.
@@ -602,9 +790,7 @@ const SERVICES = {
   authConfig: API.createAuthConfigService({}),
   admin: API.createAdminService(adminReports),
   directory: API.createDirectoryService(IDENTITY_STORE, directorySource),
-  registry: {
-    unpublish: async (appLoc) => (await registry()).unpublish(appLoc)
-  },
+  appStream: APP_STREAM,
   home: homeService,
   // the package's own code service over the bundled linter; the host passes no
   // lint config, so a buffer is linted against the linter's defaults - a mock
@@ -619,6 +805,23 @@ const RUN_ROUTES = new Set([
   'POST /SASjsApi/stp/trigger',
   'POST /SASjsApi/code/execute',
   'POST /SASjsApi/code/trigger'
+])
+
+/**
+ * The routes that resolve their own caller from the token, rather than being
+ * given one the transport resolved.
+ *
+ * `/auth/refresh` reads the bearer as a REFRESH token and `/auth/token` reads a
+ * code, so reading them as access tokens first would refuse the very request the
+ * route exists to answer - sasjs/server mounts these ahead of its
+ * `authenticateAccessToken` middleware for the same reason.
+ */
+const SELF_AUTH_ROUTES = new Set([
+  'POST /SASjsApi/auth/token',
+  'POST /SASjsApi/auth/refresh',
+  'POST /SASjsApi/auth/logout',
+  'POST /SASLogon/login',
+  'GET /SASLogon/logout'
 ])
 
 const SESSION_OUTPUT = 'GET /SASjsApi/session/{sessionId}/output'
@@ -881,24 +1084,29 @@ const deployTree = (entries) => {
     parent.members.push({
       name: cut < 0 ? entry.name : entry.name.slice(cut + 1),
       type: 'file',
-      code: toBase64(entry.contents),
-      // The drive's file model carries text by default and base64 only when the
-      // member says so (@sasjs/api 0.24.0); an archive's entries are bytes.
-      encoding: 'base64'
+      // an archive carries bytes, so the member says so: without the stamp the
+      // package writes the base64 TEXT as the file's content (the encoding field
+      // is how a member declares its own representation)
+      encoding: 'base64',
+      code: toBase64(entry.contents)
     })
   })
   return root
 }
 
 // ---------------------------------------------------------------- the routes
+/** The bearer token a request carries, if it carries one. */
+const bearerOf = (request, query) =>
+  (request.headers.get('authorization') || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim() ||
+  String(query.access_token || '').trim() ||
+  undefined
+
 /** The subject a request is talking as, from its bearer token or the implicit
  * caller when it carries none. An unknown token is the package's 401. */
 const subjectOf = async (request, query) => {
-  const header = request.headers.get('authorization') || ''
-  const token =
-    header.replace(/^Bearer\s+/i, '').trim() ||
-    String(query.access_token || '').trim() ||
-    undefined
+  const token = bearerOf(request, query)
   if (!token) return IMPLICIT_CALLER
   const subject = await IDENTITY.authenticate(token)
   if (!subject) throw new API.ApiError(401, 'Unauthorized')
@@ -1015,6 +1223,10 @@ const routeRequest = async (request, url) => {
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
   try {
+    // the identity is a file the build shipped, so it is read before anything
+    // that needs a caller - a request that arrives before the page has booted
+    // (a static asset fetch raced by an API call) must not answer as nobody
+    await ensureIdentity()
     await R.ensureReady()
 
     // The app stream is the server's own web surface rather than part of the
@@ -1080,7 +1292,10 @@ const routeRequest = async (request, url) => {
       return json({ message: 'Not part of the API: ' + apiPath }, 404)
 
     const routeId = matched.route.id
-    const subject = await subjectOf(request, query)
+    const token = bearerOf(request, query)
+    const subject = SELF_AUTH_ROUTES.has(routeId)
+      ? undefined
+      : await subjectOf(request, query)
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
 
@@ -1091,6 +1306,7 @@ const routeRequest = async (request, url) => {
       query,
       params: matched.params,
       subject,
+      token,
       body: payload.body
     }
     const file = singleFile(payload)
@@ -1229,38 +1445,155 @@ self.addEventListener('message', (event) => {
   switch (data.type) {
     case 'sasjs-load':
       event.waitUntil(
-        R.load(data.files || {}).then(async () => {
-          await persistChanges()
-          reply({
-            type: 'sasjs-load-ack',
-            boot: R.bootInfo(),
-            stats: R.stats()
+        bootIdentity(data)
+          .then(() => R.load(data.files || {}))
+          .then(async () => {
+            await persistChanges()
+            reply({
+              type: 'sasjs-load-ack',
+              boot: R.bootInfo(),
+              stats: R.stats()
+            })
           })
-        })
+          .catch((e) =>
+            // a persisted fixture this build cannot read is an answer, not a
+            // crash: the page drops it and boots from the fixture the site ships
+            reply({
+              type: 'sasjs-load-ack',
+              error: (e && e.message) || String(e)
+            })
+          )
       )
       break
 
     case 'sasjs-seed':
       event.waitUntil(
-        R.seed().then(async () => {
-          await persistChanges()
-          reply({
-            type: 'sasjs-seed-ack',
-            boot: R.bootInfo(),
-            stats: R.stats()
+        bootIdentity(data)
+          .then(() => R.seed())
+          .then(async () => {
+            await persistChanges()
+            reply({
+              type: 'sasjs-seed-ack',
+              boot: R.bootInfo(),
+              stats: R.stats()
+            })
           })
-        })
+          .catch((e) =>
+            reply({
+              type: 'sasjs-seed-ack',
+              error: (e && e.message) || String(e)
+            })
+          )
       )
       break
 
     case 'sasjs-reset':
       event.waitUntil(
-        R.reset().then(async () => {
-          await persistChanges()
-          reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
-        })
+        ensureIdentity()
+          .then(() => {
+            // the shipped fixture and the fixture's own administrator: a reset
+            // is the state a first visit gets, which includes who is asking
+            CALLER_USERNAME = undefined
+            seedIdentity(IDENTITY_STATE.shipped)
+            return R.reset()
+          })
+          .then(async () => {
+            await persistChanges()
+            reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
+          })
       )
       break
+
+    /**
+     * Signs in as another account, for a reviewer who wants to see the app the
+     * way that user sees it.
+     *
+     * The token pair is real to this host - the store issues it and answers
+     * `GET /SASjsApi/session` with it - but it is not a credential in any other
+     * sense: nothing signs it and no password is checked. `undefined` (or the
+     * literal `admin`) means the fixture's administrator. An unknown or inactive
+     * account is refused by name, because a silent fallback to the admin is the
+     * one answer a reviewer would read as "it worked".
+     */
+    case 'sasjs-as': {
+      event.waitUntil(
+        (async () => {
+          try {
+            await ensureIdentity()
+            const fixture = IDENTITY_STATE.store.snapshot()
+            const admin = adminUser()
+
+            const wanted =
+              data.username === undefined || data.username === 'admin'
+                ? admin && admin.username
+                : String(data.username)
+
+            if (!wanted) {
+              reply({
+                type: 'sasjs-as-ack',
+                error:
+                  'The identity fixture declares no administrator, so there is no admin to return to.'
+              })
+              return
+            }
+
+            const user = await IDENTITY_STORE.userByName(wanted)
+
+            if (!user) {
+              reply({
+                type: 'sasjs-as-ack',
+                error: `The identity fixture has no account named "${String(
+                  data.username
+                )}". It holds: ${fixture.users
+                  .map((candidate) => candidate.username)
+                  .join(', ')}.`
+              })
+              return
+            }
+
+            if (!user.isActive) {
+              reply({
+                type: 'sasjs-as-ack',
+                error: `The account "${user.username}" is not active, so nothing can sign in as it.`
+              })
+              return
+            }
+
+            const client = firstClient()
+
+            if (!client) {
+              reply({
+                type: 'sasjs-as-ack',
+                error:
+                  'The identity fixture declares no client, so no token can be issued.'
+              })
+              return
+            }
+
+            const subject = { userId: user.uid, clientId: client.clientId }
+            const pair = await IDENTITY_STORE.issue(subject, client)
+            await IDENTITY_STORE.savePair(subject, pair)
+
+            CALLER_USERNAME = user.username
+            resolveCaller()
+
+            reply({
+              type: 'sasjs-as-ack',
+              username: user.username,
+              accessToken: pair.accessToken,
+              refreshToken: pair.refreshToken,
+              identity: IDENTITY_STATE.store.snapshot()
+            })
+          } catch (e) {
+            reply({
+              type: 'sasjs-as-ack',
+              error: (e && e.message) || String(e)
+            })
+          }
+        })()
+      )
+      break
+    }
 
     case 'sasjs-snapshot':
       reply({ type: 'sasjs-snapshot', files: R.dumpAll() })
