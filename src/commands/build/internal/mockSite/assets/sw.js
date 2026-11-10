@@ -881,7 +881,10 @@ const deployTree = (entries) => {
     parent.members.push({
       name: cut < 0 ? entry.name : entry.name.slice(cut + 1),
       type: 'file',
-      code: toBase64(entry.contents)
+      code: toBase64(entry.contents),
+      // The drive's file model carries text by default and base64 only when the
+      // member says so (@sasjs/api 0.24.0); an archive's entries are bytes.
+      encoding: 'base64'
     })
   })
   return root
