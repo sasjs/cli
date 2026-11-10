@@ -455,7 +455,9 @@ async function getContentFor(
       contentJSON.members!.push({
         name: file.replace(/.sas$/, ''),
         type: MemberType.file,
-        code: fileContentEncoded
+        code: fileContentEncoded,
+        // the deploy format carries text by default; a built asset is bytes
+        encoding: 'base64'
       })
     }
   })
