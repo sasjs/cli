@@ -2214,6 +2214,9 @@ describe('service worker host', () => {
 
       expect(replies[0].error).toContain('states format 0')
       expect(replies[0].error).toContain('Rebuild the site')
+      // the page drops the stored row ONLY for this kind: a host-side failure
+      // must not take the visitor's accounts with it
+      expect(replies[0].errorKind).toBe('identity')
     })
 
     it('refuses a shipped fixture it cannot read, naming the file', async () => {

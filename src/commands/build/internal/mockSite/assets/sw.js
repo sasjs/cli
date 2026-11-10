@@ -193,9 +193,19 @@ const ensureIdentity = () => {
 const bootIdentity = async (data) => {
   await ensureIdentity()
 
-  const fixture = data.identity
-    ? API.parseIdentity(data.identity)
-    : IDENTITY_STATE.shipped
+  let fixture = IDENTITY_STATE.shipped
+
+  if (data.identity) {
+    try {
+      fixture = API.parseIdentity(data.identity)
+    } catch (e) {
+      // tagged so the page can tell a fixture IT cannot read (which it drops)
+      // from the host failing for some other reason (which it must not)
+      const rejected = new Error((e && e.message) || String(e))
+      rejected.identityRejected = true
+      throw rejected
+    }
+  }
 
   CALLER_USERNAME =
     data.subject === null
@@ -1457,10 +1467,14 @@ self.addEventListener('message', (event) => {
           })
           .catch((e) =>
             // a persisted fixture this build cannot read is an answer, not a
-            // crash: the page drops it and boots from the fixture the site ships
+            // crash: the page drops it and boots from the fixture the site ships.
+            // `errorKind` is what tells it which failure this is - a drive that
+            // could not be read is not a fixture that could not be read, and
+            // dropping the identity for it would discard the visitor's accounts
             reply({
               type: 'sasjs-load-ack',
-              error: (e && e.message) || String(e)
+              error: (e && e.message) || String(e),
+              errorKind: e && e.identityRejected ? 'identity' : 'host'
             })
           )
       )
@@ -1481,7 +1495,8 @@ self.addEventListener('message', (event) => {
           .catch((e) =>
             reply({
               type: 'sasjs-seed-ack',
-              error: (e && e.message) || String(e)
+              error: (e && e.message) || String(e),
+              errorKind: e && e.identityRejected ? 'identity' : 'host'
             })
           )
       )
