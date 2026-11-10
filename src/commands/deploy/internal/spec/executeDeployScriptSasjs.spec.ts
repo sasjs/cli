@@ -88,7 +88,7 @@ describe('executeDeployScriptSasjs', () => {
     )
 
     expect(process.logger?.info).toHaveBeenCalledWith(
-      `Web app is available at ${target.serverUrl}/AppStream/clickme`
+      `Web app is available at ${target.serverUrl}/app/clickme/`
     )
   })
 })
