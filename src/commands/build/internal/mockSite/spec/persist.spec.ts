@@ -554,6 +554,21 @@ describe('page-side store', () => {
    * The fixture a stored identity carries. The page never reads inside it - the
    * worker parses it - so this only has to be the object that was stored.
    */
+  /**
+   * Waits for an asynchronous write rather than guessing how long it takes: the
+   * page persists through IndexedDB, whose requests settle on their own
+   * schedule, and a fixed sleep that is comfortable on one runner is too short
+   * on another.
+   */
+  const until = async (ready: () => boolean, timeout = 2000) => {
+    const started = Date.now()
+    while (!ready()) {
+      if (Date.now() - started > timeout)
+        throw new Error('timed out waiting for the write')
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+  }
+
   const FIXTURE = {
     format: 1,
     users: [{ username: 'sasjsadmin' }, { username: 'sasjsuser' }],
@@ -622,7 +637,7 @@ describe('page-side store', () => {
     const { reply, rows } = loadPersist({ controller })
 
     reply({ type: 'sasjs-persist', files: {}, identity: FIXTURE })
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    await until(() => rows.has('current'))
 
     expect(rows.get('current')).toEqual({
       fixture: FIXTURE,
@@ -691,7 +706,8 @@ describe('page-side store', () => {
     })
 
     // the subject outlives the restart, beside the fixture it names
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    await until(() => window.location.reload.mock.calls.length > 0)
+    await until(() => rows.has('current'))
     expect(rows.get('current')).toEqual({
       fixture: FIXTURE,
       subject: 'sasjsuser'
