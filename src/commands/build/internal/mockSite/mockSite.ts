@@ -964,18 +964,23 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     .digest('hex')
     .slice(0, 10)
 
-  // The identity of this build's drive: the seed itself. The host files are
-  // re-fetched on every load, so a change to them needs no re-seed; a change to
-  // the seed does, because the drive a visitor already has was written by the
-  // seed of the build before this one. A page that finds a drive stamped with
-  // another value drops it and takes this build's seed.
+  // The identity of this build's drive AND its fixture: the seed itself, and the
+  // identity the site signs in with. The host files are re-fetched on every
+  // load, so a change to them needs no re-seed; a change to either the seed or
+  // the fixture does, because the drive and the identity row a visitor already
+  // has were written by the build before this one. A page that finds a stamp
+  // from another build drops both and takes this build's - the fixture is only
+  // read from `host/identity.json` when there is no stored row, so a project
+  // that edits only `mock-identity.json` would otherwise never reach a returning
+  // visitor.
   const buildStamp = createHash('md5')
     .update(
-      JSON.stringify(
-        Object.keys(seed)
+      JSON.stringify({
+        files: Object.keys(seed)
           .sort()
-          .map((key) => [key, seed[key]])
-      )
+          .map((key) => [key, seed[key]]),
+        identity: identity.fixture
+      })
     )
     .digest('hex')
     .slice(0, 10)

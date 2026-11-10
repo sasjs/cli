@@ -961,6 +961,49 @@ describe('browser-hosted build', () => {
     ).toEqual(fixture)
   })
 
+  it('stamps the build with the fixture, so an identity-only change re-seeds it', async () => {
+    // the stamp decides whether a visitor keeps the drive and identity row they
+    // already have; `host/identity.json` is only read when there is no row, so a
+    // project that edits only mock-identity.json has to move it
+    await buildMockSite(target())
+    const before = readConfig().buildStamp
+
+    await buildMockSite(target())
+    expect(readConfig().buildStamp).toBe(before)
+
+    const fixture = {
+      format: 1,
+      users: [
+        {
+          uid: 'user-auditor',
+          username: 'auditor',
+          displayName: 'Auditor',
+          password: 'Orion123',
+          isAdmin: true,
+          isActive: true,
+          needsToUpdatePassword: false
+        }
+      ],
+      groups: [],
+      permissions: [],
+      clients: [
+        {
+          clientId: 'audit_app',
+          clientSecret: 'audit_app',
+          accessTokenExpiration: 3600,
+          refreshTokenExpiration: 86400
+        }
+      ]
+    }
+    write(
+      path.join(root, 'sasjsbuild', 'mock-identity.json'),
+      JSON.stringify(fixture)
+    )
+
+    await buildMockSite(target())
+    expect(readConfig().buildStamp).not.toBe(before)
+  })
+
   it('refuses a mock-identity.json it cannot read, leaving the previous site in place', async () => {
     await buildMockSite(target())
     const before = fs.readFileSync(
