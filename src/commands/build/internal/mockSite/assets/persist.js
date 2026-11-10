@@ -364,10 +364,10 @@
    * is one this build cannot read.
    *
    * A fixture outlives the build that wrote it, exactly as the drive does, and
-   * the worker refuses one whose format stamp it does not speak - by name. The
-   * stored row is then dropped and the site boots from the fixture it ships, so
-   * a visitor gets a working demo and the reason in the console instead of a
-   * boot that never answers.
+   * the worker refuses one whose format stamp it does not speak - by name, and
+   * with `errorKind: 'identity'`. Only that answer drops the stored row: the
+   * row holds the accounts the visitor created as well as the fixture, so a
+   * host-side failure (a drive that could not be read) leaves it alone.
    */
   const boot = async (files, stored) => {
     const loading = Object.keys(files).length > 0
@@ -384,7 +384,7 @@
       ack
     )
 
-    if (answer.error && stored) {
+    if (answer.error && stored && answer.errorKind === 'identity') {
       console.info('[sasjs-mock] ' + answer.error)
       try {
         await clearIdentity()

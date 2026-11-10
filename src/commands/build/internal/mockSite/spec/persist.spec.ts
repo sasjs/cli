@@ -662,7 +662,10 @@ describe('page-side store', () => {
 
     const stop = answerAll(controller, listeners, (index) =>
       index === 0
-        ? { error: 'The identity fixture states format 0.' }
+        ? {
+            error: 'The identity fixture states format 0.',
+            errorKind: 'identity'
+          }
         : { booted: true }
     )
 
@@ -676,6 +679,34 @@ describe('page-side store', () => {
       files: { '/sasjs/drive/stored.txt': 'stored' }
     })
     expect(rows.has('current')).toBe(false)
+  })
+
+  it('keeps the stored identity when the boot failed for another reason', async () => {
+    // a drive that could not be read is not a fixture that could not be read:
+    // dropping the row for it would discard the accounts the visitor created
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, rows } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' },
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerAll(controller, listeners, () => ({
+      error: 'the drive could not be read',
+      errorKind: 'host'
+    }))
+
+    const boot = await window.__sasjsMockReady
+    stop()
+
+    expect(boot.error).toBe('the drive could not be read')
+    expect(rows.get('current')).toEqual({
+      fixture: FIXTURE,
+      subject: 'sasjsuser'
+    })
+    // and it did not re-boot without the fixture
+    expect(controller.postMessage).toHaveBeenCalledTimes(1)
   })
 
   it('as() stores the subject, returns the pair and restarts the app', async () => {
