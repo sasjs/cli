@@ -3,15 +3,18 @@ import { FileTree, MemberType, StreamConfig } from '@sasjs/utils'
 /**
  * The file, at the root of a deployment, that says the folder is an app.
  *
- * A SASjs Server that indexes apps reads this from the deployed tree: it is what
- * makes one upload both the deployment and the publish, instead of a deploy that
- * succeeds and a publish call that can fail on its own afterwards. The file is
- * metadata, not an asset - the server takes it out of the tree before writing, so
- * it never appears under `/app/<id>/`.
+ * It carries what a deploy payload names for a stream today - the label, the
+ * folder the compiled assets are in, the logo - inside the deployment itself, so
+ * one upload can be both the deployment and the publish.
  *
- * The name is the contract with `@sasjs/api` (`APP_MANIFEST`), and the two must
- * stay the same string: this package cannot import the file name from a package
- * the deployment does not ship.
+ * **This ships ahead of the reader.** The manifest is read by `splitAppBundle` in
+ * sasjs/api (PR #65), which takes it out of the tree before the tree is written
+ * and indexes the app in the same request; no released `@sasjs/api`, `@sasjs/adapter`
+ * or `sasjs/server` knows the file yet, so until a host adopts that package the
+ * manifest is deployed as an ordinary file and the publish still comes from the
+ * payload's `streamWebFolder` / `streamServiceName`, exactly as now. The name has
+ * to match `APP_MANIFEST` in that package - `sasjs.app.json` is spelled here
+ * rather than imported because the deployment does not ship the package.
  */
 export const APP_MANIFEST = 'sasjs.app.json'
 
