@@ -147,6 +147,7 @@ describe('sasjs cbd with server type SASJS', () => {
                     {
                       name: 'appinit.js',
                       type: 'file',
+                      encoding: 'base64',
                       code: encode(appinitJSContents)
                     },
                     {
@@ -157,6 +158,7 @@ describe('sasjs cbd with server type SASJS', () => {
                     {
                       name: 'getdata.js',
                       type: 'file',
+                      encoding: 'base64',
                       code: encode(getdataJSContents)
                     },
                     {
