@@ -2228,6 +2228,22 @@ describe('service worker host', () => {
       expect(body.message).toContain('states format 7')
     })
 
+    it('replies with the error when a reset cannot read the shipped fixture', async () => {
+      // the page waits for this ack: silence is read as success, and a reset is
+      // the way out of a site whose fixture broke
+      ;(global as any).__sasjsIdentity = { ...DEFAULT_IDENTITY, format: 4 }
+      const worker = loadWorker()
+      // a request first, so the failure is the cached one the site already has
+      await worker.dispatch('/SASjsApi/permission')
+
+      const { replies, pending } = worker.message({ type: 'sasjs-reset' })
+      await pending
+
+      expect(replies[0].type).toBe('sasjs-reset-ack')
+      expect(replies[0].error).toContain('host/identity.json cannot be used')
+      expect(replies[0].boot).toBeUndefined()
+    })
+
     it('falls back to the packaged fixture when the site ships no identity file', async () => {
       ;(global as any).__sasjsIdentity = 'missing'
       const worker = loadWorker()

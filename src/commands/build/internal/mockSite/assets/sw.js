@@ -1501,6 +1501,14 @@ self.addEventListener('message', (event) => {
             await persistChanges()
             reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
           })
+          .catch((e) =>
+            // a reset against a site whose shipped fixture cannot be read has to
+            // say so: the page waits for this ack, and silence reads as success
+            reply({
+              type: 'sasjs-reset-ack',
+              error: (e && e.message) || String(e)
+            })
+          )
       )
       break
 
