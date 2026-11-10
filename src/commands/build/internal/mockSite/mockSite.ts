@@ -3,6 +3,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { buildSync as esbuildSync } from 'esbuild'
+import { DEFAULT_IDENTITY, parseIdentity } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
 export interface MockSiteResult {
@@ -17,6 +18,11 @@ export interface MockSiteResult {
   snapshot: boolean
   /** True when a recorded SAS session was shipped, for .sas runs to answer. */
   sasTranscript: boolean
+  /**
+   * Which identity fixture the site signs in with: the package's demo fixture,
+   * or `mock-identity.json` from the project.
+   */
+  identitySource: 'default' | 'mock-identity.json'
 }
 
 /**
@@ -298,6 +304,42 @@ type DriveFile = { contents: string; bytes?: number }
 /** A byte count in MB, for the message that names a file too large to seed. */
 const megabytes = (bytes: number) =>
   `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`
+
+/**
+ * The identity the site ships, and which file it came from.
+ *
+ * `mock-identity.json` beside the build wins, exactly as `mock-snapshot.json`
+ * replaces the drive seed: one file, one load path, and which one wins is decided
+ * here rather than at run time. Without it the package's demo fixture ships, so a
+ * mock works with no configuration at all.
+ *
+ * The fixture is validated at build time - a malformed one stops the build while
+ * the person who wrote it is watching, instead of producing a site that boots to
+ * a refusal nobody can connect to a file.
+ */
+const readIdentityFixture = (
+  buildFolder: string
+): {
+  fixture: typeof DEFAULT_IDENTITY
+  source: 'default' | 'mock-identity.json'
+} => {
+  const file = path.join(buildFolder, 'mock-identity.json')
+  if (!fs.existsSync(file))
+    return { fixture: DEFAULT_IDENTITY, source: 'default' }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch (e: any) {
+    throw new Error(`${file} is not valid JSON: ${e?.message || e}`)
+  }
+
+  try {
+    return { fixture: parseIdentity(parsed), source: 'mock-identity.json' }
+  } catch (e: any) {
+    throw new Error(`${file} cannot be used: ${e?.message || e}`)
+  }
+}
 
 const readDriveFile = (absolute: string): DriveFile => {
   const buffer = fs.readFileSync(absolute)
@@ -833,6 +875,11 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   }
 
+  // Read and validate the identity before the previous site is expendable: a
+  // malformed `mock-identity.json` must cost the build, not the site that was
+  // already there.
+  const identity = readIdentityFixture(buildFolder)
+
   // Only now is the previous site expendable.
   fs.rmSync(outputFolder, { recursive: true, force: true })
   fs.mkdirSync(outputFolder, { recursive: true })
@@ -886,6 +933,15 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     })
   )
 
+  // 2a-ii. the identity the site signs in with: the fixture the build chose, in
+  // the one place the runtime reads it. `window.SASjsMock.as()` and a reset both
+  // come back to this file, and the page stores the store's snapshot beside the
+  // drive so an account created through the routes survives a reload.
+  fs.writeFileSync(
+    path.join(hostFolder, 'identity.json'),
+    JSON.stringify(identity.fixture, null, 2)
+  )
+
   // 2b. cache busting. Static hosts keep these files for a long time and their
   // names never change, so a returning visitor would otherwise run the host
   // code from the previous build - including the worker, which imports
@@ -899,7 +955,8 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         'boot.js',
         'api-browser.js',
         'lint-browser.js',
-        'webout-prelude.json'
+        'webout-prelude.json',
+        'identity.json'
       ]
         .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
         .reduce((all, buf) => Buffer.concat([all, buf]), Buffer.alloc(0))
@@ -981,6 +1038,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         programFolders: PROGRAM_FOLDERS,
         snapshot: hasSnapshot,
         sasTranscript: hasTranscript,
+        identity: identity.source,
         buildStamp,
         builtAt: new Date().toISOString()
       },
@@ -1007,6 +1065,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     jsPrograms,
     webFileCount,
     snapshot: hasSnapshot,
-    sasTranscript: hasTranscript
+    sasTranscript: hasTranscript,
+    identitySource: identity.source
   }
 }
