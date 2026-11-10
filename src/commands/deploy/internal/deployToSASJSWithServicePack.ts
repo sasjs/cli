@@ -60,8 +60,20 @@ export async function deployToSasjsWithServicePack(
     throw new Error('Deploy service pack error')
   }
 
-  if (streamConfig?.streamWeb && result?.streamServiceName) {
-    const webAppStreamUrl = `${target.serverUrl}/AppStream/${result.streamServiceName}`
-    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
+  if (streamConfig?.streamWeb) {
+    // A server that indexes apps answers the app it just published, and its id is
+    // the URL: print that, because it is the address the app is actually served
+    // on. A server that answered only a stream name is one whose index is still
+    // keyed by label, and its `/AppStream/<name>` is the address that works.
+    const app = (result as { app?: { id?: string } })?.app
+
+    const webAppStreamUrl = app?.id
+      ? `${target.serverUrl}/app/${app.id}/`
+      : result?.streamServiceName
+        ? `${target.serverUrl}/AppStream/${result.streamServiceName}`
+        : undefined
+
+    if (webAppStreamUrl)
+      process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }

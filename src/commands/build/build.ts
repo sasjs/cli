@@ -28,6 +28,7 @@ import { isSasFile } from '../../utils/file'
 import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
+import { appManifest, withAppManifest } from './internal/appManifest'
 import { buildMockSite } from './internal/mockSite/mockSite'
 
 export async function build(target: Target) {
@@ -162,6 +163,15 @@ async function createFinalSasFiles(target: Target) {
       servicePackSASjs.streamLogo = streamConfig.streamLogo
       servicePackSASjs.streamServiceName = streamConfig.streamServiceName
       servicePackSASjs.streamWebFolder = streamConfig.streamWebFolder
+
+      // The deployment and the statement that it is an app travel together: the
+      // server indexes the app from this file in the same request that writes the
+      // files, so a publish cannot fail on its own after a deploy succeeded. It
+      // also means the zip a CI job keeps is everything needed to publish.
+      servicePackSASjs.fileTree = withAppManifest(
+        folderContentJSON,
+        appManifest(streamConfig)
+      )
     }
   }
 
