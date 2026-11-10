@@ -10,12 +10,14 @@ import {
   createFile,
   folderExists,
   deleteFolder,
-  ServerType
+  ServerType,
+  Target
 } from '@sasjs/utils'
 import { findTargetInConfiguration } from '../../../utils'
 import { build, getWebServiceScriptInvocation } from '../build'
 import { compile } from '../..'
 import path from 'path'
+import { APP_MANIFEST } from '../internal/appManifest'
 
 describe('sasjs build', () => {
   let appName: string
@@ -52,6 +54,57 @@ describe('sasjs build', () => {
 
       await compile(target)
       await expect(build(target)).toResolve()
+    },
+    2 * 60 * 1000
+  )
+
+  it(
+    `should write the app manifest into the pack a streamed SASjs target deploys`,
+    async () => {
+      appName = `test-app-manifest-${generateUniqueTimestamp()}`
+      await createTestApp(__dirname, appName)
+
+      const base = (await findTargetInConfiguration('viya')).target
+
+      // the same target, deployed as a SASjs app with a streamed web build: the
+      // pack this produces is the one the deploy sends, so the manifest is
+      // asserted where it is actually written rather than in the helper alone
+      const target = {
+        ...base,
+        name: 'streamed',
+        serverType: ServerType.Sasjs,
+        appLoc: '/Public/apps/demo',
+        streamConfig: {
+          streamWeb: true,
+          streamWebFolder: 'web',
+          webSourcePath: 'web',
+          streamServiceName: 'demo',
+          assetPaths: []
+        }
+      } as unknown as Target
+
+      await compile(base)
+      await build(target)
+
+      const pack = JSON.parse(
+        await readFile(
+          path.join(
+            process.sasjsConstants.buildDestinationFolder,
+            'streamed.json'
+          )
+        )
+      )
+
+      const manifest = (pack.fileTree.members as any[]).find(
+        (member) => member.name === APP_MANIFEST
+      )
+
+      expect(manifest).toBeTruthy()
+      expect(manifest.type).toBe('file')
+      expect(JSON.parse(manifest.code)).toEqual({
+        name: 'demo',
+        streamWebFolder: 'web'
+      })
     },
     2 * 60 * 1000
   )

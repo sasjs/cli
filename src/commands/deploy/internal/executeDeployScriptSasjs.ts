@@ -2,6 +2,7 @@ import { createFile, Target, StreamConfig } from '@sasjs/utils'
 import { getAuthConfig, getSASjs } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
 import { formatErrorString } from '.'
+import { reportAppUrl } from './appStreamUrl'
 
 /**
  * Execute deployScript on `SASJS` server.
@@ -57,8 +58,12 @@ export async function executeDeployScriptSasjs(
     `Deployment completed! Log is available at ${logFilePath}`
   )
 
-  if (streamConfig?.streamWeb) {
-    const webAppStreamUrl = `${target.serverUrl}/AppStream/${streamConfig.streamServiceName}`
-    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
-  }
+  if (streamConfig?.streamWeb)
+    // the same helper as the service-pack route, so one deployment is reported
+    // at one address whichever route deployed it
+    reportAppUrl(
+      target.serverUrl,
+      { streamServiceName: streamConfig.streamServiceName },
+      (message) => process.logger?.info(message)
+    )
 }
