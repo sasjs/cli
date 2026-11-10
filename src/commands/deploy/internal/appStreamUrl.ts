@@ -1,14 +1,14 @@
 /**
  * The address an app is served on, from the answer a deploy got back.
  *
- * A server that indexes apps answers the app it just published, and its id is the
- * URL: `/app/<id>/`. A server that still keys its index by label answers a stream
- * name instead, and `/AppStream/<name>` is the address that works there. The
- * deploy prints whichever it was given, so the CLI works against both while the
- * index moves to ids.
+ * The CLI does not guess it. A server that knows where it serves the app states
+ * the `url` on the app it answers, and that is printed - relative to the server
+ * URL when it is a path. Failing that, the stream name is the address every
+ * server so far has served apps on: `/app/<name>/`. An id is not turned into a URL
+ * here, because a server that has ids is a server that can say where it put them.
  */
 export interface DeployAppAnswer {
-  app?: { id?: string }
+  app?: { id?: string; url?: string }
   streamServiceName?: string
 }
 
@@ -16,12 +16,13 @@ export const webAppStreamUrl = (
   serverUrl: string,
   answer: DeployAppAnswer | undefined
 ): string | undefined => {
-  const id = answer?.app?.id
+  const stated = answer?.app?.url
 
-  if (id) return `${serverUrl}/app/${id}/`
+  if (stated)
+    return /^https?:\/\//i.test(stated) ? stated : `${serverUrl}${stated}`
 
   return answer?.streamServiceName
-    ? `${serverUrl}/AppStream/${answer.streamServiceName}`
+    ? `${serverUrl}/app/${answer.streamServiceName}/`
     : undefined
 }
 

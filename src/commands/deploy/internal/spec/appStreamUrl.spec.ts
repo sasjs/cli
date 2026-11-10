@@ -1,27 +1,41 @@
 import { reportAppUrl, webAppStreamUrl } from '../appStreamUrl'
 
 describe('the url a deploy reports', () => {
-  it("is the app's own address when the server answers an id", () => {
+  it('is the address the server states, when it states one', () => {
     expect(
       webAppStreamUrl('https://server.example', {
-        app: { id: '0e6f1d2c-3b4a-4c5d-8e9f-0a1b2c3d4e5f' }
+        app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' }
       })
-    ).toBe('https://server.example/app/0e6f1d2c-3b4a-4c5d-8e9f-0a1b2c3d4e5f/')
+    ).toBe('https://server.example/app/0e6f1d2c/')
+
+    expect(
+      webAppStreamUrl('https://server.example', {
+        app: { url: 'https://apps.example/mario/' }
+      })
+    ).toBe('https://apps.example/mario/')
   })
 
   it('is the stream name when that is all the server answered', () => {
     expect(
       webAppStreamUrl('https://server.example', { streamServiceName: 'mario' })
-    ).toBe('https://server.example/AppStream/mario')
+    ).toBe('https://server.example/app/mario/')
   })
 
-  it('prefers the id when a server answers both', () => {
+  it('does not invent a url from an id alone', () => {
+    // a server that answers an id can say where it serves the app; guessing would
+    // print an address that may not exist
+    expect(
+      webAppStreamUrl('https://server.example', { app: { id: '0e6f1d2c' } })
+    ).toBeUndefined()
+  })
+
+  it('prefers the stated url over the stream name', () => {
     expect(
       webAppStreamUrl('https://server.example', {
-        app: { id: '0e6f1d2c-3b4a-4c5d-8e9f-0a1b2c3d4e5f' },
+        app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' },
         streamServiceName: 'mario'
       })
-    ).toContain('/app/0e6f1d2c')
+    ).toBe('https://server.example/app/0e6f1d2c/')
   })
 
   it('is nothing when the deploy published no app', () => {
@@ -41,7 +55,7 @@ describe('the url a deploy reports', () => {
     reportAppUrl('https://server.example', undefined)
 
     expect(said).toEqual([
-      'Web app is available at https://server.example/AppStream/mario'
+      'Web app is available at https://server.example/app/mario/'
     ])
   })
 })
