@@ -195,10 +195,11 @@ const jsonResponse = (body: any) => ({
   json: async () => body
 })
 
-/** A zip archive of text members, written the way a deploy upload ships one.
+/** A zip archive of members - text, or bytes for a base64 member - written the way
+ * a deploy upload ships one.
  * The first member is stored rather than deflated, so both methods the reader
  * accepts are exercised by the one case. */
-const zipOf = (files: { [name: string]: string }) =>
+const zipOf = (files: { [name: string]: string | Uint8Array }) =>
   new Promise<Buffer>((resolve, reject) => {
     const zip = new yazl.ZipFile()
     Object.keys(files).forEach((name, index) =>
@@ -2134,22 +2135,6 @@ describe('service worker host', () => {
       })
     }
 
-    /**
-     * The deploy route's JSON form and its removal, which is what `sasjs deploy`
-     * sends and what this host's transport carries unchanged.
-     *
-     * The upload route's cases hand over the expanded tree in place of the
-     * archive, which is a host's transport detail rather than an answer: this
-     * worker takes the archive and expands it, so those cases would pin the
-     * corpus's assumption instead of this host's behaviour. The zip cases above
-     * pin that route. The removal cases need an app to remove, so the index is
-     * seeded with the corpus's own - the worker starts with nothing published,
-     * which is the server's state too.
-     *
-     * The state a case leaves is checked too - `expectDrive` - because both deploy
-     * answers are `200` and the difference between replacing a folder and keeping
-     * what is there is only visible in the drive afterwards.
-     */
     /** The app a removal case names, as the corpus states it. */
     const CORPUS_APP = {
       appLoc: '/Public/myApp',
@@ -2198,19 +2183,92 @@ describe('service worker host', () => {
       })
     }
 
+    /**
+     * The archive a client uploads, built from the tree the case states.
+     *
+     * The corpus is transport-agnostic: an upload case gives the tree the archive
+     * has to expand to, and the folder in the query where the document puts it.
+     * This host takes an archive, so the harness makes one - which is the only way
+     * the mock's own expansion, and the tree it produces, gets exercised by the
+     * cases that describe it.
+     */
+    const archiveOf = async (tree: any): Promise<Buffer> => {
+      const files: { [name: string]: string | Uint8Array } = {}
+
+      const walk = (members: any[], prefix: string) => {
+        for (const member of members || []) {
+          const at = prefix ? `${prefix}/${member.name}` : member.name
+          if (member.type === 'folder') walk(member.members, at)
+          else
+            files[at] =
+              member.encoding === 'base64'
+                ? new Uint8Array(Buffer.from(String(member.code), 'base64'))
+                : String(member.code ?? '')
+        }
+      }
+
+      walk(tree?.members, '')
+
+      return zipOf(files)
+    }
+
+    /**
+     * The request a deploy case describes, as HTTP.
+     *
+     * The JSON and removal routes carry their fields as they are stated. The upload
+     * route's body is an archive, so the tree becomes one and the fields the case
+     * states beside it travel as form fields - a host's multipart body, with the
+     * folder also in the query where the document puts it.
+     */
+    const deployRequest = async (testCase: CorpusCase) => {
+      const { path: requestPath, init } = httpFor(testCase)
+      if (!testCase.route.endsWith('/deploy/upload'))
+        return { requestPath, init }
+
+      const body = (testCase.request.body || {}) as any
+      const archive = await archiveOf(body.fileTree)
+      const form = new FormData()
+      for (const [field, value] of Object.entries(body))
+        if (field !== 'fileTree' && value !== undefined)
+          form.set(field, String(value))
+      form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+
+      return { requestPath, init: { method: 'POST', body: form } }
+    }
+
+    /**
+     * The deploy routes: the JSON form and the removal, plus the upload route
+     * through an archive this harness builds from the tree the case states.
+     *
+     * The corpus describes an upload by what the archive has to expand to, so a
+     * host that takes bytes can run the same case as one that is handed an
+     * expansion - `deployRequest` makes the archive, and what it asserts is this
+     * worker's own unzipping and tree-building rather than the corpus's
+     * assumption. The one case that cannot travel this way is the expansion that is
+     * not a tree, which the corpus marks `transport: 'expansion'`.
+     *
+     * The removal cases need an app to remove, so the index is seeded with the one
+     * the case names and a bystander that must survive it. The state a case leaves
+     * is checked too - `expectDrive` - because both deploy answers are `200` and
+     * replacing a folder only differs from keeping it in what the drive holds
+     * afterwards.
+     */
     for (const testCase of DEPLOY_CORPUS.filter(
-      (entry) => entry.route !== 'POST /SASjsApi/drive/deploy/upload'
+      // a case a host that takes an archive cannot produce. The corpus marks it
+      // `transport: 'expansion'` (sasjs/api#72); until that releases and this pin
+      // moves, the id says the same thing, so both are applied and the id goes
+      // with the next bump.
+      (entry) =>
+        (entry as { transport?: string }).transport !== 'expansion' &&
+        entry.id !== 'upload-refused-by-shape'
     )) {
       it(testCase.id, async () => {
         const worker = loadWorker()
         await seedDrive(worker.runtime, testCase)
         await seedIndex(worker.runtime, testCase)
+        worker.refuseWrites(Boolean(testCase.unwritable))
 
-        // `unwritable` is not passed on here: the case that states it is the
-        // upload route's, which the filter above keeps out, and the deploy route's
-        // own `500` is covered by `deploy-refused-by-store` in the drive loop.
-
-        const { path: requestPath, init } = httpFor(testCase)
+        const { requestPath, init } = await deployRequest(testCase)
         const response = await worker.dispatch(requestPath, init)
 
         await assertExpectations(response, testCase)
