@@ -735,7 +735,7 @@ describe('service worker host', () => {
       expect(missing.status).toBe(404)
     })
 
-    it('imports the fixture directory, and unpublishes the site itself', async () => {
+    it('imports the fixture directory', async () => {
       const { dispatch } = seeded()
 
       // every account and group the source names is already present
@@ -745,27 +745,6 @@ describe('service worker host', () => {
       )
       expect(synced.status).toBe(200)
       expect(await synced.json()).toEqual({ userCount: 0, groupCount: 0 })
-
-      // the id is the app (sasjs/server#544): sw.js indexes the site itself under
-      // this id, so a test and a reviewer have one handle to name
-      const siteAppId = '6f1c1c1e-6a1e-4c4a-9d1a-1b2c3d4e5f60'
-
-      const unpublished = await dispatch('/SASjsApi/drive/deploy', {
-        method: 'DELETE',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: siteAppId })
-      })
-      expect(unpublished.status).toBe(200)
-      const removed = await unpublished.json()
-      expect(removed.status).toBe('success')
-      expect(removed.app.id).toBe(siteAppId)
-
-      const other = await dispatch('/SASjsApi/drive/deploy', {
-        method: 'DELETE',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: '00000000-0000-4000-8000-000000000000' })
-      })
-      expect(other.status).toBe(404)
     })
 
     it('lints and formats a buffer with the bundled linter', async () => {
@@ -1144,44 +1123,89 @@ describe('service worker host', () => {
     expect(await response.text()).toBe(`File doesn't exist.`)
   })
 
-  it('answers the app stream on the short path, and the canonical one as an alias', async () => {
+  it('publishes, lists, serves and removes an app through the package surface', async () => {
     const { dispatch } = seeded()
 
     // The listing is the server's web route rather than the API's, and an
     // interface asks for it on every visit: unanswered, the request reaches the
-    // static host and the page parses index.html as JSON. `/app` is the default
-    // spelling; `/AppStream` answers too, because a client built before the short
-    // paths existed asks for it.
+    // static host and the page parses index.html as JSON. Nothing is published
+    // here until a deploy publishes something - the folder the site itself was
+    // built for is this site's static build, not a deployment in the drive.
     for (const path of ['/app/apps.json', '/AppStream/apps.json']) {
       const listing = await dispatch(path)
       expect(listing.status).toBe(200)
       expect(await listing.json()).toEqual({ apps: [] })
     }
 
-    // The landing page answers on the short path, with or without the slash, and
-    // the canonical root redirects to it - exactly as sasjs/server redirects it.
+    // `/app` is the default spelling and the canonical root redirects to it,
+    // exactly as sasjs/server redirects it.
     for (const path of ['/app', '/app/', '/app/index.html']) {
       const landing = await dispatch(path)
       expect(landing.status).toBe(200)
       expect(landing.headers.get('content-type')).toContain('text/html')
-      expect(await landing.text()).toContain('serves no apps')
     }
 
     const root = await dispatch('/AppStream')
     expect(root.status).toBe(301)
     expect(root.headers.get('location')).toBe('/app')
 
-    const canonicalLanding = await dispatch('/AppStream/')
-    expect(canonicalLanding.status).toBe(200)
-    expect(await canonicalLanding.text()).toContain('serves no apps')
+    // a deploy that names the folder it serves the app from publishes one
+    const archive = await zipOf({
+      'services/web/index.html': '<h1>Demo</h1>'
+    })
+    const form = new FormData()
+    form.set('appLoc', '/Public/apps/demo')
+    form.set('streamWebFolder', 'web')
+    form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+    const published = await dispatch('/SASjsApi/drive/deploy/upload', {
+      method: 'POST',
+      body: form
+    })
 
-    // A name under either spelling is a missing app, which the server also
-    // refuses.
-    for (const path of ['/app/Demo/', '/AppStream/Demo/']) {
-      const app = await dispatch(path)
-      expect(app.status).toBe(404)
-      expect((await app.json()).message).toContain('serves no apps')
+    expect(published.status).toBe(200)
+    const app = (await published.json()).app
+    expect(app.name).toBe('demo')
+    expect(app.url).toBe(`/app/${app.id}/`)
+
+    // it is listed, at both spellings, and its tile points at the surface
+    for (const path of ['/app/apps.json', '/AppStream/apps.json']) {
+      const listing = await dispatch(path)
+      expect((await listing.json()).apps[0]).toMatchObject({
+        id: app.id,
+        name: 'demo',
+        url: `/app/${app.id}/`
+      })
     }
+
+    // and it is served, from the same surface a server serves it from
+    for (const path of [
+      `/app/${app.id}/`,
+      `/app/${app.id}/index.html`,
+      `/AppStream/${app.id}/`
+    ]) {
+      const page = await dispatch(path)
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain('<h1>Demo</h1>')
+    }
+
+    // an id nothing published is the documented 404
+    const missing = await dispatch('/app/00000000-0000-4000-8000-000000000000/')
+    expect(missing.status).toBe(404)
+
+    // removing it is the deploy route's, by id, and empties the listing
+    const removed = await dispatch('/SASjsApi/drive/deploy', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: app.id })
+    })
+    expect(removed.status).toBe(200)
+    expect((await removed.json()).app.id).toBe(app.id)
+
+    const after = await dispatch('/app/apps.json')
+    expect(await after.json()).toEqual({ apps: [] })
+
+    const gone = await dispatch(`/app/${app.id}/`)
+    expect(gone.status).toBe(404)
   })
 
   it('answers the API on /api as well as on /SASjsApi', async () => {

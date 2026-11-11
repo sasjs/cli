@@ -698,62 +698,49 @@ const directorySource = {
 }
 
 /**
- * The app streams this host published: the site itself.
+ * The app stream, over the drive this site carries.
  *
- * The index is the package's, so the contract is the package's - an app is its
- * id, one app per `appLoc`, and unpublish takes the id (sasjs/server#544). The id
- * is fixed here rather than minted: this host publishes exactly one app, the
- * folder the site was built for, and a stable id is a handle a test and a
- * reviewer can both name.
+ * The package owns the index and every rule about it: what a publish must say,
+ * when an id is minted and when a redeploy keeps it, what the listing answers,
+ * how an app's files are found, what a removal removes. This host owns only the
+ * bytes - the drive store, which is persisted with the rest of the drive, so an
+ * app published in a mock survives a reload exactly as it would on a server.
  *
- * The folder is the identity, so unpublishing the app the site was built for
- * answers with that app; any other id is the documented 404. The static files
- * stay where they are - a worker cannot delete the site it is served from - so
- * this is a record of the publication, not a filesystem operation.
+ * Nothing is published until a deploy publishes something, which is what makes
+ * the mock honest: a `sasjs deploy` against it, or a bundle posted to
+ * `/SASjsApi/drive/deploy`, is listed and served here the way it is on a server.
+ * The folder the site itself was built for is deliberately not seeded as an app:
+ * its files are this site's static build, not a deployment in the drive, so a
+ * tile for it would open a 404.
  */
-const SITE_APP_ID = '6f1c1c1e-6a1e-4c4a-9d1a-1b2c3d4e5f60'
-
-let appStreamPromise
-const appStreamService = () => {
-  if (!appStreamPromise)
-    appStreamPromise = (async () => {
-      let appLoc
-      try {
-        const config = await (await fetch('host/mock-config.json')).json()
-        appLoc = config && config.appLoc
-      } catch (e) {
-        appLoc = undefined
-      }
-
-      return API.createAppStreamService(
-        new API.MemoryAppStreamStore(
-          appLoc
-            ? [
-                {
-                  id: SITE_APP_ID,
-                  name: API.defaultAppName(appLoc),
-                  appLoc,
-                  streamWebFolder: 'web',
-                  publishedAt: new Date(0).toISOString()
-                }
-              ]
-            : []
-        )
-      )
-    })()
-  return appStreamPromise
-}
-
-/** The package's service, built once the config names the folder. */
-const APP_STREAM = new Proxy(
-  {},
-  {
-    get:
-      (_target, method) =>
-      (...args) =>
-        appStreamService().then((service) => service[method](...args))
-  }
+const APP_STREAM = API.createAppStreamService(
+  API.createDriveAppStreamStore(API.createDriveService(DRIVE_STORE))
 )
+
+/**
+ * The app stream's own web surface: the landing page, the listing, an app's
+ * files and the removal of one.
+ *
+ * Mounted at the short spelling, which is what the interface links to; the
+ * canonical one is translated to it below, so both answer.
+ *
+ * `basePath` is the site's own folder plus that spelling, and the paths handed
+ * to the package include the folder too - the package builds an app's URL, its
+ * tiles and its logo links from `basePath`, so a surface mounted at `/app` on a
+ * site served from `/demo` would answer a listing whose every link pointed at
+ * the site root. Both sides take the same base and the answers land inside the
+ * folder.
+ */
+let appStreamWeb
+const appStreamSurface = () => {
+  if (!appStreamWeb)
+    appStreamWeb = API.createAppStreamWebService(
+      APP_STREAM,
+      API.createDriveService(DRIVE_STORE),
+      { basePath: `${BASE}${SHORT_APP_STREAM_PATH}` }
+    )
+  return appStreamWeb
+}
 
 /**
  * The page at `/`.
@@ -1247,18 +1234,10 @@ const routeRequest = async (request, url) => {
     //
     // `/app` is the spelling the interface links to and the server serves; the
     // canonical `/AppStream` still answers, because a client built before the
-    // short paths existed asks for it. The answers are the same either way, so
-    // `/AppStream` redirects to `/app` - exactly as the server redirects it -
-    // and the landing page, the listing and the missing-name refusal are decided
-    // on both.
-    //
-    // The listing is empty rather than read from `registry()`, which records this
-    // deployment's own folder so the delete route has something to remove: the
-    // stream really does serve nothing at `/app/<name>/` here, and a listing that
-    // named it would offer a tile that 404s.
-    // `path` has its trailing slashes stripped, and the landing answers differ by
-    // exactly that, so they are decided on the request's own pathname - minus the
-    // folder the site is served from, which the patterns do not name.
+    // short paths existed asks for it. `/AppStream` itself redirects to `/app`,
+    // exactly as the server redirects it, and every request under either prefix
+    // is handed to the package as the short one - so a mock lists and serves what
+    // it published at the same URLs, with the same headers, as a server.
     const stream = withoutBase(url.pathname)
 
     if (/^\/AppStream$/i.test(stream))
@@ -1267,31 +1246,31 @@ const routeRequest = async (request, url) => {
         headers: { location: `${BASE}${SHORT_APP_STREAM_PATH}` }
       })
 
-    if (
-      /^\/(app|AppStream)\/?$/i.test(stream) ||
-      /^\/(app|AppStream)\/index\.html$/i.test(stream)
-    )
+    if (/^\/(app|AppStream)(\/|$)/i.test(stream)) {
+      // the path the surface matches on includes the site's folder, which is what
+      // it builds the answers' URLs from; `/AppStream` is translated to the short
+      // spelling so a client built before it existed reaches the same surface
+      const page = await appStreamSurface().request({
+        method: request.method,
+        path: url.pathname.replace(
+          /\/AppStream(?=\/|$)/i,
+          SHORT_APP_STREAM_PATH
+        )
+      })
+
+      // a removal changes the index, which lives in the drive: persisted in the
+      // same breath as any other change, or a reload would bring the app back
+      if (request.method !== 'GET') await persistChanges()
+
+      const headers = Object.assign({}, page.headers)
+      // a location the package states is already inside the folder, because the
+      // base it built it from carries it
+      if (page.location) headers.location = page.location
+      if (page.contentType) headers['content-type'] = page.contentType
+
       return new Response(
-        [
-          '<!doctype html><html><head><meta charset="utf-8">',
-          '<title>App Stream</title></head><body>',
-          '<h1>SASjs App Stream</h1>',
-          '<p>This browser host serves no apps: nothing is published on a static site.</p>',
-          '</body></html>'
-        ].join(''),
-        { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } }
-      )
-
-    if (/^\/(app|AppStream)\/apps\.json$/i.test(stream))
-      return json({ apps: [] })
-
-    if (/^\/(app|AppStream)\//i.test(stream)) {
-      return json(
-        {
-          message:
-            'This browser host serves no apps: nothing is published on a static site.'
-        },
-        404
+        page.body === undefined || page.body === null ? null : page.body,
+        { status: page.status, headers }
       )
     }
 
