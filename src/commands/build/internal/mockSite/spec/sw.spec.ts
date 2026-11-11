@@ -1,6 +1,7 @@
 import path from 'path'
 import {
   DEFAULT_IDENTITY,
+  DEPLOY_CORPUS,
   DRIVE_CORPUS,
   IDENTITY_CORPUS,
   RECORD_CORPUS
@@ -955,7 +956,12 @@ describe('service worker host', () => {
         body: new FormData()
       })
       expect(empty.status).toBe(400)
-      expect(await empty.text()).toBe('"file" is not present.')
+      // the deploy routes answer a refusal as the envelope the document states for
+      // them, which is what the corpus pins for the same route
+      expect(await empty.json()).toEqual({
+        status: 'failure',
+        message: '"file" is not present.'
+      })
 
       const form = new FormData()
       form.set('file', new Blob([new Uint8Array([1, 2, 3])]), 'not-a-zip.zip')
@@ -964,7 +970,10 @@ describe('service worker host', () => {
         body: form
       })
       expect(notZip.status).toBe(400)
-      expect(await notZip.text()).toBe('The archive is not a zip file.')
+      expect(await notZip.json()).toEqual({
+        status: 'failure',
+        message: 'The archive is not a zip file.'
+      })
     })
 
     it('takes a token from the query when a link cannot carry a header', async () => {
@@ -2041,6 +2050,77 @@ describe('service worker host', () => {
       }
     }
 
+    /**
+     * The expectation kinds this harness asserts.
+     *
+     * A case that states one it does not implement fails rather than passing
+     * unproven - `keys`, `shape` and `encoding` are asserted by the package's own
+     * corpus run and not here, and a case that starts using them has to be told
+     * so by this list rather than by silence.
+     */
+    const ASSERTED = ['status', 'error', 'partial', 'body', 'contents']
+
+    const assertExpectations = async (
+      response: any,
+      testCase: CorpusCase
+    ): Promise<void> => {
+      const unasserted = Object.keys(testCase.expect).filter(
+        (kind) => !ASSERTED.includes(kind)
+      )
+      if (unasserted.length)
+        throw new Error(
+          `${testCase.id}: this harness does not assert ${unasserted.join(', ')}`
+        )
+
+      expect(response.status).toBe(testCase.expect.status)
+
+      const bytes =
+        testCase.expect.contents instanceof Uint8Array
+          ? new Uint8Array(await response.arrayBuffer())
+          : undefined
+      const text = bytes === undefined ? await response.text() : undefined
+      const isJson = (response.headers.get('content-type') || '').includes(
+        'application/json'
+      )
+
+      if (testCase.expect.error !== undefined) {
+        // the routes that answer an envelope - the two deploy routes - send
+        // `{status, message}`; the rest send the message itself as text, which is
+        // what the server's `res.status(code).send(err.message)` does
+        if (isJson) {
+          const body = JSON.parse(text as string)
+          expect(body.message).toBe(testCase.expect.error)
+          // a refusal that states the envelope it expects is compared on the whole
+          // of it, not only on the message
+          if (testCase.expect.body !== undefined)
+            expect(body).toEqual(testCase.expect.body)
+        } else {
+          // a case cannot state an envelope and be answered with text: one of the
+          // two is wrong, and silence would hide which
+          if (testCase.expect.body !== undefined)
+            throw new Error(
+              `${testCase.id}: the answer is text, so its body cannot be asserted`
+            )
+          expect(text).toBe(testCase.expect.error)
+        }
+        return
+      }
+
+      if (testCase.expect.contents !== undefined) {
+        if (bytes !== undefined) expect(bytes).toEqual(testCase.expect.contents)
+        else expect(text).toEqual(testCase.expect.contents)
+        return
+      }
+
+      if (testCase.expect.body !== undefined)
+        expect(JSON.parse(text as string)).toEqual(testCase.expect.body)
+
+      if (testCase.expect.partial !== undefined)
+        expect(JSON.parse(text as string)).toMatchObject(
+          testCase.expect.partial
+        )
+    }
+
     for (const testCase of DRIVE_CORPUS) {
       it(testCase.id, async () => {
         const worker = loadWorker()
@@ -2050,27 +2130,113 @@ describe('service worker host', () => {
         const { path: requestPath, init } = httpFor(testCase)
         const response = await worker.dispatch(requestPath, init)
 
-        expect(response.status).toBe(testCase.expect.status)
-        if (testCase.expect.error !== undefined) {
-          const body = await response.text()
-          // the routes that answer an envelope - the two deploy routes - send
-          // `{status, message}`; the rest send the message itself as text, which
-          // is what the server's `res.status(code).send(err.message)` does
-          if (
-            (response.headers.get('content-type') || '').includes(
-              'application/json'
-            )
+        await assertExpectations(response, testCase)
+      })
+    }
+
+    /**
+     * The deploy route's JSON form and its removal, which is what `sasjs deploy`
+     * sends and what this host's transport carries unchanged.
+     *
+     * The upload route's cases hand over the expanded tree in place of the
+     * archive, which is a host's transport detail rather than an answer: this
+     * worker takes the archive and expands it, so those cases would pin the
+     * corpus's assumption instead of this host's behaviour. The zip cases above
+     * pin that route. The removal cases need an app to remove, so the index is
+     * seeded with the corpus's own - the worker starts with nothing published,
+     * which is the server's state too.
+     *
+     * The state a case leaves is checked too - `expectDrive` - because both deploy
+     * answers are `200` and the difference between replacing a folder and keeping
+     * what is there is only visible in the drive afterwards.
+     */
+    /** The app a removal case names, as the corpus states it. */
+    const CORPUS_APP = {
+      appLoc: '/Public/myApp',
+      streamWebFolder: 'web',
+      publishedAt: '2026-01-01T00:00:00.000Z'
+    }
+
+    /**
+     * A second app that no removal case names.
+     *
+     * Without it, a removal that ignored the id and deleted whatever was
+     * published would pass both removal cases - the unknown-id one sees an empty
+     * index either way. With it, the assertion after the answer is that the app
+     * the id did *not* name is still listed.
+     */
+    const BYSTANDER = {
+      id: '0b9a1c2d-3e4f-4a5b-8c6d-7e8f9a0b1c2d',
+      name: 'bystander',
+      appLoc: '/Public/bystander',
+      streamWebFolder: 'web',
+      publishedAt: '2026-01-01T00:00:00.000Z'
+    }
+
+    /**
+     * The index a removal case starts from - built from the id the case asks to
+     * remove, not from the answer it expects, so a host that removed some other
+     * app would answer a different id and fail.
+     */
+    const seedIndex = async (runtime: any, testCase: CorpusCase) => {
+      if (testCase.route !== 'DELETE /SASjsApi/drive/deploy') return
+
+      const id = (testCase.request.body as any)?.id
+      const named = (testCase.expect.partial as any)?.app
+      const entries: any[] = [BYSTANDER]
+
+      // the app the case expects to remove is published only when the case names
+      // the id it removes: the unknown-id case asks for one that is not there, and
+      // publishing it would make that case pass by accident. It goes in *after* the
+      // bystander, so a removal that takes the first entry rather than the named
+      // one removes the bystander and both assertions below fail.
+      if (id !== undefined && named?.id === id)
+        entries.push({ id, name: named.name ?? 'myApp', ...CORPUS_APP })
+
+      await runtime.load({
+        '/sasjs/drive/files/.sasjs/apps.json': JSON.stringify(entries)
+      })
+    }
+
+    for (const testCase of DEPLOY_CORPUS.filter(
+      (entry) => entry.route !== 'POST /SASjsApi/drive/deploy/upload'
+    )) {
+      it(testCase.id, async () => {
+        const worker = loadWorker()
+        await seedDrive(worker.runtime, testCase)
+        await seedIndex(worker.runtime, testCase)
+
+        // `unwritable` is not passed on here: the case that states it is the
+        // upload route's, which the filter above keeps out, and the deploy route's
+        // own `500` is covered by `deploy-refused-by-store` in the drive loop.
+
+        const { path: requestPath, init } = httpFor(testCase)
+        const response = await worker.dispatch(requestPath, init)
+
+        await assertExpectations(response, testCase)
+
+        // a removal takes the app the id names, and leaves the rest published
+        if (testCase.route === 'DELETE /SASjsApi/drive/deploy') {
+          const listing = await worker.dispatch('/app/apps.json')
+          const ids = (await listing.json()).apps.map((app: any) => app.id)
+
+          expect(ids).toContain(BYSTANDER.id)
+          if (response.status === 200)
+            expect(ids).not.toContain((testCase.request.body as any)?.id)
+        }
+
+        for (const path of testCase.expectDrive?.present || []) {
+          const file = await worker.dispatch(
+            '/SASjsApi/drive/file?_filePath=' + encodeURIComponent(path)
           )
-            expect(JSON.parse(body)).toEqual({
-              status: 'failure',
-              message: testCase.expect.error
-            })
-          else expect(body).toBe(testCase.expect.error)
-        } else {
-          const want = testCase.expect.contents
-          if (typeof want === 'string') expect(await response.text()).toBe(want)
-          else if (want !== undefined)
-            expect(new Uint8Array(await response.arrayBuffer())).toEqual(want)
+          expect({ path, status: file.status }).toEqual({ path, status: 200 })
+        }
+
+        for (const path of testCase.expectDrive?.missing || []) {
+          const file = await worker.dispatch(
+            '/SASjsApi/drive/file?_filePath=' + encodeURIComponent(path)
+          )
+          expect({ path, status: file.status }).toEqual({ path, status: 404 })
         }
       })
     }
