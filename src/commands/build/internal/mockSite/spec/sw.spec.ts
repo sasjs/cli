@@ -768,6 +768,45 @@ describe('service worker host', () => {
       expect(await formatted.text()).toContain('@brief')
     })
 
+    it('keeps an app’s URL and tiles inside the folder the site is served from', async () => {
+      const worker = loadWorker('/demo')
+
+      const archive = await zipOf({
+        'services/web/index.html': '<h1>Deployed</h1>'
+      })
+      const form = new FormData()
+      form.set('appLoc', '/Public/apps/demo')
+      form.set('streamWebFolder', 'web')
+      form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+      const published = await worker.dispatch(
+        '/demo/SASjsApi/drive/deploy/upload',
+        { method: 'POST', body: form }
+      )
+
+      expect(published.status).toBe(200)
+      const app = (await published.json()).app
+
+      // The package builds an app's URL - and the landing page's links - from the
+      // base it was mounted on. Mounted at `/app` on a site served from `/demo`,
+      // every one of them would point at the site root and 404, so this asserts
+      // the mount and the requests carry the same folder.
+      expect(app.url).toBe(`/demo/app/${app.id}/`)
+
+      const listing = await worker.dispatch('/demo/app/apps.json')
+      const apps = (await listing.json()).apps
+      expect(apps.map((entry: any) => entry.url)).toEqual([
+        `/demo/app/${app.id}/`
+      ])
+
+      const landing = await worker.dispatch('/demo/app/')
+      expect(await landing.text()).toContain(`href="/demo/app/${app.id}/"`)
+
+      // and the URL it stated is the one that serves the app
+      const page = await worker.dispatch(`/demo/app/${app.id}/`)
+      expect(page.status).toBe(200)
+      expect(await page.text()).toContain('<h1>Deployed</h1>')
+    })
+
     it('answers every route under the folder the site is published in', async () => {
       const worker = loadWorker('/demo')
       worker.runtime.load({
