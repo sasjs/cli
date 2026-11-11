@@ -1188,6 +1188,22 @@ describe('service worker host', () => {
       expect(await page.text()).toContain('<h1>Demo</h1>')
     }
 
+    // a folder URL without its slash redirects into it - the package states the
+    // location, already inside the site's folder, and the answer carries no body
+    const folder = await dispatch(`/app/${app.id}`)
+    expect(folder.status).toBe(301)
+    expect(folder.headers.get('location')).toBe(`/app/${app.id}/`)
+    expect(await folder.text()).toBe('')
+
+    // a method the surface does not take is refused with the methods it does
+    const refused = await dispatch('/app/apps.json', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}'
+    })
+    expect(refused.status).toBe(405)
+    expect(refused.headers.get('allow')).toBe('GET')
+
     // an id nothing published is the documented 404
     const missing = await dispatch('/app/00000000-0000-4000-8000-000000000000/')
     expect(missing.status).toBe(404)
