@@ -9,7 +9,8 @@ import {
 import type { CorpusCase, IdentityFixture } from '@sasjs/api'
 import os from 'os'
 import yazl from 'yazl'
-import { buildLintBundle } from '../mockSite'
+import { getWeboutPrelude } from '@sasjs/utils'
+import { buildLintBundle, WEBOUT_SENTINELS } from '../mockSite'
 
 export {}
 
@@ -52,7 +53,7 @@ const lintBundle = () => {
   return lintBundlePath
 }
 
-const loadWorker = (base = '') => {
+const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
   let refusingWrites = false
@@ -134,6 +135,22 @@ const loadWorker = (base = '') => {
       const fixture = (global as any).__sasTranscript
       return fixture ? jsonResponse(fixture) : new Response('', { status: 404 })
     }
+    // the webout() block the build writes beside the worker, from the same
+    // @sasjs/utils generator sasjs/server uses. Absent unless a test asks for
+    // it: a site built before the block existed keeps the `_webout`-only path.
+    if (options.prelude && target.includes('webout-prelude'))
+      return jsonResponse({
+        sentinels: WEBOUT_SENTINELS,
+        template: getWeboutPrelude({
+          weboutPath: WEBOUT_SENTINELS.weboutPath,
+          headersPath: WEBOUT_SENTINELS.headersPath,
+          program: WEBOUT_SENTINELS.program,
+          debug: WEBOUT_SENTINELS.debug,
+          username: WEBOUT_SENTINELS.username,
+          userId: WEBOUT_SENTINELS.userId,
+          apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
+        })
+      })
     return target.includes('vfs-seed')
       ? jsonResponse({
           files: {
@@ -312,6 +329,131 @@ describe('service worker host', () => {
     delete (global as any).__sasTranscript
   })
 
+  it('runs a JS program written the way sasjs/server runs one', async () => {
+    // webout() is OPEN / OBJ / CLOSE on both hosts - @sasjs/utils generates the
+    // block, and the CLI ships it to the worker as host/webout-prelude.json -
+    // so a program written for the server behaves the same here. That is the
+    // shape the demo's own .js program is written in, and the reason a bare
+    // webout(rows) is not a thing on either host.
+    const worker = loadWorker('', { prelude: true })
+    worker.runtime.load({
+      [drivePath('services/public/run.js')]: [
+        "const rows = [{ name: 'Alice', age: 14 }, { name: 'Bob', age: 15 }]",
+        'console.log(`Read ${rows.length} rows`)',
+        "webout('OPEN')",
+        "webout('OBJ', 'adults', rows.filter((row) => row.age > 13))",
+        "webout('CLOSE')"
+      ].join('\n')
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/run`)
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = JSON.parse(await response.text())
+    expect(body.adults).toEqual([
+      { name: 'Alice', age: 14 },
+      { name: 'Bob', age: 15 }
+    ])
+  })
+
+  it('answers a Run in Studio on the recorded program, as a code run', async () => {
+    // Press Run in Studio posts the buffer to /code/execute with the file's own
+    // path prepended as `%let _program` - the path is not a query parameter, as
+    // it is for stp/execute. The recording is what answers it: without this the
+    // demo's .sas program has a Run button (the host states `sas`) and no way to
+    // answer it, because a browser cannot compile SAS.
+    ;(global as any).__sasTranscript = {
+      [`${appLoc}/services/public/program.sas`]: {
+        webout: '{"SYSSITE":"00000000"}',
+        log: 'NOTE: recorded',
+        print: 'The SAS System'
+      }
+    }
+
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/program.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/code/execute',
+      runRequest({
+        code: `%let _program = ${appLoc}/services/public/program.sas;\ndata work.class; run;`,
+        runTime: 'sas'
+      })
+    )
+
+    expect(response.status).toBe(200)
+
+    // the three parts, framed the way a code run is: a code route always answers
+    // with its log, and the Studio splits webout / log / listing on the separator
+    const parts = (await response.text()).split(LOGS_SEPARATOR)
+    expect(parts[0].trim()).toBe('{"SYSSITE":"00000000"}')
+    expect(parts[1]).toContain('NOTE: recorded')
+    expect(parts[2]).toContain('The SAS System')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('answers only the line the interface writes, not one further down', async () => {
+    // The interface puts `%let _program` first; a line further down belongs to
+    // the program. Answered, it would hand a caller's own SAS program the session
+    // recorded for another file - the "inventing a session" the refusal exists to
+    // avoid, with a different file's log.
+    ;(global as any).__sasTranscript = {
+      [`${appLoc}/services/public/program.sas`]: {
+        webout: '{"SYSSITE":"00000000"}',
+        log: 'NOTE: recorded',
+        print: 'The SAS System'
+      }
+    }
+
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/mine.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/code/execute',
+      runRequest({
+        code: `data _null_;\n%let _program = ${appLoc}/services/public/program.sas;\nrun;`,
+        runTime: 'sas'
+      })
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.text()).toContain('SAS is not available')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('refuses SAS code that names no recorded program', async () => {
+    // A code run from an API client carries no `%let _program` line, and a path
+    // the recording does not name has no session: the recording is the only SAS
+    // answer this host has, and it is one file's.
+    const worker = loadWorker()
+
+    for (const code of [
+      'data work.class; run;',
+      `%let _program = ${appLoc}/services/public/other.sas;\ndata work.class; run;`
+    ]) {
+      const response = await worker.dispatch(
+        '/SASjsApi/code/execute',
+        runRequest({ code, runTime: 'sas' })
+      )
+
+      expect(response.status).toBe(400)
+
+      const body = await response.text()
+      expect(body).toContain('SAS is not available')
+      expect(body).not.toContain('SyntaxError')
+    }
+  })
+
   it('refuses a .sas program no recording names, as it always did', async () => {
     // The recording is data, not a run time. Every other SAS program keeps the
     // refusal the host gave before the recording existed - and in particular is
@@ -330,7 +472,8 @@ describe('service worker host', () => {
     expect(response.status).toBe(400)
 
     const body = await response.text()
-    expect(body).toContain('runTime')
+    expect(body).toContain('SAS is not available')
+    expect(body).toContain('recorded session')
     expect(body).not.toContain('SyntaxError')
   })
 
@@ -1451,16 +1594,17 @@ describe('service worker host', () => {
     const { dispatch } = seeded()
 
     const info = await dispatch('/SASjsApi/info')
-    // the documented body, field for field, in the values @sasjs/api's
-    // BROWSER_INFO states: a property the document does not state, or a login
-    // form told there are accounts when there are none, is this host describing
-    // an API the server does not serve
+    // the documented body, field for field: a property the document does not
+    // state, or a login form told there are accounts when there are none, is
+    // this host describing an API the server does not serve. `runTimes` is the
+    // host's own, not the package's browser fixture: `sas` is what makes the
+    // Studio offer Run on a .sas file, and the recording is how it is answered.
     expect(await info.json()).toEqual({
       mode: 'desktop',
       cors: 'disable',
       httpPort: null,
       httpsPort: null,
-      runTimes: ['js'],
+      runTimes: ['js', 'sas'],
       authProviders: [],
       localLoginEnabled: false,
       version: 'dev'
