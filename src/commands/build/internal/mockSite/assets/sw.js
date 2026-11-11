@@ -1357,12 +1357,14 @@ const routeRequest = async (request, url) => {
 
     if (!refusal) broadcast({ type: 'sasjs-host-error', path, message })
     // A refusal the API decided on carries its status and, where the route
-    // answers an envelope, the body to send. The drive's routes send the message
-    // itself as plain text - the server answers them with `res.status(code)
-    // .send(err.message)` - so those stay text; everything else keeps the JSON
-    // envelope the other routes already answer with.
+    // answers an envelope, the body to send. The deploy routes state one in the
+    // document - a refusal there is `{status: 'failure', message}` - while the
+    // other drive routes send the message itself as plain text, which is what the
+    // server's `res.status(code).send(err.message)` does.
     if (API.isApiError(e)) {
       if (e.body !== undefined) return json(e.body, e.status)
+      if (/\/SASjsApi\/drive\/deploy(\/|$)/.test(apiPath))
+        return json({ status: 'failure', message: e.message }, e.status)
       if (apiPath.includes('/SASjsApi/drive/')) return text(e.message, e.status)
       return json({ message: e.message }, e.status)
     }
