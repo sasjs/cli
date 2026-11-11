@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "6.0.2",
-    "@sasjs/api": "0.27.1",
+    "@sasjs/api": "0.28.0",
     "@sasjs/core": "7.1.12",
     "@sasjs/lint": "5.1.1",
     "@sasjs/utils": "4.11.0",
