@@ -1318,6 +1318,13 @@ const routeRequest = async (request, url) => {
     const answer = await API.dispatch(SERVICES, routeId, apiRequest)
     if (request.method !== 'GET') await persistChanges()
 
+    // A deploy that published an app states its URL against the package's own
+    // default mount. This site may be served from a folder, so the answer has to
+    // name the URL a reader can actually open - the folder the surface above is
+    // mounted under, which is the same base its links are built from.
+    if (BASE && answer.body && answer.body.app && answer.body.app.url)
+      answer.body.app.url = `${BASE}${answer.body.app.url}`
+
     // the shell is a page, not a file the caller named: the document states
     // text/html for it, and the extension of `/` says nothing
     if (routeId === 'GET /')
