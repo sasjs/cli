@@ -2254,13 +2254,9 @@ describe('service worker host', () => {
      * afterwards.
      */
     for (const testCase of DEPLOY_CORPUS.filter(
-      // a case a host that takes an archive cannot produce. The corpus marks it
-      // `transport: 'expansion'` (sasjs/api#72); until that releases and this pin
-      // moves, the id says the same thing, so both are applied and the id goes
-      // with the next bump.
-      (entry) =>
-        (entry as { transport?: string }).transport !== 'expansion' &&
-        entry.id !== 'upload-refused-by-shape'
+      // a case a host that takes an archive cannot produce, which the corpus marks
+      // on the case itself rather than leaving each host to name it
+      (entry) => entry.transport !== 'expansion'
     )) {
       it(testCase.id, async () => {
         const worker = loadWorker()
