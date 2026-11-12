@@ -97,15 +97,20 @@
     }
   }
 
-  const respond = (xhr, status, contentType, body) => {
+  const respond = (xhr, status, contentType, body, bytes) => {
     Object.defineProperty(xhr, 'status', { value: status, configurable: true })
     Object.defineProperty(xhr, 'statusText', {
       value: status === 200 ? 'OK' : 'ERROR',
       configurable: true
     })
     Object.defineProperty(xhr, 'readyState', { value: 4, configurable: true })
+    // `bytes` is set when the caller asked for a blob or an arraybuffer. The
+    // drive serves PNGs, PDFs and workbooks, and answering a blob request with
+    // the body decoded as text hands `<img>` mojibake - which is how a picture
+    // on the site came to fail to render with an "Abort" modal.
+    const binary = bytes !== undefined
     Object.defineProperty(xhr, 'responseText', {
-      value: body,
+      value: binary ? '' : body,
       configurable: true
     })
     Object.defineProperty(xhr, 'responseURL', {
@@ -113,7 +118,16 @@
       configurable: true
     })
     Object.defineProperty(xhr, 'response', {
-      value: xhr.responseType === 'json' ? safeParse(body) : body,
+      value: binary
+        ? xhr.responseType === 'arraybuffer'
+          ? bytes.buffer.slice(
+              bytes.byteOffset,
+              bytes.byteOffset + bytes.byteLength
+            )
+          : new Blob([bytes], { type: contentType })
+        : xhr.responseType === 'json'
+          ? safeParse(body)
+          : body,
       configurable: true
     })
     xhr.getAllResponseHeaders = () => 'content-type: ' + contentType + '\r\n'
@@ -165,8 +179,30 @@
         )
 
         const res = await fetch(xhr.__sasjsMockUrl, init)
-        const text = await res.text()
         const contentType = res.headers.get('content-type') || 'text/plain'
+
+        // A caller that asked for bytes must be handed them as bytes: the same
+        // request answered with `res.text()` gives a PNG's UTF-8 damage, and the
+        // image or file the caller builds from it is unusable.
+        const wantsBytes =
+          xhr.responseType === 'blob' || xhr.responseType === 'arraybuffer'
+
+        if (wantsBytes) {
+          const bytes = new Uint8Array(await res.arrayBuffer())
+          if (res.status >= 400)
+            console.error(
+              '[sasjs-mock] ' +
+                xhr.__sasjsMockUrl +
+                ' -> ' +
+                res.status +
+                ' ' +
+                new TextDecoder().decode(bytes).slice(0, 400)
+            )
+          respond(xhr, res.status, contentType, '', bytes)
+          return
+        }
+
+        const text = await res.text()
         if (res.status >= 400)
           console.error(
             '[sasjs-mock] ' +
