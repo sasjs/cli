@@ -2,6 +2,8 @@ import dotenv from 'dotenv'
 import path from 'path'
 import {
   generateUniqueTimestamp,
+  getTemplateFileTree,
+  seedAppUrls,
   verifyFolder,
   verifyPackageJsonContent,
   verifyGitNotPresent,
@@ -10,9 +12,6 @@ import {
 } from '../../../utils/test'
 import { createFolder, deleteFolder } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
-import { minimalAppFiles } from './minimalAppFiles'
-import { reactAppFiles } from './reactAppFiles'
-import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
@@ -138,17 +137,13 @@ describe('sasjs create', () => {
 })
 
 const verifyCreateWeb = async (appName: string, appType: string) => {
-  const fileStructure: Folder =
-    appType === 'minimal'
-      ? minimalAppFiles
-      : appType === 'react'
-        ? reactAppFiles
-        : appType === 'angular'
-          ? angularAppFiles
-          : minimalAppFiles
-  fileStructure.folderName = appName
+  // The reference is the template itself, fetched the way the command fetched
+  // it. A hand-kept list of what each seed ships goes stale on the seed's next
+  // release and turns this suite red with no change to the CLI.
+  const template: Folder = await getTemplateFileTree(seedAppUrls[appType])
+  template.folderName = appName
 
-  await verifyFolder(fileStructure)
+  await verifyFolder(template)
   await verifyPackageJsonContent(appName)
 
   // A seed app carries its dependencies in the template's package.json, so the
