@@ -3,18 +3,18 @@ import path from 'path'
 import {
   generateUniqueTimestamp,
   getTemplateFileTree,
-  seedAppUrls,
   verifyFolder,
   verifyPackageJsonContent,
   verifyGitNotPresent,
   stubNpm,
   npmCommands
 } from '../../../utils/test'
-import { createFolder, deleteFolder } from '@sasjs/utils'
+import { createFolder, deleteFolder, fileExists } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
+import { seedAppUrls } from '../../../utils/utils'
 
 describe('sasjs create', () => {
   beforeAll(() => {
@@ -145,6 +145,23 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
 
   await verifyFolder(template)
   await verifyPackageJsonContent(appName)
+
+  // The docs are a submodule fetched after the archive, and the archive carries
+  // the folder empty - so the derived tree can only assert that the folder is
+  // there. A create whose docs download silently failed used to pass; assert
+  // the site itself arrived, at whichever path the seed puts it.
+  if (appType === 'react' || appType === 'angular') {
+    const docsCandidates = [
+      path.join(process.projectDir, appName, 'public', 'docs', 'index.html'),
+      path.join(process.projectDir, appName, 'docs', 'index.html')
+    ]
+
+    const present = await Promise.all(
+      docsCandidates.map((candidate) => fileExists(candidate))
+    )
+
+    expect(present.some(Boolean)).toEqual(true)
+  }
 
   // A seed app carries its dependencies in the template's package.json, so the
   // command create issues for it is a plain install - the same trade as above:

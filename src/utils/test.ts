@@ -455,13 +455,6 @@ const verifyBuildJson = (
   return true
 }
 
-/** The seed apps `sasjs create` downloads, by template name. */
-export const seedAppUrls: Record<string, string> = {
-  angular: 'https://github.com/sasjs/angular-seed-app',
-  minimal: 'https://github.com/sasjs/minimal-seed-app',
-  react: 'https://github.com/sasjs/react-seed-app'
-}
-
 /**
  * The file tree of a seed app, read from the archive `sasjs create` downloads.
  *
@@ -474,6 +467,12 @@ export const seedAppUrls: Record<string, string> = {
  * where the command makes them.
  */
 export const getTemplateFileTree = async (repoUrl: string): Promise<Folder> => {
+  if (!repoUrl) {
+    throw new Error(
+      `No seed app URL for that template - add it to seedAppUrls in src/utils/utils.ts`
+    )
+  }
+
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-template-'))
 
   try {

@@ -175,8 +175,6 @@ describe('sasjs cbd with server type SASJS', () => {
       const member = deployed.get(`services/common/${name}`)
 
       expect(member).toMatchObject({ name, type: 'service' })
-      // the compiled program ends the service text with a newline before the
-      // end marker, whether or not the source file does
       // the compiled service ends its text with a blank line before the end
       // marker, whatever trailing whitespace the source file carries
       expect(member.code).toEqual(
