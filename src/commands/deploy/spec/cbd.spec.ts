@@ -121,9 +121,18 @@ describe('sasjs cbd with server type SASJS', () => {
       'common',
       'getdata.js'
     )
+    // The seed app's service reads this file beside itself, so it travels with
+    // the service and appears in the deploy payload.
+    const springsJSONPath = path.join(
+      mocksPath,
+      'services',
+      'common',
+      'springs.json'
+    )
 
     const appinitJSContents = await readFile(appinitJSPath)
     const getdataJSContents = await readFile(getdataJSPath)
+    const springsJSONContents = await readFile(springsJSONPath)
 
     const depsInserts = `\n\n* Service Variables start;\n\n\n* Service Variables end;\n* SAS Macros start;\n\n\n\n* SAS Macros end;\n* SAS Includes start;\n\n* SAS Includes end;\n* Binary Files start;\n\n* Binary Files end;\n\n\n* Service start;\n`
     const appinit = `/**\n  @file appinit.sas\n  @brief Initialisation service - runs on app startup\n  @details  This is always the first service called when the app is opened.\n\n  <h4> SAS Macros </h4>\n\n**/\n\nproc sql;\ncreate table areas as select distinct area\n  from mydb.springs;\n\n%webout(OPEN)\n%webout(OBJ,areas)\n%webout(CLOSE)\n\n`
@@ -165,6 +174,12 @@ describe('sasjs cbd with server type SASJS', () => {
                       name: 'getdata',
                       type: 'service',
                       code: getCode(removeHeader(getdata))
+                    },
+                    {
+                      name: 'springs.json',
+                      type: 'file',
+                      encoding: 'base64',
+                      code: encode(springsJSONContents)
                     }
                   ]
                 }
