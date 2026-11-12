@@ -2,20 +2,19 @@ import dotenv from 'dotenv'
 import path from 'path'
 import {
   generateUniqueTimestamp,
+  getTemplateFileTree,
   verifyFolder,
   verifyPackageJsonContent,
   verifyGitNotPresent,
   stubNpm,
   npmCommands
 } from '../../../utils/test'
-import { createFolder, deleteFolder } from '@sasjs/utils'
+import { createFolder, deleteFolder, fileExists } from '@sasjs/utils'
 import { getFolders } from '../../../utils/config'
-import { minimalAppFiles } from './minimalAppFiles'
-import { reactAppFiles } from './reactAppFiles'
-import { angularAppFiles } from './angularAppFiles'
 import { create } from '../create'
 import { Folder } from '../../../types'
 import { setConstants } from '../../../utils'
+import { seedAppUrls } from '../../../utils/utils'
 
 describe('sasjs create', () => {
   beforeAll(() => {
@@ -138,18 +137,31 @@ describe('sasjs create', () => {
 })
 
 const verifyCreateWeb = async (appName: string, appType: string) => {
-  const fileStructure: Folder =
-    appType === 'minimal'
-      ? minimalAppFiles
-      : appType === 'react'
-        ? reactAppFiles
-        : appType === 'angular'
-          ? angularAppFiles
-          : minimalAppFiles
-  fileStructure.folderName = appName
+  // The reference is the template itself, fetched the way the command fetched
+  // it. A hand-kept list of what each seed ships goes stale on the seed's next
+  // release and turns this suite red with no change to the CLI.
+  const template: Folder = await getTemplateFileTree(seedAppUrls[appType])
+  template.folderName = appName
 
-  await verifyFolder(fileStructure)
+  await verifyFolder(template)
   await verifyPackageJsonContent(appName)
+
+  // The docs are a submodule fetched after the archive, and the archive carries
+  // the folder empty - so the derived tree can only assert that the folder is
+  // there. A create whose docs download silently failed used to pass; assert
+  // the site itself arrived. Every template gets the docs (create routes all
+  // three through a create*App that passes the docs URL), and the path differs:
+  // react keeps them under `public`, the others at the root.
+  const docsCandidates = [
+    path.join(process.projectDir, appName, 'public', 'docs', 'index.html'),
+    path.join(process.projectDir, appName, 'docs', 'index.html')
+  ]
+
+  const present = await Promise.all(
+    docsCandidates.map((candidate) => fileExists(candidate))
+  )
+
+  expect(present.some(Boolean)).toEqual(true)
 
   // A seed app carries its dependencies in the template's package.json, so the
   // command create issues for it is a plain install - the same trade as above:

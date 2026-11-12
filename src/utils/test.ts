@@ -1,4 +1,5 @@
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import dotenv from 'dotenv'
 import {
@@ -37,6 +38,8 @@ import { builtFilesCustom1 } from './fileStructures/builtFilesCustom1'
 import { Folder, File } from '../types'
 import { ServiceConfig, JobConfig } from '@sasjs/utils/types/config'
 import { create } from '../commands/create/create'
+import { downloadFile } from './utils'
+import { extractZip } from './zip'
 import { setConstants, contextName } from './setConstants'
 import { Constants } from '../constants'
 import * as shell from './shell'
@@ -450,6 +453,68 @@ const verifyBuildJson = (
   })
 
   return true
+}
+
+/**
+ * The file tree of a seed app, read from the archive `sasjs create` downloads.
+ *
+ * A created project used to be compared against a hand-kept list of the files
+ * each template ships, so every seed release that added or removed one turned
+ * this suite red with no change to the CLI - twice in one afternoon, for
+ * `springs.json` and for the angular template's component specs. The template
+ * is what the command copies, so it is what the test compares against: the same
+ * repository, fetched the same way, with the copy's own normalisations applied
+ * where the command makes them.
+ */
+export const getTemplateFileTree = async (repoUrl: string): Promise<Folder> => {
+  if (!repoUrl) {
+    throw new Error(
+      `No seed app URL for that template - add it to seedAppUrls in src/utils/utils.ts`
+    )
+  }
+
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-template-'))
+
+  try {
+    const archive = path.join(workspace, 'main.zip')
+    const main = downloadFile(`${repoUrl}/archive/refs/heads/main.zip`, archive)
+
+    // the seed repos are on `main`, but the command falls back to `master` and
+    // the reference has to be taken from whatever it would have downloaded
+    if (main.code || main.stderr.includes('404')) {
+      downloadFile(`${repoUrl}/archive/refs/heads/master.zip`, archive)
+    }
+
+    await extractZip(archive, workspace, true)
+
+    const root = fs
+      .readdirSync(workspace, { withFileTypes: true })
+      .find((entry) => entry.isDirectory())
+
+    if (!root) {
+      throw new Error(`Could not find the unzipped folder for ${repoUrl}`)
+    }
+
+    return toFileTree(path.join(workspace, root.name), root.name)
+  } finally {
+    fs.rmSync(workspace, { recursive: true, force: true })
+  }
+}
+
+const toFileTree = (folderPath: string, folderName: string): Folder => {
+  const entries = fs.readdirSync(folderPath, { withFileTypes: true })
+
+  return {
+    folderName,
+    // `create` removes this once the docs have been fetched into the folder, so
+    // it is the one file the project is not expected to carry
+    files: entries
+      .filter((entry) => entry.isFile() && entry.name !== '.gitmodules')
+      .map((entry) => ({ fileName: entry.name })),
+    subFolders: entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => toFileTree(path.join(folderPath, entry.name), entry.name))
+  }
 }
 
 export const verifyFolder = async (folder: Folder, parentFolderName = '.') => {

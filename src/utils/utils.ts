@@ -47,11 +47,24 @@ export function diff(a: any[], b: any[]) {
   return [...notInA, ...notInB]
 }
 
+/**
+ * The seed apps `sasjs create` downloads, by template name.
+ *
+ * One map for the commands that fetch them and the specs that compare their
+ * output, so a template added here is covered by both rather than downloaded
+ * by one and unknown to the other.
+ */
+export const seedAppUrls: Record<string, string> = {
+  angular: 'https://github.com/sasjs/angular-seed-app',
+  minimal: 'https://github.com/sasjs/minimal-seed-app',
+  react: 'https://github.com/sasjs/react-seed-app'
+}
+
 export async function createReactApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     await createApp(
       folderPath,
-      'https://github.com/sasjs/react-seed-app',
+      seedAppUrls.react,
       'https://github.com/sasjs/docs',
       (err: string) => {
         return reject(new Error(err))
@@ -66,7 +79,7 @@ export async function createAngularApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     await createApp(
       folderPath,
-      'https://github.com/sasjs/angular-seed-app',
+      seedAppUrls.angular,
       'https://github.com/sasjs/docs',
       (err: string) => {
         return reject(new Error(err))
@@ -80,7 +93,7 @@ export async function createMinimalApp(folderPath: string): Promise<void> {
   return new Promise(async (resolve, reject) => {
     await createApp(
       folderPath,
-      'https://github.com/sasjs/minimal-seed-app',
+      seedAppUrls.minimal,
       'https://github.com/sasjs/docs',
       (err: string) => {
         return reject(new Error(err))
