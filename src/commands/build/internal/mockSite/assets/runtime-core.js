@@ -935,6 +935,32 @@ const formatArg = (a) => {
 const PROGRAM_FOLDERS = ['services', 'jobs', 'tests']
 
 /**
+ * The extensions an extension-less program is tried with, in the host's `RUN_TIMES` order.
+ *
+ * SASjs Server gives priority to the run time that comes first in `RUN_TIMES`
+ * (`docs/pages/settings.md`): with `RUN_TIMES=js,sas` a reference to `/some/program` finds
+ * `program.js` before `program.sas`. The order is the host's to declare, so this starts empty
+ * and the host sets it: guessing here would let a host that says nothing run a file its own
+ * `RUN_TIMES` does not offer.
+ */
+let RUN_TIME_EXTENSIONS = []
+
+/** Declare the host's run times, in its order. Their extensions are tried in that order. */
+const setRunTimes = (runTimes) => {
+  const extensions = (Array.isArray(runTimes) ? runTimes : [])
+    .map(
+      (runTime) =>
+        '.' +
+        String(runTime || '')
+          .trim()
+          .toLowerCase()
+    )
+    .filter((extension) => extension.length > 1)
+
+  if (extensions.length) RUN_TIME_EXTENSIONS = extensions
+}
+
+/**
  * Resolves a program reference the way the server does: an exact drive path,
  * with the runtime extension tried. The adapter sends a full path, and prepends
  * the appLoc when the app passes one without a leading slash, so a reference
@@ -960,7 +986,10 @@ const resolveProgram = (program) => {
   }
 
   for (const root of roots) {
-    for (const candidate of [root, root + '.js', root + '.sas']) {
+    for (const candidate of [
+      root,
+      ...RUN_TIME_EXTENSIONS.map((extension) => root + extension)
+    ]) {
       if (FILES.has(candidate)) return candidate
     }
   }
@@ -1528,6 +1557,8 @@ const api = {
   // the file a program names, so the host can tell a .sas program from a .js one
   // and refuse the former instead of compiling SAS source as JavaScript
   resolveProgram: (program) => resolveProgram(program),
+  // the host's RUN_TIMES, so an extension-less program is probed in the order it declares
+  setRunTimes: (runTimes) => setRunTimes(runTimes),
   // the drive's bytes, for @sasjs/api's services: the rules that decide a
   // status are the package's, so this host hands over storage and nothing else
   driveStore,

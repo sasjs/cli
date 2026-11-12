@@ -401,21 +401,83 @@ const persistChanges = async () => {
 /**
  * A recorded SAS session, for a project that ships one.
  *
- * A browser has no SAS binary. Rather than let a Run on a .sas program be a
- * surprise, a project may record a session once and commit it as
- * `sas-transcript.json`: the build copies it into the site and this answers a
- * run of a program it names with that session's log, listing and webout. The
- * recording is the demo's own data, so nothing here is invented for a project
- * that does not ship one - those runs reach the runner and are refused exactly
- * as before.
+ * A mock site is a JavaScript backend: there is no SAS binary here and never was, so a SAS
+ * run cannot be executed and cannot fail for want of the binary either. It answers with a
+ * session - the log, listing and webout a run of that program would have produced.
+ *
+ * By default that session is the mocked one below, which is the point of the mock: a visitor
+ * who edits a `.sas` file or runs a buffer sees the Studio's log panel the way a real run
+ * fills it, errors and warnings included, instead of being told about a binary a browser was
+ * never going to have.
+ *
+ * A project may record a real session and commit it as `sas-transcript.json`, and a run of a
+ * program it names is answered with that instead - the project's own output is better than
+ * ours, and a demo of a specific report wants the real numbers.
  *
  * Shape: `{ "<program path>": {"log": "...", "print": "...", "webout": "..."} }`,
  * all three strings. The path is matched as written apart from the
  * `/sasjs/drive/files` prefix and the `.sas` suffix, so a recording keeps the
  * path a person sees; a bare file name is not enough, because that would answer
- * every file of that name in the drive.
+ * every file of that name in the drive. `{{program}}` in any of the three strings is
+ * replaced with the program's logical path, so an answer can name what was run.
  */
 const SAS_TRANSCRIPT = 'host/sas-transcript.json'
+
+/**
+ * The session a SAS run is answered with when the project has not recorded one.
+ *
+ * Written the way a SAS log is written - source lines with their numbers, notes, a warning and
+ * an error, the process-time block - because the Studio parses this text: the log panel marks
+ * errors and warnings from it, and a demo whose mock answered with an empty log would show a
+ * panel that never lights up. The webout is what a service that sends data back would have
+ * written, and the listing is what `proc print` puts on a page.
+ */
+const MOCKED_SESSION = {
+  webout: '{"SYSSITE":"00000000","MOCKED":true}',
+  log: [
+    'NOTE: This is a mocked SAS session: a browser has no SAS binary.',
+    '      The program below is {{program}}.',
+    '',
+    '1    data work.class;',
+    '2      set sashelp.class;',
+    '3      where age > 12',
+    '4      by name;',
+    '5    run;',
+    '',
+    'ERROR 22-322: Syntax error, expecting one of the following: ;, DATA, DATALINES,',
+    '              DELETE, DESCRIBE, FILE, INPUT, LIST, MERGE, MODIFY, OUTPUT, PUT,',
+    '              SET, UPDATE.',
+    'ERROR 76-322: Syntax error, statement will be ignored.',
+    '',
+    'NOTE: The SAS System stopped processing this step because of errors.',
+    'WARNING: The data set WORK.CLASS may be incomplete. When this step was stopped',
+    '         there were 0 observations and 0 variables.',
+    'NOTE: DATA statement used (Total process time):',
+    '      real time           0.01 seconds',
+    '      cpu time            0.01 seconds',
+    '',
+    '6    proc print data=sashelp.class (obs=3);',
+    '7      var name age height weight;',
+    '8    run;',
+    '',
+    'NOTE: There were 3 observations read from the data set SASHELP.CLASS.',
+    'NOTE: The PROCEDURE PRINT printed page 1.',
+    'NOTE: PROCEDURE PRINT used (Total process time):',
+    '      real time           0.02 seconds',
+    '      cpu time            0.02 seconds',
+    '',
+    'NOTE: The SAS System stopped processing this step because of errors.',
+    'NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414'
+  ].join('\n'),
+  print: [
+    'The SAS System',
+    '',
+    '  Obs    Name       Age    Height    Weight',
+    '    1    Alfred      14     69.0     112.5',
+    '    2    Alice       13     56.5      84.0',
+    '    3    Barbara     13     65.3      98.0'
+  ].join('\n')
+}
 let TRANSCRIPT = null
 
 const transcript = async () => {
@@ -444,17 +506,62 @@ const logicalPath = (value) =>
     .replace(/^\/sasjs\/drive\/files/i, '')
     .replace(/\.sas$/i, '')
 
-/** The recording naming this program, if the project shipped one. */
+/** A recording with its placeholders filled in, so a demo can name what was run. */
+const withProgram = (recording, requested) => {
+  // the replacement is a function, not a string: a program path may hold `$&` or `$1`, which a
+  // string replacement expands, so a caller naming `services/$&x` would be answered with
+  // `{{program}}` in place of their own path
+  const fill = (value) =>
+    String(value || '').replaceAll(
+      '{{program}}',
+      () => requested || 'the code in this buffer'
+    )
+
+  return {
+    webout: fill(recording.webout),
+    log: fill(recording.log),
+    print: fill(recording.print)
+  }
+}
+
+/**
+ * The session this SAS run is answered with.
+ *
+ * The project's recording of that program if it shipped one, and the mocked session otherwise -
+ * never a refusal, and never nothing. A SAS run is only reached here when the host cannot
+ * execute it, which in a browser is always, so there is no case in which the honest answer is
+ * "no".
+ */
 const transcriptFor = async (programPath) => {
   const requested = logicalPath(programPath)
-  if (!requested) return undefined
-
   const recorded = await transcript()
 
-  for (const key of Object.keys(recorded))
-    if (logicalPath(key) === requested) return recorded[key]
+  if (requested)
+    for (const key of Object.keys(recorded))
+      if (logicalPath(key) === requested)
+        return withProgram(recorded[key], requested)
 
-  return undefined
+  return withProgram(MOCKED_SESSION, requested)
+}
+
+/**
+ * Whether this request is a SAS run.
+ *
+ * A code run states its run time. A program run does not - the server resolves it against
+ * `RUN_TIMES`, which is why `R.setRunTimes` puts that order into the runtime-core resolution -
+ * and the file that comes back decides. It is the same resolution the runner makes, so the two cannot disagree about
+ * which runs are SAS: a rule of my own here would sooner or later answer a run the runner
+ * would have executed, or the reverse.
+ */
+const isSasRun = (code, runTime, program) => {
+  // a code run always states its run time - the package refuses one without it - so this is
+  // a plain comparison rather than a default
+  if (code) return String(runTime || '').toLowerCase() === 'sas'
+
+  // the request may name the program without its extension
+  const resolved = R.resolveProgram(program)
+
+  return Boolean(resolved && /\.sas$/i.test(resolved))
 }
 
 /**
@@ -489,17 +596,6 @@ const recordedProgramIn = (code, runTime) => {
 
 // ---------------------------------------------------------------- the runner
 /**
- * What a SAS run this host cannot answer is told.
- *
- * `sas` is one of the host's run times, so the message must not claim the run
- * time is missing: what is missing is the binary, because this is a browser. It
- * names the one thing that does answer SAS here, so a reader whose program is
- * refused knows why the demo's own program is not.
- */
-const SAS_UNAVAILABLE =
-  'SAS is not available on this host: a browser has no SAS binary, and this demo answers only the program it ships a recorded session of.'
-
-/**
  * The work a run does, over the browser's drive.
  *
  * `@sasjs/api` decides everything a client observes about a run - which
@@ -518,28 +614,43 @@ class BrowserRuntime extends API.MemorySessionHost {
     const program = request.program || {}
     const params = Object.assign({}, request.vars || {})
 
-    // SAS never reaches the runner. `sas` is one of this host's run times - the
-    // recording answers the program it names - but the answer for anything else
-    // is the refusal a client already understands, not a JavaScript SyntaxError
-    // quoting the SAS source, which is what handing it to the runner would
-    // produce. The file is resolved because the request may name the program
-    // without its extension.
     const resolved =
       program.code === undefined ? R.resolveProgram(program.path) : undefined
     const isSas =
       String(request.runTime || '').toLowerCase() === 'sas' ||
       Boolean(resolved && /\.sas$/i.test(resolved))
 
-    if (isSas) throw runFailure(SAS_UNAVAILABLE)
+    // A SAS run is answered with its session, here as on the run routes: those answer before the
+    // runtime is reached, but a *trigger* goes through it, and a mock must not be the one place
+    // that refuses a run for want of a binary it never had. Handing SAS source to the JavaScript
+    // runner would be worse still - a SyntaxError quoting the source.
+    let artifact
+    if (isSas) {
+      const recording = await transcriptFor(
+        program.code !== undefined
+          ? recordedProgramIn(program.code, request.runTime)
+          : program.path
+      )
 
-    const payload = { params, tables: tablesOf(request.files) }
-    if (program.code !== undefined) payload.code = program.code
-    else payload.program = program.path
+      artifact = artifactOf(
+        {
+          webout: recording.webout || '',
+          log: recording.log || '',
+          print: recording.print || '',
+          headers: SEEDED_HEADER_LINE
+        },
+        params._debug !== undefined
+      )
+    } else {
+      const payload = { params, tables: tablesOf(request.files) }
+      if (program.code !== undefined) payload.code = program.code
+      else payload.program = program.path
 
-    const result = R.run(payload)
-    if (result.error) throw runFailure(result.error)
+      const result = R.run(payload)
+      if (result.error) throw runFailure(result.error)
 
-    const artifact = artifactOf(result, params._debug !== undefined)
+      artifact = artifactOf(result, params._debug !== undefined)
+    }
     const session = request.session
     if (session) {
       const stamp = new Date().toISOString()
@@ -625,20 +736,25 @@ const withoutBase = (pathname) =>
 
 // ------------------------------------------------------------- what it can run
 /**
- * The run times this host answers, in the order a client should try them.
+ * The run times this host answers, in order of priority.
  *
- * `js` is executed here, in the page's own JavaScript engine. `sas` is answered
- * from the recorded session (`host/sas-transcript.json`) for the one program the
- * recording names; any other SAS program is refused by `SAS_UNAVAILABLE`, which
- * names the missing binary rather than a missing run time - a browser has none.
+ * `js` is executed here, in the page's own JavaScript engine. `sas` is answered from a session -
+ * the project's recording of that program (`host/sas-transcript.json`) when it ships one, and the
+ * mocked session otherwise. That holds on every route that runs one: a run, a code run, and a
+ * trigger, which reaches the runtime rather than the run route and is answered there.
  *
- * Both the `/SASjsApi/info` answer and the runtime service read this list, so the
- * run times the host states and the ones its service accepts cannot drift apart.
- * `sas` is stated because that is what offers Run on a `.sas` file at all; a
- * program the recording does not name is then refused with its reason, not by the
- * run time being absent from a list the host publishes.
+ * The order is the priority SASjs Server gives `RUN_TIMES` (`docs/pages/settings.md`): `js` leads
+ * here, because a browser executes JavaScript and holds a recording where a server has a binary.
+ * Everything else is derived from this list - the order an extension-less program is resolved in
+ * (`R.setRunTimes` below), and what `/SASjsApi/info` and the runtime service report, so the run
+ * times the host publishes and the ones its service accepts cannot drift apart. `sas` is stated
+ * because that is what offers Run on a `.sas` file at all.
  */
 const RUN_TIMES = ['js', 'sas']
+
+// the order decides which program an extension-less reference runs, the way the server's
+// RUN_TIMES does - `services/x` is `x.js` here, because `js` comes first
+R.setRunTimes(RUN_TIMES)
 
 // ------------------------------------------------------------- host reports
 // The Admin routes ask a host what it is doing. A browser has no process, but it
@@ -1211,36 +1327,34 @@ const runRoute = async (routeId, payload, subject) => {
     runRequest.program = query._program || body._program
   }
 
-  // A recorded SAS session is answered here, ahead of the run. `sas` IS one of
-  // this host's run times - it is what the Studio reads to offer Run on a .sas
-  // file - and the recording is how it is answered, so the check comes before
-  // the package would compile the source as JavaScript. A trigger is excluded:
-  // it has to answer with the session record the route builds, which a client
-  // parses as JSON, so a recording is not an answer there.
-  if (!trigger) {
-    const recorded = code
-      ? recordedProgramIn(body.code, body.runTime)
-      : runRequest.program
-    const recording = recorded ? await transcriptFor(recorded) : undefined
+  // A SAS run is answered here, ahead of the run: this host cannot execute one, so the answer
+  // is a session - the project's recording of that program, or the mocked one. `sas` IS one of
+  // this host's run times, which is what the Studio reads to offer Run on a `.sas` file, so the
+  // check comes before the package would compile the source as JavaScript. A trigger is
+  // excluded: it has to answer with the session record the route builds, which a client parses
+  // as JSON, so a transcript is not an answer there.
+  if (!trigger && isSasRun(code, body.runTime, runRequest.program)) {
+    const recording = await transcriptFor(
+      code ? recordedProgramIn(body.code, body.runTime) : runRequest.program
+    )
 
-    if (recording)
-      return artifactResponse(
-        artifactOf(
-          {
-            webout: recording.webout || '',
-            log: recording.log || '',
-            print: recording.print || '',
-            // the seed every session starts with, so a run without `_debug`
-            // answers text/html rather than leaving the type to the browser -
-            // the same rule runtime-core applies to a service that declares none
-            headers: SEEDED_HEADER_LINE
-          },
-          // a code run carries no `_debug` and still answers with its log: the
-          // package compiles a code run at its own debug level, and the Studio
-          // splits the three parts on the separator it writes
-          code ? true : vars._debug !== undefined
-        )
+    return artifactResponse(
+      artifactOf(
+        {
+          webout: recording.webout || '',
+          log: recording.log || '',
+          print: recording.print || '',
+          // the seed every session starts with, so a run without `_debug`
+          // answers text/html rather than leaving the type to the browser -
+          // the same rule runtime-core applies to a service that declares none
+          headers: SEEDED_HEADER_LINE
+        },
+        // a code run carries no `_debug` and still answers with its log: the
+        // package compiles a code run at its own debug level, and the Studio
+        // splits the three parts on the separator it writes
+        code ? true : vars._debug !== undefined
       )
+    )
   }
 
   if (trigger) {

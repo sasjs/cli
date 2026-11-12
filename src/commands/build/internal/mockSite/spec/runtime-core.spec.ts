@@ -18,7 +18,15 @@ const drivePath = (relative: string) =>
 const loadRuntime = () => {
   ;(global as any).self = {}
   jest.resetModules()
-  return require('../assets/runtime-core.js')
+
+  const runtime = require('../assets/runtime-core.js')
+
+  // the host declares its run times, and the site's worker does the same from its own
+  // `RUN_TIMES` (sw.js): an extension-less program is resolved in that order, so a runtime
+  // driven without a declaration resolves exact paths only
+  runtime.setRunTimes(['js', 'sas'])
+
+  return runtime
 }
 
 const jsonResponse = (body: any) => ({

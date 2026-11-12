@@ -1110,10 +1110,12 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   }
 
   // 2d. a recorded SAS session, if the project ships one. A browser has no SAS
-  // binary, so a .sas program the recording names is answered with it - the log,
-  // listing and webout of a session already run - and every program it does not
-  // name is refused as before. It is data in the project, not a behaviour of the
-  // host: nothing is invented for a project that does not ship the file.
+  // binary, so every SAS run is answered from a session - a run, a code run, and
+  // a trigger, which reaches the runtime rather than the run route and is
+  // answered there. This file's recording of the program answers when it names
+  // one (the log, listing and webout of a session already run), and the host's
+  // mocked session otherwise. The file is the project's own output where it has
+  // it; the mock is what makes a site complete without one.
   const transcriptSource = path.join(buildFolder, 'sas-transcript.json')
   const hasTranscript = fs.existsSync(transcriptSource)
   if (hasTranscript)
