@@ -179,6 +179,64 @@ describe('page-side bridge', () => {
     expect(xhr.response).toEqual({ a: 1 })
   })
 
+  it('hands a blob request the bytes, not the body decoded as text', async () => {
+    // The Studio's image preview asks for a blob and turns it into an object
+    // URL. A PNG answered as text arrives as UTF-8 damage, `<img>` draws
+    // nothing, and the screen shows the generic Abort modal - which is what a
+    // picture on the published site did.
+    const bytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d
+    ])
+    const { XHR } = loadBridge(
+      jest.fn(
+        async () =>
+          new Response(bytes, {
+            status: 200,
+            headers: { 'content-type': 'image/png' }
+          })
+      )
+    )
+
+    const xhr = new XHR()
+    xhr.responseType = 'blob'
+
+    await run(
+      xhr,
+      'GET',
+      '/SASjsApi/drive/file?_filePath=%2FPublic%2Fapp%2Fmacrodash%2Fservices%2Fweb%2Fmacrodash.png'
+    )
+
+    expect(xhr.status).toBe(200)
+    expect(xhr.response).toBeInstanceOf(Blob)
+    expect(xhr.response.type).toBe('image/png')
+    expect(xhr.response.size).toBe(bytes.length)
+    expect(xhr.responseText).toBe('')
+
+    const readBack = new Uint8Array(await xhr.response.arrayBuffer())
+    expect(Array.from(readBack)).toEqual(Array.from(bytes))
+  })
+
+  it('hands an arraybuffer request the bytes as well', async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4])
+    const { XHR } = loadBridge(
+      jest.fn(
+        async () =>
+          new Response(bytes, {
+            status: 200,
+            headers: { 'content-type': 'application/octet-stream' }
+          })
+      )
+    )
+
+    const xhr = new XHR()
+    xhr.responseType = 'arraybuffer'
+
+    await run(xhr, 'GET', '/SASjsApi/drive/file?_filePath=%2Fx.bin')
+
+    expect(Array.from(new Uint8Array(xhr.response))).toEqual([1, 2, 3, 4])
+    expect(xhr.responseText).toBe('')
+  })
+
   it('answers with a 500 body when the request itself fails', async () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation()
     const { XHR } = loadBridge(
