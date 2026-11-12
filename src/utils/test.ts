@@ -495,11 +495,14 @@ export const verifyPackageJsonContent = async (parentFolderName = '.') => {
 
   const packageJson = JSON.parse(packageJsonContent)
 
-  expect(
-    parentFolderName.includes('minimal')
-      ? packageJson.devDependencies
-      : packageJson.dependencies
-  ).toEqual(expect.objectContaining({ '@sasjs/core': expect.anything() }))
+  // Which map the seed app declares its SASjs dependency in is the seed's
+  // business - a web app carries @sasjs/core as a devDependency (it compiles
+  // the macros in) while the jobs template installs it as a dependency. What
+  // this asserts is that the template brings the macros with it at all.
+  expect({
+    ...packageJson.devDependencies,
+    ...packageJson.dependencies
+  }).toEqual(expect.objectContaining({ '@sasjs/core': expect.anything() }))
 }
 
 export const removeAllTargetsFromConfigs = async () => {
