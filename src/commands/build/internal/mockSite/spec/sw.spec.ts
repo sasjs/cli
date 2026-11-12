@@ -401,9 +401,9 @@ describe('service worker host', () => {
 
   it('answers only the line the interface writes, not one further down', async () => {
     // The interface puts `%let _program` first; a line further down belongs to
-    // the program. Answered, it would hand a caller's own SAS program the session
-    // recorded for another file - the "inventing a session" the refusal exists to
-    // avoid, with a different file's log.
+    // the program. Reading it would hand a caller's own SAS program the session
+    // recorded for another file - a different file's log, which is worse than the
+    // mocked one.
     ;(global as any).__sasTranscript = {
       [`${appLoc}/services/public/program.sas`]: {
         webout: '{"SYSSITE":"00000000"}',
@@ -425,16 +425,200 @@ describe('service worker host', () => {
       })
     )
 
-    expect(response.status).toBe(400)
-    expect(await response.text()).toContain('SAS is not available')
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('This is a mocked SAS session')
+    expect(body).not.toContain('NOTE: recorded')
 
     delete (global as any).__sasTranscript
   })
 
-  it('refuses SAS code that names no recorded program', async () => {
-    // A code run from an API client carries no `%let _program` line, and a path
-    // the recording does not name has no session: the recording is the only SAS
-    // answer this host has, and it is one file's.
+  it('answers a program it never recorded with the mocked session', async () => {
+    // A mock is a JavaScript backend: SAS is mocked, and the visitor knows it. So a program
+    // the project did not record - one they just created, or one that was never there - is
+    // answered with a session rather than refused: the demo exists to show what the Studio
+    // does when a program has run.
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/other.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/other`) +
+        '&_debug=131'
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('This is a mocked SAS session')
+    expect(body).toContain('services/public/other')
+    expect(body).not.toContain('SAS is not available')
+  })
+
+  it('answers an unsaved buffer with the mocked session', async () => {
+    // Code typed into a buffer with no file behind it reaches `/code/execute` with no
+    // `_program` line to name it, so the session says what was run instead of naming a path.
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASjsApi/code/execute',
+      runRequest({ code: 'data work.class; run;', runTime: 'sas' })
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('This is a mocked SAS session')
+    expect(body).toContain('the code in this buffer')
+  })
+
+  it('gives the mocked session the notes, warnings and errors a log panel reads', async () => {
+    // The point of answering rather than refusing is what the visitor sees: a Studio log
+    // marked up the way a real run marks it. An empty mock log would leave the panel - and the
+    // error and warning filters beside it - looking at a run that did nothing.
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASjsApi/code/execute',
+      runRequest({ code: 'data work.class; run;', runTime: 'sas' })
+    )
+
+    const body = await response.text()
+    expect(body).toMatch(/^\d+\s+\w/m) // source lines with their numbers
+    expect(body).toContain('ERROR 22-322')
+    expect(body).toContain('WARNING:')
+    expect(body).toContain('NOTE:')
+    expect(body).toContain('The SAS System')
+  })
+
+  it('prefers the recording that names the program over the mocked session', async () => {
+    // The project's own output beats ours, which is why it recorded it.
+    ;(global as any).__sasTranscript = {
+      [`${appLoc}/services/public/report.sas`]: {
+        webout: '',
+        log: 'NOTE: the recorded session',
+        print: ''
+      }
+    }
+
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/report.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/report`) +
+        '&_debug=131'
+    )
+
+    const body = await response.text()
+    expect(body).toContain('the recorded session')
+    expect(body).not.toContain('This is a mocked SAS session')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('runs a JavaScript code run rather than answering it with the recorded session', async () => {
+    // The demo's app services are JavaScript. They execute here, so a project that ships a
+    // fallback must not have its own code replaced by a recorded SAS session: the run time,
+    // not the presence of code, is what makes a run SAS.
+    ;(global as any).__sasTranscript = {
+      '*': {
+        webout: 'RECORDED-SESSION',
+        log: 'NOTE: the demo session',
+        print: ''
+      }
+    }
+
+    const { dispatch } = seeded()
+
+    const response = await dispatch(
+      '/SASjsApi/code/execute',
+      runRequest({ code: '_webout = "inline";', runTime: 'js', params: {} })
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body.split(LOGS_SEPARATOR)[0].trim()).toBe('inline')
+    expect(body).not.toContain('RECORDED-SESSION')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('runs the run time first in RUN_TIMES when a program names no extension', async () => {
+    // SASjs Server gives priority to the run time that comes first in `RUN_TIMES`
+    // (docs/pages/settings.md): with `js,sas`, `/services/public/twin` is `twin.js`. This host
+    // declares that order, so a project shipping both files runs the JavaScript one - and the
+    // SAS recording, which answers only a run time this host cannot execute, is not consulted.
+    ;(global as any).__sasTranscript = {
+      '*': {
+        webout: 'RECORDED-SESSION',
+        log: 'NOTE: the demo session',
+        print: ''
+      }
+    }
+
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/twin.js')]: '_webout = "from the js twin";',
+      [drivePath('services/public/twin.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/twin`) +
+        '&_debug=131'
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('from the js twin')
+    expect(body).not.toContain('RECORDED-SESSION')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('runs a JavaScript program rather than answering it with the recorded session', async () => {
+    // Same rule on the program path: a program run states no run time, so its extension
+    // decides - `service.js` is executed, `report.sas` is not.
+    ;(global as any).__sasTranscript = {
+      '*': {
+        webout: 'RECORDED-SESSION',
+        log: 'NOTE: the demo session',
+        print: ''
+      }
+    }
+
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/service.js')]: '_webout = "from the service";'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/service`) +
+        '&_debug=131'
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('from the service')
+    expect(body).not.toContain('RECORDED-SESSION')
+
+    delete (global as any).__sasTranscript
+  })
+
+  it('answers SAS code that names no recorded program with the mocked session', async () => {
+    // A code run from an API client carries no `%let _program` line, so there is no path to
+    // look up: the session says the code in the buffer was run. It is still a run, not a
+    // refusal, and it is still not handed to the JavaScript runner.
     const worker = loadWorker()
 
     for (const code of [
@@ -446,19 +630,18 @@ describe('service worker host', () => {
         runRequest({ code, runTime: 'sas' })
       )
 
-      expect(response.status).toBe(400)
+      expect(response.status).toBe(200)
 
       const body = await response.text()
-      expect(body).toContain('SAS is not available')
+      expect(body).toContain('This is a mocked SAS session')
       expect(body).not.toContain('SyntaxError')
     }
   })
 
-  it('refuses a .sas program no recording names, as it always did', async () => {
-    // The recording is data, not a run time. Every other SAS program keeps the
-    // refusal the host gave before the recording existed - and in particular is
-    // not compiled as JavaScript, which would answer a SyntaxError quoting the
-    // SAS source instead of saying the run time is not available.
+  it('answers a .sas program no recording names with the mocked session', async () => {
+    // The recording is data, not a run time. Without one, a SAS program is answered with the
+    // mocked session - and in particular is not compiled as JavaScript, which would answer a
+    // SyntaxError quoting the SAS source.
     const worker = loadWorker()
     worker.runtime.load({
       [drivePath('services/public/other.sas')]: 'data work.class; run;'
@@ -466,14 +649,15 @@ describe('service worker host', () => {
 
     const response = await worker.dispatch(
       '/SASjsApi/stp/execute?_program=' +
-        encodeURIComponent(`${appLoc}/services/public/other`)
+        encodeURIComponent(`${appLoc}/services/public/other`) +
+        '&_debug=131'
     )
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(200)
 
     const body = await response.text()
-    expect(body).toContain('SAS is not available')
-    expect(body).toContain('recorded session')
+    expect(body).toContain('This is a mocked SAS session')
+    expect(body).not.toContain('SAS is not available')
     expect(body).not.toContain('SyntaxError')
   })
 
