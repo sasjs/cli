@@ -149,19 +149,19 @@ const verifyCreateWeb = async (appName: string, appType: string) => {
   // The docs are a submodule fetched after the archive, and the archive carries
   // the folder empty - so the derived tree can only assert that the folder is
   // there. A create whose docs download silently failed used to pass; assert
-  // the site itself arrived, at whichever path the seed puts it.
-  if (appType === 'react' || appType === 'angular') {
-    const docsCandidates = [
-      path.join(process.projectDir, appName, 'public', 'docs', 'index.html'),
-      path.join(process.projectDir, appName, 'docs', 'index.html')
-    ]
+  // the site itself arrived. Every template gets the docs (create routes all
+  // three through a create*App that passes the docs URL), and the path differs:
+  // react keeps them under `public`, the others at the root.
+  const docsCandidates = [
+    path.join(process.projectDir, appName, 'public', 'docs', 'index.html'),
+    path.join(process.projectDir, appName, 'docs', 'index.html')
+  ]
 
-    const present = await Promise.all(
-      docsCandidates.map((candidate) => fileExists(candidate))
-    )
+  const present = await Promise.all(
+    docsCandidates.map((candidate) => fileExists(candidate))
+  )
 
-    expect(present.some(Boolean)).toEqual(true)
-  }
+  expect(present.some(Boolean)).toEqual(true)
 
   // A seed app carries its dependencies in the template's package.json, so the
   // command create issues for it is a plain install - the same trade as above:
