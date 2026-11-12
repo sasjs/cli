@@ -635,6 +635,11 @@ const versionScripts = (
 
     if (!src) return script
 
+    // A `?v=<contents>` URL is safe for an asset that pins a subresource-integrity
+    // hash: SRI digests the fetched BYTES, not the URL, so the hash still matches.
+    // The version is what stops a stale copy being served at all - a changed file
+    // gets a new URL, and an unchanged one is byte-identical to what the hash was
+    // computed from.
     const [pathname, query] = src.split('?')
     const file = path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
 
@@ -685,6 +690,24 @@ const patchIndexHtml = (
   }
 
   const scripts: { [key: string]: string }[] = []
+  /**
+   * Scripts the page marks `data-early`, which stay in the page and run in the
+   * parser instead of through the loader.
+   *
+   * The loader defers every script so the worker is ready before the app asks it
+   * for anything, which is right for the app and wrong for a script that paints:
+   * on the demonstration site the canvas stays unpainted (white) for the seconds
+   * the worker takes to claim the page, so a dark interface announces itself with
+   * a full-screen white flash. A page that marks a script `data-early` is saying
+   * it runs nothing that needs the worker - the theme script reads localStorage
+   * and sets a background - so the parser keeps it where the page put it.
+   *
+   * Only a classic script can be kept: a module is deferred by specification
+   * however it is placed, and an inline one is refused by the page's own policy.
+   * Both are reported and replayed like any other script rather than being
+   * promised something the browser will not do.
+   */
+  const early: { src?: string; tag: string }[] = []
   const tagPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>[ \t]*\r?\n?/gi
 
   patched = patched.replace(
@@ -696,6 +719,21 @@ const patchIndexHtml = (
 
       // data blocks stay in the page; they are not scripts to replay
       if (!EXECUTABLE_TYPES.includes(type)) return tag
+
+      if (attributes['data-early'] !== undefined) {
+        if (inlined)
+          warnings.push(
+            'a data-early script carries its code inline - only a file can stay in the page, because the page is served under a policy that refuses inline script'
+          )
+        else if (type === 'module')
+          warnings.push(
+            'a data-early script is a module - a module is deferred by specification, so it cannot run before the loader; it is replayed like any other script'
+          )
+        else {
+          early.push({ src: attributes.src, tag })
+          return tag
+        }
+      }
 
       const spec: { [key: string]: string } = inlined
         ? {}
@@ -718,16 +756,74 @@ const patchIndexHtml = (
     }
   )
 
-  if (scripts.length) {
+  if (scripts.length || early.length) {
     const versioned = outputFolder
       ? versionScripts(scripts, outputFolder)
       : scripts
     const tag = bootTag(versioned, version, basePath)
+    // a function, not a replacement string: the tag carries the page's own srcs
+    // in `data-scripts`, and a `$&` in one would expand to the matched markup
     patched = /<\/body>/i.test(patched)
-      ? patched.replace(/<\/body>/i, `${tag}\n</body>`)
+      ? patched.replace(/<\/body>/i, () => `${tag}\n</body>`)
       : patched + tag
   } else {
     warnings.push('no script tags found - the mock loader was not installed')
+  }
+
+  // The early scripts keep their place in the page, and their URL follows the
+  // file's contents for the same reason the replayed ones do: the host caches an
+  // asset for two hours and a theme script that never changes its URL is a theme
+  // script a returning reader keeps from the previous build.
+  if (early.length && outputFolder) {
+    const versioned = versionScripts(
+      early.map((entry) => ({ src: entry.src as string })),
+      outputFolder
+    )
+
+    early.forEach((entry, index) => {
+      // Function replacements throughout: a replacement STRING interprets `$&`,
+      // `$1` and the rest of the replacement patterns, and both the tag and the
+      // src are the page's own text - a `$&` in a file name would splice the
+      // surrounding markup into the src.
+      const withVersion = entry.tag.replace(
+        entry.src as string,
+        () => versioned[index].src as string
+      )
+      patched = patched.replace(entry.tag, () => withVersion)
+    })
+  }
+
+  // A stylesheet the page links is a page asset like a script, and the one that
+  // paints the canvas is the reason this matters: a palette change behind an
+  // unchanged URL reaches a returning reader up to two hours late, which is a
+  // white flash the fix was meant to remove. Its URL follows the file's contents
+  // for the same reason a script's does. An `integrity` attribute travels with
+  // it untouched - SRI digests the bytes, so a versioned URL still satisfies it.
+  //
+  // A `rel=preload as=style` for the same file is versioned too: leaving it at
+  // the unversioned URL warms one cache entry while the stylesheet is fetched
+  // cold at another, which is the request the preload existed to save.
+  if (outputFolder) {
+    patched = patched.replace(
+      /<link\b([^>]*)>/gi,
+      (tag: string, source: string) => {
+        const attributes = parseAttributes(source)
+        const rel = (attributes.rel || '').trim().toLowerCase().split(/\s+/)
+        const preloadsStyle =
+          rel.includes('preload') &&
+          (attributes.as || '').trim().toLowerCase() === 'style'
+
+        if (!rel.includes('stylesheet') && !preloadsStyle) return tag
+
+        const href = attributes.href
+        if (!href) return tag
+
+        const [versioned] = versionScripts([{ src: href }], outputFolder)
+        return versioned.src === href
+          ? tag
+          : tag.replace(href, () => versioned.src as string)
+      }
+    )
   }
 
   return { patched, warnings }

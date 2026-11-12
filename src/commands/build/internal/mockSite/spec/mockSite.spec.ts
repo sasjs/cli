@@ -29,11 +29,31 @@ const createProject = (root: string) => {
   write(
     path.join(root, 'client', 'dist', 'index.html'),
     [
-      '<!doctype html><html><head><title>App</title></head><body>',
+      '<!doctype html><html><head><title>App</title>',
+      '<link rel="stylesheet" href="theme-boot.css" />',
+      // a paint-critical script: it runs nothing that needs the worker, so the
+      // page marks it to stay in the parser rather than being deferred
+      '<script src="theme-boot.js" data-early></script>',
+      // the same marker on a module cannot be honoured - a module is deferred by
+      // specification - so the build must replay it and say why
+      '<script src="deferred.js" type="module" data-early></script>',
+      '</head><body>',
       `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}" servertype="SASJS" loginmechanism="Redirected"></sasjs>`,
       '<script src="main.abc123.js" type="module"></script>',
       '</body></html>'
     ].join('\n')
+  )
+  write(
+    path.join(root, 'client', 'dist', 'theme-boot.css'),
+    'html { background-color: #121212 }\n'
+  )
+  write(
+    path.join(root, 'client', 'dist', 'deferred.js'),
+    'console.log("deferred")\n'
+  )
+  write(
+    path.join(root, 'client', 'dist', 'theme-boot.js'),
+    'document.documentElement.style.backgroundColor = "#121212"\n'
   )
   write(path.join(root, 'client', 'dist', 'main.abc123.js'), 'console.log(1)\n')
 }
@@ -346,6 +366,189 @@ describe('browser-hosted build', () => {
     expect(html).toContain('serverurl=""')
   })
 
+  /**
+   * A page's paint-critical script must run before the worker exists.
+   *
+   * The loader defers every script so the worker is ready before the app asks it
+   * for anything - right for the app, wrong for a script whose job is the canvas:
+   * the page stays unpainted (white) for the seconds the worker takes to claim
+   * it, which is the white flash a dark interface shows on every load. A tag the
+   * page marks `data-early` says it needs no worker, so the parser keeps it.
+   */
+  it('leaves a data-early script to the parser, in the page', async () => {
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const specs = JSON.parse(
+      html
+        .match(/data-scripts='([^']*)'/)![1]
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+    ) as { src?: string }[]
+
+    // still in the page, before the loader, and not replayed through it
+    expect(html).toMatch(
+      /<script src="theme-boot\.js\?v=[0-9a-f]{10}" data-early><\/script>/
+    )
+    expect(specs.map((spec) => spec.src)).not.toContain(
+      expect.stringMatching(/theme-boot/)
+    )
+    expect(html.indexOf('theme-boot.js')).toBeLessThan(
+      html.indexOf('host/boot.js')
+    )
+
+    // the same marker on a module cannot be honoured: a module is deferred by
+    // specification, so it is replayed and the author is told
+    expect(html).not.toContain('<script src="deferred.js')
+    expect(specs.map((spec) => spec.src)).toContainEqual(
+      expect.stringMatching(/^deferred\.js\?v=/)
+    )
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('a data-early script is a module')
+    )
+  })
+
+  it('gives a linked stylesheet a URL that follows its contents', async () => {
+    // the host caches an asset for two hours: a palette change behind an
+    // unchanged URL reaches a returning reader late, which for the canvas
+    // stylesheet is the white flash the fix exists to remove
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+
+    expect(html).toMatch(
+      /<link rel="stylesheet" href="theme-boot\.css\?v=[0-9a-f]{10}" \/>/
+    )
+  })
+
+  it("leaves a stylesheet alone when the file is not this build's", async () => {
+    // a file this build does not own: guessing a version for it would break it.
+    // A URL that pins an `integrity` hash is versioned like any other - SRI
+    // digests the fetched bytes, so a `?v=` URL still satisfies the hash.
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title>',
+        '<link rel="stylesheet" href="https://cdn.example.com/lib.css" />',
+        '<link rel="stylesheet" href="theme-boot.css" integrity="sha384-abc" crossorigin="anonymous" />',
+        '</head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
+        '<script src="main.abc123.js" type="module" integrity="sha384-def"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const specs = JSON.parse(
+      html
+        .match(/data-scripts='([^']*)'/)![1]
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+    ) as { src?: string; integrity?: string }[]
+
+    // not owned by this build: untouched
+    expect(html).toContain('href="https://cdn.example.com/lib.css"')
+
+    // owned, hashed: versioned, hash carried through
+    expect(html).toMatch(
+      /href="theme-boot\.css\?v=[0-9a-f]{10}" integrity="sha384-abc" crossorigin="anonymous"/
+    )
+    expect(specs[0].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
+    expect(specs[0].integrity).toBe('sha384-def')
+  })
+
+  it('does not let a $ in a file name rewrite the page', async () => {
+    // `String.prototype.replace` interprets `$&`, `$1` and the rest in a
+    // replacement STRING, and these tags carry the page's own file names - so a
+    // `$&` in one would splice the matched markup into the src
+    write(
+      path.join(root, 'client', 'dist', '$&x.js'),
+      'console.log("dollar")\n'
+    )
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title>',
+        '<script src="$&x.js" data-early></script>',
+        '</head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
+        '<script src="main.abc123.js"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+
+    expect(html).toContain(
+      `<script src="$&x.js?v=${require('crypto')
+        .createHash('md5')
+        .update(fs.readFileSync(path.join(root, 'client', 'dist', '$&x.js')))
+        .digest('hex')
+        .slice(0, 10)}" data-early></script>`
+    )
+    // one script tag, not a nested one spliced in by the expansion
+    expect(html.split('<script').length - 1).toBe(2) // the early tag + the loader
+  })
+
+  it('versions a preload of the same stylesheet', async () => {
+    // a preload left at the unversioned URL warms one cache entry while the
+    // stylesheet is fetched cold at another, which is the request it existed to save
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title>',
+        '<link rel="preload" as="style" href="theme-boot.css" />',
+        '<link rel="stylesheet" href="theme-boot.css" />',
+        '</head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
+        '<script src="main.abc123.js"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const urls = [...html.matchAll(/theme-boot\.css\?v=([0-9a-f]{10})/g)].map(
+      (match) => match[1]
+    )
+
+    expect(urls).toHaveLength(2)
+    expect(urls[0]).toBe(urls[1])
+  })
+
+  it('installs the loader for a page whose only script runs early', async () => {
+    // the loader is what installs the worker, the bridge and the drive: a page
+    // whose one script is kept in the parser still needs it, and must not be told
+    // it has no scripts
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title>',
+        '<script src="theme-boot.js" data-early></script>',
+        '</head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const specs = html.match(/data-scripts='([^']*)'/)![1]
+
+    expect(html).toContain('<script src="host/boot.js?v=')
+    expect(html).toContain('data-early')
+    expect(specs).toBe('[]')
+    expect(process.logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('no script tags found')
+    )
+  })
+
   it('points the app at itself and installs the boot loader', async () => {
     await buildMockSite(target())
 
@@ -371,9 +574,12 @@ describe('browser-hosted build', () => {
         .replace(/&amp;/g, '&')
     )
 
-    expect(specs).toHaveLength(1)
-    expect(specs[0].type).toBe('module')
-    expect(specs[0].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
+    // two: the module the page marked data-early (replayed, with a warning),
+    // then the bundle - both in the order the page had them
+    expect(specs).toHaveLength(2)
+    expect(specs[0].src).toMatch(/^deferred\.js\?v=[0-9a-f]{10}$/)
+    expect(specs[1].type).toBe('module')
+    expect(specs[1].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
   })
 
   /**
@@ -391,14 +597,18 @@ describe('browser-hosted build', () => {
       ) as { src?: string; type?: string }[]
     }
 
+    /** The bundle's spec - the page also carries the data-early module. */
+    const bundleSrc = () =>
+      specs().find((spec) => spec.src?.startsWith('main.'))
+
     await buildMockSite(target())
-    const first = specs()[0].src
+    const first = bundleSrc()!.src
 
     expect(first).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
 
     // the same file twice: nothing about the URL changes
     await buildMockSite(target())
-    expect(specs()[0].src).toBe(first)
+    expect(bundleSrc()!.src).toBe(first)
 
     // a different bundle: a different URL, which is the caching bust
     write(
@@ -406,7 +616,7 @@ describe('browser-hosted build', () => {
       'console.log(2)\n'
     )
     await buildMockSite(target())
-    expect(specs()[0].src).not.toBe(first)
+    expect(bundleSrc()!.src).not.toBe(first)
 
     // and a script this build does not own is left exactly as the page asked
     write(
