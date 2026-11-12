@@ -508,10 +508,13 @@ const logicalPath = (value) =>
 
 /** A recording with its placeholders filled in, so a demo can name what was run. */
 const withProgram = (recording, requested) => {
+  // the replacement is a function, not a string: a program path may hold `$&` or `$1`, which a
+  // string replacement expands, so a caller naming `services/$&x` would be answered with
+  // `{{program}}` in place of their own path
   const fill = (value) =>
     String(value || '').replaceAll(
       '{{program}}',
-      requested || 'the code in this buffer'
+      () => requested || 'the code in this buffer'
     )
 
   return {
@@ -593,17 +596,6 @@ const recordedProgramIn = (code, runTime) => {
 
 // ---------------------------------------------------------------- the runner
 /**
- * What a SAS run is told if it ever reaches the runner.
- *
- * It should not: a SAS run is answered with its session before the runner is called. This is
- * the guard for the one case that would otherwise be worse than a refusal - handing SAS source
- * to the JavaScript runner answers with a SyntaxError quoting it. The message must not claim the
- * run time is missing, because `sas` is one of the host's: what is missing is the binary.
- */
-const SAS_UNAVAILABLE =
-  'SAS is not available on this host: a browser has no SAS binary.'
-
-/**
  * The work a run does, over the browser's drive.
  *
  * `@sasjs/api` decides everything a client observes about a run - which
@@ -622,26 +614,43 @@ class BrowserRuntime extends API.MemorySessionHost {
     const program = request.program || {}
     const params = Object.assign({}, request.vars || {})
 
-    // a SAS run is answered with a session before it reaches the runner (see
-    // `transcriptFor`), so there is no SAS path left here - and nothing to refuse. What is
-    // left to guard is the file a program run names: handing SAS source to the JavaScript
-    // runner would answer with a SyntaxError quoting it, which is worse than any session.
     const resolved =
       program.code === undefined ? R.resolveProgram(program.path) : undefined
     const isSas =
       String(request.runTime || '').toLowerCase() === 'sas' ||
       Boolean(resolved && /\.sas$/i.test(resolved))
 
-    if (isSas) throw runFailure(SAS_UNAVAILABLE)
+    // A SAS run is answered with its session, here as on the run routes: those answer before the
+    // runtime is reached, but a *trigger* goes through it, and a mock must not be the one place
+    // that refuses a run for want of a binary it never had. Handing SAS source to the JavaScript
+    // runner would be worse still - a SyntaxError quoting the source.
+    let artifact
+    if (isSas) {
+      const recording = await transcriptFor(
+        program.code !== undefined
+          ? recordedProgramIn(program.code, request.runTime)
+          : program.path
+      )
 
-    const payload = { params, tables: tablesOf(request.files) }
-    if (program.code !== undefined) payload.code = program.code
-    else payload.program = program.path
+      artifact = artifactOf(
+        {
+          webout: recording.webout || '',
+          log: recording.log || '',
+          print: recording.print || '',
+          headers: SEEDED_HEADER_LINE
+        },
+        params._debug !== undefined
+      )
+    } else {
+      const payload = { params, tables: tablesOf(request.files) }
+      if (program.code !== undefined) payload.code = program.code
+      else payload.program = program.path
 
-    const result = R.run(payload)
-    if (result.error) throw runFailure(result.error)
+      const result = R.run(payload)
+      if (result.error) throw runFailure(result.error)
 
-    const artifact = artifactOf(result, params._debug !== undefined)
+      artifact = artifactOf(result, params._debug !== undefined)
+    }
     const session = request.session
     if (session) {
       const stamp = new Date().toISOString()
@@ -731,7 +740,8 @@ const withoutBase = (pathname) =>
  *
  * `js` is executed here, in the page's own JavaScript engine. `sas` is answered from a session -
  * the project's recording of that program (`host/sas-transcript.json`) when it ships one, and the
- * mocked session otherwise - so a SAS run in a mock is never refused for want of a binary.
+ * mocked session otherwise. That holds on every route that runs one: a run, a code run, and a
+ * trigger, which reaches the runtime rather than the run route and is answered there.
  *
  * The order is the priority SASjs Server gives `RUN_TIMES` (`docs/pages/settings.md`): `js` leads
  * here, because a browser executes JavaScript and holds a recording where a server has a binary.

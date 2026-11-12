@@ -494,6 +494,27 @@ describe('service worker host', () => {
     expect(body).toContain('The SAS System')
   })
 
+  it('fills a program path holding $& literally', async () => {
+    // The path is what the answer names, and a string replacement would expand `$&` in it -
+    // answering a caller who names `services/$&x` with `{{program}}` in place of their own path.
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/$&x.sas')]: 'data work.class; run;'
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/$&x`) +
+        '&_debug=131'
+    )
+
+    expect(response.status).toBe(200)
+
+    const body = await response.text()
+    expect(body).toContain('services/public/$&x')
+    expect(body).not.toContain('{{program}}')
+  })
+
   it('prefers the recording that names the program over the mocked session', async () => {
     // The project's own output beats ours, which is why it recorded it.
     ;(global as any).__sasTranscript = {
@@ -1245,10 +1266,10 @@ describe('service worker host', () => {
       expect(missing.status).toBe(404)
     })
 
-    it('keeps a trigger a JSON answer, not the recorded transcript', async () => {
-      // A recording answers a run, not a trigger: the trigger route answers with
-      // the session record a client parses as JSON, so returning the framed
-      // webout there would break triggerProgram and the Studio.
+    it('answers a trigger of a SAS program with a session, not a refusal', async () => {
+      // A trigger reaches the runtime rather than the run route, so it is answered there - and
+      // still as the session record a client parses as JSON, never the framed run. Returning the
+      // framed webout would break triggerProgram and the Studio.
       ;(global as any).__sasTranscript = {
         [`${appLoc}/services/public/report.sas`]: {
           webout: '{"SYSSITE":"00000000"}',
@@ -1268,12 +1289,50 @@ describe('service worker host', () => {
         runRequest({ params: {} })
       )
 
+      expect(response.status).toBe(200)
       expect(response.headers.get('content-type')).toContain('application/json')
 
       const body = await response.json()
       expect(body).not.toHaveProperty('webout')
+      expect(body.sessionId).toBeTruthy()
+
+      const state = await worker.dispatch(
+        `/SASjsApi/session/${body.sessionId}/state`
+      )
+      expect(await state.json()).toEqual({ state: 'completed' })
+
+      const output = await worker.dispatch(
+        `/SASjsApi/session/${body.sessionId}/output`
+      )
+      expect(await output.text()).toContain('SYSSITE')
 
       delete (global as any).__sasTranscript
+    })
+
+    it('answers a triggered SAS program the project never recorded', async () => {
+      // The same rule as a run: a mock does not refuse a SAS session for want of a binary,
+      // whichever route asked for it.
+      const worker = loadWorker()
+      worker.runtime.load({
+        [drivePath('services/public/other.sas')]: 'data work.class; run;'
+      })
+
+      const response = await worker.dispatch(
+        '/SASjsApi/stp/trigger?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/other`),
+        runRequest({ params: {} })
+      )
+
+      expect(response.status).toBe(200)
+
+      const { sessionId } = await response.json()
+      expect(sessionId).toBeTruthy()
+
+      const output = await worker.dispatch(
+        `/SASjsApi/session/${sessionId}/output`
+      )
+      expect(output.status).toBe(200)
+      expect(await output.text()).toContain('SYSSITE')
     })
 
     it('refuses a deploy upload with no archive, and one that is not a zip', async () => {
