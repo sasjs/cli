@@ -476,6 +476,21 @@ const REPLAYED_ATTRIBUTES: { [attribute: string]: string } = {
   nomodule: 'noModule'
 }
 
+/**
+ * Script types a preload may name.
+ *
+ * The loader only re-runs a tag once the worker controls the page, so without a
+ * hint the app's bundle is not requested until the install has finished - the
+ * largest asset on the site behind the largest prerequisite. A preload link
+ * executes nothing, so the download can start while the worker is still
+ * installing.
+ *
+ * `module` is excluded on purpose: a module is fetched with different
+ * credentials semantics from a classic script, so `as="script"` does not match
+ * the later tag and the file is fetched twice - slower than no hint at all.
+ */
+const PRELOADABLE_TYPES = ['', 'text/javascript', 'application/javascript']
+
 const parseAttributes = (source: string) => {
   const attributes: { [name: string]: string } = {}
   const pattern =
@@ -494,6 +509,46 @@ const escapeAttribute = (value: string) =>
     .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+
+/** Puts markup at the end of the head, or leaves the page alone when it has none. */
+const insertIntoHead = (html: string, markup: string) => {
+  const head = /<head(\s[^>]*)?>/i.exec(html)
+  if (!head) return html
+  const start = head.index + head[0].length
+  const close = html.toLowerCase().indexOf('</head>', start)
+  const at = close < 0 ? start : close
+  return html.slice(0, at) + markup + html.slice(at)
+}
+
+/**
+ * Hints the app scripts the loader will replay, so their download starts while
+ * the worker installs rather than after it.
+ *
+ * Only scripts this build owns are hinted - the file has to be in the output for
+ * the version query to be meaningful - and only classic ones. A `type="module"`
+ * tag is fetched with different credentials semantics, so an `as="script"`
+ * preload does not match it; and a cross-origin src would need `crossorigin` on
+ * the hint to match its tag. Either mismatch fetches the file twice, which is
+ * worse than no hint.
+ */
+const preloadHints = (
+  scripts: { [key: string]: string }[],
+  outputFolder: string
+) =>
+  scripts
+    .filter((script) => {
+      if (!script.src) return false
+      if (!PRELOADABLE_TYPES.includes((script.type || '').trim().toLowerCase()))
+        return false
+      if (script.crossOrigin) return false
+      if (/^([a-z]+:)?\/\//i.test(script.src)) return false
+      if (!outputFolder) return true
+      const pathname = script.src.split('?')[0]
+      return fs.existsSync(
+        path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
+      )
+    })
+    .map((script) => `<link rel="preload" as="script" href="${script.src}" />`)
 
 /**
  * The boot loader is a FILE rather than an inline script: an app with a strict
@@ -761,6 +816,8 @@ const patchIndexHtml = (
     const versioned = outputFolder
       ? versionScripts(scripts, outputFolder)
       : scripts
+    const hints = preloadHints(versioned, outputFolder)
+    if (hints.length) patched = insertIntoHead(patched, hints.join(''))
     const tag = bootTag(versioned, version, basePath)
     // a function, not a replacement string: the tag carries the page's own srcs
     // in `data-scripts`, and a `$&` in one would expand to the matched markup

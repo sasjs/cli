@@ -108,9 +108,11 @@ const loadBoot = (specs: any[], options: Options = {}) => {
 
   const listeners: { [type: string]: (() => void)[] } = {}
   const controller = options.controller || 'present'
+  let timelineAtRegister: string[] = []
   const navigator: any = {
     serviceWorker: {
       register: (url: string, init: any) => {
+        timelineAtRegister = timeline.slice()
         registered.push(url + ' ' + JSON.stringify(init))
         return options.registerFails
           ? Promise.reject(new Error('nope'))
@@ -156,7 +158,7 @@ const loadBoot = (specs: any[], options: Options = {}) => {
     ;(listeners['controllerchange'] || []).forEach((fn) => fn())
   }
 
-  return { appended, timeline, registered, stored, claim }
+  return { appended, timeline, registered, stored, claim, timelineAtRegister }
 }
 
 const settle = async () => {
@@ -282,6 +284,17 @@ describe('the boot loader', () => {
     ])
   })
 
+  it('starts the drive restore before the worker is registered', async () => {
+    const { timelineAtRegister } = loadBoot([{ src: 'sasjs.js' }])
+    await settle()
+
+    // persist.js reads the page's own IndexedDB and hands the drive to the
+    // worker as soon as there is one, so nothing about it needs the worker to be
+    // ready: sequenced after the registration it is another download plus a
+    // store read on top of the install, which is what made a first visit slow
+    expect(timelineAtRegister).toEqual(['host/persist.js'])
+  })
+
   it('keeps the attributes an app relies on', async () => {
     const { appended } = loadBoot([
       { src: 'sasjs.js', id: 'sasjs-adapter' },
@@ -400,7 +413,10 @@ describe('the boot loader', () => {
     await new Promise((r) => setTimeout(r, 4200))
 
     expect(stored['mock-sw-reloaded']).toEqual('1')
-    expect(timeline).toEqual(['reload'])
+    // the drive restore is requested before the registration (it overlaps the
+    // install), so it is already in flight when the page decides to reload; the
+    // reload discards it, which costs nothing the cache does not already hold
+    expect(timeline).toEqual(['host/persist.js', 'reload'])
   }, 10000)
 
   it('boots anyway once the reload has already been tried', async () => {

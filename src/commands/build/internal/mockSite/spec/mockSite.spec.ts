@@ -423,6 +423,65 @@ describe('browser-hosted build', () => {
     )
   })
 
+  /**
+   * The loader replays the app's tags only once the worker controls the page.
+   * Right for answerability, but it also puts the largest asset on the site
+   * behind the largest prerequisite - so a classic script is hinted in the head,
+   * where the parser reaches it before the loader runs.
+   */
+  it('hints a classic app script so it downloads while the worker installs', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title></head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}" servertype="SASJS"></sasjs>`,
+        '<script src="main.abc123.js"></script>',
+        '<script src="deferred.js" type="module"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const hint = html.match(
+      /<link rel="preload" as="script" href="([^"]+)" \/>/
+    )
+
+    expect(hint).not.toBeNull()
+    // the hint names the URL the replayed tag carries, version query included: a
+    // mismatch is a second download rather than a warm cache
+    expect(hint![1]).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
+    expect(html).toContain(`"src":"${hint![1]}"`)
+    // and it has to be in the head, ahead of the loader that replays the tag
+    expect(html.indexOf('rel="preload"')).toBeLessThan(
+      html.indexOf('host/boot.js')
+    )
+    // a module is fetched with different credentials semantics, so a script hint
+    // would not match its tag - it is replayed without one
+    expect(html).not.toMatch(/as="script" href="deferred/)
+  })
+
+  it('leaves a script this build does not own unhinted', async () => {
+    // a page may load a script from somewhere else; a version guess or a
+    // cross-origin hint only breaks it
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      [
+        '<!doctype html><html><head><title>App</title></head><body>',
+        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}" servertype="SASJS"></sasjs>`,
+        '<script src="https://cdn.example.com/lib.js"></script>',
+        '<script src="not-in-this-build.js"></script>',
+        '</body></html>'
+      ].join('\n')
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).not.toContain('rel="preload"')
+  })
+
   it("leaves a stylesheet alone when the file is not this build's", async () => {
     // a file this build does not own: guessing a version for it would break it.
     // A URL that pins an `integrity` hash is versioned like any other - SRI
