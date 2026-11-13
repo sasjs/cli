@@ -37,7 +37,6 @@
  */
 importScripts('host/runtime-core.js')
 importScripts('host/api-browser.js')
-importScripts('host/lint-browser.js')
 
 const R = self.SASjsMockRuntime
 
@@ -47,10 +46,6 @@ const R = self.SASjsMockRuntime
 // and the few capabilities a static origin does not have, which the package
 // reports as a 501 naming the missing service.
 const API = self.SASjsApi
-// The linter, bundled at build time from the installed @sasjs/api/code and
-// @sasjs/lint (see mockSite.ts). It is a separate script because the linter is
-// not part of the root package a service worker can import.
-const CODE = self.SASjsCode
 
 const DRIVE_STORE = R.driveStore
 
@@ -968,6 +963,53 @@ const homeService = API.createHomeService(async () => {
  */
 const LINT_CONFIG_FILE = '.sasjslint'
 
+/**
+ * The linter, bundled at build time from the installed @sasjs/api/code and
+ * @sasjs/lint (see mockSite.ts).
+ *
+ * Imported on the first code route rather than by the worker at boot: it is
+ * around 40KB of the worker's payload for two routes (`code/lint` and
+ * `code/format`), and the install has to finish before the page may make its
+ * first request - so every visit pays it, including the ones that never open the
+ * editor. The build stamps the version into the URL below, so the copy fetched
+ * here is cache-busted with the rest of the host.
+ */
+let codeService
+let linter
+
+const code = () => {
+  if (codeService) return codeService
+  importScripts('host/lint-browser.js')
+  linter = self.SASjsCode
+  codeService = linter.createCodeService({ lintConfig })
+  return codeService
+}
+
+/**
+ * The package's code service, resolved on first use.
+ *
+ * A proxy rather than an object listing `lint` and `format`: the package decides
+ * which methods a service has, and a facade would answer `undefined` for one a
+ * later version adds. Dispatch reads `services.code` once per request and only
+ * touches a method on a code route, so nothing below the first method access
+ * loads the linter.
+ */
+const lazyCode = () =>
+  new Proxy(
+    {},
+    {
+      get: (target, property) => {
+        // probing for a promise is not a method lookup: answering it must not
+        // pull 40KB
+        if (typeof property === 'symbol' || property === 'then')
+          return undefined
+        const service = code()
+        const value = service[property]
+        return typeof value === 'function' ? value.bind(service) : value
+      }
+    }
+  )
+
 const lintConfig = async (filePath) => {
   // A path that escapes the drive has no folder to walk from, and a buffer that
   // names no file has none either: both take the drive root's rules, which is
@@ -979,7 +1021,7 @@ const lintConfig = async (filePath) => {
       folder === '/' ? `/${LINT_CONFIG_FILE}` : `${folder}/${LINT_CONFIG_FILE}`
     const contents = await DRIVE_STORE.read(configPath).catch(() => null)
     const parsed = parseLintConfig(contents)
-    if (parsed) return new CODE.LintConfig(parsed)
+    if (parsed) return new linter.LintConfig(parsed)
     if (folder === '/') return undefined
     folder = API.dirname(folder)
   }
@@ -1026,7 +1068,7 @@ const SERVICES = {
   // own rules: a buffer is linted and formatted against the nearest
   // `.sasjslint` at or above its folder, so editing that file changes the
   // editor here exactly as it does on a server
-  code: CODE.createCodeService({ lintConfig })
+  code: lazyCode()
 }
 
 /** The routes this host performs itself, because the answer is not JSON. */

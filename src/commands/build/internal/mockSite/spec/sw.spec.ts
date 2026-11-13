@@ -73,9 +73,13 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
     }
   }
   ;(global as any).self = self
+  // what the worker pulled into itself, so a test can assert that a script it
+  // does not need at boot is not fetched at boot
+  const imported: string[] = []
   // sw.js imports the runtime and the package by URL; the test loads the same
   // files from source, so the worker here answers with the code the site ships.
   ;(global as any).importScripts = (path: string) => {
+    imported.push(path)
     if (path.includes('md5')) return
     if (path.includes('api-browser')) return require(apiBrowserBuild())
     if (path.includes('lint-browser')) {
@@ -200,6 +204,7 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
     dispatch,
     message,
     lifecycle,
+    imported,
     self,
     refuseWrites: (value: boolean) => {
       refusingWrites = value
@@ -1116,6 +1121,32 @@ describe('service worker host', () => {
       )
       expect(formatted.status).toBe(200)
       expect(await formatted.text()).toContain('@brief')
+    })
+
+    /**
+     * The linter is not part of the install.
+     *
+     * The page cannot make its first request until the worker has installed, so
+     * anything the worker imports at boot is on the critical path of every
+     * visit. The linter answers two routes; it is fetched when one of them is
+     * called.
+     */
+    it('fetches the linter on the first code route, not at boot', async () => {
+      const worker = seeded()
+
+      expect(
+        worker.imported.some((path) => path.includes('lint-browser'))
+      ).toBe(false)
+
+      const response = await worker.dispatch(
+        '/SASjsApi/code/lint',
+        runRequest({ code: 'data a;\nrun;\n' })
+      )
+
+      expect(response.status).toBe(200)
+      expect(
+        worker.imported.some((path) => path.includes('lint-browser'))
+      ).toBe(true)
     })
 
     /**
