@@ -204,13 +204,15 @@ describe('browser-hosted build', () => {
     expect(bundle).toContain('SASjsCode')
     expect(bundle).toContain('createCodeService')
 
-    // and it runs: evaluating it in a bare realm exposes the factory
+    // and it runs: evaluating it in a bare realm exposes the factory and the
+    // configuration class a host builds from its own rules file
     const vm = require('vm')
     const realm: any = { globalThis: null, console }
     realm.globalThis = realm
     vm.createContext(realm)
     vm.runInContext(bundle, realm)
     expect(typeof realm.SASjsCode.createCodeService).toBe('function')
+    expect(typeof realm.SASjsCode.LintConfig).toBe('function')
   })
 
   it('names the package when its browser build is missing, and keeps the previous site', async () => {

@@ -77,10 +77,11 @@ const toPosix = (value: string) => value.split(path.sep).join('/')
  * configuration by walking a filesystem - but the linter's core (`lintText`,
  * `formatText`) reads only the text it is given and the configuration it is
  * passed, so the two can run anywhere the module graph can be built. This
- * bundle is that graph: the package's own code service, the linter it wraps, and
- * shims for the four node modules reached at import time (`path` and `os` for
- * resolution, `fs` and `@sasjs/utils/file` for the config lookup that a mock
- * never makes, because it hands the linter the default configuration).
+ * bundle is that graph: the package's own code service, the configuration class
+ * a host builds from its own rules file, the linter behind both, and shims for
+ * the four node modules reached at import time (`path` and `os` for resolution,
+ * `fs` and `@sasjs/utils/file` for the linter's own filesystem lookup, which
+ * this host never makes - it hands the routes the rules it read from the drive).
  *
  * It is built from the installed @sasjs/api and @sasjs/lint on every mock
  * build, so the rules a client sees are the version the CLI resolved - a
@@ -89,8 +90,8 @@ const toPosix = (value: string) => value.split(path.sep).join('/')
 const LINT_BUNDLE_FILES: { [name: string]: string } = {
   'entry.js': [
     "import './process.js'",
-    "import { createCodeService } from '@sasjs/api/code'",
-    'globalThis.SASjsCode = { createCodeService }'
+    "import { createCodeService, LintConfig } from '@sasjs/api/code'",
+    'globalThis.SASjsCode = { createCodeService, LintConfig }'
   ].join('\n'),
   'process.js': [
     '// the linter reads process.env for a default and process.cwd() for a root;',
