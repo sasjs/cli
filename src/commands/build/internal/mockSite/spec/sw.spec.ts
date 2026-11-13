@@ -1118,6 +1118,215 @@ describe('service worker host', () => {
       expect(await formatted.text()).toContain('@brief')
     })
 
+    /**
+     * The rules are the drive's, not the linter's defaults.
+     *
+     * The Studio shows a visitor the drive's `.sasjslint` and invites them to
+     * edit it, so a rules file nothing read would be a displayed lie. Each case
+     * below changes a rule and reads the answer back through the route the
+     * editor calls, because "the resolver was passed" is not the claim - "the
+     * squiggle went away" is.
+     */
+    describe('the drive’s .sasjslint', () => {
+      const rootConfig = '/sasjs/drive/files/.sasjslint'
+      /** 81 characters: over the default 80, under the 100 these cases set. */
+      const longLine = 'x'.repeat(81)
+      const code = `data _null_;\n${longLine}\nrun;\n`
+      const tooLong = (diagnostics: any[]) =>
+        diagnostics.filter((diagnostic) =>
+          String(diagnostic.message).startsWith('Line exceeds maximum length')
+        )
+
+      const lint = async (worker: any, body: any) => {
+        const response = await worker.dispatch(
+          '/SASjsApi/code/lint',
+          runRequest(body)
+        )
+        expect(response.status).toBe(200)
+        return response.json()
+      }
+
+      it('lints against the rules file at the drive root', async () => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 100 }),
+          [drivePath('program.sas')]: code
+        })
+
+        expect(
+          tooLong(
+            await lint(worker, { code, filePath: appLoc + '/program.sas' })
+          )
+        ).toHaveLength(0)
+
+        // the same buffer with the default 80 in place: the finding the rule
+        // exists to report
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 80 }),
+          [drivePath('program.sas')]: code
+        })
+
+        expect(
+          tooLong(
+            await lint(worker, { code, filePath: appLoc + '/program.sas' })
+          )
+        ).toHaveLength(1)
+      })
+
+      it('re-reads the rules per request, so an edit takes effect', async () => {
+        const worker = seeded()
+        const path = appLoc + '/program.sas'
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 80 }),
+          [drivePath('program.sas')]: code
+        })
+
+        expect(
+          tooLong(await lint(worker, { code, filePath: path }))
+        ).toHaveLength(1)
+
+        // the visitor edits the file on the drive, then lints again: answers
+        // cached at boot would keep reporting a rule that no longer applies
+        const form = new FormData()
+        form.set(
+          'file',
+          new Blob([JSON.stringify({ maxLineLength: 100 })], {
+            type: 'application/json'
+          }),
+          '.sasjslint'
+        )
+        const patched = await worker.dispatch(
+          `/SASjsApi/drive/file?_filePath=${encodeURIComponent('/.sasjslint')}`,
+          { method: 'PATCH', body: form }
+        )
+        expect(patched.status).toBe(200)
+
+        expect(
+          tooLong(await lint(worker, { code, filePath: path }))
+        ).toHaveLength(0)
+      })
+
+      it('gives a folder its own rules for everything beneath it', async () => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 80 }),
+          // the nearer file relaxes the rule for this folder alone
+          [`/sasjs/drive/files${appLoc}/.sasjslint`]: JSON.stringify({
+            maxLineLength: 200
+          })
+        })
+
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: `${appLoc}/services/public/program.sas`
+            })
+          )
+        ).toHaveLength(0)
+
+        // outside that folder the root file still applies
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: '/home/sasjsadmin/program.sas'
+            })
+          )
+        ).toHaveLength(1)
+      })
+
+      it('finds the rules for a path spelled the way a Windows client sends it', async () => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [`/sasjs/drive/files${appLoc}/.sasjslint`]: JSON.stringify({
+            maxLineLength: 100
+          })
+        })
+
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: `${appLoc}\\services\\public\\program.sas`
+            })
+          )
+        ).toHaveLength(0)
+      })
+
+      it('skips a rules file that does not parse and uses the one above', async () => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 100 }),
+          [`/sasjs/drive/files${appLoc}/.sasjslint`]: '{ this is not json'
+        })
+
+        // a broken near file must not break linting, and must not silently
+        // replace the rules that were working
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: `${appLoc}/services/public/program.sas`
+            })
+          )
+        ).toHaveLength(0)
+      })
+
+      it('takes the drive root rules for a buffer with no file, and for a path that escapes the drive', async () => {
+        // Neither has a folder to walk from, and a server answers both with the
+        // root file rather than with the linter's defaults - so the root file is
+        // seeded to a rule the defaults do not share, and no finding means it
+        // was read
+        const worker = seeded()
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({ maxLineLength: 100 })
+        })
+
+        expect(tooLong(await lint(worker, { code }))).toHaveLength(0)
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: '../../outside/program.sas'
+            })
+          )
+        ).toHaveLength(0)
+      })
+
+      it('falls back to the linter defaults when the drive has no rules file', async () => {
+        const worker = seeded()
+        await worker.runtime.load({ [drivePath('program.sas')]: code })
+
+        expect(
+          tooLong(
+            await lint(worker, {
+              code,
+              filePath: `${appLoc}/program.sas`
+            })
+          )
+        ).toHaveLength(1)
+      })
+
+      it('formats with the rules file too', async () => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [rootConfig]: JSON.stringify({
+            hasDoxygenHeader: true,
+            defaultHeader: '/**\n  @brief the drive header\n**/'
+          })
+        })
+
+        const formatted = await worker.dispatch(
+          '/SASjsApi/code/format',
+          runRequest({ code, filePath: '/home/sasjsadmin/program.sas' })
+        )
+
+        expect(formatted.status).toBe(200)
+        expect(await formatted.text()).toContain('@brief the drive header')
+      })
+    })
+
     it('keeps an app’s URL and tiles inside the folder the site is served from', async () => {
       const worker = loadWorker('/demo')
 

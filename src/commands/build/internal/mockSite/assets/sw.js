@@ -946,6 +946,58 @@ const homeService = API.createHomeService(async () => {
   }
 })
 
+/**
+ * The lint rules a SAS file is linted against: the nearest `.sasjslint` at or
+ * above its folder on the drive.
+ *
+ * This is the server's rule, applied here so the demo behaves like the
+ * installation it demonstrates: a folder in the tree carries rules for
+ * everything beneath it, and changing a rule is a plain edit of that file. It
+ * is why the build seeds a `.sasjslint` at the drive root - a file that is
+ * displayed but never read would be worse than absent.
+ *
+ * Paths go through the package's own normaliser, so a backslashed or escaping
+ * path resolves the way the drive routes resolve it rather than by a second set
+ * of string rules that could disagree with them.
+ *
+ * A file that is missing, is not JSON, or parses to something that is not an
+ * object is skipped and the walk continues upwards - a broken rules file must
+ * never break linting or formatting. A walk that reaches the root with nothing
+ * to show returns undefined, which lints against the linter's own defaults: the
+ * answer for a drive with no rules file at all.
+ */
+const LINT_CONFIG_FILE = '.sasjslint'
+
+const lintConfig = async (filePath) => {
+  // A path that escapes the drive has no folder to walk from, and a buffer that
+  // names no file has none either: both take the drive root's rules, which is
+  // what a server answers for each - a refused path there falls back to the
+  // root file rather than to the linter's defaults.
+  let folder = API.dirname(API.normaliseDrivePath(filePath) ?? '/')
+  for (;;) {
+    const configPath =
+      folder === '/' ? `/${LINT_CONFIG_FILE}` : `${folder}/${LINT_CONFIG_FILE}`
+    const contents = await DRIVE_STORE.read(configPath).catch(() => null)
+    const parsed = parseLintConfig(contents)
+    if (parsed) return new CODE.LintConfig(parsed)
+    if (folder === '/') return undefined
+    folder = API.dirname(folder)
+  }
+}
+
+/** A `.sasjslint` as the object a configuration is built from, or null. */
+const parseLintConfig = (contents) => {
+  if (contents === null || contents === undefined) return null
+  const text =
+    typeof contents === 'string' ? contents : new TextDecoder().decode(contents)
+  try {
+    const parsed = JSON.parse(text)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
 const SERVICES = {
   drive: API.createDriveService(DRIVE_STORE),
   // The package's browser fixture states one run time; this host serves two, and
@@ -970,10 +1022,11 @@ const SERVICES = {
   directory: API.createDirectoryService(IDENTITY_STORE, directorySource),
   appStream: APP_STREAM,
   home: homeService,
-  // the package's own code service over the bundled linter; the host passes no
-  // lint config, so a buffer is linted against the linter's defaults - a mock
-  // has no `.sasjslint` tree to resolve one from
-  code: CODE.createCodeService({})
+  // the package's own code service over the bundled linter, with the drive's
+  // own rules: a buffer is linted and formatted against the nearest
+  // `.sasjslint` at or above its folder, so editing that file changes the
+  // editor here exactly as it does on a server
+  code: CODE.createCodeService({ lintConfig })
 }
 
 /** The routes this host performs itself, because the answer is not JSON. */
