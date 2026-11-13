@@ -33,6 +33,7 @@ type Options = {
   registerFails?: boolean
   /** window.__sasjsMockReady resolving with an error */
   bootError?: string
+  driveError?: string
   /** a data-scripts value that is not JSON */
   brokenConfig?: boolean
   /** the document exposes no currentScript */
@@ -136,7 +137,11 @@ const loadBoot = (specs: any[], options: Options = {}) => {
   ;(global as any).navigator = navigator
   ;(global as any).window = options.bootError
     ? { __sasjsMockReady: Promise.resolve({ error: options.bootError }) }
-    : {}
+    : options.driveError
+      ? {
+          __sasjsMockReady: Promise.resolve({ driveError: options.driveError })
+        }
+      : {}
   ;(global as any).sessionStorage = {
     getItem: (key: string) => (key in stored ? stored[key] : null),
     setItem: (key: string, value: string) => {
@@ -353,6 +358,17 @@ describe('the boot loader', () => {
     await settle()
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('seed missing')
+    )
+  })
+
+  it('reports a drive that was restored from less than the whole capture', async () => {
+    // the page still runs - a missing piece only fails the file that needed it -
+    // so the error is the only thing that says the drive is incomplete
+    loadBoot([], { driveError: 'the drive index answered 500' })
+    await settle()
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('the drive index answered 500')
     )
   })
 

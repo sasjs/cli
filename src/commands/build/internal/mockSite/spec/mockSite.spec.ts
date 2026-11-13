@@ -1,6 +1,11 @@
 import fs from 'fs'
 import path from 'path'
-import { buildMockSite, DRIVE_FORMAT, MAX_BINARY_SEED_BYTES } from '../mockSite'
+import {
+  buildMockSite,
+  DRIVE_FORMAT,
+  MAX_BINARY_SEED_BYTES,
+  SHARD_FILE_BYTES
+} from '../mockSite'
 
 const appLoc = '/Public/app/test'
 
@@ -74,6 +79,17 @@ describe('browser-hosted build', () => {
     JSON.parse(
       fs.readFileSync(path.join(out(), 'host', 'mock-config.json'), 'utf8')
     )
+  const readIndex = () =>
+    JSON.parse(
+      fs.readFileSync(path.join(out(), 'host', 'vfs-snapshot.json'), 'utf8')
+    )
+  const readShard = (id: number) =>
+    JSON.parse(
+      fs.readFileSync(
+        path.join(out(), 'host', `vfs-snapshot-${id}.json`),
+        'utf8'
+      )
+    ).files
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sasjs-mock-'))
@@ -823,13 +839,75 @@ describe('browser-hosted build', () => {
     const result = await buildMockSite(target())
 
     expect(result.snapshot).toBe(true)
-    const shipped = JSON.parse(
-      fs.readFileSync(path.join(out(), 'host', 'vfs-snapshot.json'), 'utf8')
-    )
-    expect(Object.keys(shipped.files).length).toBe(2)
+    const index = readIndex()
+    expect(index.sharded).toBe(true)
+    expect(Object.keys(index.entries).length).toBe(2)
+    // two small files under one folder: one boot shard, no request of their own
+    expect(result.snapshotShards).toBe(1)
+    expect(index.boot).toBe(0)
+    expect(readShard(0)).toEqual(snapshot.files)
     // the runtime prefers a snapshot over the seed, so it must not be mistaken
     // for one of the seeded folders
     expect(readConfig().snapshot).toBe(true)
+    expect(readConfig().snapshotShards).toBe(1)
+  })
+
+  /**
+   * A captured drive is not one download.
+   *
+   * The first page of a demonstration site reads a listing and a handful of
+   * logos; the bundles behind the tiles are opened by whoever clicks them. One
+   * file for the lot makes every visitor pay for all of it before the page
+   * renders, so the build splits it: small files in the boot shard, an app's
+   * bundle in its own.
+   */
+  it('ships a large capture as a boot shard plus a piece per bundle', async () => {
+    const bundle = 'x'.repeat(SHARD_FILE_BYTES + 1024)
+    const capture = {
+      files: {
+        '/sasjs/drive/files/.sasjs/apps.json': '{"apps":[]}',
+        [`/sasjs/drive/files/Public/app/demo/logo.png`]: 'not really a png',
+        [`/sasjs/drive/files/Public/app/demo/services/web/index.bundle.js`]:
+          bundle
+      }
+    }
+    write(
+      path.join(root, 'sasjsbuild', 'mock-snapshot.json'),
+      JSON.stringify(capture)
+    )
+
+    const result = await buildMockSite(target())
+
+    const index = readIndex()
+    expect(result.snapshotShards).toBe(2)
+
+    // what a first page reads is in the boot shard
+    expect(index.entries['/sasjs/drive/files/.sasjs/apps.json'].shard).toBe(0)
+    expect(
+      index.entries[`/sasjs/drive/files/Public/app/demo/logo.png`].shard
+    ).toBe(0)
+    // the bundle is not: it is fetched when the app is opened
+    const bundlePath = `/sasjs/drive/files/Public/app/demo/services/web/index.bundle.js`
+    const bundleShard = index.entries[bundlePath].shard
+    expect(bundleShard).not.toBe(0)
+    expect(readShard(bundleShard)[bundlePath]).toBe(bundle)
+
+    // the whole point: the boot shard is a fraction of the capture
+    const bootBytes = index.shards[0].bytes
+    const total = Object.keys(index.entries).reduce(
+      (sum, key) => sum + index.entries[key].bytes,
+      0
+    )
+    expect(bootBytes).toBeLessThan(total / 10)
+  })
+
+  it('refuses a capture written by a runtime of another format', async () => {
+    write(
+      path.join(root, 'sasjsbuild', 'mock-snapshot.json'),
+      JSON.stringify({ format: DRIVE_FORMAT + 1, files: {} })
+    )
+
+    await expect(buildMockSite(target())).rejects.toThrow(/format/)
   })
 
   it('ships a recorded SAS session when the project has one', async () => {

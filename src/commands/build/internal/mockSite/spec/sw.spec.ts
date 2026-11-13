@@ -10,7 +10,7 @@ import type { CorpusCase, IdentityFixture } from '@sasjs/api'
 import os from 'os'
 import yazl from 'yazl'
 import { getWeboutPrelude } from '@sasjs/utils'
-import { buildLintBundle, WEBOUT_SENTINELS } from '../mockSite'
+import { buildLintBundle, DRIVE_FORMAT, WEBOUT_SENTINELS } from '../mockSite'
 
 export {}
 
@@ -155,6 +155,32 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
           apiServerUrl: WEBOUT_SENTINELS.apiServerUrl
         })
       })
+    // a sharded drive, when a test sets one up: the index answers the snapshot
+    // URL and each piece answers its own file, so the worker's fetch of a shard
+    // is the same request it makes against a static host
+    const shards = (global as any).__sasjsShards
+    if (shards && target.includes('vfs-snapshot')) {
+      const piece = /vfs-snapshot-(\d+)\.json/.exec(target)
+      if (piece) {
+        const id = Number(piece[1])
+        const requested = ((global as any).__sasjsShardFetches =
+          (global as any).__sasjsShardFetches || [])
+        requested.push(id)
+        return jsonResponse({ format: DRIVE_FORMAT, files: shards[id] || {} })
+      }
+      return jsonResponse(shards.index)
+    }
+    if (target.includes('mock-config')) {
+      // a build that split its capture says so, and the runtime reads the index
+      // only when it does - a site built before the split has none to read
+      const shards = (global as any).__sasjsShards
+      return jsonResponse({
+        appLoc,
+        ...(shards
+          ? { snapshotShards: (shards.index.shards || []).length }
+          : {})
+      })
+    }
     return target.includes('vfs-seed')
       ? jsonResponse({
           files: {
@@ -248,6 +274,8 @@ describe('service worker host', () => {
     delete (global as any).importScripts
     delete (global as any).fetch
     delete (global as any).__sasjsIdentity
+    delete (global as any).__sasjsShards
+    delete (global as any).__sasjsShardFetches
     delete (global as any).__mockHostClients
   })
 
@@ -1150,6 +1178,119 @@ describe('service worker host', () => {
     })
 
     /**
+     * A route that resolves a path from the drive is not left with a hole.
+     *
+     * The rules an edited file is linted against are found by walking up from
+     * the file, so the request names neither path. The read that fails says
+     * which piece it needs, and the request is answered again with it - the body
+     * re-read from the copy taken before the first attempt.
+     */
+    it('fetches the piece a route resolves from the drive, not the one it names', async () => {
+      ;(global as any).__sasjsShards = {
+        index: {
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: {
+            '/sasjs/drive/files/.sasjslint': { shard: 1, bytes: 20 },
+            '/sasjs/drive/files/Public/app/test/prog.sas': {
+              shard: 0,
+              bytes: 12
+            }
+          },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' }
+          ]
+        },
+        0: { '/sasjs/drive/files/Public/app/test/prog.sas': 'data a; run;' },
+        1: {
+          '/sasjs/drive/files/.sasjslint': JSON.stringify({
+            maxLineLength: 200
+          })
+        }
+      }
+      ;(global as any).__sasjsShardFetches = []
+
+      const worker = loadWorker()
+      await worker.runtime.load({})
+
+      const longLine = 'x'.repeat(150)
+      const response = await worker.dispatch(
+        '/SASjsApi/code/lint',
+        runRequest({
+          code: `data _null_;\n${longLine}\nrun;\n`,
+          filePath: '/Public/app/test/prog.sas'
+        })
+      )
+
+      expect(response.status).toBe(200)
+      // the line is over the linter's default 80 and under this drive's 200, so
+      // the answer proves the rules file was read - from a piece the request
+      // never named
+      expect(JSON.stringify(await response.json())).not.toContain(
+        'Line exceeds'
+      )
+      expect((global as any).__sasjsShardFetches).toEqual([0, 1])
+    })
+
+    /**
+     * A request that needs a second piece is answered, body and all.
+     *
+     * The first retry fetches the piece the failed read named; a request that
+     * reads two pieces one after another reaches the second retry, which fetches
+     * the rest. Either way the body has to arrive again - a Request's body can
+     * only be read once, so the first attempt keeps an unread copy and each
+     * attempt after it is made from a copy of that.
+     */
+    it('replays a request that needs two pieces, with its body intact', async () => {
+      const near = '/sasjs/drive/files/Public/app/test/.sasjslint'
+      const far = '/sasjs/drive/files/.sasjslint'
+      ;(global as any).__sasjsShards = {
+        index: {
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: {
+            [near]: { shard: 1, bytes: 20 },
+            [far]: { shard: 2, bytes: 20 }
+          },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' },
+            { id: 2, file: 'host/vfs-snapshot-2.json' }
+          ]
+        },
+        0: {},
+        // the nearest rules file is unreadable as a config, so the walk goes on
+        // to the drive root's - a second piece, in a second shard
+        1: { [near]: 'not json' },
+        2: { [far]: JSON.stringify({ maxLineLength: 200 }) }
+      }
+      ;(global as any).__sasjsShardFetches = []
+
+      const worker = loadWorker()
+      await worker.runtime.load({})
+
+      const longLine = 'x'.repeat(150)
+      const response = await worker.dispatch(
+        '/SASjsApi/code/lint',
+        runRequest({
+          code: `data _null_;\n${longLine}\nrun;\n`,
+          filePath: '/Public/app/test/prog.sas'
+        })
+      )
+
+      expect(response.status).toBe(200)
+      const findings = JSON.stringify(await response.json())
+      // the code arrived on the second attempt and the root rules applied: both
+      // halves of the claim
+      expect(findings).toContain('Doxygen')
+      expect(findings).not.toContain('Line exceeds')
+      expect((global as any).__sasjsShardFetches).toEqual([0, 1, 2])
+    })
+
+    /**
      * The rules are the drive's, not the linter's defaults.
      *
      * The Studio shows a visitor the drive's `.sasjslint` and invites them to
@@ -1787,6 +1928,101 @@ describe('service worker host', () => {
     expect(JSON.stringify(findings)).toContain('trailing spaces')
   })
 
+  /**
+   * A sharded drive supplies the piece a request names, and only that one.
+   *
+   * The build splits a captured drive so the first page does not download every
+   * app's bundle. That makes it the host's job to fetch the piece holding the
+   * path a route reads - here a drive file, named in `_filePath` - and to leave
+   * the pieces nobody asked for on the site.
+   */
+  it('fetches the piece a drive request names, and leaves the rest', async () => {
+    // the index names absolute paths; the route is given one relative to the
+    // drive, which is the form an adapter sends
+    const small = '/sasjs/drive/files/config.json'
+    const large = '/sasjs/drive/files/data/large.csv'
+    ;(global as any).__sasjsShards = {
+      index: {
+        format: DRIVE_FORMAT,
+        sharded: true,
+        boot: 0,
+        entries: {
+          [small]: { shard: 0, bytes: 2 },
+          [large]: { shard: 1, bytes: 64 }
+        },
+        shards: [
+          { id: 0, file: 'host/vfs-snapshot-0.json' },
+          { id: 1, file: 'host/vfs-snapshot-1.json' }
+        ]
+      },
+      0: { [small]: '{}' },
+      1: { [large]: 'a,b\n1,2\n3,4\n' }
+    }
+    ;(global as any).__sasjsShardFetches = []
+
+    const worker = loadWorker()
+    await worker.runtime.load({})
+
+    // the boot shard arrived with the drive; the second piece did not
+    expect((global as any).__sasjsShardFetches).toEqual([0])
+
+    const response = await worker.dispatch(
+      '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/large.csv')
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('a,b')
+    expect((global as any).__sasjsShardFetches).toEqual([0, 1])
+
+    // a second read of the same piece is answered from memory
+    await worker.dispatch(
+      '/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/data/large.csv')
+    )
+    expect((global as any).__sasjsShardFetches).toEqual([0, 1])
+  })
+
+  /**
+   * An export is the whole drive, not the part in memory.
+   *
+   * `window.SASjsMock.download()` writes the file a project ships as
+   * `mock-snapshot.json`, so a sharded drive must be fetched before it is
+   * dumped - otherwise the next build ships a snapshot that has quietly lost
+   * every app the visitor never opened.
+   */
+  it('exports every piece of a sharded drive, not only the loaded ones', async () => {
+    const small = '/sasjs/drive/files/config.json'
+    const large = '/sasjs/drive/files/data/large.csv'
+    ;(global as any).__sasjsShards = {
+      index: {
+        format: DRIVE_FORMAT,
+        sharded: true,
+        boot: 0,
+        entries: {
+          [small]: { shard: 0, bytes: 2 },
+          [large]: { shard: 1, bytes: 8 }
+        },
+        shards: [
+          { id: 0, file: 'host/vfs-snapshot-0.json' },
+          { id: 1, file: 'host/vfs-snapshot-1.json' }
+        ]
+      },
+      0: { [small]: '{}' },
+      1: { [large]: 'a,b\n1,2\n' }
+    }
+    ;(global as any).__sasjsShardFetches = []
+
+    const worker = loadWorker()
+    await worker.runtime.load({})
+
+    const { replies, pending } = worker.message({ type: 'sasjs-snapshot' })
+    await pending
+
+    // the piece nobody read was fetched for the export
+    expect((global as any).__sasjsShardFetches).toEqual([0, 1])
+    const exported = replies.find((reply) => reply.type === 'sasjs-snapshot')
+    expect(Object.keys(exported.files).sort()).toEqual([large, small].sort())
+  })
+
   it('answers 404 for a drive file the drive does not hold', async () => {
     const { dispatch } = seeded()
 
@@ -2135,6 +2371,9 @@ describe('service worker host', () => {
 
     runtime.load(files)
     const snapshot = message({ type: 'sasjs-snapshot' })
+    // the reply waits for the drive to be whole, so a sharded site's export is
+    // not the part of it that happens to be in memory
+    await snapshot.pending
     expect(snapshot.replies[0].type).toBe('sasjs-snapshot')
     expect(Object.keys(snapshot.replies[0].files).length).toBe(1)
 

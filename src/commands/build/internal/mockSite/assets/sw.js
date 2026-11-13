@@ -1019,7 +1019,12 @@ const lintConfig = async (filePath) => {
   for (;;) {
     const configPath =
       folder === '/' ? `/${LINT_CONFIG_FILE}` : `${folder}/${LINT_CONFIG_FILE}`
-    const contents = await DRIVE_STORE.read(configPath).catch(() => null)
+    const contents = await DRIVE_STORE.read(configPath).catch((e) => {
+      // a piece that is still on the site is not a folder with no rules file:
+      // swallowing it here would lint against the defaults and never fetch it
+      if (e && e.code === R.PENDING_CODE) throw e
+      return null
+    })
     const parsed = parseLintConfig(contents)
     if (parsed) return new linter.LintConfig(parsed)
     if (folder === '/') return undefined
@@ -1397,6 +1402,15 @@ const subjectOf = async (request, query) => {
  * `_debug` means - is still the package's decision.
  */
 const runRoute = async (routeId, payload, subject) => {
+  // A program may read any file it likes - the drive is its filesystem - so
+  // every piece of a sharded drive is fetched here rather than guessed from the
+  // request. That is deliberately the whole drive and not just the app being
+  // run: replaying a program because a read failed would run its writes twice,
+  // so the safe choice costs the download of every other app's bundle the first
+  // time anything runs on a cold visit. A page that only lists apps never pays
+  // it; the saving this change is for is on that page.
+  await R.ensureAll()
+
   const query = payload.query
   const body = payload.body
   const tables = payload.files.map((file) => ({
@@ -1488,7 +1502,38 @@ const contentsResponse = (answer, path) => {
   })
 }
 
-const routeRequest = async (request, url) => {
+/**
+ * The shards a request names, fetched before it is answered.
+ *
+ * The drive of a sharded site is not in memory: the build splits a capture so a
+ * first page does not download every app's bundle, and a route that reads a path
+ * has to ask for the piece holding it. The two query parameters below are where
+ * a request names a path outright, which is the common case and the cheap one -
+ * whatever a route resolves from the drive itself is left to the retry in
+ * `routeRequest`, which knows the path from the read that failed rather than
+ * guessing at it from the URL.
+ */
+const ensureForRequest = async (url) => {
+  const paths = []
+  for (const name of ['_filePath', '_program']) {
+    const value = url.searchParams.get(name)
+    if (value) paths.push(value)
+  }
+  if (paths.length) await R.ensurePaths(paths)
+}
+
+/**
+ * One attempt at a request, with the body source a retry can copy again.
+ *
+ * A Request's body can only be read once, and a retry (see the catch below) is a
+ * second read of the same request - so the first attempt keeps an unread copy
+ * beside it and every attempt after that is made from a copy of the copy. Only a
+ * request with a body needs one, and `source` is what carries it through the
+ * recursion.
+ */
+const routeRequest = async (request, url, attempts = 0, source = null) => {
+  const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
+  const replay = hasBody ? source || request.clone() : null
   const path = withoutBase(url.pathname).replace(/\/+$/, '') || '/'
   // `/api` is the short spelling of the API, and `/SASjsApi` the canonical one:
   // both are answered, so the alias is stripped once here and everything below -
@@ -1504,6 +1549,7 @@ const routeRequest = async (request, url) => {
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
     await R.ensureReady()
+    await ensureForRequest(url)
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
@@ -1619,6 +1665,20 @@ const routeRequest = async (request, url) => {
       )
     return json(answer.body, answer.status)
   } catch (e) {
+    // A read of a file that is still on the site: the route reached a path the
+    // request did not name - an app asset, a `.sasjslint` above the edited file,
+    // a join a service resolves from the drive. The failure names the path, so
+    // the first attempt fetches exactly that piece; a second one in the same
+    // request means it wants more than one, so the rest of the drive comes in.
+    // Bounded, because a refusal that keeps repeating is a real one.
+    if (e && e.code === R.PENDING_CODE && attempts < 2) {
+      if (!attempts && e.path) await R.ensurePaths([e.path])
+      else await R.ensureAll()
+      // a fresh copy per attempt: the one this attempt read is spent
+      const next = replay ? replay.clone() : request
+      return await routeRequest(next, url, attempts + 1, replay)
+    }
+
     const message = (e && e.stack) || String(e)
     const status = (e && e.status) || 500
     const refusal = status >= 400 && status < 500
@@ -1723,7 +1783,7 @@ self.addEventListener('message', (event) => {
     case 'sasjs-load':
       event.waitUntil(
         bootIdentity(data)
-          .then(() => R.load(data.files || {}))
+          .then(() => R.load(data.files || {}, data.deleted || []))
           .then(async () => {
             await persistChanges()
             reply({
@@ -1886,7 +1946,22 @@ self.addEventListener('message', (event) => {
     }
 
     case 'sasjs-snapshot':
-      reply({ type: 'sasjs-snapshot', files: R.dumpAll() })
+      // a sharded drive is not all in memory, and the caller is exporting it -
+      // for persistence after a change, or as `mock-snapshot.json` for the next
+      // build. Whole means whole: the pieces nobody read are fetched first, or
+      // the export would quietly lose every app bundle it had not opened.
+      event.waitUntil(
+        R.ensureReady()
+          .then(() => R.ensureAll())
+          .then(() => reply({ type: 'sasjs-snapshot', files: R.dumpAll() }))
+          .catch((e) =>
+            reply({
+              type: 'sasjs-snapshot',
+              files: R.dumpAll(),
+              error: (e && e.message) || String(e)
+            })
+          )
+      )
       break
 
     case 'sasjs-stats':

@@ -16,6 +16,11 @@ export interface MockSiteResult {
   webFileCount: number
   /** True when a captured drive snapshot was shipped with the site. */
   snapshot: boolean
+  /**
+   * How many pieces the captured drive ships in: the boot shard plus one per
+   * large folder or file. Zero when the site ships no snapshot.
+   */
+  snapshotShards: number
   /** True when a recorded SAS session was shipped, for .sas runs to answer. */
   sasTranscript: boolean
   /**
@@ -466,6 +471,118 @@ const countPrograms = (
     )
     return inProgramFolder && key.toLowerCase().endsWith(extension)
   }).length
+
+/**
+ * The size at which a captured file is fetched on its own rather than with its
+ * folder.
+ *
+ * A shard is a download the visitor waits for, and an app's folder holds both
+ * its bundles and the small files a listing shows - its logo, a config. Splitting
+ * on size keeps one from dragging the other: the tile asks for the folder's small
+ * files, the app's own page asks for the bundle.
+ */
+export const SHARD_FILE_BYTES = 256 * 1024
+
+/**
+ * The size below which a folder's files ride in the boot shard.
+ *
+ * The boot shard is fetched before the first page renders, so it is paid by every
+ * visit. Folders under this size are cheaper there than as a request of their
+ * own; folders over it are only fetched when something reads them.
+ */
+export const SHARD_GROUP_BYTES = 64 * 1024
+
+/** The folder a captured path is grouped under: its first three segments. */
+const shardFolderFor = (filePath: string) => {
+  const prefix = '/sasjs/drive/files/'
+  if (!filePath.startsWith(prefix)) return path.dirname(filePath)
+  const parts = filePath.slice(prefix.length).split('/')
+  // a file at the drive root groups with the other root files, which is where
+  // the index, the linter rules and a project's configs live
+  return (
+    prefix +
+    parts
+      .slice(0, Math.max(0, parts.length - 1))
+      .slice(0, 3)
+      .join('/')
+  )
+}
+
+/**
+ * Splits a captured drive into a boot shard and the pieces fetched on demand.
+ *
+ * A site that ships its whole drive as one file makes every visitor download all
+ * of it before the first page renders - on a demonstration site that is every
+ * app's bundle, behind a list of tiles that names them. The split is by what a
+ * page reads, not by what the drive holds:
+ *
+ * - a file at or over `SHARD_FILE_BYTES` gets a shard of its own;
+ * - the rest are grouped by folder, and a folder under `SHARD_GROUP_BYTES` joins
+ *   the boot shard (id 0), so no visit pays a round trip for a logo;
+ * - everything over it becomes a shard, fetched when a path in it is read.
+ *
+ * The index carries every path with its shard and byte count, so a listing, a
+ * stat and an existence check answer for the whole drive with nothing fetched.
+ */
+const shardSnapshot = (files: { [path: string]: string }) => {
+  const paths = Object.keys(files).sort()
+  const bytesOf = (filePath: string) =>
+    Buffer.byteLength(String(files[filePath]))
+
+  const groups = new Map<string, string[]>()
+  for (const filePath of paths) {
+    const big = bytesOf(filePath) >= SHARD_FILE_BYTES
+    const key = big ? `file:${filePath}` : `dir:${shardFolderFor(filePath)}`
+    groups.set(key, (groups.get(key) || []).concat(filePath))
+  }
+
+  const shards: { paths: string[]; bytes: number }[] = [{ paths: [], bytes: 0 }]
+  for (const key of [...groups.keys()].sort()) {
+    const members = groups.get(key) as string[]
+    const bytes = members.reduce(
+      (total, filePath) => total + bytesOf(filePath),
+      0
+    )
+    const ridesInBoot = key.startsWith('dir:') && bytes <= SHARD_GROUP_BYTES
+    if (ridesInBoot) {
+      shards[0].paths.push(...members)
+      shards[0].bytes += bytes
+      continue
+    }
+    shards.push({ paths: members, bytes })
+  }
+
+  const entries: { [path: string]: { shard: number; bytes: number } } = {}
+  shards.forEach((shard, id) => {
+    for (const filePath of shard.paths) {
+      entries[filePath] = { shard: id, bytes: bytesOf(filePath) }
+    }
+  })
+
+  return {
+    index: {
+      format: DRIVE_FORMAT,
+      sharded: true,
+      boot: 0,
+      files: paths.length,
+      entries,
+      shards: shards.map((shard, id) => ({
+        id,
+        file: `host/vfs-snapshot-${id}.json`,
+        bytes: shard.bytes,
+        files: shard.paths.length
+      }))
+    },
+    shards: shards.map((shard, id) => ({
+      id,
+      file: `vfs-snapshot-${id}.json`,
+      bytes: shard.bytes,
+      files: Object.fromEntries(
+        shard.paths.map((filePath) => [filePath, files[filePath]])
+      )
+    }))
+  }
+}
 
 /** The script-tag attributes that change how an app's script runs. */
 const REPLAYED_ATTRIBUTES: { [attribute: string]: string } = {
@@ -1161,10 +1278,43 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // 2c. a captured drive, if the project keeps one. This is how a site ships
   // with data already in it: seed once in a browser, export the drive with
   // window.SASjsMock.download(), and place the file here.
+  //
+  // It is written as an index plus shards rather than one file: the visitor's
+  // first page reads the boot shard, and a shard is fetched when something reads
+  // a path in it. The capture the project keeps is unchanged - the split is the
+  // build's, so an existing snapshot builds exactly as before.
   const snapshotSource = path.join(buildFolder, 'mock-snapshot.json')
   const hasSnapshot = fs.existsSync(snapshotSource)
+  let snapshotShards = 0
   if (hasSnapshot) {
-    fs.copyFileSync(snapshotSource, path.join(hostFolder, 'vfs-snapshot.json'))
+    const capture = JSON.parse(fs.readFileSync(snapshotSource, 'utf8'))
+    if (
+      capture &&
+      capture.format !== undefined &&
+      capture.format !== DRIVE_FORMAT
+    )
+      throw new Error(
+        `The captured drive at ${snapshotSource} is format ` +
+          `${JSON.stringify(capture.format)}, and this build writes format ` +
+          `${DRIVE_FORMAT}. Seed the drive again with window.SASjsMock.download().`
+      )
+    const files = capture && capture.files ? capture.files : capture
+    if (!files || typeof files !== 'object')
+      throw new Error(
+        `The captured drive at ${snapshotSource} carries no files - the export is a JSON object of path to contents.`
+      )
+
+    const split = shardSnapshot(files)
+    for (const shard of split.shards)
+      fs.writeFileSync(
+        path.join(hostFolder, shard.file),
+        JSON.stringify({ format: DRIVE_FORMAT, files: shard.files })
+      )
+    fs.writeFileSync(
+      path.join(hostFolder, 'vfs-snapshot.json'),
+      JSON.stringify(split.index, null, 2)
+    )
+    snapshotShards = split.shards.length
   }
 
   // 2d. a recorded SAS session, if the project ships one. A browser has no SAS
@@ -1198,6 +1348,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         jsPrograms,
         programFolders: PROGRAM_FOLDERS,
         snapshot: hasSnapshot,
+        snapshotShards,
         sasTranscript: hasTranscript,
         identity: identity.source,
         buildStamp,
@@ -1226,6 +1377,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     jsPrograms,
     webFileCount,
     snapshot: hasSnapshot,
+    snapshotShards,
     sasTranscript: hasTranscript,
     identitySource: identity.source
   }

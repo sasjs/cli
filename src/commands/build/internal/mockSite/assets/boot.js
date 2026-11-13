@@ -102,6 +102,11 @@
     persist.then(function () {
       Promise.resolve(window.__sasjsMockReady).then(function (boot) {
         if (boot && boot.error) console.error('[mock] boot: ' + boot.error)
+        // the drive was restored from less than the whole capture: the page still runs,
+        // but every file it did not already hold will read as missing, and nothing else
+        // says so
+        if (boot && boot.driveError)
+          console.error('[mock] drive: ' + boot.driveError)
         load('host/intercept.js', function () {
           replayAll(specs, function () {})
         })

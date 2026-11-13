@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { getWeboutPrelude } from '@sasjs/utils'
-import { WEBOUT_SENTINELS } from '../mockSite'
+import { DRIVE_FORMAT, WEBOUT_SENTINELS } from '../mockSite'
 
 /**
  * The parity claim of a browser-hosted build is that a service runs in the
@@ -69,6 +69,413 @@ describe('browser runtime', () => {
   afterEach(() => {
     delete (global as any).self
     delete (global as any).fetch
+  })
+
+  /**
+   * A sharded drive is read without fetching what the request does not need.
+   *
+   * The build splits a captured drive so a first page does not download every
+   * app's bundle. What must hold here is that the split is invisible: a listing,
+   * an existence check and a stat answer for files whose bytes are still on the
+   * site, and only a read goes back for them.
+   */
+  it('answers for a sharded drive without fetching the pieces it does not need', async () => {
+    const runtime = loadRuntime()
+    const indexShard = `${drivePath('index.json')}`
+    const bundleShard = `${drivePath('services/web/index.bundle.js')}`
+    const bundle = 'x'.repeat(400)
+    const fetched: string[] = []
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      fetched.push(url)
+      if (url.includes('mock-config')) return jsonResponse({ appLoc })
+      if (/vfs-snapshot-\d+\.json/.test(url)) {
+        const id = Number(/vfs-snapshot-(\d+)\.json/.exec(url)![1])
+        const files =
+          id === 0 ? { [indexShard]: '{"apps":[]}' } : { [bundleShard]: bundle }
+        return jsonResponse({ format: DRIVE_FORMAT, files })
+      }
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: {
+            [indexShard]: { shard: 0, bytes: 12 },
+            [bundleShard]: { shard: 1, bytes: bundle.length }
+          },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' }
+          ]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.seed()
+
+    // the boot shard came with the drive; the bundle did not
+    expect(fetched.some((url) => url.includes('vfs-snapshot-1'))).toBe(false)
+
+    const listing = runtime.run({
+      code: [
+        `const bundle = '${bundleShard}'`,
+        `const folder = '${drivePath('services/web')}'`,
+        `const seen = fs.readdirSync(folder).join(',')`,
+        `_webout = [seen, fs.existsSync(bundle), fs.statSync(bundle).size].join('|')`
+      ].join('\n')
+    })
+    expect(listing.error).toBeNull()
+    expect(listing.webout).toBe(`index.bundle.js|true|${bundle.length}`)
+
+    // a read cannot wait, so it says which file it needs rather than answering
+    // with an empty one - that is the signal the host retries on
+    const refused = runtime.run({
+      code: [
+        `let code = 'none'`,
+        `try { fs.readFileSync('${bundleShard}') } catch (e) { code = e.code }`,
+        `_webout = code`
+      ].join('\n')
+    })
+    expect(refused.webout).toBe(runtime.PENDING_CODE)
+
+    await runtime.ensurePaths([bundleShard])
+    expect(fetched.some((url) => url.includes('vfs-snapshot-1'))).toBe(true)
+
+    const read = runtime.run({
+      code: `_webout = String(fs.readFileSync('${bundleShard}').length)`
+    })
+    expect(read.webout).toBe(String(bundle.length))
+  })
+
+  /**
+   * A shard that cannot be read is named, not silently absent.
+   *
+   * The drive answers for a file it holds whether or not its bytes are in
+   * memory, so a piece that fails to arrive is the one way a read can end up
+   * with nothing: saying which file was missing is the difference between a
+   * broken deployment and a mystery.
+   */
+  it('names a shard it cannot fetch, and refuses one of another format', async () => {
+    const runtime = loadRuntime()
+    const missing = `${drivePath('missing.json')}`
+    const foreign = `${drivePath('foreign.bin')}`
+    const index = (shardFiles: string[]) => ({
+      format: DRIVE_FORMAT,
+      sharded: true,
+      boot: 0,
+      entries: Object.fromEntries(
+        shardFiles.map((path, i) => [path, { shard: i + 1, bytes: 4 }])
+      ),
+      shards: [
+        { id: 0, file: 'host/vfs-snapshot-0.json' },
+        ...shardFiles.map((_, i) => ({
+          id: i + 1,
+          file: `host/vfs-snapshot-${i + 1}.json`
+        }))
+      ]
+    })
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config')) return jsonResponse({ appLoc })
+      if (url.includes('vfs-snapshot-0')) return jsonResponse({ files: {} })
+      if (url.includes('vfs-snapshot-1')) return { ok: false, status: 404 }
+      if (url.includes('vfs-snapshot-2'))
+        return jsonResponse({ format: 99, files: {} })
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse(index([missing, foreign]))
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.seed()
+
+    await expect(runtime.ensurePaths([missing])).rejects.toThrow(
+      /vfs-snapshot-1\.json.*404/
+    )
+    await expect(runtime.ensurePaths([foreign])).rejects.toThrow(/format 99/)
+  })
+
+  it('boots without its boot shard, and names the piece a read could not fetch', async () => {
+    const runtime = loadRuntime()
+    const path = `${drivePath('config.json')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 1 })
+      if (/vfs-snapshot-0\.json/.test(url)) return { ok: false, status: 404 }
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: { [path]: { shard: 0, bytes: 2 } },
+          shards: [{ id: 0, file: 'host/vfs-snapshot-0.json' }]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    // a half-uploaded deploy must not leave the page with no drive at all
+    await expect(runtime.seed()).resolves.toEqual(
+      expect.objectContaining({ booted: true, driveError: expect.any(String) })
+    )
+    await expect(runtime.ensurePaths([path])).rejects.toThrow(
+      /vfs-snapshot-0\.json.*404/
+    )
+  })
+
+  it('counts the pieces still on the site in the drive total', async () => {
+    const runtime = loadRuntime()
+    const onSite = `${drivePath('bundle.js')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 2 })
+      if (/vfs-snapshot-0\.json/.test(url))
+        return jsonResponse({ files: { [drivePath('small.txt')]: 'ab' } })
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: {
+            [drivePath('small.txt')]: { shard: 0, bytes: 2 },
+            [onSite]: { shard: 1, bytes: 4096 }
+          },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' }
+          ]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.seed()
+
+    // the piece nobody read is still part of the drive
+    expect(runtime.stats()).toEqual(
+      expect.objectContaining({ files: 1, onSite: 1, bytes: 2 + 4096 })
+    )
+  })
+
+  /**
+   * A deletion outlives the page, and the index must not undo it.
+   *
+   * A sharded site's index lists every file the build ships, so a file the
+   * visitor removed would come back with the next page load - the tombstone the
+   * page keeps is what stops it.
+   */
+  it('keeps a deleted file deleted across a restore', async () => {
+    const runtime = loadRuntime()
+    const captured = `${drivePath('captured.txt')}`
+    const kept = `${drivePath('kept.txt')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 1 })
+      if (/vfs-snapshot-0\.json/.test(url))
+        return jsonResponse({ files: { [kept]: 'kept' } })
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: {
+            [captured]: { shard: 0, bytes: 8 },
+            [kept]: { shard: 0, bytes: 4 }
+          },
+          shards: [{ id: 0, file: 'host/vfs-snapshot-0.json' }]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.load({ [kept]: 'kept' }, [captured])
+
+    expect(runtime.stats()).toEqual(
+      expect.objectContaining({ files: 1, onSite: 0 })
+    )
+    const read = runtime.run({
+      code: [
+        `let seen = 'read'`,
+        `try { fs.readFileSync('${captured}') } catch (e) { seen = e.code }`,
+        `_webout = [fs.existsSync('${captured}'), seen].join('|')`
+      ].join('\n')
+    })
+    expect(read.webout).toBe('false|ENOENT')
+  })
+
+  it('asks for no drive index when the build shipped an unsharded capture', async () => {
+    const runtime = loadRuntime()
+    const fetched: string[] = []
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      fetched.push(url)
+      if (url.includes('mock-config')) return jsonResponse({ appLoc })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    // a site built before the split carries no count, and the warm path must not
+    // pay a request for an index that does not exist
+    await runtime.load({ [drivePath('a.txt')]: 'a' })
+
+    expect(fetched.some((url) => url.includes('vfs-snapshot'))).toBe(false)
+  })
+
+  it('restores a drive whose boot shard did not arrive, and says so', async () => {
+    const runtime = loadRuntime()
+    const path = `${drivePath('config.json')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 1 })
+      if (/vfs-snapshot-0\.json/.test(url)) return { ok: false, status: 404 }
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: { [path]: { shard: 0, bytes: 2 } },
+          shards: [{ id: 0, file: 'host/vfs-snapshot-0.json' }]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    // a returning visitor must not be refused where a fresh visitor is only
+    // short: the restore reports the failure and keeps the index
+    await expect(runtime.load({})).resolves.toEqual(
+      expect.objectContaining({ booted: true, driveError: expect.any(String) })
+    )
+  })
+
+  /**
+   * A write over a captured file replaces it, in both directions.
+   *
+   * The file's bytes are still on the site, so it is in the index as well as in
+   * memory unless the write takes it out - and then a listing names it twice, the
+   * drive total counts it twice, and a piece fetched later puts the capture's copy
+   * back over the visitor's.
+   */
+  it('takes a written path out of the capture, so it is counted and listed once', async () => {
+    const runtime = loadRuntime()
+    const path = `${drivePath('overwritten.txt')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 2 })
+      if (/vfs-snapshot-0\.json/.test(url)) return jsonResponse({ files: {} })
+      if (/vfs-snapshot-1\.json/.test(url))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          files: { [path]: 'captured content' }
+        })
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: { [path]: { shard: 1, bytes: 16 } },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' }
+          ]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.seed()
+
+    const written = runtime.run({
+      code: `fs.writeFileSync('${path}', 'mine'); _webout = 'ok'`
+    })
+    expect(written.webout).toBe('ok')
+
+    // listed once, counted once, and the visitor's copy is what a read returns
+    const read = runtime.run({
+      code: [
+        `const folder = fs.readdirSync('${drivePath('')}').filter((name) => name === 'overwritten.txt')`,
+        `_webout = [folder.length, fs.readFileSync('${path}')].join('|')`
+      ].join('\n')
+    })
+    expect(read.webout).toBe('1|mine')
+    // nothing of the capture is left unloaded for that path: the run's own session
+    // files are the only other entries, so the count of pieces still on the site
+    // is what says the write took the path out of the index
+    expect(runtime.stats()).toEqual(expect.objectContaining({ onSite: 0 }))
+  })
+
+  it('reports an index that failed, rather than restoring the visitor files alone', async () => {
+    const runtime = loadRuntime()
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 1 })
+      if (url.includes('vfs-snapshot')) return { ok: false, status: 500 }
+      return { ok: false, json: async () => ({}) }
+    })
+
+    // a 500 is not "this site ships no snapshot": restoring without the index
+    // would leave only the files this visitor changed, silently
+    await expect(runtime.load({})).resolves.toEqual(
+      expect.objectContaining({
+        booted: true,
+        driveError: expect.stringContaining('answered 500')
+      })
+    )
+
+    // and 404 still reads as a site with nothing to ship
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 1 })
+      if (url.includes('vfs-snapshot')) return { ok: false, status: 404 }
+      return { ok: false, json: async () => ({}) }
+    })
+    await expect(loadRuntime().load({})).resolves.toEqual(
+      expect.objectContaining({ booted: true })
+    )
+  })
+
+  it('refuses an append onto a file whose bytes are still on the site', async () => {
+    const runtime = loadRuntime()
+    const path = `${drivePath('appended.txt')}`
+
+    ;(global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('mock-config'))
+        return jsonResponse({ appLoc, snapshotShards: 2 })
+      if (/vfs-snapshot-0\.json/.test(url)) return jsonResponse({ files: {} })
+      if (/vfs-snapshot-1\.json/.test(url))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          files: { [path]: 'first' }
+        })
+      if (url.includes('vfs-snapshot'))
+        return jsonResponse({
+          format: DRIVE_FORMAT,
+          sharded: true,
+          boot: 0,
+          entries: { [path]: { shard: 1, bytes: 5 } },
+          shards: [
+            { id: 0, file: 'host/vfs-snapshot-0.json' },
+            { id: 1, file: 'host/vfs-snapshot-1.json' }
+          ]
+        })
+      return { ok: false, json: async () => ({}) }
+    })
+
+    await runtime.seed()
+
+    // the capture's bytes are still on the site, and appending would replace them
+    const refused = runtime.run({
+      code: `fs.appendFileSync('${path}', 'plus'); _webout = 'ok'`
+    })
+    // the statement after the append never ran: the write was refused, not done
+    expect(refused.webout).not.toBe('ok')
+    expect(runtime.stats()).toEqual(expect.objectContaining({ onSite: 1 }))
+
+    // once the piece is here the append lands on top of what was captured
+    await runtime.ensurePaths([path])
+    const appended = runtime.run({
+      code: `fs.appendFileSync('${path}', 'plus'); _webout = fs.readFileSync('${path}')`
+    })
+    expect(appended.webout).toBe('firstplus')
   })
 
   it('refuses a drive file whose format it does not speak', async () => {

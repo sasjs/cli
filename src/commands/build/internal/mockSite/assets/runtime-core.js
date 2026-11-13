@@ -566,11 +566,77 @@ const DIRS = new Set(['/'])
 // multi-megabyte seeded file does not scan it again.
 const SIZES = new Map()
 
+// ------------------------------------------------------------- sharded drive
+/**
+ * The pieces a captured drive ships in.
+ *
+ * A site that ships its drive as one file makes every visitor download all of
+ * it before the first page can render - on a demonstration site that is every
+ * app's bundle behind a list of tiles. The build splits the capture instead: one
+ * small boot shard with the files a first paint needs, and a shard per large
+ * folder or file, fetched when something reads a path in it.
+ *
+ * `PENDING` is what makes that invisible to everything above: the paths, folders
+ * and sizes of the files not yet in memory are known from the index, so a
+ * listing, a stat and an existence check answer exactly as they would with the
+ * contents present. Only a read has to fail, because it cannot wait - the
+ * request that reads preloads the piece first (see `ensurePaths`), and the code
+ * that reads without asking gets a refusal it can retry on rather than an empty
+ * file.
+ */
+const PENDING = new Map() // abs path -> { shard, bytes }
+const SHARDS = new Map() // shard id -> { file, state, promise }
+// paths the visitor deleted, and which the page hands back at boot. A sharded
+// drive cannot rely on absence any more: the index lists every file the site
+// ships, so a capture file deleted before a reload would return with the next
+// index. A tombstone is what keeps it deleted.
+const DELETED = new Set()
+let bootShard = 0
+// how many pieces this build split its capture into, from mock-config.json: 0
+// (or absent) means an unsharded build, whose drive arrives whole
+let SHARD_COUNT = 0
+// whether the config was actually read. A config that failed to load says nothing
+// about the capture, and treating it as "unsharded" would restore a drive of the
+// visitor's changed files only - every file they had never loaded then reads
+// ENOENT with nothing logged - so the two states are kept apart.
+let CONFIG_LOADED = false
+
+/** The refusal a read of a path that is still on the site raises. */
+const PENDING_CODE = 'EDRIVEPENDING'
+
+const pendingError = (p) => {
+  const err = new Error(
+    `The drive file '${String(p)}' is in a shard this host has not fetched yet`
+  )
+  err.code = PENDING_CODE
+  // the path, so the host can fetch that piece rather than the whole drive
+  err.drivePath = P.resolve(String(p))
+  err.path = err.drivePath
+  return err
+}
+
+/**
+ * Puts contents at a path.
+ *
+ * One function for every write, because a write has to do three things that are
+ * easy to do in two: store the value, drop the cached size, and take the path out
+ * of the shard index. A file whose bytes are still on the site and whose contents
+ * are also in memory is listed twice and counted twice, and a piece fetched later
+ * would put the capture's copy back over the visitor's.
+ */
+const putEntry = (abs, contents) => {
+  FILES.set(abs, contents)
+  SIZES.delete(abs)
+  PENDING.delete(abs)
+}
+
 /** The byte length of an entry on the drive, measured once per stored value. */
 const entrySizeAt = (abs) => {
   const contents = FILES.get(abs)
   const cached = SIZES.get(abs)
   if (cached && cached.contents === contents) return cached.size
+  const pending = PENDING.get(abs)
+  if (contents === undefined && pending) return pending.bytes
   const size = entrySize(contents)
   SIZES.set(abs, { contents, size })
   return size
@@ -585,6 +651,11 @@ const dirty = new Map() // abs path -> contents, or null when deleted
 
 const markDirty = (path) => {
   const contents = FILES.has(path) ? FILES.get(path) : null
+  // one place decides what a deletion means, because every write and every
+  // remove passes through here: a file that is gone is tombstoned, and writing
+  // it again clears the tombstone
+  if (contents === null) DELETED.add(path)
+  else DELETED.delete(path)
   dirty.set(path, contents)
 }
 
@@ -601,25 +672,150 @@ const dumpAll = () => {
   return out
 }
 
-const loadSnapshot = (files) => {
+/**
+ * Puts a drive in memory: the files that arrive with it, and the index of the
+ * pieces that did not.
+ *
+ * One function for both paths - a site's own snapshot and a drive the page
+ * restored - because the index has to be applied either way: it is what makes a
+ * file that is still on the site exist for a listing and a stat, and it is what
+ * a read goes back for. Files handed in here are contents in hand, so they win
+ * over the index and their shard is never fetched.
+ */
+const installDrive = (index, files, deleted) => {
   FILES.clear()
   SIZES.clear()
   DIRS.clear()
+  PENDING.clear()
+  SHARDS.clear()
+  DELETED.clear()
+  bootShard = 0
   DIRS.add('/')
   mkdirp(DRIVE_APP)
   mkdirp(`${DRIVE_ROOT}/files`)
+  for (const path of deleted || []) DELETED.add(P.resolve(String(path)))
+  if (index) applyIndex(index)
   for (const [path, contents] of Object.entries(files || {})) {
     if (typeof contents !== 'string') continue
-    FILES.set(P.resolve(path), contents)
-    mkdirp(P.dirname(path))
+    const abs = P.resolve(path)
+    FILES.set(abs, contents)
+    PENDING.delete(abs)
+    SIZES.delete(abs)
+    mkdirp(P.dirname(abs))
   }
-  lastBoot = {
-    booted: true,
-    restored: true,
-    files: FILES.size,
-    at: new Date().toISOString()
+}
+
+/**
+ * Records the shards a drive ships in and the entry each file belongs to.
+ *
+ * Nothing is fetched here: the paths, folders and sizes answer for the whole
+ * drive from this point, so only a read has to go back for the bytes.
+ */
+const applyIndex = (index) => {
+  bootShard = typeof index.boot === 'number' ? index.boot : 0
+  for (const shard of index.shards || []) {
+    if (!shard || typeof shard.file !== 'string') continue
+    SHARDS.set(shard.id, { file: shard.file, state: 'unloaded', promise: null })
   }
-  return lastBoot
+  for (const [path, entry] of Object.entries(index.entries || {})) {
+    const abs = P.resolve(path)
+    // a restored or written file is what the visitor has: the site's copy of it
+    // is not fetched over the top. And a path the visitor deleted stays deleted -
+    // the index knows the site still ships it, which is exactly why the
+    // tombstone has to win here.
+    if (FILES.has(abs) || DELETED.has(abs)) continue
+    const bytes = entry && typeof entry.bytes === 'number' ? entry.bytes : 0
+    PENDING.set(abs, { shard: entry.shard, bytes })
+    SIZES.set(abs, { contents: undefined, size: bytes })
+    mkdirp(P.dirname(abs))
+  }
+}
+
+/**
+ * Fetches one shard into memory.
+ *
+ * Concurrent readers of the same shard share the request, and a failed one is
+ * left unloaded so the next read retries rather than believing the drive is
+ * short of a file. A file that is already in memory - a restored drive, a write
+ * the visitor made - is never overwritten by a shard: the drive they have is the
+ * one they are working on.
+ */
+const loadShard = (id) => {
+  const shard = SHARDS.get(id)
+  if (!shard || shard.state === 'loaded') return Promise.resolve()
+  if (shard.promise) return shard.promise
+
+  shard.state = 'loading'
+  shard.promise = (async () => {
+    const res = await fetch(shard.file, { cache: 'no-store' })
+    if (!res.ok)
+      throw new Error(
+        'The drive shard ' +
+          shard.file +
+          ' could not be read (' +
+          res.status +
+          '), so the drive is incomplete'
+      )
+    const body = await res.json()
+    if (body && body.format !== undefined && body.format !== DRIVE_FORMAT)
+      throw new Error(
+        'The drive in ' +
+          shard.file +
+          ' is format ' +
+          JSON.stringify(body.format) +
+          ', and this runtime speaks format ' +
+          DRIVE_FORMAT +
+          '. Rebuild the mock site with the matching @sasjs/cli.'
+      )
+    for (const [path, contents] of Object.entries((body && body.files) || {})) {
+      if (typeof contents !== 'string') continue
+      const abs = P.resolve(path)
+      PENDING.delete(abs)
+      // a deleted file stays deleted, even when the piece holding it is fetched
+      if (FILES.has(abs) || DELETED.has(abs)) continue
+      FILES.set(abs, contents)
+      SIZES.delete(abs)
+      mkdirp(P.dirname(abs))
+    }
+    shard.state = 'loaded'
+    return true
+  })().catch((e) => {
+    shard.state = 'unloaded'
+    shard.promise = null
+    throw e
+  })
+
+  return shard.promise
+}
+
+/** Fetches the pieces holding these paths, and nothing else. */
+const ensurePaths = async (paths) => {
+  const ids = new Set()
+  for (const path of paths || []) {
+    // the API names a path under the drive (`/data/x.csv`) and a program names
+    // an absolute one; both resolve to an entry here
+    let abs = P.resolve(String(path))
+    if (!PENDING.has(abs)) {
+      try {
+        abs = absDrivePath(path)
+      } catch (e) {
+        continue
+      }
+    }
+    const pending = PENDING.get(abs)
+    if (pending && pending.shard !== undefined) ids.add(pending.shard)
+  }
+  if (!ids.size) return false
+  await Promise.all([...ids].map((id) => loadShard(id)))
+  return true
+}
+
+/** Fetches the rest of the drive. The answer to a read that could not wait. */
+const ensureAll = async () => {
+  const ids = [...SHARDS.keys()]
+  if (!ids.length) return false
+  await Promise.all(ids.map((id) => loadShard(id)))
+  return true
 }
 
 const mkdirp = (dir) => {
@@ -653,6 +849,7 @@ const FS = {
   readFileSync(p, options) {
     const abs = P.resolve(String(p))
     if (!FILES.has(abs)) {
+      if (PENDING.has(abs)) throw pendingError(p)
       const err = new Error(
         `ENOENT: no such file or directory, open '${String(p)}'`
       )
@@ -683,7 +880,8 @@ const FS = {
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
-    return FILES.has(abs) || DIRS.has(abs)
+    // a pending entry exists: only its bytes are still on the site
+    return FILES.has(abs) || PENDING.has(abs) || DIRS.has(abs)
   },
   writeFileSync(p, data, options) {
     const abs = P.resolve(String(p))
@@ -693,7 +891,12 @@ const FS = {
     // file in chunks produces a whole file on the server and would otherwise
     // produce its last chunk here.
     const { encoding, flag } = writeOptions(options)
-    const appending = flag === 'a' && FILES.has(abs)
+    // On a sharded drive the capture's bytes are in PENDING, not FILES, until
+    // something reads them: appending there would replace them with the appended
+    // chunk and persist that as the visitor's version. Refuse instead, so the
+    // host fetches the piece and replays the write the way it does for a read.
+    const appending = flag === 'a' && (FILES.has(abs) || PENDING.has(abs))
+    if (appending && !FILES.has(abs)) throw pendingError(p)
     const before = appending ? entryBytes(FILES.get(abs)) : null
     const stored = appending && isBinary(FILES.get(abs))
     // text, or the bytes node lets a service write: an array, a number or null
@@ -706,7 +909,7 @@ const FS = {
           `The "data" argument must be of type string or an instance of Buffer, TypedArray, or DataView. Received ${describeValue(data)}`
         )
       const written = appending ? joinBytes(before, bytes) : bytes
-      FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
+      putEntry(abs, BINARY_PREFIX + bytesToBase64(written))
       markDirty(abs)
       return
     }
@@ -716,13 +919,13 @@ const FS = {
     // as the bytes it produces
     if (how === 'utf8' && !stored) {
       const text = appending ? entryText(FILES.get(abs)) + data : data
-      FILES.set(abs, encodeText(text))
+      putEntry(abs, encodeText(text))
       markDirty(abs)
       return
     }
     const bytes = BUFFERS.from(data, how)
     const written = appending ? joinBytes(before, bytes) : bytes
-    FILES.set(abs, BINARY_PREFIX + bytesToBase64(written))
+    putEntry(abs, BINARY_PREFIX + bytesToBase64(written))
     markDirty(abs)
   },
   writeFile(p, data, options, cb) {
@@ -756,7 +959,9 @@ const FS = {
     const abs = P.resolve(String(p))
     const pre = abs === '/' ? '/' : abs + '/'
     const out = new Set()
-    for (const k of FILES.keys()) {
+    // both maps: a folder lists the files whose bytes are still on the site as
+    // well as the ones in memory, or a pending shard would look like a delete
+    for (const k of [...FILES.keys(), ...PENDING.keys()]) {
       if (k.startsWith(pre)) {
         const rest = k.slice(pre.length)
         if (rest && !rest.includes('/')) out.add(rest)
@@ -774,7 +979,7 @@ const FS = {
     const abs = P.resolve(String(p))
     if (DIRS.has(abs))
       return { isDirectory: () => true, isFile: () => false, size: 0 }
-    if (FILES.has(abs)) {
+    if (FILES.has(abs) || PENDING.has(abs)) {
       const size = entrySizeAt(abs)
       return { isDirectory: () => false, isFile: () => true, size }
     }
@@ -788,6 +993,9 @@ const FS = {
     const abs = P.resolve(String(p))
     FILES.delete(abs)
     SIZES.delete(abs)
+    // a pending entry is deleted like a loaded one: the shard it came from is
+    // never fetched, so nothing can bring it back
+    PENDING.delete(abs)
     markDirty(abs)
   },
   copyFileSync(from, to) {
@@ -798,7 +1006,7 @@ const FS = {
     // text file is not re-escaped
     const abs = P.resolve(String(to))
     mkdirp(P.dirname(abs))
-    FILES.set(abs, FILES.get(src))
+    putEntry(abs, FILES.get(src))
     markDirty(abs)
   }
 }
@@ -876,6 +1084,13 @@ const loadMockConfig = async () => {
     if (cfg && typeof cfg.seedPath === 'string' && cfg.seedPath.trim()) {
       SEED_PATH = cfg.seedPath
     }
+    // how many pieces the capture was split into, so a restore knows whether
+    // there is an index to read before it asks for one: an unsharded build (every
+    // site built before the split) must not pay a request per visit for a file
+    // that is not there
+    if (cfg && typeof cfg.snapshotShards === 'number')
+      SHARD_COUNT = cfg.snapshotShards
+    CONFIG_LOADED = true
   } catch (e) {
     /* keep the defaults */
   }
@@ -1198,13 +1413,12 @@ const DRIVE_FILES = () => `${DRIVE_ROOT}/files`
  */
 const storeEntry = (abs, data) => {
   const bytes = asBytes(data)
-  FILES.set(
+  putEntry(
     abs,
     bytes
       ? BINARY_PREFIX + bytesToBase64(bytes)
       : encodeText(String(data === undefined || data === null ? '' : data))
   )
-  SIZES.delete(abs)
   markDirty(abs)
 }
 
@@ -1273,6 +1487,9 @@ const driveStore = {
   async read(drivePath) {
     const abs = absDrivePath(drivePath)
     const stored = FILES.get(abs)
+    // a file whose bytes are still on the site is not a missing file: the code
+    // lets the host fetch the piece and answer the request again
+    if (stored === undefined && PENDING.has(abs)) throw pendingError(abs)
     if (stored === undefined) {
       // the API checks existence first, so this is a store that was handed a
       // path it does not hold - refused in the drive's own words rather than
@@ -1297,13 +1514,14 @@ const driveStore = {
 
   async exists(drivePath) {
     const abs = absDrivePath(drivePath)
-    return FILES.has(abs) || DIRS.has(abs)
+    return FILES.has(abs) || PENDING.has(abs) || DIRS.has(abs)
   },
 
   async stat(drivePath) {
     const abs = absDrivePath(drivePath)
     if (DIRS.has(abs)) return { directory: true, size: 0 }
-    if (FILES.has(abs)) return { directory: false, size: entrySizeAt(abs) }
+    if (FILES.has(abs) || PENDING.has(abs))
+      return { directory: false, size: entrySizeAt(abs) }
     const err = new Error(
       `ENOENT: no such file or directory, stat '${drivePath}'`
     )
@@ -1316,7 +1534,9 @@ const driveStore = {
     const pre = abs === '/' ? '/' : abs + '/'
     const files = []
     const folders = []
-    for (const key of FILES.keys()) {
+    // a pending file is listed like a loaded one: its bytes are elsewhere, not
+    // its name
+    for (const key of [...FILES.keys(), ...PENDING.keys()]) {
       if (!key.startsWith(pre)) continue
       const rest = key.slice(pre.length)
       if (rest && !rest.includes('/')) files.push(rest)
@@ -1342,17 +1562,19 @@ const driveStore = {
    */
   async remove(drivePath) {
     const abs = absDrivePath(drivePath)
-    if (FILES.has(abs)) {
+    if (FILES.has(abs) || PENDING.has(abs)) {
       FILES.delete(abs)
       SIZES.delete(abs)
+      PENDING.delete(abs)
       markDirty(abs)
       return
     }
     const prefix = abs + '/'
-    for (const path of [...FILES.keys()]) {
+    for (const path of [...FILES.keys(), ...PENDING.keys()]) {
       if (!path.startsWith(prefix)) continue
       FILES.delete(path)
       SIZES.delete(path)
+      PENDING.delete(path)
       markDirty(path)
     }
     for (const dir of [...DIRS]) {
@@ -1365,9 +1587,12 @@ const driveStore = {
     const from = absDrivePath(fromPath)
     const to = absDrivePath(toPath)
     const moveEntry = (source, target) => {
-      FILES.set(target, FILES.get(source))
+      putEntry(target, FILES.get(source))
       FILES.delete(source)
       SIZES.delete(source)
+      // the source is gone from the drive, so it cannot still be a piece of the
+      // capture either
+      PENDING.delete(source)
       mkdirp(P.dirname(target))
       markDirty(target)
       markDirty(source)
@@ -1412,8 +1637,6 @@ const fetchDrive = async () => {
       const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) continue
       const body = await res.json()
-      const files = body && body.files ? body.files : body
-      if (!files || typeof files !== 'object') continue
 
       // A file that declares a format this runtime does not speak is refused
       // rather than misread: the markers inside it would decode as text, and the
@@ -1431,11 +1654,26 @@ const fetchDrive = async () => {
             '. Rebuild the mock site with the matching @sasjs/cli.'
         )
 
-      return { source, files }
+      // A sharded capture is an index rather than contents: the build splits a
+      // drive so a first page does not download every app's bundle, and the
+      // files arrive per shard as something reads them.
+      if (body && body.sharded) {
+        if (!body.entries || typeof body.entries !== 'object')
+          throw new Error(
+            'The drive in ' + url + ' is sharded but carries no entry index'
+          )
+        return { source, files: {}, index: body }
+      }
+
+      const files = body && body.files ? body.files : body
+      if (!files || typeof files !== 'object') continue
+
+      return { source, files, index: null }
     } catch (e) {
       // a format mismatch is not a reason to try the other file: it is the file
       // the operator meant to ship, and falling through would hide it
       if (e && /is format /.test(e.message)) throw e
+      if (e && /sharded but carries no entry index/.test(e.message)) throw e
       /* fall through to the next source */
     }
   }
@@ -1449,31 +1687,96 @@ const fetchDrive = async () => {
   )
 }
 
+/**
+ * The index of a sharded drive, read even when the page hands one in.
+ *
+ * A restore is what this visitor has stored, and it is not the whole drive: the
+ * parts of this build they never loaded are still on the site, so without the
+ * index a second visit would find every app bundle missing. A site with no
+ * snapshot, or an unsharded one, answers null and the restored drive stands on
+ * its own.
+ */
+const fetchSnapshotIndex = async () => {
+  try {
+    const res = await fetch(SNAPSHOT_PATH, { cache: 'no-store' })
+    // 404 is the one answer that means "this site ships no snapshot". Anything
+    // else - a deploy caught half-written, a truncated body, a dropped
+    // connection - leaves the drive incomplete in a way nobody would see: the
+    // restored drive is the visitor's changed files and every captured file they
+    // never loaded reads ENOENT, with nothing logged.
+    if (res.status === 404) return null
+    if (!res.ok) {
+      const err = new Error(
+        'The drive index at ' +
+          SNAPSHOT_PATH +
+          ' answered ' +
+          res.status +
+          ', so this drive cannot be read whole.'
+      )
+      // marked, so the catch below reports it as it is rather than wrapping it
+      err.driveUnreadable = true
+      throw err
+    }
+    const body = await res.json()
+    if (!body || !body.sharded) return null
+    if (body.format !== undefined && body.format !== DRIVE_FORMAT)
+      throw new Error(
+        'The drive in ' +
+          SNAPSHOT_PATH +
+          ' is format ' +
+          JSON.stringify(body.format) +
+          ', and this runtime speaks format ' +
+          DRIVE_FORMAT +
+          '. Rebuild the mock site with the matching @sasjs/cli.'
+      )
+    return body
+  } catch (e) {
+    // a format mismatch and a failed read both mean the index cannot be used,
+    // and both are reported: only "no snapshot here" is a normal answer
+    if (e && /is format /.test(e.message)) throw e
+    if (e && e.driveUnreadable) throw e
+    const err = new Error(
+      'The drive index at ' +
+        SNAPSHOT_PATH +
+        ' could not be read: ' +
+        ((e && e.message) || e)
+    )
+    err.driveUnreadable = true
+    throw err
+  }
+}
+
 const boot = async () => {
   await loadMockConfig()
   await loadWeboutPrelude()
-  const { source, files: seed } = await fetchDrive()
+  const { source, files: seed, index } = await fetchDrive()
   // a seed replaces the drive, it does not merge into one: the worker survives
   // page loads, so it can still hold the drive it was given last time, and any
   // file only that drive had would otherwise outlive the build that wrote it
-  FILES.clear()
-  SIZES.clear()
-  DIRS.clear()
-  DIRS.add('/')
-  mkdirp(DRIVE_APP)
-  mkdirp(`${DRIVE_ROOT}/files`)
-  for (const [path, contents] of Object.entries(seed)) {
-    FILES.set(P.resolve(path), contents)
-    mkdirp(P.dirname(path))
-  }
+  installDrive(index, seed)
+  // the boot shard holds what a first paint reads - configuration, listings, an
+  // app's own small files - and everything else waits until something reads it.
+  // A boot shard that does not arrive (a half-uploaded deploy) must not stop the
+  // page booting: the index is still worth having, because every read then names
+  // the piece it could not fetch instead of the drive quietly starting empty.
+  let bootShardError = null
+  if (index)
+    await loadShard(bootShard).catch((e) => {
+      bootShardError = (e && e.message) || String(e)
+    })
   dirty.clear()
 
   // No bootstrap: seeding a drive is an ordinary service call, made by the app
   // (or an operator) the same way it would be against a server. The host knows
   // nothing about what a project's services do.
-  // Mark the whole drive dirty once, so the host persists a COMPLETE snapshot:
-  // later restores then need no merging with the seed, and a deleted file (a
-  // seeder service that removes itself) stays deleted.
+  //
+  // What is in memory is marked dirty once, so the page persists it: on an
+  // unsharded build that is the whole drive, and on a sharded one it is the boot
+  // shard. The rest is not lost by that - it is still on the site, the index says
+  // so, and the page's stored drive is what it has *changed*, with the index
+  // supplying the pieces it never loaded. A file deleted here is tombstoned
+  // (markDirty is what does it), so the index cannot bring it back on the next
+  // visit.
   for (const path of FILES.keys()) markDirty(path)
 
   lastBoot = {
@@ -1481,6 +1784,10 @@ const boot = async () => {
     restored: false,
     source,
     files: FILES.size,
+    onSite: PENDING.size,
+    // reported rather than thrown: the drive is usable, and every read that
+    // needs the missing piece names it
+    driveError: bootShardError,
     at: new Date().toISOString()
   }
   return lastBoot
@@ -1518,17 +1825,58 @@ const api = {
     return true
   },
   // Called by the host with the persisted drive; skips seeding entirely.
-  load: (files) => {
+  load: (files, deleted) => {
     started = true
     // The site's configuration and the webout() block are host files, not drive
     // contents, so a restore needs them exactly as a seed does: only the seed
     // used to load them, and every service written with webout() then failed
     // with "webout is not defined" for a visitor the drive had been restored
-    // for. The drive itself is loaded synchronously, so callers that read it
-    // straight away still can; the promise is what a worker awaits.
-    const hostFiles = Promise.all([loadMockConfig(), loadWeboutPrelude()])
-    const info = loadSnapshot(files)
-    ready = hostFiles.then(() => info)
+    // for.
+    //
+    // The restored drive is installed synchronously, so a caller that reads it
+    // straight after this call still can; the index of what the site still holds
+    // arrives with the promise a worker awaits, and so does the boot shard.
+    installDrive(null, files, deleted)
+    lastBoot = {
+      booted: true,
+      restored: true,
+      files: FILES.size,
+      onSite: 0,
+      at: new Date().toISOString()
+    }
+    ready = Promise.all([loadMockConfig(), loadWeboutPrelude()]).then(
+      async () => {
+        // Only a build that split its capture has an index to read: probing for
+        // one on every restore would cost a request on the warm path, which is
+        // the path this exists to keep cheap. A config that did not load is not
+        // evidence of an unsharded capture - every build writes one - so that
+        // case probes, and a 404 costs one request on a site that is broken
+        // anyway.
+        const sharded = CONFIG_LOADED ? SHARD_COUNT > 0 : true
+        // an index that fails to arrive is reported, not read as "no snapshot":
+        // restoring without it leaves the visitor with only their own changed
+        // files, and every captured file they had not opened reads ENOENT
+        const index = sharded
+          ? await fetchSnapshotIndex().catch((e) => {
+              lastBoot.driveError = (e && e.message) || String(e)
+              return null
+            })
+          : null
+        if (index) {
+          applyIndex(index)
+          // A boot shard that does not arrive must not refuse a returning
+          // visitor's drive: `boot()` reports it as `driveError` and carries on,
+          // and a restore that rejected instead would answer the page's load
+          // with an error and leave it with nothing. Every read that needs the
+          // missing piece still names it.
+          await loadShard(bootShard).catch((e) => {
+            lastBoot.driveError = (e && e.message) || String(e)
+          })
+          lastBoot.onSite = PENDING.size
+        }
+        return lastBoot
+      }
+    )
     if (resolveBoot) resolveBoot(ready)
     return ready
   },
@@ -1548,12 +1896,27 @@ const api = {
   bootInfo: () => lastBoot,
   stats: () => ({
     files: FILES.size,
+    // the files whose bytes are still on the site, and the pieces they are in
+    onSite: PENDING.size,
+    shards: SHARDS.size,
     // the drive's total in bytes, measured per entry the way statSync does it -
     // the stored representation's own length would count the marker and the
-    // base64 expansion instead - and cached, so a second call scans nothing
-    bytes: [...FILES.keys()].reduce((total, abs) => total + entrySizeAt(abs), 0)
+    // base64 expansion instead - and cached, so a second call scans nothing.
+    // Both maps: on a sharded site the pieces nobody read are still part of the
+    // drive, and their sizes are in the index.
+    bytes: [...FILES.keys(), ...PENDING.keys()].reduce(
+      (total, abs) => total + entrySizeAt(abs),
+      0
+    )
   }),
   run: (payload) => runProgram(payload),
+  // the pieces a drive ships in: fetched by the host for the paths a request
+  // names, and by a run for the whole drive - a program may read anything
+  ensurePaths,
+  ensureAll,
+  // the refusal a read of a not-yet-fetched file raises, so the host can retry
+  // on it rather than answer 500
+  PENDING_CODE,
   // the file a program names, so the host can tell a .sas program from a .js one
   // and refuse the former instead of compiling SAS source as JavaScript
   resolveProgram: (program) => resolveProgram(program),
