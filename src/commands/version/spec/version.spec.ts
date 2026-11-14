@@ -86,7 +86,17 @@ describe('versionMessage', () => {
     writePackage(root, undefined)
 
     expect(() => versionMessage(root)).toThrow(
-      /has no version in its package.json/
+      /has no version in its package.json\./
+    )
+  })
+
+  it('names the placeholder when an installed package was never stamped', () => {
+    const root = packageRoot()
+
+    writePackage(root, '0.0.0')
+
+    expect(() => versionMessage(root)).toThrow(
+      /carries the placeholder version 0\.0\.0, so it was never stamped from a tag/
     )
   })
 })

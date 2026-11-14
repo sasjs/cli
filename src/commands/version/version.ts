@@ -41,8 +41,15 @@ export const versionMessage = (packageRoot: string): string => {
   }
 
   if (!stated) {
+    // two ways to get here, and they mean different things to whoever is reading
+    // it: no version field at all, or the placeholder that was never stamped from
+    // a tag
+    const reason = version
+      ? `carries the placeholder version ${version}, so it was never stamped from a tag`
+      : 'has no version in its package.json'
+
     throw new Error(
-      `The installed CLI at ${packageRoot} has no version in its package.json (${version}). ` +
+      `The installed CLI at ${packageRoot} ${reason}. ` +
         `Reinstall it - 'npm i -g @sasjs/cli@latest'.`
     )
   }

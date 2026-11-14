@@ -65,6 +65,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Always main: a dispatch can name any ref, and the tag gate below
+          # treats HEAD as the default branch. Publishing is from main or not at
+          # all, so the checkout says so rather than inheriting the dispatcher's
+          # choice.
+          ref: main
           # the tag is how this workflow learns what to publish: the release run
           # created it at the commit it released
           fetch-depth: 0
@@ -98,11 +103,11 @@ jobs:
           fi
 
           # A dispatch can name any tag in the repository; only one cut from a
-          # commit on the default branch is a release this pipeline made. HEAD is
-          # the default branch at this point - the tag is checked out further
-          # down - so this needs no fetch: the checkout runs with
-          # persist-credentials: false, and asking origin for refs would lean on
-          # the repository being public.
+          # commit on the default branch is a release this pipeline made. The
+          # checkout above pins main, so HEAD *is* the default branch here - the
+          # tag is checked out further down - and this needs no fetch: the
+          # checkout runs with persist-credentials: false, and asking origin for
+          # refs would lean on the repository being public.
           if ! git merge-base --is-ancestor "${tag}^{commit}" HEAD; then
             echo "::error::$tag is not on the default branch - refusing to publish it"
             exit 1
