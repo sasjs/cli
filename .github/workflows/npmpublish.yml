@@ -97,11 +97,14 @@ jobs:
             exit 1
           fi
 
-          # a dispatch can name any tag in the repository; only one cut from a
-          # commit on the default branch is a release this pipeline made
-          git fetch --quiet --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
-          if ! git merge-base --is-ancestor "${tag}^{commit}" refs/remotes/origin/main; then
-            echo "::error::$tag is not on main - refusing to publish it"
+          # A dispatch can name any tag in the repository; only one cut from a
+          # commit on the default branch is a release this pipeline made. HEAD is
+          # the default branch at this point - the tag is checked out further
+          # down - so this needs no fetch: the checkout runs with
+          # persist-credentials: false, and asking origin for refs would lean on
+          # the repository being public.
+          if ! git merge-base --is-ancestor "${tag}^{commit}" HEAD; then
+            echo "::error::$tag is not on the default branch - refusing to publish it"
             exit 1
           fi
 
