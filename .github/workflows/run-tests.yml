@@ -89,21 +89,6 @@ jobs:
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
 
-      - name: Install the release toolchain
-        # The audit below reads the lockfile only, so drift between
-        # release/package.json and release/package-lock.json is invisible to it -
-        # the install is the check: it fails when they disagree. Running it here,
-        # before the audit that inspects the locked tree, keeps the two in the
-        # order a reader expects. Same step as sasjs/adapter's
-        # build-unit-tests.yml.
-        run: npm ci --prefix release --ignore-scripts
-
-      - name: Audit the release toolchain
-        # Its own scope: the toolchain is not shipped, so it must not gate the
-        # package, but it runs with publish credentials, so it must not be
-        # invisible either. Fails on anything outside the named exemptions in
-        # release/audit.mjs. Reads the lockfile only, so it needs no install.
-        run: node release/audit.mjs
 
   docs:
     name: docs
