@@ -56,6 +56,18 @@ test('accepts an exact prerelease pin', () => {
   assert.match(out, /is pinned exactly in devDependencies/)
 })
 
+test('accepts an exact pin carrying build metadata', () => {
+  // measured: 1.0.0+build.5 was refused as "a range", which it is not
+  const { ok, out } = run({ declared: '1.0.0+build.5', resolved: '1.0.0+build.5' })
+  assert.equal(ok, true)
+  assert.match(out, /is pinned exactly in devDependencies/)
+})
+
+test('accepts a prerelease pin that also carries build metadata', () => {
+  const { ok } = run({ declared: '0.2.0-beta.1+build.5', resolved: '0.2.0-beta.1+build.5' })
+  assert.equal(ok, true)
+})
+
 test('fails when the declaration and the resolved version disagree', () => {
   const { ok, out } = run({ declared: '0.1.3', resolved: '0.1.9' })
   assert.equal(ok, false)

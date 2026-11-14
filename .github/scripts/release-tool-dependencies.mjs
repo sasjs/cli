@@ -37,10 +37,11 @@ if (!entry) fail(`${TOOL} is not in package-lock.json - is it still a devDepende
 // looked at the hash.
 const declared = lock.packages['']?.devDependencies?.[TOOL]
 if (!declared) fail(`${TOOL} is in the lockfile but not in devDependencies`)
-// a prerelease pin is exact - trialling one on the publish job is a legitimate
-// thing to do, and refusing it would have said "not an exact version" about a
-// version that is
-if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(declared))
+// Exact means exact: a prerelease or build-metadata pin is still one version,
+// and trialling either of them on the publish job is a legitimate thing to do.
+// What the gate refuses is a range, and the equality check below is what
+// catches a declaration that has drifted from what resolved.
+if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(declared))
   fail(
     `${TOOL} is declared as "${declared}", which is a range, not an exact version. ` +
       'It runs on the publishing job, so pin it exactly.'
