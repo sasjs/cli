@@ -12,6 +12,12 @@
  * same tags, the same order, and the same globals, just later than the parser
  * would have run them.
  *
+ * Two of those start before the worker is ready, because neither needs it: the
+ * drive restore is the page's own read of IndexedDB and is handed over as soon
+ * as there is a worker, and the app's bundle is hinted by the page (a preload
+ * link the builder writes). Both then overlap the install instead of following
+ * it.
+ *
  * The tag list arrives in the `data-scripts` attribute as JSON, written by
  * buildMockSite. `defer` and `async` are not replayed: execution is sequenced
  * on purpose here, because the host has to be ready before the first request
@@ -81,10 +87,26 @@
     })
   }
 
+  /*
+   * The drive restore is the page's own work: persist.js reads the stored drive
+   * and hands it to the worker as soon as there is one, so it neither needs nor
+   * waits for the registration below. Started here, its download and its
+   * IndexedDB read overlap the worker's install, which is the slowest part of a
+   * first visit - sequenced after it, they are two more round trips on top.
+   */
+  var persist = new Promise(function (resolve) {
+    load('host/persist.js', resolve)
+  })
+
   function start() {
-    load('host/persist.js', function () {
+    persist.then(function () {
       Promise.resolve(window.__sasjsMockReady).then(function (boot) {
         if (boot && boot.error) console.error('[mock] boot: ' + boot.error)
+        // the drive was restored from less than the whole capture: the page still runs,
+        // but every file it did not already hold will read as missing, and nothing else
+        // says so
+        if (boot && boot.driveError)
+          console.error('[mock] drive: ' + boot.driveError)
         load('host/intercept.js', function () {
           replayAll(specs, function () {})
         })

@@ -90,6 +90,8 @@ const loadPersist = (
      * subject the visitor chose.
      */
     seededIdentity?: { fixture: any; subject?: string | null }
+    /** Paths the visitor deleted, as the worker was told at boot. */
+    seededDeleted?: string[]
   } = {}
 ) => {
   jest.resetModules()
@@ -158,6 +160,9 @@ const loadPersist = (
     )
     // the identity row lives beside the drive, under its own key
     if (options.seededIdentity) fake.rows.set('current', options.seededIdentity)
+    // and the paths a visitor deleted, which a sharded site's index would
+    // otherwise restore
+    if (options.seededDeleted) fake.rows.set('deleted', options.seededDeleted)
     return fake
   })()
   ;(global as any).indexedDB = idb
@@ -174,6 +179,22 @@ const loadPersist = (
     reply,
     rows: idb.rows,
     stored: local
+  }
+}
+
+/**
+ * Waits for the store's own handshake to land.
+ *
+ * A persist message is answered by a chain of transactions - write the files,
+ * read the tombstone list, write it back - and the page does not expose the
+ * promise. A fixed sleep is a race on a slow runner (Windows was the one that
+ * failed), so the assertions poll for the change they expect instead.
+ */
+const settleUntil = async (check: () => boolean, timeout = 4000) => {
+  const started = Date.now()
+  while (Date.now() - started < timeout) {
+    if (check()) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
   }
 }
 
@@ -320,9 +341,120 @@ describe('page-side store', () => {
     const { window, reply, rows } = loadPersist()
 
     reply({ type: 'sasjs-persist', files: { '/sasjs/drive/c.txt': 'ccc' } })
-    await new Promise((r) => setTimeout(r, 20))
+    await settleUntil(() => rows.get('/sasjs/drive/c.txt') === 'ccc')
 
     expect(rows.get('/sasjs/drive/c.txt')).toBe('ccc')
+  })
+
+  /**
+   * A deletion has to outlive the worker, and the page is the only store that can
+   * keep it.
+   *
+   * The drive in a sharded build is not all in the page either: the index lists
+   * every file the build ships, so a file the visitor deleted comes back on the
+   * next load unless the path is remembered here and handed to the worker at
+   * boot.
+   */
+  it('remembers a deleted path, and forgets it when the path is written again', async () => {
+    const { window, reply, rows } = loadPersist({
+      seeded: { '/sasjs/drive/a.txt': 'a', '/sasjs/drive/b.txt': 'b' }
+    })
+
+    reply({ type: 'sasjs-persist', files: { '/sasjs/drive/a.txt': null } })
+    await settleUntil(() => rows.has('deleted'))
+
+    expect(rows.get('deleted')).toEqual(['/sasjs/drive/a.txt'])
+    // the row itself is gone, and the tombstone is what stops the index bringing
+    // it back
+    expect(rows.has('/sasjs/drive/a.txt')).toBe(false)
+
+    reply({ type: 'sasjs-persist', files: { '/sasjs/drive/a.txt': 'again' } })
+    // the tombstone is written back after the file, so poll for it rather than
+    // for the write that precedes it
+    await settleUntil(() => !rows.has('deleted'))
+
+    expect(rows.has('deleted')).toBe(false)
+    expect(rows.get('/sasjs/drive/a.txt')).toBe('again')
+  })
+
+  it('writes no file when the worker could not read the drive whole', async () => {
+    const controller = { postMessage: jest.fn() }
+    const {
+      window: page,
+      listeners,
+      reply
+    } = loadPersist({
+      controller,
+      ready: Promise.resolve({})
+    })
+
+    // let the page's own boot finish first: a boot left pending resolves after the
+    // suite has been torn down, and the runtime it resolves into has no window
+    const answering = setInterval(() => {
+      const asked = controller.postMessage.mock.calls
+      if (!asked.length) return
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: asked[0][0].type + '-ack', booted: true } })
+      )
+    }, 5)
+    await page.__sasjsMockReady
+    clearInterval(answering)
+
+    const pending = page.SASjsMock.download()
+    await Promise.resolve()
+    // the worker answers with what it has and says why it could not finish, and a
+    // file built from that would be a capture with every app bundle missing
+    reply({
+      type: 'sasjs-snapshot',
+      files: { '/sasjs/drive/a.txt': 'a' },
+      error: 'ensureAll rejected: ENOENT'
+    })
+
+    await expect(pending).rejects.toThrow(/could not be read whole/)
+  })
+
+  it('drops the recorded deletions with the rest of the drive', async () => {
+    const { window, listeners, rows } = loadPersist({
+      seeded: { '/sasjs/drive/a.txt': 'a' },
+      seededDeleted: ['/sasjs/drive/a.txt']
+    })
+
+    const pending = window.SASjsMock.reset()
+    await Promise.resolve()
+    ;[...listeners].forEach((fn) => fn({ data: { type: 'sasjs-reset-ack' } }))
+    await pending
+    await settleUntil(() => !rows.has('deleted'))
+
+    expect(rows.has('deleted')).toBe(false)
+  })
+
+  it('tells the worker which paths were deleted, so its index cannot restore them', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/b.txt': 'b' },
+      seededDeleted: ['/sasjs/drive/a.txt']
+    })
+
+    const answering = setInterval(() => {
+      const asked = controller.postMessage.mock.calls
+      if (!asked.length) return
+      const type = asked[0][0].type
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: type + '-ack', booted: true } })
+      )
+    }, 5)
+
+    await window.__sasjsMockReady
+    clearInterval(answering)
+
+    expect(controller.postMessage.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        type: 'sasjs-load',
+        deleted: ['/sasjs/drive/a.txt']
+      })
+    )
   })
 
   it('resets the worker and the stored drive together', async () => {

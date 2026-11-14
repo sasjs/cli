@@ -18,6 +18,13 @@
    */
   const IDENTITY = 'identity'
   const IDENTITY_KEY = 'current'
+  /**
+   * The drive paths the visitor deleted, kept beside the identity rather than in
+   * the files store because a deleted file has no row to keep it in. A sharded
+   * site's index lists every file the build ships, so this list is what stops a
+   * deletion from being undone by the next page load.
+   */
+  const DELETED_KEY = 'deleted'
 
   const openDb = () =>
     new Promise((resolve, reject) => {
@@ -81,24 +88,70 @@
       }
     })
 
+  /** The drive paths this visitor deleted, `[]` when the store is new or unreadable. */
+  const readDeleted = async () => {
+    try {
+      const db = await openDb()
+      return await new Promise((resolve) => {
+        const req = db
+          .transaction(IDENTITY, 'readonly')
+          .objectStore(IDENTITY)
+          .get(DELETED_KEY)
+        req.onsuccess = () =>
+          resolve(Array.isArray(req.result) ? req.result : [])
+        req.onerror = () => resolve([])
+      })
+    } catch (e) {
+      return []
+    }
+  }
+
+  // no tombstones is no row: an empty list left behind would read as a stored
+  // drive that had something in it
+  const writeDeleted = (paths) =>
+    paths.length
+      ? withStore(
+          'readwrite',
+          (store) => store.put(paths, DELETED_KEY),
+          IDENTITY
+        )
+      : withStore('readwrite', (store) => store.delete(DELETED_KEY), IDENTITY)
+
   const writeFiles = async (files) => {
     const entries = Object.entries(files || {})
     if (!entries.length) return { written: 0, deleted: 0 }
     let deleted = 0
+    const removed = []
+    const written = []
     await withStore('readwrite', (store) => {
       for (const [path, contents] of entries) {
         if (contents === null || contents === undefined) {
           store.delete(path)
+          removed.push(path)
           deleted++
         } else {
           store.put(contents, path)
+          written.push(path)
         }
       }
     })
+    // the worker forgets deletions when it is terminated, so they are recorded
+    // here: a path written again is not deleted any more, and a path deleted
+    // again stays recorded
+    if (removed.length || written.length) {
+      const known = (await readDeleted()).filter(
+        (path) => !written.includes(path)
+      )
+      for (const path of removed) if (!known.includes(path)) known.push(path)
+      await writeDeleted(known)
+    }
     return { written: entries.length - deleted, deleted }
   }
 
-  const clearAll = () => withStore('readwrite', (store) => store.clear())
+  const clearAll = async () => {
+    await withStore('readwrite', (store) => store.clear())
+    await withStore('readwrite', (store) => store.delete(DELETED_KEY), IDENTITY)
+  }
 
   /**
    * The stored identity, `null` when there is none. A row whose shape is not the
@@ -334,6 +387,12 @@
         { type: 'sasjs-snapshot' },
         'sasjs-snapshot'
       )
+      // the worker answers `sasjs-snapshot` with whatever is in memory plus an
+      // `error` when it could not read the drive whole. Downloading that would
+      // hand the next build a capture with every app bundle missing and no sign
+      // of it, which is the failure "whole means whole" exists to prevent.
+      if (snapshot && snapshot.error)
+        throw new Error('The drive could not be read whole: ' + snapshot.error)
       const files = (snapshot && snapshot.files) || {}
       // the format stamp the runtime checks on load: a snapshot that outlived a
       // marker-format change is refused by name, instead of decoding as text
@@ -369,15 +428,23 @@
    * row holds the accounts the visitor created as well as the fixture, so a
    * host-side failure (a drive that could not be read) leaves it alone.
    */
-  const boot = async (files, stored) => {
-    const loading = Object.keys(files).length > 0
+  const boot = async (files, stored, deleted) => {
+    // a drive of nothing but deletions is still a drive the visitor had: seeding
+    // over it would bring back every file they removed
+    const loading =
+      Object.keys(files).length > 0 || (deleted && deleted.length > 0)
     const type = loading ? 'sasjs-load' : 'sasjs-seed'
     const ack = loading ? 'sasjs-load-ack' : 'sasjs-seed-ack'
+
+    // only when there are some: an empty list is the common case, and the worker
+    // reads an absent one as "nothing was deleted"
+    const deletions = loading && deleted.length ? deleted : undefined
 
     const answer = await askWorker(
       {
         type,
         files,
+        deleted: deletions,
         identity: stored ? stored.fixture : undefined,
         subject: stored ? stored.subject : undefined
       },
@@ -391,7 +458,7 @@
       } catch (e) {
         console.error('[sasjs-mock] could not clear the stored identity: ' + e)
       }
-      return await askWorker({ type, files }, ack)
+      return await askWorker({ type, files, deleted: deletions }, ack)
     }
 
     return answer
@@ -442,7 +509,11 @@
       stored = null
     }
 
-    window.__sasjsMockBoot = await boot(files, stored)
+    // the deletions go with the drive: a sharded site's index lists every file
+    // the build ships, so the paths this visitor removed have to be named or the
+    // page would restore them
+    const deleted = await readDeleted()
+    window.__sasjsMockBoot = await boot(files, stored, deleted)
     if (window.__sasjsMockBoot && !window.__sasjsMockBoot.error)
       keepBuildStamp(stamp)
     return window.__sasjsMockBoot
