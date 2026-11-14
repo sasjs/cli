@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import {
   DEFAULT_IDENTITY,
@@ -2021,6 +2022,45 @@ describe('service worker host', () => {
     expect((global as any).__sasjsShardFetches).toEqual([0, 1])
     const exported = replies.find((reply) => reply.type === 'sasjs-snapshot')
     expect(Object.keys(exported.files).sort()).toEqual([large, small].sort())
+  })
+
+  /**
+   * The console's own files are the page, not an API call.
+   *
+   * `/api/...` is the API's short spelling, so the worker answers it - except for
+   * the four files the console is made of, which the static host serves. Getting
+   * that wrong answers the page's own script with an API 404, and the console
+   * renders nothing.
+   */
+  it('leaves the API console to the static host, and still answers /api calls', async () => {
+    const worker = seeded()
+
+    // the list the worker uses is read from the source it runs, so a file added
+    // to the builder's list is exercised here without editing this case
+    const source = fs.readFileSync(
+      path.join(__dirname, '..', 'assets', 'sw.js'),
+      'utf8'
+    )
+    const listed = /const API_CONSOLE_FILES = \[([^\]]*)\]/.exec(source)
+    expect(listed).not.toBeNull()
+    const files = listed![1]
+      .split(',')
+      .map((entry) => entry.trim().replace(/^'|'$/g, ''))
+      .filter(Boolean)
+    expect(files.length).toBeGreaterThan(3)
+
+    expect(worker.dispatch('/api/')).toBeUndefined()
+    for (const name of files)
+      expect(worker.dispatch(`/api/${name}`)).toBeUndefined()
+
+    // a name that is not on the list is an API path, even with an extension: an
+    // extension test would pass `/api/admin/logs/foo.log` through to the host
+    const log = await worker.dispatch('/api/admin/logs/missing.log')
+    expect(log.status).not.toBeUndefined()
+
+    // the short spelling of a real operation is still the worker's
+    const response = await worker.dispatch('/api/user')
+    expect(response.status).toBe(200)
   })
 
   it('answers 404 for a drive file the drive does not hold', async () => {

@@ -1,0 +1,365 @@
+/*
+ * The API console's stylesheet.
+ *
+ * Plain CSS, no framework, no external font: the page has to work on a static
+ * host with a `default-src 'self'` policy, so everything it needs is here.
+ */
+:root {
+  --bg: #11161c;
+  --panel: #18202a;
+  --panel-2: #1f2937;
+  --line: #2b3543;
+  --text: #e6edf3;
+  --muted: #9aa7b4;
+  --accent: #4f9cf9;
+  --ok: #3fb950;
+  --bad: #f85149;
+  --get: #4f9cf9;
+  --post: #3fb950;
+  --patch: #d29922;
+  --put: #a371f7;
+  --delete: #f85149;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+code {
+  background: var(--panel-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.bar h1 {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.who {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.who.acting {
+  color: var(--patch);
+  font-weight: 600;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: calc(100vh - 49px);
+}
+
+.list {
+  border-right: 1px solid var(--line);
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(100vh - 49px);
+  position: sticky;
+  top: 0;
+}
+
+#filter {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.list h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.route {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.route:hover {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.route.active {
+  background: var(--panel-2);
+  border-color: var(--accent);
+}
+
+.method {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-width: 46px;
+}
+
+.method.get {
+  color: var(--get);
+}
+.method.post {
+  color: var(--post);
+}
+.method.patch {
+  color: var(--patch);
+}
+.method.put {
+  color: var(--put);
+}
+.method.delete {
+  color: var(--delete);
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  padding: 20px 24px 60px;
+  max-width: 900px;
+}
+
+.detail h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.summary {
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+
+.empty {
+  color: var(--muted);
+  max-width: 640px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hint.warn {
+  color: var(--patch);
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0 0 14px;
+  padding: 12px 14px 14px;
+  background: var(--panel);
+}
+
+legend {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 0 6px;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-areas: 'name input' 'where input';
+  align-items: center;
+  gap: 0 12px;
+  padding: 6px 0;
+}
+
+.field .name {
+  grid-area: name;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.field .where {
+  grid-area: where;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.field input[type='text'] {
+  grid-area: input;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.field input[type='checkbox'] {
+  grid-area: input;
+  justify-self: start;
+  width: 16px;
+  height: 16px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+#send {
+  background: var(--accent);
+  color: #06121f;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#send:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.timing {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.response {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.responsebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.status {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.status.bad {
+  color: var(--bad);
+}
+
+.link {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.link:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+pre {
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  max-height: 60vh;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 8px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+td {
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .list {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}

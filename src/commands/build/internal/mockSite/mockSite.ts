@@ -3,7 +3,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { buildSync as esbuildSync } from 'esbuild'
-import { DEFAULT_IDENTITY, parseIdentity } from '@sasjs/api'
+import { DEFAULT_IDENTITY, parseIdentity, ROUTES } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
 export interface MockSiteResult {
@@ -21,6 +21,8 @@ export interface MockSiteResult {
    * large folder or file. Zero when the site ships no snapshot.
    */
   snapshotShards: number
+  /** True when the site carries the API console at <base>/api/. */
+  apiConsole: boolean
   /** True when a recorded SAS session was shipped, for .sas runs to answer. */
   sasTranscript: boolean
   /**
@@ -1004,6 +1006,86 @@ const patchIndexHtml = (
   return { patched, warnings }
 }
 
+/** The files the console consists of, under `<output>/api`. */
+const API_CONSOLE_FILES = [
+  'index.html',
+  'console.js',
+  'console.css',
+  'operations.json'
+]
+
+/**
+ * The API console: a page at `<base>/api/` that lists every operation the API
+ * document declares and sends them against this host.
+ *
+ * The route table is the same one the worker answers from (`ROUTES` from
+ * @sasjs/api), so the console cannot drift from the API: a route the package
+ * adds appears here on the next build, with the parameters it declares.
+ *
+ * Three files and the data, all static. It is a developer surface rather than a
+ * screen of the app, so nothing in the page links to it and nothing preloads it -
+ * a visit costs the demo nothing until someone types the URL.
+ */
+const writeApiConsole = (outputFolder: string, version: string) => {
+  const folder = path.join(outputFolder, 'api')
+  // `<base>/api/` is this build's, not the project's: a site that ships its own
+  // files there would have them replaced without a word, so it keeps them and
+  // the console is left out
+  const taken = API_CONSOLE_FILES.filter((file) =>
+    fs.existsSync(path.join(folder, file))
+  )
+  if (taken.length)
+    return {
+      written: false,
+      operations: 0,
+      warning:
+        `The site already carries ${taken
+          .map((file) => 'api/' + file)
+          .join(', ')}, so the API console was not written. ` +
+        'Move those files, or set streamConfig.mockApi to false to silence this.'
+    }
+
+  fs.mkdirSync(folder, { recursive: true })
+
+  // The console starts the host itself, so it has to ask for the same worker the
+  // app's loader asks for: a registration is identified by its script URL, and a
+  // bare `sw.js` here would replace the versioned one on every visit to either
+  // page - an install nobody asked for, which is what the version exists to avoid.
+  fs.writeFileSync(
+    path.join(folder, 'index.html'),
+    fs
+      .readFileSync(path.join(ASSETS_FOLDER, 'api-index.html'), 'utf8')
+      .replace('__MOCK_VERSION__', version)
+  )
+  fs.copyFileSync(
+    path.join(ASSETS_FOLDER, 'api-console.js'),
+    path.join(folder, 'console.js')
+  )
+  fs.copyFileSync(
+    path.join(ASSETS_FOLDER, 'api-console.css'),
+    path.join(folder, 'console.css')
+  )
+
+  const operations = ROUTES.map((route) => ({
+    id: route.id,
+    method: route.method,
+    path: route.path,
+    tag: route.tag,
+    summary: route.summary,
+    params: route.params,
+    requestBodies: route.requestBodies,
+    responses: route.responses,
+    implemented: route.implemented,
+    reason: route.reason
+  }))
+  fs.writeFileSync(
+    path.join(folder, 'operations.json'),
+    JSON.stringify(operations, null, 2)
+  )
+
+  return { written: true, operations: operations.length }
+}
+
 /**
  * Builds a static site that runs the project's JS services (its mocks) in the
  * browser, so a frontend can be tested with no server and no SAS.
@@ -1273,6 +1355,12 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         "importScripts('host/lint-browser.js')",
         `importScripts('host/lint-browser.js?v=${hostVersion}')`
       )
+      // the console's file list, from the one place that writes the folder: a
+      // second copy here would let a new file be served as an API path
+      .replace(
+        /const API_CONSOLE_FILES = \[[^\]]*\]/,
+        `const API_CONSOLE_FILES = ${JSON.stringify(API_CONSOLE_FILES)}`
+      )
   )
 
   // 2c. a captured drive, if the project keeps one. This is how a site ships
@@ -1359,6 +1447,16 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   )
 
+  // 3b. the API console, unless the target turns it off. Nothing links to it: it
+  // is a developer surface beside the app, and a page nobody visits costs the
+  // demo nothing.
+  let apiConsole = false
+  if (target.streamConfig?.mockApi !== false) {
+    const written = writeApiConsole(outputFolder, hostVersion)
+    apiConsole = written.written
+    if (written.warning) process.logger?.warn(written.warning)
+  }
+
   // 4. point the app at itself
   const indexPath = path.join(outputFolder, 'index.html')
   const { patched, warnings } = patchIndexHtml(
@@ -1378,6 +1476,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     webFileCount,
     snapshot: hasSnapshot,
     snapshotShards,
+    apiConsole,
     sasTranscript: hasTranscript,
     identitySource: identity.source
   }

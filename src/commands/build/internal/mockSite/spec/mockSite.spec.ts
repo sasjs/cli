@@ -910,6 +910,91 @@ describe('browser-hosted build', () => {
     await expect(buildMockSite(target())).rejects.toThrow(/format/)
   })
 
+  /**
+   * The API console is generated, not written.
+   *
+   * It is the page that lets a visitor try the API a mock site is a mock of, so
+   * it has to list the operations the package actually answers - and be
+   * generated from the same route table the worker dispatches, or the page and
+   * the host drift.
+   */
+  it('ships an API console built from the route table', async () => {
+    const result = await buildMockSite(target())
+
+    expect(result.apiConsole).toBe(true)
+    const folder = path.join(out(), 'api')
+    const shipped = fs.readdirSync(folder).sort()
+    // every file the folder holds, and the worker's passthrough list is that same
+    // list: a second copy in sw.js would let a new file be answered as an API path
+    expect(shipped).toEqual([
+      'console.css',
+      'console.js',
+      'index.html',
+      'operations.json'
+    ])
+    const sw = fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')
+    const listed = /const API_CONSOLE_FILES = (\[[^\]]*\])/.exec(sw)
+    expect(listed).not.toBeNull()
+    expect(JSON.parse(listed![1]).sort()).toEqual(shipped)
+
+    const operations = JSON.parse(
+      fs.readFileSync(path.join(folder, 'operations.json'), 'utf8')
+    )
+    expect(operations.length).toBeGreaterThan(20)
+    const createUser = operations.find(
+      (operation: any) => operation.id === 'POST /SASjsApi/user'
+    )
+    expect(createUser).toBeDefined()
+    expect(createUser.params.map((parameter: any) => parameter.name)).toEqual(
+      expect.arrayContaining(['username', 'password'])
+    )
+    expect(createUser.method).toBe('POST')
+
+    // the page is static and carries no inline script: a project that serves it
+    // under `default-src 'self'` would refuse one
+    const html = fs.readFileSync(path.join(folder, 'index.html'), 'utf8')
+    expect(html).toContain('<script src="console.js"></script>')
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/)
+    // the page starts the host itself, so it registers the worker under the same
+    // versioned URL the app's loader uses: two URLs for one scope replace each
+    // other, which is an install nobody asked for on every visit to either page
+    const version =
+      /<meta name="sasjs-mock-version" content="([^"]+)" \/>/.exec(html)
+    expect(version).not.toBeNull()
+    // and it is the version the app's loader carries, so both pages register the
+    // worker under one URL
+    const appHtml = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const loader = /host\/boot\.js\?v=([^"']+)/.exec(appHtml)
+    expect(loader).not.toBeNull()
+    expect(version![1]).toBe(loader![1])
+  })
+
+  it('leaves the console out when the site ships its own api folder, and says so', async () => {
+    const own = path.join(root, 'client', 'dist', 'api')
+    fs.mkdirSync(own, { recursive: true })
+    fs.writeFileSync(path.join(own, 'index.html'), '<p>ours</p>')
+
+    const result = await buildMockSite(target())
+
+    // the project's file is not replaced, and the loss is reported rather than
+    // silent: the build has no way to know which of the two the site wants
+    expect(result.apiConsole).toBe(false)
+    expect(fs.readFileSync(path.join(out(), 'api', 'index.html'), 'utf8')).toBe(
+      '<p>ours</p>'
+    )
+    expect(fs.existsSync(path.join(out(), 'api', 'console.js'))).toBe(false)
+    expect(process.logger!.warn).toHaveBeenCalledWith(
+      expect.stringContaining('api/index.html')
+    )
+  })
+
+  it('leaves the console out when the target asks for the app alone', async () => {
+    const result = await buildMockSite(target({ mockApi: false }))
+
+    expect(result.apiConsole).toBe(false)
+    expect(fs.existsSync(path.join(out(), 'api'))).toBe(false)
+  })
+
   it('ships a recorded SAS session when the project has one', async () => {
     // Without a recording a .sas run is refused; with one, the host answers the
     // program it names with that session. The file is data in the project, so
