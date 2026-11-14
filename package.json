@@ -1,5 +1,6 @@
 {
   "name": "@sasjs/cli",
+  "version": "0.0.0",
   "description": "Command line interface for SASjs",
   "engines": {
     "node": "^22.14.0 || >=24.10.0"
@@ -9,43 +10,23 @@
     "build/**/*"
   ],
   "scripts": {
-    "start:ci": "npm run build && npm run set:permissions",
-    "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
-    "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "build": "npx rimraf build && tsc -p . && npm run copy:files",
-    "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy && npm run copy:mock",
     "copy:doxy": "copyfiles -u 2 src/doxy/* build/doxy/",
+    "copy:files": "copyfiles -u 1 ./src/config.json ./build/ && npm run copy:doxy && npm run copy:mock",
     "copy:mock": "copyfiles -u 6 src/commands/build/internal/mockSite/assets/* build/commands/build/internal/mockSite/assets/",
-    "test": "npm run test:mocked && npm run test:server",
-    "test:server": "jest --silent --runInBand --config=jest.server.config.js",
-    "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
-    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
+    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 16 --coverageTestThresholdFail",
     "lint": "npx prettier --check \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
-    "doc": "npx compodoc -p tsconfig.doc.json --coverageTest 16 --coverageTestThresholdFail"
+    "lint:fix": "npx prettier --write \"{src,test}/**/*.{ts,tsx,js,jsx,html,css,sass,less,yml,md,graphql}\"",
+    "prepublishOnly": "node -e \"const v=require('./package.json').version; if (/^0\\.0\\.0/.test(v)) { console.error('refusing to publish ' + v + ': the version is stamped from the tag (npm version <tag> --no-git-tag-version)'); process.exit(1) }\"",
+    "release": "sasjs-release",
+    "set:permissions": "node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
+    "start:ci": "npm run build && npm run set:permissions",
+    "test": "npm run test:mocked && npm run test:server",
+    "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
+    "test:server": "jest --silent --runInBand --config=jest.server.config.js"
   },
   "testServerTypes": "sasjs",
-  "release": {
-    "branches": [
-      "main"
-    ],
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
-      [
-        "@semantic-release/npm",
-        {
-          "npmPublish": false
-        }
-      ],
-      [
-        "@semantic-release/exec",
-        {
-          "publishCmd": "npm publish --provenance --access public"
-        }
-      ],
-      "@semantic-release/github"
-    ]
-  },
   "bin": {
     "sasjs": "build/index.js"
   },
@@ -97,6 +78,7 @@
     "@babel/preset-env": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
     "@nogoo9/gitleaks": "8.30.1-post.2",
+    "@sasjs/release": "0.1.3",
     "@types/debug": "4.1.13",
     "@types/find": "0.2.4",
     "@types/jest": "30.0.0",
