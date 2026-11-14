@@ -54,7 +54,11 @@ jobs:
       - name: Test the CI scripts
         # node's own runner: this needs no dependencies beyond the node the job
         # already sets up, and it runs in well under a second
-        run: node --test .github/scripts/coverage-ratchet.test.mjs
+        # both suites: the ratchet, and the gate over the tool that publishes
+        run: >-
+          node --test
+          .github/scripts/coverage-ratchet.test.mjs
+          .github/scripts/release-tool-dependencies.test.mjs
 
   audit:
     name: audit
