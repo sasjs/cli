@@ -23,13 +23,34 @@
   'use strict'
 
   /**
-   * The site's root, from the page's own URL: the console sits at `<base>/api/`,
-   * and half a URL (no trailing slash) is the shape a person types.
+   * The site's root.
+   *
+   * Taken from the worker that controls this page, `<base>/sw.js`: that is the
+   * one statement of the base the page carries, and it holds wherever the console
+   * sits - a copy under `<base>/tools/api-console/` still calls the site's own
+   * API rather than a folder that happens to be two levels up. Only a worker
+   * whose root covers this page counts, since a page can be controlled by another
+   * site's worker, and one registered below the page names a folder inside it. A
+   * page with no such worker falls back to its own URL, one level below the root.
    */
   const base = (function () {
-    const path = location.pathname.replace(/\/index\.html$/, '/')
-    const cut = /\/api\/?$/.exec(path)
-    return cut ? path.slice(0, cut.index + 1) : '/'
+    // this page's own folder, however it was typed: with the page, with the
+    // file, or without the trailing slash
+    let dir = location.pathname
+    if (/\/index\.html?$/.test(dir)) dir = dir.replace(/index\.html?$/, '')
+    if (!dir.endsWith('/')) dir += '/'
+    const parent = dir.replace(/[^/]+\/$/, '')
+
+    const script =
+      navigator.serviceWorker && navigator.serviceWorker.controller
+        ? navigator.serviceWorker.controller.scriptURL
+        : ''
+    if (script) {
+      const swPath = new URL(script).pathname
+      const root = /\/sw\.js$/.test(swPath) ? swPath.replace(/sw\.js$/, '') : ''
+      if (root && parent.startsWith(root)) return root
+    }
+    return parent || '/'
   })()
 
   const apiUrl = (path) => base + String(path).replace(/^\/+/, '')
@@ -76,7 +97,7 @@
    * Starts the demo backend for this page.
    *
    * The application's boot loader registers the worker; a visitor who lands on
-   * `/api/` first has no loader, and every request would reach the static host
+   * `/api-console/` first has no loader, and every request would reach the static host
    * and 404. So: register it beside the site, wait for it to control this page,
    * then load `host/persist.js`, which is what hands the worker the drive this
    * browser already has and keeps whatever this page changes.
@@ -692,6 +713,14 @@
         )
     })
 
+  /** Where a reset returns to: this page, without the flag but with the route. */
+  const resetTarget = () => {
+    const query = new URLSearchParams(location.search)
+    query.delete('reset')
+    const rest = query.toString()
+    return location.pathname + (rest ? '?' + rest : '')
+  }
+
   /**
    * `?reset=1` starts the demo again from the state the build ships.
    *
@@ -719,7 +748,9 @@
         'The demo could not be reset: ' + ((e && e.message) || e)
       return true
     }
-    location.replace(base + 'api/')
+    // back to this page, with the flag gone: the console's folder is the page's
+    // own, so a build that moves the folder cannot strand the redirect
+    location.replace(resetTarget())
     return true
   }
 
@@ -754,6 +785,10 @@
       : undefined
     if (chosen) select(chosen)
   }
+
+  // the redirect itself cannot be observed in a page that does not navigate; the
+  // choice of target can, and it is what a folder move would break
+  window.SASjsApiConsole = { resetTarget }
 
   start().catch((e) => {
     const list = el('routes')

@@ -2028,35 +2028,20 @@ describe('service worker host', () => {
    * The console's own files are the page, not an API call.
    *
    * `/api/...` is the API's short spelling, so the worker answers it - except for
-   * the four files the console is made of, which the static host serves. Getting
-   * that wrong answers the page's own script with an API 404, and the console
-   * renders nothing.
+   * `/api` itself, which a site's own application may answer.
    */
-  it('leaves the API console to the static host, and still answers /api calls', async () => {
+  it('leaves /api to the site, and answers the short spelling below it', async () => {
     const worker = seeded()
 
-    // the list the worker uses is read from the source it runs, so a file added
-    // to the builder's list is exercised here without editing this case
-    const source = fs.readFileSync(
-      path.join(__dirname, '..', 'assets', 'sw.js'),
-      'utf8'
-    )
-    const listed = /const API_CONSOLE_FILES = \[([^\]]*)\]/.exec(source)
-    expect(listed).not.toBeNull()
-    const files = listed![1]
-      .split(',')
-      .map((entry) => entry.trim().replace(/^'|'$/g, ''))
-      .filter(Boolean)
-    expect(files.length).toBeGreaterThan(3)
-
+    // a site's own application can answer /api (the server interface does), so the
+    // worker hands it on; `/api/<something>` is an API call on the short spelling
+    expect(worker.dispatch('/api')).toBeUndefined()
     expect(worker.dispatch('/api/')).toBeUndefined()
-    for (const name of files)
-      expect(worker.dispatch(`/api/${name}`)).toBeUndefined()
 
-    // a name that is not on the list is an API path, even with an extension: an
-    // extension test would pass `/api/admin/logs/foo.log` through to the host
-    const log = await worker.dispatch('/api/admin/logs/missing.log')
-    expect(log.status).not.toBeUndefined()
+    // the console has a folder of its own, which is not an API prefix: the static
+    // host serves it and the worker never sees it
+    expect(worker.dispatch('/api-console/console.js')).toBeUndefined()
+    expect(worker.dispatch('/api-console/operations.json')).toBeUndefined()
 
     // the short spelling of a real operation is still the worker's
     const response = await worker.dispatch('/api/user')

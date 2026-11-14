@@ -21,7 +21,7 @@ export interface MockSiteResult {
    * large folder or file. Zero when the site ships no snapshot.
    */
   snapshotShards: number
-  /** True when the site carries the API console at <base>/api/. */
+  /** True when the site carries the API console at <base>/api-console/. */
   apiConsole: boolean
   /** True when a recorded SAS session was shipped, for .sas runs to answer. */
   sasTranscript: boolean
@@ -1006,7 +1006,16 @@ const patchIndexHtml = (
   return { patched, warnings }
 }
 
-/** The files the console consists of, under `<output>/api`. */
+/**
+ * The folder the console lives in, under the site root.
+ *
+ * Not `api`: an application can answer `/api` itself - this framework's own server
+ * interface does - and a page there would collide with its route, so a site
+ * refresh on that screen would land on the console instead of the application.
+ */
+const API_CONSOLE_DIR = 'api-console'
+
+/** The files the console consists of, under `<output>/api-console`. */
 const API_CONSOLE_FILES = [
   'index.html',
   'console.js',
@@ -1015,7 +1024,7 @@ const API_CONSOLE_FILES = [
 ]
 
 /**
- * The API console: a page at `<base>/api/` that lists every operation the API
+ * The API console: a page at `<base>/api-console/` that lists every operation the API
  * document declares and sends them against this host.
  *
  * The route table is the same one the worker answers from (`ROUTES` from
@@ -1027,8 +1036,8 @@ const API_CONSOLE_FILES = [
  * a visit costs the demo nothing until someone types the URL.
  */
 const writeApiConsole = (outputFolder: string, version: string) => {
-  const folder = path.join(outputFolder, 'api')
-  // `<base>/api/` is this build's, not the project's: a site that ships its own
+  const folder = path.join(outputFolder, API_CONSOLE_DIR)
+  // `<base>/api-console/` is this build's, not the project's: a site that ships its own
   // files there would have them replaced without a word, so it keeps them and
   // the console is left out
   const taken = API_CONSOLE_FILES.filter((file) =>
@@ -1040,7 +1049,7 @@ const writeApiConsole = (outputFolder: string, version: string) => {
       operations: 0,
       warning:
         `The site already carries ${taken
-          .map((file) => 'api/' + file)
+          .map((file) => API_CONSOLE_DIR + '/' + file)
           .join(', ')}, so the API console was not written. ` +
         'Move those files, or set streamConfig.mockApi to false to silence this.'
     }
@@ -1354,12 +1363,6 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       .replace(
         "importScripts('host/lint-browser.js')",
         `importScripts('host/lint-browser.js?v=${hostVersion}')`
-      )
-      // the console's file list, from the one place that writes the folder: a
-      // second copy here would let a new file be served as an API path
-      .replace(
-        /const API_CONSOLE_FILES = \[[^\]]*\]/,
-        `const API_CONSOLE_FILES = ${JSON.stringify(API_CONSOLE_FILES)}`
       )
   )
 
