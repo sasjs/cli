@@ -37,9 +37,12 @@ if (!entry) fail(`${TOOL} is not in package-lock.json - is it still a devDepende
 // looked at the hash.
 const declared = lock.packages['']?.devDependencies?.[TOOL]
 if (!declared) fail(`${TOOL} is in the lockfile but not in devDependencies`)
-if (!/^\d+\.\d+\.\d+$/.test(declared))
+// a prerelease pin is exact - trialling one on the publish job is a legitimate
+// thing to do, and refusing it would have said "not an exact version" about a
+// version that is
+if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(declared))
   fail(
-    `${TOOL} is declared as "${declared}", which is not an exact version. ` +
+    `${TOOL} is declared as "${declared}", which is a range, not an exact version. ` +
       'It runs on the publishing job, so pin it exactly.'
   )
 if (declared !== entry.version)

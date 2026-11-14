@@ -46,7 +46,14 @@ test('fails when the declaration is a range, even if the hash matches', () => {
   // the integrity hash
   const { ok, out } = run({ declared: '^0.1.3', resolved: '0.1.9' })
   assert.equal(ok, false)
-  assert.match(out, /is not an exact version/)
+  assert.match(out, /is a range, not an exact version/)
+})
+
+test('accepts an exact prerelease pin', () => {
+  // measured: the first pattern refused 0.2.0-beta.1 while calling it inexact
+  const { ok, out } = run({ declared: '0.2.0-beta.1', resolved: '0.2.0-beta.1' })
+  assert.equal(ok, true)
+  assert.match(out, /is pinned exactly in devDependencies/)
 })
 
 test('fails when the declaration and the resolved version disagree', () => {
