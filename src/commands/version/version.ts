@@ -7,9 +7,11 @@ import path from 'path'
  * Reads the version from the package.json of the package that is running, so
  * it works for every install shape - global, project-local, `npx`, a temp
  * prefix, or embedded as a dependency. A package root outside a
- * `node_modules` folder is a source checkout (an `npm link`, or a local
- * build), and is reported as such; a source checkout carries no version until
- * semantic-release writes one, so the version is left out when it is absent.
+ * `node_modules` folder is a source checkout (an `npm link`, or a local build),
+ * and is reported as such. Its package.json carries the placeholder version
+ * (`0.0.0`): the version is the git tag, stamped in when the package is
+ * published, so from sources there is nothing to report and the version is left
+ * out.
  *
  * @param packageRoot - the folder holding the package.json of the running CLI.
  */
@@ -29,15 +31,25 @@ export const versionMessage = (packageRoot: string): string => {
 
   const fromSources = !packageRoot.split(path.sep).includes('node_modules')
 
+  // the placeholder means "not stamped from a tag" - the same thing as absent
+  const stated = version && !/^0\.0\.0(-|$)/.test(version) ? version : undefined
+
   if (fromSources) {
-    return version
-      ? `You are using a linked version of SASjs CLI (v${version}) running from sources at ${packageRoot}`
+    return stated
+      ? `You are using a linked version of SASjs CLI (v${stated}) running from sources at ${packageRoot}`
       : `You are using a linked version of SASjs CLI running from sources at ${packageRoot}`
   }
 
-  if (!version) {
+  if (!stated) {
+    // two ways to get here, and they mean different things to whoever is reading
+    // it: no version field at all, or the placeholder that was never stamped from
+    // a tag
+    const reason = version
+      ? `carries the placeholder version ${version}, so it was never stamped from a tag`
+      : 'has no version in its package.json'
+
     throw new Error(
-      `The installed CLI at ${packageRoot} has no version in its package.json. ` +
+      `The installed CLI at ${packageRoot} ${reason}. ` +
         `Reinstall it - 'npm i -g @sasjs/cli@latest'.`
     )
   }

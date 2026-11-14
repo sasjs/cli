@@ -1,24 +1,61 @@
-# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
-# For more information see: https://help.github.com/actions/language-and-framework-guides/publishing-nodejs-packages
-
 name: SASjs CLI Deploy
 
+# Publishes the version the release names, and only that.
+#
+# This file keeps its name because npm's trusted publisher is registered against
+# the workflow that actually runs `npm publish` - the registry validates the OIDC
+# `job_workflow_ref` claim - and renaming it would break publishing until the
+# publisher is re-registered. Keeping the tag in release.yml means neither job
+# holds the other's permission: the release job never sees id-token, and this one
+# never sees contents: write.
+#
+# A `release: published` trigger would not work and would fail silently: a release
+# created with the pipeline's own GITHUB_TOKEN fires no events, because GitHub
+# suppresses them to stop recursion. workflow_run is not suppressed, so publishing
+# is chained off the Release workflow finishing.
+#
+# Nothing is committed. The tag is the version; it is stamped into the working
+# tree because npm reads package.json, and the tree is thrown away.
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+  # a publish that failed can be retried: the release event fires once, and
+  # re-creating the release to republish is exactly the state to avoid
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Release tag to publish. Required when dispatched; when this runs from
+          the Release workflow, leave it blank and the tag that run created is
+          used. Must be on main.
+        required: false
+        default: ''
+      republish:
+        description: Publish even when the registry already serves this version
+        required: false
+        type: boolean
+        default: false
 
-# read-only by default; the release job asks for the three writes it needs, so a
-# workflow that stops needing one of them cannot keep it by accident
+# read-only by default; the release job asks for the identity it publishes with,
+# so a workflow that stops needing a permission cannot keep it by accident
 permissions: read-all
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: |
+      github.repository == 'sasjs/cli' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
     permissions:
-      id-token: write  # https://docs.npmjs.com/trusted-publishers
-      contents: write  # semantic-release pushes tags and creates releases
-      issues: write  # semantic-release comments on issues when it fails
+      contents: read
+      id-token: write # https://docs.npmjs.com/trusted-publishers
 
     strategy:
       matrix:
@@ -28,9 +65,74 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0      # semantic-release needs full history + tags
+          # Always main: a dispatch can name any ref, and the tag gate below
+          # treats HEAD as the default branch. Publishing is from main or not at
+          # all, so the checkout says so rather than inheriting the dispatcher's
+          # choice.
+          ref: main
+          # the tag is how this workflow learns what to publish: the release run
+          # created it at the commit it released
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve the tag
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # there is deliberately no `github.event.release` fallback: neither
+          # trigger is `release`, and there cannot be one (see the header)
+          tag="$REQUESTED"
+
+          if [ -z "$tag" ] && [ "$EVENT" = "workflow_run" ]; then
+            # the tag the release run just created, at the commit it released
+            tag="$(git tag --points-at "$SHA" --sort=-v:refname | head -1)"
+            if [ -z "$tag" ]; then
+              # A shallow clone carries no tags, and the branch below would then
+              # report a green publish that published nothing. Only a checkout
+              # with the tags in it can say "that release cut no tag".
+              if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+                echo "::error::this checkout is shallow, so the tag the release created cannot be seen - the job needs fetch-depth: 0"
+                exit 1
+              fi
+              echo "::notice::no tag at $SHA - that release had nothing to publish"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "::error::no tag - dispatch this with the tag to publish"
+            exit 1
+          fi
+
+          # A dispatch can name any tag in the repository; only one cut from a
+          # commit on the default branch is a release this pipeline made. The
+          # checkout above pins main, so HEAD *is* the default branch here - the
+          # tag is checked out further down - and this needs no fetch: the
+          # checkout runs with persist-credentials: false, and asking origin for
+          # refs would lean on the repository being public.
+          if ! git merge-base --is-ancestor "${tag}^{commit}" HEAD; then
+            echo "::error::$tag is not on the default branch - refusing to publish it"
+            exit 1
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "publishing $tag (version ${tag#v})"
+
+      - name: Check out the tag
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: git checkout -q "refs/tags/$TAG"
 
       - name: Use Node.js ${{ matrix.node-version }}
+        if: steps.tag.outputs.skip != 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
@@ -38,43 +140,72 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       # Node 22 ships npm 10.x - OIDC trusted publishing needs npm >= 11.5.1.
-      # Pinned rather than @latest so the toolchain that publishes the package
-      # is the one this commit was reviewed with: @latest would adopt a new npm
-      # major into the release path without a commit here, which is the exposure
-      # the locked release/ tree exists to avoid. 12.2.0 is what @latest
-      # resolved to when this was pinned, so the release path is unchanged by
-      # the pin - and it is the version sasjs/lint published 4.1.4 with, through
-      # this same OIDC step. Bump it deliberately.
-      # npm 12 requires node ^22.22.2 || ^24.15.0 || >=26.0.0, which
-      # setup-node's `22` resolves above; re-check that floor on a bump.
+      # Pinned rather than @latest so the toolchain that publishes the package is
+      # the one this commit was reviewed with: @latest would adopt a new npm major
+      # into the release path without a commit here. Bump it deliberately.
       - name: Update npm
+        if: steps.tag.outputs.skip != 'true'
         run: npm install -g npm@12.2.0
 
       - name: Install dependencies
+        if: steps.tag.outputs.skip != 'true'
         run: npm ci
 
+      # the version npm reads is the tag, stamped into the tree and not committed.
+      # Before the build, while the tree is still clean enough for npm version to
+      # accept it.
+      - name: Stamp the version
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+
       - name: Build project
+        if: steps.tag.outputs.skip != 'true'
         run: npm run build
 
       - name: Audit for vulnerabilities
+        if: steps.tag.outputs.skip != 'true'
         run: npm audit --omit=dev --audit-level=low
 
-      - name: Audit the release toolchain
-        # Its own scope: the toolchain is not shipped, so it must not gate the
-        # package, but it runs with publish credentials, so it must not be
-        # invisible either. Fails on anything outside the named exemptions in
-        # release/audit.mjs.
-        run: node release/audit.mjs
-
-      - name: Install the release tooling
-        # Its own locked tree, installed here rather than resolved from npx:
-        # that pins the resolved versions and their integrity hashes, and this
-        # runs with publish credentials. Kept out of the package's own
-        # dependencies so its unfixable advisories stay out of the package's
-        # `npm audit`.
-        run: npm ci --prefix release --ignore-scripts
-
-      - name: Semantic Release
-        run: release/node_modules/.bin/semantic-release
+      - name: The version is the tag's
+        # prepublishOnly refuses the 0.0.0 placeholder, and the publish step below
+        # re-enables it with --ignore-scripts=false, so that case is already
+        # covered. This checks what prepublishOnly cannot see: that the version
+        # npm is about to read is the tag's, not merely non-placeholder.
+        if: steps.tag.outputs.skip != 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          stamped="$(node -p "require('./package.json').version")"
+          echo "stamped $stamped, tag says $VERSION"
+          if [ "$stamped" != "$VERSION" ]; then
+            echo "::error::package.json states $stamped but the tag names $VERSION"
+            exit 1
+          fi
+
+      - name: Already on the registry?
+        id: existing
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          REPUBLISH: ${{ inputs.republish }}
+        run: |
+          set -euo pipefail
+          published="$(npm view "@sasjs/cli@${VERSION}" version --prefer-online 2>/dev/null || true)"
+          if [ "$published" = "$VERSION" ] && [ "${REPUBLISH:-false}" != "true" ]; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "$VERSION is already on the registry - nothing to publish"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm with trusted publisher
+        if: steps.tag.outputs.skip != 'true' && steps.existing.outputs.already != 'true'
+        # no NODE_AUTH_TOKEN: the OIDC token is exchanged for a short-lived
+        # credential, so there is no long-lived secret in this repository.
+        # --ignore-scripts=false re-enables this package's own prepublishOnly,
+        # which .npmrc disables for every other command; nothing is installed at
+        # publish time, so no dependency's script can run from it.
+        run: npm publish --provenance --access public --ignore-scripts=false
