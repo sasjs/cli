@@ -91,6 +91,13 @@ jobs:
             # the tag the release run just created, at the commit it released
             tag="$(git tag --points-at "$SHA" --sort=-v:refname | head -1)"
             if [ -z "$tag" ]; then
+              # A shallow clone carries no tags, and the branch below would then
+              # report a green publish that published nothing. Only a checkout
+              # with the tags in it can say "that release cut no tag".
+              if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+                echo "::error::this checkout is shallow, so the tag the release created cannot be seen - the job needs fetch-depth: 0"
+                exit 1
+              fi
               echo "::notice::no tag at $SHA - that release had nothing to publish"
               echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
