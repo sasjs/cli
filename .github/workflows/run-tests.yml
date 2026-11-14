@@ -89,6 +89,15 @@ jobs:
       - name: Check npm audit
         run: npm audit --omit=dev --audit-level=low
 
+      - name: The release tool resolves to nothing
+        # `--omit=dev` skips the tool that runs on the publishing job, and a
+        # full-tree audit cannot answer for it either: this repo's dev tree
+        # carries advisories from the jest chain that are not the tool's. So the
+        # property is asserted from the lockfile - no install, nothing to
+        # download - and a bump that gives the tool a dependency fails here
+        # rather than passing silently.
+        run: node .github/scripts/release-tool-dependencies.mjs
+
 
   docs:
     name: docs
