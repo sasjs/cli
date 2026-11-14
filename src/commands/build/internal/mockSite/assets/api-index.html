@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>API console - browser demo</title>
+    <meta name="sasjs-mock-version" content="__MOCK_VERSION__" />
+    <!--
+      The API console for a browser-hosted build.
+
+      Static, and deliberately so: no bundler, no framework, no network of its
+      own beyond the API it is documenting. It is served from <base>/api/ and
+      every request it makes is the same request an application makes, so the
+      service worker answers it and the answer is the mock's real answer.
+
+      Nothing is inline: a project that sets `default-src 'self'` without
+      'unsafe-inline' would refuse an inline script or style, and this page
+      cannot add a hash to a policy it does not own.
+    -->
+    <link rel="stylesheet" href="console.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <h1>API console</h1>
+      <span class="badge">browser demo</span>
+      <span class="spacer"></span>
+      <span id="who" class="who" title="The account this host answers as"
+        >connected</span
+      >
+    </header>
+
+    <main class="layout">
+      <aside class="list">
+        <input
+          id="filter"
+          type="search"
+          placeholder="Filter routes (user, group, drive...)"
+          autocomplete="off"
+        />
+        <div id="routes" class="routes"></div>
+      </aside>
+
+      <section class="detail">
+        <div id="empty" class="empty">
+          <p>
+            This is a <strong>browser-hosted</strong> SASjs server: the API you
+            are about to call runs in a service worker in this tab, and its
+            drive lives in this browser.
+          </p>
+          <p>
+            Pick a route on the left. Writes are allowed on purpose, and they
+            survive a refresh - add <code>?reset=1</code> to this page's URL to
+            clear the drive and start again from the shipped state.
+          </p>
+        </div>
+
+        <!-- outside #empty: the accounts are most needed while a route is open,
+             and #empty is hidden as soon as one is selected -->
+        <div id="accounts"></div>
+
+        <div id="route" hidden>
+          <h2 id="title"></h2>
+          <p id="summary" class="summary"></p>
+          <form id="form" class="form"></form>
+          <div class="actions">
+            <button id="send" type="button">Send</button>
+            <span id="timing" class="timing"></span>
+          </div>
+          <div id="response" class="response" hidden>
+            <div class="responsebar">
+              <span id="status" class="status"></span>
+              <span class="spacer"></span>
+              <button id="copy" type="button" class="link">Copy</button>
+            </div>
+            <pre id="body"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="console.js"></script>
+  </body>
+</html>

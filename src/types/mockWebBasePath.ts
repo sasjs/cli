@@ -21,5 +21,14 @@ declare module '@sasjs/utils/types/config' {
      * slash (`/demo`). Unset means the origin root.
      */
     mockWebBasePath?: string
+    /**
+     * Whether the mock site carries the API console at `<base>/api/`.
+     *
+     * On unless it is set to false: the console is how a demonstration site lets
+     * a visitor try the API it is a mock of, and a page nothing links to costs
+     * the app nothing. A site whose output must be the app and nothing else
+     * turns it off.
+     */
+    mockApi?: boolean
   }
 }

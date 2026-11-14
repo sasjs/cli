@@ -1732,6 +1732,22 @@ const handle = async (request, url) => {
   return response
 }
 
+// The console's own files under `/api/`, replaced at build time from the list the
+// builder writes the folder from, so the two cannot drift apart.
+const API_CONSOLE_FILES = [
+  'index.html',
+  'console.js',
+  'console.css',
+  'operations.json'
+]
+
+const CONSOLE_FILE = new RegExp(
+  '^/api/(' +
+    API_CONSOLE_FILES.map((name) => name.replace(/\./g, '\\.')).join('|') +
+    ')$',
+  'i'
+)
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
@@ -1764,11 +1780,19 @@ self.addEventListener('fetch', (event) => {
   // listing is the server's web route, and an interface that lists apps asks for
   // it on every visit.
   //
-  // `/api` and `/api/` on their own are the API's documentation page - a file
-  // the build copies into the site - so the worker stays out of the way there
-  // and the static host answers it. Every other `/api/...` is an API call on the
-  // short spelling, which routeRequest canonicalises to `/SASjsApi`.
+  // `/api` and `/api/` on their own are the console page - `api/index.html`,
+  // which this build writes - so the worker stays out of the way there and the
+  // static host answers it. Every other `/api/...` is an API call on the short
+  // spelling, which routeRequest canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
+
+  // And the console's own files, which live under that prefix: a path naming one
+  // of them is the page's, not an API call, so the static host answers it. Named
+  // one by one on purpose - an extension test would also pass through
+  // `/api/admin/logs/foo.log`, which is a real call on the short spelling. The
+  // list is replaced at build time with the one the builder writes the folder
+  // from, so a file added there cannot arrive here as an API path.
+  if (CONSOLE_FILE.test(path)) return
 
   if (!/^\/(SASjsApi|SASLogon|AppStream|api|app)(\/|$)/i.test(path)) return
   event.respondWith(handle(event.request, url))
