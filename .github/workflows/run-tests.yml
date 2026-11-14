@@ -54,11 +54,7 @@ jobs:
       - name: Test the CI scripts
         # node's own runner: this needs no dependencies beyond the node the job
         # already sets up, and it runs in well under a second
-        # both suites: the ratchet, and the gate over the tool that publishes
-        run: >-
-          node --test
-          .github/scripts/coverage-ratchet.test.mjs
-          .github/scripts/release-tool-dependencies.test.mjs
+        run: node --test .github/scripts/coverage-ratchet.test.mjs
 
   audit:
     name: audit
@@ -94,13 +90,25 @@ jobs:
         run: npm audit --omit=dev --audit-level=low
 
       - name: The release tool resolves to nothing
-        # `--omit=dev` skips the tool that runs on the publishing job, and a
-        # full-tree audit cannot answer for it either: this repo's dev tree
-        # carries advisories from the jest chain that are not the tool's. So the
-        # property is asserted from the lockfile - no install, nothing to
-        # download - and a bump that gives the tool a dependency fails here
-        # rather than passing silently.
-        run: node .github/scripts/release-tool-dependencies.mjs
+        # It runs on the publishing job, and `npm audit --omit=dev` skips it
+        # because it is a devDependency; a full-tree audit cannot answer either,
+        # since this dev tree carries jest-chain advisories that are not its own.
+        # The one property that matters is that it has no dependencies - so
+        # nothing it runs is unaudited - read from the lockfile, which needs no
+        # install. A bump that changes that stops here and is looked at.
+        run: |
+          set -euo pipefail
+          entry="$(node -p "JSON.stringify(require('./package-lock.json').packages['node_modules/@sasjs/release'] || null)")"
+          if [ "$entry" = "null" ]; then
+            echo "::error::@sasjs/release is not in package-lock.json - is it still a devDependency?"
+            exit 1
+          fi
+          deps="$(node -p "const p=JSON.parse(process.argv[1]);const b=Array.isArray(p.bundleDependencies)?p.bundleDependencies:Object.keys(p.bundleDependencies||{});[...Object.keys(p.dependencies||{}),...Object.keys(p.peerDependencies||{}),...Object.keys(p.optionalDependencies||{}),...b].join(', ')" "$entry")"
+          if [ -n "$deps" ]; then
+            echo "::error::@sasjs/release now depends on: $deps - nothing audits the tool that publishes this package, so decide what the gate should be before bumping"
+            exit 1
+          fi
+          echo "@sasjs/release declares no dependencies"
 
 
   docs:
