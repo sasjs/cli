@@ -619,8 +619,105 @@ export async function getProjectRoot() {
 }
 
 /**
+ * Finds a target in the project's `sasjs/sasjsconfig.json`.
+ *
+ * Returns whether a local config exists at all as well as the target, because
+ * the two questions have different consequences: saveTokens reports a project
+ * with no local config (it will then write to `~/.sasjsrc`), while a target
+ * that simply is not in it is an ordinary global target.
+ */
+const findTargetLocally = async (
+  targetName?: string
+): Promise<{ hasLocalConfig: boolean; target?: TargetJson }> => {
+  if (!targetName) return { hasLocalConfig: false }
+
+  const localConfig = await getLocalConfig().catch(() => undefined)
+
+  return {
+    hasLocalConfig: !!localConfig,
+    target: localConfig?.targets?.find((t) => t.name === targetName)
+  }
+}
+
+/**
+ * Reads `.env.{targetName}` without warning when it is absent.
+ *
+ * overrideEnvVariables warns about a missing file because it is called in
+ * response to "no credentials found". Resolving credentials asks the same
+ * question on every invocation, including for targets that keep theirs in
+ * `authConfig` or in the shell, so it needs a silent form.
+ */
+const readTargetEnvFile = async (
+  targetName?: string
+): Promise<Record<string, string> | undefined> => {
+  if (!targetName) return undefined
+
+  const content = await readFile(
+    path.join(process.projectDir, `.env.${targetName}`)
+  ).catch(() => undefined)
+
+  return content ? dotenv.parse(content) : undefined
+}
+
+/**
+ * Resolves a target's credentials from the store they are written to.
+ *
+ * getAuthConfig persists a rotated pair via {@link saveTokens}, which writes
+ * `.env.{target}` for a local target and `authConfig` in `~/.sasjsrc` for a
+ * global one. Resolution follows the same split, so a value is read from
+ * exactly where the next refresh would put it. Where both stores carry a
+ * value, the one that would be written wins: the other is a leftover, and
+ * preferring it means presenting a refresh token the server has already
+ * retired.
+ *
+ * Values that neither store defines fall back to the process environment, which
+ * is where the CLI's own loader puts `.env` and `.env.{target}`.
+ *
+ * Read-only: it does not copy the target's env file into `process.env`. A
+ * caller that builds its own auth config from the environment (see
+ * `utils/test.ts`) would otherwise be handed whichever value happened to be in
+ * the file, which for a global target is not the pair this function returns.
+ */
+const resolveCredentials = async (
+  target?: Target
+): Promise<{
+  access_token?: string
+  refresh_token?: string
+  client?: string
+  secret?: string
+}> => {
+  const local = await findTargetLocally(target?.name)
+  const targetEnvFile = await readTargetEnvFile(target?.name)
+
+  const resolve = (configValue: string | undefined, envKey: string) => {
+    const fromConfig = sanitizeEnvValue(configValue)
+    const fromTargetEnvFile = sanitizeEnvValue(targetEnvFile?.[envKey])
+
+    const preferred = local.target
+      ? (fromTargetEnvFile ?? fromConfig)
+      : (fromConfig ?? fromTargetEnvFile)
+
+    return preferred ?? sanitizeEnvValue(process.env[envKey])
+  }
+
+  return {
+    access_token: resolve(target?.authConfig?.access_token, 'ACCESS_TOKEN'),
+    refresh_token: resolve(target?.authConfig?.refresh_token, 'REFRESH_TOKEN'),
+    client: resolve(target?.authConfig?.client, 'CLIENT'),
+    secret: resolve(target?.authConfig?.secret, 'SECRET')
+  }
+}
+
+/**
  * Gets the auth config for the specified target, refreshing the access token
  * (via the refresh token) if it is expiring.
+ *
+ * Credentials are read from the store {@link saveTokens} writes them to: the
+ * `.env.{target}` file for a local target, `authConfig` in `~/.sasjsrc` for a
+ * global one. When the two disagree, the one that would receive a refresh wins.
+ * Reading the other one is how a rotation gets lost - the pair on disk advances
+ * in one place, the next invocation reads a stale copy from the other, and the
+ * server refuses the refresh token as already used.
  *
  * Unlike {@link getAccessToken}, this persists any newly issued access/refresh
  * token pair via {@link saveTokens}. That persistence is not optional: SAS Viya
@@ -635,35 +732,20 @@ export async function getProjectRoot() {
  * @returns {AuthConfig} - an object containing an access token, refresh token, client ID and secret.
  */
 export async function getAuthConfig(target: Target): Promise<AuthConfig> {
-  let access_token = target?.authConfig?.access_token
-    ? target.authConfig.access_token
-    : ''
+  const { access_token: resolvedAccessToken, ...credentials } =
+    await resolveCredentials(target)
 
-  if (
-    !access_token ||
-    access_token.trim() === 'null' ||
-    access_token.trim() === 'undefined'
-  ) {
+  let access_token = resolvedAccessToken || ''
+
+  if (!access_token) {
     await overrideEnvVariables(target?.name)
-    access_token = process.env.ACCESS_TOKEN as string
+    access_token = sanitizeEnvValue(process.env.ACCESS_TOKEN) || ''
   }
 
-  let refresh_token = target?.authConfig?.refresh_token
-    ? target.authConfig.refresh_token
-    : process.env.REFRESH_TOKEN
-  refresh_token = sanitizeEnvValue(refresh_token)
-
-  let client = target?.authConfig?.client
-    ? target.authConfig.client
-    : process.env.CLIENT
-  client = sanitizeEnvValue(client)
+  const { client } = credentials
+  let { refresh_token, secret } = credentials
 
   const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
-
-  let secret = target?.authConfig?.secret
-    ? target.authConfig.secret
-    : process.env.SECRET
-  secret = sanitizeEnvValue(secret)
 
   // A fresh access token is sufficient on its own - return it before
   // requiring client/secret. This enables token-based authentication for
@@ -781,18 +863,15 @@ export const saveTokens = async (
   client?: string,
   secret?: string
 ): Promise<void> => {
-  const isLocalTarget = await getLocalConfig()
-    .then((localConfig) =>
-      localConfig.targets?.some((t) => t.name === targetName)
-    )
-    .catch(() => {
-      process.logger?.info(
-        'Local sasjsconfig.json file could not be found! Now finding target in global .sasjsrc file'
-      )
-      return false
-    })
+  const local = await findTargetLocally(targetName)
 
-  if (isLocalTarget) {
+  if (!local.hasLocalConfig) {
+    process.logger?.info(
+      'Local sasjsconfig.json file could not be found! Now finding target in global .sasjsrc file'
+    )
+  }
+
+  if (local.target) {
     const { VERBOSE } = process.env
     // A SASJS target is authorised by a client id alone (`sasjs auth login`),
     // so an absent secret must not be written as an empty SECRET line - a
@@ -808,7 +887,10 @@ export const saveTokens = async (
 
     process.logger?.success(`Environment file saved at ${envFilePath}`)
   } else {
-    const globalConfig = await getGlobalRcFile()
+    // A machine that has never had a global target has no ~/.sasjsrc at all;
+    // getGlobalRcFile() answers null there, and the target lookup below must
+    // still report "target was not found" rather than a TypeError.
+    const globalConfig = (await getGlobalRcFile()) || { targets: [] }
     const target = globalConfig.targets?.find(
       (t: Target) => t.name === targetName
     )
@@ -853,13 +935,14 @@ export const persistTokensRefreshedByAdapter = (
   target: Target
 ): OnTokensRefreshed => {
   return async ({ access_token, refresh_token }) => {
-    // Sanitize the same way getAuthConfig does: an .env file (or
-    // `process.env.X = undefined`, which Node stores as the string
-    // "undefined") must not leak the literal string into .env.{target}.
-    const rawClient = target.authConfig?.client || process.env.CLIENT
-    const rawSecret = target.authConfig?.secret || process.env.SECRET
-    const client = sanitizeEnvValue(rawClient)
-    const secret = sanitizeEnvValue(rawSecret)
+    // Resolve client/secret the same way the reader does. For a local target
+    // that can mean `.env.{target}` itself - the file saveTokens is about to
+    // rewrite - and reading only authConfig/process.env would miss a pair
+    // stored there, dropping CLIENT=/SECRET= from the file and leaving the next
+    // invocation unable to authenticate. Sanitizing happens in the resolver, so
+    // a literal 'null'/'undefined' (or `process.env.X = undefined`, which Node
+    // stores as the string "undefined") cannot reach the file.
+    const { client, secret } = await resolveCredentials(target)
 
     await saveTokens(target.name, access_token, refresh_token, client, secret)
   }
@@ -918,25 +1001,15 @@ export function getAuthConfigSAS9(target: Target): AuthConfigSas9 {
  * @internal One-shot/test-only. User-facing commands must use {@link getAuthConfig}.
  */
 export async function getAccessToken(target: Target, checkIfExpiring = true) {
-  let accessToken =
-    target && target.authConfig && target.authConfig.access_token
-      ? target.authConfig.access_token
-      : ''
+  const credentials = await resolveCredentials(target)
+  let accessToken = credentials.access_token || ''
 
-  if (
-    !accessToken ||
-    accessToken.trim() === 'null' ||
-    accessToken.trim() === 'undefined'
-  ) {
+  if (!accessToken) {
     await overrideEnvVariables(target?.name)
-    accessToken = process.env.ACCESS_TOKEN as string
+    accessToken = sanitizeEnvValue(process.env.ACCESS_TOKEN) || ''
   }
 
-  if (
-    !accessToken ||
-    accessToken.trim() === 'null' ||
-    accessToken.trim() === 'undefined'
-  ) {
+  if (!accessToken) {
     throw new Error(
       `A valid access token was not found.\nPlease provide an access token in the access_token property in your .env file or as part of the authInfo in your target configuration (sasjsconfig.json).`
     )
@@ -947,11 +1020,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
 
     const passwordGrantHint = `\nAlternatively, run 'sasjs auth login -t ${target?.name}' to authenticate with your SAS username and password (no client/secret required).`
 
-    let client =
-      target.authConfig && target.authConfig.client
-        ? target.authConfig.client
-        : process.env.CLIENT
-    client = sanitizeEnvValue(client)
+    const client = credentials.client
 
     if (!client) {
       throw new Error(
@@ -960,11 +1029,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       )
     }
 
-    let secret =
-      target.authConfig && target.authConfig.secret
-        ? target.authConfig.secret
-        : process.env.SECRET
-    secret = sanitizeEnvValue(secret)
+    const secret = credentials.secret
 
     if (!secret) {
       throw new Error(
@@ -973,11 +1038,7 @@ export async function getAccessToken(target: Target, checkIfExpiring = true) {
       )
     }
 
-    let refreshToken =
-      target.authConfig && target.authConfig.refresh_token
-        ? target.authConfig.refresh_token
-        : process.env.REFRESH_TOKEN
-    refreshToken = sanitizeEnvValue(refreshToken)
+    const refreshToken = credentials.refresh_token
 
     let tokens
 

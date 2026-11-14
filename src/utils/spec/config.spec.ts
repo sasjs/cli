@@ -7,6 +7,7 @@ import {
   saveToGlobalConfig,
   getGlobalRcFile,
   removeFromGlobalConfig,
+  saveTokens,
   saveToLocalConfig,
   getLocalConfig,
   removeFromLocalConfig,
@@ -495,6 +496,237 @@ describe('getAuthConfig - opaque refresh tokens', () => {
     expect(envContent).toContain('REFRESH_TOKEN=4D4PT3RR3FR35H')
     expect(envContent).not.toContain('CLIENT=')
     expect(envContent).not.toContain('SECRET=')
+  })
+})
+
+describe('getAuthConfig - credential precedence', () => {
+  let projectDir: string
+
+  // A token whose exp is `secondsFromNow`, shaped as the JWT that
+  // @sasjs/utils/auth decodes. Used where the real expiry check must decide.
+  const jwtExpiringIn = (secondsFromNow: number) => {
+    const segment = (value: object) =>
+      Buffer.from(JSON.stringify(value)).toString('base64url')
+
+    return [
+      segment({ alg: 'HS256', typ: 'JWT' }),
+      segment({ exp: Math.floor(Date.now() / 1000) + secondsFromNow }),
+      'signature'
+    ].join('.')
+  }
+
+  const setupProjectWithTargets = async (targets: Target[]) => {
+    projectDir = path.join(
+      process.env.TEMP || process.env.TMP || '/tmp',
+      `sasjs-cli-test-${generateUniqueTimestamp()}`
+    )
+    process.projectDir = projectDir
+    await setConstants()
+    await createFile(
+      path.join(projectDir, 'sasjs', 'sasjsconfig.json'),
+      JSON.stringify({ targets: targets.map((target) => target.toJson()) })
+    )
+  }
+
+  const targetWithConfigTokens = (name: string) =>
+    new Target({
+      name,
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      authConfig: {
+        access_token: 'C0NF1G',
+        refresh_token: 'C0NF1GR3FR35H'
+      }
+    })
+
+  beforeEach(() => {
+    process.env.ACCESS_TOKEN = undefined
+    process.env.REFRESH_TOKEN = undefined
+    process.env.CLIENT = undefined
+    process.env.SECRET = undefined
+    // A fresh token means the resolver is what is under test, not the
+    // refresh path.
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      () => false
+    )
+  })
+
+  afterEach(async () => {
+    jest.resetAllMocks()
+    await deleteFile(projectDir).catch(() => {})
+  })
+
+  it('reads a local target from .env.{target}, where a refresh would persist it', async () => {
+    const target = targetWithConfigTokens('prec')
+    await setupProjectWithTargets([target])
+    await createFile(
+      path.join(projectDir, '.env.prec'),
+      'ACCESS_TOKEN=3NVF1L3\nREFRESH_TOKEN=3NVF1L3R3FR35H\n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('3NVF1L3')
+    expect(authConfig.refresh_token).toEqual('3NVF1L3R3FR35H')
+  })
+
+  it('does not refresh a stale pair when the env file holds a fresh one', async () => {
+    // The expiry check is the real one here, so the branch is decided by the
+    // token the resolver picked rather than by a mock: a stale authConfig token
+    // with a client configured WOULD reach refreshTokens, which is what makes
+    // the negative assertion below able to fail.
+    ;(sasjsAuthUtils.isAccessTokenExpiring as jest.Mock).mockImplementation(
+      actualAuthUtils.isAccessTokenExpiring
+    )
+    ;(sasjsAuthUtils.isRefreshTokenExpiring as jest.Mock).mockImplementation(
+      actualAuthUtils.isRefreshTokenExpiring
+    )
+
+    const staleToken = jwtExpiringIn(-3600)
+    const freshToken = jwtExpiringIn(6 * 3600)
+
+    const target = new Target({
+      name: 'prec',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      authConfig: {
+        access_token: staleToken,
+        refresh_token: 'C0NF1GR3FR35H',
+        client: 'C0NF1DCL13NT',
+        secret: 'C0NF1D53CR3T'
+      }
+    })
+    await setupProjectWithTargets([target])
+    await createFile(
+      path.join(projectDir, '.env.prec'),
+      `ACCESS_TOKEN=${freshToken}\nREFRESH_TOKEN=3NVF1L3R3FR35H\nCLIENT=dc\nSECRET=x\n`
+    )
+
+    jest.spyOn(authUtils, 'refreshTokens')
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual(freshToken)
+    expect(authUtils.refreshTokens).not.toHaveBeenCalled()
+  })
+
+  it('still reads authConfig for a local target that has no env file', async () => {
+    const target = targetWithConfigTokens('prec')
+    await setupProjectWithTargets([target])
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('C0NF1G')
+    expect(authConfig.refresh_token).toEqual('C0NF1GR3FR35H')
+  })
+
+  it('reads authConfig for a target the local config does not define, since that is where a refresh persists it', async () => {
+    const target = targetWithConfigTokens('globalTarget')
+    await setupProjectWithTargets([targetWithConfigTokens('other')])
+    await createFile(
+      path.join(projectDir, '.env.globalTarget'),
+      'ACCESS_TOKEN=3NVF1L3\nREFRESH_TOKEN=3NVF1L3R3FR35H\n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('C0NF1G')
+    expect(authConfig.refresh_token).toEqual('C0NF1GR3FR35H')
+  })
+
+  it('falls back to the process environment when neither store defines the value', async () => {
+    const target = new Target({
+      name: 'prec',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app'
+    })
+    await setupProjectWithTargets([target])
+    process.env.ACCESS_TOKEN = '3NVT0K3N'
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('3NVT0K3N')
+  })
+
+  it('does not write the env file into process.env, so the environment cannot disagree with the returned pair', async () => {
+    const target = targetWithConfigTokens('prec')
+    await setupProjectWithTargets([target])
+    await createFile(
+      path.join(projectDir, '.env.prec'),
+      'ACCESS_TOKEN=3NVF1L3\nCLIENT=3NVCL13NT\n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('3NVF1L3')
+    // Node stores `process.env.X = undefined` as the string 'undefined', so
+    // the assertion is that the file's values were not written, not that the
+    // key is absent.
+    expect(process.env.ACCESS_TOKEN).not.toEqual('3NVF1L3')
+    expect(process.env.CLIENT).not.toEqual('3NVCL13NT')
+  })
+
+  it('keeps a CLIENT/SECRET that live only in the env file when the adapter refreshes', async () => {
+    // The pair in .env.<target> is the only place the client is defined, which
+    // is what a target configured for `sasjs auth login` looks like. A refresh
+    // persisting the rotated pair must not drop those lines.
+    const target = new Target({
+      name: 'prec',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app'
+    })
+    await setupProjectWithTargets([target])
+    await createFile(
+      path.join(projectDir, '.env.prec'),
+      'ACCESS_TOKEN=T0K3N\nREFRESH_TOKEN=R3FR35H\nCLIENT=3NVCL13NT\nSECRET=3NV53CR3T\n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+    expect(authConfig.client).toEqual('3NVCL13NT')
+
+    await persistTokensRefreshedByAdapter(target)({
+      access_token: '4D4PT3R',
+      refresh_token: '4D4PT3RR3FR35H'
+    })
+
+    const envContent = await readFile(path.join(projectDir, '.env.prec'))
+    expect(envContent).toContain('ACCESS_TOKEN=4D4PT3R')
+    expect(envContent).toContain('CLIENT=3NVCL13NT')
+    expect(envContent).toContain('SECRET=3NV53CR3T')
+  })
+
+  it('reports a missing client when no store defines an access token', async () => {
+    const target = new Target({
+      name: 'prec',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app'
+    })
+    await setupProjectWithTargets([target])
+
+    await expect(getAuthConfig(target)).rejects.toThrow(
+      /Client ID was not found/
+    )
+  })
+})
+
+describe('saveTokens - target scope', () => {
+  it('reports the missing local config and refuses a target ~/.sasjsrc does not define', async () => {
+    process.projectDir = path.join(
+      process.env.TEMP || process.env.TMP || '/tmp',
+      `sasjs-cli-test-${generateUniqueTimestamp()}`
+    )
+    await setConstants()
+
+    // Nothing local to write to, and nothing global under this name: the
+    // failure must name the target rather than silently writing nowhere.
+    await expect(
+      saveTokens(`no-such-target-${generateUniqueTimestamp()}`, 'a', 'r')
+    ).rejects.toThrow(/was not found/)
   })
 })
 
