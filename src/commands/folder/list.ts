@@ -1,5 +1,5 @@
 import { displaySuccess, displayError } from '../../utils/displayResult'
-import chalk from 'chalk'
+import chalk from '../../utils/chalk'
 import SASjs from '@sasjs/adapter/node'
 
 /**

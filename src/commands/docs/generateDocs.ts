@@ -1,5 +1,5 @@
 import path from 'path'
-import chalk from 'chalk'
+import chalk from '../../utils/chalk'
 import ora from 'ora'
 
 import {

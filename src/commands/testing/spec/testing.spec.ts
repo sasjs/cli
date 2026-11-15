@@ -27,7 +27,7 @@ import * as fileModule from '@sasjs/utils/file'
 import * as utilsModule from '@sasjs/utils/utils'
 import * as readAndValidateInputModule from '@sasjs/utils/input/readAndValidateInput'
 import * as configUtils from '../../../utils/config'
-import chalk from 'chalk'
+import chalk from '../../../utils/chalk'
 import { mockAuthConfig } from '../../context/spec/mocks'
 
 describe('sasjs test', () => {

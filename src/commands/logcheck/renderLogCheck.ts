@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '../../utils/chalk'
 import { LogIssue } from '@sasjs/utils/logs'
 import {
   defaultLogCheckConfig,

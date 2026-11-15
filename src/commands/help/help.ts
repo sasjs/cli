@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from '../../utils/chalk'
 
 export async function printHelpText() {
   const commands = [

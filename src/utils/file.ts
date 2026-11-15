@@ -1,5 +1,5 @@
 import path from 'path'
-import chalk from 'chalk'
+import chalk from './chalk'
 import { createFile, createFolder } from '@sasjs/utils'
 import { Folder } from '../types'
 import { displayError } from './displayResult'

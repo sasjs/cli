@@ -28,7 +28,7 @@ import {
 } from '../../../../utils/test'
 import path from 'path'
 import { compile } from '../../compile'
-import chalk from 'chalk'
+import chalk from '../../../../utils/chalk'
 
 describe('getTestFileDestinationFragment', () => {
   // sasjsconfig.json testConfig paths (testSetUp/testTearDown) are conventionally

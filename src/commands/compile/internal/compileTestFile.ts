@@ -13,7 +13,7 @@ import {
   Target,
   testFileRegExp
 } from '@sasjs/utils'
-import chalk from 'chalk'
+import chalk from '../../../utils/chalk'
 import path from 'path'
 import {
   Coverage,

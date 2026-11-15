@@ -1,5 +1,5 @@
 import { parseLog } from '@sasjs/utils/logs'
-import chalk from 'chalk'
+import chalk from './chalk'
 import { countIssues, partitionIssues } from '../commands/logcheck/collectLogs'
 import { readLogCheckConfig } from '../commands/logcheck/logCheckConfig'
 import { describeFailure } from '../commands/logcheck/processLogCheck'
