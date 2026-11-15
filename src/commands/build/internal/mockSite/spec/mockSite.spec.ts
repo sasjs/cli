@@ -922,7 +922,7 @@ describe('browser-hosted build', () => {
     const result = await buildMockSite(target())
 
     expect(result.apiConsole).toBe(true)
-    const folder = path.join(out(), 'api')
+    const folder = path.join(out(), 'api-console')
     const shipped = fs.readdirSync(folder).sort()
     // every file the folder holds, and the worker's passthrough list is that same
     // list: a second copy in sw.js would let a new file be answered as an API path
@@ -932,10 +932,10 @@ describe('browser-hosted build', () => {
       'index.html',
       'operations.json'
     ])
+    // the console's folder is not an API prefix, so the worker needs no list of
+    // its files: nothing under /api-console can be mistaken for an operation
     const sw = fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')
-    const listed = /const API_CONSOLE_FILES = (\[[^\]]*\])/.exec(sw)
-    expect(listed).not.toBeNull()
-    expect(JSON.parse(listed![1]).sort()).toEqual(shipped)
+    expect(sw).not.toContain('API_CONSOLE_FILES')
 
     const operations = JSON.parse(
       fs.readFileSync(path.join(folder, 'operations.json'), 'utf8')
@@ -969,8 +969,8 @@ describe('browser-hosted build', () => {
     expect(version![1]).toBe(loader![1])
   })
 
-  it('leaves the console out when the site ships its own api folder, and says so', async () => {
-    const own = path.join(root, 'client', 'dist', 'api')
+  it('leaves the console out when the site ships its own console folder, and says so', async () => {
+    const own = path.join(root, 'client', 'dist', 'api-console')
     fs.mkdirSync(own, { recursive: true })
     fs.writeFileSync(path.join(own, 'index.html'), '<p>ours</p>')
 
@@ -979,12 +979,14 @@ describe('browser-hosted build', () => {
     // the project's file is not replaced, and the loss is reported rather than
     // silent: the build has no way to know which of the two the site wants
     expect(result.apiConsole).toBe(false)
-    expect(fs.readFileSync(path.join(out(), 'api', 'index.html'), 'utf8')).toBe(
-      '<p>ours</p>'
+    expect(
+      fs.readFileSync(path.join(out(), 'api-console', 'index.html'), 'utf8')
+    ).toBe('<p>ours</p>')
+    expect(fs.existsSync(path.join(out(), 'api-console', 'console.js'))).toBe(
+      false
     )
-    expect(fs.existsSync(path.join(out(), 'api', 'console.js'))).toBe(false)
     expect(process.logger!.warn).toHaveBeenCalledWith(
-      expect.stringContaining('api/index.html')
+      expect.stringContaining('api-console/index.html')
     )
   })
 
@@ -992,7 +994,7 @@ describe('browser-hosted build', () => {
     const result = await buildMockSite(target({ mockApi: false }))
 
     expect(result.apiConsole).toBe(false)
-    expect(fs.existsSync(path.join(out(), 'api'))).toBe(false)
+    expect(fs.existsSync(path.join(out(), 'api-console'))).toBe(false)
   })
 
   it('ships a recorded SAS session when the project has one', async () => {

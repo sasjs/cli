@@ -1,6 +1,6 @@
 /**
  * @jest-environment jsdom
- * @jest-environment-options {"url": "http://localhost/demo/api/"}
+ * @jest-environment-options {"url": "http://localhost/demo/api-console/"}
  */
 import fs from 'fs'
 import path from 'path'
@@ -11,11 +11,10 @@ export {}
  * The console under a base path.
  *
  * `mockWebBasePath` is a supported option (a site published at `/demo`), and the
- * console derives everything from its own URL: the API calls come from
- * `location.pathname` with `/api/` cut off, and the worker is registered beside
- * the site. Both are right at the origin root by accident there - this file runs
- * the same page at `/demo/api/`, where the wrong derivation is silent: the page
- * still renders, and every call goes to a path the host does not answer.
+ * console works out its root from the worker it registered - `<base>/sw.js` - with
+ * its own URL as the fallback. This file runs the page at `/demo/api-console/`,
+ * where a wrong derivation is silent: the page still renders, and every call goes
+ * to a path the host does not answer.
  */
 const assets = path.join(__dirname, '..', 'assets')
 const page = () => fs.readFileSync(path.join(assets, 'api-index.html'), 'utf8')
@@ -59,11 +58,114 @@ describe('the API console under a base path', () => {
     delete (navigator as any).serviceWorker
   })
 
+  it('takes the root from the worker that covers it, not from its own folder', async () => {
+    // the shapes where the two disagree are the only ones that prove the worker
+    // is read at all: the site's worker at `/demo/sw.js` controlling a console
+    // two folders down still names `/demo/`, which the folder alone cannot
+    document.body.innerHTML = bodyOf(page())
+    document.head.innerHTML =
+      '<meta name="sasjs-mock-version" content="3.0.0" />'
+
+    ;(global as any).fetch = jest.fn(async (url: string) =>
+      String(url).includes('operations.json')
+        ? jsonResponse(operations)
+        : jsonResponse({ format: 1, users: [] })
+    )
+
+    const realCreate = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
+      const node = realCreate(tag)
+      if (String(tag).toLowerCase() === 'script')
+        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
+      return node
+    })
+
+    const sw: any = {
+      controller: { scriptURL: 'http://localhost/demo/sw.js' },
+      register: jest.fn(async () => ({})),
+      addEventListener: jest.fn()
+    }
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: sw,
+      configurable: true
+    })
+
+    history.replaceState({}, '', '/demo/tools/api-console/')
+    jest.resetModules()
+    require('../assets/api-console.js')
+
+    await settle(() =>
+      (global as any).fetch.mock.calls.some((call: any[]) =>
+        String(call[0]).includes('identity.json')
+      )
+    )
+
+    const asked = (global as any).fetch.mock.calls.map((call: any[]) =>
+      String(call[0])
+    )
+    // the site's root, not the folder two levels up from the page
+    expect(asked).toContain('/demo/host/identity.json')
+    expect(asked.some((url: string) => url.startsWith('/demo/tools/'))).toBe(
+      false
+    )
+    history.replaceState({}, '', '/demo/tools/api-console/')
+  })
+
+  it('ignores a worker that belongs to another site', async () => {
+    // a page can be controlled by some other site's worker; its `sw.js` names a
+    // root that has nothing to do with this console, so the page's own folder has
+    // to win
+    document.body.innerHTML = bodyOf(page())
+    document.head.innerHTML =
+      '<meta name="sasjs-mock-version" content="3.0.0" />'
+
+    ;(global as any).fetch = jest.fn(async (url: string) =>
+      String(url).includes('operations.json')
+        ? jsonResponse(operations)
+        : jsonResponse({ format: 1, users: [] })
+    )
+
+    const realCreate = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
+      const node = realCreate(tag)
+      if (String(tag).toLowerCase() === 'script')
+        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
+      return node
+    })
+
+    const sw: any = {
+      controller: { scriptURL: 'http://localhost/other/sw.js' },
+      register: jest.fn(async () => ({})),
+      addEventListener: jest.fn()
+    }
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: sw,
+      configurable: true
+    })
+
+    history.replaceState({}, '', '/demo/api-console/')
+    jest.resetModules()
+    require('../assets/api-console.js')
+
+    await settle(() =>
+      (global as any).fetch.mock.calls.some((call: any[]) =>
+        String(call[0]).includes('identity.json')
+      )
+    )
+
+    const asked = (global as any).fetch.mock.calls.map((call: any[]) =>
+      String(call[0])
+    )
+    expect(asked).toContain('/demo/host/identity.json')
+    expect(asked.some((url: string) => url.startsWith('/other/'))).toBe(false)
+    history.replaceState({}, '', '/demo/api-console/')
+  })
+
   it('finds the folder from a URL without its trailing slash', async () => {
     // `/demo/api` is the shape a person types, and the page used to read that as
     // the origin root: every call went to /SASjsApi/... and the worker to /sw.js
-    history.replaceState({}, '', '/demo/api')
-    expect(location.pathname).toBe('/demo/api')
+    history.replaceState({}, '', '/demo/api-console')
+    expect(location.pathname).toBe('/demo/api-console')
 
     document.body.innerHTML = bodyOf(page())
     document.head.innerHTML =
@@ -107,7 +209,7 @@ describe('the API console under a base path', () => {
     )
     expect(asked).toContain('/demo/host/identity.json')
 
-    history.replaceState({}, '', '/demo/api/')
+    history.replaceState({}, '', '/demo/api-console/')
   })
 
   it('registers the worker and calls the API under the folder the site lives in', async () => {

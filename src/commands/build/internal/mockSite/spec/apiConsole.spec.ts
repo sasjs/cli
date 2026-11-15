@@ -454,7 +454,7 @@ describe('the API console', () => {
     history.replaceState(
       {},
       '',
-      '/api/?route=' + encodeURIComponent('GET /SASjsApi/user')
+      '/api-console/?route=' + encodeURIComponent('GET /SASjsApi/user')
     )
     ;(global as any).fetch = jest.fn(async (url: string) =>
       String(url).includes('operations.json')
@@ -471,7 +471,7 @@ describe('the API console', () => {
     expect(document.getElementById('title')!.textContent).toBe(
       'GET /SASjsApi/user'
     )
-    history.replaceState({}, '', '/api/')
+    history.replaceState({}, '', '/api-console/')
   })
 
   it('stores the token acting as another account returns, and sends it', async () => {
@@ -766,14 +766,14 @@ describe('the API console', () => {
     // jsdom does not navigate, and the redirect is the last thing the page does:
     // what matters here is that the drive was reset before it
     await loadConsole(() => {
-      history.replaceState({}, '', '/api/?reset=1')
+      history.replaceState({}, '', '/api-console/?reset=1')
       ;(window as any).SASjsMock = { reset }
     })
 
     await settle(() => reset.mock.calls.length > 0)
     expect(reset).toHaveBeenCalled()
     expect(sessionStorage.length).toBe(0)
-    history.replaceState({}, '', '/api/')
+    history.replaceState({}, '', '/api-console/')
   })
 
   it('waits for the delete when there is no host to ask, and says so if it is blocked', async () => {
@@ -791,7 +791,7 @@ describe('the API console', () => {
     await loadConsole(() => {
       // no host bridge on this page at all
       delete (window as any).SASjsMock
-      history.replaceState({}, '', '/api/?reset=1')
+      history.replaceState({}, '', '/api-console/?reset=1')
     })
 
     await settle(() =>
@@ -805,7 +805,7 @@ describe('the API console', () => {
     expect(document.getElementById('routes')!.textContent).toContain(
       'still holds the drive'
     )
-    history.replaceState({}, '', '/api/')
+    history.replaceState({}, '', '/api-console/')
     delete (global as any).indexedDB
   })
 
@@ -816,14 +816,14 @@ describe('the API console', () => {
     sessionStorage.setItem('mock-console-token', 'kept')
 
     await loadConsole(() => {
-      history.replaceState({}, '', '/api/?reset=0')
+      history.replaceState({}, '', '/api-console/?reset=0')
       ;(window as any).SASjsMock = { reset }
     })
 
     await settle(() => document.querySelectorAll('#routes .route').length > 0)
     expect(reset).not.toHaveBeenCalled()
     expect(sessionStorage.getItem('mock-console-token')).toBe('kept')
-    history.replaceState({}, '', '/api/')
+    history.replaceState({}, '', '/api-console/')
   })
 
   it('omits an untouched optional boolean on a patch, and sends it when chosen', async () => {
@@ -964,6 +964,65 @@ describe('the API console', () => {
 
     expect(back).toBeDefined()
     expect(back!.textContent).toBe('Back to plain1')
+  })
+
+  it('says so, rather than reloading again, when the worker never claims the page', async () => {
+    // the reload guard gets one attempt: a page that has already tried has to stop
+    // and tell the visitor, or it would loop
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const host = withServiceWorker()
+    sessionStorage.setItem('mock-console-reloaded', '1')
+
+    await loadConsole()
+
+    for (let i = 0; i < 200; i++) {
+      if (error.mock.calls.some((call) => /take control/.test(String(call[0]))))
+        break
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+
+    expect(
+      error.mock.calls.some((call) => /take control/.test(String(call[0])))
+    ).toBe(true)
+    expect(host.sw.register).toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  it('returns to its own page after a reset, wherever that page is', async () => {
+    // the redirect itself cannot be observed in a page that does not navigate, so
+    // the page names the target and the case asks it: it is the page's own path,
+    // which is what a folder move would break
+    const deleted: string[] = []
+    ;(global as any).indexedDB = {
+      deleteDatabase: (name: string) => {
+        deleted.push(name)
+        const request: any = {}
+        setTimeout(() => request.onsuccess && request.onsuccess(), 5)
+        return request
+      }
+    }
+
+    await loadConsole(() => {
+      delete (window as any).SASjsMock
+      history.replaceState(
+        {},
+        '',
+        '/demo/api-console/?reset=1&route=GET%20%2FSASjsApi%2Fuser'
+      )
+    })
+
+    await settle(() => deleted.length > 0)
+
+    const page = (window as any).SASjsApiConsole
+    expect(page).toBeDefined()
+    // the folder is the page's, the flag goes, and the route the visitor was on
+    // stays: a reset should not cost them the deep link
+    expect(page.resetTarget()).toBe(
+      '/demo/api-console/?route=GET+%2FSASjsApi%2Fuser'
+    )
+
+    delete (global as any).indexedDB
+    history.replaceState({}, '', '/api-console/')
   })
 
   it('drops the token when the visitor goes back to the demo administrator', async () => {

@@ -22,7 +22,7 @@ declare module '@sasjs/utils/types/config' {
      */
     mockWebBasePath?: string
     /**
-     * Whether the mock site carries the API console at `<base>/api/`.
+     * Whether the mock site carries the API console at `<base>/api-console/`.
      *
      * On unless it is set to false: the console is how a demonstration site lets
      * a visitor try the API it is a mock of, and a page nothing links to costs
