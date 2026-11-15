@@ -37,6 +37,7 @@ describe('createLintConfigFile', () => {
       await readFile(path.join(projectDir, '.sasjslint'), 'utf-8')
     )
 
+    expect(written).toHaveProperty('$schema')
     expect(written.$schema).toEqual(
       'https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json'
     )

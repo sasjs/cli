@@ -1,17 +1,26 @@
 import path from 'path'
 
-import { DefaultLintConfiguration, lintSchemaUrl } from '@sasjs/lint'
+import { DefaultLintConfiguration } from '@sasjs/lint'
 import { createFile } from '@sasjs/utils'
+
+/**
+ * Where the settings of a `.sasjslint` are documented.
+ *
+ * A copy of the linter's own address rather than an import of it: a consumer's
+ * `overrides` can resolve `@sasjs/lint` to a version older than the one this
+ * package pins (`dc/dc` pins the linter back to 5.3.0 so its own lint run is
+ * stable), and `lintSchemaUrl` did not exist there - importing it wrote the file
+ * with the key missing altogether, since `JSON.stringify` drops `undefined`.
+ *
+ * The file is read as strict JSON and cannot carry comments, so this key is the
+ * only thing that tells an editor where the settings are described.
+ */
+const lintSchemaUrl =
+  'https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json'
 
 /**
  * Creates a SASjs Lint configuration file.
  * Its name will be of the form '.sasjslint'
- *
- * The `$schema` is the linter's own `lintSchemaUrl` rather than a copy of it:
- * the file is read as strict JSON and cannot carry comments, so the schema is
- * the only place its settings are described, and an editor shows the
- * description from whatever document the linter itself names - the one its own
- * `$id` and its parse errors point at.
  * @param {string} parentFolderName- the name of the project folder.
  */
 export const createLintConfigFile = async (parentFolderName: string) => {
