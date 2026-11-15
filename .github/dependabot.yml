@@ -15,9 +15,15 @@ updates:
     # VS Code 1.96+, whose host is Node 20.18, where require() of either major
     # throws ERR_REQUIRE_ESM.
     #
-    # Drop these two entries once the extension's `engines.vscode` reaches
+    # These two entries cover only the ES module half of that gap: the rest of
+    # the tree already runs below its own declared engines floor in a Node 20
+    # host, which is the floor question itself - sasjs/vscode-extension#488.
+    #
+    # Drop these entries once the extension's `engines.vscode` reaches
     # ^1.101.0 - the first release whose extension host runs Node 22 - and take
-    # the bumps then. The interop that makes them work is in #1544 and #1547.
+    # the bumps then. The interop that makes them work is on the branches
+    # `chore/bump-chalk-6` and `chore/bump-ora-10`, not in the closed Dependabot
+    # PRs #1544 and #1547.
     ignore:
       - dependency-name: "chalk"
         versions: [">=5.0.0"]
