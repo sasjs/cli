@@ -1,0 +1,39 @@
+import { FormatOptions } from '@sasjs/lint'
+
+/** The reprint pass, as `@sasjs/lint` expects it. */
+export type Reprint = NonNullable<FormatOptions['reprint']>
+
+/** How the engine is loaded, so a test can supply one instead. */
+export type EngineLoader = () => Promise<Reprint>
+
+let engine: Promise<Reprint> | undefined
+
+/**
+ * Loads the engine from the package, which is ES modules.
+ *
+ * `@sasjs/sas-language` publishes ES modules and this CLI compiles to CommonJS,
+ * so the import has to be dynamic.
+ */
+const fromPackage: EngineLoader = () =>
+  import('@sasjs/sas-language/format').then((module) => module.formatText)
+
+/**
+ * The SAS layout engine, loaded on first use and kept.
+ *
+ * Every command in this CLI starts in the time it takes to load its own module
+ * graph, and `sasjs format` is one of twenty-odd commands - so the engine is
+ * loaded when a format actually runs (~25 ms for the graph, then ~2 ms a file)
+ * rather than by being imported at the top of the command.
+ *
+ * A rejection is dropped rather than kept: the failure may be transient, and a
+ * cached rejection would leave every later format in this process rule-only.
+ * `load` exists for tests, whose module runtime cannot require an ES module.
+ */
+export const getFormatEngine = (
+  load: EngineLoader = fromPackage
+): Promise<Reprint> =>
+  (engine ??= load().catch((error) => {
+    engine = undefined
+
+    throw error
+  }))
