@@ -1153,19 +1153,22 @@ describe('service worker host', () => {
     })
 
     /**
-     * The linter is not part of the install.
+     * The linter is imported with the host, because it has to be.
      *
-     * The page cannot make its first request until the worker has installed, so
-     * anything the worker imports at boot is on the critical path of every
-     * visit. The linter answers two routes; it is fetched when one of them is
-     * called.
+     * A service worker may only `importScripts` while its own script is being
+     * evaluated: a call made from a request handler fails with "The script at ...
+     * failed to load", which is what a lazy import gave a real browser - the two
+     * code routes answered 500. So the import is at boot, and the assertion is
+     * that a code route answers *without* importing anything at request time.
      */
-    it('fetches the linter on the first code route, not at boot', async () => {
+    it('imports the linter at boot and answers a code route without importing', async () => {
       const worker = seeded()
 
       expect(
         worker.imported.some((path) => path.includes('lint-browser'))
-      ).toBe(false)
+      ).toBe(true)
+
+      const before = worker.imported.length
 
       const response = await worker.dispatch(
         '/SASjsApi/code/lint',
@@ -1173,9 +1176,7 @@ describe('service worker host', () => {
       )
 
       expect(response.status).toBe(200)
-      expect(
-        worker.imported.some((path) => path.includes('lint-browser'))
-      ).toBe(true)
+      expect(worker.imported.length).toBe(before)
     })
 
     /**
