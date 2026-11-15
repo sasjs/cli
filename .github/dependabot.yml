@@ -7,6 +7,32 @@ updates:
     open-pull-requests-limit: 2
     allow:
       - dependency-type: "production"
+    # chalk 5+ and ora 6+ publish an ES module only - `"type": "module"`, an
+    # `exports` map and no CommonJS build - and this package compiles to
+    # CommonJS. Node resolves an ES module from require() from 22.12, which the
+    # CLI's own engines covers, but not the VS Code extension host: the
+    # extension requires `@sasjs/cli/build/commands` in-process and supports
+    # VS Code 1.96+, whose host is Node 20.18, where require() of either major
+    # throws ERR_REQUIRE_ESM.
+    #
+    # These two entries cover only the ES module half of that gap: the rest of
+    # the tree already runs below its own declared engines floor in a Node 20
+    # host, which is the floor question itself - sasjs/vscode-extension#488.
+    #
+    # Drop these entries once the extension's `engines.vscode` reaches
+    # ^1.101.0 - the first release whose extension host runs Node 22 - and take
+    # the bumps then. The interop that makes them work is on the branches
+    # `chore/bump-chalk-6` and `chore/bump-ora-10`, not in the closed Dependabot
+    # PRs #1544 and #1547.
+    ignore:
+      # `update-types`, not a version range: `versions` also silences security
+      # updates for the versions it covers, so an advisory against chalk 5+ or
+      # ora 6+ would raise no PR at all while this ceiling is up. Only the
+      # major itself is held back, which is exactly the ESM boundary.
+      - dependency-name: "chalk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ora"
+        update-types: ["version-update:semver-major"]
 
   # The workflows pin their actions to a commit SHA - that is what the scorecard's
   # Pinned-Dependencies check rewards, and it makes a compromised tag useless - so
