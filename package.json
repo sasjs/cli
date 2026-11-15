@@ -54,7 +54,7 @@
     "@sasjs/adapter": "6.0.2",
     "@sasjs/api": "0.39.0",
     "@sasjs/core": "7.1.12",
-    "@sasjs/lint": "5.4.0",
+    "@sasjs/lint": "5.5.1",
     "@sasjs/utils": "4.11.0",
     "axios": "1.20.0",
     "chalk": "4.1.2",
