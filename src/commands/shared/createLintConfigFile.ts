@@ -1,21 +1,23 @@
 import path from 'path'
 
-import { DefaultLintConfiguration } from '@sasjs/lint'
+import { DefaultLintConfiguration, lintSchemaUrl } from '@sasjs/lint'
 import { createFile } from '@sasjs/utils'
 
 /**
- * Where the settings of a `.sasjslint` are documented.
+ * Where the settings of a `.sasjslint` are documented, for a resolved linter
+ * that predates the export.
  *
- * A copy of the linter's own address rather than an import of it: a consumer's
- * `overrides` can resolve `@sasjs/lint` to a version older than the one this
- * package pins (`dc/dc` pins the linter back to 5.3.0 so its own lint run is
- * stable), and `lintSchemaUrl` did not exist there - importing it wrote the file
- * with the key missing altogether, since `JSON.stringify` drops `undefined`.
+ * A consumer's `overrides` decides which `@sasjs/lint` this package resolves:
+ * `dc/dc` pins it back to 5.3.0 in `sas/package.json` so its own lint run is
+ * stable, and 5.3.0 does not export `lintSchemaUrl`. An import alone is then
+ * `undefined`, and `JSON.stringify` drops the key, so the file would lose the
+ * one thing that tells an editor where its settings are described.
  *
- * The file is read as strict JSON and cannot carry comments, so this key is the
- * only thing that tells an editor where the settings are described.
+ * This copy is a fallback rather than the source, and the spec holds it to the
+ * linter's own address, so a move or rename upstream fails here instead of
+ * leaving the written file stale.
  */
-const lintSchemaUrl =
+const lintSchemaFallback =
   'https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json'
 
 /**
@@ -29,7 +31,10 @@ export const createLintConfigFile = async (parentFolderName: string) => {
     parentFolderName,
     '.sasjslint'
   )
-  const config = { $schema: lintSchemaUrl, ...DefaultLintConfiguration }
+  const config = {
+    $schema: lintSchemaUrl ?? lintSchemaFallback,
+    ...DefaultLintConfiguration
+  }
 
   await createFile(configDestinationPath, JSON.stringify(config, null, 2))
 }
