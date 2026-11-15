@@ -25,10 +25,14 @@ updates:
     # `chore/bump-chalk-6` and `chore/bump-ora-10`, not in the closed Dependabot
     # PRs #1544 and #1547.
     ignore:
+      # `update-types`, not a version range: `versions` also silences security
+      # updates for the versions it covers, so an advisory against chalk 5+ or
+      # ora 6+ would raise no PR at all while this ceiling is up. Only the
+      # major itself is held back, which is exactly the ESM boundary.
       - dependency-name: "chalk"
-        versions: [">=5.0.0"]
+        update-types: ["version-update:semver-major"]
       - dependency-name: "ora"
-        versions: [">=6.0.0"]
+        update-types: ["version-update:semver-major"]
 
   # The workflows pin their actions to a commit SHA - that is what the scorecard's
   # Pinned-Dependencies check rewards, and it makes a compromised tag useless - so
