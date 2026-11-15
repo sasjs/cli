@@ -38,7 +38,7 @@ describe('createLintConfigFile', () => {
     )
 
     expect(written.$schema).toEqual(
-      'https://cli.sasjs.io/sasjslint-schema.json'
+      'https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json'
     )
 
     // the settings are the package's own defaults - not a second list that can
