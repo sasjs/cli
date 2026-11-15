@@ -3,7 +3,7 @@ import { PowerShell } from 'node-powershell'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import ora from 'ora'
+import ora from './ora'
 import axios from 'axios'
 import {
   fileExists,

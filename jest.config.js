@@ -182,7 +182,9 @@ module.exports = {
   },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  transformIgnorePatterns: ['node_modules/(?!(nanoid)/)']
+  transformIgnorePatterns: [
+    'node_modules/(?!(nanoid|ora|chalk|cli-cursor|restore-cursor|onetime|mimic-function|cli-spinners|is-interactive|is-unicode-supported|log-symbols|yoctocolors|stdin-discarder|string-width|get-east-asian-width|strip-ansi|ansi-regex)/)'
+  ]
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,
