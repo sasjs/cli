@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises'
 import * as os from 'os'
 import * as path from 'path'
 
-import { DefaultLintConfiguration } from '@sasjs/lint'
+import { DefaultLintConfiguration, lintSchemaUrl } from '@sasjs/lint'
 import { createFolder } from '@sasjs/utils'
 
 import { createLintConfigFile } from '../createLintConfigFile'
@@ -28,23 +28,54 @@ describe('createLintConfigFile', () => {
 
   afterEach(() => {
     process.projectDir = originalProjectDir
+    jest.dontMock('@sasjs/lint')
+    jest.resetModules()
   })
+
+  const readWritten = async () =>
+    JSON.parse(await readFile(path.join(projectDir, '.sasjslint'), 'utf-8'))
 
   it('writes every default setting, with the schema', async () => {
     await createLintConfigFile('.')
 
-    const written = JSON.parse(
-      await readFile(path.join(projectDir, '.sasjslint'), 'utf-8')
-    )
+    const written = await readWritten()
 
     expect(written).toHaveProperty('$schema')
-    expect(written.$schema).toEqual(
-      'https://raw.githubusercontent.com/sasjs/lint/main/sasjslint-schema.json'
-    )
+    expect(written.$schema).toEqual(lintSchemaUrl)
 
     // the settings are the package's own defaults - not a second list that can
     // drift from the linter
     const { $schema: _schema, ...settings } = written
     expect(settings).toEqual(DefaultLintConfiguration)
+  })
+
+  it('writes the schema when the resolved linter predates its export', async () => {
+    // A consumer's `overrides` decides which @sasjs/lint this package resolves:
+    // dc/dc pins it to 5.3.0 in `sas/package.json`, where `lintSchemaUrl` does
+    // not exist - an import alone would leave `undefined`, and JSON.stringify
+    // drops the key from the file.
+    let createWithoutExport: typeof createLintConfigFile = createLintConfigFile
+
+    jest.isolateModules(() => {
+      jest.doMock('@sasjs/lint', () => ({
+        ...jest.requireActual('@sasjs/lint'),
+        lintSchemaUrl: undefined
+      }))
+
+      createWithoutExport =
+        require('../createLintConfigFile').createLintConfigFile
+    })
+
+    await createWithoutExport('.')
+
+    const written = await readWritten()
+
+    expect(written).toHaveProperty('$schema')
+
+    // and the fallback is the linter's own address, so a move or a rename
+    // upstream fails here rather than leaving the written file stale
+    expect(written.$schema).toEqual(
+      jest.requireActual('@sasjs/lint').lintSchemaUrl
+    )
   })
 })
