@@ -1230,11 +1230,22 @@ const RUN_ROUTES = new Set([
 /**
  * The run routes a permission rule addresses.
  *
- * Every other route reaches `API.dispatch`, which applies the rule itself. These
- * are answered here, so the question is asked here: a fixture that denies
- * `code/execute` to an account refuses the run, and not only the menu entry
- * beside it. The triggers are outside the inventory - the server's rules do not
- * reach them - so they are left as they were.
+ * A run is answered by this host rather than by `API.dispatch`, so the question
+ * is asked here: the answer is the one `/info/myAuthorizedRoutes` gives the
+ * interface, which is why a denied rule refuses the call and not only the menu
+ * entry beside it.
+ *
+ * Two limits, both deliberate. The drive routes stay ungated in this host,
+ * because the package does not gate them yet either - no rule is applied to a
+ * drive call until sasjs/api#97 lands, and that gates the run routes only - and
+ * the triggers are outside the inventory the rules address, as they are on a
+ * server.
+ *
+ * This set is a local copy of the package's own list in
+ * `src/host/dispatch.ts`, so the two must move together until the pinned
+ * `@sasjs/api` carries `mayUseRoute`: at that point this asks the one decision
+ * directly instead of reading the whole reported list per run, which also
+ * re-reads the rules and the groups.
  */
 const GRANTED_RUN_ROUTES = new Set([
   'GET /SASjsApi/stp/execute',
