@@ -3986,6 +3986,22 @@ describe('service worker host', () => {
       )
     })
 
+    it('refuses both parameters on the estate spelling too', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js&_program=${appLoc}/services/web/main`
+      )
+
+      // the refusal is by parameter, not by tier: a Viya-built page naming both
+      // gets the same 400 here as it does against the server
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
     it('refuses a request that names the file twice, as the package does', async () => {
       const worker = seeded()
       await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })

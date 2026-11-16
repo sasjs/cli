@@ -1708,23 +1708,25 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // for rather than answered twice - `_FILE=` is the drive read (the package
   // decides its typing and its refusal), `_program=` is the run.
   const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
-  const askedForFile =
-    webTier && request.method === 'GET' && url.searchParams.get('_FILE')
-  const askedForProgram =
-    webTier &&
-    /^\/StoredProgram$/i.test(path) &&
-    url.searchParams.get('_program')
+  const namedFile = webTier && url.searchParams.get('_FILE')
+  const askedForFile = namedFile && request.method === 'GET'
+  // either parameter counts for the refusal, on either spelling: the server
+  // refuses by parameter, not by tier, and a request naming both must not be
+  // answered as a file here because it carries a spelling this tier does not run
+  const askedForProgram = webTier && url.searchParams.get('_program')
 
   // A request naming both is refused before either branch is chosen, in the
   // server's own words. The mock exists so a host's answers can be reproduced:
   // picking the file here would make the site work on a page the server answers
   // 400 for, which is the one disagreement worth not having.
-  if (askedForFile && askedForProgram)
+  // by parameter and by method-agnostic reading, as the server refuses it: the
+  // server checks the two names before it looks at the method
+  if (namedFile && askedForProgram)
     return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
   const apiPath = askedForFile
     ? '/SASjsApi/drive/file'
-    : askedForProgram
+    : askedForProgram && /^\/StoredProgram$/i.test(path)
       ? '/SASjsApi/stp/execute'
       : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}

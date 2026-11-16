@@ -366,7 +366,6 @@ const readDriveFile = (absolute: string): DriveFile => {
 const seedFromBuild = (
   buildFolder: string,
   appLoc: string,
-  exclude: string[] = [],
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
@@ -386,7 +385,6 @@ const seedFromBuild = (
     if (excludeFolders.includes(path.resolve(folder))) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
-      if (exclude.some((prefix) => key.startsWith(prefix))) continue
       candidates.push({ key, absolute: path.join(folder, relative) })
     }
   }
@@ -1163,16 +1161,12 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // through the `_FILE=` read, so the artefact a server would serve is the one
   // this site serves. The unmodified frontend is still what the site itself is,
   // so a project has both the app at the root and the deployment on the drive.
-  const excluded: string[] = []
 
   // A previous site may sit inside the build folder; leaving it out of the seed
   // keeps the old site out of the new drive.
-  const { files: seed, skipped } = seedFromBuild(
-    buildFolder,
-    appLoc,
-    excluded,
-    [outputFolder]
-  )
+  const { files: seed, skipped } = seedFromBuild(buildFolder, appLoc, [
+    outputFolder
+  ])
   const jsPrograms = countPrograms(seed, '.js')
   const sasPrograms = countPrograms(seed, '.sas')
   const driveEntries = Object.keys(seed).length
