@@ -328,18 +328,25 @@
      * next one.
      */
     if (data.type === 'sasjs-need-drive') {
+      // the worker that asked is the one to answer, so it is taken now: the
+      // read below can outlive the controller it started under, and a late
+      // callback has no business reaching for `navigator` again
+      const worker = navigator.serviceWorker.controller
+      const answerTo = (message) => worker && worker.postMessage(message)
+
       Promise.all([readAll(), readIdentity(), readDeleted()])
         .then(([files, stored, deleted]) => boot(files, stored, deleted))
         .then((answer) => {
-          // a boot the worker refused for a reason other than the fixture: the
-          // drive itself could not be installed
+          // the worker refused to install the drive for a reason other than the
+          // fixture: what it holds cannot be handed over, so it must not seed
           if (answer && answer.error && answer.errorKind !== 'identity')
-            throw new Error(answer.error)
+            answerTo({ type: 'sasjs-drive-unavailable' })
         })
         .catch((e) => {
+          // the read failed: a drive that exists and cannot be read, which the
+          // worker must not answer with a seed
           console.error('[sasjs-mock] could not send the drive', e)
-          const sw = navigator.serviceWorker.controller
-          if (sw) sw.postMessage({ type: 'sasjs-drive-unavailable' })
+          answerTo({ type: 'sasjs-drive-unavailable' })
         })
     }
   })

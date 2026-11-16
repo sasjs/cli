@@ -616,6 +616,40 @@ describe('page-side store', () => {
     )
   })
 
+  it('keeps the answer it captured when the page moves on mid-read', async () => {
+    // the read can outlive the page's own globals (a suite that tears its
+    // fixtures down, a harness that swaps the controller). The worker that
+    // asked is taken when the ask arrives, so the answer still reaches it - and
+    // nothing a late callback touches can throw.
+    const controller = { postMessage: jest.fn() }
+    const { reply } = loadPersist({ controller })
+
+    ;(global as any).indexedDB.open = () => {
+      const req: any = {
+        result: undefined,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null
+      }
+      setTimeout(() => req.onerror && req.onerror(), 20)
+      return req
+    }
+
+    reply({ type: 'sasjs-need-drive' })
+    // the page's globals go away while the read is still in flight
+    delete (global as any).navigator
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-drive-unavailable'
+      )
+    )
+
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-drive-unavailable'
+    })
+  })
+
   /**
    * Answers whatever the page asks, so a boot test can assert on which question
    * was asked rather than on the reply.
