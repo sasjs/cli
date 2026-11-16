@@ -5,7 +5,7 @@ import { processFormat } from './processFormat'
 
 const syntax = 'format [filterStrings..]'
 const usage = 'sasjs format [filterStrings..] [--check]'
-const description = `Rewrites .sas files into the project's canonical form: the rules in .sasjslint (header, wrapping, trailing space) and then the layout from the SAS language engine (indentation, statement breaks, keyword case). With --check nothing is written and the command fails if any file would change.`
+const description = `Rewrites .sas files into the project's canonical form. The SAS language engine reprints each file - indentation, statement breaks, keyword case - and the rules in .sasjslint (header, wrapping, trailing space) then run over its output. With --check nothing is written and the command fails if any file would change.`
 
 const examples: CommandExample[] = [
   {
@@ -64,6 +64,32 @@ export class FormatCommand extends CommandBase {
       Boolean(check)
     )
       .then((outcome) => {
+        // A run without the engine is a rule-only run, and must not read as a
+        // clean one: the layout pass this command exists for never happened.
+        if (outcome.engineUnavailable) {
+          displayError(
+            'The SAS language engine could not be loaded, so only the linting rules were applied. Run `sasjs build` and try again, or install the CLI again.'
+          )
+
+          return ReturnCode.FormatError
+        }
+
+        // Unsettled files were left as they were found, so the run did not do
+        // what was asked for those files either.
+        if (outcome.unsettledFilePaths.length) {
+          process.logger?.info(
+            `${outcome.unsettledFilePaths.length} file(s) did not settle and were left unchanged:`
+          )
+          outcome.unsettledFilePaths.forEach((filePath) =>
+            process.logger?.info(filePath)
+          )
+          displayError(
+            'Formatting did not settle for those files, so nothing was written to them.'
+          )
+
+          return ReturnCode.FormatError
+        }
+
         if (check && outcome.changedFilePaths.length) {
           process.logger?.info(
             `${outcome.changedFilePaths.length} of ${outcome.examinedCount} files are not canonically formatted:`

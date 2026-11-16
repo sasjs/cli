@@ -14,6 +14,10 @@ let engine: Promise<Reprint> | undefined
  * `@sasjs/sas-language` publishes ES modules and this CLI compiles to CommonJS,
  * so the import has to be dynamic.
  */
+/* istanbul ignore next -- the one loader jest cannot execute: it is a dynamic
+   import of an ES module, which jest's module runtime refuses. Every real run of
+   the command goes through it; the contract above it is covered with injected
+   loaders, and the engine's own suite covers what it returns. */
 const fromPackage: EngineLoader = () =>
   import('@sasjs/sas-language/format').then((module) => module.formatText)
 

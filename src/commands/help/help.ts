@@ -386,7 +386,7 @@ export async function printHelpText() {
       name: 'format',
       title: 'format [filterStrings..]',
       description: [
-        `Rewrites .sas files into the project's canonical form: the rules in .sasjslint (header, wrapping, trailing space) and then the layout from the SAS language engine (indentation, statement breaks, keyword case).`,
+        `Rewrites .sas files into the project's canonical form: the SAS language engine reprints each file (indentation, statement breaks, keyword case), and the rules in .sasjslint (header, wrapping, trailing space) then run over its output.`,
         `[2spaces]--check writes nothing, names the files that would change and fails, so a pipeline can gate on formatting.`,
         `[2spaces]command example: sasjs format --check`
       ]

@@ -1,4 +1,5 @@
 import * as processFormatModule from '../processFormat'
+import { FormatOutcome } from '../processFormat'
 import { FormatCommand } from '../formatCommand'
 import { Logger, LogLevel } from '@sasjs/utils'
 import { ReturnCode } from '../../../types/command'
@@ -7,6 +8,14 @@ const defaultArgs = ['node', 'sasjs']
 
 /** `parsed` is protected - the command's own business - so the spec reads it through a cast. */
 const parsedOf = (command: FormatCommand) => (command as any).parsed
+
+const outcome = (json: Partial<FormatOutcome> = {}): FormatOutcome => ({
+  changedFilePaths: [],
+  examinedCount: 3,
+  unsettledFilePaths: [],
+  engineUnavailable: false,
+  ...json
+})
 
 describe('FormatCommand', () => {
   beforeEach(() => setupMocks())
@@ -43,10 +52,9 @@ describe('FormatCommand', () => {
   })
 
   it('rewrites files and reports how many changed', async () => {
-    jest.spyOn(processFormatModule, 'processFormat').mockResolvedValue({
-      changedFilePaths: ['/p/a.sas'],
-      examinedCount: 3
-    })
+    jest
+      .spyOn(processFormatModule, 'processFormat')
+      .mockResolvedValue(outcome({ changedFilePaths: ['/p/a.sas'] }))
 
     const command = new FormatCommand([...defaultArgs, 'format'])
 
@@ -57,10 +65,11 @@ describe('FormatCommand', () => {
   })
 
   it('fails without rewriting when --check finds a file that would change', async () => {
-    jest.spyOn(processFormatModule, 'processFormat').mockResolvedValue({
-      changedFilePaths: ['/p/a.sas', '/p/b.sas'],
-      examinedCount: 3
-    })
+    jest
+      .spyOn(processFormatModule, 'processFormat')
+      .mockResolvedValue(
+        outcome({ changedFilePaths: ['/p/a.sas', '/p/b.sas'] })
+      )
 
     const command = new FormatCommand([...defaultArgs, 'format', '--check'])
 
@@ -79,7 +88,37 @@ describe('FormatCommand', () => {
 
     await command.execute()
 
+    // `filterStrings` is absent when nothing was given, so the command passes [].
     expect(spy).toHaveBeenCalledWith([], true)
+  })
+
+  it('fails when the engine could not load, so a rule-only run is not green', async () => {
+    jest
+      .spyOn(processFormatModule, 'processFormat')
+      .mockResolvedValue(outcome({ engineUnavailable: true }))
+
+    const command = new FormatCommand([...defaultArgs, 'format', '--check'])
+
+    const returnCode = await command.execute()
+
+    // A broken install must not pass the gate the command exists to provide.
+    expect(returnCode).toEqual(ReturnCode.FormatError)
+    expect(process.logger.success).not.toHaveBeenCalled()
+  })
+
+  it('fails when a file did not settle, since nothing was written to it', async () => {
+    jest
+      .spyOn(processFormatModule, 'processFormat')
+      .mockResolvedValue(outcome({ unsettledFilePaths: ['/p/odd.sas'] }))
+
+    const command = new FormatCommand([...defaultArgs, 'format'])
+
+    const returnCode = await command.execute()
+
+    expect(returnCode).toEqual(ReturnCode.FormatError)
+    expect(process.logger.info).toHaveBeenCalledWith(
+      '1 file(s) did not settle and were left unchanged:'
+    )
   })
 
   it('returns the internal error code when formatting throws', async () => {
@@ -96,11 +135,8 @@ describe('FormatCommand', () => {
 })
 
 const setupMocks = () => {
-  jest.resetAllMocks()
-  jest.mock('../processFormat')
-  jest
-    .spyOn(processFormatModule, 'processFormat')
-    .mockResolvedValue({ changedFilePaths: [], examinedCount: 3 })
+  jest.restoreAllMocks()
+  jest.spyOn(processFormatModule, 'processFormat').mockResolvedValue(outcome())
 
   process.logger = new Logger(LogLevel.Off)
   jest.spyOn(process.logger, 'success')

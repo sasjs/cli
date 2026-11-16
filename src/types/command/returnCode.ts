@@ -11,12 +11,14 @@ export enum ReturnCode {
   // apart from LintError so a pipeline can tell a code-quality failure from a
   // run SAS complained about.
   LogCheckError,
-  // `format --check` found files that are not canonically formatted. Kept apart
-  // for the same reason: a pipeline can tell formatting drift from a lint
-  // failure, and from a run SAS complained about.
-  FormatError,
   // A flow finished without every job succeeding. Distinct from InternalError,
   // which also covers a bad source file or an unreachable server, so a pipeline
   // can tell "the flow failed" from "the CLI could not run the flow".
-  FlowError
+  FlowError,
+  // `format` could not do what was asked: `--check` found files that are not
+  // canonically formatted, or the layout engine did not load, or a file never
+  // settled. Appended after FlowError rather than inserted before it, because
+  // these numbers are a published contract and inserting would renumber a flow
+  // failure in a release that adds a formatter.
+  FormatError
 }
