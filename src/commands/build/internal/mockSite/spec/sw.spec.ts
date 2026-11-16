@@ -2628,6 +2628,46 @@ describe('service worker host', () => {
       expect(ack.error).toContain('no clients')
     }, 20000)
 
+    it('re-sends a batch whose write-back failed', async () => {
+      // the runtime hands its dirty files over once, and the page is what writes
+      // them down: a batch lost to a failed broadcast is lost from the drive
+      // altogether unless the worker keeps it for the next report
+      ;(global as any).__mockHostClients = () => {
+        throw new Error('no clients')
+      }
+
+      const { message, dispatch } = seeded()
+      const seed = message({ type: 'sasjs-seed' })
+      await seed.pending
+      expect(
+        seed.replies.find((r: any) => r.type === 'sasjs-seed-ack').errorKind
+      ).toBe('persist')
+
+      const messages: any[] = []
+      ;(global as any).__mockHostClients = [
+        { postMessage: (m: any) => messages.push(m) }
+      ]
+
+      // any later persist carries the batch: a write is the ordinary one
+      const created = await dispatch('/SASjsApi/drive/file', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          params: { filePath: '/Public/after.sas' },
+          tables: [{ name: 'file', filename: 'after.sas', csv: btoa('after;') }]
+        })
+      })
+      expect(created.status).toBe(200)
+
+      const paths = messages
+        .filter((m) => m.type === 'sasjs-persist')
+        .flatMap((m) => Object.keys(m.files))
+      // the seed's own change - it replaced the drive, which marks it - travels
+      // with the batch of a request made long after it
+      expect(paths).toContain('/appLoc')
+      expect(paths.some((p) => p.includes('after.sas'))).toBe(true)
+    }, 20000)
+
     it('persists a write when a closed tab fails the write-back', async () => {
       // the broadcast is not the write: a tab that closed since matchAll()
       // raises InvalidStateError, and one closed tab must not fail a write the

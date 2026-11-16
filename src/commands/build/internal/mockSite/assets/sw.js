@@ -498,18 +498,41 @@ const askHostForDrive = () => {
  * stores and the store it seeds. It is sent only when it differs from the last
  * report, so a drive-only request carries no fixture and an identity-only change
  * still reaches storage.
+ *
+ * A report the page never received is not a report: the batch is kept and sent
+ * with the next one, and the fixture is reported again the next time.
  */
+/** Files taken from the runtime whose report to the page failed. */
+let unsentFiles = null
+
 const persistChanges = async () => {
-  const files = R.takeDirty()
+  // `takeDirty()` empties the runtime's map, and only the page writes the drive
+  // on: a batch that never reached it is gone from the drive the next worker
+  // instance loads, while this one has nothing left to hand over. So a failed
+  // report is kept and goes out with the next one.
+  const files = { ...(unsentFiles || {}), ...R.takeDirty() }
   const fixture = IDENTITY_STATE.store.snapshot()
   const asJson = IDENTITY_STATE.seeded ? JSON.stringify(fixture) : ''
-  const identity =
-    asJson && asJson !== IDENTITY_STATE.persisted ? fixture : null
+  const previous = IDENTITY_STATE.persisted
+  const identity = asJson && asJson !== previous ? fixture : null
+
+  if (!Object.keys(files).length && !identity) {
+    unsentFiles = null
+    return
+  }
 
   if (identity) IDENTITY_STATE.persisted = asJson
 
-  if (Object.keys(files).length || identity)
+  try {
     await broadcast({ type: 'sasjs-persist', files, identity })
+  } catch (e) {
+    unsentFiles = files
+    // the fixture is reported when it differs from the last one that ARRIVED
+    if (identity) IDENTITY_STATE.persisted = previous
+    throw e
+  }
+
+  unsentFiles = null
 }
 
 // ----------------------------------------------------------- the SAS transcript
