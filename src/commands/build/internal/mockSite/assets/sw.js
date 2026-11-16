@@ -1045,6 +1045,79 @@ const APP_STREAM = API.createAppStreamService(
  * the site root. Both sides take the same base and the answers land inside the
  * folder.
  */
+/**
+ * The app stream's prefix: what a rule names to cover every app at once.
+ */
+const APP_STREAM_PREFIX = '/AppStream'
+
+/** One caller's rules, in the shape the route decision takes them. */
+const routeRulesOf = (permissions) => ({
+  user: (permissions || [])
+    .filter((rule) => rule.user !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting })),
+  group: (permissions || [])
+    .filter((rule) => rule.group !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting }))
+})
+
+/**
+ * The caller's own rule about which apps it may see.
+ *
+ * The surface takes this from the host, because only the host knows the rules a
+ * caller holds. sasjs/server answers it with `appIsGranted`: the path a rule
+ * names decides - the app's id, or the label an older rule uses - and the stream
+ * prefix decides when no rule names either. A browser host reads the same rules
+ * from the fixture, so a `Deny` on `/AppStream/orders` hides that app here as it
+ * does on a server, and a fixture with no app rules shows every published app.
+ */
+const appFilterFor = async (subject) => {
+  const rules = routeRulesOf(await RECORDS.listPermissions(subject))
+
+  return (entry) =>
+    API.isRouteGranted(
+      rules,
+      [
+        `${APP_STREAM_PREFIX}/${entry.id}`,
+        entry.name ? `${APP_STREAM_PREFIX}/${entry.name}` : ''
+      ].find((path) =>
+        [...rules.user, ...rules.group].some((rule) => rule.path === path)
+      ) || APP_STREAM_PREFIX,
+      APP_STREAM_PREFIX
+    )
+}
+
+/**
+ * The filter to hand the surface, cached per caller.
+ *
+ * The surface asks it for every request under `/app`, an app's own assets
+ * included, and each answer would otherwise read the permission records and the
+ * groups. The key carries the chosen account and the fixture the page last
+ * persisted, so signing in as someone else or writing a rule re-reads once and
+ * every request after that does not.
+ */
+let appFilterCache
+const appFilter = async (subject) => {
+  const key = `${String(CALLER_USERNAME)}|${String(IDENTITY_STATE.persisted)}`
+  if (appFilterCache && appFilterCache.key === key) return appFilterCache.filter
+
+  // the account the subject names, read from the fixture this host already
+  // holds: an administrator holds every app, so the rules are not asked at all
+  const caller = subject
+    ? IDENTITY_STATE.store
+        .snapshot()
+        .users.find((user) => user.uid === subject.userId)
+    : undefined
+
+  const filter = !caller
+    ? () => false
+    : caller.isAdmin
+      ? () => true
+      : await appFilterFor(subject)
+
+  appFilterCache = { key, filter }
+  return filter
+}
+
 let appStreamWeb
 const appStreamSurface = () => {
   if (!appStreamWeb)
@@ -1750,7 +1823,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         path: url.pathname.replace(
           /\/AppStream(?=\/|$)/i,
           SHORT_APP_STREAM_PATH
-        )
+        ),
+        // who may see which app, which the surface leaves to the host. The
+        // caller is resolved here because this branch answers before the API
+        // routes below resolve theirs
+        allow: await appFilter(await subjectOf(request, query))
       })
 
       // a removal changes the index, which lives in the drive: persisted in the

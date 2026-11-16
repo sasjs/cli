@@ -1508,6 +1508,59 @@ describe('service worker host', () => {
       })
     })
 
+    it('lists only the apps the caller holds a grant on', async () => {
+      // a fixture that denies the restricted account one app, by the label an
+      // older rule names for it
+      ;(global as any).__sasjsIdentity = {
+        ...DEFAULT_IDENTITY,
+        permissions: [
+          ...DEFAULT_IDENTITY.permissions,
+          {
+            uid: 'rule-app-orders',
+            path: '/AppStream/orders',
+            type: 'Route',
+            setting: 'Deny',
+            group: 'group-data-controller'
+          }
+        ]
+      }
+
+      const worker = loadWorker()
+
+      const archive = await zipOf({
+        'services/web/index.html': '<h1>Orders</h1>'
+      })
+      const form = new FormData()
+      form.set('appLoc', '/Public/apps/orders')
+      form.set('streamWebFolder', 'web')
+      form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+
+      const published = await worker.dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: form
+      })
+      expect(published.status).toBe(200)
+      const app = (await published.json()).app
+
+      // the administrator holds every app, so the listing is untouched for it
+      const asAdmin = await worker.dispatch('/app/apps.json')
+      expect((await asAdmin.json()).apps.map((row: any) => row.url)).toEqual([
+        app.url
+      ])
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+
+      // the rule the fixture states hides the app from the listing
+      const asRestricted = await worker.dispatch('/app/apps.json')
+      expect((await asRestricted.json()).apps).toEqual([])
+
+      // and the app's own URL is refused, rather than served to a caller the
+      // listing does not offer it to
+      const appUrl = app.url.replace(/^\/app/, '')
+      const page = await worker.dispatch(`/app${appUrl}`)
+      expect(page.status).toBe(404)
+    })
+
     it('keeps an app’s URL and tiles inside the folder the site is served from', async () => {
       const worker = loadWorker('/demo')
 
