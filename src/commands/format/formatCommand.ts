@@ -64,11 +64,12 @@ export class FormatCommand extends CommandBase {
       Boolean(check)
     )
       .then((outcome) => {
-        // A run without the engine is a rule-only run, and must not read as a
-        // clean one: the layout pass this command exists for never happened.
+        // Without the engine nothing was examined or written, so the run must not
+        // read as a clean one: the layout pass this command exists for never
+        // happened.
         if (outcome.engineUnavailable) {
           displayError(
-            'The SAS language engine could not be loaded, so only the linting rules were applied. Run `sasjs build` and try again, or install the CLI again.'
+            'The SAS language engine could not be loaded, so nothing was formatted. Run `sasjs build` and try again, or install the CLI again.'
           )
 
           return ReturnCode.FormatError

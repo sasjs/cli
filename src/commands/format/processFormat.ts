@@ -58,7 +58,7 @@ export interface FormatOutcome {
   failedFilePaths: FileFailure[]
   /** Filters that named no file, so the run did not cover what was asked. */
   unmatchedFilters: string[]
-  /** Set when the layout engine could not be loaded, so only the rules ran. */
+  /** Set when the layout engine could not be loaded; nothing is then examined or written. */
   engineUnavailable: boolean
 }
 
@@ -392,9 +392,9 @@ const formatToFixedPoint = async (
  * thrown: one unreadable file in a tree must not skip every file after it, which
  * is the rule `formatFolder` follows in `@sasjs/lint` for the same reason.
  *
- * When the engine cannot be loaded the rules still run, but the outcome says so:
- * a rule-only run must not read as a clean one, or a broken install passes the
- * gate the command exists to provide.
+ * When the engine cannot be loaded the run reports it and touches nothing: a
+ * rule-only result is not the canonical form, so there is nothing worth writing,
+ * and a run that reports itself as failed must not have changed the tree.
  *
  * @param filterArray - absolute paths or patterns; empty means the whole project
  * @param check - report instead of write
@@ -428,7 +428,7 @@ export const processFormat = async (
       engineUnavailable = true
 
       process.logger?.warn(
-        `The SAS language engine could not be loaded, so only the linting rules were applied: ${
+        `The SAS language engine could not be loaded, so nothing was formatted: ${
           error?.message ?? error
         }`
       )

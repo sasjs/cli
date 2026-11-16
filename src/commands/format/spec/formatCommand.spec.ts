@@ -113,7 +113,7 @@ describe('FormatCommand', () => {
     expect(spy).toHaveBeenCalledWith([], true)
   })
 
-  it('fails when the engine could not load, so a rule-only run is not green', async () => {
+  it('fails when the engine could not load, and reports that nothing was formatted', async () => {
     jest
       .spyOn(processFormatModule, 'processFormat')
       .mockResolvedValue(outcome({ engineUnavailable: true }))

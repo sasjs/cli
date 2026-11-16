@@ -455,7 +455,7 @@ describe('processFormat', () => {
     expect(outcome.changedFilePaths).toEqual([])
   })
 
-  it('reports the run as rule-only when the engine cannot load', async () => {
+  it('writes nothing when the engine cannot load', async () => {
     const filePath = write(dir, 'f.sas', 'DATA a;\nRUN;\n')
     jest
       .spyOn(engineModule, 'getFormatEngine')
