@@ -320,11 +320,27 @@
      * would read "File doesn't exist." while a re-create of any path the site
      * ships would read "File already exists." Sending what is stored is the same
      * handshake the page makes at boot, which is why it goes through `boot`.
+     *
+     * A FAILED READ IS AN ANSWER TOO. Staying silent would leave the worker
+     * waiting out its budget and then seeding over a drive that exists and is
+     * merely unreadable this moment - the one outcome this handshake is here to
+     * prevent. The worker fails that request instead, and asks again on the
+     * next one.
      */
     if (data.type === 'sasjs-need-drive') {
       Promise.all([readAll(), readIdentity(), readDeleted()])
         .then(([files, stored, deleted]) => boot(files, stored, deleted))
-        .catch((e) => console.error('[sasjs-mock] could not send the drive', e))
+        .then((answer) => {
+          // a boot the worker refused for a reason other than the fixture: the
+          // drive itself could not be installed
+          if (answer && answer.error && answer.errorKind !== 'identity')
+            throw new Error(answer.error)
+        })
+        .catch((e) => {
+          console.error('[sasjs-mock] could not send the drive', e)
+          const sw = navigator.serviceWorker.controller
+          if (sw) sw.postMessage({ type: 'sasjs-drive-unavailable' })
+        })
     }
   })
 

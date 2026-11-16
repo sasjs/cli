@@ -2570,6 +2570,83 @@ describe('service worker host', () => {
       )
     })
 
+    it('asks one page at a time, so two tabs cannot install two drives', async () => {
+      // a page answers by loading the drive into this worker: two answers are
+      // two installs and the last one wins, so the second tab is a fallback for
+      // the first not answering - never a second asker
+      const first = { postMessage: jest.fn() }
+      const second = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [first, second]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      await settleUntil(() => first.postMessage.mock.calls.length > 0)
+      expect(first.postMessage).toHaveBeenCalledWith({
+        type: 'sasjs-need-drive'
+      })
+      expect(second.postMessage).not.toHaveBeenCalled()
+
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+      await pending
+
+      // the answer came from the tab that was asked, so the other is never
+      // brought in
+      expect(second.postMessage).not.toHaveBeenCalled()
+    })
+
+    it('asks again when a page is slow to answer, instead of seeding', async () => {
+      // a tab whose read takes longer than one ask: the drive it eventually
+      // sends must be installed, not replaced by a seed
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent(`${appLoc}/made.sas`)
+      )
+
+      // the first ask goes unanswered
+      await settleUntil(() => client.postMessage.mock.calls.length === 1)
+      // ...and the worker asks again, rather than seeding when the wait expires
+      await settleUntil(() => client.postMessage.mock.calls.length === 2, 5000)
+
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+
+      const response = await pending
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('data;')
+    }, 20000)
+
+    it('fails the request rather than seeding over a drive the page cannot read', async () => {
+      // storage that exists and cannot be read this moment: seeding would
+      // replace it, which is the loss this whole handshake is here to prevent
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      message({ type: 'sasjs-drive-unavailable' })
+
+      const response = await pending
+      expect(response.status).toBe(500)
+      expect(await response.text()).toContain('seeding would replace it')
+    })
+
     it('asks once, however many requests arrive together', async () => {
       const client = { postMessage: jest.fn() }
       ;(global as any).__mockHostClients = [client]

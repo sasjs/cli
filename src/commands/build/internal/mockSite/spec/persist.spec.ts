@@ -578,6 +578,45 @@ describe('page-side store', () => {
   })
 
   /**
+   * A drive that exists and cannot be read is not the same as no drive. Silence
+   * would leave the worker waiting out its budget and seeding over the
+   * visitor's files; the answer has to say so, and the worker fails the request
+   * instead.
+   */
+  it('says the drive is unavailable when storage cannot be read', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply } = loadPersist({ controller })
+
+    // IndexedDB that refuses to open, as a locked or evicted store does
+    ;(global as any).indexedDB.open = () => {
+      const req: any = {
+        result: undefined,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null
+      }
+      setTimeout(() => req.onerror && req.onerror(), 0)
+      return req
+    }
+
+    reply({ type: 'sasjs-need-drive' })
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-drive-unavailable'
+      )
+    )
+
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'sasjs-drive-unavailable'
+    })
+    // and it never claimed to have a drive
+    expect(controller.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
+  })
+
+  /**
    * Answers whatever the page asks, so a boot test can assert on which question
    * was asked rather than on the reply.
    */

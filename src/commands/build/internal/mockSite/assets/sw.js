@@ -371,7 +371,8 @@ const broadcast = async (message) => {
 }
 
 /**
- * Resolvers waiting on the page's answer to a drive request.
+ * Resolvers waiting on the page's answer to a drive request, and that answer
+ * once it lands.
  *
  * The page owns the drive (`persist.js`): IndexedDB is durable, this worker is
  * not - the browser terminates it between requests and starts a new one on the
@@ -382,45 +383,74 @@ const broadcast = async (message) => {
  */
 let driveWaiters = []
 
-/** The page has answered (`sasjs-load` or `sasjs-seed`); stop waiting. */
-const driveArrived = () => {
+/** The page has answered, whatever it said; stop waiting. */
+const driveArrived = (verdict) => {
   const waiting = driveWaiters
   driveWaiters = []
-  waiting.forEach((resolve) => resolve())
+  waiting.forEach((resolve) => resolve(verdict))
 }
 
+/** How long one page gets to answer, and how long the whole ask may take. */
+const ASK_TIMEOUT = 2000
+const ASK_BUDGET = 5000
+
 /**
- * One ask per worker life.
+ * Asks the page for its drive, and answers what came back.
  *
- * Concurrent requests share the one promise: the second must not post a second
- * `sasjs-need-drive`, because the page would answer it with a second load of a
- * drive the first is already installing. With no client to ask - a worker woken
- * by nothing but its own timer - there is nothing to wait for, and the grace in
- * `ensureReady` leads to the seed as it always did.
+ * Concurrent requests share the one promise: a second ask would be a second
+ * load of a drive the first is already installing.
+ *
+ * ONE CLIENT AT A TIME. A page answers by loading the drive into this worker,
+ * so two tabs both answering is two installs and the last one wins; the second
+ * tab is the fallback for the first not answering, not a second asker.
+ *
+ * A page that has not answered yet is not a reason to seed - a large drive, or
+ * a busy tab, takes longer than one ask allows - so the ask is retried while
+ * the budget lasts. Only when every page has had its turn does the seed path
+ * take over, which is where this worker started; the stored drive is still in
+ * IndexedDB and comes back on the next page load.
+ *
+ * 'unavailable' is the page saying it holds a drive it cannot read: the caller
+ * must NOT seed over it, so the verdict travels back to `ensureReady`.
  */
 let driveAsked = null
 const askHostForDrive = () => {
   if (driveAsked) return driveAsked
 
+  const asked = new Set()
+
   driveAsked = (async () => {
-    const clients = await self.clients.matchAll({
-      includeUncontrolled: true,
-      type: 'window'
-    })
-    if (!clients.length) return
+    const deadline = Date.now() + ASK_BUDGET
 
-    const arrived = new Promise((resolve) => driveWaiters.push(resolve))
-    clients.forEach((client) =>
+    while (Date.now() < deadline) {
+      const clients = await self.clients.matchAll({
+        includeUncontrolled: true,
+        type: 'window'
+      })
+      // no page to ask: nothing can have the drive
+      if (!clients.length) return 'none'
+
+      const client = clients.find((c) => !asked.has(c)) || clients[0]
+      asked.add(client)
+
+      const arrived = new Promise((resolve) => driveWaiters.push(resolve))
       client.postMessage({ type: 'sasjs-need-drive' })
-    )
 
-    // A page that cannot answer must not hang a request: the wait ends and the
-    // seed path below takes over, which is where this worker started.
-    await Promise.race([
-      arrived,
-      new Promise((resolve) => setTimeout(resolve, 2000))
-    ])
-  })()
+      const verdict = await Promise.race([
+        arrived,
+        new Promise((resolve) => setTimeout(() => resolve(null), ASK_TIMEOUT))
+      ])
+
+      if (verdict) return verdict
+    }
+
+    return 'none'
+  })().then((verdict) => {
+    // an unreadable drive is not a final answer: ask again on the next request
+    // rather than failing every one for the life of this worker
+    if (verdict === 'unavailable') driveAsked = null
+    return verdict
+  })
 
   return driveAsked
 }
@@ -1843,7 +1873,7 @@ self.addEventListener('message', (event) => {
           .then(async () => {
             await persistChanges()
             // the request that asked for this drive is waiting on it
-            driveArrived()
+            driveArrived('loaded')
             reply({
               type: 'sasjs-load-ack',
               boot: R.bootInfo(),
@@ -1873,7 +1903,7 @@ self.addEventListener('message', (event) => {
             await persistChanges()
             // "there is nothing stored" is an answer too: the wait is over and
             // the seeded drive is the visitor's
-            driveArrived()
+            driveArrived('seeded')
             reply({
               type: 'sasjs-seed-ack',
               boot: R.bootInfo(),
@@ -1888,6 +1918,12 @@ self.addEventListener('message', (event) => {
             })
           )
       )
+      break
+
+    case 'sasjs-drive-unavailable':
+      // the page holds a drive it could not read: not an answer to seed over.
+      // `ensureReady` fails the request instead, and the next one asks again.
+      driveArrived('unavailable')
       break
 
     case 'sasjs-reset':

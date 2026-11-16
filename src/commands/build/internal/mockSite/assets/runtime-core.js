@@ -1825,17 +1825,25 @@ const api = {
    * runtime lives in a worker the browser terminates between requests: a fresh
    * worker that heard nothing used to seed over the visitor's drive, and every
    * file they had made then read `File doesn't exist.` The callback asks a live
-   * page, which answers with a load or with "nothing is stored"; the grace below
-   * still covers a page that cannot answer at all.
+   * page, which answers with a load, with "nothing is stored", or with
+   * "unavailable" - the last of which means a drive EXISTS and could not be
+   * read, so seeding would replace it. That verdict fails the request; the
+   * grace below covers a page that cannot answer at all.
    */
   ensureReady: async (onStart) => {
     if (!started && onStart) {
+      let verdict
       try {
-        await onStart()
+        verdict = await onStart()
       } catch (e) {
         // a host that cannot be asked is not a reason to refuse the request:
         // the seed path below is what this worker had before
+        verdict = undefined
       }
+      if (verdict === 'unavailable' && !started)
+        throw new Error(
+          'The drive could not be read, and seeding would replace it'
+        )
     }
     if (!started) {
       await new Promise((r) => setTimeout(r, 600))
