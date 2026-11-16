@@ -1241,11 +1241,12 @@ const RUN_ROUTES = new Set([
  * the triggers are outside the inventory the rules address, as they are on a
  * server.
  *
- * This set is a local copy of the package's own list in
- * `src/host/dispatch.ts`, so the two must move together until the pinned
- * `@sasjs/api` carries `mayUseRoute`: at that point this asks the one decision
- * directly instead of reading the whole reported list per run, which also
- * re-reads the rules and the groups.
+ * This set is a copy of the package's own list in `src/host/dispatch.ts`, and it
+ * fails open: a run route the package adds later is silently ungated here. It is
+ * retired by the `@sasjs/api` release that carries `mayUseRoute` - when the pin
+ * reaches that version, delete this set and ask the method instead, which is one
+ * decision rather than a read of the whole reported list, and stops the per-run
+ * re-read of the rules and the groups.
  */
 const GRANTED_RUN_ROUTES = new Set([
   'GET /SASjsApi/stp/execute',
@@ -1565,9 +1566,10 @@ const subjectOf = async (request, query) => {
  * The service is called directly rather than through `dispatch` because a run's
  * answer is the webout *with the headers its service declared*
  * (`content-disposition` is how a service names a download), and the artefact
- * the service returns is where those headers are. Everything a client observes
- * about the request - who may run it, which field names the program, what
- * `_debug` means - is still the package's decision.
+ * the service returns is where those headers are. What a client observes about
+ * the request - which field names the program, what `_debug` means, which run
+ * times are offered - is still the package's decision; who may run it is not,
+ * because it is asked here before this is reached (see `GRANTED_RUN_ROUTES`).
  */
 const runRoute = async (routeId, payload, subject) => {
   // A program may read any file it likes - the drive is its filesystem - so
