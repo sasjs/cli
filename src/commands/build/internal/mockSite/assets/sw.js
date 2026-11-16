@@ -1235,11 +1235,11 @@ const RUN_ROUTES = new Set([
  * interface, which is why a denied rule refuses the call and not only the menu
  * entry beside it.
  *
- * Two limits, both deliberate. The drive routes stay ungated in this host,
- * because the package does not gate them yet either - no rule is applied to a
- * drive call until sasjs/api#97 lands, and that gates the run routes only - and
- * the triggers are outside the inventory the rules address, as they are on a
- * server.
+ * Neither the drive routes nor the triggers are gated here, and that is
+ * deliberate: the drive routes stay ungated because the package does not gate
+ * them yet either (no rule is applied to a drive call until sasjs/api#97 lands,
+ * and that gates the run routes only), and the triggers are outside the
+ * inventory the rules address, as they are on a server.
  *
  * This set is a copy of the package's own list in `src/host/dispatch.ts`, and it
  * fails open: a run route the package adds later is silently ungated here. It is
