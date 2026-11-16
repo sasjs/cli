@@ -1714,9 +1714,13 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // absent and answers the file instead, which is the disagreement to avoid.
   const namedFile = url.searchParams.has('_FILE')
   const namedProgram = url.searchParams.has('_program')
-  const askedForFile =
-    webTier && request.method === 'GET' && url.searchParams.get('_FILE')
-  const askedForProgram = webTier && url.searchParams.get('_program')
+  // presence decides which branch runs, as it does on the server (`!== undefined`
+  // there): an empty `_FILE=` still reaches the read, and the host refuses the
+  // empty name - falling through to "not part of the API" would answer a 404 the
+  // server never gives
+  const askedForFile = webTier && request.method === 'GET' && namedFile
+  const askedForProgram =
+    webTier && /^\/StoredProgram$/i.test(path) && namedProgram
 
   // A request naming both is refused before either branch is chosen, in the
   // server's own words - by parameter, and before either tier or method is

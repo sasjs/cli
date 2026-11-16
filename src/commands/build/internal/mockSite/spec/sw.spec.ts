@@ -4002,6 +4002,18 @@ describe('service worker host', () => {
       )
     })
 
+    it('answers an empty file name with the package refusal, not a 404', async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(`/StoredProgram?_FILE=`)
+
+      // presence sends it to the read, as it does on the server; the empty name
+      // is then the package's to refuse. Falling through to "not part of the
+      // API" answered a 404 no host gives
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(`Can't get file outside drive.`)
+    })
+
     it('refuses both parameters when the second is present but empty', async () => {
       const worker = seeded()
       await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
