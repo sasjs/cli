@@ -1462,19 +1462,27 @@ describe('browser-hosted build', () => {
     )
   })
 
-  it('leaves a streamed web folder off the drive', async () => {
+  it('puts a streamed build on the drive, where its page reads it from', async () => {
     write(
       path.join(root, 'sasjsbuild', 'services', 'web', 'index.html'),
       '<html></html>'
+    )
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'clickme.html'),
+      `<html><script src="/SASJobExecution?_FILE=${appLoc}/services/web/index.html"></script></html>`
     )
 
     await buildMockSite(target({ streamWeb: true, streamWebFolder: 'web' }))
 
     const keys = Object.keys(readSeed().files)
-    expect(keys.some((k) => k.startsWith(`${appLoc}/services/web/`))).toBe(
-      false
+    // the artefact a server would serve is the artefact this site serves: the
+    // entry page and its assets are on the drive, read back through `_FILE=`
+    expect(keys).toContain(
+      `/sasjs/drive/files${appLoc}/services/web/index.html`
     )
-    // the same folder is still the site's own content, so it is copied
+    expect(keys).toContain(`/sasjs/drive/files${appLoc}/services/clickme.html`)
+
+    // and the unmodified frontend is still what the site itself is
     expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
   })
 

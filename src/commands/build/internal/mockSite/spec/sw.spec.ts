@@ -3912,4 +3912,160 @@ describe('service worker host', () => {
       expect((await routes.json()).paths).toContain('/SASjsApi/code/execute')
     })
   })
+
+  describe('the read a streamed deployment links to', () => {
+    const asset = (name: string) => drivePath(`services/web/${name}`)
+
+    it(`answers the SASjs tier spelling, typed as a script`, async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_FILE=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/javascript')
+      expect(await response.text()).toBe('console.log(1)')
+    })
+
+    it(`answers the estate spelling for an asset, typed as a script`, async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/javascript')
+      expect(await response.text()).toBe('console.log(1)')
+    })
+
+    it('answers the API spelling of the same read', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('style.css')]: 'body{}' })
+
+      const response = await worker.dispatch(
+        `/SASjsApi/drive/file?_FILE=${appLoc}/services/web/style.css`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/css')
+      expect(await response.text()).toBe('body{}')
+    })
+
+    it('serves the entry page as HTML, so it renders', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/clickme.html')]: '<html>app</html>'
+      })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/clickme.html`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/html')
+    })
+
+    it('refuses a request naming a program and a file, as the server does', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=${appLoc}/services/web/main&_FILE=${appLoc}/services/web/main.js`
+      )
+
+      // the server refuses rather than picking one, and the mock reproduces the
+      // refusal instead of answering the file: a site that worked here and 400'd
+      // on the server would be worse than one that fails in both
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
+    it('refuses both parameters on the estate spelling too', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js&_program=${appLoc}/services/web/main`
+      )
+
+      // the refusal is by parameter, not by tier: a Viya-built page naming both
+      // gets the same 400 here as it does against the server
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
+    it('answers an empty file name with the package refusal, not a 404', async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(`/StoredProgram?_FILE=`)
+
+      // presence sends it to the read, as it does on the server; the empty name
+      // is then the package's to refuse. Falling through to "not part of the
+      // API" answered a 404 no host gives
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(`Can't get file outside drive.`)
+    })
+
+    it('refuses both parameters when the second is present but empty', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_FILE=${appLoc}/services/web/main.js&_program=`
+      )
+
+      // presence, not truthiness: the server tests `!== undefined` and Express
+      // parses a bare `_program=` to the empty string, so this is refused there
+      // and must be refused here rather than answered as the file
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
+    it('refuses a request that names the file twice, as the package does', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js` +
+          `&_filePath=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(400)
+    })
+
+    it(`runs a program asked for through the SASjs tier`, async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=` +
+          encodeURIComponent(`${appLoc}/services/public/getdata.js`)
+      )
+
+      // the same answer the API's own execute route gives: the tier is a
+      // spelling of that operation, not a second implementation of it
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('seeded')
+    })
+
+    it(`answers a missing asset the way the estate does, not as a 404`, async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/gone.js`
+      )
+
+      expect(response.status).toBe(202)
+      expect(await response.text()).toBe('Parameter Error\nFile error')
+    })
+  })
 })

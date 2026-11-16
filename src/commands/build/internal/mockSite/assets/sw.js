@@ -220,6 +220,18 @@ self.addEventListener('activate', (event) =>
   event.waitUntil(self.clients.claim())
 )
 
+/**
+ * The host's refusal when a request names both tier parameters.
+ *
+ * The one other copy is the sentence sasjs/server mints on the same two
+ * parameters (`api/src/routes/setupRoutes.ts`, `TIER_NEEDS_ONE_PARAMETER`).
+ * The mock answers as the host answers, so the wording has to match: a spec on
+ * each side asserts the sentence itself rather than the constant, so a change
+ * to either copy fails there instead of drifting quietly.
+ */
+const TIER_NEEDS_ONE_PARAMETER =
+  'Exactly one of "_program" and "_FILE" may be given.'
+
 const json = (obj, status) =>
   new Response(JSON.stringify(obj, null, 2), {
     status: status || 200,
@@ -1189,6 +1201,10 @@ const parseLintConfig = (contents) => {
 
 const SERVICES = {
   drive: API.createDriveService(DRIVE_STORE),
+  // The read a streamed deployment links to, over the same store as the drive:
+  // a file the deploy wrote is the file its page fetches, typed by the package
+  // exactly as the server types it
+  deploymentFile: API.createDeploymentFileService(DRIVE_STORE),
   // The package's browser fixture states one run time; this host serves two, and
   // `info` is what the Studio reads to decide whether a file may be run at all,
   // so the answer is the host's own list rather than the fixture's.
@@ -1638,9 +1654,14 @@ const outputRoute = async (request, params, subject) => {
 /** The response a `contents` answer becomes, typed by the path it names. */
 const contentsResponse = (answer, path) => {
   const binary = typeof answer.contents !== 'string'
+  // a route that states a type decided it from what the file IS - a streamed
+  // deployment's asset - and that answer wins over the extension's guess
   return new Response(answer.contents, {
     status: answer.status,
-    headers: { 'content-type': contentTypeFor(path, binary) }
+    headers: Object.assign(
+      { 'content-type': answer.contentType || contentTypeFor(path, binary) },
+      answer.headers
+    )
   })
 }
 
@@ -1657,7 +1678,7 @@ const contentsResponse = (answer, path) => {
  */
 const ensureForRequest = async (url) => {
   const paths = []
-  for (const name of ['_filePath', '_program']) {
+  for (const name of ['_filePath', '_FILE', '_program']) {
     const value = url.searchParams.get(name)
     if (value) paths.push(value)
   }
@@ -1681,7 +1702,39 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // both are answered, so the alias is stripped once here and everything below -
   // the route lookup, the drive routes' plain-text refusals, the log - works
   // from one path.
-  const apiPath = path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
+  // The web tier spellings: ours (`/StoredProgram`, which a SASjs build links to)
+  // and the estate's (`/SASJobExecution`, which a Viya build bakes in). Neither
+  // is in an API table, so the path is translated to the operation it stands
+  // for rather than answered twice - `_FILE=` is the drive read (the package
+  // decides its typing and its refusal), `_program=` is the run.
+  const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
+  // Presence, not truthiness: the server tests `!== undefined`, and Express
+  // parses `_program=` to the empty string, so a request naming both with an
+  // empty value is refused there - a `get`-based guard reads the empty string as
+  // absent and answers the file instead, which is the disagreement to avoid.
+  const namedFile = url.searchParams.has('_FILE')
+  const namedProgram = url.searchParams.has('_program')
+  // presence decides which branch runs, as it does on the server (`!== undefined`
+  // there): an empty `_FILE=` still reaches the read, and the host refuses the
+  // empty name - falling through to "not part of the API" would answer a 404 the
+  // server never gives
+  const askedForFile = webTier && request.method === 'GET' && namedFile
+  const askedForProgram =
+    webTier && /^\/StoredProgram$/i.test(path) && namedProgram
+
+  // A request naming both is refused before either branch is chosen, in the
+  // server's own words - by parameter, and before either tier or method is
+  // considered, because that is the order the server checks them in. The mock
+  // exists so a host's answers can be reproduced: picking the file here would
+  // make the site work on a page the server answers 400 for.
+  if (webTier && namedFile && namedProgram)
+    return text(TIER_NEEDS_ONE_PARAMETER, 400)
+
+  const apiPath = askedForFile
+    ? '/SASjsApi/drive/file'
+    : askedForProgram && /^\/StoredProgram$/i.test(path)
+      ? '/SASjsApi/stp/execute'
+      : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
@@ -1913,7 +1966,12 @@ self.addEventListener('fetch', (event) => {
   // canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
 
-  if (!/^\/(SASjsApi|SASLogon|AppStream|api|app)(\/|$)/i.test(path)) return
+  if (
+    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram)(\/|$)/i.test(
+      path
+    )
+  )
+    return
   event.respondWith(handle(event.request, url))
 })
 

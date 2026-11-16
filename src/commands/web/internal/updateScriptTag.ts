@@ -26,7 +26,11 @@ export const updateScriptTag = async (
       const content = modifyLinksInContent(_content, assetPathMap)
 
       switch (serverType) {
+        // Viya and SASjs server both serve the asset itself, so the rewritten
+        // content is written beside the copy createAssetServices made; SAS 9 has
+        // no file service, so the same content becomes a stored process
         case ServerType.SasViya:
+        case ServerType.Sasjs:
           await createFile(path.join(destinationPath, scriptPath), content)
           break
 

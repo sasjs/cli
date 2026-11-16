@@ -1,7 +1,7 @@
 import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
 import { getAuthConfig } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
-import { reportAppUrl } from './appStreamUrl'
+import { reportStreamedApp } from './appStreamUrl'
 import {
   readFile,
   Target,
@@ -61,10 +61,15 @@ export async function deployToSasjsWithServicePack(
     throw new Error('Deploy service pack error')
   }
 
-  // a deploy that published an app says where it is - by id where the server
-  // answers one, by stream name where it still indexes apps by label
+  // a streamed deployment is opened at the entry page the build wrote, on this
+  // server's own file route - the folder it published the app under is not the
+  // address the page loads its assets through
   if (streamConfig?.streamWeb)
-    reportAppUrl(target.serverUrl, result, (message) =>
-      process.logger?.info(message)
+    reportStreamedApp(
+      target.serverUrl,
+      target.serverType,
+      target.appLoc,
+      streamConfig.streamServiceName as string,
+      (message) => process.logger?.info(message)
     )
 }
