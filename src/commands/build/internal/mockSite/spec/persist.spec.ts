@@ -526,6 +526,58 @@ describe('page-side store', () => {
   })
 
   /**
+   * The worker is terminated between requests and starts again with no drive at
+   * all: it asks the page, which is the half that owns durable storage. Without
+   * an answer it seeds, and every file the visitor made reads "File doesn't
+   * exist." from then on.
+   */
+  it('answers the worker with the stored drive when it asks for one', async () => {
+    const controller = { postMessage: jest.fn() }
+    const files = { '/sasjs/drive/files/myfolder/.sasjslint': '{"a":1}' }
+    const { reply } = loadPersist({
+      controller,
+      seeded: files,
+      seededDeleted: ['/sasjs/drive/files/gone.sas']
+    })
+
+    reply({ type: 'sasjs-need-drive' })
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-load'
+      )
+    )
+
+    // the deletions travel with it: a sharded site's index would otherwise
+    // restore the paths the visitor removed
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'sasjs-load',
+        files,
+        deleted: ['/sasjs/drive/files/gone.sas']
+      })
+    )
+  })
+
+  it('answers a drive request with a seed when nothing is stored', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply } = loadPersist({ controller })
+
+    reply({ type: 'sasjs-need-drive' })
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-seed'
+      )
+    )
+
+    // "nothing is stored" is an answer: the worker must stop waiting for one
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', files: {} })
+    )
+  })
+
+  /**
    * Answers whatever the page asks, so a boot test can assert on which question
    * was asked rather than on the reply.
    */

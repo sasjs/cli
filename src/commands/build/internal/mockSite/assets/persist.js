@@ -310,6 +310,22 @@
     }
     if (data.type === 'sasjs-host-error')
       console.error('[sasjs-mock] ' + data.path + ': ' + data.message)
+
+    /*
+     * The worker asks for the drive when it starts without one.
+     *
+     * It holds no durable state - the browser terminates it between requests -
+     * so a worker woken by the next request has an empty drive. Without this
+     * answer it would seed over the visitor's, and the files they had made
+     * would read "File doesn't exist." while a re-create of any path the site
+     * ships would read "File already exists." Sending what is stored is the same
+     * handshake the page makes at boot, which is why it goes through `boot`.
+     */
+    if (data.type === 'sasjs-need-drive') {
+      Promise.all([readAll(), readIdentity(), readDeleted()])
+        .then(([files, stored, deleted]) => boot(files, stored, deleted))
+        .catch((e) => console.error('[sasjs-mock] could not send the drive', e))
+    }
   })
 
   window.SASjsMock = {

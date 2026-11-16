@@ -1816,7 +1816,27 @@ ready = new Promise((resolve) => {
 })
 
 const api = {
-  ensureReady: async () => {
+  /**
+   * Waits for the host to say which drive this is, and seeds only when it does
+   * not.
+   *
+   * `onStart` is the worker's one chance to ask for a drive before the grace
+   * runs out. It matters because the drive is DURABLE IN THE PAGE and this
+   * runtime lives in a worker the browser terminates between requests: a fresh
+   * worker that heard nothing used to seed over the visitor's drive, and every
+   * file they had made then read `File doesn't exist.` The callback asks a live
+   * page, which answers with a load or with "nothing is stored"; the grace below
+   * still covers a page that cannot answer at all.
+   */
+  ensureReady: async (onStart) => {
+    if (!started && onStart) {
+      try {
+        await onStart()
+      } catch (e) {
+        // a host that cannot be asked is not a reason to refuse the request:
+        // the seed path below is what this worker had before
+      }
+    }
     if (!started) {
       await new Promise((r) => setTimeout(r, 600))
     }

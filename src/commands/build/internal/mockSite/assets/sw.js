@@ -371,6 +371,61 @@ const broadcast = async (message) => {
 }
 
 /**
+ * Resolvers waiting on the page's answer to a drive request.
+ *
+ * The page owns the drive (`persist.js`): IndexedDB is durable, this worker is
+ * not - the browser terminates it between requests and starts a new one on the
+ * next. That new worker has no drive, and `ensureReady` would seed over the
+ * visitor's: every file they made reads `File doesn't exist.`, and creating one
+ * the seed ships reads `File already exists.` So the worker asks a live page for
+ * what it stored before it considers seeding.
+ */
+let driveWaiters = []
+
+/** The page has answered (`sasjs-load` or `sasjs-seed`); stop waiting. */
+const driveArrived = () => {
+  const waiting = driveWaiters
+  driveWaiters = []
+  waiting.forEach((resolve) => resolve())
+}
+
+/**
+ * One ask per worker life.
+ *
+ * Concurrent requests share the one promise: the second must not post a second
+ * `sasjs-need-drive`, because the page would answer it with a second load of a
+ * drive the first is already installing. With no client to ask - a worker woken
+ * by nothing but its own timer - there is nothing to wait for, and the grace in
+ * `ensureReady` leads to the seed as it always did.
+ */
+let driveAsked = null
+const askHostForDrive = () => {
+  if (driveAsked) return driveAsked
+
+  driveAsked = (async () => {
+    const clients = await self.clients.matchAll({
+      includeUncontrolled: true,
+      type: 'window'
+    })
+    if (!clients.length) return
+
+    const arrived = new Promise((resolve) => driveWaiters.push(resolve))
+    clients.forEach((client) =>
+      client.postMessage({ type: 'sasjs-need-drive' })
+    )
+
+    // A page that cannot answer must not hang a request: the wait ends and the
+    // seed path below takes over, which is where this worker started.
+    await Promise.race([
+      arrived,
+      new Promise((resolve) => setTimeout(resolve, 2000))
+    ])
+  })()
+
+  return driveAsked
+}
+
+/**
  * Hands the page what changed: the drive files the runtime marked dirty, and the
  * identity store's own snapshot when a route changed it.
  *
@@ -1548,7 +1603,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // that needs a caller - a request that arrives before the page has booted
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
-    await R.ensureReady()
+    await R.ensureReady(askHostForDrive)
     await ensureForRequest(url)
 
     // The app stream is the server's own web surface rather than part of the
@@ -1787,6 +1842,8 @@ self.addEventListener('message', (event) => {
           .then(() => R.load(data.files || {}, data.deleted || []))
           .then(async () => {
             await persistChanges()
+            // the request that asked for this drive is waiting on it
+            driveArrived()
             reply({
               type: 'sasjs-load-ack',
               boot: R.bootInfo(),
@@ -1814,6 +1871,9 @@ self.addEventListener('message', (event) => {
           .then(() => R.seed())
           .then(async () => {
             await persistChanges()
+            // "there is nothing stored" is an answer too: the wait is over and
+            // the seeded drive is the visitor's
+            driveArrived()
             reply({
               type: 'sasjs-seed-ack',
               boot: R.bootInfo(),
@@ -1952,7 +2012,7 @@ self.addEventListener('message', (event) => {
       // build. Whole means whole: the pieces nobody read are fetched first, or
       // the export would quietly lose every app bundle it had not opened.
       event.waitUntil(
-        R.ensureReady()
+        R.ensureReady(askHostForDrive)
           .then(() => R.ensureAll())
           .then(() => reply({ type: 'sasjs-snapshot', files: R.dumpAll() }))
           .catch((e) =>
@@ -1967,7 +2027,7 @@ self.addEventListener('message', (event) => {
 
     case 'sasjs-stats':
       event.waitUntil(
-        R.ensureReady().then(() => {
+        R.ensureReady(askHostForDrive).then(() => {
           try {
             reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
           } catch (e) {

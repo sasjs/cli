@@ -2433,6 +2433,100 @@ describe('service worker host', () => {
     )
   })
 
+  /**
+   * The browser terminates a service worker between requests, and the next
+   * request starts a new one with an empty drive. The page is what holds the
+   * drive, so the worker asks it before the grace in `ensureReady` turns into a
+   * seed - a seed over a visitor's drive is their own files reading "File
+   * doesn't exist." and a re-create of a shipped path reading "File already
+   * exists."
+   */
+  describe('a worker that starts with no drive', () => {
+    const settleUntil = async (check: () => boolean, timeout = 4000) => {
+      const started = Date.now()
+      while (Date.now() - started < timeout) {
+        if (check()) return
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+    }
+
+    it('asks a live page for the drive, and serves the request from the answer', async () => {
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent(`${appLoc}/made.sas`)
+      )
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      expect(client.postMessage).toHaveBeenCalledWith({
+        type: 'sasjs-need-drive'
+      })
+
+      // the page answers with what it stored
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+
+      const response = await pending
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('data;')
+    })
+
+    it('stops waiting when the page answers that nothing is stored', async () => {
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      const seed = message({ type: 'sasjs-seed' })
+      await seed.pending
+
+      // the seed is an answer: the request is served from it rather than after
+      // the 2s wait plus the grace
+      const response = await pending
+      expect(response.status).toBe(200)
+      expect(JSON.stringify(await response.json())).toContain('Public')
+    })
+
+    it('seeds when there is no page to ask', async () => {
+      ;(global as any).__mockHostClients = []
+
+      const { dispatch } = loadWorker()
+
+      const response = await dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+      expect(response.status).toBe(200)
+    })
+
+    it('asks once, however many requests arrive together', async () => {
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch, message } = loadWorker()
+
+      const first = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+      const second = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(client.postMessage).toHaveBeenCalledTimes(1)
+
+      const seed = message({ type: 'sasjs-seed' })
+      await seed.pending
+      await first
+      await second
+    })
+  })
+
   it('claims the clients on install and activate', () => {
     const { lifecycle } = seeded()
 
