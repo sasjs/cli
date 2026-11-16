@@ -28,9 +28,8 @@ const dynamicImport = new Function('specifier', 'return import(specifier)') as (
  */
 /* istanbul ignore next -- the one loader jest cannot execute: it is a dynamic
    import of an ES module, which jest's module runtime refuses. Every real run of
-   the command goes through it; the contract above it is covered with injected
-   loaders, the engine's own suite covers what it returns, and the built output is
-   exercised directly - see the PR discussion. */
+   the command goes through it, and `test.sh` - the step holding the installed
+   tarball in build-and-smoke - formats a fixture, so that path is measured. */
 const fromPackage: EngineLoader = () =>
   dynamicImport('@sasjs/sas-language/format').then(
     (module) => module.formatText

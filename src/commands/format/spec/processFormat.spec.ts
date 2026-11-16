@@ -356,9 +356,10 @@ describe('processFormat', () => {
     expect(fs.readFileSync(filePath, 'utf8').includes('\r\n')).toBe(false)
   })
 
-  it('normalises to LF by default, matching the lineEndings rule', async () => {
-    // The setting's default is `lf`, so a CRLF checkout converges on LF rather
-    // than flipping back and forth between a run and the check that follows it.
+  it('normalises to LF by default, because the engine joins on LF', async () => {
+    // Not because the `lineEndings` rule says so - its default is `off`, so that
+    // rule does not run at all. The engine's join is what moves a CRLF checkout to
+    // LF, and it is why `format` and `lint` disagree on a default project.
     const filePath = write(dir, 'm.sas', 'DATA a;\r\nRUN;\r\n')
 
     await processFormat([filePath], false, { reprint })

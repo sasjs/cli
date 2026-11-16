@@ -106,9 +106,11 @@ const BOM = '\uFEFF'
  * A byte-order mark records how the file is encoded rather than how it is
  * formatted, so it is not this command's to remove: `readFile` hands it back as
  * the first character, the pipeline does not carry it through, and it is restored
- * here. Line endings need no such treatment - they are part of the canonical form
- * and follow `.sasjslint`'s `lineEndings`, which defaults to `lf`, exactly as the
- * `lineEndings` rule does for `sasjs lint`.
+ * here. Line endings need no such treatment: the engine joins lines on LF, so a
+ * CRLF file is normalised either way, and `.sasjslint`'s `lineEndings` only decides
+ * whether CRLF is produced instead. Its default is `off`, which registers no rule
+ * at all - so `sasjs lint` says nothing about endings on a default project while
+ * this command still rewrites them.
  *
  * @param before - the file as it was read
  * @param formatted - the settled formatting of it
@@ -177,8 +179,12 @@ const unique = (paths: string[]) => [...new Set(paths)]
  * will not format.
  *
  * Absolute paths are taken as given, unless they name a folder, in which case the
- * folder is walked; anything else is a pattern matched against every `.sas` file
- * in the project, which is how `sasjs lint` reads a filter. An absolute path that
+ * folder is walked; anything else is matched against the project's own paths, as a
+ * run of whole segments. That is deliberately *not* how `sasjs lint` reads a
+ * filter: it builds a regular expression from the arguments and tests it anywhere
+ * in the path, so `macros` there also matches `sasjs/macros_old`, and `[` throws.
+ * Parity would restore both of those, so the difference is the point. An absolute
+ * path that
  * is not a `.sas` file is refused rather than formatted: the language engine will
  * happily reprint a markdown file, and a formatter that rewrites what it was not
  * asked to is worse than one that says no.
