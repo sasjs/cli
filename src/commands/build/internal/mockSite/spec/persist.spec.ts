@@ -184,7 +184,11 @@ const loadPersist = (
 
   require('../assets/persist.js')
 
-  const reply = (data: any) => [...listeners].forEach((fn) => fn({ data }))
+  // `source` is the worker that sent it, as a real MessageEvent carries: the
+  // page answers the sender, so a test has to be able to hand it a different
+  // one from the page's `controller`
+  const reply = (data: any, source?: any) =>
+    [...listeners].forEach((fn) => fn({ data, source }))
 
   return {
     window,
@@ -573,6 +577,26 @@ describe('page-side store', () => {
         deleted: ['/sasjs/drive/files/gone.sas']
       })
     )
+  })
+
+  it('answers the sender when the page controls a different worker', async () => {
+    // after a rollover a new worker can ask while `controller` still names its
+    // predecessor, and a page that has not been claimed has no controller at
+    // all - reaching for `controller` in either case answers the wrong worker,
+    // or nothing, and the asker seeds over the drive
+    const controller = { postMessage: jest.fn() }
+    const asker = { postMessage: jest.fn() }
+    const files = { '/sasjs/drive/files/kept.sas': 'kept' }
+    const { reply } = loadPersist({ controller, seeded: files })
+
+    reply({ type: 'sasjs-need-drive' }, asker)
+
+    await settleUntil(() => asker.postMessage.mock.calls.length === 1)
+
+    expect(asker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load', files })
+    )
+    expect(controller.postMessage).not.toHaveBeenCalled()
   })
 
   it('answers a drive request with a seed when nothing is stored', async () => {
@@ -1042,10 +1066,19 @@ describe('page-side store', () => {
       errorKind: 'host'
     })
 
-    // so the drive is dropped and the site's own seed asked for
+    // so the drive is dropped and the site's own seed asked for - with the
+    // account it already holds. A seed without it puts a visitor who signed in
+    // as one of their own accounts back on the shipped fixture while their row
+    // stays in storage, which is the half the IndexedDB assertion below cannot
+    // see
     await until(() => controller.postMessage.mock.calls.length === 2)
     expect(controller.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'sasjs-seed', files: {} })
+      expect.objectContaining({
+        type: 'sasjs-seed',
+        files: {},
+        identity: FIXTURE,
+        subject: 'sasjsuser'
+      })
     )
     reply({ type: 'sasjs-seed-ack', booted: true })
 

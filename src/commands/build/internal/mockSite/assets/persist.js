@@ -343,10 +343,18 @@
      * just rejected would only be rejected again.
      */
     if (data.type === 'sasjs-need-drive') {
-      // the worker that asked is the one to answer, so it is taken now: the
-      // read below can outlive the controller it started under, and a late
-      // callback has no business reaching for `navigator` again
-      const worker = navigator.serviceWorker.controller
+      // The SENDER is the worker to answer, and `controller` is only a fallback.
+      // They are the same object in the ordinary case, but not after a
+      // rollover: a new worker can ask while `controller` still names its
+      // predecessor, and a page that has not been claimed yet has no controller
+      // at all - so reaching for `controller` here answers the wrong worker, or
+      // nothing, while the asker waits out its budget and seeds over the drive
+      // this handshake exists to preserve. The event carries the sender, which
+      // is also how the worker answers the page (sw.js: `event.source`).
+      //
+      // It is captured now rather than read later: the reads below can outlive
+      // it, and a late callback has no business reaching for `navigator` again.
+      const worker = ev.source || navigator.serviceWorker.controller
       const answerTo = (message) => worker && worker.postMessage(message)
 
       Promise.all([readAll(), readIdentity(), readDeleted()])
@@ -542,8 +550,14 @@
       } catch (e) {
         console.error('[sasjs-mock] could not clear the refused drive: ' + e)
       }
-      // empty files, so this is a seed and the branch above cannot repeat
-      return await boot({}, null, [], controller)
+      // empty files, so this is a seed and the branch above cannot repeat. The
+      // identity travels: the worker refused the DRIVE, not the account, and a
+      // seed without it would put a visitor who signed in with an account they
+      // created back on the shipped fixture for the rest of the session, while
+      // their row stays in storage. An identity the worker does refuse comes
+      // back as `errorKind: 'identity'`, which the branch above clears and
+      // retries.
+      return await boot({}, stored, [], controller)
     }
 
     return answer
