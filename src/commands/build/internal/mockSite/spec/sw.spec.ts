@@ -2607,6 +2607,60 @@ describe('service worker host', () => {
       expect(second.postMessage).not.toHaveBeenCalled()
     })
 
+    it('reports a failed write-back as a persist failure, not a refused drive', async () => {
+      // the whole load chain used to end in one `errorKind: 'host'`, so a drive
+      // the worker had accepted and loaded - whose write-back to the other tabs
+      // failed - was reported as the payload being refused, and the page
+      // answered that by deleting a drive it could still read
+      const { message } = seeded()
+      ;(global as any).__mockHostClients = () => {
+        throw new Error('no clients')
+      }
+      // a seed installs the shipped drive, which marks it dirty: that is what
+      // the worker has to write back, and what fails here
+
+      const seed = message({ type: 'sasjs-seed' })
+      await seed.pending
+
+      const ack = seed.replies.find((r: any) => r.type === 'sasjs-seed-ack')
+      expect(ack).toBeDefined()
+      expect(ack.errorKind).toBe('persist')
+      expect(ack.error).toContain('no clients')
+    }, 20000)
+
+    it('persists a write when a closed tab fails the write-back', async () => {
+      // the broadcast is not the write: a tab that closed since matchAll()
+      // raises InvalidStateError, and one closed tab must not fail a write the
+      // others just received - nor the request that is waiting on it
+      const closed = jest.fn(() => {
+        throw new Error('InvalidStateError')
+      })
+      const live = jest.fn()
+      ;(global as any).__mockHostClients = () => [
+        { id: 'tab-closed', postMessage: closed },
+        { id: 'tab-live', postMessage: live }
+      ]
+
+      const { dispatch } = seeded()
+      const created = await dispatch('/SASjsApi/drive/file', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          params: { filePath: '/Public/kept.sas' },
+          tables: [{ name: 'file', filename: 'kept.sas', csv: btoa('kept;') }]
+        })
+      })
+
+      expect(closed).toHaveBeenCalled()
+      expect(created.status).toBe(200)
+
+      const read = await dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent('/Public/kept.sas')
+      )
+      expect(read.status).toBe(200)
+    }, 20000)
+
     it('moves to the next tab when a tab cannot be reached', async () => {
       // a tab that closed between matchAll() and the send raises
       // InvalidStateError. That is this client not answering, not a verdict: if

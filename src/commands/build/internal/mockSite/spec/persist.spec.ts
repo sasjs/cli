@@ -1054,6 +1054,33 @@ describe('page-side store', () => {
     )
   })
 
+  it('keeps the drive when the worker loaded it but could not share it', async () => {
+    // a drive the worker accepted and loaded, whose write-back to the other tabs
+    // failed, is not a refused drive: clearing it would delete files the worker
+    // is serving, so the failure is reported and storage is left alone
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, rows } = loadPersist({
+      controller,
+      ready: Promise.resolve({}),
+      seeded: { '/sasjs/drive/stored.txt': 'stored' }
+    })
+
+    const stop = answerAll(controller, listeners, (index) =>
+      index === 0
+        ? { error: 'a tab closed mid-broadcast', errorKind: 'persist' }
+        : { booted: true }
+    )
+    await window.__sasjsMockReady
+    stop()
+
+    expect(rows.has('/sasjs/drive/stored.txt')).toBe(true)
+    // and it was not re-seeded over either
+    const seeds = controller.postMessage.mock.calls.filter(
+      ([message]: any[]) => message.type === 'sasjs-seed'
+    )
+    expect(seeds).toHaveLength(0)
+  })
+
   it('stores the fixture the worker reports when a route changed it', async () => {
     const controller = { postMessage: jest.fn() }
     const { reply, rows, identityRows } = loadPersist({ controller })

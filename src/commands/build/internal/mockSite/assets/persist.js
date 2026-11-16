@@ -386,7 +386,7 @@
           // only the seed being refused as well reaches here: nothing this page
           // holds can be installed, so the worker must not seed over storage it
           // has not been given
-          if (answer && answer.error && answer.errorKind !== 'identity')
+          if (answer && answer.error && answer.errorKind === 'host')
             answerTo({ type: 'sasjs-drive-unavailable' })
         })
         .catch((e) => {
@@ -563,6 +563,18 @@
         ack,
         controller
       )
+    }
+
+    if (answer.error && answer.errorKind === 'persist') {
+      // the worker has the drive: only the write-back to the other tabs failed.
+      // Nothing here is a refusal - clearing would delete a drive it is serving,
+      // and re-sending would write it again - so the failure is reported and the
+      // answer is treated as the success it is.
+      console.warn(
+        '[sasjs-mock] the drive loaded but could not be shared with the other tabs: ' +
+          answer.error
+      )
+      return { ...answer, error: undefined, errorKind: undefined }
     }
 
     if (answer.error && answer.errorKind === 'host' && loading) {

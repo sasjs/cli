@@ -367,7 +367,16 @@ const artifactResponse = (artifact) =>
 
 const broadcast = async (message) => {
   const clients = await self.clients.matchAll({ includeUncontrolled: true })
-  clients.forEach((client) => client.postMessage(message))
+  clients.forEach((client) => {
+    // a tab that closed between matchAll() and the send raises
+    // InvalidStateError, and one closed tab must not fail the broadcast the
+    // others just received - nor the load that is waiting on this call
+    try {
+      client.postMessage(message)
+    } catch (e) {
+      /* that client is gone: the rest still get it */
+    }
+  })
 }
 
 /**
@@ -1896,13 +1905,28 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.load(data.files || {}, data.deleted || []))
           .then(async () => {
-            await persistChanges()
+            // From here the payload is accepted and in the drive: a failure to
+            // write it back to the other tabs is NOT the worker refusing the
+            // data, and reporting it as a `host` refusal would have the page
+            // delete a stored drive the worker is serving. It gets its own kind,
+            // so a failed broadcast is reported and the drive left alone.
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
             // the request that asked for this drive is waiting on it
             driveArrived('loaded')
             reply({
               type: 'sasjs-load-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
@@ -1925,14 +1949,26 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.seed())
           .then(async () => {
-            await persistChanges()
+            // as in the load ack: the seed is installed, and a failed write-back
+            // to the other tabs is a `persist` failure, not a refused seed
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
             // "there is nothing stored" is an answer too: the wait is over and
             // the seeded drive is the visitor's
             driveArrived('seeded')
             reply({
               type: 'sasjs-seed-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
