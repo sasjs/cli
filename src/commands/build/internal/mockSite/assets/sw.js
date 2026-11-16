@@ -1690,17 +1690,20 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // both are answered, so the alias is stripped once here and everything below -
   // the route lookup, the drive routes' plain-text refusals, the log - works
   // from one path.
-  // The web tier spellings of the streamed read: ours (`/StoredProgram`, which a
-  // SASjs build links to) and the estate's (`/SASJobExecution`, which a Viya
-  // build bakes in). Neither is in an API table, so the path is translated
-  // rather than answered twice: the drive route below decides it, with the
-  // package's typing and the package's refusal.
+  // The web tier spellings: ours (`/StoredProgram`, which a SASjs build links to)
+  // and the estate's (`/SASJobExecution`, which a Viya build bakes in). Neither
+  // is in an API table, so the path is translated to the operation it stands
+  // for rather than answered twice - `_FILE=` is the drive read (the package
+  // decides its typing and its refusal), `_program=` is the run.
+  const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
   const apiPath =
-    request.method === 'GET' &&
-    /^\/(SASJobExecution|StoredProgram)$/i.test(path) &&
-    url.searchParams.get('_FILE')
+    webTier && request.method === 'GET' && url.searchParams.get('_FILE')
       ? '/SASjsApi/drive/file'
-      : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
+      : webTier &&
+          /^\/StoredProgram$/i.test(path) &&
+          url.searchParams.get('_program')
+        ? '/SASjsApi/stp/execute'
+        : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 

@@ -3981,7 +3981,21 @@ describe('service worker host', () => {
       expect(response.status).toBe(400)
     })
 
-    it('answers a missing asset the way the estate does, not as a 404', async () => {
+    it(`runs a program asked for through the SASjs tier`, async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=` +
+          encodeURIComponent(`${appLoc}/services/public/getdata.js`)
+      )
+
+      // the same answer the API's own execute route gives: the tier is a
+      // spelling of that operation, not a second implementation of it
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('seeded')
+    })
+
+    it(`answers a missing asset the way the estate does, not as a 404`, async () => {
       const worker = seeded()
 
       const response = await worker.dispatch(
