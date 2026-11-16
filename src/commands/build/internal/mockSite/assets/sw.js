@@ -1716,13 +1716,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   const askedForProgram = webTier && url.searchParams.get('_program')
 
   // A request naming both is refused before either branch is chosen, in the
-  // server's own words. The mock exists so a host's answers can be reproduced:
-  // picking the file here would make the site work on a page the server answers
-  // 400 for, which is the one disagreement worth not having.
-  // by parameter and by method-agnostic reading, as the server refuses it: the
-  // server checks the two names before it looks at the method
-  if (namedFile && askedForProgram)
-    return text(TIER_NEEDS_ONE_PARAMETER, 400)
+  // server's own words - by parameter, and before either tier or method is
+  // considered, because that is the order the server checks them in. The mock
+  // exists so a host's answers can be reproduced: picking the file here would
+  // make the site work on a page the server answers 400 for.
+  if (namedFile && askedForProgram) return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
   const apiPath = askedForFile
     ? '/SASjsApi/drive/file'
