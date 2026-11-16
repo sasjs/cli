@@ -3912,4 +3912,59 @@ describe('service worker host', () => {
       expect((await routes.json()).paths).toContain('/SASjsApi/code/execute')
     })
   })
+
+  describe('the read a streamed deployment links to', () => {
+    const asset = (name: string) => drivePath(`services/web/${name}`)
+
+    it('answers the estate spelling for an asset, typed as a script', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/javascript')
+      expect(await response.text()).toBe('console.log(1)')
+    })
+
+    it('answers the API spelling of the same read', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('style.css')]: 'body{}' })
+
+      const response = await worker.dispatch(
+        `/SASjsApi/drive/file?_FILE=${appLoc}/services/web/style.css`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/css')
+      expect(await response.text()).toBe('body{}')
+    })
+
+    it('serves the entry page as HTML, so it renders', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/clickme.html')]: '<html>app</html>'
+      })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/clickme.html`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/html')
+    })
+
+    it('answers a missing asset the way the estate does, not as a 404', async () => {
+      const worker = seeded()
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/gone.js`
+      )
+
+      expect(response.status).toBe(202)
+      expect(await response.text()).toBe('Parameter Error\nFile error')
+    })
+  })
 })

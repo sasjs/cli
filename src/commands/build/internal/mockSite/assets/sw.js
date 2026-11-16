@@ -1189,6 +1189,10 @@ const parseLintConfig = (contents) => {
 
 const SERVICES = {
   drive: API.createDriveService(DRIVE_STORE),
+  // The read a streamed deployment links to, over the same store as the drive:
+  // a file the deploy wrote is the file its page fetches, typed by the package
+  // exactly as the server types it
+  deploymentFile: API.createDeploymentFileService(DRIVE_STORE),
   // The package's browser fixture states one run time; this host serves two, and
   // `info` is what the Studio reads to decide whether a file may be run at all,
   // so the answer is the host's own list rather than the fixture's.
@@ -1638,9 +1642,14 @@ const outputRoute = async (request, params, subject) => {
 /** The response a `contents` answer becomes, typed by the path it names. */
 const contentsResponse = (answer, path) => {
   const binary = typeof answer.contents !== 'string'
+  // a route that states a type decided it from what the file IS - a streamed
+  // deployment's asset - and that answer wins over the extension's guess
   return new Response(answer.contents, {
     status: answer.status,
-    headers: { 'content-type': contentTypeFor(path, binary) }
+    headers: Object.assign(
+      { 'content-type': answer.contentType || contentTypeFor(path, binary) },
+      answer.headers
+    )
   })
 }
 
@@ -1657,7 +1666,7 @@ const contentsResponse = (answer, path) => {
  */
 const ensureForRequest = async (url) => {
   const paths = []
-  for (const name of ['_filePath', '_program']) {
+  for (const name of ['_filePath', '_FILE', '_program']) {
     const value = url.searchParams.get(name)
     if (value) paths.push(value)
   }
@@ -1681,7 +1690,16 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // both are answered, so the alias is stripped once here and everything below -
   // the route lookup, the drive routes' plain-text refusals, the log - works
   // from one path.
-  const apiPath = path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
+  // The estate's spelling of the streamed read. A build made for SAS Viya links
+  // every asset through `/SASJobExecution?_FILE=<path>`, which no API table
+  // knows, so the path is translated rather than answered twice: the drive route
+  // below decides it, with the package's typing and the package's refusal.
+  const apiPath =
+    request.method === 'GET' &&
+    /^\/SASJobExecution$/i.test(path) &&
+    url.searchParams.get('_FILE')
+      ? '/SASjsApi/drive/file'
+      : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
@@ -1913,7 +1931,12 @@ self.addEventListener('fetch', (event) => {
   // canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
 
-  if (!/^\/(SASjsApi|SASLogon|AppStream|api|app)(\/|$)/i.test(path)) return
+  if (
+    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution)(\/|$)/i.test(
+      path
+    )
+  )
+    return
   event.respondWith(handle(event.request, url))
 })
 
