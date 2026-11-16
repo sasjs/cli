@@ -20,6 +20,7 @@ import { RunCommand } from '../../commands/run/runCommand'
 import { RequestCommand } from '../../commands/request/requestCommand'
 import { HelpCommand } from '../../commands/help/helpCommand'
 import { JobCommand } from '../../commands/job/jobCommand'
+import { FormatCommand } from '../../commands/format/formatCommand'
 import { LintCommand } from '../../commands/lint/lintCommand'
 import { LogCheckCommand } from '../../commands/logcheck/logcheckCommand'
 import { FlowCommand } from '../../commands/flow/flowCommand'
@@ -43,6 +44,7 @@ export const commandFactory = new Map<string, Function>([
   ['deploy', (args: string[]) => new DeployCommand(args)],
   ['doc', (args: string[]) => new DocsCommand(args)],
   ['folder', (args: string[]) => new FolderCommand(args)],
+  ['format', (args: string[]) => new FormatCommand(args)],
   ['fs', (args: string[]) => new FSCommand(args)],
   ['help', (args: string[]) => new HelpCommand(args)],
   ['init', (args: string[]) => new InitCommand(args)],

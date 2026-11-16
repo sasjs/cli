@@ -45,6 +45,30 @@ process_result $?
 # process_result $?
 # cd -
 
+echo $'\e[34mSASjs Format'
+mkdir -p test6/sasjs
+printf 'DATA x;\nSET y;\nRUN;\n' > test6/sasjs/app.sas
+cd test6
+
+# The engine loads through a native import() out of the compiled CommonJS, which
+# is the one path jest cannot execute - it refuses a dynamic import of an ES
+# module. Formatting a file here is what puts that path under a check, against the
+# installed tarball rather than the source tree.
+format_status=0
+check_status=0
+sasjs format > /dev/null || format_status=$?
+sasjs format --check > /dev/null || check_status=$?
+cd ..
+rm -rf test6
+
+if [ $format_status -eq 0 ] && [ $check_status -eq 0 ]
+then
+  echo $'\e[32mSuccess!'
+else
+  echo $'\e[91mTest failed.'
+  exit 1
+fi
+
 echo $'\e[34mCleaning up...'
 rm -rf test1
 rm -rf test2
