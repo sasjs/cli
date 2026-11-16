@@ -57,11 +57,11 @@ export const webAppStreamUrl = (
  *
  * Two addresses, because one of them is younger than the other. The entry page
  * is the streamed artefact, and the server answers it through the
- * `/StoredProgram` tier: sasjs/server#736 and later. The app stream is the
+ * `/StoredProgram` tier: sasjs/server v7.23.0 and later. The app stream is the
  * folder the deploy published, which every server release serves - so a target
- * whose server predates the tier still gets an address that works, and the
- * deploy output names the dependency rather than announcing only a page that
- * would render blank.
+ * whose server predates that release still gets an address that works, and the
+ * deploy output names the version rather than only a page that would render
+ * blank.
  */
 export const reportStreamedApp = (
   serverUrl: string,
@@ -82,7 +82,9 @@ export const reportStreamedApp = (
   const published = webAppStreamUrl(serverUrl, { streamServiceName })
 
   if (published && serverType === ServerType.Sasjs)
+    // the version, not the pull request: this line exists so an operator can
+    // tell whether the server they are deploying to serves the entry page
     info?.(
-      `App stream: ${published} (answers on servers that predate /StoredProgram)`
+      `App stream: ${published} (any server release; the entry page above needs sasjs/server v7.23.0 or later)`
     )
 }

@@ -96,7 +96,7 @@ describe('executeDeployScriptSasjs', () => {
     // and the published folder as well: a server that predates the tier does
     // not answer the line above, so the deploy names an address that works
     expect(process.logger?.info).toHaveBeenCalledWith(
-      `App stream: ${target.serverUrl}/app/clickme/ (answers on servers that predate /StoredProgram)`
+      `App stream: ${target.serverUrl}/app/clickme/ (any server release; the entry page above needs sasjs/server v7.23.0 or later)`
     )
   })
 })

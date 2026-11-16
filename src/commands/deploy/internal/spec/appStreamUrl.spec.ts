@@ -67,7 +67,7 @@ describe('the url a deploy reports', () => {
         encodeURI('/Public/app') +
         '/services/mario.html',
       'App stream: https://server.example/app/mario/ ' +
-        '(answers on servers that predate /StoredProgram)'
+        '(any server release; the entry page above needs sasjs/server v7.23.0 or later)'
     ])
   })
 
