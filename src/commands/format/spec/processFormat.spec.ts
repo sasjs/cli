@@ -26,6 +26,22 @@ const write = (dir: string, name: string, text: string) => {
 }
 
 /**
+ * Puts a `.sasjslint` in `dir` and works from there, returning the directory the
+ * caller must change back to.
+ *
+ * `getLintConfig` walks up from the working directory, which is where a user runs
+ * the command from, so a spec that wants a setting has to run from the project.
+ */
+const withLintConfig = (dir: string, json: string) => {
+  fs.writeFileSync(path.join(dir, '.sasjslint'), json)
+
+  const previous = process.cwd()
+  process.chdir(dir)
+
+  return previous
+}
+
+/**
  * A reprint that never settles, so the fixed-point loop reaches its bound.
  *
  * Adding a trailing space does not work: the rules strip it on the same pass, so
@@ -192,17 +208,123 @@ describe('processFormat', () => {
 
   it('does not list a file as rewritten when its write fails', async () => {
     // Pushing before the write reported a file as both rewritten and failed. The
-    // failure is a real EACCES on a read-only file, not a mocked one: the suite
-    // runs unprivileged, where chmod 0444 is enough.
-    const filePath = write(dir, 'h.sas', 'DATA a;\nRUN;\n')
-    fs.chmodSync(filePath, 0o444)
+    // failure is a real EACCES: the file is replaced through a sibling temporary
+    // file, so it is the folder's permission that stops it, and the original must
+    // come through untouched either way.
+    const folder = path.join(dir, 'locked')
+    const filePath = write(folder, 'h.sas', 'DATA a;\nRUN;\n')
+    fs.chmodSync(folder, 0o555)
 
-    const outcome = await processFormat([filePath], false, { reprint })
+    try {
+      const outcome = await processFormat([filePath], false, { reprint })
 
-    expect(outcome.changedFilePaths).toEqual([])
-    expect(outcome.failedFilePaths.map((failure) => failure.filePath)).toEqual([
-      filePath
-    ])
+      expect(outcome.changedFilePaths).toEqual([])
+      expect(
+        outcome.failedFilePaths.map((failure) => failure.filePath)
+      ).toEqual([filePath])
+      expect(fs.readFileSync(filePath, 'utf8')).toEqual('DATA a;\nRUN;\n')
+    } finally {
+      fs.chmodSync(folder, 0o755)
+    }
+  })
+
+  // A rewrite replaces the file rather than truncating it, so an interrupted run
+  // cannot leave the source empty. A replaced file has a new inode; one written in
+  // place keeps it, which is what this asserts. `ino` says nothing on Windows, and
+  // there the property holds by construction - the rename is a MoveFileEx.
+  const posixOnly = process.platform === 'win32' ? it.skip : it
+
+  posixOnly('replaces the file instead of truncating it', async () => {
+    const filePath = write(dir, 'i.sas', 'DATA a;\nRUN;\n')
+    const inodeBefore = fs.statSync(filePath).ino
+
+    await processFormat([filePath], false, { reprint })
+
+    expect(fs.statSync(filePath).ino).not.toEqual(inodeBefore)
+    expect(fs.readdirSync(dir).filter((name) => name.includes('tmp'))).toEqual(
+      []
+    )
+  })
+
+  it('treats a path it cannot stat as not a folder', async () => {
+    // `throwIfNoEntry` covers a missing path; an EACCES on the walk down to it is
+    // the other way `statSync` throws, and a formatter must not die on it.
+    const blocked = path.join(dir, 'blocked')
+    fs.mkdirSync(blocked)
+    fs.chmodSync(blocked, 0o000)
+
+    const named = path.join(blocked, 'x.sas')
+
+    try {
+      const { files } = await resolveSasFiles([named])
+
+      expect(files).toEqual([named])
+    } finally {
+      fs.chmodSync(blocked, 0o755)
+    }
+  })
+
+  it('records an absolute folder that holds no .sas file', async () => {
+    // The pattern branch reports a filter that names nothing; the absolute branch
+    // reached the same green gate, so a renamed folder read as a clean run.
+    const empty = path.join(dir, 'empty')
+    fs.mkdirSync(empty)
+
+    const { unmatchedFilters } = await resolveSasFiles([empty])
+
+    expect(unmatchedFilters).toEqual([empty])
+  })
+
+  it('keeps a byte-order mark, which is encoding rather than formatting', async () => {
+    // `readFile` hands the mark back as the first character and the layout pass
+    // does not carry it through, so it has to be put back.
+    const filePath = write(dir, 'j.sas', '\uFEFFDATA a;\nRUN;\n')
+
+    await processFormat([filePath], false, { reprint })
+
+    expect(fs.readFileSync(filePath, 'utf8').charCodeAt(0)).toEqual(0xfeff)
+  })
+
+  it('writes the line endings .sasjslint asks for', async () => {
+    // CRLF is a project decision when the project states one: the `lineEndings`
+    // rule reads the same setting, so `format` and `lint` agree on the canonical
+    // form. `getLintConfig` resolves the file from the working directory, which is
+    // where a user runs the command from.
+    const filePath = write(dir, 'k.sas', 'DATA a;\nRUN;\n')
+    const previous = withLintConfig(dir, '{"lineEndings": "crlf"}')
+
+    try {
+      await processFormat([filePath], false, { reprint })
+    } finally {
+      process.chdir(previous)
+    }
+
+    const written = fs.readFileSync(filePath, 'utf8')
+    expect(written).toContain('\r\n')
+    expect(written.replace(/\r\n/g, '').includes('\n')).toBe(false)
+  })
+
+  it('normalises to LF when .sasjslint says so', async () => {
+    const filePath = write(dir, 'l.sas', 'DATA a;\r\nRUN;\r\n')
+    const previous = withLintConfig(dir, '{"lineEndings": "lf"}')
+
+    try {
+      await processFormat([filePath], false, { reprint })
+    } finally {
+      process.chdir(previous)
+    }
+
+    expect(fs.readFileSync(filePath, 'utf8').includes('\r\n')).toBe(false)
+  })
+
+  it('normalises to LF by default, matching the lineEndings rule', async () => {
+    // The setting's default is `lf`, so a CRLF checkout converges on LF rather
+    // than flipping back and forth between a run and the check that follows it.
+    const filePath = write(dir, 'm.sas', 'DATA a;\r\nRUN;\r\n')
+
+    await processFormat([filePath], false, { reprint })
+
+    expect(fs.readFileSync(filePath, 'utf8').includes('\r\n')).toBe(false)
   })
 
   it('collects a file it could not read, instead of skipping the rest', async () => {

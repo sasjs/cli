@@ -5,7 +5,7 @@ import { processFormat } from './processFormat'
 
 const syntax = 'format [filterStrings..]'
 const usage = 'sasjs format [filterStrings..] [--check]'
-const description = `Rewrites .sas files into the project's canonical form. The SAS language engine reprints each file - indentation, statement breaks, keyword case - and the rules in .sasjslint (header, wrapping, trailing space) then run over its output. With --check nothing is written and the command fails if any file would change.`
+const description = `Rewrites .sas files into the project's canonical form. The SAS language engine reprints each file - indentation, statement breaks, keyword case - and the rules in .sasjslint (header, wrapping, trailing space) then run over its output. Line endings follow .sasjslint's lineEndings setting, which defaults to lf, and a byte-order mark is preserved. With --check nothing is written and the command fails if any file would change.`
 
 const examples: CommandExample[] = [
   {

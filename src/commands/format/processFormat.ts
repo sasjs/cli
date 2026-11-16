@@ -1,5 +1,5 @@
 import path from 'path'
-import { writeFile } from 'fs/promises'
+import { rename, rm, writeFile } from 'fs/promises'
 import { statSync } from 'fs'
 
 import {
@@ -91,6 +91,61 @@ const isFolder = (absolutePath: string): boolean => {
   }
 }
 
+/**
+ * The byte-order mark, which is an encoding marker rather than formatting.
+ *
+ * `readFile` hands it back as the first character of the text, and the layout
+ * pipeline does not carry it through, so a file that had one would come back
+ * without - a change to the file's encoding that nothing asked for.
+ */
+const BOM = '\uFEFF'
+
+/**
+ * Puts back the encoding envelope the layout pass does not carry.
+ *
+ * A byte-order mark records how the file is encoded rather than how it is
+ * formatted, so it is not this command's to remove: `readFile` hands it back as
+ * the first character, the pipeline does not carry it through, and it is restored
+ * here. Line endings need no such treatment - they are part of the canonical form
+ * and follow `.sasjslint`'s `lineEndings`, which defaults to `lf`, exactly as the
+ * `lineEndings` rule does for `sasjs lint`.
+ *
+ * @param before - the file as it was read
+ * @param formatted - the settled formatting of it
+ * @returns what to write
+ */
+const restoreEnvelope = (before: string, formatted: string): string => {
+  const hadBom = before.startsWith(BOM)
+
+  if (hadBom && !formatted.startsWith(BOM)) return BOM + formatted
+  if (!hadBom && formatted.startsWith(BOM)) return formatted.slice(BOM.length)
+
+  return formatted
+}
+
+/**
+ * Writes a file so that an interrupted run cannot leave it truncated.
+ *
+ * `writeFile` opens the target and truncates it before writing: a process killed
+ * in between leaves the user's `.sas` file empty, which is the one failure mode a
+ * tool that rewrites source must not have. The new content goes to a sibling
+ * temporary file and is renamed onto the original, which is a single atomic
+ * replacement on every platform this runs on. The temporary file is in the same
+ * folder, so it is the same filesystem and the rename cannot become a copy.
+ */
+const replaceFile = async (filePath: string, text: string): Promise<void> => {
+  const temporary = `${filePath}.sasjs-format.tmp`
+
+  try {
+    await writeFile(temporary, text)
+    await rename(temporary, filePath)
+  } catch (error) {
+    await rm(temporary, { force: true })
+
+    throw error
+  }
+}
+
 /** Removes duplicates, keeping the order a user would expect to read. */
 const unique = (paths: string[]) => [...new Set(paths)]
 
@@ -135,17 +190,23 @@ export const resolveSasFiles = async (
 
   const files: string[] = []
   const rejected: FileFailure[] = []
+  const unmatchedFilters: string[] = []
 
   // An absolute path may name a folder - `sasjs format /p/sasjs/macros` is the
   // obvious thing to type - and reading a directory as a file fails.
   for (const absolutePath of absolute) {
     if (isFolder(absolutePath)) {
-      files.push(
+      const folderFiles =
         // The walker returns paths relative to the folder it was given.
-        ...(
-          await listSasFilesInFolder(absolutePath, true, EXCLUDED_FOLDERS)
-        ).map((file) => path.resolve(absolutePath, file))
-      )
+        (await listSasFilesInFolder(absolutePath, true, EXCLUDED_FOLDERS)).map(
+          (file) => path.resolve(absolutePath, file)
+        )
+
+      // A folder that holds no `.sas` file names nothing, exactly like a pattern
+      // that matches nothing: a renamed or wrong path must not read as a clean run.
+      if (!folderFiles.length) unmatchedFilters.push(absolutePath)
+
+      files.push(...folderFiles)
 
       continue
     }
@@ -161,8 +222,6 @@ export const resolveSasFiles = async (
 
     files.push(absolutePath)
   }
-
-  const unmatchedFilters: string[] = []
 
   if (patterns.length) {
     const projectDir = getProjectDir()
@@ -316,22 +375,25 @@ export const processFormat = async (
   for (const filePath of filePaths) {
     try {
       // `@sasjs/utils`' reader, which is what `sasjs lint` reads through: the two
-      // commands must not decode the same file differently, and it handles a BOM.
+      // commands must not decode the same file differently.
       const before = await readFile(filePath)
-      const after = await formatToFixedPoint(before, config, formatOptions)
+      const formatted = await formatToFixedPoint(before, config, formatOptions)
 
       // Unsettled: left exactly as found, and named in the outcome.
-      if (after === undefined) {
+      if (formatted === undefined) {
         unsettledFilePaths.push(filePath)
 
         continue
       }
 
+      const after = restoreEnvelope(before, formatted)
+
       if (after === before) continue
 
       // After the write, not before: a write that throws must not leave the file
-      // listed as both rewritten and failed.
-      if (!check) await writeFile(filePath, after)
+      // listed as both rewritten and failed. The write replaces the file rather
+      // than truncating it, so a killed run leaves the original intact.
+      if (!check) await replaceFile(filePath, after)
 
       changedFilePaths.push(filePath)
     } catch (error: any) {
