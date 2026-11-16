@@ -1,1 +1,0 @@
-echo 'shell script for deploysas9'
