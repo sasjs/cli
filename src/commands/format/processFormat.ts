@@ -435,6 +435,22 @@ export const processFormat = async (
     }
   }
 
+  // A rule-only run is not the canonical form, so it must not rewrite anything:
+  // the command reports the failure, and a run that reports itself as failed after
+  // changing the tree is the worst of both. Nothing is examined, because nothing
+  // here can produce the layout the command exists to apply.
+  if (engineUnavailable) {
+    return {
+      changedFilePaths: [],
+      examinedCount: 0,
+      unsettledFilePaths: [],
+      rejectedFilePaths: rejected,
+      unmatchedFilters,
+      failedFilePaths: [],
+      engineUnavailable: true
+    }
+  }
+
   const formatOptions: FormatOptions = reprint
     ? { ...options, reprint }
     : options

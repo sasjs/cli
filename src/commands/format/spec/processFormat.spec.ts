@@ -463,8 +463,10 @@ describe('processFormat', () => {
 
     const outcome = await processFormat([filePath], false)
 
-    // The rules still ran, and the outcome says the layout pass did not.
+    // The layout pass did not run, so nothing is written: a failed run must not
+    // leave the tree changed by a pass it could not complete.
     expect(outcome.engineUnavailable).toBe(true)
-    expect(outcome.changedFilePaths).toEqual([filePath])
+    expect(outcome.changedFilePaths).toEqual([])
+    expect(fs.readFileSync(filePath, 'utf8')).toEqual('DATA a;\nRUN;\n')
   })
 })
