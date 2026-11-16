@@ -165,13 +165,33 @@ describe('processFormat', () => {
 
   it('treats a filter as literal text, so a metacharacter cannot over-match', async () => {
     // A filter is a path the user typed, not a regular expression: as one, `a.c`
-    // matched `abc.sas` as well.
-    const literal = write(dir, 'a.c.sas', 'data a;\nrun;\n')
-    write(dir, 'abc.sas', 'data b;\nrun;\n')
+    // matched the `abc` folder as well.
+    const literal = write(dir, 'a.c/mf_x.sas', 'data a;\nrun;\n')
+    write(dir, 'abc/mf_y.sas', 'data b;\nrun;\n')
 
     const { files } = await resolveSasFiles(['a.c'])
 
     expect(files).toEqual([literal])
+  })
+
+  it('matches whole path segments, not a substring of the path', async () => {
+    // Matching the absolute path let a filter hit a folder *above* the project:
+    // `macros` rewrote everything under a checkout called `/home/macros-dev`.
+    const macros = write(dir, 'sasjs/macros/mf_x.sas', 'data a;\nrun;\n')
+    write(dir, 'sasjs/macros_old/mf_y.sas', 'data b;\nrun;\n')
+
+    const { files } = await resolveSasFiles(['macros'])
+
+    expect(files).toEqual([macros])
+  })
+
+  it('matches a filter that names a file', async () => {
+    const appinit = write(dir, 'sasjs/services/appinit.sas', 'data a;\nrun;\n')
+    write(dir, 'sasjs/services/other.sas', 'data b;\nrun;\n')
+
+    const { files } = await resolveSasFiles(['sasjs/services/appinit.sas'])
+
+    expect(files).toEqual([appinit])
   })
 
   it('does not throw on a filter that is not a valid regular expression', async () => {
@@ -252,7 +272,9 @@ describe('processFormat', () => {
     )
   })
 
-  it('treats a path it cannot stat as not a folder', async () => {
+  // `chmod` on a directory denies nothing on Windows, so there the path is simply
+  // missing and the missing-path route is taken instead.
+  posixOnly('treats a path it cannot stat as not a folder', async () => {
     // `throwIfNoEntry` covers a missing path; an EACCES on the walk down to it is
     // the other way `statSync` throws, and a formatter must not die on it.
     const blocked = path.join(dir, 'blocked')
@@ -268,6 +290,17 @@ describe('processFormat', () => {
     } finally {
       fs.chmodSync(blocked, 0o755)
     }
+  })
+
+  posixOnly("keeps the source file's mode through a rewrite", async () => {
+    // The replacement is a new file, created with the process's mode, so the
+    // source's has to be carried across or a 0640 file comes back 0644.
+    const filePath = write(dir, 'mode.sas', 'DATA a;\nRUN;\n')
+    fs.chmodSync(filePath, 0o640)
+
+    await processFormat([filePath], false, { reprint })
+
+    expect(fs.statSync(filePath).mode & 0o777).toEqual(0o640)
   })
 
   it('records an absolute folder that holds no .sas file', async () => {

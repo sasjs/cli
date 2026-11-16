@@ -1,5 +1,5 @@
 import path from 'path'
-import { rename, rm, writeFile } from 'fs/promises'
+import { chmod, rename, rm, stat, writeFile } from 'fs/promises'
 import { statSync } from 'fs'
 
 import {
@@ -137,7 +137,13 @@ const replaceFile = async (filePath: string, text: string): Promise<void> => {
   const temporary = `${filePath}.sasjs-format.tmp`
 
   try {
+    // The temporary file is created with the process's mode, so the source's has
+    // to be carried across: a group-writable or executable file must not come
+    // back 0644 because it was rewritten.
+    const original = await stat(filePath)
+
     await writeFile(temporary, text)
+    await chmod(temporary, original.mode)
     await rename(temporary, filePath)
   } catch (error) {
     await rm(temporary, { force: true })
@@ -145,6 +151,23 @@ const replaceFile = async (filePath: string, text: string): Promise<void> => {
     throw error
   }
 }
+
+/**
+ * Whether a filter names a whole run of path segments in a project relative path.
+ *
+ * A filter is a path, so `macros` must not match `sasjs/macros_old/x.sas`, and a
+ * filter naming a file - `sasjs/services/appinit.sas` - matches it exactly.
+ *
+ * @param relativePath - the file's path, `/`-separated, inside the project
+ * @param filter - the filter, with its leading and trailing slashes removed
+ * @returns `true` when the filter names that run of segments
+ */
+const matchesSegments = (relativePath: string, filter: string): boolean =>
+  filter === '' ||
+  relativePath === filter ||
+  relativePath.startsWith(`${filter}/`) ||
+  relativePath.includes(`/${filter}/`) ||
+  relativePath.endsWith(`/${filter}`)
 
 /** Removes duplicates, keeping the order a user would expect to read. */
 const unique = (paths: string[]) => [...new Set(paths)]
@@ -232,19 +255,23 @@ export const resolveSasFiles = async (
     )
     // Compared as plain text rather than as a pattern: a filter is a path the
     // user typed, so `sasjs format "["` must name nothing instead of throwing a
-    // SyntaxError out of the walk, and `sasjs format "a.c"` must not also match
-    // `abc.sas`.
-    const matchers = patterns.map(toForwardSlashes)
+    // SyntaxError out of the walk.
+    const matchers = patterns.map((pattern) =>
+      toForwardSlashes(pattern).replace(/^\/+|\/+$/g, '')
+    )
     const matchedPatterns = new Set<string>()
 
     for (const relative of relativeFiles) {
       const absolutePath = path.resolve(projectDir, relative)
-      // Compared as a `/`-separated absolute path, so a filter written either way -
-      // `sasjs/macros` or a fragment of the full path - matches on every platform.
-      const candidate = toForwardSlashes(absolutePath)
+      // Compared against the path *inside* the project: matching the absolute path
+      // made a filter a substring of everything above the project too, so
+      // `sasjs format macros` also rewrote a checkout at `/home/macros-dev/...`.
+      const candidate = toForwardSlashes(
+        path.relative(projectDir, absolutePath)
+      )
 
       patterns.forEach((pattern, index) => {
-        if (candidate.includes(matchers[index])) {
+        if (matchesSegments(candidate, matchers[index])) {
           files.push(absolutePath)
           matchedPatterns.add(pattern)
         }

@@ -9,17 +9,32 @@ export type EngineLoader = () => Promise<Reprint>
 let engine: Promise<Reprint> | undefined
 
 /**
- * Loads the engine from the package, which is ES modules.
+ * A dynamic import that survives compilation to CommonJS.
  *
- * `@sasjs/sas-language` publishes ES modules and this CLI compiles to CommonJS,
- * so the import has to be dynamic.
+ * `@sasjs/sas-language` publishes ES modules, and this CLI compiles with
+ * `module: "commonjs"`, which rewrites `import()` into `require()`. That only
+ * works because the Node versions this CLI supports can `require` an ES module -
+ * a support that has changed between majors and is not something a formatter
+ * should be resting on silently. Keeping the import genuinely dynamic leaves the
+ * decision to the runtime, on every version, and is what makes the subpath import
+ * a real one rather than a require in disguise.
+ */
+const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+  specifier: string
+) => Promise<any>
+
+/**
+ * Loads the engine from the package, which is ES modules.
  */
 /* istanbul ignore next -- the one loader jest cannot execute: it is a dynamic
    import of an ES module, which jest's module runtime refuses. Every real run of
    the command goes through it; the contract above it is covered with injected
-   loaders, and the engine's own suite covers what it returns. */
+   loaders, the engine's own suite covers what it returns, and the built output is
+   exercised directly - see the PR discussion. */
 const fromPackage: EngineLoader = () =>
-  import('@sasjs/sas-language/format').then((module) => module.formatText)
+  dynamicImport('@sasjs/sas-language/format').then(
+    (module) => module.formatText
+  )
 
 /**
  * The SAS layout engine, loaded on first use and kept.
