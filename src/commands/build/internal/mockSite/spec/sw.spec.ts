@@ -2506,6 +2506,70 @@ describe('service worker host', () => {
       expect(response.status).toBe(200)
     })
 
+    it('gives up waiting for a page that never answers', async () => {
+      // a tab that took the ask and never replied: frozen, or closed between
+      // the postMessage and the answer. The wait is bounded, so the request is
+      // served from the seed instead of hanging this worker for ever.
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { dispatch } = loadWorker()
+
+      const response = await dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      expect(client.postMessage).toHaveBeenCalledWith({
+        type: 'sasjs-need-drive'
+      })
+      expect(response.status).toBe(200)
+    }, 20000)
+
+    it('answers a snapshot from the page drive, not the seed, on a restarted worker', async () => {
+      // the export path reads the whole drive at once: seeding here would hand
+      // the page a snapshot of the site's seed and drop the visitor's files
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { message } = loadWorker()
+
+      const snapshot = message({ type: 'sasjs-snapshot' })
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+      await snapshot.pending
+
+      expect(Object.keys(snapshot.replies[0].files)).toContain(
+        drivePath('made.sas')
+      )
+    })
+
+    it('answers stats from the page drive on a restarted worker', async () => {
+      const client = { postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [client]
+
+      const { message } = loadWorker()
+
+      const stats = message({ type: 'sasjs-stats' })
+
+      await settleUntil(() => client.postMessage.mock.calls.length > 0)
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+      await stats.pending
+
+      expect(stats.replies[0]).toEqual(
+        expect.objectContaining({
+          type: 'sasjs-stats',
+          boot: expect.objectContaining({ restored: true })
+        })
+      )
+    })
+
     it('asks once, however many requests arrive together', async () => {
       const client = { postMessage: jest.fn() }
       ;(global as any).__mockHostClients = [client]
