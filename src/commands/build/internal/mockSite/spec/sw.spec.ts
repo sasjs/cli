@@ -3765,6 +3765,36 @@ describe('service worker host', () => {
       expect((await session.json()).username).toBe('sasjsuser')
     })
 
+    it('refuses a run the fixture denies, and admits one it grants', async () => {
+      const worker = seeded()
+
+      // the administrator may run a buffer, as the API's own corpus says
+      const asAdmin = await worker.dispatch(
+        '/SASjsApi/code/execute',
+        runRequest({ code: 'data _null_; run;', runTime: 'sas' })
+      )
+      expect(asAdmin.status).toBe(200)
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+
+      // the fixture denies this account /SASjsApi/code/execute with a user rule,
+      // and the rule refuses the call rather than only the menu entry beside it
+      const denied = await worker.dispatch(
+        '/SASjsApi/code/execute',
+        runRequest({ code: 'data _null_; run;', runTime: 'sas' })
+      )
+      expect(denied.status).toBe(401)
+      expect((await denied.json()).message).toBe('Unauthorized')
+
+      // the same account holds a group grant on stp/execute, so the refusal above
+      // is the rule and not a blanket refusal of everything it asks for
+      const granted = await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/getdata`)
+      )
+      expect(granted.status).toBe(200)
+    })
+
     it('returns to the administrator with no account named, or with "admin"', async () => {
       const worker = loadWorker()
 

@@ -1228,6 +1228,21 @@ const RUN_ROUTES = new Set([
 ])
 
 /**
+ * The run routes a permission rule addresses.
+ *
+ * Every other route reaches `API.dispatch`, which applies the rule itself. These
+ * are answered here, so the question is asked here: a fixture that denies
+ * `code/execute` to an account refuses the run, and not only the menu entry
+ * beside it. The triggers are outside the inventory - the server's rules do not
+ * reach them - so they are left as they were.
+ */
+const GRANTED_RUN_ROUTES = new Set([
+  'GET /SASjsApi/stp/execute',
+  'POST /SASjsApi/stp/execute',
+  'POST /SASjsApi/code/execute'
+])
+
+/**
  * The routes that resolve their own caller from the token, rather than being
  * given one the transport resolved.
  *
@@ -1755,8 +1770,20 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
 
-    if (RUN_ROUTES.has(routeId))
+    if (RUN_ROUTES.has(routeId)) {
+      // The rule this host would apply, asked of the package: the run routes are
+      // answered here rather than by `dispatch`, so the question is asked here.
+      // It is the same answer `/info/myAuthorizedRoutes` gives the interface -
+      // one decision, so a menu entry and the call behind it cannot disagree.
+      if (GRANTED_RUN_ROUTES.has(routeId)) {
+        const routePath = routeId.slice(routeId.indexOf(' ') + 1)
+        const granted = await RECORDS.myAuthorizedRoutes(subject)
+        if (!granted.paths.includes(routePath))
+          throw new API.ApiError(401, 'Unauthorized')
+      }
+
       return await runRoute(routeId, payload, subject)
+    }
 
     const apiRequest = {
       query,
