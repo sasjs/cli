@@ -1513,6 +1513,28 @@ describe('service worker host', () => {
       // older rule names for it
       ;(global as any).__sasjsIdentity = {
         ...DEFAULT_IDENTITY,
+        users: [
+          ...DEFAULT_IDENTITY.users,
+          {
+            uid: 'user-apps',
+            username: 'appuser',
+            displayName: 'App User',
+            password: 'Orion123',
+            isAdmin: false,
+            isActive: true,
+            needsToUpdatePassword: false
+          }
+        ],
+        groups: [
+          ...DEFAULT_IDENTITY.groups,
+          {
+            uid: 'group-apps',
+            name: 'AppGroup',
+            description: 'Holds grants on particular apps',
+            isActive: true,
+            users: ['appuser']
+          }
+        ],
         permissions: [
           ...DEFAULT_IDENTITY.permissions,
           {
@@ -1521,6 +1543,16 @@ describe('service worker host', () => {
             type: 'Route',
             setting: 'Deny',
             group: 'group-data-controller'
+          },
+          // the same app, granted by a rule rather than left to the stream's
+          // prefix: a filter that never built its rules from the records, or
+          // that misread a group rule, would answer "no apps" for both accounts
+          {
+            uid: 'rule-app-orders-grant',
+            path: '/AppStream/orders',
+            type: 'Route',
+            setting: 'Grant',
+            group: 'group-apps'
           }
         ]
       }
@@ -1559,6 +1591,17 @@ describe('service worker host', () => {
       const appUrl = app.url.replace(/^\/app/, '')
       const page = await worker.dispatch(`/app${appUrl}`)
       expect(page.status).toBe(404)
+
+      // an account the same rule grants the app sees it, which is the case a
+      // filter that answered "no apps" for everyone but the administrator would
+      // also pass without
+      await worker.message({ type: 'sasjs-as', username: 'appuser' }).pending
+
+      const asGranted = await worker.dispatch('/app/apps.json')
+      expect((await asGranted.json()).apps.map((row: any) => row.url)).toEqual([
+        app.url
+      ])
+      expect((await worker.dispatch(`/app${appUrl}`)).status).toBe(200)
     })
 
     it('keeps an app’s URL and tiles inside the folder the site is served from', async () => {
