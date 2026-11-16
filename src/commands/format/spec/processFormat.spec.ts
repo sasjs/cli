@@ -274,26 +274,29 @@ describe('processFormat', () => {
 
   // `chmod` on a directory denies nothing on Windows, so there the path is simply
   // missing and the missing-path route is taken instead.
-  posixOnly('treats a path it cannot stat as not a folder', async () => {
-    // `throwIfNoEntry` covers a missing path; an EACCES on the walk down to it is
-    // the other way `statSync` throws, and a formatter must not die on it.
-    const blocked = path.join(dir, 'blocked')
-    fs.mkdirSync(blocked)
-    fs.chmodSync(blocked, 0o000)
+  posixOnly(
+    "reports an unreachable path with the operating system's message",
+    async () => {
+      // A path whose parent the process cannot traverse is not a path that is
+      // absent: 'no such path' would name the wrong mistake and discard the real
+      // error, which is the only thing that tells the reader what to fix.
+      const blocked = path.join(dir, 'blocked')
+      fs.mkdirSync(blocked)
+      fs.chmodSync(blocked, 0o000)
 
-    const named = path.join(blocked, 'x.sas')
+      const named = path.join(blocked, 'x.sas')
 
-    try {
-      const { files, rejected } = await resolveSasFiles([named])
+      try {
+        const { files, rejected } = await resolveSasFiles([named])
 
-      expect(files).toEqual([])
-      expect(rejected.map((entry) => entry.message)).toEqual([
-        'no such path, so nothing was formatted'
-      ])
-    } finally {
-      fs.chmodSync(blocked, 0o755)
+        expect(files).toEqual([])
+        expect(rejected).toHaveLength(1)
+        expect(rejected[0].message).toMatch(/EACCES|permission denied/i)
+      } finally {
+        fs.chmodSync(blocked, 0o755)
+      }
     }
-  })
+  )
 
   posixOnly("keeps the source file's mode through a rewrite", async () => {
     // The replacement is a new file, created with the process's mode, so the

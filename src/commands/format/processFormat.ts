@@ -1,6 +1,6 @@
 import path from 'path'
 import { chmod, rename, realpath, rm, stat, writeFile } from 'fs/promises'
-import { existsSync, statSync } from 'fs'
+import { statSync } from 'fs'
 import { randomBytes } from 'crypto'
 
 import {
@@ -76,19 +76,27 @@ const isSasFile = (filePath: string) =>
 const toForwardSlashes = (value: string) => value.replace(/\\/g, '/')
 
 /**
- * Whether an absolute path names a folder, without throwing on a path this
- * process may not stat.
+ * What an absolute path is, distinguishing "not there" from "not reachable".
+ *
+ * `existsSync` answers `false` for `EACCES` as well as `ENOENT`, so using it
+ * reports a path whose parent the user cannot traverse as one that does not
+ * exist - the wrong mistake, and it throws away the operating system's own
+ * message. A stat that throws anything else is reported with that message.
  *
  * @param absolutePath - the path as the user typed it
- * @returns `true` for a folder, `false` for anything else
+ * @returns its kind, or the message explaining why it cannot be read
  */
-const isFolder = (absolutePath: string): boolean => {
+const describePath = (
+  absolutePath: string
+): { kind: 'folder' | 'file' | 'missing'; message?: string } => {
   try {
-    return (
-      statSync(absolutePath, { throwIfNoEntry: false })?.isDirectory() ?? false
-    )
-  } catch {
-    return false
+    const stats = statSync(absolutePath, { throwIfNoEntry: false })
+
+    if (!stats) return { kind: 'missing' }
+
+    return { kind: stats.isDirectory() ? 'folder' : 'file' }
+  } catch (error: any) {
+    return { kind: 'file', message: error?.message ?? String(error) }
   }
 }
 
@@ -234,7 +242,26 @@ export const resolveSasFiles = async (
   // An absolute path may name a folder - `sasjs format /p/sasjs/macros` is the
   // obvious thing to type - and reading a directory as a file fails.
   for (const absolutePath of absolute) {
-    if (isFolder(absolutePath)) {
+    const described = describePath(absolutePath)
+
+    if (described.kind === 'missing') {
+      rejected.push({
+        filePath: absolutePath,
+        message: 'no such path, so nothing was formatted'
+      })
+
+      continue
+    }
+
+    // Named with the error the operating system gave: a path the process may not
+    // traverse is not a path that is absent, and the reader needs the difference.
+    if (described.message) {
+      rejected.push({ filePath: absolutePath, message: described.message })
+
+      continue
+    }
+
+    if (described.kind === 'folder') {
       const folderFiles =
         // The walker returns paths relative to the folder it was given.
         (await listSasFilesInFolder(absolutePath, true, EXCLUDED_FOLDERS)).map(
@@ -246,17 +273,6 @@ export const resolveSasFiles = async (
       if (!folderFiles.length) unmatchedFilters.push(absolutePath)
 
       files.push(...folderFiles)
-
-      continue
-    }
-
-    // Named before the extension is considered: a mistyped path is not "not a
-    // .sas file", and saying so sends the reader looking for the wrong mistake.
-    if (!existsSync(absolutePath)) {
-      rejected.push({
-        filePath: absolutePath,
-        message: 'no such path, so nothing was formatted'
-      })
 
       continue
     }
