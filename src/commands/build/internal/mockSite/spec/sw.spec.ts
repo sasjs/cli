@@ -3956,6 +3956,18 @@ describe('service worker host', () => {
       expect(response.headers.get('content-type')).toContain('text/html')
     })
 
+    it('refuses a request that names the file twice, as the package does', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/SASJobExecution?_FILE=${appLoc}/services/web/main.js` +
+          `&_filePath=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(400)
+    })
+
     it('answers a missing asset the way the estate does, not as a 404', async () => {
       const worker = seeded()
 
