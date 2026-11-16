@@ -84,13 +84,12 @@
 
   // -------------------------------------------------------------- the host
   const loadScript = (src) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const script = document.createElement('script')
       script.src = src
       script.onload = resolve
-      script.onerror = () => resolve(false)
+      script.onerror = () => reject(new Error('failed to load ' + src))
       document.body.appendChild(script)
-      return true
     })
 
   /**
@@ -120,9 +119,10 @@
     // so this asks for the same one, stamped the same way
     const stamp = document.querySelector('meta[name="sasjs-mock-version"]')
     const version = stamp && stamp.getAttribute('content')
+    const cacheVersion =
+      version && version !== '__MOCK_VERSION__' ? '?v=' + version : ''
     const workerUrl =
-      new URL('sw.js', new URL(base, location.origin)).href +
-      (version && version !== '__MOCK_VERSION__' ? '?v=' + version : '')
+      new URL('sw.js', new URL(base, location.origin)).href + cacheVersion
 
     try {
       await navigator.serviceWorker.register(workerUrl, {
@@ -159,14 +159,27 @@
       )
     }
 
-    await loadScript(apiUrl('host/persist.js'))
+    // The host stamp includes persist.js, so a new bridge cannot be replaced by
+    // stale bytes cached under the old unversioned URL.
+    await loadScript(apiUrl('host/persist.js') + cacheVersion)
 
-    if (window.__sasjsMockReady) {
-      try {
-        await window.__sasjsMockReady
-      } catch (e) {
-        console.error('[api console] the drive could not be handed over: ' + e)
-      }
+    try {
+      const persistReady = window.__sasjsMockPersistReady
+      if (!persistReady || typeof persistReady.then !== 'function')
+        throw new Error('persist readiness promise is missing')
+      const boot = await persistReady
+      const failure =
+        boot &&
+        (boot.error || boot.driveError || (boot.boot && boot.boot.driveError))
+      if (failure) throw new Error(failure)
+      if (
+        !boot ||
+        (boot.type !== 'sasjs-seed-ack' && boot.type !== 'sasjs-load-ack')
+      )
+        throw new Error('invalid drive acknowledgement')
+    } catch (e) {
+      console.error('[api console] the drive could not be handed over: ' + e)
+      throw e
     }
   }
 

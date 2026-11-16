@@ -94,6 +94,10 @@ const loadPersist = (
     buildStamp?: string
     /** Set to make localStorage throw, as a browser that refuses storage does. */
     storageUnavailable?: boolean
+    indexedDBUnavailable?: boolean
+    configNetworkFails?: boolean
+    configStatus?: number
+    configPayload?: any
     /** Where the worker sits, for a site published from a folder. */
     scriptURL?: string
     /** The page's own URL, as the browser reports it. */
@@ -161,10 +165,17 @@ const loadPersist = (
   ;(global as any).document = {
     baseURI: options.baseURI || 'https://host.test/'
   }
-  ;(global as any).fetch = jest.fn(async (url: string) => ({
-    ok: true,
-    json: async () => ({ buildStamp: options.buildStamp || '' })
-  }))
+  ;(global as any).fetch = jest.fn(async (url: string) => {
+    if (options.configNetworkFails) throw new Error('config network failed')
+    return {
+      ok: options.configStatus === undefined || options.configStatus === 200,
+      status: options.configStatus || 200,
+      json: async () =>
+        options.configPayload === undefined
+          ? { buildStamp: options.buildStamp || '' }
+          : options.configPayload
+    }
+  })
 
   const idb = (() => {
     const fake = createIndexedDB()
@@ -180,7 +191,13 @@ const loadPersist = (
       fake.identity.set('deleted', options.seededDeleted)
     return fake
   })()
-  ;(global as any).indexedDB = idb
+  ;(global as any).indexedDB = options.indexedDBUnavailable
+    ? {
+        open: () => {
+          throw new Error('indexedDB denied')
+        }
+      }
+    : idb
 
   require('../assets/persist.js')
 
@@ -219,7 +236,58 @@ const settleUntil = async (check: () => boolean, timeout = 4000) => {
   }
 }
 
-describe('page-side store', () => {
+describe('the page-side store', () => {
+  it('reports a config network error rather than booting an unknown drive', async () => {
+    const { window, posted } = loadPersist({
+      ready: Promise.resolve(),
+      configNetworkFails: true
+    })
+    await expect(window.__sasjsMockPersistReady).rejects.toThrow(
+      'config network failed'
+    )
+    expect(posted).toEqual([])
+  })
+
+  it('rejects an HTTP config failure without seeding or changing the stored drive', async () => {
+    const { window, posted, rows } = loadPersist({
+      ready: Promise.resolve(),
+      configStatus: 503,
+      seeded: { '/sasjs/drive/kept.txt': 'kept' }
+    })
+    await expect(window.__sasjsMockPersistReady).rejects.toThrow(
+      'mock-config.json returned 503'
+    )
+    expect(posted).toEqual([])
+    expect(rows.get('/sasjs/drive/kept.txt')).toBe('kept')
+  })
+
+  it('reports a controller that never claims the page during boot', async () => {
+    jest.useFakeTimers()
+    const { window, posted } = loadPersist({
+      controller: null,
+      ready: Promise.resolve()
+    })
+    const pending = window.__sasjsMockPersistReady
+    await jest.advanceTimersByTimeAsync(11000)
+    await expect(pending).resolves.toEqual({
+      error: 'no service worker controller'
+    })
+    expect(posted).toEqual([])
+    expect((global as any).fetch).not.toHaveBeenCalled()
+  })
+
+  it('does not seed over an unreadable stored drive', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const { window, posted } = loadPersist({
+      ready: Promise.resolve(),
+      indexedDBUnavailable: true
+    })
+    await expect(window.__sasjsMockPersistReady).rejects.toThrow(
+      'indexedDB denied'
+    )
+    expect(posted).toEqual([])
+    error.mockRestore()
+  })
   afterEach(() => {
     jest.useRealTimers()
     delete (global as any).window
@@ -418,7 +486,7 @@ describe('page-side store', () => {
         fn({ data: { type: asked[0][0].type + '-ack', booted: true } })
       )
     }, 5)
-    await page.__sasjsMockReady
+    await page.__sasjsMockPersistReady
     clearInterval(answering)
 
     const pending = page.SASjsMock.download()
@@ -467,7 +535,7 @@ describe('page-side store', () => {
       )
     }, 5)
 
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage.mock.calls[0][0]).toEqual(
@@ -509,7 +577,7 @@ describe('page-side store', () => {
       )
     }, 5)
 
-    const info = await window.__sasjsMockReady
+    const info = await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -535,7 +603,7 @@ describe('page-side store', () => {
       ;[...listeners].forEach((fn) => fn({ data: { type: type + '-ack' } }))
     }, 5)
 
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -789,6 +857,27 @@ describe('page-side store', () => {
     })
   })
 
+  it('reports the drive unavailable when both the stored drive and seed are refused', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply, rows } = loadPersist({
+      controller,
+      seeded: { '/sasjs/drive/files/refused.txt': 'x' }
+    })
+
+    reply({ type: 'sasjs-need-drive' })
+    await until(() => controller.postMessage.mock.calls.length === 1)
+    expect(controller.postMessage.mock.calls[0][0].type).toBe('sasjs-load')
+    reply({ type: 'sasjs-load-ack', error: 'bad drive', errorKind: 'host' })
+    await until(() => controller.postMessage.mock.calls.length === 2)
+    expect(controller.postMessage.mock.calls[1][0].type).toBe('sasjs-seed')
+    reply({ type: 'sasjs-seed-ack', error: 'bad seed', errorKind: 'host' })
+    await until(() => controller.postMessage.mock.calls.length === 3)
+    expect(controller.postMessage.mock.calls[2][0]).toEqual({
+      type: 'sasjs-drive-unavailable'
+    })
+    expect(rows.size).toBe(0)
+  })
+
   it('answers the worker that asked, even after the controller is gone', async () => {
     const controller = { postMessage: jest.fn() }
     const { reply } = loadPersist({
@@ -844,7 +933,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -870,7 +959,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -892,7 +981,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -911,13 +1000,37 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sasjs-load' })
     )
   })
+
+  it.each([null, { buildStamp: 42 }])(
+    'keeps the drive when the config has no usable build stamp %#',
+    async (configPayload) => {
+      const controller = { postMessage: jest.fn() }
+      const { window, listeners, rows } = loadPersist({
+        controller,
+        ready: Promise.resolve({}),
+        seeded: { '/sasjs/drive/stored.txt': 'stored' },
+        storedStamp: 'previous-build',
+        configPayload
+      })
+      const stop = answerBoot(controller, listeners)
+      try {
+        await window.__sasjsMockPersistReady
+      } finally {
+        stop()
+      }
+      expect(controller.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'sasjs-load' })
+      )
+      expect(rows.get('/sasjs/drive/stored.txt')).toBe('stored')
+    }
+  )
 
   it('keeps the drive when storage is refused, instead of seeding every load', async () => {
     // a browser that denies localStorage cannot remember which build wrote the
@@ -932,7 +1045,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -957,7 +1070,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     const [url, init] = (global as any).fetch.mock.calls[0]
@@ -1042,7 +1155,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -1070,7 +1183,7 @@ describe('page-side store', () => {
         ? { error: 'a tab closed mid-broadcast', errorKind: 'persist' }
         : { booted: true }
     )
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(rows.has('/sasjs/drive/stored.txt')).toBe(true)
@@ -1115,7 +1228,7 @@ describe('page-side store', () => {
         : { booted: true }
     )
 
-    const boot = await window.__sasjsMockReady
+    const boot = await window.__sasjsMockPersistReady
     stop()
 
     expect(boot).toEqual({ type: 'sasjs-load-ack', booted: true })
@@ -1167,7 +1280,7 @@ describe('page-side store', () => {
     )
     reply({ type: 'sasjs-seed-ack', booted: true })
 
-    const boot = await window.__sasjsMockReady
+    const boot = await window.__sasjsMockPersistReady
     expect(boot).toEqual(expect.objectContaining({ booted: true }))
     expect(rows.size).toBe(0)
 
