@@ -367,7 +367,126 @@ const artifactResponse = (artifact) =>
 
 const broadcast = async (message) => {
   const clients = await self.clients.matchAll({ includeUncontrolled: true })
-  clients.forEach((client) => client.postMessage(message))
+  clients.forEach((client) => {
+    // a tab that closed between matchAll() and the send raises
+    // InvalidStateError, and one closed tab must not fail the broadcast the
+    // others just received - nor the load that is waiting on this call
+    try {
+      client.postMessage(message)
+    } catch (e) {
+      /* that client is gone: the rest still get it */
+    }
+  })
+}
+
+/**
+ * Resolvers waiting on the page's answer to a drive request, and that answer
+ * once it lands.
+ *
+ * The page owns the drive (`persist.js`): IndexedDB is durable, this worker is
+ * not - the browser terminates it between requests and starts a new one on the
+ * next. That new worker has no drive, and `ensureReady` would seed over the
+ * visitor's: every file they made reads `File doesn't exist.`, and creating one
+ * the seed ships reads `File already exists.` So the worker asks a live page for
+ * what it stored before it considers seeding.
+ */
+let driveWaiters = []
+
+/** The page has answered, whatever it said; stop waiting. */
+const driveArrived = (verdict) => {
+  const waiting = driveWaiters
+  driveWaiters = []
+  waiting.forEach((resolve) => resolve(verdict))
+}
+
+/** How long one page gets to answer, and how long the whole ask may take. */
+const ASK_TIMEOUT = 2000
+const ASK_BUDGET = 5000
+
+/**
+ * A client's stable handle.
+ *
+ * `clients.matchAll()` builds fresh `Client` objects on every call, so the
+ * object is not an identity and a set keyed on it would hand back the first tab
+ * on every round - the second tab never asked, the budget spent, and the seed
+ * this handshake exists to avoid. `client.id` is the one field that survives the
+ * call; the object itself is a fallback for a host that reports none.
+ */
+const askedId = (client) => client.id || client
+
+/**
+ * Asks the page for its drive, and answers what came back.
+ *
+ * Concurrent requests share the one promise: a second ask would be a second
+ * load of a drive the first is already installing.
+ *
+ * ONE CLIENT AT A TIME. A page answers by loading the drive into this worker,
+ * so two tabs both answering is two installs and the last one wins; the second
+ * tab is the fallback for the first not answering, not a second asker.
+ *
+ * A page that has not answered yet is not a reason to seed - a large drive, or
+ * a busy tab, takes longer than one ask allows - so the ask is retried while
+ * the budget lasts. Only when every page has had its turn does the seed path
+ * take over, which is where this worker started; the stored drive is still in
+ * IndexedDB and comes back on the next page load.
+ *
+ * 'unavailable' is the page saying it holds a drive it cannot read: the caller
+ * must NOT seed over it, so the verdict travels back to `ensureReady`.
+ */
+let driveAsked = null
+const askHostForDrive = () => {
+  if (driveAsked) return driveAsked
+
+  const asked = new Set()
+
+  driveAsked = (async () => {
+    const deadline = Date.now() + ASK_BUDGET
+
+    while (Date.now() < deadline) {
+      const clients = await self.clients.matchAll({
+        includeUncontrolled: true,
+        type: 'window'
+      })
+      // no page to ask: nothing can have the drive
+      if (!clients.length) return 'none'
+
+      const client = clients.find((c) => !asked.has(askedId(c))) || clients[0]
+      asked.add(askedId(client))
+
+      // A tab that closed between `matchAll()` and this send raises
+      // InvalidStateError. That is this client not answering, not a verdict: the
+      // next one is tried and the budget still bounds the wait. Letting it throw
+      // would reject the promise `driveAsked` holds, and every later ask would
+      // return that rejection - so `ensureReady` would fall through to the seed
+      // for the rest of this worker's life, which is the loss the ask exists to
+      // prevent.
+      try {
+        client.postMessage({ type: 'sasjs-need-drive' })
+      } catch (e) {
+        continue
+      }
+
+      // Registered after a send that worked: a failed send leaves no waiter
+      // behind for an answer that cannot come.
+      const arrived = new Promise((resolve) => driveWaiters.push(resolve))
+
+      const verdict = await Promise.race([
+        arrived,
+        new Promise((resolve) => setTimeout(() => resolve(null), ASK_TIMEOUT))
+      ])
+
+      if (verdict) return verdict
+    }
+
+    return 'none'
+  })().then((verdict) => {
+    // an unreadable drive is not a final answer: ask again on the next request
+    // rather than failing every one for the life of this worker
+    if (verdict === 'unavailable') driveAsked = null
+    return verdict
+  })
+
+  return driveAsked
 }
 
 /**
@@ -379,18 +498,41 @@ const broadcast = async (message) => {
  * stores and the store it seeds. It is sent only when it differs from the last
  * report, so a drive-only request carries no fixture and an identity-only change
  * still reaches storage.
+ *
+ * A report the page never received is not a report: the batch is kept and sent
+ * with the next one, and the fixture is reported again the next time.
  */
+/** Files taken from the runtime whose report to the page failed. */
+let unsentFiles = null
+
 const persistChanges = async () => {
-  const files = R.takeDirty()
+  // `takeDirty()` empties the runtime's map, and only the page writes the drive
+  // on: a batch that never reached it is gone from the drive the next worker
+  // instance loads, while this one has nothing left to hand over. So a failed
+  // report is kept and goes out with the next one.
+  const files = { ...(unsentFiles || {}), ...R.takeDirty() }
   const fixture = IDENTITY_STATE.store.snapshot()
   const asJson = IDENTITY_STATE.seeded ? JSON.stringify(fixture) : ''
-  const identity =
-    asJson && asJson !== IDENTITY_STATE.persisted ? fixture : null
+  const previous = IDENTITY_STATE.persisted
+  const identity = asJson && asJson !== previous ? fixture : null
+
+  if (!Object.keys(files).length && !identity) {
+    unsentFiles = null
+    return
+  }
 
   if (identity) IDENTITY_STATE.persisted = asJson
 
-  if (Object.keys(files).length || identity)
+  try {
     await broadcast({ type: 'sasjs-persist', files, identity })
+  } catch (e) {
+    unsentFiles = files
+    // the fixture is reported when it differs from the last one that ARRIVED
+    if (identity) IDENTITY_STATE.persisted = previous
+    throw e
+  }
+
+  unsentFiles = null
 }
 
 // ----------------------------------------------------------- the SAS transcript
@@ -1548,7 +1690,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // that needs a caller - a request that arrives before the page has booted
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
-    await R.ensureReady()
+    await R.ensureReady(askHostForDrive)
     await ensureForRequest(url)
 
     // The app stream is the server's own web surface rather than part of the
@@ -1786,11 +1928,28 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.load(data.files || {}, data.deleted || []))
           .then(async () => {
-            await persistChanges()
+            // From here the payload is accepted and in the drive: a failure to
+            // write it back to the other tabs is NOT the worker refusing the
+            // data, and reporting it as a `host` refusal would have the page
+            // delete a stored drive the worker is serving. It gets its own kind,
+            // so a failed broadcast is reported and the drive left alone.
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
+            // the request that asked for this drive is waiting on it
+            driveArrived('loaded')
             reply({
               type: 'sasjs-load-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
@@ -1813,11 +1972,26 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.seed())
           .then(async () => {
-            await persistChanges()
+            // as in the load ack: the seed is installed, and a failed write-back
+            // to the other tabs is a `persist` failure, not a refused seed
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
+            // "there is nothing stored" is an answer too: the wait is over and
+            // the seeded drive is the visitor's
+            driveArrived('seeded')
             reply({
               type: 'sasjs-seed-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
@@ -1828,6 +2002,12 @@ self.addEventListener('message', (event) => {
             })
           )
       )
+      break
+
+    case 'sasjs-drive-unavailable':
+      // the page holds a drive it could not read: not an answer to seed over.
+      // `ensureReady` fails the request instead, and the next one asks again.
+      driveArrived('unavailable')
       break
 
     case 'sasjs-reset':
@@ -1952,7 +2132,7 @@ self.addEventListener('message', (event) => {
       // build. Whole means whole: the pieces nobody read are fetched first, or
       // the export would quietly lose every app bundle it had not opened.
       event.waitUntil(
-        R.ensureReady()
+        R.ensureReady(askHostForDrive)
           .then(() => R.ensureAll())
           .then(() => reply({ type: 'sasjs-snapshot', files: R.dumpAll() }))
           .catch((e) =>
@@ -1967,7 +2147,7 @@ self.addEventListener('message', (event) => {
 
     case 'sasjs-stats':
       event.waitUntil(
-        R.ensureReady().then(() => {
+        R.ensureReady(askHostForDrive).then(() => {
           try {
             reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
           } catch (e) {
