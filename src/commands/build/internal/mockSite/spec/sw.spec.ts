@@ -3969,6 +3969,23 @@ describe('service worker host', () => {
       expect(response.headers.get('content-type')).toContain('text/html')
     })
 
+    it('refuses a request naming a program and a file, as the server does', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=${appLoc}/services/web/main&_FILE=${appLoc}/services/web/main.js`
+      )
+
+      // the server refuses rather than picking one, and the mock reproduces the
+      // refusal instead of answering the file: a site that worked here and 400'd
+      // on the server would be worse than one that fails in both
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
     it('refuses a request that names the file twice, as the package does', async () => {
       const worker = seeded()
       await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })

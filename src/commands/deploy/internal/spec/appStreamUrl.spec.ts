@@ -1,4 +1,6 @@
-import { reportAppUrl, webAppStreamUrl } from '../appStreamUrl'
+import { ServerType } from '@sasjs/utils'
+
+import { reportStreamedApp, webAppStreamUrl } from '../appStreamUrl'
 
 describe('the url a deploy reports', () => {
   it('is the address the server states, when it states one', () => {
@@ -46,16 +48,43 @@ describe('the url a deploy reports', () => {
     ).toBeUndefined()
   })
 
-  it('says where the app is, once, and only when there is an app', () => {
+  it('says where a streamed build opens, and where a SASjs server published it', () => {
     const said: string[] = []
     const info = (message: string) => said.push(message)
 
-    reportAppUrl('https://server.example', { streamServiceName: 'mario' }, info)
-    reportAppUrl('https://server.example', {}, info)
-    reportAppUrl('https://server.example', undefined)
+    reportStreamedApp(
+      'https://server.example',
+      ServerType.Sasjs,
+      '/Public/app',
+      'mario',
+      info
+    )
 
+    // two addresses, because the entry page needs a server carrying the
+    // /StoredProgram tier and the published folder does not
     expect(said).toEqual([
-      'Web app is available at https://server.example/app/mario/'
+      'Web app is available at https://server.example/StoredProgram?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/mario.html',
+      'App stream: https://server.example/app/mario/ ' +
+        '(answers on servers that predate /StoredProgram)'
     ])
+  })
+
+  it('names only the entry page where no app stream was published', () => {
+    const said: string[] = []
+    const info = (message: string) => said.push(message)
+
+    // Viya serves the streamed artefact and has no app stream of its own
+    reportStreamedApp(
+      'https://viya.example',
+      ServerType.SasViya,
+      '/Public/app',
+      'mario',
+      info
+    )
+
+    expect(said).toHaveLength(1)
+    expect(said[0]).toContain('/SASJobExecution?_FILE=')
   })
 })

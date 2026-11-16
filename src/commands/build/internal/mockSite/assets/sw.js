@@ -1696,14 +1696,25 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // for rather than answered twice - `_FILE=` is the drive read (the package
   // decides its typing and its refusal), `_program=` is the run.
   const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
-  const apiPath =
+  const askedForFile =
     webTier && request.method === 'GET' && url.searchParams.get('_FILE')
-      ? '/SASjsApi/drive/file'
-      : webTier &&
-          /^\/StoredProgram$/i.test(path) &&
-          url.searchParams.get('_program')
-        ? '/SASjsApi/stp/execute'
-        : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
+  const askedForProgram =
+    webTier &&
+    /^\/StoredProgram$/i.test(path) &&
+    url.searchParams.get('_program')
+
+  // A request naming both is refused before either branch is chosen, in the
+  // server's own words. The mock exists so a host's answers can be reproduced:
+  // picking the file here would make the site work on a page the server answers
+  // 400 for, which is the one disagreement worth not having.
+  if (askedForFile && askedForProgram)
+    return text('Exactly one of "_program" and "_FILE" may be given.', 400)
+
+  const apiPath = askedForFile
+    ? '/SASjsApi/drive/file'
+    : askedForProgram
+      ? '/SASjsApi/stp/execute'
+      : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 

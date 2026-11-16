@@ -1,7 +1,7 @@
 import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
 import { getAuthConfig } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
-import { streamedAppUrl } from './appStreamUrl'
+import { reportStreamedApp } from './appStreamUrl'
 import {
   readFile,
   Target,
@@ -65,12 +65,11 @@ export async function deployToSasjsWithServicePack(
   // server's own file route - the folder it published the app under is not the
   // address the page loads its assets through
   if (streamConfig?.streamWeb)
-    process.logger?.info(
-      `Web app is available at ${streamedAppUrl(
-        target.serverUrl,
-        target.serverType,
-        target.appLoc,
-        streamConfig.streamServiceName as string
-      )}`
+    reportStreamedApp(
+      target.serverUrl,
+      target.serverType,
+      target.appLoc,
+      streamConfig.streamServiceName as string,
+      (message) => process.logger?.info(message)
     )
 }

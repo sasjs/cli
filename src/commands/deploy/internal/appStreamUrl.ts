@@ -53,20 +53,36 @@ export const webAppStreamUrl = (
 }
 
 /**
- * Says where the app is, when the deploy published one.
+ * Says where a streamed build can be opened, and where it was published.
  *
- * The call is the whole of what a caller has to do, which keeps the uncovered
- * path in the deploy command to one function call rather than a chain of
- * conditions nothing exercises.
+ * Two addresses, because one of them is younger than the other. The entry page
+ * is the streamed artefact, and the server answers it through the
+ * `/StoredProgram` tier: sasjs/server#736 and later. The app stream is the
+ * folder the deploy published, which every server release serves - so a target
+ * whose server predates the tier still gets an address that works, and the
+ * deploy output names the dependency rather than announcing only a page that
+ * would render blank.
  */
-export const reportAppUrl = (
+export const reportStreamedApp = (
   serverUrl: string,
-  answer: DeployAppAnswer | undefined,
+  serverType: ServerType,
+  appLoc: string,
+  streamServiceName: string,
   info?: (message: string) => void
-): string | undefined => {
-  const url = webAppStreamUrl(serverUrl, answer)
+): void => {
+  info?.(
+    `Web app is available at ${streamedAppUrl(
+      serverUrl,
+      serverType,
+      appLoc,
+      streamServiceName
+    )}`
+  )
 
-  if (url) info?.(`Web app is available at ${url}`)
+  const published = webAppStreamUrl(serverUrl, { streamServiceName })
 
-  return url
+  if (published && serverType === ServerType.Sasjs)
+    info?.(
+      `App stream: ${published} (answers on servers that predate /StoredProgram)`
+    )
 }
