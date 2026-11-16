@@ -284,9 +284,12 @@ describe('processFormat', () => {
     const named = path.join(blocked, 'x.sas')
 
     try {
-      const { files } = await resolveSasFiles([named])
+      const { files, rejected } = await resolveSasFiles([named])
 
-      expect(files).toEqual([named])
+      expect(files).toEqual([])
+      expect(rejected.map((entry) => entry.message)).toEqual([
+        'no such path, so nothing was formatted'
+      ])
     } finally {
       fs.chmodSync(blocked, 0o755)
     }
@@ -302,6 +305,49 @@ describe('processFormat', () => {
 
     expect(fs.statSync(filePath).mode & 0o777).toEqual(0o640)
   })
+
+  it('names a missing path as missing, not as the wrong file type', async () => {
+    // A mistyped path is not "not a .sas file", and saying so sends the reader
+    // looking for the wrong mistake.
+    const missing = path.join(dir, 'nope/missing.sas')
+
+    const { rejected } = await resolveSasFiles([missing])
+
+    expect(rejected).toEqual([
+      { filePath: missing, message: 'no such path, so nothing was formatted' }
+    ])
+  })
+
+  posixOnly('follows a symlink instead of replacing it', async () => {
+    // A `.sas` file that is a link into a shared directory must stay a link: a
+    // rename over the link's path would leave a regular copy behind and break it.
+    const target = write(dir, 'shared/real.sas', 'DATA a;\nRUN;\n')
+    const link = path.join(dir, 'linked.sas')
+    fs.symlinkSync(target, link)
+
+    await processFormat([link], false, { reprint })
+
+    expect(fs.lstatSync(link).isSymbolicLink()).toBe(true)
+    expect(fs.readFileSync(target, 'utf8')).toContain('data a;')
+  })
+
+  posixOnly(
+    'does not reuse a stale temporary file from an earlier run',
+    async () => {
+      // The temporary name carries the pid and a random token, so a leftover from a
+      // killed run cannot be mistaken for this one's.
+      const filePath = write(dir, 'stale.sas', 'DATA a;\nRUN;\n')
+      const stale = `${filePath}.sasjs-format.tmp`
+      fs.writeFileSync(stale, 'left behind by a killed run')
+
+      await processFormat([filePath], false, { reprint })
+
+      expect(fs.readFileSync(stale, 'utf8')).toEqual(
+        'left behind by a killed run'
+      )
+      expect(fs.readFileSync(filePath, 'utf8')).toContain('data a;')
+    }
+  )
 
   it('records an absolute folder that holds no .sas file', async () => {
     // The pattern branch reports a filter that names nothing; the absolute branch
@@ -356,10 +402,10 @@ describe('processFormat', () => {
     expect(fs.readFileSync(filePath, 'utf8').includes('\r\n')).toBe(false)
   })
 
-  it('normalises to LF by default, because the engine joins on LF', async () => {
-    // Not because the `lineEndings` rule says so - its default is `off`, so that
-    // rule does not run at all. The engine's join is what moves a CRLF checkout to
-    // LF, and it is why `format` and `lint` disagree on a default project.
+  it('normalises to LF by default, because no ending is selected', async () => {
+    // Not because the `lineEndings` rule asks for LF - its default is `off`, so no
+    // rule runs. The engine returns lines joined on LF and nothing re-joins them,
+    // which is why `format` and `lint` disagree on a default project.
     const filePath = write(dir, 'm.sas', 'DATA a;\r\nRUN;\r\n')
 
     await processFormat([filePath], false, { reprint })
@@ -367,17 +413,30 @@ describe('processFormat', () => {
     expect(fs.readFileSync(filePath, 'utf8').includes('\r\n')).toBe(false)
   })
 
-  it('collects a file it could not read, instead of skipping the rest', async () => {
-    // One unreadable file in a tree must not stop the walk, which is the rule
-    // formatFolder follows for the same reason.
-    const missing = path.join(dir, 'gone.sas')
-    const good = write(dir, 'ok.sas', 'DATA a;\nRUN;\n')
+  posixOnly(
+    'collects a file it could not read, instead of skipping the rest',
+    async () => {
+      // One unreadable file in a tree must not stop the walk, which is the rule
+      // formatFolder follows for the same reason. The file exists and cannot be
+      // read, so it gets past the "no such path" check and fails at the read.
+      const unreadable = write(dir, 'gone.sas', 'DATA a;\nRUN;\n')
+      fs.chmodSync(unreadable, 0o000)
+      const good = write(dir, 'ok.sas', 'DATA a;\nRUN;\n')
 
-    const outcome = await processFormat([missing, good], false, { reprint })
+      try {
+        const outcome = await processFormat([unreadable, good], false, {
+          reprint
+        })
 
-    expect(outcome.failedFilePaths.map((f) => f.filePath)).toEqual([missing])
-    expect(outcome.changedFilePaths).toEqual([good])
-  })
+        expect(outcome.failedFilePaths.map((f) => f.filePath)).toEqual([
+          unreadable
+        ])
+        expect(outcome.changedFilePaths).toEqual([good])
+      } finally {
+        fs.chmodSync(unreadable, 0o644)
+      }
+    }
+  )
 
   it('leaves an unsettled file exactly as it was, and names it', async () => {
     restlessPass = 0

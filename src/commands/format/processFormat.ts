@@ -1,6 +1,7 @@
 import path from 'path'
-import { chmod, rename, rm, stat, writeFile } from 'fs/promises'
-import { statSync } from 'fs'
+import { chmod, rename, realpath, rm, stat, writeFile } from 'fs/promises'
+import { existsSync, statSync } from 'fs'
+import { randomBytes } from 'crypto'
 
 import {
   formatText,
@@ -106,11 +107,12 @@ const BOM = '\uFEFF'
  * A byte-order mark records how the file is encoded rather than how it is
  * formatted, so it is not this command's to remove: `readFile` hands it back as
  * the first character, the pipeline does not carry it through, and it is restored
- * here. Line endings need no such treatment: the engine joins lines on LF, so a
- * CRLF file is normalised either way, and `.sasjslint`'s `lineEndings` only decides
- * whether CRLF is produced instead. Its default is `off`, which registers no rule
- * at all - so `sasjs lint` says nothing about endings on a default project while
- * this command still rewrites them.
+ * here. Line endings need no such treatment: the engine returns lines joined on LF,
+ * and `@sasjs/lint`'s pass then re-joins them with the ending the configuration
+ * selects - so `lineEndings: "crlf"` restores CRLF, and the default (`off`) leaves
+ * them as the engine produced them, LF. `off` registers no rule, so on a default
+ * project `sasjs lint` says nothing about endings while this command still
+ * rewrites them.
  *
  * @param before - the file as it was read
  * @param formatted - the settled formatting of it
@@ -136,17 +138,25 @@ const restoreEnvelope = (before: string, formatted: string): string => {
  * folder, so it is the same filesystem and the rename cannot become a copy.
  */
 const replaceFile = async (filePath: string, text: string): Promise<void> => {
-  const temporary = `${filePath}.sasjs-format.tmp`
+  // A symlink is followed rather than replaced: the file the user named is a link
+  // into somewhere else, and turning it into a regular copy would break that
+  // silently. `realpath` is the thing that has to be rewritten.
+  const target = await realpath(filePath)
+
+  // The temporary name is unique per run, so two overlapping runs in one tree
+  // cannot write the same path and cross each other's rename - and a killed run
+  // leaves an obviously stale name rather than one that looks live.
+  const temporary = `${target}.${process.pid}.${randomBytes(4).toString('hex')}.sasjs-format.tmp`
 
   try {
     // The temporary file is created with the process's mode, so the source's has
     // to be carried across: a group-writable or executable file must not come
     // back 0644 because it was rewritten.
-    const original = await stat(filePath)
+    const original = await stat(target)
 
     await writeFile(temporary, text)
     await chmod(temporary, original.mode)
-    await rename(temporary, filePath)
+    await rename(temporary, target)
   } catch (error) {
     await rm(temporary, { force: true })
 
@@ -236,6 +246,17 @@ export const resolveSasFiles = async (
       if (!folderFiles.length) unmatchedFilters.push(absolutePath)
 
       files.push(...folderFiles)
+
+      continue
+    }
+
+    // Named before the extension is considered: a mistyped path is not "not a
+    // .sas file", and saying so sends the reader looking for the wrong mistake.
+    if (!existsSync(absolutePath)) {
+      rejected.push({
+        filePath: absolutePath,
+        message: 'no such path, so nothing was formatted'
+      })
 
       continue
     }
