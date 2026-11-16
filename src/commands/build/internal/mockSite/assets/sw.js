@@ -444,8 +444,22 @@ const askHostForDrive = () => {
       const client = clients.find((c) => !asked.has(askedId(c))) || clients[0]
       asked.add(askedId(client))
 
+      // A tab that closed between `matchAll()` and this send raises
+      // InvalidStateError. That is this client not answering, not a verdict: the
+      // next one is tried and the budget still bounds the wait. Letting it throw
+      // would reject the promise `driveAsked` holds, and every later ask would
+      // return that rejection - so `ensureReady` would fall through to the seed
+      // for the rest of this worker's life, which is the loss the ask exists to
+      // prevent.
+      try {
+        client.postMessage({ type: 'sasjs-need-drive' })
+      } catch (e) {
+        continue
+      }
+
+      // Registered after a send that worked: a failed send leaves no waiter
+      // behind for an answer that cannot come.
       const arrived = new Promise((resolve) => driveWaiters.push(resolve))
-      client.postMessage({ type: 'sasjs-need-drive' })
 
       const verdict = await Promise.race([
         arrived,

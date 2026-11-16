@@ -2607,6 +2607,41 @@ describe('service worker host', () => {
       expect(second.postMessage).not.toHaveBeenCalled()
     })
 
+    it('moves to the next tab when a tab cannot be reached', async () => {
+      // a tab that closed between matchAll() and the send raises
+      // InvalidStateError. That is this client not answering, not a verdict: if
+      // it rejected the ask, every later ask would return the same rejection and
+      // the worker would seed over the drive for the rest of its life
+      const closed = jest.fn(() => {
+        throw new Error('InvalidStateError')
+      })
+      const answering = jest.fn()
+      ;(global as any).__mockHostClients = () => [
+        { id: 'tab-closed', postMessage: closed },
+        { id: 'tab-live', postMessage: answering }
+      ]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch(
+        '/SASjsApi/drive/file?_filePath=' +
+          encodeURIComponent(`${appLoc}/made.sas`)
+      )
+
+      await settleUntil(() => answering.mock.calls.length > 0)
+      expect(closed).toHaveBeenCalled()
+
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+
+      const response = await pending
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('data;')
+    }, 20000)
+
     it('reaches the second tab when the first one stays quiet', async () => {
       // the browser hands back FRESH Client objects on every matchAll(): only
       // the id is stable, so a set keyed on the object asks the first tab for

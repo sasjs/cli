@@ -185,9 +185,10 @@ const loadPersist = (
   require('../assets/persist.js')
 
   // `source` is the worker that sent it, as a real MessageEvent carries: the
-  // page answers the sender, so a test has to be able to hand it a different
-  // one from the page's `controller`
-  const reply = (data: any, source?: any) =>
+  // page answers the sender and nothing else. It defaults to the harness's
+  // `controller`, which is the same worker in the ordinary case, and a test that
+  // needs a different sender passes one.
+  const reply = (data: any, source: any = controller) =>
     [...listeners].forEach((fn) => fn({ data, source }))
 
   return {
@@ -577,6 +578,31 @@ describe('page-side store', () => {
         deleted: ['/sasjs/drive/files/gone.sas']
       })
     )
+  })
+
+  it('ignores a repeated ask while the first answer is still being prepared', async () => {
+    // the worker retries when its budget expires, and the retry can land while
+    // this page is still reading storage. Answering twice is two boots and two
+    // loads of the same drive - the double install one-client-at-a-time exists
+    // to prevent - so the repeat is dropped and the answer already on its way
+    // counts for both
+    const controller = { postMessage: jest.fn() }
+    const { reply } = loadPersist({
+      controller,
+      seeded: { '/sasjs/drive/files/a.sas': 'a' }
+    })
+
+    reply({ type: 'sasjs-need-drive' })
+    reply({ type: 'sasjs-need-drive' })
+
+    await settleUntil(() => controller.postMessage.mock.calls.length > 0)
+    // give a second answer every chance to arrive before counting
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const loads = controller.postMessage.mock.calls.filter(
+      (call: any[]) => call[0].type === 'sasjs-load'
+    )
+    expect(loads).toHaveLength(1)
   })
 
   it('answers the sender when the page controls a different worker', async () => {

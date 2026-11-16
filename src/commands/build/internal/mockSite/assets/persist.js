@@ -298,6 +298,9 @@
 
   // Persist whatever the worker reports as changed: drive files, and the
   // identity store's snapshot when a route created, changed or removed anything.
+  /** True while this page is answering a drive request. */
+  let answeringDrive = false
+
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
     if (data.type === 'sasjs-persist') {
@@ -343,19 +346,31 @@
      * just rejected would only be rejected again.
      */
     if (data.type === 'sasjs-need-drive') {
-      // The SENDER is the worker to answer, and `controller` is only a fallback.
-      // They are the same object in the ordinary case, but not after a
-      // rollover: a new worker can ask while `controller` still names its
-      // predecessor, and a page that has not been claimed yet has no controller
-      // at all - so reaching for `controller` here answers the wrong worker, or
-      // nothing, while the asker waits out its budget and seeds over the drive
-      // this handshake exists to preserve. The event carries the sender, which
-      // is also how the worker answers the page (sw.js: `event.source`).
+      // The SENDER is the worker to answer - `event.source` on a message from a
+      // service worker is that worker - and `navigator.serviceWorker.controller`
+      // is not used even as a fallback: after a rollover the controller still
+      // names the previous worker (so the answer goes to one that is not serving
+      // the request), and on a page that has not been claimed there is no
+      // controller at all (so the answer goes nowhere). Either way the asker
+      // waits out its budget and seeds over the drive this handshake exists to
+      // preserve. No sender means no worker asked, and there is then nothing to
+      // answer.
       //
-      // It is captured now rather than read later: the reads below can outlive
-      // it, and a late callback has no business reaching for `navigator` again.
-      const worker = ev.source || navigator.serviceWorker.controller
-      const answerTo = (message) => worker && worker.postMessage(message)
+      // The worker is taken now rather than read later: the reads below can
+      // outlive it, and a late callback has no business reaching for `navigator`.
+      const worker = ev.source
+      if (!worker) return
+
+      // A retry can land while this page is still answering the first ask - the
+      // worker's budget expired, the read has not finished. A second answer is a
+      // second boot and a second load of the same drive, which is the double
+      // install the worker's one-client-at-a-time ordering exists to avoid, so
+      // the repeat is dropped: the answer already on its way is the answer to
+      // both.
+      if (answeringDrive) return
+      answeringDrive = true
+
+      const answerTo = (message) => worker.postMessage(message)
 
       Promise.all([readAll(), readIdentity(), readDeleted()])
         .then(([files, stored, deleted]) =>
@@ -373,6 +388,9 @@
           // worker must not answer with a seed
           console.error('[sasjs-mock] could not send the drive', e)
           answerTo({ type: 'sasjs-drive-unavailable' })
+        })
+        .finally(() => {
+          answeringDrive = false
         })
     }
   })
