@@ -1,3 +1,5 @@
+import { ServerType } from '@sasjs/utils'
+
 /**
  * The address an app is served on, from the answer a deploy got back.
  *
@@ -10,6 +12,30 @@
 export interface DeployAppAnswer {
   app?: { id?: string; url?: string }
   streamServiceName?: string
+}
+
+/**
+ * The address a streamed app's entry page answers on.
+ *
+ * The build rewrote the app's asset links through the same route, so this is
+ * the page that can actually load them: one level above the folder holding the
+ * assets, read by name. Viya answers it at the job execution route and SASjs
+ * server at its Drive API; the two spellings are fixed here rather than in each
+ * deploy path, so the address printed and the address built into the page
+ * cannot disagree.
+ */
+export const streamedAppUrl = (
+  serverUrl: string,
+  serverType: ServerType,
+  appLoc: string,
+  streamServiceName: string
+): string => {
+  const route =
+    serverType === ServerType.Sasjs
+      ? '/SASjsApi/drive/file?_FILE='
+      : '/SASJobExecution?_FILE='
+
+  return `${serverUrl}${route}${encodeURI(appLoc)}/services/${streamServiceName}.html`
 }
 
 export const webAppStreamUrl = (

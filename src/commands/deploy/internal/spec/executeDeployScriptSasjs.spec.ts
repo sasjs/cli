@@ -88,7 +88,9 @@ describe('executeDeployScriptSasjs', () => {
     )
 
     expect(process.logger?.info).toHaveBeenCalledWith(
-      `Web app is available at ${target.serverUrl}/app/clickme/`
+      `Web app is available at ${target.serverUrl}/SASjsApi/drive/file?_FILE=${encodeURI(
+        target.appLoc
+      )}/services/clickme.html`
     )
   })
 })

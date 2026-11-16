@@ -8,7 +8,13 @@ import {
   verifyFolder
 } from '../../../utils/test'
 import { Folder } from '../../../types'
-import { createFile, readFile, ServerType, StreamConfig } from '@sasjs/utils'
+import {
+  createFile,
+  createFolder,
+  readFile,
+  ServerType,
+  StreamConfig
+} from '@sasjs/utils'
 import { createWebAppServices } from '../web'
 import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 
@@ -170,19 +176,31 @@ describe('sasjs web', () => {
   )
 
   it(
-    `should stamp the target's appLoc into the copied app for a SASjs target`,
+    `should stream the web app for a SASjs target the way Viya streams it`,
     async () => {
-      // The app reads its appLoc from the <sasjs> tag, and an AppStream app
-      // gets no appLoc from its URL - so a copy that kept the frontend's own
-      // value would call services on the default appLoc whatever was deployed.
+      // A SASjs server build is the same artefact a Viya build is: assets are
+      // copied into the deployment folder and the entry page's links point at
+      // the server's file route, so a build made for either host opens on the
+      // other at the address its own route answers.
       const sourceFolder = 'websrc'
+      await createFolder(path.join(__dirname, appName, sourceFolder))
       await createFile(
         path.join(__dirname, appName, sourceFolder, 'index.html'),
-        '<html><head><sasjs appLoc="/Public/app/default" serverType="SASJS"></sasjs></head><body></body></html>'
+        '<html><head><sasjs appLoc="/Public/app/default" serverType="SASJS"></sasjs>' +
+          '<script src="app.js"></script>' +
+          '<link rel="stylesheet" href="app.css"></head><body></body></html>'
+      )
+      await createFile(
+        path.join(__dirname, appName, sourceFolder, 'app.js'),
+        'console.log(1)'
+      )
+      await createFile(
+        path.join(__dirname, appName, sourceFolder, 'app.css'),
+        'body{}'
       )
 
       const sasjsTarget: any = {
-        name: 'sasjs-loc',
+        name: 'sasjs-stream',
         serverType: ServerType.Sasjs,
         appLoc: '/Public/app/AnotherLoc',
         streamConfig: {
@@ -194,17 +212,29 @@ describe('sasjs web', () => {
 
       await expect(createWebAppServices(sasjsTarget)).toResolve()
 
-      const copied = await readFile(
-        path.join(
-          process.sasjsConstants.buildDestinationServicesFolder,
-          'websas',
-          'index.html'
-        )
+      const servicesFolder =
+        process.sasjsConstants.buildDestinationServicesFolder
+      const entry = (
+        await readFile(path.join(servicesFolder, 'clickme.html'))
+      ).toLowerCase()
+
+      // the entry page carries the target's appLoc, not the frontend's own
+      expect(entry).toContain('apploc="/public/app/anotherloc"')
+      expect(entry).not.toContain('/public/app/default')
+
+      // and every asset is fetched through the server's own file route, with
+      // the appLoc it was deployed to baked in - as it is for Viya
+      expect(entry).toContain(
+        'src="/sasjsapi/drive/file?_file=/public/app/anotherloc/services/websas/app.js"'
+      )
+      expect(entry).toContain(
+        'href="/sasjsapi/drive/file?_file=/public/app/anotherloc/services/websas/app.css"'
       )
 
-      // jsdom serialises attribute names in lower case
-      expect(copied.toLowerCase()).toContain('apploc="/public/app/anotherloc"')
-      expect(copied.toLowerCase()).not.toContain('/public/app/default')
+      // the asset itself is a file in the deployment, not a service
+      await expect(
+        readFile(path.join(servicesFolder, 'websas', 'app.js'))
+      ).resolves.toEqual('console.log(1)')
     },
     2 * 60 * 1000
   )
