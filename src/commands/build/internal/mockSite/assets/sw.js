@@ -220,6 +220,18 @@ self.addEventListener('activate', (event) =>
   event.waitUntil(self.clients.claim())
 )
 
+/**
+ * The host's refusal when a request names both tier parameters.
+ *
+ * The one other copy is the sentence sasjs/server mints on the same two
+ * parameters (`api/src/routes/setupRoutes.ts`, `TIER_NEEDS_ONE_PARAMETER`).
+ * The mock answers as the host answers, so the wording has to match: a spec on
+ * each side asserts the sentence itself rather than the constant, so a change
+ * to either copy fails there instead of drifting quietly.
+ */
+const TIER_NEEDS_ONE_PARAMETER =
+  'Exactly one of "_program" and "_FILE" may be given.'
+
 const json = (obj, status) =>
   new Response(JSON.stringify(obj, null, 2), {
     status: status || 200,
@@ -1708,7 +1720,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // picking the file here would make the site work on a page the server answers
   // 400 for, which is the one disagreement worth not having.
   if (askedForFile && askedForProgram)
-    return text('Exactly one of "_program" and "_FILE" may be given.', 400)
+    return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
   const apiPath = askedForFile
     ? '/SASjsApi/drive/file'
