@@ -208,12 +208,17 @@ describe('processFormat', () => {
 
   it('does not list a file as rewritten when its write fails', async () => {
     // Pushing before the write reported a file as both rewritten and failed. The
-    // failure is a real EACCES: the file is replaced through a sibling temporary
-    // file, so it is the folder's permission that stops it, and the original must
-    // come through untouched either way.
+    // failure is a real permission error, induced the way each platform can:
+    // POSIX denies creating the sibling temporary file by making the folder
+    // unwritable, while Windows has no directory permissions to use and a
+    // read-only file cannot be replaced by MoveFileEx. Either way the original
+    // must come through untouched.
     const folder = path.join(dir, 'locked')
     const filePath = write(folder, 'h.sas', 'DATA a;\nRUN;\n')
-    fs.chmodSync(folder, 0o555)
+    const posix = process.platform !== 'win32'
+
+    if (posix) fs.chmodSync(folder, 0o555)
+    else fs.chmodSync(filePath, 0o444)
 
     try {
       const outcome = await processFormat([filePath], false, { reprint })
@@ -224,7 +229,8 @@ describe('processFormat', () => {
       ).toEqual([filePath])
       expect(fs.readFileSync(filePath, 'utf8')).toEqual('DATA a;\nRUN;\n')
     } finally {
-      fs.chmodSync(folder, 0o755)
+      if (posix) fs.chmodSync(folder, 0o755)
+      else fs.chmodSync(filePath, 0o644)
     }
   })
 
