@@ -195,25 +195,20 @@
    * level too high. The worker sits at `<base>/sw.js` and fetches the same file
    * relative to itself, so its URL is the one definition of the site folder.
    *
-   * Empty when the config cannot be read, which leaves the drive alone: a page
-   * that cannot tell which build it is has no business dropping one.
+   * A network or HTTP failure rejects boot rather than silently using a drive
+   * whose build cannot be verified. A readable config without a stamp keeps it.
    */
   const readBuildStamp = async (controller) => {
-    try {
-      const script = controller && controller.scriptURL
-      // no controller URL means no way to name the site folder; keep the drive
-      if (!script) return ''
-      const res = await fetch(new URL('host/mock-config.json', script), {
-        cache: 'no-store'
-      })
-      if (!res.ok) return ''
-      const config = await res.json()
-      return config && typeof config.buildStamp === 'string'
-        ? config.buildStamp
-        : ''
-    } catch (e) {
-      return ''
-    }
+    const script = controller && controller.scriptURL
+    if (!script) throw new Error('service worker script URL is unavailable')
+    const res = await fetch(new URL('host/mock-config.json', script), {
+      cache: 'no-store'
+    })
+    if (!res.ok) throw new Error('mock-config.json returned ' + res.status)
+    const config = await res.json()
+    return config && typeof config.buildStamp === 'string'
+      ? config.buildStamp
+      : ''
   }
 
   /** Where the stamp of the build that wrote the stored drive is kept. */
@@ -599,7 +594,7 @@
     return answer
   }
 
-  window.__sasjsMockReady = (async () => {
+  window.__sasjsMockPersistReady = (async () => {
     await navigator.serviceWorker.ready
     const controller = await waitForController()
     if (!controller) return { error: 'no service worker controller' }
@@ -611,6 +606,7 @@
       stored = await readIdentity()
     } catch (e) {
       console.error('[sasjs-mock] could not read storage: ' + e)
+      throw e
     }
 
     // A stored drive outlives the build that wrote it, so a returning visitor
@@ -653,4 +649,6 @@
       keepBuildStamp(stamp)
     return window.__sasjsMockBoot
   })()
+  // The loader attaches its own observer after this script's load event.
+  window.__sasjsMockPersistReady.catch(() => {})
 })()

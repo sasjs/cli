@@ -349,6 +349,39 @@ jobs:
           echo "::error::The coverage ratchet did not pass - see the coverage comment."
           exit 1
 
+  browser-tests:
+    name: browser-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        # The browser test builds a site from the current TypeScript builder and
+        # installed API package before serving it; it never uses a stale dist.
+        run: npm ci
+      - name: Run Chromium lifecycle regression
+        # Chrome on the hosted Ubuntu image is intentionally unpinned: this
+        # checks compatibility with the platform's current browser as it changes,
+        # accepting that runner updates can change the test without a commit.
+        # Try Chromium alternatives; fail if none is available so an image change
+        # cannot silently skip the regression check.
+        run: |
+          for browser in google-chrome chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              export CHROMIUM_PATH="$(command -v "$browser")"
+              "$CHROMIUM_PATH" --version
+              node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs
+              exit $?
+            fi
+          done
+          echo "::error::No Chrome/Chromium binary found on runner"
+          exit 1
+
   server-tests:
     name: server-tests
     runs-on: ubuntu-latest
@@ -449,7 +482,7 @@ jobs:
     # It starts only once every job above has finished, and fails if any of them
     # did not succeed - a skipped job does not count as a pass.
     name: test
-    needs: [lint, audit, docs, build-and-smoke, unit-tests, server-tests]
+    needs: [lint, audit, docs, build-and-smoke, unit-tests, browser-tests, server-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -466,6 +499,7 @@ jobs:
             "docs=${{ needs.docs.result }}" \
             "build-and-smoke=${{ needs.build-and-smoke.result }}" \
             "unit-tests=${{ needs.unit-tests.result }}" \
+            "browser-tests=${{ needs.browser-tests.result }}" \
             "server-tests=${{ needs.server-tests.result }}"; do
             echo "$result"
             case "$result" in
