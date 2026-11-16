@@ -1508,6 +1508,102 @@ describe('service worker host', () => {
       })
     })
 
+    it('lists only the apps the caller holds a grant on', async () => {
+      // a fixture that denies the restricted account one app, by the label an
+      // older rule names for it
+      ;(global as any).__sasjsIdentity = {
+        ...DEFAULT_IDENTITY,
+        users: [
+          ...DEFAULT_IDENTITY.users,
+          {
+            uid: 'user-apps',
+            username: 'appuser',
+            displayName: 'App User',
+            password: 'Orion123',
+            isAdmin: false,
+            isActive: true,
+            needsToUpdatePassword: false
+          }
+        ],
+        groups: [
+          ...DEFAULT_IDENTITY.groups,
+          {
+            uid: 'group-apps',
+            name: 'AppGroup',
+            description: 'Holds grants on particular apps',
+            isActive: true,
+            users: ['appuser']
+          }
+        ],
+        permissions: [
+          ...DEFAULT_IDENTITY.permissions,
+          {
+            uid: 'rule-app-orders',
+            path: '/AppStream/orders',
+            type: 'Route',
+            setting: 'Deny',
+            group: 'group-data-controller'
+          },
+          // the same app, granted by a rule rather than left to the stream's
+          // prefix: a filter that never built its rules from the records, or
+          // that misread a group rule, would answer "no apps" for both accounts
+          {
+            uid: 'rule-app-orders-grant',
+            path: '/AppStream/orders',
+            type: 'Route',
+            setting: 'Grant',
+            group: 'group-apps'
+          }
+        ]
+      }
+
+      const worker = loadWorker()
+
+      const archive = await zipOf({
+        'services/web/index.html': '<h1>Orders</h1>'
+      })
+      const form = new FormData()
+      form.set('appLoc', '/Public/apps/orders')
+      form.set('streamWebFolder', 'web')
+      form.set('file', new Blob([new Uint8Array(archive)]), 'deploy.zip')
+
+      const published = await worker.dispatch('/SASjsApi/drive/deploy/upload', {
+        method: 'POST',
+        body: form
+      })
+      expect(published.status).toBe(200)
+      const app = (await published.json()).app
+
+      // the administrator holds every app, so the listing is untouched for it
+      const asAdmin = await worker.dispatch('/app/apps.json')
+      expect((await asAdmin.json()).apps.map((row: any) => row.url)).toEqual([
+        app.url
+      ])
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+
+      // the rule the fixture states hides the app from the listing
+      const asRestricted = await worker.dispatch('/app/apps.json')
+      expect((await asRestricted.json()).apps).toEqual([])
+
+      // and the app's own URL is refused, rather than served to a caller the
+      // listing does not offer it to
+      const appUrl = app.url.replace(/^\/app/, '')
+      const page = await worker.dispatch(`/app${appUrl}`)
+      expect(page.status).toBe(404)
+
+      // an account the same rule grants the app sees it, which is the case a
+      // filter that answered "no apps" for everyone but the administrator would
+      // also pass without
+      await worker.message({ type: 'sasjs-as', username: 'appuser' }).pending
+
+      const asGranted = await worker.dispatch('/app/apps.json')
+      expect((await asGranted.json()).apps.map((row: any) => row.url)).toEqual([
+        app.url
+      ])
+      expect((await worker.dispatch(`/app${appUrl}`)).status).toBe(200)
+    })
+
     it('keeps an app’s URL and tiles inside the folder the site is served from', async () => {
       const worker = loadWorker('/demo')
 
@@ -3763,6 +3859,36 @@ describe('service worker host', () => {
       })
       expect(session.status).toBe(200)
       expect((await session.json()).username).toBe('sasjsuser')
+    })
+
+    it('refuses a run the fixture denies, and admits one it grants', async () => {
+      const worker = seeded()
+
+      // the administrator may run a buffer, as the API's own corpus says
+      const asAdmin = await worker.dispatch(
+        '/SASjsApi/code/execute',
+        runRequest({ code: 'data _null_; run;', runTime: 'sas' })
+      )
+      expect(asAdmin.status).toBe(200)
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+
+      // the fixture denies this account /SASjsApi/code/execute with a user rule,
+      // and the rule refuses the call rather than only the menu entry beside it
+      const denied = await worker.dispatch(
+        '/SASjsApi/code/execute',
+        runRequest({ code: 'data _null_; run;', runTime: 'sas' })
+      )
+      expect(denied.status).toBe(401)
+      expect((await denied.json()).message).toBe('Unauthorized')
+
+      // the same account holds a group grant on stp/execute, so the refusal above
+      // is the rule and not a blanket refusal of everything it asks for
+      const granted = await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/getdata`)
+      )
+      expect(granted.status).toBe(200)
     })
 
     it('returns to the administrator with no account named, or with "admin"', async () => {

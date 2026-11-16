@@ -1057,6 +1057,79 @@ const APP_STREAM = API.createAppStreamService(
  * the site root. Both sides take the same base and the answers land inside the
  * folder.
  */
+/**
+ * The app stream's prefix: what a rule names to cover every app at once.
+ */
+const APP_STREAM_PREFIX = '/AppStream'
+
+/** One caller's rules, in the shape the route decision takes them. */
+const routeRulesOf = (permissions) => ({
+  user: (permissions || [])
+    .filter((rule) => rule.user !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting })),
+  group: (permissions || [])
+    .filter((rule) => rule.group !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting }))
+})
+
+/**
+ * The caller's own rule about which apps it may see.
+ *
+ * The surface takes this from the host, because only the host knows the rules a
+ * caller holds. sasjs/server answers it with `appIsGranted`: the path a rule
+ * names decides - the app's id, or the label an older rule uses - and the stream
+ * prefix decides when no rule names either. A browser host reads the same rules
+ * from the fixture, so a `Deny` on `/AppStream/orders` hides that app here as it
+ * does on a server, and a fixture with no app rules shows every published app.
+ */
+const appFilterFor = async (subject) => {
+  const rules = routeRulesOf(await RECORDS.listPermissions(subject))
+
+  return (entry) =>
+    API.isRouteGranted(
+      rules,
+      [
+        `${APP_STREAM_PREFIX}/${entry.id}`,
+        entry.name ? `${APP_STREAM_PREFIX}/${entry.name}` : ''
+      ].find((path) =>
+        [...rules.user, ...rules.group].some((rule) => rule.path === path)
+      ) || APP_STREAM_PREFIX,
+      APP_STREAM_PREFIX
+    )
+}
+
+/**
+ * The filter to hand the surface, cached per caller.
+ *
+ * The surface asks it for every request under `/app`, an app's own assets
+ * included, and each answer would otherwise read the permission records and the
+ * groups. The key carries the chosen account and the fixture the page last
+ * persisted, so signing in as someone else or writing a rule re-reads once and
+ * every request after that does not.
+ */
+let appFilterCache
+const appFilter = async (subject) => {
+  const key = `${String(CALLER_USERNAME)}|${String(IDENTITY_STATE.persisted)}`
+  if (appFilterCache && appFilterCache.key === key) return appFilterCache.filter
+
+  // the account the subject names, read from the fixture this host already
+  // holds: an administrator holds every app, so the rules are not asked at all
+  const caller = subject
+    ? IDENTITY_STATE.store
+        .snapshot()
+        .users.find((user) => user.uid === subject.userId)
+    : undefined
+
+  const filter = !caller
+    ? () => false
+    : caller.isAdmin
+      ? () => true
+      : await appFilterFor(subject)
+
+  appFilterCache = { key, filter }
+  return filter
+}
+
 let appStreamWeb
 const appStreamSurface = () => {
   if (!appStreamWeb)
@@ -1241,6 +1314,33 @@ const RUN_ROUTES = new Set([
   'POST /SASjsApi/stp/trigger',
   'POST /SASjsApi/code/execute',
   'POST /SASjsApi/code/trigger'
+])
+
+/**
+ * The run routes a permission rule addresses.
+ *
+ * A run is answered by this host rather than by `API.dispatch`, so the question
+ * is asked here: the answer is the one `/info/myAuthorizedRoutes` gives the
+ * interface, which is why a denied rule refuses the call and not only the menu
+ * entry beside it.
+ *
+ * Neither the drive routes nor the triggers are gated here, and that is
+ * deliberate: the drive routes stay ungated because the package does not gate
+ * them yet either (no rule is applied to a drive call until sasjs/api#97 lands,
+ * and that gates the run routes only), and the triggers are outside the
+ * inventory the rules address, as they are on a server.
+ *
+ * This set is a copy of the package's own list in `src/host/dispatch.ts`, and it
+ * fails open: a run route the package adds later is silently ungated here. It is
+ * retired by the `@sasjs/api` release that carries `mayUseRoute` - when the pin
+ * reaches that version, delete this set and ask the method instead, which is one
+ * decision rather than a read of the whole reported list, and stops the per-run
+ * re-read of the rules and the groups.
+ */
+const GRANTED_RUN_ROUTES = new Set([
+  'GET /SASjsApi/stp/execute',
+  'POST /SASjsApi/stp/execute',
+  'POST /SASjsApi/code/execute'
 ])
 
 /**
@@ -1555,9 +1655,10 @@ const subjectOf = async (request, query) => {
  * The service is called directly rather than through `dispatch` because a run's
  * answer is the webout *with the headers its service declared*
  * (`content-disposition` is how a service names a download), and the artefact
- * the service returns is where those headers are. Everything a client observes
- * about the request - who may run it, which field names the program, what
- * `_debug` means - is still the package's decision.
+ * the service returns is where those headers are. What a client observes about
+ * the request - which field names the program, what `_debug` means, which run
+ * times are offered - is still the package's decision; who may run it is not,
+ * because it is asked here before this is reached (see `GRANTED_RUN_ROUTES`).
  */
 const runRoute = async (routeId, payload, subject) => {
   // A program may read any file it likes - the drive is its filesystem - so
@@ -1775,7 +1876,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         path: url.pathname.replace(
           /\/AppStream(?=\/|$)/i,
           SHORT_APP_STREAM_PATH
-        )
+        ),
+        // who may see which app, which the surface leaves to the host. The
+        // caller is resolved here because this branch answers before the API
+        // routes below resolve theirs
+        allow: await appFilter(await subjectOf(request, query))
       })
 
       // a removal changes the index, which lives in the drive: persisted in the
@@ -1808,8 +1913,20 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
 
-    if (RUN_ROUTES.has(routeId))
+    if (RUN_ROUTES.has(routeId)) {
+      // The rule this host would apply, asked of the package: the run routes are
+      // answered here rather than by `dispatch`, so the question is asked here.
+      // It is the same answer `/info/myAuthorizedRoutes` gives the interface -
+      // one decision, so a menu entry and the call behind it cannot disagree.
+      if (GRANTED_RUN_ROUTES.has(routeId)) {
+        const routePath = routeId.slice(routeId.indexOf(' ') + 1)
+        const granted = await RECORDS.myAuthorizedRoutes(subject)
+        if (!granted.paths.includes(routePath))
+          throw new API.ApiError(401, 'Unauthorized')
+      }
+
       return await runRoute(routeId, payload, subject)
+    }
 
     const apiRequest = {
       query,
