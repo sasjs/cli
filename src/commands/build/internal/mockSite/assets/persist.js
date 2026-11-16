@@ -298,8 +298,8 @@
 
   // Persist whatever the worker reports as changed: drive files, and the
   // identity store's snapshot when a route created, changed or removed anything.
-  /** True while this page is answering a drive request. */
-  let answeringDrive = false
+  /** The workers this page is preparing an answer for, by sender. */
+  const answeringWorkers = new Set()
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
@@ -367,8 +367,14 @@
       // install the worker's one-client-at-a-time ordering exists to avoid, so
       // the repeat is dropped: the answer already on its way is the answer to
       // both.
-      if (answeringDrive) return
-      answeringDrive = true
+      //
+      // Per worker, not per page: a worker that activates mid-read - the
+      // rollover the comment above describes - is a different asker, and
+      // dropping its ask would leave it waiting out its budget and then seeding
+      // over the drive, which is the loss this whole handshake exists to
+      // prevent.
+      if (answeringWorkers.has(worker)) return
+      answeringWorkers.add(worker)
 
       const answerTo = (message) => worker.postMessage(message)
 
@@ -390,7 +396,7 @@
           answerTo({ type: 'sasjs-drive-unavailable' })
         })
         .finally(() => {
-          answeringDrive = false
+          answeringWorkers.delete(worker)
         })
     }
   })

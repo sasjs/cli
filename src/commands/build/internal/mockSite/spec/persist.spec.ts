@@ -605,6 +605,38 @@ describe('page-side store', () => {
     expect(loads).toHaveLength(1)
   })
 
+  it('answers a second worker while the first answer is still being prepared', async () => {
+    // a worker that activates mid-read is a different asker, and the guard
+    // against a repeated ask is per worker: dropping its ask too would leave it
+    // waiting out its budget and then seeding over the drive
+    const first = { postMessage: jest.fn() }
+    const second = { postMessage: jest.fn() }
+    const { reply } = loadPersist({
+      controller: first,
+      seeded: { '/sasjs/drive/files/a.sas': 'a' }
+    })
+
+    reply({ type: 'sasjs-need-drive' }, first)
+    reply({ type: 'sasjs-need-drive' }, second)
+
+    await settleUntil(
+      () =>
+        first.postMessage.mock.calls.some(
+          (c: any[]) => c[0].type === 'sasjs-load'
+        ) &&
+        second.postMessage.mock.calls.some(
+          (c: any[]) => c[0].type === 'sasjs-load'
+        )
+    )
+
+    for (const worker of [first, second]) {
+      const loads = worker.postMessage.mock.calls.filter(
+        (call: any[]) => call[0].type === 'sasjs-load'
+      )
+      expect(loads).toHaveLength(1)
+    }
+  })
+
   it('answers the sender when the page controls a different worker', async () => {
     // after a rollover a new worker can ask while `controller` still names its
     // predecessor, and a page that has not been claimed has no controller at
