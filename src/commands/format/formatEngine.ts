@@ -44,7 +44,8 @@ const fromPackage: EngineLoader = () =>
  * rather than by being imported at the top of the command.
  *
  * A rejection is dropped rather than kept: the failure may be transient, and a
- * cached rejection would leave every later format in this process rule-only.
+ * cached one would make every later format in this process do nothing at all - the
+ * run stops before it reads or writes when the engine cannot load.
  * `load` exists for tests, whose module runtime cannot require an ES module.
  */
 export const getFormatEngine = (

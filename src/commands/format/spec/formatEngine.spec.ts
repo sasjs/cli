@@ -43,7 +43,7 @@ describe('getFormatEngine', () => {
 
   it('retries after a failed load rather than keeping the rejection', async () => {
     // A transient failure - an upgrade replacing the package under a running
-    // process - must not leave every later format in this process rule-only.
+    // process - must not leave every later format in this process doing nothing.
     const engine = async (text: string) => text
     const load = jest
       .fn()
