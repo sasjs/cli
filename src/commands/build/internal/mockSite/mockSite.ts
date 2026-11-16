@@ -4,9 +4,16 @@ import os from 'os'
 import path from 'path'
 import { buildSync as esbuildSync } from 'esbuild'
 import { JSDOM } from 'jsdom'
-import type { Token } from 'parse5'
 import { DEFAULT_IDENTITY, parseIdentity, ROUTES } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
+
+// The source offsets used from jsdom's nodeLocation result.
+type SourceRange = { startOffset: number; endOffset: number }
+type ElementLocation = SourceRange & {
+  attrs?: { [name: string]: SourceRange }
+  startTag?: SourceRange
+  endTag?: SourceRange
+}
 
 export interface MockSiteResult {
   outputFolder: string
@@ -789,7 +796,8 @@ const patchIndexHtml = (
   if (outputFolder) {
     for (const script of scripts) {
       const src = script.getAttribute('src')
-      const location = dom.nodeLocation(script) as Token.ElementLocation | null
+      const location = dom.nodeLocation(script) as
+        ElementLocation | null | undefined
       const attr = location?.attrs?.src
       if (!src || !attr) continue
       const [versioned] = versionScripts([{ src }], outputFolder)
@@ -813,16 +821,16 @@ const patchIndexHtml = (
           let fragment: RegExpExecArray | null = null
           let token: RegExpExecArray | null
           while ((token = delimiters.exec(raw))) {
-            let value = token[0]
-            if (value[0] === '&') {
-              decoder.innerHTML = `<i a="${value}"></i>`
-              value = decoder.firstElementChild!.getAttribute('a') || ''
+            let delimiter = token[0]
+            if (delimiter[0] === '&') {
+              decoder.innerHTML = `<i a="${delimiter}"></i>`
+              delimiter = decoder.firstElementChild!.getAttribute('a') || ''
             }
-            if (value === '#') {
+            if (delimiter === '#') {
               fragment = token
               break
             }
-            if (value === '?' && !query) query = token
+            if (delimiter === '?' && !query) query = token
           }
           if (!query) {
             const at = fragment?.index ?? raw.length
@@ -841,7 +849,8 @@ const patchIndexHtml = (
     }
   }
 
-  const head = dom.nodeLocation(document.head) as Token.ElementLocation | null
+  const head = dom.nodeLocation(document.head) as
+    ElementLocation | null | undefined
   const firstHeadScript = scripts.find((script) =>
     document.head.contains(script)
   )
@@ -875,10 +884,10 @@ const patchIndexHtml = (
     .map((node) => dom.nodeLocation(node))
     .filter((location) => location != null)
     .pop()
-  const body = dom.nodeLocation(document.body) as Token.ElementLocation | null
-  const htmlLocation = dom.nodeLocation(
-    document.documentElement
-  ) as Token.ElementLocation | null
+  const body = dom.nodeLocation(document.body) as
+    ElementLocation | null | undefined
+  const htmlLocation = dom.nodeLocation(document.documentElement) as
+    ElementLocation | null | undefined
   const firstBodyNode = Array.from(document.body.childNodes)
     .map((node) => dom.nodeLocation(node))
     .find((location) => location != null)

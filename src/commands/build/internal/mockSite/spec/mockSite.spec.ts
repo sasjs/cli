@@ -186,6 +186,72 @@ describe('browser-hosted build', () => {
     ])
   })
 
+  it('versions unquoted script URLs with an empty query before the fragment', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head><script src=main.abc123.js?#view defer></script></head><body></body></html>'
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toMatch(
+      /<script src=main\.abc123\.js\?v=[0-9a-f]{10}#view defer><\/script>/
+    )
+    const dom = new JSDOM(html)
+    const script = dom.window.document.querySelector('script[defer]')!
+    expect(script.getAttribute('src')).toMatch(
+      /^main\.abc123\.js\?v=[0-9a-f]{10}#view$/
+    )
+    dom.window.close()
+  })
+
+  it('leaves external and directory script URLs untouched', async () => {
+    const scripts = [
+      '<script src="//cdn.example.com/lib.js"></script>',
+      '<script src="data:text/javascript,void(0)"></script>',
+      '<script src="assets"></script>'
+    ]
+    fs.mkdirSync(path.join(root, 'client', 'dist', 'assets'))
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head>${scripts.join('')}</head><body></body></html>`
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    for (const script of scripts) expect(html).toContain(script)
+  })
+
+  it('only versions style links, including unquoted preloads, and leaves incomplete links alone', async () => {
+    const unchanged = [
+      '<link href="theme-boot.css">',
+      '<link rel=preload href="theme-boot.css">',
+      '<link rel=preload as=script href="theme-boot.css">',
+      '<link rel=stylesheet disabled>'
+    ]
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head>${unchanged.join('')}<link rel=preload as=style href=theme-boot.css><link rel='stylesheet' href='theme-boot.css'></head><body></body></html>`
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    for (const link of unchanged) expect(html).toContain(link)
+    const dom = new JSDOM(html)
+    const preload = dom.window.document.querySelector('link[as="style"]')!
+    const stylesheet = dom.window.document.querySelector(
+      'link[href^="theme-boot.css?"][rel="stylesheet"]'
+    )!
+    expect(preload.getAttribute('href')).toMatch(
+      /^theme-boot\.css\?v=[0-9a-f]{10}$/
+    )
+    expect(stylesheet.getAttribute('href')).toBe(preload.getAttribute('href'))
+    dom.window.close()
+  })
+
   it('does not version a script outside the generated site', async () => {
     write(path.join(root, 'sasjsbuild', 'external.js'), 'external')
     write(

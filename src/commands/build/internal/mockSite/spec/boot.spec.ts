@@ -182,6 +182,11 @@ describe('mock boot', () => {
       { href: 'http://localhost:8123/demo', noScript: true },
       'http://localhost:8123/demo/host/',
       ''
+    ],
+    [
+      { href: 'http://localhost:8123/demo/', noScript: true },
+      'http://localhost:8123/demo/host/',
+      ''
     ]
   ])(
     'loads host scripts with the loader version and base %#',
@@ -268,6 +273,13 @@ describe('mock boot', () => {
     expect((global as any).location.reload).not.toHaveBeenCalled()
   })
 
+  it('accepts the worker acknowledgement for a restored drive', async () => {
+    const result = { type: 'sasjs-load-ack', booted: true }
+    const { page } = loadBoot({ persist: Promise.resolve(result) })
+    await flush()
+    await expect(page.__sasjsMockReady).resolves.toEqual(result)
+  })
+
   it.each([
     [{ noWorker: true }, /service workers.*unavailable/i],
     [{ invalidLoader: true }, /invalid url/i],
@@ -279,6 +291,7 @@ describe('mock boot', () => {
     [{ fail: 'host/intercept.js' }, /intercept\.js/],
     [{ missingBridge: true }, /intercept.*install/i],
     [{ persist: null }, /persist.*readiness/i],
+    [{ persist: Promise.resolve(null) }, /no boot result/i],
     [{ persist: Promise.resolve({ error: 'seed missing' }) }, /seed missing/],
     [
       { persist: Promise.resolve({ driveError: 'incomplete drive' }) },

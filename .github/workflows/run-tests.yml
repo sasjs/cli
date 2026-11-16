@@ -365,8 +365,11 @@ jobs:
         # installed API package before serving it; it never uses a stale dist.
         run: npm ci
       - name: Run Chromium lifecycle regression
-        # The hosted Ubuntu image includes Google Chrome. Check alternatives and
-        # fail explicitly if the image changes rather than silently skipping it.
+        # Chrome on the hosted Ubuntu image is intentionally unpinned: this
+        # checks compatibility with the platform's current browser as it changes,
+        # accepting that runner updates can change the test without a commit.
+        # Try Chromium alternatives; fail if none is available so an image change
+        # cannot silently skip the regression check.
         run: |
           for browser in google-chrome chromium chromium-browser; do
             if command -v "$browser" >/dev/null 2>&1; then
