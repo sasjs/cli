@@ -1,9 +1,14 @@
 import path from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { writeFile } from 'fs/promises'
 import { statSync } from 'fs'
 
-import { formatText, FormatOptions } from '@sasjs/lint'
-import { listSasFilesInFolder } from '@sasjs/utils'
+import {
+  formatText,
+  FormatOptions,
+  getLintConfig,
+  LintConfig
+} from '@sasjs/lint'
+import { listSasFilesInFolder, readFile } from '@sasjs/utils'
 
 import { getFormatEngine } from './formatEngine'
 
@@ -32,6 +37,12 @@ const EXCLUDED_FOLDERS = [
   'sasjsresults'
 ]
 
+/** A file that could not be read, formatted or written, and why. */
+export interface FileFailure {
+  filePath: string
+  message: string
+}
+
 /** What a format run did, so a caller can report it and a pipeline can gate. */
 export interface FormatOutcome {
   /** Files whose content changed - or, with `check`, whose content would change. */
@@ -40,62 +51,114 @@ export interface FormatOutcome {
   examinedCount: number
   /** Files whose formatting never settled, and so were left exactly as found. */
   unsettledFilePaths: string[]
+  /** Files a filter named that this command will not format. */
+  rejectedFilePaths: FileFailure[]
+  /** Files that failed part way, so the run did not cover them. */
+  failedFilePaths: FileFailure[]
   /** Set when the layout engine could not be loaded, so only the rules ran. */
   engineUnavailable: boolean
 }
 
+/** Whether a path is one this command formats. */
+const isSasFile = (filePath: string) =>
+  path.extname(filePath).toLowerCase() === '.sas'
+
 /**
- * The `.sas` files a filter list names.
+ * Whether an absolute path names a folder, without throwing on a path this
+ * process may not stat.
+ *
+ * @param absolutePath - the path as the user typed it
+ * @returns `true` for a folder, `false` for anything else
+ */
+const isFolder = (absolutePath: string): boolean => {
+  try {
+    return (
+      statSync(absolutePath, { throwIfNoEntry: false })?.isDirectory() ?? false
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Removes duplicates, keeping the order a user would expect to read. */
+const unique = (paths: string[]) => [...new Set(paths)]
+
+/**
+ * The `.sas` files a filter list names, and the paths it names that this command
+ * will not format.
  *
  * Absolute paths are taken as given, unless they name a folder, in which case the
  * folder is walked; anything else is a pattern matched against every `.sas` file
- * in the project, which is how `sasjs lint` reads a filter.
+ * in the project, which is how `sasjs lint` reads a filter. An absolute path that
+ * is not a `.sas` file is refused rather than formatted: the language engine will
+ * happily reprint a markdown file, and a formatter that rewrites what it was not
+ * asked to is worse than one that says no.
+ *
+ * The result is deduplicated, because `sasjs format /p/sasjs/macros macros` names
+ * the same file twice and would otherwise format, report and count it twice.
  *
  * @param filterArray - absolute paths or patterns; empty means the whole project
- * @returns absolute paths, in no particular order
+ * @returns the files to format, and the absolute paths refused
  */
 export const resolveSasFiles = async (
   filterArray: string[] = []
-): Promise<string[]> => {
+): Promise<{ files: string[]; rejected: FileFailure[] }> => {
   if (!filterArray.length) {
     const projectDir = getProjectDir()
 
-    return (await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)).map(
-      (file) => path.resolve(projectDir, file)
-    )
+    return {
+      files: (
+        await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)
+      ).map((file) => path.resolve(projectDir, file)),
+      rejected: []
+    }
   }
 
   const absolute = filterArray.filter((pattern) => path.isAbsolute(pattern))
   const patterns = filterArray.filter((pattern) => !path.isAbsolute(pattern))
 
+  const files: string[] = []
+  const rejected: FileFailure[] = []
+
   // An absolute path may name a folder - `sasjs format /p/sasjs/macros` is the
   // obvious thing to type - and reading a directory as a file fails.
-  const files: string[] = []
-
   for (const absolutePath of absolute) {
-    const isFolder = statSync(absolutePath, {
-      throwIfNoEntry: false
-    })?.isDirectory()
-
-    if (isFolder)
+    if (isFolder(absolutePath)) {
       files.push(
         // The walker returns paths relative to the folder it was given.
         ...(
           await listSasFilesInFolder(absolutePath, true, EXCLUDED_FOLDERS)
         ).map((file) => path.resolve(absolutePath, file))
       )
-    else files.push(absolutePath)
+
+      continue
+    }
+
+    if (!isSasFile(absolutePath)) {
+      rejected.push({
+        filePath: absolutePath,
+        message: 'not a .sas file, so it was not formatted'
+      })
+
+      continue
+    }
+
+    files.push(absolutePath)
   }
 
-  if (!patterns.length) return files
+  if (patterns.length) {
+    const regex = new RegExp(
+      patterns.map((pattern) => `(${pattern})`).join('|')
+    )
+    const projectDir = getProjectDir()
+    const sasFiles = (
+      await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)
+    ).map((file) => path.resolve(projectDir, file))
 
-  const regex = new RegExp(patterns.map((pattern) => `(${pattern})`).join('|'))
-  const projectDir = getProjectDir()
-  const sasFiles = (
-    await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)
-  ).map((file) => path.resolve(projectDir, file))
+    files.push(...sasFiles.filter((file) => regex.test(file)))
+  }
 
-  return [...files, ...sasFiles.filter((file) => regex.test(file))]
+  return { files: unique(files), rejected }
 }
 
 /**
@@ -120,28 +183,24 @@ const MAX_PASSES = 3
  * that needs two goes.
  *
  * @param text - the file's content
- * @param options - the lint configuration and the reprint engine
- * @param unstable - collects the path when the passes do not settle
- * @param filePath - named in that report, so the caller knows which file
+ * @param config - the project's lint configuration, resolved once per run
+ * @param options - the reprint engine
  * @returns the settled text, or `undefined` when the passes never settled
  */
 const formatToFixedPoint = async (
   text: string,
-  options: FormatOptions,
-  unstable: string[],
-  filePath: string
+  config: LintConfig,
+  options: FormatOptions
 ): Promise<string | undefined> => {
   let current = text
 
   for (let pass = 1; pass <= MAX_PASSES; pass++) {
-    const next = await formatText(current, undefined, options)
+    const next = await formatText(current, config, options)
 
     if (next === current) return current
 
     current = next
   }
-
-  unstable.push(filePath)
 }
 
 /**
@@ -159,6 +218,10 @@ const formatToFixedPoint = async (
  *   command fails, so "is this repository canonically formatted?" becomes a gate
  *   in the way `sasjs lint` gates on rules.
  *
+ * A file that cannot be read, formatted or written is collected rather than
+ * thrown: one unreadable file in a tree must not skip every file after it, which
+ * is the rule `formatFolder` follows in `@sasjs/lint` for the same reason.
+ *
  * When the engine cannot be loaded the rules still run, but the outcome says so:
  * a rule-only run must not read as a clean one, or a broken install passes the
  * gate the command exists to provide.
@@ -173,7 +236,11 @@ export const processFormat = async (
   check = false,
   options: FormatOptions = {}
 ): Promise<FormatOutcome> => {
-  const filePaths = await resolveSasFiles(filterArray)
+  const { files: filePaths, rejected } = await resolveSasFiles(filterArray)
+
+  // Read once, so every file and every pass works from the same configuration
+  // rather than re-reading `.sasjslint` per pass.
+  const config = await getLintConfig()
 
   // Resolved once, before the loop: a load failure should be reported once, and
   // the rules applied to every file regardless.
@@ -199,28 +266,41 @@ export const processFormat = async (
     : options
   const changedFilePaths: string[] = []
   const unsettledFilePaths: string[] = []
+  const failedFilePaths: FileFailure[] = []
 
   for (const filePath of filePaths) {
-    const before = await readFile(filePath, 'utf8')
-    const after = await formatToFixedPoint(
-      before,
-      formatOptions,
-      unsettledFilePaths,
-      filePath
-    )
+    try {
+      // `@sasjs/utils`' reader, which is what `sasjs lint` reads through: the two
+      // commands must not decode the same file differently, and it handles a BOM.
+      const before = await readFile(filePath)
+      const after = await formatToFixedPoint(before, config, formatOptions)
 
-    // Unsettled: left exactly as found, and named in the outcome.
-    if (after === undefined || after === before) continue
+      // Unsettled: left exactly as found, and named in the outcome.
+      if (after === undefined) {
+        unsettledFilePaths.push(filePath)
 
-    changedFilePaths.push(filePath)
+        continue
+      }
 
-    if (!check) await writeFile(filePath, after)
+      if (after === before) continue
+
+      changedFilePaths.push(filePath)
+
+      if (!check) await writeFile(filePath, after)
+    } catch (error: any) {
+      failedFilePaths.push({
+        filePath,
+        message: error?.message ?? String(error)
+      })
+    }
   }
 
   return {
     changedFilePaths,
     examinedCount: filePaths.length,
     unsettledFilePaths,
+    rejectedFilePaths: rejected,
+    failedFilePaths,
     engineUnavailable
   }
 }

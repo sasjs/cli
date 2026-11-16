@@ -13,6 +13,8 @@ const outcome = (json: Partial<FormatOutcome> = {}): FormatOutcome => ({
   changedFilePaths: [],
   examinedCount: 3,
   unsettledFilePaths: [],
+  rejectedFilePaths: [],
+  failedFilePaths: [],
   engineUnavailable: false,
   ...json
 })
@@ -119,6 +121,44 @@ describe('FormatCommand', () => {
     expect(process.logger.info).toHaveBeenCalledWith(
       '1 file(s) did not settle and were left unchanged:'
     )
+  })
+
+  it('fails when a filter named a path it will not format', async () => {
+    jest.spyOn(processFormatModule, 'processFormat').mockResolvedValue(
+      outcome({
+        rejectedFilePaths: [
+          { filePath: '/p/README.md', message: 'not a .sas file' }
+        ]
+      })
+    )
+
+    const command = new FormatCommand([
+      ...defaultArgs,
+      'format',
+      '/p/README.md'
+    ])
+
+    const returnCode = await command.execute()
+
+    expect(returnCode).toEqual(ReturnCode.FormatError)
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      '/p/README.md: not a .sas file'
+    )
+  })
+
+  it('fails when a file could not be formatted part way', async () => {
+    jest.spyOn(processFormatModule, 'processFormat').mockResolvedValue(
+      outcome({
+        failedFilePaths: [{ filePath: '/p/locked.sas', message: 'EACCES' }]
+      })
+    )
+
+    const command = new FormatCommand([...defaultArgs, 'format'])
+
+    const returnCode = await command.execute()
+
+    expect(returnCode).toEqual(ReturnCode.FormatError)
+    expect(process.logger.error).toHaveBeenCalledWith('/p/locked.sas: EACCES')
   })
 
   it('returns the internal error code when formatting throws', async () => {

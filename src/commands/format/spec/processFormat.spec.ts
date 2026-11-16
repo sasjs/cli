@@ -29,16 +29,18 @@ const write = (dir: string, name: string, text: string) => {
  * A reprint that never settles, so the fixed-point loop reaches its bound.
  *
  * Adding a trailing space does not work: the rules strip it on the same pass, so
- * the result comes back equal and the file looks settled. Toggling a comment line
- * alternates between two states that neither pass normalises.
+ * the result comes back equal and the file looks settled. A new comment line each
+ * call cannot be normalised back to what came before.
  */
+/** Each call appends a line the rules leave alone, so the text never settles. */
+let restlessPass = 0
 const restless = async (text: string) =>
-  text.includes('/* toggle */')
-    ? text.replace('/* toggle */\n', '')
-    : text + '/* toggle */\n'
+  `${text}\n/* pass ${++restlessPass} */\n`
 
 describe('processFormat', () => {
   let dir: string
+  const originalProjectDir = process.projectDir
+  const originalLogger = process.logger
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-format-'))
@@ -47,7 +49,13 @@ describe('processFormat', () => {
     jest.restoreAllMocks()
   })
 
-  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
+  // Both are process-wide, so a suite that leaves them pointing at a deleted
+  // directory leaks into every suite that runs after it in this worker.
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+    process.projectDir = originalProjectDir
+    process.logger = originalLogger
+  })
 
   it('rewrites a file whose content would change', async () => {
     const filePath = write(dir, 'a.sas', 'DATA a;\nSET b;\nRUN;\n')
@@ -91,7 +99,7 @@ describe('processFormat', () => {
     write(dir, 'sasjsbuild/app.sas', 'data c;\nrun;\n')
     write(dir, 'sasjsresults/run.sas', 'data d;\nrun;\n')
 
-    const files = await resolveSasFiles()
+    const { files } = await resolveSasFiles()
 
     expect(files).toContain(source)
     expect(files).toHaveLength(2)
@@ -103,7 +111,7 @@ describe('processFormat', () => {
     const macros = write(dir, 'sasjs/macros/mf_x.sas', 'data b;\nrun;\n')
     write(dir, 'sasjs/services/svc.sas', 'data c;\nrun;\n')
 
-    const files = await resolveSasFiles(['macros'])
+    const { files } = await resolveSasFiles(['macros'])
 
     expect(files).toEqual([macros])
   })
@@ -111,12 +119,48 @@ describe('processFormat', () => {
   it('walks an absolute folder filter', async () => {
     const nested = write(dir, 'nested/deep/x.sas', 'data a;\nrun;\n')
 
-    const files = await resolveSasFiles([path.join(dir, 'nested')])
+    const { files } = await resolveSasFiles([path.join(dir, 'nested')])
 
     expect(files).toEqual([nested])
   })
 
+  it('refuses an absolute path that is not a .sas file', async () => {
+    // The engine will happily reprint a markdown file; a formatter that rewrites
+    // what it was not asked to is worse than one that says no.
+    const readme = write(dir, 'README.md', '# notes\n')
+
+    const { files, rejected } = await resolveSasFiles([readme])
+
+    expect(files).toEqual([])
+    expect(rejected).toEqual([
+      { filePath: readme, message: 'not a .sas file, so it was not formatted' }
+    ])
+  })
+
+  it('names a file once when a path and a pattern both match it', async () => {
+    // `sasjs format /p/sasjs/macros macros` names the same file twice, and would
+    // otherwise format, report and count it twice.
+    const macros = write(dir, 'sasjs/macros/mf_x.sas', 'data b;\nrun;\n')
+
+    const { files } = await resolveSasFiles([macros, 'macros'])
+
+    expect(files).toEqual([macros])
+  })
+
+  it('collects a file it could not read, instead of skipping the rest', async () => {
+    // One unreadable file in a tree must not stop the walk, which is the rule
+    // formatFolder follows for the same reason.
+    const missing = path.join(dir, 'gone.sas')
+    const good = write(dir, 'ok.sas', 'DATA a;\nRUN;\n')
+
+    const outcome = await processFormat([missing, good], false, { reprint })
+
+    expect(outcome.failedFilePaths.map((f) => f.filePath)).toEqual([missing])
+    expect(outcome.changedFilePaths).toEqual([good])
+  })
+
   it('leaves an unsettled file exactly as it was, and names it', async () => {
+    restlessPass = 0
     const filePath = write(dir, 'e.sas', 'data a;\nrun;\n')
 
     const outcome = await processFormat([filePath], false, {
@@ -129,7 +173,7 @@ describe('processFormat', () => {
     expect(outcome.changedFilePaths).toEqual([])
   })
 
-  it('retries the engine after a failed load, and says the run was rule-only', async () => {
+  it('reports the run as rule-only when the engine cannot load', async () => {
     const filePath = write(dir, 'f.sas', 'DATA a;\nRUN;\n')
     jest
       .spyOn(engineModule, 'getFormatEngine')

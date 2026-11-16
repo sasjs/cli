@@ -90,6 +90,31 @@ export class FormatCommand extends CommandBase {
           return ReturnCode.FormatError
         }
 
+        // A filter this command will not format, or a file it could not finish,
+        // means the run did not do what it was asked - reported, not skipped
+        // quietly, so a pipeline does not read a partial run as a clean one.
+        if (outcome.rejectedFilePaths.length) {
+          outcome.rejectedFilePaths.forEach(({ filePath, message }) =>
+            process.logger?.warn(`${filePath}: ${message}`)
+          )
+          displayError(
+            `${outcome.rejectedFilePaths.length} path(s) were not formatted.`
+          )
+
+          return ReturnCode.FormatError
+        }
+
+        if (outcome.failedFilePaths.length) {
+          outcome.failedFilePaths.forEach(({ filePath, message }) =>
+            process.logger?.error(`${filePath}: ${message}`)
+          )
+          displayError(
+            `${outcome.failedFilePaths.length} file(s) could not be formatted.`
+          )
+
+          return ReturnCode.FormatError
+        }
+
         if (check && outcome.changedFilePaths.length) {
           process.logger?.info(
             `${outcome.changedFilePaths.length} of ${outcome.examinedCount} files are not canonically formatted:`
