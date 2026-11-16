@@ -7,10 +7,18 @@ export {}
  * timeout that reads like a snapshot empties the drive on download.
  */
 
-/** Enough of IndexedDB to exercise the store: one store, no indexes. */
+/**
+ * Enough of IndexedDB to exercise the store: two stores, no indexes.
+ *
+ * The FILES store is the drive and the IDENTITY store holds the fixture row and
+ * the deletion tombstones, exactly as `persist.js` names them. They are kept
+ * apart because the code depends on the difference: clearing the drive must not
+ * take the visitor's accounts with it.
+ */
 const createIndexedDB = () => {
-  const rows = new Map<string, any>()
-  const data = () => rows
+  const files = new Map<string, any>()
+  const identity = new Map<string, any>()
+  const dataFor = (name: string) => (name === 'identity' ? identity : files)
 
   const request = (run: () => any) => {
     const req: any = { result: undefined, onsuccess: null, onerror: null }
@@ -25,28 +33,33 @@ const createIndexedDB = () => {
     return req
   }
 
-  const objectStore = {
-    put: (value: any, key: string) => {
-      data().set(key, value)
-    },
-    delete: (key: string) => {
-      data().delete(key)
-    },
-    clear: () => data().clear(),
-    get: (key: string) => request(() => data().get(key)),
-    getAllKeys: () => request(() => [...data().keys()]),
-    getAll: () => request(() => [...data().values()])
+  const storeFor = (name: string) => {
+    const data = () => dataFor(name)
+
+    return {
+      put: (value: any, key: string) => {
+        data().set(key, value)
+      },
+      delete: (key: string) => {
+        data().delete(key)
+      },
+      clear: () => data().clear(),
+      get: (key: string) => request(() => data().get(key)),
+      getAllKeys: () => request(() => [...data().keys()]),
+      getAll: () => request(() => [...data().values()])
+    }
   }
 
   const db: any = {
     objectStoreNames: { contains: () => true },
-    createObjectStore: () => objectStore,
-    transaction: (_store: string, _mode: string) => {
+    createObjectStore: () => storeFor('files'),
+    transaction: (name: string, _mode: string) => {
+      const store = storeFor(name)
       const tx: any = {
         oncomplete: null,
         onerror: null,
         onabort: null,
-        objectStore: () => objectStore
+        objectStore: () => store
       }
       setTimeout(() => tx.oncomplete && tx.oncomplete(), 0)
       return tx
@@ -67,7 +80,7 @@ const createIndexedDB = () => {
     return req
   }
 
-  return { open, rows }
+  return { open, files, identity }
 }
 
 const loadPersist = (
@@ -156,13 +169,15 @@ const loadPersist = (
   const idb = (() => {
     const fake = createIndexedDB()
     Object.entries(options.seeded || {}).forEach(([key, value]) =>
-      fake.rows.set(key, value)
+      fake.files.set(key, value)
     )
-    // the identity row lives beside the drive, under its own key
-    if (options.seededIdentity) fake.rows.set('current', options.seededIdentity)
+    // the identity row lives in its own store, under its own key
+    if (options.seededIdentity)
+      fake.identity.set('current', options.seededIdentity)
     // and the paths a visitor deleted, which a sharded site's index would
     // otherwise restore
-    if (options.seededDeleted) fake.rows.set('deleted', options.seededDeleted)
+    if (options.seededDeleted)
+      fake.identity.set('deleted', options.seededDeleted)
     return fake
   })()
   ;(global as any).indexedDB = idb
@@ -177,7 +192,8 @@ const loadPersist = (
     removed,
     posted,
     reply,
-    rows: idb.rows,
+    rows: idb.files,
+    identityRows: idb.identity,
     stored: local
   }
 }
@@ -338,7 +354,7 @@ describe('page-side store', () => {
   })
 
   it('persists the files the worker reports as changed', async () => {
-    const { window, reply, rows } = loadPersist()
+    const { window, reply, rows, identityRows } = loadPersist()
 
     reply({ type: 'sasjs-persist', files: { '/sasjs/drive/c.txt': 'ccc' } })
     await settleUntil(() => rows.get('/sasjs/drive/c.txt') === 'ccc')
@@ -356,14 +372,14 @@ describe('page-side store', () => {
    * boot.
    */
   it('remembers a deleted path, and forgets it when the path is written again', async () => {
-    const { window, reply, rows } = loadPersist({
+    const { window, reply, rows, identityRows } = loadPersist({
       seeded: { '/sasjs/drive/a.txt': 'a', '/sasjs/drive/b.txt': 'b' }
     })
 
     reply({ type: 'sasjs-persist', files: { '/sasjs/drive/a.txt': null } })
-    await settleUntil(() => rows.has('deleted'))
+    await settleUntil(() => identityRows.has('deleted'))
 
-    expect(rows.get('deleted')).toEqual(['/sasjs/drive/a.txt'])
+    expect(identityRows.get('deleted')).toEqual(['/sasjs/drive/a.txt'])
     // the row itself is gone, and the tombstone is what stops the index bringing
     // it back
     expect(rows.has('/sasjs/drive/a.txt')).toBe(false)
@@ -371,9 +387,9 @@ describe('page-side store', () => {
     reply({ type: 'sasjs-persist', files: { '/sasjs/drive/a.txt': 'again' } })
     // the tombstone is written back after the file, so poll for it rather than
     // for the write that precedes it
-    await settleUntil(() => !rows.has('deleted'))
+    await settleUntil(() => !identityRows.has('deleted'))
 
-    expect(rows.has('deleted')).toBe(false)
+    expect(identityRows.has('deleted')).toBe(false)
     expect(rows.get('/sasjs/drive/a.txt')).toBe('again')
   })
 
@@ -414,7 +430,7 @@ describe('page-side store', () => {
   })
 
   it('drops the recorded deletions with the rest of the drive', async () => {
-    const { window, listeners, rows } = loadPersist({
+    const { window, listeners, rows, identityRows } = loadPersist({
       seeded: { '/sasjs/drive/a.txt': 'a' },
       seededDeleted: ['/sasjs/drive/a.txt']
     })
@@ -423,9 +439,9 @@ describe('page-side store', () => {
     await Promise.resolve()
     ;[...listeners].forEach((fn) => fn({ data: { type: 'sasjs-reset-ack' } }))
     await pending
-    await settleUntil(() => !rows.has('deleted'))
+    await settleUntil(() => !identityRows.has('deleted'))
 
-    expect(rows.has('deleted')).toBe(false)
+    expect(identityRows.has('deleted')).toBe(false)
   })
 
   it('tells the worker which paths were deleted, so its index cannot restore them', async () => {
@@ -458,7 +474,7 @@ describe('page-side store', () => {
   })
 
   it('resets the worker and the stored drive together', async () => {
-    const { window, posted, reply, rows } = loadPersist({
+    const { window, posted, reply, rows, identityRows } = loadPersist({
       seeded: { '/sasjs/drive/old.txt': 'old' }
     })
 
@@ -650,6 +666,70 @@ describe('page-side store', () => {
     })
   })
 
+  it('takes the shipped seed when the worker refuses the stored drive', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply, rows, identityRows } = loadPersist({
+      controller,
+      seeded: { '/sasjs/drive/files/refused.txt': 'x' }
+    })
+
+    reply({ type: 'sasjs-need-drive' })
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-load'
+      )
+    )
+
+    // the worker refused the payload itself (`R.load` throwing), which is not
+    // storage the page cannot read: re-sending it would be refused again, and
+    // reporting it as unreadable would fail every request until the visitor
+    // cleared storage by hand
+    reply({
+      type: 'sasjs-load-ack',
+      error: 'the drive could not be installed',
+      errorKind: 'host'
+    })
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-seed'
+      )
+    )
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', files: {} })
+    )
+    // the refused drive is gone, so a reload does not hand it over again
+    expect(rows.size).toBe(0)
+    expect(controller.postMessage).not.toHaveBeenCalledWith({
+      type: 'sasjs-drive-unavailable'
+    })
+  })
+
+  it('answers the worker that asked, even after the controller is gone', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { reply } = loadPersist({
+      controller,
+      seeded: { '/sasjs/drive/files/a.txt': 'a' }
+    })
+
+    reply({ type: 'sasjs-need-drive' })
+    // the worker that asked is replaced before the read finishes: the answer
+    // belongs to it, not to whatever controls the page now
+    ;(global as any).navigator.serviceWorker.controller = null
+
+    await settleUntil(() =>
+      controller.postMessage.mock.calls.some(
+        (call: any[]) => call[0].type === 'sasjs-load'
+      )
+    )
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
+  })
+
   /**
    * Answers whatever the page asks, so a boot test can assert on which question
    * was asked rather than on the reply.
@@ -672,7 +752,7 @@ describe('page-side store', () => {
     // ships, so a changed `mock-identity.json` has to reach a returning visitor
     // rather than being filtered out by the fixture they already had.
     const controller = { postMessage: jest.fn() }
-    const { window, listeners, stored, rows } = loadPersist({
+    const { window, listeners, stored, rows, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve({}),
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
@@ -894,12 +974,12 @@ describe('page-side store', () => {
 
   it('stores the fixture the worker reports when a route changed it', async () => {
     const controller = { postMessage: jest.fn() }
-    const { reply, rows } = loadPersist({ controller })
+    const { reply, rows, identityRows } = loadPersist({ controller })
 
     reply({ type: 'sasjs-persist', files: {}, identity: FIXTURE })
-    await until(() => rows.has('current'))
+    await until(() => identityRows.has('current'))
 
-    expect(rows.get('current')).toEqual({
+    expect(identityRows.get('current')).toEqual({
       fixture: FIXTURE,
       subject: undefined
     })
@@ -910,7 +990,7 @@ describe('page-side store', () => {
     // page then boots from the fixture the site ships rather than waiting out a
     // boot that never answers
     const controller = { postMessage: jest.fn() }
-    const { window, listeners, rows } = loadPersist({
+    const { window, listeners, rows, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve({}),
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
@@ -935,41 +1015,57 @@ describe('page-side store', () => {
       type: 'sasjs-load',
       files: { '/sasjs/drive/stored.txt': 'stored' }
     })
-    expect(rows.has('current')).toBe(false)
+    expect(identityRows.has('current')).toBe(false)
   })
 
-  it('keeps the stored identity when the boot failed for another reason', async () => {
-    // a drive that could not be read is not a fixture that could not be read:
-    // dropping the row for it would discard the accounts the visitor created
+  it('takes the shipped seed when the worker refuses the stored drive, and keeps the accounts', async () => {
+    // a refused drive is not a refused fixture: the drive is dropped - it is
+    // what the worker will not accept, so re-sending it would be refused again
+    // - while the identity row, which holds the accounts the visitor created,
+    // stays exactly as it was
     const controller = { postMessage: jest.fn() }
-    const { window, listeners, rows } = loadPersist({
+    const { window, reply, rows, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve({}),
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
       seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
     })
 
-    const stop = answerAll(controller, listeners, () => ({
+    // the stored drive goes first, and the worker refuses the payload itself
+    await until(() => controller.postMessage.mock.calls.length === 1)
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-load' })
+    )
+    reply({
+      type: 'sasjs-load-ack',
       error: 'the drive could not be read',
       errorKind: 'host'
-    }))
+    })
+
+    // so the drive is dropped and the site's own seed asked for
+    await until(() => controller.postMessage.mock.calls.length === 2)
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', files: {} })
+    )
+    reply({ type: 'sasjs-seed-ack', booted: true })
 
     const boot = await window.__sasjsMockReady
-    stop()
+    expect(boot).toEqual(expect.objectContaining({ booted: true }))
+    expect(rows.size).toBe(0)
 
-    expect(boot.error).toBe('the drive could not be read')
-    expect(rows.get('current')).toEqual({
+    // ...while the fixture and the account it names are still stored
+    expect(identityRows.get('current')).toEqual({
       fixture: FIXTURE,
       subject: 'sasjsuser'
     })
-    // and it did not re-boot without the fixture
-    expect(controller.postMessage).toHaveBeenCalledTimes(1)
   })
 
   it('as() stores the subject, returns the pair and restarts the app', async () => {
     const controller = { postMessage: jest.fn() }
     // no boot: `ready` never resolves, so the only question asked is `as()`'s
-    const { window, listeners, rows } = loadPersist({ controller })
+    const { window, listeners, rows, identityRows } = loadPersist({
+      controller
+    })
     window.location = { reload: jest.fn() }
 
     const stop = answerAll(controller, listeners, (_index, type) =>
@@ -998,8 +1094,8 @@ describe('page-side store', () => {
 
     // the subject outlives the restart, beside the fixture it names
     await until(() => window.location.reload.mock.calls.length > 0)
-    await until(() => rows.has('current'))
-    expect(rows.get('current')).toEqual({
+    await until(() => identityRows.has('current'))
+    expect(identityRows.get('current')).toEqual({
       fixture: FIXTURE,
       subject: 'sasjsuser'
     })
@@ -1008,7 +1104,9 @@ describe('page-side store', () => {
 
   it('surfaces a refusal from the worker rather than storing a subject', async () => {
     const controller = { postMessage: jest.fn() }
-    const { window, listeners, rows } = loadPersist({ controller })
+    const { window, listeners, rows, identityRows } = loadPersist({
+      controller
+    })
 
     const stop = answerAll(controller, listeners, (_index, type) =>
       type === 'sasjs-as' ? { error: 'no account named "nobody"' } : {}
@@ -1019,7 +1117,7 @@ describe('page-side store', () => {
     )
     stop()
 
-    expect(rows.has('current')).toBe(false)
+    expect(identityRows.has('current')).toBe(false)
   })
 
   it('reset reports a refusal from the worker rather than claiming success', async () => {
@@ -1041,7 +1139,7 @@ describe('page-side store', () => {
   it('reset clears the identity beside the drive', async () => {
     const controller = { postMessage: jest.fn() }
     // no boot: the stored rows are what reset has to clear
-    const { window, listeners, rows } = loadPersist({
+    const { window, listeners, rows, identityRows } = loadPersist({
       controller,
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
       seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
@@ -1052,7 +1150,7 @@ describe('page-side store', () => {
     await window.SASjsMock.reset()
     stop()
 
-    expect(rows.has('current')).toBe(false)
+    expect(identityRows.has('current')).toBe(false)
     expect(rows.has('/sasjs/drive/stored.txt')).toBe(false)
   })
 })

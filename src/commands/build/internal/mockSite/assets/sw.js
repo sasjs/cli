@@ -395,6 +395,17 @@ const ASK_TIMEOUT = 2000
 const ASK_BUDGET = 5000
 
 /**
+ * A client's stable handle.
+ *
+ * `clients.matchAll()` builds fresh `Client` objects on every call, so the
+ * object is not an identity and a set keyed on it would hand back the first tab
+ * on every round - the second tab never asked, the budget spent, and the seed
+ * this handshake exists to avoid. `client.id` is the one field that survives the
+ * call; the object itself is a fallback for a host that reports none.
+ */
+const askedId = (client) => client.id || client
+
+/**
  * Asks the page for its drive, and answers what came back.
  *
  * Concurrent requests share the one promise: a second ask would be a second
@@ -430,8 +441,8 @@ const askHostForDrive = () => {
       // no page to ask: nothing can have the drive
       if (!clients.length) return 'none'
 
-      const client = clients.find((c) => !asked.has(c)) || clients[0]
-      asked.add(client)
+      const client = clients.find((c) => !asked.has(askedId(c))) || clients[0]
+      asked.add(askedId(client))
 
       const arrived = new Promise((resolve) => driveWaiters.push(resolve))
       client.postMessage({ type: 'sasjs-need-drive' })

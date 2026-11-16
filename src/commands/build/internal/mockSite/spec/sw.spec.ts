@@ -70,7 +70,14 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
     // none, a message reaches nobody and nothing can be asserted about it
     clients: {
       claim: () => {},
-      matchAll: async () => (global as any).__mockHostClients ?? []
+      // A function is honoured as well as an array: the browser builds FRESH
+      // `Client` objects on every matchAll(), and only `client.id` survives the
+      // call, so a case about picking a second tab has to be able to hand out
+      // new objects with the same ids.
+      matchAll: async () => {
+        const clients = (global as any).__mockHostClients
+        return typeof clients === 'function' ? clients() : (clients ?? [])
+      }
     }
   }
   ;(global as any).self = self
@@ -2599,6 +2606,36 @@ describe('service worker host', () => {
       // brought in
       expect(second.postMessage).not.toHaveBeenCalled()
     })
+
+    it('reaches the second tab when the first one stays quiet', async () => {
+      // the browser hands back FRESH Client objects on every matchAll(): only
+      // the id is stable, so a set keyed on the object asks the first tab for
+      // ever and never reaches the drive the second one holds
+      const quiet = jest.fn()
+      const answering = jest.fn()
+      ;(global as any).__mockHostClients = () => [
+        { id: 'tab-a', postMessage: quiet },
+        { id: 'tab-b', postMessage: answering }
+      ]
+
+      const { dispatch, message } = loadWorker()
+
+      const pending = dispatch('/SASjsApi/drive/fileTree?_folderPath=')
+
+      await settleUntil(() => quiet.mock.calls.length > 0)
+      // tab A never answers; when its wait expires the second tab is asked
+      await settleUntil(() => answering.mock.calls.length > 0, 5000)
+      expect(answering).toHaveBeenCalledWith({ type: 'sasjs-need-drive' })
+
+      const load = message({
+        type: 'sasjs-load',
+        files: { [drivePath('made.sas')]: 'data;' }
+      })
+      await load.pending
+
+      const response = await pending
+      expect(response.status).toBe(200)
+    }, 20000)
 
     it('asks again when a page is slow to answer, instead of seeding', async () => {
       // a tab whose read takes longer than one ask: the drive it eventually

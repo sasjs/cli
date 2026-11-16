@@ -255,7 +255,16 @@
       tick()
     })
 
-  const askWorker = (message, expect) =>
+  /**
+   * Asks the worker and waits for its answer.
+   *
+   * `controller` is the worker the caller means to talk to. A handshake that
+   * arrived FROM a client has to be answered TO that client: `waitForController`
+   * resolves whatever controls the page at that moment, and after a worker is
+   * replaced it resolves nothing at all - ten seconds of waiting, and then a
+   * drive the asking worker could have installed is reported as unavailable.
+   */
+  const askWorker = (message, expect, controller) =>
     new Promise((resolve) => {
       const sw = navigator.serviceWorker
       let settled = false
@@ -278,10 +287,12 @@
         20000
       )
       sw.addEventListener('message', handler)
-      waitForController().then((controller) => {
-        if (!controller)
-          return finish({ error: 'no service worker controller' })
-        controller.postMessage(message)
+
+      if (controller) return controller.postMessage(message)
+
+      waitForController().then((found) => {
+        if (!found) return finish({ error: 'no service worker controller' })
+        found.postMessage(message)
       })
     })
 
@@ -326,6 +337,10 @@
      * merely unreadable this moment - the one outcome this handshake is here to
      * prevent. The worker fails that request instead, and asks again on the
      * next one.
+     *
+     * A worker that REFUSES the drive is not that case: `boot` drops the
+     * refused payload and installs the shipped seed, because re-sending what it
+     * just rejected would only be rejected again.
      */
     if (data.type === 'sasjs-need-drive') {
       // the worker that asked is the one to answer, so it is taken now: the
@@ -335,10 +350,13 @@
       const answerTo = (message) => worker && worker.postMessage(message)
 
       Promise.all([readAll(), readIdentity(), readDeleted()])
-        .then(([files, stored, deleted]) => boot(files, stored, deleted))
+        .then(([files, stored, deleted]) =>
+          boot(files, stored, deleted, worker)
+        )
         .then((answer) => {
-          // the worker refused to install the drive for a reason other than the
-          // fixture: what it holds cannot be handed over, so it must not seed
+          // only the seed being refused as well reaches here: nothing this page
+          // holds can be installed, so the worker must not seed over storage it
+          // has not been given
           if (answer && answer.error && answer.errorKind !== 'identity')
             answerTo({ type: 'sasjs-drive-unavailable' })
         })
@@ -458,16 +476,26 @@
   }
 
   /**
-   * Boots the worker with what is stored, and recovers when the stored identity
-   * is one this build cannot read.
+   * Boots the worker with what is stored, and recovers from both refusals.
    *
    * A fixture outlives the build that wrote it, exactly as the drive does, and
    * the worker refuses one whose format stamp it does not speak - by name, and
    * with `errorKind: 'identity'`. Only that answer drops the stored row: the
    * row holds the accounts the visitor created as well as the fixture, so a
-   * host-side failure (a drive that could not be read) leaves it alone.
+   * host-side failure leaves it alone.
+   *
+   * A `host` refusal is the other case, and it is the PAYLOAD the worker
+   * rejects (`R.load` throwing on the drive it was sent), not storage the page
+   * cannot read. Re-sending it would be refused again, and reporting it as
+   * unreadable would fail every request until the visitor cleared storage by
+   * hand - so the drive is what goes: it is cleared, and the site's own seed is
+   * installed instead.
+   *
+   * `controller` is the worker that asked, when the call is answering a
+   * handshake; the answer goes back to it rather than to whatever controls the
+   * page by then.
    */
-  const boot = async (files, stored, deleted) => {
+  const boot = async (files, stored, deleted, controller) => {
     // a drive of nothing but deletions is still a drive the visitor had: seeding
     // over it would bring back every file they removed
     const loading =
@@ -487,7 +515,8 @@
         identity: stored ? stored.fixture : undefined,
         subject: stored ? stored.subject : undefined
       },
-      ack
+      ack,
+      controller
     )
 
     if (answer.error && stored && answer.errorKind === 'identity') {
@@ -497,7 +526,24 @@
       } catch (e) {
         console.error('[sasjs-mock] could not clear the stored identity: ' + e)
       }
-      return await askWorker({ type, files, deleted: deletions }, ack)
+      return await askWorker(
+        { type, files, deleted: deletions },
+        ack,
+        controller
+      )
+    }
+
+    if (answer.error && answer.errorKind === 'host' && loading) {
+      console.warn(
+        '[sasjs-mock] the worker refused the stored drive - taking the shipped seed instead'
+      )
+      try {
+        await clearAll()
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear the refused drive: ' + e)
+      }
+      // empty files, so this is a seed and the branch above cannot repeat
+      return await boot({}, null, [], controller)
     }
 
     return answer
