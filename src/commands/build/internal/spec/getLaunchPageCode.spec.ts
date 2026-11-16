@@ -16,10 +16,10 @@ describe('getLaunchPageCode', () => {
     expect(code).toContain("'clickme.html'")
   })
 
-  it('reports the drive file route for SASjs server', () => {
+  it('reports the StoredProgram tier for SASjs server', () => {
     const code = getLaunchPageCode(ServerType.Sasjs, 'clickme')
 
-    expect(code).toContain('/SASjsApi/drive/file?_FILE=&appLoc/services/')
+    expect(code).toContain('/StoredProgram?_FILE=&appLoc/services/')
     expect(code).toContain("'clickme.html'")
   })
 

@@ -3916,7 +3916,20 @@ describe('service worker host', () => {
   describe('the read a streamed deployment links to', () => {
     const asset = (name: string) => drivePath(`services/web/${name}`)
 
-    it('answers the estate spelling for an asset, typed as a script', async () => {
+    it(`answers the SASjs tier spelling, typed as a script`, async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_FILE=${appLoc}/services/web/main.js`
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/javascript')
+      expect(await response.text()).toBe('console.log(1)')
+    })
+
+    it(`answers the estate spelling for an asset, typed as a script`, async () => {
       const worker = seeded()
       await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
 

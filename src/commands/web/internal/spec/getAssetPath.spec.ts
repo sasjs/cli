@@ -22,10 +22,10 @@ describe('getAssetPath', () => {
     ).toEqual('/SASJobExecution?_FILE=/Public/app/services/web/main.js')
   })
 
-  it(`names the same file on SASjs server's own Drive API`, () => {
+  it(`names the same file on SASjs server's own web tier`, () => {
     expect(
       getAssetPath('/Public/app', ServerType.Sasjs, 'web', 'main.js')
-    ).toEqual('/SASjsApi/drive/file?_FILE=/Public/app/services/web/main.js')
+    ).toEqual('/StoredProgram?_FILE=/Public/app/services/web/main.js')
   })
 
   it('names the stored process for SAS 9, with the appLoc inserted at run time', () => {

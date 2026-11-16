@@ -32,7 +32,7 @@ export const streamedAppUrl = (
 ): string => {
   const route =
     serverType === ServerType.Sasjs
-      ? '/SASjsApi/drive/file?_FILE='
+      ? '/StoredProgram?_FILE='
       : '/SASJobExecution?_FILE='
 
   return `${serverUrl}${route}${encodeURI(appLoc)}/services/${streamServiceName}.html`

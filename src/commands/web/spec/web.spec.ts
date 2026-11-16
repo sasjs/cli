@@ -225,10 +225,10 @@ describe('sasjs web', () => {
       // and every asset is fetched through the server's own file route, with
       // the appLoc it was deployed to baked in - as it is for Viya
       expect(entry).toContain(
-        'src="/sasjsapi/drive/file?_file=/public/app/anotherloc/services/websas/app.js"'
+        'src="/storedprogram?_file=/public/app/anotherloc/services/websas/app.js"'
       )
       expect(entry).toContain(
-        'href="/sasjsapi/drive/file?_file=/public/app/anotherloc/services/websas/app.css"'
+        'href="/storedprogram?_file=/public/app/anotherloc/services/websas/app.css"'
       )
 
       // the asset itself is a file in the deployment, not a service

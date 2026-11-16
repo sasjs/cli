@@ -49,7 +49,7 @@ const SASViyaCode = (streamServiceName: string) =>
   fileStreamCode('/SASJobExecution?_FILE=', streamServiceName)
 
 const SASjsCode = (streamServiceName: string) =>
-  fileStreamCode('/SASjsApi/drive/file?_FILE=', streamServiceName)
+  fileStreamCode('/StoredProgram?_FILE=', streamServiceName)
 
 export const getLaunchPageCode = (
   serverType: ServerType,

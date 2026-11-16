@@ -1690,13 +1690,14 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // both are answered, so the alias is stripped once here and everything below -
   // the route lookup, the drive routes' plain-text refusals, the log - works
   // from one path.
-  // The estate's spelling of the streamed read. A build made for SAS Viya links
-  // every asset through `/SASJobExecution?_FILE=<path>`, which no API table
-  // knows, so the path is translated rather than answered twice: the drive route
-  // below decides it, with the package's typing and the package's refusal.
+  // The web tier spellings of the streamed read: ours (`/StoredProgram`, which a
+  // SASjs build links to) and the estate's (`/SASJobExecution`, which a Viya
+  // build bakes in). Neither is in an API table, so the path is translated
+  // rather than answered twice: the drive route below decides it, with the
+  // package's typing and the package's refusal.
   const apiPath =
     request.method === 'GET' &&
-    /^\/SASJobExecution$/i.test(path) &&
+    /^\/(SASJobExecution|StoredProgram)$/i.test(path) &&
     url.searchParams.get('_FILE')
       ? '/SASjsApi/drive/file'
       : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
@@ -1932,7 +1933,7 @@ self.addEventListener('fetch', (event) => {
   if (/^\/api\/?$/i.test(path)) return
 
   if (
-    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution)(\/|$)/i.test(
+    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram)(\/|$)/i.test(
       path
     )
   )
