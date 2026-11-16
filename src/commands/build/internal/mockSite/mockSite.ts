@@ -3,6 +3,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { buildSync as esbuildSync } from 'esbuild'
+import { JSDOM } from 'jsdom'
+import type { Token } from 'parse5'
 import { DEFAULT_IDENTITY, parseIdentity, ROUTES } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
@@ -586,30 +588,6 @@ const shardSnapshot = (files: { [path: string]: string }) => {
   }
 }
 
-/** The script-tag attributes that change how an app's script runs. */
-const REPLAYED_ATTRIBUTES: { [attribute: string]: string } = {
-  type: 'type',
-  id: 'id',
-  crossorigin: 'crossOrigin',
-  integrity: 'integrity',
-  nomodule: 'noModule'
-}
-
-/**
- * Script types a preload may name.
- *
- * The loader only re-runs a tag once the worker controls the page, so without a
- * hint the app's bundle is not requested until the install has finished - the
- * largest asset on the site behind the largest prerequisite. A preload link
- * executes nothing, so the download can start while the worker is still
- * installing.
- *
- * `module` is excluded on purpose: a module is fetched with different
- * credentials semantics from a classic script, so `as="script"` does not match
- * the later tag and the file is fetched twice - slower than no hint at all.
- */
-const PRELOADABLE_TYPES = ['', 'text/javascript', 'application/javascript']
-
 const parseAttributes = (source: string) => {
   const attributes: { [name: string]: string } = {}
   const pattern =
@@ -622,85 +600,9 @@ const parseAttributes = (source: string) => {
   return attributes
 }
 
-const escapeAttribute = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/'/g, '&#39;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-
-/** Puts markup at the end of the head, or leaves the page alone when it has none. */
-const insertIntoHead = (html: string, markup: string) => {
-  const head = /<head(\s[^>]*)?>/i.exec(html)
-  if (!head) return html
-  const start = head.index + head[0].length
-  const close = html.toLowerCase().indexOf('</head>', start)
-  const at = close < 0 ? start : close
-  return html.slice(0, at) + markup + html.slice(at)
-}
-
-/**
- * Hints the app scripts the loader will replay, so their download starts while
- * the worker installs rather than after it.
- *
- * Only scripts this build owns are hinted - the file has to be in the output for
- * the version query to be meaningful - and only classic ones. A `type="module"`
- * tag is fetched with different credentials semantics, so an `as="script"`
- * preload does not match it; and a cross-origin src would need `crossorigin` on
- * the hint to match its tag. Either mismatch fetches the file twice, which is
- * worse than no hint.
- */
-const preloadHints = (
-  scripts: { [key: string]: string }[],
-  outputFolder: string
-) =>
-  scripts
-    .filter((script) => {
-      if (!script.src) return false
-      if (!PRELOADABLE_TYPES.includes((script.type || '').trim().toLowerCase()))
-        return false
-      if (script.crossOrigin) return false
-      if (/^([a-z]+:)?\/\//i.test(script.src)) return false
-      if (!outputFolder) return true
-      const pathname = script.src.split('?')[0]
-      return fs.existsSync(
-        path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
-      )
-    })
-    .map((script) => `<link rel="preload" as="script" href="${script.src}" />`)
-
-/**
- * The boot loader is a FILE rather than an inline script: an app with a strict
- * Content-Security-Policy (`default-src 'self'`, no `unsafe-inline`) refuses an
- * inline one, and the builder cannot add a hash or nonce to a policy it does
- * not own.
- *
- * The app's script tags travel to it in `data-scripts`, in document order. Any
- * number of tags works - one bundle, or several plain scripts a page loads in
- * order, plus the inline snippets some pages use to set up a global before the
- * bundle runs - so the host does not dictate how the app is built.
- */
-const bootTag = (
-  scripts: { [key: string]: string }[],
-  version: string,
-  basePath = ''
-) =>
-  `<script src="${
-    basePath ? `${basePath}/host/boot.js` : 'host/boot.js'
-  }?v=${version}" data-scripts='${escapeAttribute(
-    JSON.stringify(scripts)
-  )}'></script>`
-
-/**
- * Script types the browser executes. Anything else (`application/ld+json`, a
- * template) is data the page keeps for later, so it stays where it is.
- */
-const EXECUTABLE_TYPES = [
-  '',
-  'module',
-  'text/javascript',
-  'application/javascript'
-]
+/** The host runs as a parser-blocking external script, including under strict CSP. */
+const bootTag = (version: string, basePath = '') =>
+  `<script src="${basePath}/host/boot.js?v=${version}"></script>`
 
 /**
  * The folder the site is published under, with a leading slash and no trailing
@@ -815,10 +717,25 @@ const versionScripts = (
     // The version is what stops a stale copy being served at all - a changed file
     // gets a new URL, and an unchanged one is byte-identical to what the hash was
     // computed from.
-    const [pathname, query] = src.split('?')
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) return script
+    const hashAt = src.indexOf('#')
+    const fragment = hashAt < 0 ? '' : src.slice(hashAt)
+    const beforeFragment = hashAt < 0 ? src : src.slice(0, hashAt)
+    const queryAt = beforeFragment.indexOf('?')
+    const pathname =
+      queryAt < 0 ? beforeFragment : beforeFragment.slice(0, queryAt)
+    const query = queryAt < 0 ? '' : beforeFragment.slice(queryAt + 1)
     const file = path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
+    const relative = path.relative(outputFolder, file)
+    if (
+      !relative ||
+      relative === '..' ||
+      relative.startsWith('..' + path.sep) ||
+      path.isAbsolute(relative)
+    )
+      return script
 
-    if (!fs.existsSync(file)) return script
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return script
 
     const hash = createHash('md5')
       .update(fs.readFileSync(file))
@@ -826,14 +743,13 @@ const versionScripts = (
       .slice(0, 10)
 
     return Object.assign({}, script, {
-      src: `${pathname}?v=${hash}${query ? `&${query}` : ''}`
+      src: `${pathname}?v=${hash}${query ? `&${query}` : ''}${fragment}`
     })
   })
 
 /**
- * Points the app at its own origin and replaces its script tags with the boot
- * loader. Both changes are reported when the expected markup is absent, rather
- * than producing a site that silently talks to a real server.
+ * Points the app at its own origin and inserts the host before app scripts.
+ * Missing configuration or head markup is reported to the caller.
  */
 const patchIndexHtml = (
   html: string,
@@ -864,111 +780,151 @@ const patchIndexHtml = (
     )
   }
 
-  const scripts: { [key: string]: string }[] = []
-  /**
-   * Scripts the page marks `data-early`, which stay in the page and run in the
-   * parser instead of through the loader.
-   *
-   * The loader defers every script so the worker is ready before the app asks it
-   * for anything, which is right for the app and wrong for a script that paints:
-   * on the demonstration site the canvas stays unpainted (white) for the seconds
-   * the worker takes to claim the page, so a dark interface announces itself with
-   * a full-screen white flash. A page that marks a script `data-early` is saying
-   * it runs nothing that needs the worker - the theme script reads localStorage
-   * and sets a background - so the parser keeps it where the page put it.
-   *
-   * Only a classic script can be kept: a module is deferred by specification
-   * however it is placed, and an inline one is refused by the page's own policy.
-   * Both are reported and replayed like any other script rather than being
-   * promised something the browser will not do.
-   */
-  const early: { src?: string; tag: string }[] = []
-  const tagPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>[ \t]*\r?\n?/gi
-
-  patched = patched.replace(
-    tagPattern,
-    (tag: string, source: string, body: string) => {
-      const attributes = parseAttributes(source)
-      const type = (attributes.type || '').trim().toLowerCase()
-      const inlined = !attributes.src
-
-      // data blocks stay in the page; they are not scripts to replay
-      if (!EXECUTABLE_TYPES.includes(type)) return tag
-
-      if (attributes['data-early'] !== undefined) {
-        if (inlined)
-          warnings.push(
-            'a data-early script carries its code inline - only a file can stay in the page, because the page is served under a policy that refuses inline script'
-          )
-        else if (type === 'module')
-          warnings.push(
-            'a data-early script is a module - a module is deferred by specification, so it cannot run before the loader; it is replayed like any other script'
-          )
-        else {
-          early.push({ src: attributes.src, tag })
-          return tag
+  // Parse for locations but edit the original markup: serialising a DOM changes
+  // attributes and inline text. The original tags remain parser-inserted.
+  const dom = new JSDOM(patched, { includeNodeLocations: true })
+  const document = dom.window.document
+  const edits: { start: number; end: number; text: string }[] = []
+  const scripts = Array.from(document.querySelectorAll('script'))
+  if (outputFolder) {
+    for (const script of scripts) {
+      const src = script.getAttribute('src')
+      const location = dom.nodeLocation(script) as Token.ElementLocation | null
+      const attr = location?.attrs?.src
+      if (!src || !attr) continue
+      const [versioned] = versionScripts([{ src }], outputFolder)
+      if (versioned.src === src) continue
+      const hash = /[?]v=([0-9a-f]{10})/.exec(versioned.src)?.[1]
+      if (!hash) continue
+      const original = patched.slice(attr.startOffset, attr.endOffset)
+      // Only the src value is edited, even if another attribute contains it.
+      const updated = original.replace(
+        /^(\s*src\s*=\s*)("[^"]*"|'[^']*'|[^\s>]+)/i,
+        (_match, prefix: string, value: string) => {
+          const quote = value[0] === '"' || value[0] === "'" ? value[0] : ''
+          const raw = quote ? value.slice(1, -1) : value
+          // Delimiters may themselves be character references. Scan whole
+          // references so their '#' is not mistaken for a URL fragment, and
+          // let the HTML parser decode them in attribute context.
+          const decoder = document.createElement('div')
+          const delimiters =
+            /&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+);?|[a-zA-Z][a-zA-Z0-9]*;?)|[?#]/g
+          let query: RegExpExecArray | null = null
+          let fragment: RegExpExecArray | null = null
+          let token: RegExpExecArray | null
+          while ((token = delimiters.exec(raw))) {
+            let value = token[0]
+            if (value[0] === '&') {
+              decoder.innerHTML = `<i a="${value}"></i>`
+              value = decoder.firstElementChild!.getAttribute('a') || ''
+            }
+            if (value === '#') {
+              fragment = token
+              break
+            }
+            if (value === '?' && !query) query = token
+          }
+          if (!query) {
+            const at = fragment?.index ?? raw.length
+            return `${prefix}${quote}${raw.slice(0, at)}?v=${hash}${raw.slice(at)}${quote}`
+          }
+          const at = query.index + query[0].length
+          const hasQuery = at < (fragment?.index ?? raw.length)
+          return `${prefix}${quote}${raw.slice(0, at)}v=${hash}${hasQuery ? '&amp;' : ''}${raw.slice(at)}${quote}`
         }
-      }
-
-      const spec: { [key: string]: string } = inlined
-        ? {}
-        : { src: attributes.src }
-      if (inlined) {
-        const code = body.trim()
-        // an empty inline tag (a placeholder, or a commented-out block) is not
-        // worth a round trip
-        if (!code) return ''
-        spec.code = code
-      }
-      for (const attribute of Object.keys(REPLAYED_ATTRIBUTES)) {
-        if (attributes[attribute] === undefined) continue
-        if (attribute === 'type' && !attributes.type) continue
-        const name = REPLAYED_ATTRIBUTES[attribute]
-        spec[name] = attribute === 'nomodule' ? 'true' : attributes[attribute]
-      }
-      scripts.push(spec)
-      return ''
-    }
-  )
-
-  if (scripts.length || early.length) {
-    const versioned = outputFolder
-      ? versionScripts(scripts, outputFolder)
-      : scripts
-    const hints = preloadHints(versioned, outputFolder)
-    if (hints.length) patched = insertIntoHead(patched, hints.join(''))
-    const tag = bootTag(versioned, version, basePath)
-    // a function, not a replacement string: the tag carries the page's own srcs
-    // in `data-scripts`, and a `$&` in one would expand to the matched markup
-    patched = /<\/body>/i.test(patched)
-      ? patched.replace(/<\/body>/i, () => `${tag}\n</body>`)
-      : patched + tag
-  } else {
-    warnings.push('no script tags found - the mock loader was not installed')
-  }
-
-  // The early scripts keep their place in the page, and their URL follows the
-  // file's contents for the same reason the replayed ones do: the host caches an
-  // asset for two hours and a theme script that never changes its URL is a theme
-  // script a returning reader keeps from the previous build.
-  if (early.length && outputFolder) {
-    const versioned = versionScripts(
-      early.map((entry) => ({ src: entry.src as string })),
-      outputFolder
-    )
-
-    early.forEach((entry, index) => {
-      // Function replacements throughout: a replacement STRING interprets `$&`,
-      // `$1` and the rest of the replacement patterns, and both the tag and the
-      // src are the page's own text - a `$&` in a file name would splice the
-      // surrounding markup into the src.
-      const withVersion = entry.tag.replace(
-        entry.src as string,
-        () => versioned[index].src as string
       )
-      patched = patched.replace(entry.tag, () => withVersion)
-    })
+      edits.push({
+        start: attr.startOffset,
+        end: attr.endOffset,
+        text: updated
+      })
+    }
   }
+
+  const head = dom.nodeLocation(document.head) as Token.ElementLocation | null
+  const firstHeadScript = scripts.find((script) =>
+    document.head.contains(script)
+  )
+  const scriptLocation = firstHeadScript
+    ? dom.nodeLocation(firstHeadScript)
+    : undefined
+  // A policy after an app script cannot govern the new boot without moving it
+  // ahead of that script. Refuse rather than silently execute boot outside it.
+  const policies = Array.from(document.head.querySelectorAll('meta')).filter(
+    (meta) =>
+      (meta.getAttribute('http-equiv') || '').trim().toLowerCase() ===
+      'content-security-policy'
+  )
+  if (
+    scriptLocation &&
+    policies.some(
+      (meta) =>
+        (dom.nodeLocation(meta)?.startOffset ?? 0) > scriptLocation.startOffset
+    )
+  ) {
+    dom.window.close()
+    throw new Error(
+      'Cannot insert mock boot before an app script and after its head CSP meta tag'
+    )
+  }
+
+  // The end location of an implicitly closed head can point at its start tag,
+  // not the end of its children. Use source locations of the actual head nodes
+  // instead, keeping all existing metadata in front of boot.
+  const lastHeadNode = Array.from(document.head.childNodes)
+    .map((node) => dom.nodeLocation(node))
+    .filter((location) => location != null)
+    .pop()
+  const body = dom.nodeLocation(document.body) as Token.ElementLocation | null
+  const htmlLocation = dom.nodeLocation(
+    document.documentElement
+  ) as Token.ElementLocation | null
+  const firstBodyNode = Array.from(document.body.childNodes)
+    .map((node) => dom.nodeLocation(node))
+    .find((location) => location != null)
+  const at =
+    scriptLocation?.startOffset ??
+    head?.endTag?.startOffset ??
+    lastHeadNode?.endOffset ??
+    head?.startTag?.endOffset ??
+    body?.startTag?.startOffset ??
+    firstBodyNode?.startOffset ??
+    htmlLocation?.endTag?.startOffset ??
+    htmlLocation?.startTag?.endOffset ??
+    patched.length
+  const boot = bootTag(version, basePath)
+  const explicitHead = !head?.startTag && !lastHeadNode && !scriptLocation
+  edits.push({
+    start: at,
+    end: at,
+    text: explicitHead ? `<head>${boot}</head>` : boot
+  })
+  if (!scripts.length) warnings.push('no script tags found')
+  // Locate the inserted tag after edits to earlier source attributes shift it.
+  const bootOffset =
+    at +
+    edits.reduce(
+      (shift, edit) =>
+        edit.start !== at && edit.end <= at
+          ? shift + edit.text.length - (edit.end - edit.start)
+          : shift,
+      0
+    ) +
+    (explicitHead ? '<head>'.length : 0)
+  edits.sort((a, b) => b.start - a.start)
+  for (const edit of edits)
+    patched = patched.slice(0, edit.start) + edit.text + patched.slice(edit.end)
+  dom.window.close()
+
+  // An unterminated title, comment, or tag can consume inserted markup as text.
+  // Reparse the actual output and reject it rather than shipping a missing boot.
+  const checked = new JSDOM(patched, { includeNodeLocations: true })
+  const inserted = Array.from(
+    checked.window.document.head.querySelectorAll('script')
+  ).find((script) => checked.nodeLocation(script)?.startOffset === bootOffset)
+  checked.window.close()
+  if (!inserted)
+    throw new Error('Cannot safely insert mock boot into the HTML head')
 
   // A stylesheet the page links is a page asset like a script, and the one that
   // paints the canvas is the reason this matters: a palette change behind an

@@ -94,6 +94,8 @@ const loadPersist = (
     buildStamp?: string
     /** Set to make localStorage throw, as a browser that refuses storage does. */
     storageUnavailable?: boolean
+    indexedDBUnavailable?: boolean
+    configNetworkFails?: boolean
     /** Where the worker sits, for a site published from a folder. */
     scriptURL?: string
     /** The page's own URL, as the browser reports it. */
@@ -161,10 +163,13 @@ const loadPersist = (
   ;(global as any).document = {
     baseURI: options.baseURI || 'https://host.test/'
   }
-  ;(global as any).fetch = jest.fn(async (url: string) => ({
-    ok: true,
-    json: async () => ({ buildStamp: options.buildStamp || '' })
-  }))
+  ;(global as any).fetch = jest.fn(async (url: string) => {
+    if (options.configNetworkFails) throw new Error('config network failed')
+    return {
+      ok: true,
+      json: async () => ({ buildStamp: options.buildStamp || '' })
+    }
+  })
 
   const idb = (() => {
     const fake = createIndexedDB()
@@ -180,7 +185,13 @@ const loadPersist = (
       fake.identity.set('deleted', options.seededDeleted)
     return fake
   })()
-  ;(global as any).indexedDB = idb
+  ;(global as any).indexedDB = options.indexedDBUnavailable
+    ? {
+        open: () => {
+          throw new Error('indexedDB denied')
+        }
+      }
+    : idb
 
   require('../assets/persist.js')
 
@@ -219,7 +230,30 @@ const settleUntil = async (check: () => boolean, timeout = 4000) => {
   }
 }
 
-describe('page-side store', () => {
+describe('the page-side store', () => {
+  it('reports a config network error rather than booting an unknown drive', async () => {
+    const { window, posted } = loadPersist({
+      ready: Promise.resolve(),
+      configNetworkFails: true
+    })
+    await expect(window.__sasjsMockPersistReady).rejects.toThrow(
+      'config network failed'
+    )
+    expect(posted).toEqual([])
+  })
+
+  it('does not seed over an unreadable stored drive', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const { window, posted } = loadPersist({
+      ready: Promise.resolve(),
+      indexedDBUnavailable: true
+    })
+    await expect(window.__sasjsMockPersistReady).rejects.toThrow(
+      'indexedDB denied'
+    )
+    expect(posted).toEqual([])
+    error.mockRestore()
+  })
   afterEach(() => {
     jest.useRealTimers()
     delete (global as any).window
@@ -418,7 +452,7 @@ describe('page-side store', () => {
         fn({ data: { type: asked[0][0].type + '-ack', booted: true } })
       )
     }, 5)
-    await page.__sasjsMockReady
+    await page.__sasjsMockPersistReady
     clearInterval(answering)
 
     const pending = page.SASjsMock.download()
@@ -467,7 +501,7 @@ describe('page-side store', () => {
       )
     }, 5)
 
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage.mock.calls[0][0]).toEqual(
@@ -509,7 +543,7 @@ describe('page-side store', () => {
       )
     }, 5)
 
-    const info = await window.__sasjsMockReady
+    const info = await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -535,7 +569,7 @@ describe('page-side store', () => {
       ;[...listeners].forEach((fn) => fn({ data: { type: type + '-ack' } }))
     }, 5)
 
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     clearInterval(answering)
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -844,7 +878,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -870,7 +904,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith({
@@ -892,7 +926,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -911,7 +945,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -932,7 +966,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -957,7 +991,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     const [url, init] = (global as any).fetch.mock.calls[0]
@@ -1042,7 +1076,7 @@ describe('page-side store', () => {
     })
 
     const stop = answerBoot(controller, listeners)
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(controller.postMessage).toHaveBeenCalledWith(
@@ -1070,7 +1104,7 @@ describe('page-side store', () => {
         ? { error: 'a tab closed mid-broadcast', errorKind: 'persist' }
         : { booted: true }
     )
-    await window.__sasjsMockReady
+    await window.__sasjsMockPersistReady
     stop()
 
     expect(rows.has('/sasjs/drive/stored.txt')).toBe(true)
@@ -1115,7 +1149,7 @@ describe('page-side store', () => {
         : { booted: true }
     )
 
-    const boot = await window.__sasjsMockReady
+    const boot = await window.__sasjsMockPersistReady
     stop()
 
     expect(boot).toEqual({ type: 'sasjs-load-ack', booted: true })
@@ -1167,7 +1201,7 @@ describe('page-side store', () => {
     )
     reply({ type: 'sasjs-seed-ack', booted: true })
 
-    const boot = await window.__sasjsMockReady
+    const boot = await window.__sasjsMockPersistReady
     expect(boot).toEqual(expect.objectContaining({ booted: true }))
     expect(rows.size).toBe(0)
 

@@ -1,482 +1,533 @@
-export {}
+import { JSDOM, ResourceLoader, VirtualConsole } from 'jsdom'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
-/**
- * The boot loader the site ships: it is a file rather than an inline script
- * (an app with a strict Content-Security-Policy refuses an inline one), so the
- * page has to hand it the app's script tags through a data attribute. What
- * matters here is that it registers the worker, waits for the host, and then
- * replays every tag the page had - in order - because a page that loads several
- * plain scripts must boot the same way a bundled app does. The fallbacks matter
- * too: a site whose worker never claims the page fails every request, so each
- * dead end either reloads once or says so in the console.
- */
-
-type FakeScript = {
-  src?: string
-  id?: string
-  type?: string
-  crossOrigin?: string
-  integrity?: string
-  noModule?: boolean
-  textContent?: string
-  onload?: () => void
-  onerror?: () => void
-  attributes: { [name: string]: string }
-  setAttribute: (name: string, value: string) => void
-}
+const source = readFileSync(join(__dirname, '../assets/boot.js'), 'utf8')
 
 type Options = {
-  /** 'present' controls the page at once, 'late' fires controllerchange, 'never' does neither */
-  controller?: 'present' | 'late' | 'never'
-  /** the reload guard's stored value: null means the page has not reloaded yet */
-  guard?: string | null
-  registerFails?: boolean
-  /** window.__sasjsMockReady resolving with an error */
-  bootError?: string
-  driveError?: string
-  /** a data-scripts value that is not JSON */
-  brokenConfig?: boolean
-  /** the document exposes no currentScript */
-  noScript?: boolean
-  /** the boot tag carries no version query */
-  noStamp?: boolean
-  /** srcs whose script fails to load */
-  failSrcs?: string[]
-  /** the page's own URL */
   href?: string
-  /** the folder the site is published in, as the target would name it */
   basePath?: string
+  noScript?: boolean
+  noStamp?: boolean
+  invalidLoader?: boolean
+  noWorker?: boolean
+  register?: Promise<any>
+  ready?: Promise<any>
+  registerThrows?: boolean
+  controller?: boolean
+  oldController?: boolean
+  fail?: string
+  pending?: string
+  persist?: Promise<any> | null
+  missingBridge?: boolean
+  pageLoading?: boolean
 }
 
-const loadBoot = (specs: any[], options: Options = {}) => {
+const loadBoot = (options: Options = {}) => {
   jest.resetModules()
-  const appended: FakeScript[] = []
-  const timeline: string[] = []
-  const registered: string[] = []
-  const stored: { [key: string]: string } = {}
-  if (options.guard) stored['mock-sw-reloaded'] = options.guard
-
-  const createElement = () => {
-    const element: FakeScript = {
-      attributes: {},
-      setAttribute(name: string, value: string) {
-        element.attributes[name] = value
-        if (name === 'type') element.type = value
-      }
-    }
-    return element
-  }
-
-  // The page carries an absolute boot tag, `<base>/host/boot.js`, so the
-  // loader's own URL names the folder whether or not the page URL ends in a
-  // slash - a relative tag would resolve against the page and, at `/demo`, name
-  // the origin root.
+  const appended: string[] = []
+  const assetUrls: string[] = []
+  const registered: any[] = []
+  const listeners: { [type: string]: Function[] } = {}
+  let controlled = options.controller !== false
   const pageHref = options.href || 'http://localhost:8123/'
   const stamp = options.noStamp ? '' : '?v=abc123'
-  // the tag the build emits: absolute when the target names a folder, relative
-  // to the page when it does not
-  const loaderSrc = options.basePath
+  const loader = options.basePath
     ? `${new URL(pageHref).origin}${options.basePath}/host/boot.js${stamp}`
     : new URL('host/boot.js' + stamp, pageHref).href
-
-  const document: any = {
+  const page: any = {
+    addEventListener: (type: string, fn: Function) => {
+      ;(listeners[type] ||= []).push(fn)
+    },
+    removeEventListener: (type: string, fn: Function) => {
+      listeners[type] = (listeners[type] || []).filter((item) => item !== fn)
+    }
+  }
+  const add = (element: any) => {
+    const src = 'host/' + new URL(element.src).pathname.split('/').pop()
+    appended.push(src)
+    assetUrls.push(element.src)
+    if (options.pending === src) return element
+    setTimeout(() => {
+      if (options.fail === src) return element.onerror()
+      if (element.src.includes('persist.js') && options.persist !== null)
+        page.__sasjsMockPersistReady =
+          options.persist ||
+          Promise.resolve({ type: 'sasjs-seed-ack', booted: true })
+      if (src === 'host/intercept.js' && !options.missingBridge)
+        page.__sasjsMockBridgeInstalled = true
+      element.onload()
+    }, 0)
+    return element
+  }
+  let currentController: any = null
+  let registeredUrl = ''
+  const worker = {
+    register: (url: string, init: any) => {
+      registeredUrl = url
+      currentController = {
+        scriptURL: options.oldController ? url + '-old' : url
+      }
+      registered.push([url, init])
+      if (options.registerThrows)
+        throw new Error('synchronous registration failure')
+      return options.register || Promise.resolve({})
+    },
+    ready: options.ready || Promise.resolve({}),
+    get controller() {
+      return controlled ? currentController : null
+    },
+    addEventListener: (type: string, fn: Function) => {
+      ;(listeners[type] ||= []).push(fn)
+    },
+    removeEventListener: (type: string, fn: Function) => {
+      listeners[type] = (listeners[type] || []).filter((item) => item !== fn)
+    }
+  }
+  ;(global as any).window = page
+  ;(global as any).document = {
+    readyState: options.pageLoading ? 'loading' : 'complete',
     currentScript: options.noScript
       ? null
-      : {
-          // the builder stamps the boot tag with the host version, and the
-          // loader reuses that query for the worker's own URL
-          src: loaderSrc,
-          getAttribute: (name: string) => {
-            if (name !== 'data-scripts') return null
-            return options.brokenConfig ? 'not json' : JSON.stringify(specs)
-          }
-        },
-    createElement,
-    body: {
-      appendChild: (element: FakeScript) => {
-        appended.push(element)
-        timeline.push(element.src || '[' + element.textContent + ']')
-        if (!element.src) return element
-        setTimeout(() => {
-          const failed = (options.failSrcs || []).includes(element.src!)
-          if (failed && element.onerror) element.onerror()
-          else if (element.onload) element.onload()
-        }, 0)
-        return element
-      }
-    }
+      : { src: options.invalidLoader ? 'bad-url' : loader },
+    createElement: () => ({}),
+    head: { appendChild: add },
+    body: null
   }
-
-  const listeners: { [type: string]: (() => void)[] } = {}
-  const controller = options.controller || 'present'
-  let timelineAtRegister: string[] = []
-  const navigator: any = {
-    serviceWorker: {
-      register: (url: string, init: any) => {
-        timelineAtRegister = timeline.slice()
-        registered.push(url + ' ' + JSON.stringify(init))
-        return options.registerFails
-          ? Promise.reject(new Error('nope'))
-          : Promise.resolve()
-      },
-      ready: Promise.resolve(),
-      get controller() {
-        if (controller === 'present') return {}
-        if (controller === 'late' && late) return {}
-        return null
-      },
-      addEventListener: (type: string, fn: () => void) => {
-        listeners[type] = listeners[type] || []
-        listeners[type].push(fn)
-      }
-    }
-  }
-  let late = false
-
-  ;(global as any).document = document
-  ;(global as any).navigator = navigator
-  ;(global as any).window = options.bootError
-    ? { __sasjsMockReady: Promise.resolve({ error: options.bootError }) }
-    : options.driveError
-      ? {
-          __sasjsMockReady: Promise.resolve({ driveError: options.driveError })
-        }
-      : {}
-  ;(global as any).sessionStorage = {
-    getItem: (key: string) => (key in stored ? stored[key] : null),
-    setItem: (key: string, value: string) => {
-      stored[key] = value
-    }
-  }
+  ;(global as any).navigator = options.noWorker ? {} : { serviceWorker: worker }
   ;(global as any).location = {
     href: pageHref,
     pathname: new URL(pageHref).pathname,
     origin: new URL(pageHref).origin,
-    reload: () => timeline.push('reload')
+    reload: jest.fn()
   }
-  jest.spyOn(console, 'error').mockImplementation(() => {})
-
   require('../assets/boot.js')
-
-  const claim = () => {
-    late = true
-    ;(listeners['controllerchange'] || []).forEach((fn) => fn())
+  return {
+    page,
+    appended,
+    assetUrls,
+    registered,
+    listeners,
+    replaceController: () => {
+      currentController = { scriptURL: registeredUrl }
+      ;(listeners.controllerchange || []).slice().forEach((fn) => fn())
+    },
+    claim: () => {
+      currentController = { scriptURL: registeredUrl }
+      controlled = true
+      ;(listeners.controllerchange || []).slice().forEach((fn) => fn())
+    }
   }
-
-  return { appended, timeline, registered, stored, claim, timelineAtRegister }
 }
 
-const settle = async () => {
-  for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 1))
+const rejected = (error: Error) => {
+  const promise = Promise.reject(error)
+  promise.catch(() => {})
+  return promise
 }
 
-describe('the boot loader', () => {
+const flush = async () => {
+  await jest.advanceTimersByTimeAsync(1)
+}
+
+describe('mock boot', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+  })
   afterEach(() => {
+    jest.useRealTimers()
+    jest.restoreAllMocks()
     delete (global as any).document
     delete (global as any).navigator
     delete (global as any).window
-    delete (global as any).sessionStorage
     delete (global as any).location
   })
 
-  it("registers the worker beside the page, at the build's version", async () => {
-    const { registered } = loadBoot([])
-    await settle()
-
-    // a cached sw.js would keep a returning visitor on the previous build's
-    // worker, so the URL carries the host version and the check skips the cache.
-    // The scope is the page's own folder: the site is served from the origin
-    // root on one host and from /demo beside its docs on another.
-    expect(registered).toEqual([
-      'http://localhost:8123/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: '/', updateViaCache: 'none' })
-    ])
-  })
-
-  it('registers the worker under the folder the page is served from', async () => {
-    const { registered } = loadBoot([], {
-      href: 'http://localhost:8123/demo/',
-      basePath: '/demo'
+  it('publishes a stable readiness promise synchronously and registers immediately', async () => {
+    let release!: (value: any) => void
+    const persist = new Promise((resolve) => {
+      release = resolve
     })
-    await settle()
-
-    expect(registered).toEqual([
-      'http://localhost:8123/demo/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
-    ])
-  })
-
-  it('registers under the folder when the page has no trailing slash', async () => {
-    // `/demo` is a URL the site answers: the host redirects to `/demo/` on a
-    // static host, but a page-relative worker URL would have named the origin
-    // root here, and './' would have resolved to '/'
-    const { registered } = loadBoot([], {
-      href: 'http://localhost:8123/demo',
-      basePath: '/demo'
+    const { page, appended, registered } = loadBoot({ persist })
+    const ready = page.__sasjsMockReady
+    expect(ready).toBeInstanceOf(Promise)
+    expect(appended).toEqual([])
+    expect(registered).toHaveLength(1)
+    await flush()
+    expect(appended).toEqual(['host/intercept.js', 'host/persist.js'])
+    expect(page.__sasjsMockReady).toBe(ready)
+    let settled = false
+    ready.then(() => {
+      settled = true
     })
-    await settle()
-
-    expect(registered).toEqual([
-      'http://localhost:8123/demo/sw.js?v=abc123 ' +
-        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
-    ])
-  })
-
-  it('finds the folder from the page when the document has no currentScript', async () => {
-    // a loader injected without a currentScript still knows where it sits: the
-    // page's folder, one level below the worker it registers
-    const { registered } = loadBoot([], {
-      href: 'http://localhost:8123/demo/',
-      basePath: '/demo',
-      noScript: true
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    release({ type: 'sasjs-seed-ack', booted: true })
+    await expect(ready).resolves.toEqual({
+      type: 'sasjs-seed-ack',
+      booted: true
     })
-    await settle()
-
-    // no tag, no version: the fallback cannot carry the build's stamp, so this
-    // path registers the folder's worker without a cache-busting query
-    expect(registered).toEqual([
-      'http://localhost:8123/demo/sw.js ' +
-        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
-    ])
   })
 
-  it('treats a path with no trailing slash as the folder, not a file', async () => {
-    // `/demo` is a URL the site answers; the last segment has no dot, so it
-    // names the folder and the loader sits one level below it
-    const { registered } = loadBoot([], {
-      href: 'http://localhost:8123/demo',
-      basePath: '/demo',
-      noScript: true
-    })
-    await settle()
+  it.each([
+    [{}, 'http://localhost:8123/host/', '?v=abc123'],
+    [
+      { href: 'http://localhost:8123/demo', basePath: '/demo' },
+      'http://localhost:8123/demo/host/',
+      '?v=abc123'
+    ],
+    [{ noStamp: true }, 'http://localhost:8123/host/', ''],
+    [
+      { href: 'http://localhost:8123/demo', noScript: true },
+      'http://localhost:8123/demo/host/',
+      ''
+    ]
+  ])(
+    'loads host scripts with the loader version and base %#',
+    async (options, base, stamp) => {
+      const { page, assetUrls } = loadBoot(options as Options)
+      await flush()
+      await page.__sasjsMockReady
+      expect(assetUrls.sort()).toEqual([
+        base + 'intercept.js' + stamp,
+        base + 'persist.js' + stamp
+      ])
+    }
+  )
 
-    expect(registered).toEqual([
-      'http://localhost:8123/demo/sw.js ' +
-        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
-    ])
-  })
+  it.each([
+    [{}, 'http://localhost:8123/sw.js?v=abc123', '/'],
+    [
+      { href: 'http://localhost:8123/demo/', basePath: '/demo' },
+      'http://localhost:8123/demo/sw.js?v=abc123',
+      '/demo/'
+    ],
+    [
+      { href: 'http://localhost:8123/demo', basePath: '/demo' },
+      'http://localhost:8123/demo/sw.js?v=abc123',
+      '/demo/'
+    ],
+    [
+      { href: 'http://localhost:8123/demo', noScript: true },
+      'http://localhost:8123/demo/sw.js',
+      '/demo/'
+    ],
+    [
+      { href: 'http://localhost:8123/demo/index.html', noScript: true },
+      'http://localhost:8123/demo/sw.js',
+      '/demo/'
+    ],
+    [{ noStamp: true }, 'http://localhost:8123/sw.js', '/']
+  ])(
+    'registers the versioned worker using its loader base %#',
+    async (options, url, scope) => {
+      const { page, registered } = loadBoot(options as Options)
+      await flush()
+      await page.__sasjsMockReady
+      expect(registered).toEqual([[url, { scope, updateViaCache: 'none' }]])
+    }
+  )
 
-  it('drops a file name from the path, and keeps the folder above it', async () => {
-    const { registered } = loadBoot([], {
-      href: 'http://localhost:8123/demo/index.html',
-      basePath: '/demo',
-      noScript: true
-    })
-    await settle()
-
-    expect(registered).toEqual([
-      'http://localhost:8123/demo/sw.js ' +
-        JSON.stringify({ scope: '/demo/', updateViaCache: 'none' })
-    ])
-  })
-
-  it('boots the host before the app, then replays every tag in order', async () => {
-    const { timeline } = loadBoot([
-      { src: 'sasjs.js', id: 'sasjs-adapter' },
-      { code: 'window.__config = 1' },
-      { src: 'js/backend.js' },
-      { src: 'js/game.js' }
-    ])
-    await settle()
-
-    expect(timeline).toEqual([
-      'host/persist.js',
-      'host/intercept.js',
-      'sasjs.js',
-      '[window.__config = 1]',
-      'js/backend.js',
-      'js/game.js'
-    ])
-  })
-
-  it('starts the drive restore before the worker is registered', async () => {
-    const { timelineAtRegister } = loadBoot([{ src: 'sasjs.js' }])
-    await settle()
-
-    // persist.js reads the page's own IndexedDB and hands the drive to the
-    // worker as soon as there is one, so nothing about it needs the worker to be
-    // ready: sequenced after the registration it is another download plus a
-    // store read on top of the install, which is what made a first visit slow
-    expect(timelineAtRegister).toEqual(['host/persist.js'])
-  })
-
-  it('keeps the attributes an app relies on', async () => {
-    const { appended } = loadBoot([
-      { src: 'sasjs.js', id: 'sasjs-adapter' },
-      { src: 'main.js', type: 'module' },
-      { src: 'cdn.js', crossOrigin: 'anonymous', integrity: 'sha384-x' },
-      { src: 'legacy.js', noModule: 'true' }
-    ])
-    await settle()
-
-    // the first two are the host's own: persist.js and intercept.js
-    const app = appended.slice(2)
-    expect(app.map((element) => element.src)).toEqual([
-      'sasjs.js',
-      'main.js',
-      'cdn.js',
-      'legacy.js'
-    ])
-    expect(app[0].id).toEqual('sasjs-adapter')
-    expect(app[1].type).toEqual('module')
-    expect(app[2].crossOrigin).toEqual('anonymous')
-    expect(app[2].integrity).toEqual('sha384-x')
-    expect(app[3].noModule).toBe(true)
-  })
-
-  it('runs an inline snippet without waiting for a load event', async () => {
-    const { appended } = loadBoot([{ code: 'window.__boot = 1' }])
-    await settle()
-
-    const inline = appended.find((element) => element.textContent)
-    expect(inline).toBeDefined()
-    expect(inline!.src).toBeUndefined()
-  })
-
-  it('moves on when a script fails to load', async () => {
-    const { timeline } = loadBoot(
-      [{ src: 'missing.js' }, { src: 'js/game.js' }],
-      { failSrcs: ['missing.js'] }
-    )
-    await settle()
-
-    expect(timeline.slice(-2)).toEqual(['missing.js', 'js/game.js'])
-  })
-
-  it('moves on when a host script fails to load', async () => {
-    const { timeline } = loadBoot([{ src: 'js/game.js' }], {
-      failSrcs: ['host/persist.js']
-    })
-    await settle()
-
-    // a dead persist.js still reaches the app rather than hanging the page
-    expect(timeline).toContain('js/game.js')
-  })
-
-  it('reports an error the host booted with', async () => {
-    loadBoot([], { bootError: 'seed missing' })
-    await settle()
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('seed missing')
-    )
-  })
-
-  it('reports a drive that was restored from less than the whole capture', async () => {
-    // the page still runs - a missing piece only fails the file that needed it -
-    // so the error is the only thing that says the drive is incomplete
-    loadBoot([], { driveError: 'the drive index answered 500' })
-    await settle()
-
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('the drive index answered 500')
-    )
-  })
-
-  it('refuses a boot config it cannot read instead of guessing', async () => {
-    const { timeline } = loadBoot([], { brokenConfig: true })
-    await settle()
-
-    expect(timeline).toEqual([])
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('boot config could not be read')
-    )
-  })
-
-  it('registers the plain worker URL when the tag carries no version', async () => {
-    const { registered } = loadBoot([], { noStamp: true })
-    await settle()
-
-    expect(registered[0]).toMatch(/\/sw\.js \{/)
-  })
-
-  it('boots the host with no app scripts when the tag carries no config', async () => {
-    const { timeline } = loadBoot([], { noScript: true })
-    await settle()
-
-    expect(timeline).toEqual(['host/persist.js', 'host/intercept.js'])
-  })
-
-  it('waits for a worker that takes control a moment later', async () => {
-    const { timeline, claim } = loadBoot([{ src: 'app.js' }], {
-      controller: 'late'
-    })
-    await settle()
+  it('does not start persistence against an old controller', async () => {
+    const { page, claim, appended } = loadBoot({ oldController: true })
+    const settled = jest.fn()
+    page.__sasjsMockReady.then(settled, settled)
+    await flush()
+    expect(appended).not.toContain('host/persist.js')
+    expect(settled).not.toHaveBeenCalled()
     claim()
-    await settle()
-
-    expect(timeline).toEqual(['host/persist.js', 'host/intercept.js', 'app.js'])
+    await flush()
+    await expect(page.__sasjsMockReady).resolves.toEqual({
+      type: 'sasjs-seed-ack',
+      booted: true
+    })
   })
 
-  it('boots anyway when the worker cannot be registered at all', async () => {
-    const { timeline } = loadBoot([{ src: 'app.js' }], {
-      registerFails: true,
-      controller: 'never'
+  it('rejects if the controller is replaced while persistence boots', async () => {
+    let release!: (value: any) => void
+    const persist = new Promise((resolve) => {
+      release = resolve
     })
-    await settle()
-
-    expect(timeline).toEqual(['host/persist.js', 'host/intercept.js', 'app.js'])
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('service worker registration failed')
-    )
+    const { page, replaceController } = loadBoot({ persist })
+    await flush()
+    replaceController()
+    release({ type: 'sasjs-seed-ack' })
+    await expect(page.__sasjsMockReady).rejects.toThrow(/controller changed/)
   })
 
-  it('reloads once when the worker never claims the page', async () => {
-    const { timeline, stored } = loadBoot([{ src: 'app.js' }], {
-      controller: 'never'
+  it('waits for a late controller without reloading', async () => {
+    const { page, claim } = loadBoot({ controller: false })
+    await flush()
+    claim()
+    await flush()
+    await expect(page.__sasjsMockReady).resolves.toEqual({
+      type: 'sasjs-seed-ack',
+      booted: true
     })
-    // the loader's grace period is 4s: wait past it so its timer cannot fire
-    // into the next test's globals
-    await new Promise((r) => setTimeout(r, 4200))
+    expect((global as any).location.reload).not.toHaveBeenCalled()
+  })
 
-    expect(stored['mock-sw-reloaded']).toEqual('1')
-    // the drive restore is requested before the registration (it overlaps the
-    // install), so it is already in flight when the page decides to reload; the
-    // reload discards it, which costs nothing the cache does not already hold
-    expect(timeline).toEqual(['host/persist.js', 'reload'])
-  }, 10000)
-
-  it('boots anyway once the reload has already been tried', async () => {
-    const { timeline } = loadBoot([{ src: 'app.js' }], {
-      controller: 'never',
-      guard: '1'
-    })
-    await new Promise((r) => setTimeout(r, 4200))
-
-    expect(timeline).toEqual(['host/persist.js', 'host/intercept.js', 'app.js'])
-  }, 10000)
-
-  it('starts without a worker when service workers are unavailable', async () => {
-    jest.resetModules()
-    const timeline: string[] = []
-    const document: any = {
-      currentScript: {
-        getAttribute: () => JSON.stringify([{ src: 'app.js' }])
+  it.each([
+    [{ noWorker: true }, /service workers.*unavailable/i],
+    [{ invalidLoader: true }, /invalid url/i],
+    [
+      { register: rejected(new Error('registration denied')) },
+      /registration denied/
+    ],
+    [{ fail: 'host/persist.js' }, /persist\.js/],
+    [{ fail: 'host/intercept.js' }, /intercept\.js/],
+    [{ missingBridge: true }, /intercept.*install/i],
+    [{ persist: null }, /persist.*readiness/i],
+    [{ persist: Promise.resolve({ error: 'seed missing' }) }, /seed missing/],
+    [
+      { persist: Promise.resolve({ driveError: 'incomplete drive' }) },
+      /incomplete drive/
+    ],
+    [
+      {
+        persist: Promise.resolve({
+          type: 'sasjs-seed-ack',
+          boot: { driveError: 'shard unavailable' }
+        })
       },
-      createElement: () => ({}),
-      body: {
-        appendChild: (element: FakeScript) => {
-          timeline.push(element.src!)
-          setTimeout(() => element.onload && element.onload(), 0)
-          return element
+      /shard unavailable/
+    ],
+    [{ persist: Promise.resolve({}) }, /invalid.*acknowledg/i],
+    [{ persist: rejected(new Error('storage failed')) }, /storage failed/]
+  ])(
+    'rejects rather than falsely reporting readiness %#',
+    async (options, message) => {
+      const { page } = loadBoot(options as Options)
+      const check = expect(page.__sasjsMockReady).rejects.toThrow(
+        message as RegExp
+      )
+      await flush()
+      await check
+    }
+  )
+
+  it.each([
+    [{ register: new Promise(() => {}) }, /registration.*timed out/i],
+    [{ ready: new Promise(() => {}) }, /service worker.*timed out/i],
+    [{ controller: false }, /controller.*timed out/i],
+    [{ oldController: true }, /controller.*timed out/i],
+    [{ pending: 'host/persist.js' }, /persist\.js.*timed out/i],
+    [{ pending: 'host/intercept.js' }, /intercept\.js.*timed out/i],
+    [{ persist: new Promise(() => {}) }, /persist.*timed out/i]
+  ])(
+    'bounds an operation that never completes %#',
+    async (options, message) => {
+      const { page } = loadBoot(options as Options)
+      const check = expect(page.__sasjsMockReady).rejects.toThrow(
+        message as RegExp
+      )
+      await jest.advanceTimersByTimeAsync(60000)
+      await check
+      expect((global as any).location.reload).not.toHaveBeenCalled()
+    }
+  )
+
+  it('rejects after 20 seconds when the native page load stalls', async () => {
+    const { page, appended, listeners } = loadBoot({ pageLoading: true })
+    const outcome = jest.fn()
+    page.__sasjsMockReady.then(() => outcome('resolved'), outcome)
+    await jest.advanceTimersByTimeAsync(19999)
+    expect(outcome).not.toHaveBeenCalled()
+    expect(appended).toEqual([])
+    await jest.advanceTimersByTimeAsync(1)
+    expect(outcome).toHaveBeenCalledTimes(1)
+    expect(outcome.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringMatching(/page.*load.*timed out/i)
+      })
+    )
+    expect(appended).toEqual([])
+    expect(listeners.load || []).toHaveLength(0)
+  })
+
+  it('starts host scripts only after the page load and clears the timeout', async () => {
+    const { page, appended, listeners } = loadBoot({ pageLoading: true })
+    await jest.advanceTimersByTimeAsync(10000)
+    expect(appended).toEqual([])
+    const onLoad = listeners.load[0]
+    listeners.load = [] // The browser removes a once listener on dispatch.
+    onLoad()
+    await flush()
+    await expect(page.__sasjsMockReady).resolves.toEqual({
+      type: 'sasjs-seed-ack',
+      booted: true
+    })
+    await jest.advanceTimersByTimeAsync(20000)
+    expect(appended).toEqual(['host/intercept.js', 'host/persist.js'])
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it('handles a page-load timeout after a synchronous setup failure', async () => {
+    const unhandled = jest.fn()
+    process.on('unhandledRejection', unhandled)
+    try {
+      const { page, listeners } = loadBoot({
+        pageLoading: true,
+        invalidLoader: true
+      })
+      await expect(page.__sasjsMockReady).rejects.toThrow(/invalid url/i)
+      await jest.advanceTimersByTimeAsync(20001)
+      expect(listeners.load || []).toHaveLength(0)
+      expect(console.error).toHaveBeenCalledTimes(1)
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringMatching(/invalid url/i)
+      )
+      expect(unhandled).not.toHaveBeenCalled()
+    } finally {
+      process.removeListener('unhandledRejection', unhandled)
+    }
+  })
+
+  it('handles an ignored rejection without emitting unhandledRejection', async () => {
+    const unhandled = jest.fn()
+    process.on('unhandledRejection', unhandled)
+    loadBoot({ registerThrows: true })
+    await flush()
+    await jest.advanceTimersByTimeAsync(20001)
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('synchronous registration failure')
+    )
+    expect(unhandled).not.toHaveBeenCalled()
+    process.removeListener('unhandledRejection', unhandled)
+  })
+
+  it('fires native load even when host script downloads stall', async () => {
+    const requested: string[] = []
+    let requestedBoth!: () => void
+    const bothRequested = new Promise<void>((resolve) => {
+      requestedBoth = resolve
+    })
+    class StalledResources extends ResourceLoader {
+      fetch(url: string): any {
+        if (url.includes('/host/boot.js'))
+          return Promise.resolve(Buffer.from(source))
+        if (
+          url.includes('/host/persist.js') ||
+          url.includes('/host/intercept.js')
+        ) {
+          requested.push(url)
+          if (requested.length === 2) requestedBoth()
+          const pending: any = new Promise(() => {})
+          pending.abort = () => {}
+          return pending
         }
+        return null
       }
     }
-    ;(global as any).document = document
-    ;(global as any).navigator = {}
-    ;(global as any).window = {}
-    ;(global as any).sessionStorage = { getItem: () => null, setItem: () => {} }
-    ;(global as any).location = {
-      href: 'http://localhost:8123/',
-      reload: () => {}
-    }
-    jest.spyOn(console, 'error').mockImplementation(() => {})
-
-    require('../assets/boot.js')
-    await settle()
-
-    expect(timeline).toEqual(['host/persist.js', 'host/intercept.js', 'app.js'])
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('service workers are unavailable')
+    jest.useRealTimers()
+    const dom = new JSDOM(
+      `<!doctype html><head><script src="/host/boot.js?v=abc123"></script><script>
+      window.earlyReady = window.__sasjsMockReady;
+      window.calls = ['app'];
+      document.addEventListener('DOMContentLoaded', () => calls.push('dom'));
+      window.addEventListener('load', async () => { calls.push('load'); await window.__sasjsMockReady; });
+      </script></head><body>visible</body>`,
+      {
+        url: 'http://localhost/',
+        runScripts: 'dangerously',
+        resources: new StalledResources(),
+        virtualConsole: new VirtualConsole(),
+        beforeParse(win: any) {
+          Object.defineProperty(win.navigator, 'serviceWorker', {
+            value: {
+              register: () => Promise.resolve({}),
+              ready: Promise.resolve({}),
+              controller: { scriptURL: 'http://localhost/sw.js?v=abc123' },
+              addEventListener() {},
+              removeEventListener() {}
+            }
+          })
+        }
+      }
     )
+    try {
+      const fired = await Promise.race([
+        new Promise<boolean>((resolve) =>
+          dom.window.addEventListener('load', () => resolve(true), {
+            once: true
+          })
+        ),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 300))
+      ])
+      expect(fired).toBe(true)
+      const page: any = dom.window
+      expect(page.earlyReady).toBe(page.__sasjsMockReady)
+      expect(page.calls).toEqual(['app', 'dom', 'load'])
+      expect(page.document.body.textContent).toContain('visible')
+      await Promise.race([
+        bothRequested,
+        new Promise<void>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('host scripts were not requested')),
+            300
+          )
+        )
+      ])
+      expect(requested.sort()).toEqual([
+        'http://localhost/host/intercept.js?v=abc123',
+        'http://localhost/host/persist.js?v=abc123'
+      ])
+    } finally {
+      dom.window.close()
+    }
+  })
+
+  it('leaves native app scripts and lifecycle events under parser control while the worker is pending', async () => {
+    class Resources extends ResourceLoader {
+      fetch(url: string): any {
+        if (url.endsWith('/host/boot.js'))
+          return Promise.resolve(Buffer.from(source))
+        if (url.endsWith('/host/persist.js'))
+          return Promise.resolve(
+            Buffer.from(
+              'window.__sasjsMockPersistReady = new Promise(() => {})'
+            )
+          )
+        if (url.endsWith('/host/intercept.js'))
+          return Promise.resolve(Buffer.from(''))
+        return null
+      }
+    }
+    jest.useRealTimers()
+    const dom = new JSDOM(
+      `<!doctype html><head><script src="/host/boot.js"></script><script>
+      window.earlyReady = window.__sasjsMockReady;
+      window.calls = ['app'];
+      document.addEventListener('DOMContentLoaded', () => calls.push('dom'));
+      window.addEventListener('load', () => calls.push('load'));
+    </script></head><body>visible</body>`,
+      {
+        url: 'http://localhost/',
+        runScripts: 'dangerously',
+        resources: new Resources(),
+        virtualConsole: new VirtualConsole(),
+        beforeParse(win: any) {
+          Object.defineProperty(win.navigator, 'serviceWorker', {
+            value: {
+              register: () => new Promise(() => {}),
+              ready: new Promise(() => {}),
+              controller: null,
+              addEventListener() {},
+              removeEventListener() {}
+            }
+          })
+        }
+      }
+    )
+    await new Promise<void>((resolve) =>
+      dom.window.addEventListener('load', () => resolve(), { once: true })
+    )
+    const page: any = dom.window
+    expect(page.earlyReady).toBe(page.__sasjsMockReady)
+    expect(page.earlyReady).toBeInstanceOf(dom.window.Promise)
+    expect(page.calls).toEqual(['app', 'dom', 'load'])
+    expect(page.document.body.textContent).toContain('visible')
+    dom.window.close()
   })
 })
