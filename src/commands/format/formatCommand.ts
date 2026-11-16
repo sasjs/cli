@@ -74,6 +74,20 @@ export class FormatCommand extends CommandBase {
           return ReturnCode.FormatError
         }
 
+        // A filter that named nothing means the run covered nothing the user asked
+        // for - a mistyped path or a renamed folder must not read as a clean run,
+        // and must never pass a `--check` gate.
+        if (outcome.unmatchedFilters.length) {
+          outcome.unmatchedFilters.forEach((filter) =>
+            process.logger?.warn(`No .sas file matched the filter: ${filter}`)
+          )
+          displayError(
+            `${outcome.unmatchedFilters.length} filter(s) named no file, so the run did not cover them.`
+          )
+
+          return ReturnCode.FormatError
+        }
+
         // Unsettled files were left as they were found, so the run did not do
         // what was asked for those files either.
         if (outcome.unsettledFilePaths.length) {

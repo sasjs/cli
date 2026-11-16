@@ -15,6 +15,7 @@ const outcome = (json: Partial<FormatOutcome> = {}): FormatOutcome => ({
   unsettledFilePaths: [],
   rejectedFilePaths: [],
   failedFilePaths: [],
+  unmatchedFilters: [],
   engineUnavailable: false,
   ...json
 })
@@ -64,6 +65,24 @@ describe('FormatCommand', () => {
 
     expect(returnCode).toEqual(ReturnCode.Success)
     expect(process.logger.success).toHaveBeenCalledWith('Rewrote 1 of 3 files.')
+  })
+
+  it('fails when a filter named no file, even with nothing to change', async () => {
+    // A mistyped filter or a renamed folder must not read as a clean run.
+    jest
+      .spyOn(processFormatModule, 'processFormat')
+      .mockResolvedValue(
+        outcome({ examinedCount: 0, unmatchedFilters: ['typo'] })
+      )
+
+    const command = new FormatCommand([...defaultArgs, 'format', 'typo'])
+
+    const returnCode = await command.execute()
+
+    expect(returnCode).toEqual(ReturnCode.FormatError)
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      'No .sas file matched the filter: typo'
+    )
   })
 
   it('fails without rewriting when --check finds a file that would change', async () => {

@@ -147,6 +147,64 @@ describe('processFormat', () => {
     expect(files).toEqual([macros])
   })
 
+  it('treats a filter as literal text, so a metacharacter cannot over-match', async () => {
+    // A filter is a path the user typed, not a regular expression: as one, `a.c`
+    // matched `abc.sas` as well.
+    const literal = write(dir, 'a.c.sas', 'data a;\nrun;\n')
+    write(dir, 'abc.sas', 'data b;\nrun;\n')
+
+    const { files } = await resolveSasFiles(['a.c'])
+
+    expect(files).toEqual([literal])
+  })
+
+  it('does not throw on a filter that is not a valid regular expression', async () => {
+    // `sasjs format "["` used to throw SyntaxError out of the walk, before any
+    // file was handled, and surface as the generic internal-error message.
+    write(dir, 'x.sas', 'data a;\nrun;\n')
+
+    const { files, unmatchedFilters } = await resolveSasFiles(['['])
+
+    expect(files).toEqual([])
+    expect(unmatchedFilters).toEqual(['['])
+  })
+
+  it('normalises the walker output, so a forward-slash filter still matches', async () => {
+    // Windows hands back native separators, so the documented
+    // `sasjs format sasjs/macros` matched nothing there while reporting success.
+    // A literal backslash is legal in a Linux filename, which is how the separator
+    // can be exercised here without mocking the walker.
+    const nested = write(dir, 'sasjs\\macros/mf_x.sas', 'data b;\nrun;\n')
+
+    const { files, unmatchedFilters } = await resolveSasFiles(['sasjs/macros'])
+
+    expect(files).toEqual([nested])
+    expect(unmatchedFilters).toEqual([])
+  })
+
+  it('names a filter that matched no file, so a typo cannot pass a gate', async () => {
+    write(dir, 'x.sas', 'data a;\nrun;\n')
+
+    const { unmatchedFilters } = await resolveSasFiles(['no-such-folder'])
+
+    expect(unmatchedFilters).toEqual(['no-such-folder'])
+  })
+
+  it('does not list a file as rewritten when its write fails', async () => {
+    // Pushing before the write reported a file as both rewritten and failed. The
+    // failure is a real EACCES on a read-only file, not a mocked one: the suite
+    // runs unprivileged, where chmod 0444 is enough.
+    const filePath = write(dir, 'h.sas', 'DATA a;\nRUN;\n')
+    fs.chmodSync(filePath, 0o444)
+
+    const outcome = await processFormat([filePath], false, { reprint })
+
+    expect(outcome.changedFilePaths).toEqual([])
+    expect(outcome.failedFilePaths.map((failure) => failure.filePath)).toEqual([
+      filePath
+    ])
+  })
+
   it('collects a file it could not read, instead of skipping the rest', async () => {
     // One unreadable file in a tree must not stop the walk, which is the rule
     // formatFolder follows for the same reason.

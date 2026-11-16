@@ -55,6 +55,8 @@ export interface FormatOutcome {
   rejectedFilePaths: FileFailure[]
   /** Files that failed part way, so the run did not cover them. */
   failedFilePaths: FileFailure[]
+  /** Filters that named no file, so the run did not cover what was asked. */
+  unmatchedFilters: string[]
   /** Set when the layout engine could not be loaded, so only the rules ran. */
   engineUnavailable: boolean
 }
@@ -62,6 +64,15 @@ export interface FormatOutcome {
 /** Whether a path is one this command formats. */
 const isSasFile = (filePath: string) =>
   path.extname(filePath).toLowerCase() === '.sas'
+
+/**
+ * A path as a filter would be written.
+ *
+ * The walker returns native separators, which are `\\` on Windows, while a filter
+ * is typed with `/` - so `sasjs format sasjs/macros`, the form in this command's
+ * own examples, would match nothing there and still report success.
+ */
+const toForwardSlashes = (value: string) => value.replace(/\\/g, '/')
 
 /**
  * Whether an absolute path names a folder, without throwing on a path this
@@ -102,7 +113,11 @@ const unique = (paths: string[]) => [...new Set(paths)]
  */
 export const resolveSasFiles = async (
   filterArray: string[] = []
-): Promise<{ files: string[]; rejected: FileFailure[] }> => {
+): Promise<{
+  files: string[]
+  rejected: FileFailure[]
+  unmatchedFilters: string[]
+}> => {
   if (!filterArray.length) {
     const projectDir = getProjectDir()
 
@@ -110,7 +125,8 @@ export const resolveSasFiles = async (
       files: (
         await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)
       ).map((file) => path.resolve(projectDir, file)),
-      rejected: []
+      rejected: [],
+      unmatchedFilters: []
     }
   }
 
@@ -146,19 +162,44 @@ export const resolveSasFiles = async (
     files.push(absolutePath)
   }
 
-  if (patterns.length) {
-    const regex = new RegExp(
-      patterns.map((pattern) => `(${pattern})`).join('|')
-    )
-    const projectDir = getProjectDir()
-    const sasFiles = (
-      await listSasFilesInFolder(projectDir, true, EXCLUDED_FOLDERS)
-    ).map((file) => path.resolve(projectDir, file))
+  const unmatchedFilters: string[] = []
 
-    files.push(...sasFiles.filter((file) => regex.test(file)))
+  if (patterns.length) {
+    const projectDir = getProjectDir()
+    const relativeFiles = await listSasFilesInFolder(
+      projectDir,
+      true,
+      EXCLUDED_FOLDERS
+    )
+    // Compared as plain text rather than as a pattern: a filter is a path the
+    // user typed, so `sasjs format "["` must name nothing instead of throwing a
+    // SyntaxError out of the walk, and `sasjs format "a.c"` must not also match
+    // `abc.sas`.
+    const matchers = patterns.map(toForwardSlashes)
+    const matchedPatterns = new Set<string>()
+
+    for (const relative of relativeFiles) {
+      const absolutePath = path.resolve(projectDir, relative)
+      // Compared as a `/`-separated absolute path, so a filter written either way -
+      // `sasjs/macros` or a fragment of the full path - matches on every platform.
+      const candidate = toForwardSlashes(absolutePath)
+
+      patterns.forEach((pattern, index) => {
+        if (candidate.includes(matchers[index])) {
+          files.push(absolutePath)
+          matchedPatterns.add(pattern)
+        }
+      })
+    }
+
+    // A filter that named nothing is reported rather than treated as a run over
+    // zero files: a mistyped path would otherwise pass a `--check` gate green.
+    unmatchedFilters.push(
+      ...patterns.filter((pattern) => !matchedPatterns.has(pattern))
+    )
   }
 
-  return { files: unique(files), rejected }
+  return { files: unique(files), rejected, unmatchedFilters }
 }
 
 /**
@@ -236,7 +277,11 @@ export const processFormat = async (
   check = false,
   options: FormatOptions = {}
 ): Promise<FormatOutcome> => {
-  const { files: filePaths, rejected } = await resolveSasFiles(filterArray)
+  const {
+    files: filePaths,
+    rejected,
+    unmatchedFilters
+  } = await resolveSasFiles(filterArray)
 
   // Read once, so every file and every pass works from the same configuration
   // rather than re-reading `.sasjslint` per pass.
@@ -284,9 +329,11 @@ export const processFormat = async (
 
       if (after === before) continue
 
-      changedFilePaths.push(filePath)
-
+      // After the write, not before: a write that throws must not leave the file
+      // listed as both rewritten and failed.
       if (!check) await writeFile(filePath, after)
+
+      changedFilePaths.push(filePath)
     } catch (error: any) {
       failedFilePaths.push({
         filePath,
@@ -300,6 +347,7 @@ export const processFormat = async (
     examinedCount: filePaths.length,
     unsettledFilePaths,
     rejectedFilePaths: rejected,
+    unmatchedFilters,
     failedFilePaths,
     engineUnavailable
   }
