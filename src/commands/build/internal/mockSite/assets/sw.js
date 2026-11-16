@@ -1708,11 +1708,14 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // for rather than answered twice - `_FILE=` is the drive read (the package
   // decides its typing and its refusal), `_program=` is the run.
   const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
-  const namedFile = webTier && url.searchParams.get('_FILE')
-  const askedForFile = namedFile && request.method === 'GET'
-  // either parameter counts for the refusal, on either spelling: the server
-  // refuses by parameter, not by tier, and a request naming both must not be
-  // answered as a file here because it carries a spelling this tier does not run
+  // Presence, not truthiness: the server tests `!== undefined`, and Express
+  // parses `_program=` to the empty string, so a request naming both with an
+  // empty value is refused there - a `get`-based guard reads the empty string as
+  // absent and answers the file instead, which is the disagreement to avoid.
+  const namedFile = url.searchParams.has('_FILE')
+  const namedProgram = url.searchParams.has('_program')
+  const askedForFile =
+    webTier && request.method === 'GET' && url.searchParams.get('_FILE')
   const askedForProgram = webTier && url.searchParams.get('_program')
 
   // A request naming both is refused before either branch is chosen, in the
@@ -1720,7 +1723,8 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // considered, because that is the order the server checks them in. The mock
   // exists so a host's answers can be reproduced: picking the file here would
   // make the site work on a page the server answers 400 for.
-  if (namedFile && askedForProgram) return text(TIER_NEEDS_ONE_PARAMETER, 400)
+  if (webTier && namedFile && namedProgram)
+    return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
   const apiPath = askedForFile
     ? '/SASjsApi/drive/file'

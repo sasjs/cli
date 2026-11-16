@@ -4002,6 +4002,23 @@ describe('service worker host', () => {
       )
     })
 
+    it('refuses both parameters when the second is present but empty', async () => {
+      const worker = seeded()
+      await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+      const response = await worker.dispatch(
+        `/StoredProgram?_FILE=${appLoc}/services/web/main.js&_program=`
+      )
+
+      // presence, not truthiness: the server tests `!== undefined` and Express
+      // parses a bare `_program=` to the empty string, so this is refused there
+      // and must be refused here rather than answered as the file
+      expect(response.status).toBe(400)
+      expect(await response.text()).toBe(
+        'Exactly one of "_program" and "_FILE" may be given.'
+      )
+    })
+
     it('refuses a request that names the file twice, as the package does', async () => {
       const worker = seeded()
       await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
