@@ -546,7 +546,7 @@ async function main() {
             try {
               const getdata = await sas.request('services/common/getdata', data);
               const absentArea = await sas.request('services/common/getdata', {areas: [{OTHER: 'test; file'}]});
-              const unrelated = await sas.request('services/common/getdata', {unrelated: [{AREA: 'undefined; file'}]});
+              const unrelated = await sas.request('services/common/getdata', {unrelated: [{AREA: 'undefined'}]});
               const uploads = await sas.request('services/common/uploads', data);
               const fetched = await sas.request('services/common/fetch', data);
               const caseResults = [];
