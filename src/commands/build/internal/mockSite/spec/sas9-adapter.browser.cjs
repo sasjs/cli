@@ -19,7 +19,19 @@ const fixtures = path.join(__dirname, 'fixtures/sas9-adapter')
 const appLoc = '/Public/app/test'
 const values = ['Alder Basin', 'café, "spring"\nnext; line', 'tab\there']
 const springs = values.map((AREA, i) => ({ AREA, NAME: `spring-${i}` }))
-const allSprings = [...springs, { AREA: 'undefined', NAME: 'missing-column' }]
+const edgeSprings = [
+  { AREA: 'null', NAME: 'literal-null' },
+  { AREA: '0', NAME: 'character-zero' },
+  { AREA: '.A', NAME: 'literal-special' },
+  { AREA: ' A', NAME: 'leading' },
+  { AREA: 'A  ', NAME: 'trailing' },
+  { AREA: '  ', NAME: 'missing-character' }
+]
+const allSprings = [
+  ...springs,
+  { AREA: 'undefined', NAME: 'missing-column' },
+  ...edgeSprings
+]
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function buildSite(root, targetType, basePath) {
@@ -518,6 +530,40 @@ async function main() {
           `${target} ${transport}: webout FETCH reads mixed-case chunks`
         )
         console.log(`PASS ${target} ${transport} mixed-case webout FETCH`)
+
+        for (const [csv, expected] of [
+          ['AREA:best32.\r\n.\r\n0', []],
+          ['AREA:$char40.\r\nnull', [edgeSprings[0]]],
+          ['AREA:$char40.\r\n.A', [edgeSprings[2]]],
+          ['AREA:$char40.\r\n" A "', [edgeSprings[3]]],
+          ['AREA:$char40.\r\nA', [edgeSprings[4]]],
+          ['AREA:$char40.\r\n" "', [edgeSprings[5]]]
+        ]) {
+          const selected = await evaluate(`(async () => {
+            const form = new FormData();
+            form.append('sasjs1data', ${JSON.stringify(csv)});
+            form.append('sasjs_tables', 'areas');
+            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/getdata')});
+            if (${JSON.stringify(transport)} === 'fetch') {
+              const response = await fetch(url, {method: 'POST', body: form});
+              return {status: response.status, body: await response.json()};
+            }
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest(); xhr.open('POST', url);
+              xhr.onload = () => resolve({status: xhr.status, body: JSON.parse(xhr.responseText)});
+              xhr.onerror = reject; xhr.send(form);
+            });
+          })()`)
+          assert.equal(selected.status, 200, `${target} ${transport}: ${csv}`)
+          assert.deepEqual(
+            selected.body.springs,
+            expected,
+            `${target} ${transport}: ${csv}`
+          )
+        }
+        console.log(
+          `PASS ${target} ${transport} character AREA and numeric coercion`
+        )
       }
 
       try {
@@ -570,8 +616,16 @@ async function main() {
             springs,
             `${label}: existing mock selected all special-character rows`
           )
-          assert.deepEqual(result.absentArea.springs, [], `${label}: missing AREA`)
-          assert.deepEqual(result.unrelated.springs, [], `${label}: unrelated table`)
+          assert.deepEqual(
+            result.absentArea.springs,
+            [],
+            `${label}: missing AREA`
+          )
+          assert.deepEqual(
+            result.unrelated.springs,
+            [],
+            `${label}: unrelated table`
+          )
           for (const { column, getdata, fetched } of result.caseResults) {
             assert.deepEqual(
               fetched.areas,
