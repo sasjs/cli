@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@sasjs/adapter": "6.0.2",
-    "@sasjs/api": "0.44.0",
+    "@sasjs/api": "0.44.2",
     "@sasjs/core": "7.1.12",
     "@sasjs/lint": "5.5.7",
     "@sasjs/sas-language": "0.7.2",
