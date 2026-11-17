@@ -21,6 +21,18 @@ export const APP_MANIFEST = 'sasjs.app.json'
 export interface AppManifest {
   /** The label the app is listed under. */
   name?: string
+  /**
+   * The folder this deployment is written to.
+   *
+   * A streamed deployment carries its web assets inside the backend's folder, so
+   * `streamWebFolder` alone says where the assets sit but not what they sit in:
+   * the deploy writes one tree to `appLoc`. The deploy payload states it today,
+   * but the archive is meant to be everything needed to publish, and a host that
+   * reads the manifest out of a zip has no payload to consult - it refuses a
+   * legacy bundle with no `appLoc` with "appLoc is required when
+   * streamWebFolder is stated".
+   */
+  appLoc?: string
   /** The folder under `services/` holding the compiled web app. */
   streamWebFolder: string
   /** An asset inside the app, used as its tile image. */
@@ -33,11 +45,18 @@ export interface AppManifest {
  * Only fields the deployer actually set are written: a manifest that states
  * `"logo": undefined` is not JSON, and one that states a default the server also
  * defaults would freeze that default into every deployment.
+ *
+ * `appLoc` comes from the target rather than the stream configuration, which is
+ * why it is passed in: it is where the deployment goes, not how it streams.
  */
-export const appManifest = (streamConfig: StreamConfig): AppManifest => ({
+export const appManifest = (
+  streamConfig: StreamConfig,
+  appLoc?: string
+): AppManifest => ({
   ...(streamConfig.streamServiceName
     ? { name: streamConfig.streamServiceName }
     : {}),
+  ...(appLoc ? { appLoc } : {}),
   streamWebFolder: streamConfig.streamWebFolder,
   ...(streamConfig.streamLogo ? { logo: streamConfig.streamLogo } : {})
 })

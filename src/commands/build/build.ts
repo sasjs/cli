@@ -169,7 +169,7 @@ async function createFinalSasFiles(target: Target) {
       // also means the zip a CI job keeps is everything needed to publish.
       servicePackSASjs.fileTree = withAppManifest(
         folderContentJSON,
-        appManifest(streamConfig)
+        appManifest(streamConfig, target.appLoc)
       )
     }
   }
