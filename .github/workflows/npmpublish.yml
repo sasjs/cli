@@ -15,7 +15,10 @@ name: SASjs CLI Deploy
 # is chained off the Release workflow finishing.
 #
 # Nothing is committed. The tag is the version; it is stamped into the working
-# tree because npm reads package.json, and the tree is thrown away.
+# tree because npm reads package.json, and the tree is thrown away. Which version,
+# whether it may be published, and whether the registry already serves it are
+# answered by `@sasjs/release --prepare-publish`, not by a shell block here: that
+# logic was copied into each repository and each copy drifted.
 on:
   workflow_run:
     workflows: [Release]
@@ -65,17 +68,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Always main: a dispatch can name any ref, and the tag gate below
-          # treats HEAD as the default branch. Publishing is from main or not at
-          # all, so the checkout says so rather than inheriting the dispatcher's
-          # choice.
+          # Always main: a dispatch can name any ref, and the tag gate inside
+          # --prepare-publish treats main as the branch a release must be on.
+          # Publishing is from main or not at all, so the checkout says so rather
+          # than inheriting the dispatcher's choice.
           ref: main
           # the tag is how this workflow learns what to publish: the release run
           # created it at the commit it released
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Resolve the tag
+      # Discovery only: which tag did the release run cut, or did a dispatch name
+      # one. What version that is, whether it may be published, and whether the
+      # registry already serves it are decisions, and they are `--prepare-publish`'s.
+      - name: Which tag is this run for?
         id: tag
         env:
           EVENT: ${{ github.event_name }}
@@ -99,7 +105,7 @@ jobs:
                 exit 1
               fi
               echo "::notice::no tag at $SHA - that release had nothing to publish"
-              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "tag=" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
@@ -109,30 +115,17 @@ jobs:
             exit 1
           fi
 
-          # A dispatch can name any tag in the repository; only one cut from a
-          # commit on the default branch is a release this pipeline made. The
-          # checkout above pins main, so HEAD *is* the default branch here - the
-          # tag is checked out further down - and this needs no fetch: the
-          # checkout runs with persist-credentials: false, and asking origin for
-          # refs would lean on the repository being public.
-          if ! git merge-base --is-ancestor "${tag}^{commit}" HEAD; then
-            echo "::error::$tag is not on the default branch - refusing to publish it"
-            exit 1
-          fi
-
-          echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-          echo "publishing $tag (version ${tag#v})"
+          echo "publishing from $tag"
 
       - name: Check out the tag
-        if: steps.tag.outputs.skip != 'true'
+        if: steps.tag.outputs.tag != ''
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: git checkout -q "refs/tags/$TAG"
 
       - name: Use Node.js ${{ matrix.node-version }}
-        if: steps.tag.outputs.skip != 'true'
+        if: steps.tag.outputs.tag != ''
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
@@ -144,65 +137,43 @@ jobs:
       # the one this commit was reviewed with: @latest would adopt a new npm major
       # into the release path without a commit here. Bump it deliberately.
       - name: Update npm
-        if: steps.tag.outputs.skip != 'true'
+        if: steps.tag.outputs.tag != ''
         run: npm install -g npm@12.2.0
 
       - name: Install dependencies
-        if: steps.tag.outputs.skip != 'true'
+        if: steps.tag.outputs.tag != ''
         run: npm ci
 
-      # the version npm reads is the tag, stamped into the tree and not committed.
-      # Before the build, while the tree is still clean enough for npm version to
-      # accept it.
-      - name: Stamp the version
-        if: steps.tag.outputs.skip != 'true'
+      # The tool comes from the lockfile, so the bytes are pinned: `npx
+      # @sasjs/release@x.y.z` would resolve whatever the registry served at
+      # publish time, on the one job that can put a version on npm.
+      #
+      # It refuses a tag that is not an ancestor of main, stamps the tag's version
+      # into package.json (npm reads the file, the tree is thrown away), and reports
+      # `publish=false` when the registry already serves that version - which is a
+      # re-run of a finished release, not a failure.
+      - name: Stamp the version, and ask whether it is published
+        id: publish
+        if: steps.tag.outputs.tag != ''
         env:
-          VERSION: ${{ steps.tag.outputs.version }}
-        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
-
-      - name: Build project
-        if: steps.tag.outputs.skip != 'true'
-        run: npm run build
-
-      - name: Audit for vulnerabilities
-        if: steps.tag.outputs.skip != 'true'
-        run: npm audit --omit=dev --audit-level=low
-
-      - name: The version is the tag's
-        # prepublishOnly refuses the 0.0.0 placeholder, and the publish step below
-        # re-enables it with --ignore-scripts=false, so that case is already
-        # covered. This checks what prepublishOnly cannot see: that the version
-        # npm is about to read is the tag's, not merely non-placeholder.
-        if: steps.tag.outputs.skip != 'true'
-        env:
-          VERSION: ${{ steps.tag.outputs.version }}
-        run: |
-          set -euo pipefail
-          stamped="$(node -p "require('./package.json').version")"
-          echo "stamped $stamped, tag says $VERSION"
-          if [ "$stamped" != "$VERSION" ]; then
-            echo "::error::package.json states $stamped but the tag names $VERSION"
-            exit 1
-          fi
-
-      - name: Already on the registry?
-        id: existing
-        if: steps.tag.outputs.skip != 'true'
-        env:
-          VERSION: ${{ steps.tag.outputs.version }}
+          TAG: ${{ steps.tag.outputs.tag }}
           REPUBLISH: ${{ inputs.republish }}
         run: |
           set -euo pipefail
-          published="$(npm view "@sasjs/cli@${VERSION}" version --prefer-online 2>/dev/null || true)"
-          if [ "$published" = "$VERSION" ] && [ "${REPUBLISH:-false}" != "true" ]; then
-            echo "already=true" >> "$GITHUB_OUTPUT"
-            echo "$VERSION is already on the registry - nothing to publish"
-          else
-            echo "already=false" >> "$GITHUB_OUTPUT"
-          fi
+          extra=()
+          if [ "${REPUBLISH:-false}" = "true" ]; then extra+=(--republish); fi
+          npx sasjs-release --prepare-publish --tag "$TAG" --branch main ${extra[@]+"${extra[@]}"} --output "$GITHUB_OUTPUT"
+
+      - name: Build project
+        if: steps.publish.outputs.publish == 'true'
+        run: npm run build
+
+      - name: Audit for vulnerabilities
+        if: steps.publish.outputs.publish == 'true'
+        run: npm audit --omit=dev --audit-level=low
 
       - name: Publish to npm with trusted publisher
-        if: steps.tag.outputs.skip != 'true' && steps.existing.outputs.already != 'true'
+        if: steps.publish.outputs.publish == 'true'
         # no NODE_AUTH_TOKEN: the OIDC token is exchanged for a short-lived
         # credential, so there is no long-lived secret in this repository.
         # --ignore-scripts=false re-enables this package's own prepublishOnly,
