@@ -59,6 +59,7 @@ jobs:
           node --test
           .github/scripts/coverage-ratchet.test.mjs
           .github/scripts/release-tool-dependencies.test.mjs
+          .github/scripts/publish-discovery.test.mjs
 
   audit:
     name: audit
