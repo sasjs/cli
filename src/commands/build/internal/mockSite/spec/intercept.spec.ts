@@ -19,9 +19,22 @@ class FakeXHR {
   public sentWith: any = null
   public openedWith: any = null
   public nativeSendCount = 0
+  public requestHeaders: { [name: string]: string } = {}
 
   open(method: string, url: string) {
+    if (method === 'INVALID') throw new Error('invalid method')
     this.openedWith = { method, url }
+    this.requestHeaders = {}
+    this.readyState = 1
+    this.dispatchEvent({ type: 'readystatechange' })
+  }
+
+  setRequestHeader(name: string, value: string) {
+    this.requestHeaders[name.toLowerCase()] = value
+  }
+
+  abort() {
+    this.readyState = 0
   }
 
   send(body?: any) {
@@ -34,6 +47,12 @@ class FakeXHR {
   addEventListener(type: string, fn: Listener) {
     this.listeners[type] = this.listeners[type] || []
     this.listeners[type].push(fn)
+  }
+
+  removeEventListener(type: string, fn: Listener) {
+    this.listeners[type] = (this.listeners[type] || []).filter(
+      (listener) => listener !== fn
+    )
   }
 
   dispatchEvent(event: any) {
@@ -56,8 +75,14 @@ const loadBridge = (fetchImpl: jest.Mock) => {
   // reusing one class would leave the previous bridge's wrapper in place as the
   // "native" transport it captures, and stack an interceptor per load.
   const XHR = class extends FakeXHR {}
-  const window: any = {}
+  const window: any = {
+    location: {
+      href: 'https://app.example/index.html',
+      origin: 'https://app.example'
+    }
+  }
   ;(global as any).window = window
+  ;(global as any).document = { baseURI: window.location.href }
   ;(global as any).localStorage = { getItem: () => null }
   ;(global as any).XMLHttpRequest = XHR
   ;(global as any).Event = class {
@@ -87,6 +112,7 @@ const run = async (xhr: any, method: string, url: string, body?: any) => {
 describe('page-side bridge', () => {
   afterEach(() => {
     delete (global as any).window
+    delete (global as any).document
     delete (global as any).localStorage
     delete (global as any).XMLHttpRequest
     delete (global as any).fetch
@@ -104,6 +130,302 @@ describe('page-side bridge', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
+  it('does not send a pending token to a reopened cross-origin URL', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('POST', '/api/info')
+    xhr.setRequestHeader('Authorization', 'Bearer secret')
+    xhr.send('{}')
+    xhr.open('POST', 'https://evil.example/api/steal')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('honors abort while conversion is pending', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('POST', '/api/info')
+    xhr.setRequestHeader('Authorization', 'Bearer secret')
+    xhr.send('{}')
+    xhr.abort()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('rejects send after abort with a native InvalidStateError', () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    xhr.open('POST', '/api/info')
+    xhr.send('{}')
+    xhr.abort()
+    expect(() => xhr.send('{}')).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+  })
+
+  it('cancels the fetch when a bridged request is aborted', async () => {
+    const fetchImpl = jest.fn(async (_url: string, init: any) => {
+      await new Promise<void>((resolve) =>
+        init.signal.addEventListener('abort', resolve)
+      )
+      throw new Error('aborted')
+    })
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const signal = (fetchImpl.mock.calls[0] as any)[1].signal
+    xhr.abort()
+    expect(signal.aborted).toBe(true)
+  })
+
+  it('freezes the resolved URL before asynchronous conversion', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('POST', '/api/info')
+    xhr.setRequestHeader('Authorization', 'Bearer secret')
+    xhr.send('{}')
+    ;(global as any).document.baseURI = 'https://evil.example/'
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect((fetchImpl.mock.calls[0] as any)[0]).toBe(
+      'https://app.example/api/info'
+    )
+  })
+
+  it('leaves cross-origin API requests to native XHR', () => {
+    const fetchImpl = jest.fn()
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('GET', 'https://evil.example/api/steal')
+    xhr.setRequestHeader('Authorization', 'Bearer explicit')
+    xhr.send()
+    expect(xhr.nativeSendCount).toBe(1)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('rejects a second send synchronously', () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    xhr.open('POST', '/api/info')
+    xhr.send('{}')
+    expect(() => xhr.send('{}')).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+  })
+
+  it('rejects setting a header after bridged send', () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    expect(() => xhr.setRequestHeader('Authorization', 'Bearer late')).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+  })
+
+  it('preserves the completed response when reopening fails', async () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    await run(xhr, 'GET', '/api/info')
+    expect(() => xhr.open('INVALID', '/api/info')).toThrow()
+    expect(xhr.status).toBe(200)
+    expect(xhr.readyState).toBe(4)
+    expect(xhr.responseText).toBe('{}')
+  })
+
+  it('clears a completed response on abort and can be reused', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"value":1}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    await run(xhr, 'GET', '/api/info')
+    expect(xhr.getResponseHeader('content-type')).toBe('application/json')
+    expect(xhr.getAllResponseHeaders()).toContain('application/json')
+
+    xhr.abort()
+    expect(xhr.readyState).toBe(0)
+    expect(xhr.status).toBe(0)
+    expect(xhr.responseText).toBe('')
+    expect(xhr.getResponseHeader('content-type')).toBeNull()
+    expect(xhr.getAllResponseHeaders()).toBe('')
+
+    await run(xhr, 'GET', '/api/other')
+    expect(xhr.status).toBe(200)
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('resets state before abort events when abort is called again at DONE', () => {
+    const { XHR } = loadBridge(jest.fn())
+    const xhr = new XHR()
+    const events: string[] = []
+    xhr.addEventListener('readystatechange', () => {
+      if (xhr.readyState === 4) {
+        events.push('done:4')
+        xhr.abort()
+      }
+    })
+    xhr.addEventListener('abort', () => events.push(`abort:${xhr.readyState}`))
+    xhr.addEventListener('loadend', () =>
+      events.push(`loadend:${xhr.readyState}`)
+    )
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    xhr.abort()
+    expect(events).toEqual(['done:4', 'abort:0', 'loadend:0'])
+    expect(xhr.readyState).toBe(0)
+  })
+
+  it('preserves an aborted state when reopening with an invalid method fails', () => {
+    const { XHR } = loadBridge(jest.fn())
+    const xhr = new XHR()
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    xhr.abort()
+    expect(() => xhr.open('INVALID', '/api/other')).toThrow('invalid method')
+    expect(xhr.readyState).toBe(0)
+    expect(() => xhr.send()).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+    xhr.open('GET', '/api/other')
+    expect(xhr.readyState).toBe(1)
+  })
+
+  it('stops the old loadend event when load reopens the XHR', async () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    const loadends = jest.fn()
+    xhr.addEventListener('load', () => xhr.open('GET', '/health'))
+    xhr.addEventListener('loadend', loadends)
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(xhr.readyState).toBe(1)
+    expect(loadends).not.toHaveBeenCalled()
+  })
+
+  it('clears synthetic response state before native open events on reuse', async () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    await run(xhr, 'GET', '/api/info')
+    const states: number[] = []
+    xhr.addEventListener('readystatechange', () => states.push(xhr.readyState))
+    xhr.open('GET', '/api/other')
+    expect(states).toEqual([1])
+    expect(xhr.status).toBe(0)
+  })
+
+  it('stops old response events if readystatechange reopens the XHR', async () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    const loads = jest.fn()
+    xhr.addEventListener('load', loads)
+    xhr.addEventListener('readystatechange', () => {
+      if (xhr.readyState === 4) xhr.open('GET', '/health')
+    })
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(loads).not.toHaveBeenCalled()
+  })
+
+  it('does not dispatch a stale response after the XHR is reopened', async () => {
+    let resolveFetch: any
+    const fetchImpl = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve
+        })
+    )
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    const loads = jest.fn()
+    xhr.addEventListener('load', loads)
+    xhr.open('GET', '/api/info')
+    xhr.send()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    xhr.open('GET', '/health')
+    resolveFetch(jsonResponse('{}'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(loads).not.toHaveBeenCalled()
+    expect(xhr.readyState).toBe(1)
+  })
+
+  it('normalizes HTTP whitespace on repeated authorization values', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('GET', '/api/info')
+    xhr.setRequestHeader('Authorization', ' \tBearer first\t ')
+    xhr.setRequestHeader('authorization', '\tBearer second ')
+    xhr.send()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect((fetchImpl.mock.calls[0] as any)[1].headers.authorization).toBe(
+      'Bearer first, Bearer second'
+    )
+  })
+
+  it('retains authorization set by the native open event listener', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.addEventListener('readystatechange', () => {
+      if (xhr.readyState === 1)
+        xhr.setRequestHeader('Authorization', 'Bearer event')
+    })
+    await run(xhr, 'GET', '/api/info')
+    expect((fetchImpl.mock.calls[0] as any)[1].headers.authorization).toBe(
+      'Bearer event'
+    )
+  })
+
+  it('forwards only authorization while keeping the converted body type', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    const loaded = new Promise((resolve) =>
+      xhr.addEventListener('load', resolve)
+    )
+    xhr.open('POST', '/api/drive/file')
+    xhr.setRequestHeader('Content-Type', 'multipart/form-data; boundary=old')
+    xhr.setRequestHeader('X-Unrelated', 'not forwarded')
+    xhr.setRequestHeader('aUtHoRiZaTiOn', 'Bearer test')
+    xhr.send(new FormData())
+    await loaded
+    const [, init] = fetchImpl.mock.calls[0] as any
+    expect(init.headers).toEqual({
+      accept: '*/*',
+      authorization: 'Bearer test',
+      'content-type': 'application/json'
+    })
+  })
+
+  it('clears authorization when an XHR is reopened', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('GET', '/api/info')
+    xhr.setRequestHeader('Authorization', 'Bearer old')
+    await run(xhr, 'GET', '/api/info')
+    expect(
+      (fetchImpl.mock.calls[0] as any)[1].headers.authorization
+    ).toBeUndefined()
+  })
+
+  it('preserves native headers on non-API requests', () => {
+    const fetchImpl = jest.fn()
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    xhr.open('GET', '/health')
+    xhr.setRequestHeader('Authorization', 'Bearer original')
+    xhr.send()
+    expect(xhr.requestHeaders.authorization).toBe('Bearer original')
+    expect(xhr.nativeSendCount).toBe(1)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('bridges the short API spelling as well as the canonical one', async () => {
     // `/api` is the default spelling now: a caller that uses it has to be
     // bridged, or its answers would come from the static host instead of the
@@ -115,7 +437,7 @@ describe('page-side bridge', () => {
     await run(xhr, 'GET', '/api/info')
 
     const [url] = fetchImpl.mock.calls[0] as any
-    expect(url).toBe('/api/info')
+    expect(url).toBe('https://app.example/api/info')
     expect(xhr.status).toBe(200)
     expect(xhr.responseText).toBe('{"status":"ok"}')
   })
@@ -145,6 +467,28 @@ describe('page-side bridge', () => {
     expect(xhr.status).toBe(200)
     expect(xhr.readyState).toBe(4)
     expect(xhr.responseText).toBe('{"status":"success"}')
+  })
+
+  it('snapshots FormData entries at send before asynchronous file reads', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append('file', new Blob(['file']), 'file.txt')
+    form.append('field', 'original')
+    const xhr = new XHR()
+    const loaded = new Promise((resolve) =>
+      xhr.addEventListener('load', resolve)
+    )
+    xhr.open('POST', '/api/upload')
+    xhr.send(form)
+    form.set('field', 'changed')
+    form.append('late', 'not sent')
+    await loaded
+    const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
+    expect(payload.params).toEqual({ field: 'original' })
+    expect(payload.tables).toEqual([
+      { name: 'file', filename: 'file.txt', csv: 'file' }
+    ])
   })
 
   it('carries a binary file as base64 rather than as damaged text', async () => {

@@ -364,7 +364,7 @@ jobs:
         # The browser test builds a site from the current TypeScript builder and
         # installed API package before serving it; it never uses a stale dist.
         run: npm ci
-      - name: Run Chromium lifecycle regression
+      - name: Run Chromium lifecycle and XHR regressions
         # Chrome on the hosted Ubuntu image is intentionally unpinned: this
         # checks compatibility with the platform's current browser as it changes,
         # accepting that runner updates can change the test without a commit.
@@ -375,8 +375,10 @@ jobs:
             if command -v "$browser" >/dev/null 2>&1; then
               export CHROMIUM_PATH="$(command -v "$browser")"
               "$CHROMIUM_PATH" --version
-              node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs
-              exit $?
+              node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs || exit $?
+              npm run test:browser:xhr || exit $?
+              node --test src/commands/build/internal/mockSite/spec/intercept.browser.cleanup.test.cjs || exit $?
+              exit 0
             fi
           done
           echo "::error::No Chrome/Chromium binary found on runner"
