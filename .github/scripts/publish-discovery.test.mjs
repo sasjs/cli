@@ -6,18 +6,18 @@ import { mkdtempSync, readFileSync, writeFileSync, copyFileSync, mkdirSync } fro
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import http from 'node:http'
+import yaml from 'js-yaml'
 
 const exec = promisify(execFile)
 const workflowPath = process.env.PUBLISH_WORKFLOW || '.github/workflows/npmpublish.yml'
-const yaml = readFileSync(workflowPath, 'utf8')
-function script(name, next) {
-  const start = yaml.indexOf(`      - name: ${name}\n`)
-  assert.notEqual(start, -1, `missing workflow step ${name}`)
-  const end = yaml.indexOf(`      - name: ${next}\n`, start + 1)
-  assert.notEqual(end, -1, `missing workflow step ${next}`)
-  const block = yaml.slice(start, end).split('        run: |\n')[1]
-  assert.ok(block, `missing shell in ${name}`)
-  return block.split('\n').map(line => line.startsWith('          ') ? line.slice(10) : line).join('\n')
+const workflow = readFileSync(workflowPath, 'utf8')
+function script(id, source = workflow) {
+  const steps = yaml.safeLoad(source)?.jobs?.release?.steps
+  assert.ok(Array.isArray(steps), 'missing release job steps')
+  const matches = steps.filter(step => step.id === id)
+  assert.equal(matches.length, 1, `expected one workflow step ${id}`)
+  assert.equal(typeof matches[0].run, 'string', `missing shell in ${id}`)
+  return matches[0].run
 }
 const env = { ...process.env, GIT_AUTHOR_NAME: 'test', GIT_AUTHOR_EMAIL: 'test@example.com', GIT_COMMITTER_NAME: 'test', GIT_COMMITTER_EMAIL: 'test@example.com', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' }
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, env, encoding: 'utf8' }).trim()
@@ -30,12 +30,17 @@ function fixture() {
   copyFileSync(resolve('node_modules/@sasjs/release/release.mjs'), join(temp, 'sasjs-release.mjs'))
   return { cwd, temp, sha: git(cwd, 'rev-parse', 'HEAD'), output: join(temp, 'out') }
 }
-async function run(f, name, next, extra = {}) {
+async function run(f, id, extra = {}) {
   writeFileSync(f.output, '')
-  const result = await exec('bash', ['-e', '-o', 'pipefail', '-c', script(name, next)], { cwd: f.cwd, env: { ...env, RUNNER_TEMP: f.temp, GITHUB_OUTPUT: f.output, EVENT: 'workflow_run', REQUESTED: '', SHA: f.sha, REPUBLISH: 'false', ...extra } })
+  const result = await exec('bash', ['-e', '-o', 'pipefail', '-c', script(id)], { cwd: f.cwd, env: { ...env, RUNNER_TEMP: f.temp, GITHUB_OUTPUT: f.output, EVENT: 'workflow_run', REQUESTED: '', SHA: f.sha, REPUBLISH: 'false', ...extra } })
   return { ...result, output: Object.fromEntries(readFileSync(f.output, 'utf8').trimEnd().split('\n').filter(Boolean).map(line => { const i = line.indexOf('='); return [line.slice(0,i), line.slice(i+1)] })) }
 }
-const discover = (f, extra) => run(f, 'Which tag is this run for?', 'Check out the tag', extra)
+const discover = (f, extra) => run(f, 'tag', extra)
+
+test('workflow script extraction tolerates reindentation and reordered steps', () => {
+  const alternate = 'jobs:\n  release:\n    steps:\n      - name: Check out the tag\n        run: echo checkout\n      - name: Which tag is this run for?\n        id: tag\n        run: |\n          echo discovery\n'
+  assert.equal(script('tag', alternate).trim(), 'echo discovery')
+})
 
 test('the workflow uses published discovery from trusted main before tag checkout', async () => {
   const f = fixture(); git(f.cwd, 'tag', 'v1.2.3')
@@ -86,7 +91,7 @@ test('preparation rejects an off-main tag despite a main tag collision', async (
   const f = fixture()
   git(f.cwd, 'checkout', '-qb', 'other'); git(f.cwd, 'commit', '--allow-empty', '-qm', 'off branch')
   git(f.cwd, 'tag', 'v9.0.0'); git(f.cwd, 'tag', 'main'); git(f.cwd, 'checkout', '-q', 'refs/tags/v9.0.0')
-  await assert.rejects(run(f, 'Stamp the version, and ask whether it is published', 'Build project', {TAG:'v9.0.0', VERSION:'9.0.0'}), /not on main/)
+  await assert.rejects(run(f, 'publish', {TAG:'v9.0.0', VERSION:'9.0.0'}), /not on main/)
   assert.equal(JSON.parse(readFileSync(join(f.cwd, 'package.json'))).version, '0.0.0')
 })
 
@@ -100,12 +105,12 @@ test('prepare executes trusted tool against tagged source and respects registry 
   writeFileSync(preload, `const fetch0=global.fetch; global.fetch=(url, options)=>fetch0(url.replace('https://registry.npmjs.org', 'http://127.0.0.1:${server.address().port}'), options);`)
   git(f.cwd, 'checkout', '-q', 'refs/tags/v1.2.3')
   const extra = {TAG:'v1.2.3', VERSION:'1.2.3', NODE_OPTIONS:`--require=${preload}`}
-  assert.equal((await run(f, 'Stamp the version, and ask whether it is published', 'Build project', extra)).output.publish, 'false')
+  assert.equal((await run(f, 'publish', extra)).output.publish, 'false')
   assert.equal(JSON.parse(readFileSync(join(f.cwd, 'package.json'))).marker, 'tagged')
   assert.equal(seen.at(-1), '/@fixture%2Fpkg/1.2.3')
-  assert.equal((await run(f, 'Stamp the version, and ask whether it is published', 'Build project', {...extra, REPUBLISH:'true'})).output.publish, 'true')
+  assert.equal((await run(f, 'publish', {...extra, REPUBLISH:'true'})).output.publish, 'true')
   status = 404
-  assert.equal((await run(f, 'Stamp the version, and ask whether it is published', 'Build project', extra)).output.publish, 'true')
+  assert.equal((await run(f, 'publish', extra)).output.publish, 'true')
   status = 500
-  await assert.rejects(run(f, 'Stamp the version, and ask whether it is published', 'Build project', extra), /500/)
+  await assert.rejects(run(f, 'publish', extra), /500/)
 })
