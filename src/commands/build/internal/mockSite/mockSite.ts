@@ -202,21 +202,12 @@ module.exports = {
 }
 
 /**
- * The `node_modules` the CLI's own dependency lives in.
- *
- * esbuild resolves a bare import from the entry file upwards, which is wrong for
- * a scratch entry outside the install: the walk would miss the installed
- * packages entirely. `nodePaths` states where to look instead, and it is taken
- * from `require.resolve` so it is the tree the CLI actually loaded from - a
- * hoisted install, a nested one, and a pnpm store symlink all answer with their
- * own location.
+ * Resolve the scratch entry's direct imports from the CLI's own module search
+ * paths. An API dependency's real path may be in a separate pnpm store folder,
+ * whose node_modules does not contain the CLI's other direct dependencies.
+ * esbuild still resolves each package's transitive imports from that package.
  */
-const NODE_MODULES = (() => {
-  const resolved = require.resolve('@sasjs/api')
-  const marker = `${path.sep}node_modules${path.sep}`
-  const index = resolved.lastIndexOf(marker)
-  return index < 0 ? undefined : resolved.slice(0, index + marker.length - 1)
-})()
+const NODE_MODULES = module.paths
 
 /**
  * Builds `lint-browser.js` from the installed packages.
@@ -239,7 +230,7 @@ export const buildLintBundle = (destination: string) => {
       define: { global: 'globalThis' },
       format: 'iife',
       outfile: destination,
-      nodePaths: NODE_MODULES ? [NODE_MODULES] : [],
+      nodePaths: NODE_MODULES,
       alias: {
         fs: path.join(work, 'fs.js'),
         path: path.join(work, 'path.js'),
