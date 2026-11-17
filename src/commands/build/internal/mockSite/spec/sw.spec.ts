@@ -22,6 +22,15 @@ export {}
  */
 const appLoc = '/Public/app/test'
 const origin = 'https://mock.example.com'
+const languageVersion: string = JSON.parse(
+  fs.readFileSync(
+    path.resolve(
+      path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+      '../../../../package.json'
+    ),
+    'utf8'
+  )
+).version
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 
 const drivePath = (relative: string) =>
@@ -189,6 +198,24 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
           : {})
       })
     }
+    if (target.includes('/host/sas-language/')) {
+      const relative = new URL(target).pathname.split('/host/sas-language/')[1]!
+      const requested = ((global as any).__languageFetches =
+        (global as any).__languageFetches || [])
+      requested.push(target)
+      if ((global as any).__languageMissing)
+        return new Response('', { status: 404 })
+      const root = path.resolve(
+        path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+        '..',
+        '..'
+      )
+      const file = path.join(root, relative.split('/').slice(1).join('/'))
+      return new Response(fs.readFileSync(file, 'utf8'), {
+        status: 200,
+        headers: { 'content-type': 'application/json' }
+      })
+    }
     return target.includes('vfs-seed')
       ? jsonResponse({
           files: {
@@ -285,6 +312,8 @@ describe('service worker host', () => {
     delete (global as any).__sasjsShards
     delete (global as any).__sasjsShardFetches
     delete (global as any).__mockHostClients
+    delete (global as any).__languageFetches
+    delete (global as any).__languageMissing
   })
 
   const seeded = () => {
@@ -1136,6 +1165,42 @@ describe('service worker host', () => {
       )
       expect(synced.status).toBe(200)
       expect(await synced.json()).toEqual({ userCount: 0, groupCount: 0 })
+    })
+
+    it('formats DATA and PROC with the real vocabulary under a mounted site', async () => {
+      const worker = loadWorker('/demo')
+      worker.runtime.load({})
+      const formatted = await worker.dispatch(
+        '/demo/SASjsApi/code/format',
+        runRequest({
+          code: 'data foo; x=1; run;\nproc sql; select * from foo; quit;\n'
+        })
+      )
+      expect(formatted.status).toBe(200)
+      const text = await formatted.json()
+      expect(text).toContain('data foo;\n  x=1;\nrun;')
+      expect(text).toContain('proc sql;\n')
+      const urls: string[] = (global as any).__languageFetches
+      expect(
+        urls.every((url) =>
+          url.startsWith(`${origin}/demo/host/sas-language/${languageVersion}/`)
+        )
+      ).toBe(true)
+      expect(urls.some((url) => url.includes('/Procedures/en/SQL.json'))).toBe(
+        true
+      )
+    })
+
+    it('reports missing language data instead of silently returning the input', async () => {
+      ;(global as any).__languageMissing = true
+      const worker = loadWorker('/missing')
+      worker.runtime.load({})
+      const response = await worker.dispatch(
+        '/missing/SASjsApi/code/format',
+        runRequest({ code: 'data foo; x=1; run;\n' })
+      )
+      expect(response.status).toBe(500)
+      expect(await response.text()).toContain('SAS language data is missing')
     })
 
     it('lints and formats a buffer with the bundled linter', async () => {

@@ -84,6 +84,15 @@ const API_BROWSER_BUILD = path.join(
   'browser.js'
 )
 
+const LANGUAGE_ROOT = path.resolve(
+  path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+  '..',
+  '..'
+)
+const LANGUAGE_VERSION: string = JSON.parse(
+  fs.readFileSync(path.join(LANGUAGE_ROOT, '..', '..', 'package.json'), 'utf8')
+).version
+
 const toPosix = (value: string) => value.split(path.sep).join('/')
 
 /**
@@ -107,7 +116,8 @@ const LINT_BUNDLE_FILES: { [name: string]: string } = {
   'entry.js': [
     "import './process.js'",
     "import { createCodeService, LintConfig } from '@sasjs/api/code'",
-    'globalThis.SASjsCode = { createCodeService, LintConfig }'
+    "import { formatText } from '@sasjs/sas-language/format'",
+    `globalThis.SASjsCode = { createCodeService, LintConfig, formatText, dataPath: 'sas-language/${LANGUAGE_VERSION}/' }`
   ].join('\n'),
   'process.js': [
     '// the linter reads process.env for a default and process.cwd() for a root;',
@@ -192,21 +202,12 @@ module.exports = {
 }
 
 /**
- * The `node_modules` the CLI's own dependency lives in.
- *
- * esbuild resolves a bare import from the entry file upwards, which is wrong for
- * a scratch entry outside the install: the walk would miss the installed
- * packages entirely. `nodePaths` states where to look instead, and it is taken
- * from `require.resolve` so it is the tree the CLI actually loaded from - a
- * hoisted install, a nested one, and a pnpm store symlink all answer with their
- * own location.
+ * Resolve the scratch entry's direct imports from the CLI's own module search
+ * paths. An API dependency's real path may be in a separate pnpm store folder,
+ * whose node_modules does not contain the CLI's other direct dependencies.
+ * esbuild still resolves each package's transitive imports from that package.
  */
-const NODE_MODULES = (() => {
-  const resolved = require.resolve('@sasjs/api')
-  const marker = `${path.sep}node_modules${path.sep}`
-  const index = resolved.lastIndexOf(marker)
-  return index < 0 ? undefined : resolved.slice(0, index + marker.length - 1)
-})()
+const NODE_MODULES = module.paths
 
 /**
  * Builds `lint-browser.js` from the installed packages.
@@ -226,9 +227,10 @@ export const buildLintBundle = (destination: string) => {
       entryPoints: [path.join(work, 'entry.js')],
       bundle: true,
       platform: 'browser',
+      define: { global: 'globalThis' },
       format: 'iife',
       outfile: destination,
-      nodePaths: NODE_MODULES ? [NODE_MODULES] : [],
+      nodePaths: NODE_MODULES,
       alias: {
         fs: path.join(work, 'fs.js'),
         path: path.join(work, 'path.js'),
@@ -1223,6 +1225,15 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // 2. the linter, bundled from the installed packages so the code routes answer
   // with the rules this CLI resolved rather than a second implementation
   await buildLintBundle(path.join(hostFolder, 'lint-browser.js'))
+  // The browser formatter fetches its lexer vocabulary lazily. Version the
+  // directory to avoid a static host serving a previous release's cached data.
+  for (const folder of ['data', 'pubsdata']) {
+    fs.cpSync(
+      path.join(LANGUAGE_ROOT, folder),
+      path.join(hostFolder, 'sas-language', LANGUAGE_VERSION, folder),
+      { recursive: true }
+    )
+  }
   // sw.js sits at the site root: a worker can only control the folder it is
   // served from, and the app has to be controlled from /
   fs.copyFileSync(

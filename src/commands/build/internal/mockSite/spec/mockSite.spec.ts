@@ -9,6 +9,15 @@ import {
 } from '../mockSite'
 
 const appLoc = '/Public/app/test'
+const languageVersion: string = JSON.parse(
+  fs.readFileSync(
+    path.resolve(
+      path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+      '../../../../package.json'
+    ),
+    'utf8'
+  )
+).version
 
 const write = (file: string, contents: string) => {
   fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -102,6 +111,18 @@ describe('browser-hosted build', () => {
 
   afterEach(() => {
     fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('ships the browser formatter and its on-demand vocabulary under the mount', async () => {
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const language = path.join(out(), 'host', 'sas-language', languageVersion)
+    expect(
+      fs.existsSync(path.join(language, 'pubsdata', 'procedures.json'))
+    ).toBe(true)
+    expect(fs.existsSync(path.join(language, 'data'))).toBe(true)
+    expect(
+      fs.readFileSync(path.join(out(), 'host', 'lint-browser.js'), 'utf8')
+    ).toContain(`sas-language/${languageVersion}/`)
   })
 
   it('boots in the head before preserved parser scripts with their attributes intact', async () => {
