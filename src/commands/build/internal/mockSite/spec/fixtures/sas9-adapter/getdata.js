@@ -29,9 +29,9 @@ const SPRINGS_FILE = path.join(
 /* FETCH preserves column spelling; SAS column names are case-insensitive. */
 const areas = webout('FETCH').areas || []
 const wanted = new Set(
-  areas.map((row) => {
+  areas.flatMap((row) => {
     const key = Object.keys(row).find((name) => name.toUpperCase() === 'AREA')
-    return String(key === undefined ? undefined : row[key]).trim()
+    return key === undefined ? [] : [String(row[key]).trim()]
   })
 )
 

@@ -19,6 +19,7 @@ const fixtures = path.join(__dirname, 'fixtures/sas9-adapter')
 const appLoc = '/Public/app/test'
 const values = ['Alder Basin', 'café, "spring"\nnext; line', 'tab\there']
 const springs = values.map((AREA, i) => ({ AREA, NAME: `spring-${i}` }))
+const allSprings = [...springs, { AREA: 'undefined', NAME: 'missing-column' }]
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function buildSite(root, targetType, basePath) {
@@ -33,7 +34,7 @@ async function buildSite(root, targetType, basePath) {
   )
   await fs.writeFile(
     path.join(services, 'springs.json'),
-    JSON.stringify(springs)
+    JSON.stringify(allSprings)
   )
   // An extra independent service verifies both uploaded files, not just areas.
   await fs.writeFile(
@@ -544,6 +545,8 @@ async function main() {
             const data = { areas: ${JSON.stringify(values.map((AREA) => ({ AREA })))}, extra: [{ NOTE: 'second, "table"\\n雪; ok' }] };
             try {
               const getdata = await sas.request('services/common/getdata', data);
+              const absentArea = await sas.request('services/common/getdata', {areas: [{OTHER: 'test; file'}]});
+              const unrelated = await sas.request('services/common/getdata', {unrelated: [{AREA: 'undefined; file'}]});
               const uploads = await sas.request('services/common/uploads', data);
               const fetched = await sas.request('services/common/fetch', data);
               const caseResults = [];
@@ -554,7 +557,7 @@ async function main() {
               let missing;
               try { missing = { resolved: await sas.request('services/common/does-not-exist', data) }; }
               catch(e) { missing = { rejected: true, error: String(e && (e.message || e)) }; }
-              return { getdata, uploads, fetched, caseResults, missing };
+              return { getdata, absentArea, unrelated, uploads, fetched, caseResults, missing };
             } catch(e) { return { error: String(e && (e.message || e)), detail: JSON.stringify(e) }; }
           })()`)
           assert.equal(
@@ -567,6 +570,8 @@ async function main() {
             springs,
             `${label}: existing mock selected all special-character rows`
           )
+          assert.deepEqual(result.absentArea.springs, [], `${label}: missing AREA`)
+          assert.deepEqual(result.unrelated.springs, [], `${label}: unrelated table`)
           for (const { column, getdata, fetched } of result.caseResults) {
             assert.deepEqual(
               fetched.areas,
