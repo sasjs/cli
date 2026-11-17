@@ -70,6 +70,26 @@ test('dispatch rejects empty, non-tag, malformed, off-branch and build-metadata 
   await assert.rejects(discover(f, { EVENT:'workflow_dispatch', REQUESTED:'v9.0.0', SHA:'' }), /not on main/)
 })
 
+test('workflow-run rejects a sole malformed prefixed tag instead of skipping', async () => {
+  const f = fixture(); git(f.cwd, 'tag', 'vbad')
+  await assert.rejects(discover(f), /vbad does not carry a version/)
+})
+
+test('dispatch discovery rejects an off-main tag despite a main tag collision', async () => {
+  const f = fixture()
+  git(f.cwd, 'checkout', '-qb', 'other'); git(f.cwd, 'commit', '--allow-empty', '-qm', 'off branch')
+  git(f.cwd, 'tag', 'v9.0.0'); git(f.cwd, 'tag', 'main'); git(f.cwd, 'checkout', '-q', 'refs/heads/main')
+  await assert.rejects(discover(f, {EVENT:'workflow_dispatch', REQUESTED:'v9.0.0', SHA:''}), /not on main/)
+})
+
+test('preparation rejects an off-main tag despite a main tag collision', async () => {
+  const f = fixture()
+  git(f.cwd, 'checkout', '-qb', 'other'); git(f.cwd, 'commit', '--allow-empty', '-qm', 'off branch')
+  git(f.cwd, 'tag', 'v9.0.0'); git(f.cwd, 'tag', 'main'); git(f.cwd, 'checkout', '-q', 'refs/tags/v9.0.0')
+  await assert.rejects(run(f, 'Stamp the version, and ask whether it is published', 'Build project', {TAG:'v9.0.0', VERSION:'9.0.0'}), /not on main/)
+  assert.equal(JSON.parse(readFileSync(join(f.cwd, 'package.json'))).version, '0.0.0')
+})
+
 test('prepare executes trusted tool against tagged source and respects registry results', async t => {
   const f = fixture(); git(f.cwd, 'tag', 'v1.2.3')
   writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({name:'@fixture/wrong', version:'0.0.0', marker:'main'})); git(f.cwd, 'add', 'package.json'); git(f.cwd, 'commit', '-qm', 'main changed')
