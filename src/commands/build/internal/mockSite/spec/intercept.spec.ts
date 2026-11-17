@@ -116,7 +116,10 @@ const loadBridge = (
 const jsonResponse = (body: any, status = 200) =>
   new Response(body, {
     status,
-    headers: { 'content-type': 'application/json' }
+    headers: {
+      'content-type': 'application/json',
+      'x-sasjs-mock-max-upload-bytes': String(10 * 1024 * 1024)
+    }
   })
 
 const run = async (xhr: any, method: string, url: string, body?: any) => {
@@ -806,6 +809,61 @@ describe('page-side bridge', () => {
     })
     expect(xhr.status).toBe(200)
     expect(xhr.responseText).toBe('{"ok":true}')
+  })
+
+  it.each([null, '', '0', '-1', '1.5', 'NaN', '9007199254740992'])(
+    'fails closed before file reads when the worker limit is %s',
+    async (limit) => {
+      const grant = jest.fn(async () => {
+        const headers: Record<string, string> = {
+          'content-type': 'application/json'
+        }
+        if (limit !== null) headers['x-sasjs-mock-max-upload-bytes'] = limit
+        return new Response(
+          JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }),
+          { headers }
+        )
+      })
+      const fetchImpl = jest.fn()
+      const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+      const errors = jest.spyOn(console, 'error').mockImplementation()
+      try {
+        const { XHR } = loadBridge(fetchImpl, '/', true, grant)
+        const form = new FormData()
+        form.append('file', new Blob(['private']), 'file.csv')
+        const xhr = new XHR()
+        await run(xhr, 'POST', '/SASStoredProcess/do', form)
+        expect(xhr.status).toBe(500)
+        expect(read).not.toHaveBeenCalled()
+        expect(fetchImpl).not.toHaveBeenCalled()
+      } finally {
+        read.mockRestore()
+        errors.mockRestore()
+      }
+    }
+  )
+
+  it('uses the worker-advertised limit before reading SAS9 files', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"ok":true}'))
+    const grant = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }), {
+          headers: {
+            'content-type': 'application/json',
+            'x-sasjs-mock-max-upload-bytes': '4'
+          }
+        })
+    )
+    const { XHR } = loadBridge(fetchImpl, '/', true, grant)
+    const form = new FormData()
+    form.append('file', new Blob(['12345']), 'file.csv')
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    const xhr = new XHR()
+    await run(xhr, 'POST', '/SASStoredProcess/do?_program=x', form)
+    expect(xhr.status).toBe(413)
+    expect(read).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
+    read.mockRestore()
   })
 
   it('refuses an oversized SAS9 upload before reading any files', async () => {

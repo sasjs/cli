@@ -56,11 +56,8 @@
     }
   }
 
-  // Match the worker's per-file multipart limit before the page materialises
-  // the SAS9 adapter's files into its JSON envelope.
-  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-
-  const readBody = async (body, limitFiles, snapshot, isCurrent) => {
+  // The worker supplies its per-file limit with the authorization response.
+  const readBody = async (body, maxUploadBytes, snapshot, isCurrent) => {
     const params = {}
     const tables = []
     if (!body) return { params, tables }
@@ -69,11 +66,11 @@
       // Snapshot once before any asynchronous file read; use the same entries
       // for size checks, table declarations and conversion.
       const entries = snapshot || Array.from(body.entries())
-      if (limitFiles) {
+      if (maxUploadBytes !== undefined) {
         for (const [, value] of entries) {
-          if (typeof value !== 'string' && value.size > MAX_UPLOAD_BYTES) {
+          if (typeof value !== 'string' && value.size > maxUploadBytes) {
             const error = new Error(
-              'The upload is larger than the browser host allows (10 MB).'
+              `The upload is larger than the browser host allows (${maxUploadBytes / 1024 / 1024} MB).`
             )
             error.status = 413
             throw error
@@ -452,6 +449,7 @@
       if (authorization !== undefined)
         init.headers.authorization = authorization
 
+      let maxUploadBytes
       if (sas9) {
         // The same package decision the run route uses, asked before any file
         // bytes are read. The eventual execution still performs its own check.
@@ -471,9 +469,17 @@
             status: 401,
             headers: { 'content-type': 'application/json' }
           })
+        const limit = grant.headers.get('x-sasjs-mock-max-upload-bytes')
+        if (
+          !limit ||
+          !/^[1-9][0-9]*$/.test(limit) ||
+          !Number.isSafeInteger(Number(limit))
+        )
+          throw new Error('Invalid upload limit from mock worker')
+        maxUploadBytes = Number(limit)
       }
 
-      const payload = await readBody(body, sas9, snapshot, isCurrent)
+      const payload = await readBody(body, maxUploadBytes, snapshot, isCurrent)
       if (!isCurrent()) return
       if (method !== 'GET' && method !== 'HEAD') {
         init.headers['content-type'] = 'application/json'

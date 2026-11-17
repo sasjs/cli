@@ -927,6 +927,32 @@ webout('CLOSE')`
     expect(result.webout).toBe('string|he said "hi"\nback\\slash|7')
   })
 
+  it('reports omitted bindings without logging parameter values', () => {
+    const runtime = loadRuntime()
+    const params = {
+      fetch: 'secret-fetch',
+      console: 'secret-console',
+      _sasjs_custom: 'secret-internal',
+      'not-valid': 'secret-invalid',
+      safe: 'ok'
+    }
+    const result = runtime.run({
+      params,
+      code: '_webout = JSON.stringify({ safe, fetch: _sasjs_fetch_context.params.fetch })'
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      safe: 'ok',
+      fetch: 'secret-fetch'
+    })
+    expect(result.log).toContain('fetch')
+    expect(result.log).toContain('console')
+    expect(result.log).toContain('_sasjs_custom')
+    expect(result.log).toContain('not-valid')
+    expect(result.log).not.toContain('secret-')
+    expect(result.log).not.toContain('safe')
+  })
+
   it('leaves a parameter name that is not an identifier out of the prelude', () => {
     const runtime = loadRuntime()
 

@@ -430,6 +430,30 @@ async function main() {
       )
       console.log(`PASS ${target} worker control and real adapter`)
 
+      const limitProbe = await evaluate(`(async () => {
+        const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
+        const limit = Number(grant.headers.get('x-sasjs-mock-max-upload-bytes'));
+        let reads = 0;
+        const original = Blob.prototype.arrayBuffer;
+        Blob.prototype.arrayBuffer = function () { reads++; return original.call(this); };
+        try {
+          const form = new FormData();
+          form.append('upload', new Blob([new Uint8Array(limit + 1)]), 'large.csv');
+          const path = ${JSON.stringify(basePath + '/SASStoredProcess/do')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploads')});
+          return await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest(); xhr.open('POST', path);
+            xhr.onload = () => resolve({status: xhr.status, reads, limit});
+            xhr.onerror = reject; xhr.send(form);
+          });
+        } finally { Blob.prototype.arrayBuffer = original; }
+      })()`)
+      assert.deepEqual(
+        limitProbe,
+        { status: 413, reads: 0, limit: 10 * 1024 * 1024 },
+        `${target}: advertised worker limit refuses before reading`
+      )
+      console.log(`PASS ${target} worker upload limit before page file read`)
+
       for (const transport of ['xhr', 'fetch']) {
         const result = await evaluate(`(async () => {
           const form = new FormData();

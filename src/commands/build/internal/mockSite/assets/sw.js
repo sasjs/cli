@@ -2117,7 +2117,18 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         answer,
         query._filePath || payload.body.filePath || path
       )
-    return json(answer.body, answer.status)
+    const response = json(answer.body, answer.status)
+    // The page asks this grant before reading SAS9 multipart files. Carry the
+    // worker's actual limit on that same response, not a second page constant.
+    if (
+      routeId === 'GET /SASjsApi/info/myAuthorizedRoutes' &&
+      answer.status === 200
+    )
+      response.headers.set(
+        'x-sasjs-mock-max-upload-bytes',
+        String(R.MAX_UPLOAD_BYTES)
+      )
+    return response
   } catch (e) {
     // A read of a file that is still on the site: the route reached a path the
     // request did not name - an app asset, a `.sasjslint` above the edited file,

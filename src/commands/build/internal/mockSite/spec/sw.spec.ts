@@ -456,6 +456,16 @@ describe('service worker host', () => {
     }
   })
 
+  it('advertises the runtime upload limit on the grant response', async () => {
+    const worker = loadWorker('/demo', { skipLint: true })
+    worker.runtime.MAX_UPLOAD_BYTES = 12345
+    const response = await worker.dispatch(
+      '/demo/SASjsApi/info/myAuthorizedRoutes'
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-sasjs-mock-max-upload-bytes')).toBe('12345')
+  })
+
   it('SAS9 runs an existing JS service under the site base', async () => {
     const worker = loadWorker('/demo', { skipLint: true })
     worker.runtime.load({
