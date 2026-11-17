@@ -78,9 +78,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Discovery only: which tag did the release run cut, or did a dispatch name
-      # one. What version that is, whether it may be published, and whether the
-      # registry already serves it are decisions, and they are `--prepare-publish`'s.
+      # Install the lockfile-pinned tool from trusted main, before checking
+      # out historical source. Keep its exact bytes for both decisions.
+      - name: Use Node.js for discovery
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: https://registry.npmjs.org
+
+      - name: Install trusted release tool
+        run: |
+          npm ci --ignore-scripts
+          cp node_modules/@sasjs/release/release.mjs "$RUNNER_TEMP/sasjs-release.mjs"
+
       - name: Which tag is this run for?
         id: tag
         env:
@@ -89,34 +99,25 @@ jobs:
           SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          # there is deliberately no `github.event.release` fallback: neither
-          # trigger is `release`, and there cannot be one (see the header)
-          tag="$REQUESTED"
-
-          if [ -z "$tag" ] && [ "$EVENT" = "workflow_run" ]; then
-            # the tag the release run just created, at the commit it released
-            tag="$(git tag --points-at "$SHA" --sort=-v:refname | head -1)"
-            if [ -z "$tag" ]; then
-              # A shallow clone carries no tags, and the branch below would then
-              # report a green publish that published nothing. Only a checkout
-              # with the tags in it can say "that release cut no tag".
-              if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-                echo "::error::this checkout is shallow, so the tag the release created cannot be seen - the job needs fetch-depth: 0"
-                exit 1
-              fi
-              echo "::notice::no tag at $SHA - that release had nothing to publish"
-              echo "tag=" >> "$GITHUB_OUTPUT"
-              exit 0
+          if [ "$EVENT" = "workflow_run" ]; then
+            if [[ ! "$SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+              echo "::error::invalid or missing workflow run SHA"
+              exit 1
             fi
+            args=(--sha "$SHA")
+          else
+            if [ -z "$REQUESTED" ]; then
+              echo "::error::no tag - dispatch this with the tag to publish"
+              exit 1
+            fi
+            args=(--tag "$REQUESTED")
           fi
-
-          if [ -z "$tag" ]; then
-            echo "::error::no tag - dispatch this with the tag to publish"
+          node "$RUNNER_TEMP/sasjs-release.mjs" --discover-publish --branch main --output "$GITHUB_OUTPUT" "${args[@]}"
+          # npm strips SemVer build metadata, so it cannot publish that tag exactly.
+          if grep -Eq '^version=.*\+' "$GITHUB_OUTPUT"; then
+            echo "::error::npm cannot preserve build metadata in a release version"
             exit 1
           fi
-
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "publishing from $tag"
 
       - name: Check out the tag
         if: steps.tag.outputs.tag != ''
@@ -144,9 +145,8 @@ jobs:
         if: steps.tag.outputs.tag != ''
         run: npm ci
 
-      # The tool comes from the lockfile, so the bytes are pinned: `npx
-      # @sasjs/release@x.y.z` would resolve whatever the registry served at
-      # publish time, on the one job that can put a version on npm.
+      # Use the same lockfile-pinned tool copied from trusted main, not the
+      # potentially older implementation installed by the tag's npm ci.
       #
       # It refuses a tag that is not an ancestor of main, stamps the tag's version
       # into package.json (npm reads the file, the tree is thrown away), and reports
@@ -162,7 +162,7 @@ jobs:
           set -euo pipefail
           extra=()
           if [ "${REPUBLISH:-false}" = "true" ]; then extra+=(--republish); fi
-          npx sasjs-release --prepare-publish --tag "$TAG" --branch main ${extra[@]+"${extra[@]}"} --output "$GITHUB_OUTPUT"
+          node "$RUNNER_TEMP/sasjs-release.mjs" --prepare-publish --tag "$TAG" --branch main ${extra[@]+"${extra[@]}"} --output "$GITHUB_OUTPUT"
 
       - name: Build project
         if: steps.publish.outputs.publish == 'true'

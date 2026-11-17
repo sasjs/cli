@@ -52,13 +52,12 @@ jobs:
         run: npm run lint
 
       - name: Test the CI scripts
-        # node's own runner: this needs no dependencies beyond the node the job
-        # already sets up, and it runs in well under a second
-        # both suites: the ratchet, and the gate over the tool that publishes
+        # The discovery fixture uses git and the @sasjs/release installed by npm ci.
         run: >-
           node --test
           .github/scripts/coverage-ratchet.test.mjs
           .github/scripts/release-tool-dependencies.test.mjs
+          .github/scripts/publish-discovery.test.mjs
 
   audit:
     name: audit
