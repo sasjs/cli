@@ -325,6 +325,133 @@ describe('service worker host', () => {
     return worker
   }
 
+  it('enforces bearer identity on XHR uploads bridged to the worker', async () => {
+    const worker = seeded()
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      tokens: [
+        {
+          username: 'sasjsuser',
+          accessToken: 'restricted-token',
+          refreshToken: 'restricted-refresh'
+        },
+        {
+          username: 'sasjsadmin',
+          accessToken: 'admin-token',
+          refreshToken: 'admin-refresh'
+        }
+      ]
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+    await worker.runtime.driveStore.mkdirp(appLoc)
+    await worker.runtime.driveStore.write(`${appLoc}/read.txt`, 'readable')
+    const hostFetch = (global as any).fetch
+    const consoleError = jest.spyOn(console, 'error').mockImplementation()
+    class XHR {
+      responseType = ''
+      readyState = 0
+      listeners: { [type: string]: (() => void)[] } = {}
+      open(_method: string, _url: string) {
+        this.readyState = 1
+      }
+      setRequestHeader(_name: string, _value: string) {}
+      send(_body?: any) {}
+      addEventListener(type: string, fn: () => void) {
+        ;(this.listeners[type] ||= []).push(fn)
+      }
+      dispatchEvent(event: any) {
+        ;(this.listeners[event.type] || []).forEach((fn) => fn())
+      }
+    }
+    try {
+      ;(global as any).window = {
+        location: {
+          href: 'https://app.example/',
+          origin: 'https://app.example'
+        }
+      }
+      ;(global as any).document = { baseURI: 'https://app.example/' }
+      ;(global as any).localStorage = { getItem: () => null }
+      ;(global as any).XMLHttpRequest = XHR
+      ;(global as any).ProgressEvent = class {
+        constructor(public type: string) {}
+      }
+      ;(global as any).fetch = (url: string, init: any) => {
+        const parsed = new URL(url, 'https://app.example/')
+        return parsed.origin === 'https://app.example' &&
+          (parsed.pathname.startsWith('/SASjsApi/') ||
+            parsed.pathname.startsWith('/api/'))
+          ? worker.dispatch(parsed.pathname + parsed.search, init)
+          : hostFetch(url, init)
+      }
+      require('../assets/intercept.js')
+      const read = async (token?: string) => {
+        const xhr: any = new XHR()
+        const loaded = new Promise((resolve) =>
+          xhr.addEventListener('load', resolve)
+        )
+        xhr.open(
+          'GET',
+          '/api/drive/file?_filePath=' +
+            encodeURIComponent(`${appLoc}/read.txt`)
+        )
+        if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+        xhr.send()
+        await loaded
+        return xhr
+      }
+      const badRead = await read('not-a-token')
+      expect(badRead.status).toBe(401)
+      expect(badRead.responseText).toBe('Unauthorized')
+      expect((await read()).status).toBe(200)
+
+      const upload = async (token?: string) => {
+        const xhr: any = new XHR()
+        const loaded = new Promise((resolve) =>
+          xhr.addEventListener('load', resolve)
+        )
+        xhr.open('POST', '/SASjsApi/drive/deploy/upload')
+        if (token) xhr.setRequestHeader('aUtHoRiZaTiOn', 'Bearer ' + token)
+        const form = new FormData()
+        form.set('appLoc', appLoc)
+        form.set(
+          'file',
+          new Blob([new Uint8Array(await zipOf({ 'proof.txt': 'granted' }))]),
+          'deploy.zip'
+        )
+        xhr.send(form)
+        await loaded
+        return xhr
+      }
+      for (const token of ['not-a-token', 'restricted-token']) {
+        const xhr = await upload(token)
+        expect(xhr.status).toBe(401)
+        expect(xhr.responseText).toBe('Unauthorized')
+        expect(
+          await worker.runtime.driveStore.exists(`${appLoc}/proof.txt`)
+        ).toBe(false)
+      }
+      const admin = await upload('admin-token')
+      expect(admin.status).toBe(200)
+      expect(
+        await worker.runtime.driveStore.read(`${appLoc}/proof.txt`)
+      ).toEqual(new TextEncoder().encode('granted'))
+    } finally {
+      consoleError.mockRestore()
+      delete (global as any).window
+      delete (global as any).document
+      delete (global as any).localStorage
+      delete (global as any).XMLHttpRequest
+      delete (global as any).ProgressEvent
+    }
+  })
+
   it('returns the webout as the response body', async () => {
     const { dispatch } = seeded()
 
@@ -1885,6 +2012,126 @@ describe('service worker host', () => {
       expect(output.status).toBe(200)
       expect(await output.text()).toContain('SYSSITE')
     })
+
+    it('refuses an unauthorized upload before reading its body', async () => {
+      const worker = seeded()
+      await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+      const form = new FormData()
+      form.set('file', new Blob(['not a zip']), 'bad.zip')
+      const read = jest.spyOn(Request.prototype, 'formData')
+      try {
+        const response = await worker.dispatch(
+          '/SASjsApi/drive/deploy/upload',
+          {
+            method: 'POST',
+            body: form
+          }
+        )
+        expect(response.status).toBe(401)
+        expect(response.headers.get('content-type')).toContain('text/plain')
+        expect(await response.text()).toBe('Unauthorized')
+        expect(read).not.toHaveBeenCalled()
+      } finally {
+        read.mockRestore()
+      }
+    })
+
+    it.each([
+      {
+        name: 'exact user upload grant',
+        path: '/SASjsApi/drive/deploy/upload',
+        kind: 'user',
+        subject: 'sasjsuser',
+        status: 200
+      },
+      {
+        name: 'top-level user grant',
+        path: '/SASjsApi',
+        kind: 'user',
+        subject: 'sasjsuser',
+        status: 200
+      },
+      {
+        name: 'deploy parent grant is not an upload grant',
+        path: '/SASjsApi/drive/deploy',
+        kind: 'user',
+        subject: 'sasjsuser',
+        status: 401
+      },
+      {
+        name: 'anonymous exact public upload grant',
+        path: '/SASjsApi/drive/deploy/upload',
+        kind: 'public',
+        subject: null,
+        status: 200
+      },
+      {
+        name: 'anonymous public parent grant',
+        path: '/SASjsApi',
+        kind: 'public',
+        subject: null,
+        status: 401
+      }
+    ])(
+      'checks upload authorization: $name',
+      async ({ path, kind, subject, status }) => {
+        const worker = loadWorker()
+        const identity = {
+          ...DEFAULT_IDENTITY,
+          groups: [
+            ...DEFAULT_IDENTITY.groups,
+            {
+              uid: 'public-group',
+              name: 'public',
+              description: '',
+              isActive: true,
+              users: []
+            }
+          ],
+          permissions: [
+            ...DEFAULT_IDENTITY.permissions,
+            {
+              uid: 'upload-test-rule',
+              path,
+              type: 'Route',
+              setting: 'Grant',
+              ...(kind === 'public'
+                ? { group: 'public-group' }
+                : { user: 'user-restricted' })
+            }
+          ]
+        }
+        const boot = worker.message({ type: 'sasjs-seed', identity, subject })
+        await boot.pending
+        expect(boot.replies[0].error).toBeUndefined()
+        const form = new FormData()
+        form.set('appLoc', appLoc)
+        form.set(
+          'file',
+          new Blob([new Uint8Array(await zipOf({ 'proof.txt': 'granted' }))]),
+          'deploy.zip'
+        )
+        const read = jest.spyOn(Request.prototype, 'formData')
+        try {
+          const response = await worker.dispatch(
+            '/SASjsApi/drive/deploy/upload',
+            { method: 'POST', body: form }
+          )
+          expect(response.status).toBe(status)
+          if (status === 401) {
+            expect(await response.text()).toBe('Unauthorized')
+            expect(read).not.toHaveBeenCalled()
+          } else {
+            expect(read).toHaveBeenCalled()
+            expect(
+              await worker.runtime.driveStore.read(`${appLoc}/proof.txt`)
+            ).toEqual(new TextEncoder().encode('granted'))
+          }
+        } finally {
+          read.mockRestore()
+        }
+      }
+    )
 
     it('refuses a deploy upload with no archive, and one that is not a zip', async () => {
       const { dispatch } = seeded()
@@ -3576,16 +3823,77 @@ describe('service worker host', () => {
         )
     }
 
+    /** Boot the identity and transport the case's subject as a bearer token. */
+    const bootCase = async (worker: any, testCase: CorpusCase) => {
+      const identity = testCase.identity || DEFAULT_IDENTITY
+      const subject = testCase.request.subject
+      // Older corpora omit both identity and subject and expect the host's
+      // default administrator. New cases with an identity but no subject are
+      // explicitly anonymous.
+      if (!subject && !testCase.identity && !testCase.request.token) return
+      let fixture = identity
+      let token = testCase.request.token
+      if (subject) {
+        const user = identity.users.find(
+          (entry) => entry.uid === subject.userId
+        )
+        if (!user)
+          throw new Error(`${testCase.id}: subject user not in fixture`)
+        if (token)
+          throw new Error(`${testCase.id}: both subject and token stated`)
+        token = 'corpus-subject-token'
+        fixture = {
+          ...identity,
+          tokens: [
+            ...(identity.tokens || []),
+            {
+              username: user.username,
+              clientId: subject.clientId,
+              accessToken: token,
+              refreshToken: 'corpus-subject-refresh'
+            }
+          ]
+        }
+      }
+      const { pending, replies } = worker.message({
+        type: 'sasjs-seed',
+        identity: fixture,
+        subject: null
+      })
+      await pending
+      if (replies[0]?.error) throw new Error(replies[0].error)
+      return token
+    }
+
     for (const testCase of DRIVE_CORPUS) {
       it(testCase.id, async () => {
         const worker = loadWorker()
+        const token = await bootCase(worker, testCase)
         await seedDrive(worker.runtime, testCase)
         worker.refuseWrites(Boolean(testCase.unwritable))
 
         const { path: requestPath, init } = httpFor(testCase)
+        if (token)
+          init.headers = { ...init.headers, authorization: `Bearer ${token}` }
         const response = await worker.dispatch(requestPath, init)
 
         await assertExpectations(response, testCase)
+        for (const path of testCase.expectDrive?.present || [])
+          expect({
+            path,
+            exists: await worker.runtime.driveStore.exists(path)
+          }).toEqual({
+            path,
+            exists: true
+          })
+        for (const path of testCase.expectDrive?.missing || [])
+          expect({
+            path,
+            exists: await worker.runtime.driveStore.exists(path)
+          }).toEqual({
+            path,
+            exists: false
+          })
       })
     }
 

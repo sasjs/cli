@@ -1646,14 +1646,30 @@ const bearerOf = (request, query) =>
   String(query.access_token || '').trim() ||
   undefined
 
+/** An exact public-group grant authenticates an otherwise anonymous request. */
+const publicGrantOn = (path) => {
+  const identity = IDENTITY_STATE.store.snapshot()
+  const publicGroup = identity.groups.find((group) => group.name === 'public')
+  return Boolean(
+    publicGroup &&
+    identity.permissions.some(
+      (rule) =>
+        rule.group === publicGroup.uid &&
+        rule.path === path &&
+        rule.setting === 'Grant'
+    )
+  )
+}
+
 /** The subject a request is talking as, from its bearer token or the implicit
- * caller when it carries none. An unknown token is the package's 401. */
-const subjectOf = async (request, query) => {
+ * caller when it carries none. Invalid tokens are anonymous on public routes. */
+const subjectOf = async (request, query, publicPath) => {
   const token = bearerOf(request, query)
   if (!token) return IMPLICIT_CALLER
   const subject = await IDENTITY.authenticate(token)
-  if (!subject) throw new API.ApiError(401, 'Unauthorized')
-  return subject
+  if (!subject && !(publicPath && publicGrantOn(publicPath)))
+    throw new API.ApiError(401, 'Unauthorized')
+  return subject || undefined
 }
 
 /**
@@ -1914,9 +1930,30 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
 
     const routeId = matched.route.id
     const token = bearerOf(request, query)
+    const routePath = routeId.slice(routeId.indexOf(' ') + 1)
+    // The grant inventory preserves fileTree's spelling unlike the route table.
+    const publicPath = (API.DEFAULT_GRANTABLE_ROUTES || []).find(
+      (candidate) =>
+        candidate.toLowerCase() === routePath.toLowerCase() &&
+        candidate.toLowerCase().startsWith('/sasjsapi/drive/')
+    )
     const subject = SELF_AUTH_ROUTES.has(routeId)
       ? undefined
-      : await subjectOf(request, query)
+      : await subjectOf(request, query, publicPath)
+    if (routeId === DEPLOY_UPLOAD) {
+      const uploadPath = '/SASjsApi/drive/deploy/upload'
+      // Newer packages expose the same decision as dispatch. With older ones,
+      // authenticated callers get that decision from their reported routes;
+      // an anonymous caller needs an exact public-group grant.
+      const allowed = RECORDS.mayUseRoute
+        ? await RECORDS.mayUseRoute(subject, uploadPath)
+        : subject
+          ? (await RECORDS.myAuthorizedRoutes(subject)).paths.includes(
+              uploadPath
+            )
+          : publicGrantOn(uploadPath)
+      if (!allowed) throw new API.ApiError(401, 'Unauthorized')
+    }
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
 
@@ -2020,6 +2057,13 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // other drive routes send the message itself as plain text, which is what the
     // server's `res.status(code).send(err.message)` does.
     if (API.isApiError(e)) {
+      // Authorization middleware sends a plain-text 401, even for deploy routes.
+      if (
+        apiPath.toLowerCase().startsWith('/sasjsapi/drive/') &&
+        e.status === 401 &&
+        e.message === 'Unauthorized'
+      )
+        return text(e.message, e.status)
       if (e.body !== undefined) return json(e.body, e.status)
       if (/\/SASjsApi\/drive\/deploy(\/|$)/.test(apiPath))
         return json({ status: 'failure', message: e.message }, e.status)
