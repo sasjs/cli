@@ -641,6 +641,29 @@ globalThis.webout = _sasjs_webout;`
     })
   })
 
+  it('reports staged upload metadata through fs.statSync', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'binary',
+          filename: 'raw.bin',
+          bytes: new Uint8Array([0, 255, 128])
+        }
+      ],
+      code: `const file = fs.statSync(_WEBIN_FILEREF1); const dir = fs.statSync(require('path').dirname(_WEBIN_FILEREF1)); _webout = JSON.stringify({ size: file.size, file: file.isFile(), fileDir: file.isDirectory(), dir: dir.isDirectory(), dirFile: dir.isFile() });`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      size: 3,
+      file: true,
+      fileDir: false,
+      dir: true,
+      dirFile: false
+    })
+  })
+
   it('exposes uploaded bytes through session-local file references and first aliases', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {})

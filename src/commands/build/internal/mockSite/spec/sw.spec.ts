@@ -569,12 +569,13 @@ describe('service worker host', () => {
   )
 
   it.each([
-    '/SASStoredProcess/do',
-    '/SASjsApi/stp/execute',
-    '/api/stp/execute'
+    ['/SASStoredProcess/do', '/SASjsApi/stp/execute'],
+    ['/SASjsApi/stp/execute', '/SASjsApi/stp/execute'],
+    ['/api/stp/execute//', '/SASjsApi/stp/execute'],
+    ['/api/code/execute//', '/SASjsApi/code/execute']
   ])(
     'rejects denied multipart execution at %s without parsing its body',
-    async (endpoint) => {
+    async (endpoint, deniedPath) => {
       const worker = loadWorker('', { skipLint: true })
       const identity = {
         ...DEFAULT_IDENTITY,
@@ -582,7 +583,7 @@ describe('service worker host', () => {
           ...DEFAULT_IDENTITY.permissions,
           {
             uid: 'deny-sas9-body',
-            path: '/SASjsApi/stp/execute',
+            path: deniedPath,
             type: 'Route',
             setting: 'Deny',
             user: 'user-restricted'
@@ -2468,6 +2469,31 @@ describe('service worker host', () => {
 
       expect(response.status).toBe(200)
       expect((await response.json()).mode).toBe('desktop')
+    })
+
+    it('preserves uploaded bytes in a triggered session output', async () => {
+      const worker = loadWorker('', { skipLint: true })
+      worker.runtime.load({
+        [drivePath('services/public/upload.js')]:
+          `_webout = _WEBIN_NAME1 + '|' + _WEBIN_FILENAME1 + '|' + fs.readFileSync(_WEBIN_FILEREF1).toString('hex')`
+      })
+      const program = encodeURIComponent(`${appLoc}/services/public/upload`)
+      const triggered = await worker.dispatch(
+        '/SASjsApi/stp/trigger?_program=' + program,
+        runRequest({
+          params: {},
+          tables: [
+            { name: 'binary', filename: 'raw.bin', csv: 'AP+A', binary: true }
+          ]
+        })
+      )
+      expect(triggered.status).toBe(200)
+      const { sessionId } = await triggered.json()
+      const output = await worker.dispatch(
+        `/SASjsApi/session/${sessionId}/output`
+      )
+      expect(output.status).toBe(200)
+      expect(await output.text()).toBe('binary|raw.bin|00ff80')
     })
 
     it('starts a session, then reads its state, log and output', async () => {

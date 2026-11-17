@@ -461,7 +461,10 @@ describe('page-side bridge', () => {
     ['/', '/SASjsApi/stp/execute?_program=x'],
     ['/site/', '/site/api/stp/execute?_program=x'],
     ['/', '/sasjsapi/STP/EXECUTE?_program=x'],
-    ['/', '/SASjsApi/code/execute']
+    ['/', '/SASjsApi/code/execute'],
+    ['/', '/api/stp/execute//?_program=x'],
+    ['/site/', '/site/SASjsApi/code/execute///'],
+    ['/', '/SASStoredProcess/do//?_program=x']
   ])(
     'preauthorizes execution uploads at %s before reading',
     async (base, url) => {

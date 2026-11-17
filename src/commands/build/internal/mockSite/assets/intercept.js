@@ -211,13 +211,14 @@
       !(body instanceof FormData)
     )
       return null
-    const path = mockPath(url) || ''
+    // Match the worker's normalization without broadening which routes are gated.
+    const path = (mockPath(url) || '').replace(/\/+$/, '')
     if (
-      /^SASStoredProcess\/do\/?$/i.test(path) ||
-      /^(?:SASjsApi|api)\/stp\/execute\/?$/i.test(path)
+      /^SASStoredProcess\/do$/i.test(path) ||
+      /^(?:SASjsApi|api)\/stp\/execute$/i.test(path)
     )
       return '/SASjsApi/stp/execute'
-    if (/^(?:SASjsApi|api)\/code\/execute\/?$/i.test(path))
+    if (/^(?:SASjsApi|api)\/code\/execute$/i.test(path))
       return '/SASjsApi/code/execute'
     return null
   }
@@ -228,7 +229,7 @@
     (method || '').toUpperCase() === 'POST' &&
     typeof FormData !== 'undefined' &&
     body instanceof FormData &&
-    /^SASStoredProcess\/do\/?$/i.test(mockPath(url) || '')
+    /^SASStoredProcess\/do$/i.test((mockPath(url) || '').replace(/\/+$/, ''))
 
   const proto = XMLHttpRequest.prototype
   const nativeOpen = proto.open

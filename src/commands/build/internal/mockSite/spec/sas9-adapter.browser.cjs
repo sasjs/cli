@@ -447,6 +447,27 @@ async function main() {
       )
       console.log(`PASS ${target} worker control and real adapter`)
 
+      for (const route of ['/api/stp/execute//', '/SASjsApi/code/execute///', '/SASStoredProcess/do//']) {
+        const denied = await evaluate(`(async () => {
+          let reads = 0;
+          const original = Blob.prototype.arrayBuffer;
+          Blob.prototype.arrayBuffer = function () { reads++; return original.call(this); };
+          try {
+            const form = new FormData();
+            form.append('upload', new Blob(['private']), 'private.csv');
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', ${JSON.stringify(basePath)} + ${JSON.stringify(route)} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploads')}));
+              xhr.setRequestHeader('Authorization', 'Bearer invalid-token');
+              xhr.onload = () => resolve({ status: xhr.status, reads });
+              xhr.onerror = reject; xhr.send(form);
+            });
+          } finally { Blob.prototype.arrayBuffer = original; }
+        })()`)
+        assert.deepEqual(denied, { status: 401, reads: 0 }, `${target} ${route}: denied before reading`)
+      }
+      console.log(`PASS ${target} slash-suffixed denied uploads before page file read`)
+
       const limitProbe = await evaluate(`(async () => {
         const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
         const limit = Number(grant.headers.get('x-sasjs-mock-max-upload-bytes'));
