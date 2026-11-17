@@ -528,6 +528,387 @@ describe('browser-hosted build', () => {
     }
   })
 
+  it.each([
+    '<sasjs serverurl="old"></sasjs>',
+    '<sasjs serverurl="old">',
+    '<sasjs serverurl="old"/>'
+  ])('uses one early mount script for scripts around %s', async (tag) => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head><script src="early.js"></script></head><body>${tag}<script src="late.js"></script></body></html>`
+    )
+    write(
+      path.join(root, 'client', 'dist', 'early.js'),
+      'window.early = { config: document.querySelector("sasjs")?.getAttribute("serverurl") ?? null, observer: !!window.__sasjsMountObserver }'
+    )
+    write(
+      path.join(root, 'client', 'dist', 'late.js'),
+      'window.late = document.querySelector("sasjs").getAttribute("serverurl")'
+    )
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const parsed = new JSDOM(html)
+    const mountScripts = parsed.window.document.querySelectorAll(
+      'script[src*="/host/mount-config.js?"]'
+    )
+    expect(mountScripts).toHaveLength(1)
+    expect(
+      mountScripts[0]!.compareDocumentPosition(
+        parsed.window.document.querySelector('script[src^="early.js"]')!
+      ) & 4
+    ).toBeTruthy()
+    parsed.window.close()
+
+    const { ResourceLoader } = require('jsdom')
+    class Assets extends ResourceLoader {
+      fetch(url: string): Promise<Buffer> | null {
+        const pathname = new URL(url).pathname.replace(/^\/demo\//, '')
+        if (pathname === 'host/boot.js') return Promise.resolve(Buffer.from(''))
+        const file = path.join(out(), pathname)
+        return fs.existsSync(file)
+          ? Promise.resolve(fs.readFileSync(file))
+          : null
+      }
+    }
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/demo/',
+      resources: new Assets() as any,
+      runScripts: 'dangerously'
+    })
+    await new Promise<void>((resolve) =>
+      dom.window.addEventListener('load', () => resolve())
+    )
+    expect(
+      (dom.window as any).early.observer ||
+        (dom.window as any).early.config === 'https://example.com/demo'
+    ).toBe(true)
+    expect((dom.window as any).late).toBe('https://example.com/demo')
+    dom.window.close()
+  })
+
+  it('never exposes a relative mount to an async app while a parser script is delayed', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head><script async src="async-app.js"></script></head><body><sasjs serverurl="old"></sasjs></body></html>'
+    )
+    write(path.join(root, 'client', 'dist', 'async-app.js'), 'unused')
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    // Model a parser-blocking script held after the config: the generated early
+    // observer must stamp it before the async app runs, even while parsing stalls.
+    const html = fs
+      .readFileSync(path.join(out(), 'index.html'), 'utf8')
+      .replace('</sasjs>', '<script src="/demo/held.js"></script></sasjs>')
+    const { ResourceLoader } = require('jsdom')
+    let releaseMount!: () => void
+    let releaseApp!: () => void
+    const appReady = new Promise<Buffer>((resolve) => {
+      releaseApp = () =>
+        resolve(
+          Buffer.from(`
+        function observe() {
+          var config = document.querySelector('sasjs');
+          if (!config) return setTimeout(observe, 0);
+          window.observed = config.getAttribute('serverurl');
+        }
+        observe();
+      `)
+        )
+    })
+    let mountRequested!: () => void
+    const requested = new Promise<void>((resolve) => (mountRequested = resolve))
+    const mountReady = new Promise<Buffer>((resolve) => {
+      releaseMount = () => resolve(Buffer.from(''))
+    })
+    class Assets extends ResourceLoader {
+      fetch(url: string): Promise<Buffer> | null {
+        const name = new URL(url).pathname.split('/').pop()
+        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
+        if (name === 'async-app.js') return appReady
+        if (name === 'mount-config.js')
+          return Promise.resolve(
+            fs.readFileSync(path.join(out(), 'host', name))
+          )
+        if (name === 'held.js') {
+          mountRequested()
+          return mountReady
+        }
+        return null
+      }
+    }
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/demo/',
+      resources: new Assets() as any,
+      runScripts: 'dangerously'
+    })
+    await requested
+    releaseApp()
+    // Give the async script an opportunity to run while the mount response is held.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const observedWhileHeld = (dom.window as any).observed
+    releaseMount()
+    await new Promise<void>((resolve) =>
+      dom.window.addEventListener('load', () => resolve())
+    )
+    dom.window.close()
+    expect(observedWhileHeld).toBe('https://example.com/demo')
+  })
+
+  it('provides an absolute mounted server URL before the app reads its config', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head></head><body><sasjs serverurl="https://old.example" apploc="/old" servertype="SASJS" loginmechanism="Redirected"></sasjs><script>window.observedServerUrl = document.querySelector("sasjs").getAttribute("serverurl")</script></body></html>'
+    )
+    await buildMockSite(target({ mockWebBasePath: '/demo/nested' }))
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    for (const origin of ['http://127.0.0.1:8123', 'https://example.com']) {
+      const { ResourceLoader } = require('jsdom')
+      class Assets extends ResourceLoader {
+        fetch(url: string): Promise<Buffer> | null {
+          const name = new URL(url).pathname.split('/').pop()
+          if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
+          const file = path.join(out(), 'host', name!)
+          return fs.existsSync(file)
+            ? Promise.resolve(fs.readFileSync(file))
+            : null
+        }
+      }
+      const dom = new JSDOM(html, {
+        url: `${origin}/demo/nested/`,
+        resources: new Assets() as any,
+        runScripts: 'dangerously'
+      })
+      await new Promise<void>((resolve) =>
+        dom.window.addEventListener('load', () => resolve())
+      )
+      expect((dom.window as any).observedServerUrl).toBe(
+        `${origin}/demo/nested`
+      )
+      dom.window.close()
+    }
+  })
+
+  it.each([
+    "<sasjs serverurl='https://old.example'/>",
+    "<sasjs serverurl='https://old.example'>",
+    "<sasjs serverurl='https://old.example'></sasjs>"
+  ])(
+    'stamps an unclosed config before the following app script: %s',
+    async (tag) => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        `<html><head></head><body>${tag}<script>window.observedServerUrl = document.querySelector('sasjs').getAttribute('serverurl')</script></body></html>`
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const { ResourceLoader } = require('jsdom')
+      class Assets extends ResourceLoader {
+        fetch(url: string): Promise<Buffer> | null {
+          const name = new URL(url).pathname.split('/').pop()
+          if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
+          const file = path.join(out(), 'host', name!)
+          return fs.existsSync(file)
+            ? Promise.resolve(fs.readFileSync(file))
+            : null
+        }
+      }
+      const dom = new JSDOM(html, {
+        url: 'https://example.com/demo/',
+        resources: new Assets() as any,
+        runScripts: 'dangerously'
+      })
+      await new Promise<void>((resolve) =>
+        dom.window.addEventListener('load', () => resolve())
+      )
+      expect((dom.window as any).observedServerUrl).toBe(
+        'https://example.com/demo'
+      )
+      dom.window.close()
+    }
+  )
+
+  it('stamps before an app script nested inside the config element', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head></head><body><sasjs serverurl="old"><script>window.observed = document.querySelector('sasjs').getAttribute('serverurl')</script></sasjs></body></html>`
+    )
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const { ResourceLoader } = require('jsdom')
+    class Assets extends ResourceLoader {
+      fetch(url: string): Promise<Buffer> | null {
+        const name = new URL(url).pathname.split('/').pop()
+        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
+        const file = path.join(out(), 'host', name!)
+        return fs.existsSync(file)
+          ? Promise.resolve(fs.readFileSync(file))
+          : null
+      }
+    }
+    const dom = new JSDOM(
+      fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
+      {
+        url: 'https://example.com/demo/',
+        resources: new Assets() as any,
+        runScripts: 'dangerously'
+      }
+    )
+    await new Promise<void>((resolve) =>
+      dom.window.addEventListener('load', () => resolve())
+    )
+    expect((dom.window as any).observed).toBe('https://example.com/demo')
+    dom.window.close()
+  })
+
+  it.each(['SASVIYA', 'SASJS'])(
+    'preserves frontend adapter type and appLoc for a %s target',
+    async (serverType) => {
+      const source = `<html><head></head><body><sasjs serverurl="old" servertype="SASJS" apploc="/frontend/app" loginmechanism="Redirected"></sasjs><script>const c = document.querySelector('sasjs'); window.adapter = new window.SASjs({serverUrl: c.getAttribute('serverurl'), serverType: c.getAttribute('servertype'), appLoc: c.getAttribute('apploc'), loginMechanism: c.getAttribute('loginmechanism')})</script></body></html>`
+      write(path.join(root, 'client', 'dist', 'index.html'), source)
+      await buildMockSite({ ...target(), serverType, appLoc: '/target/app' })
+      const dom = new JSDOM(
+        fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
+        {
+          url: 'https://example.com/',
+          runScripts: 'dangerously',
+          beforeParse(window) {
+            ;(window as any).SASjs = require('@sasjs/adapter').default
+          }
+        }
+      )
+      const config = (dom.window as any).adapter.sasjsConfig
+      expect(config.serverType).toBe('SASJS')
+      expect(config.appLoc).toBe('/frontend/app')
+      expect(config.loginMechanism).toBe('Default')
+      dom.window.close()
+    }
+  )
+
+  it.each(['SASVIYA', 'SASJS'])(
+    'does not add absent adapter type or appLoc for a %s target',
+    async (serverType) => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        '<html><head></head><body><sasjs serverurl="old"></sasjs></body></html>'
+      )
+      await buildMockSite({ ...target(), serverType })
+      const dom = new JSDOM(
+        fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      )
+      const config = dom.window.document.querySelector('sasjs')!
+      expect(config.hasAttribute('servertype')).toBe(false)
+      expect(config.hasAttribute('apploc')).toBe(false)
+      dom.window.close()
+    }
+  )
+
+  it('configures the copied app for a SAS9 target and its mounted mock host', async () => {
+    const source = path.join(root, 'client', 'dist', 'index.html')
+    const original = fs.readFileSync(source, 'utf8')
+    const loc = '/Shared/SAS9/demo'
+    await buildMockSite({
+      ...target({ mockWebBasePath: '/demo' }),
+      serverType: 'SAS9',
+      appLoc: loc
+    })
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const dom = new JSDOM(html, { url: 'https://example.com/demo/' })
+    const config = dom.window.document.querySelector('sasjs')!
+    expect(config.getAttribute('servertype')).toBe('SAS9')
+    expect(config.getAttribute('apploc')).toBe(loc)
+    expect(config.getAttribute('serverurl')).toBe('/demo')
+    expect(
+      new URL(config.getAttribute('serverurl')!, dom.window.location.href).href
+    ).toBe('https://example.com/demo')
+    expect(config.getAttribute('loginmechanism')).toBe('Default')
+    expect(fs.readFileSync(source, 'utf8')).toBe(original)
+    dom.window.close()
+  })
+
+  it('rewrites actual SASjs attributes with HTML quoting and preserves other markup', async () => {
+    const source = `<!doctype html><html><head></head><body><!-- <sasjs servertype="DECOY"> --><sasjs serverurl='https://old.example' servertype=SASJS apploc='/old' loginmechanism='Redirected' data-value='keep'></sasjs></body></html>`
+    write(path.join(root, 'client', 'dist', 'index.html'), source)
+    const loc = '/Public/A&B "quoted"'
+    await buildMockSite({ ...target(), appLoc: loc, serverType: 'SAS9' })
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const dom = new JSDOM(html)
+    const config = dom.window.document.querySelector('sasjs')!
+    expect(config.getAttribute('serverurl')).toBe('')
+    expect(config.getAttribute('servertype')).toBe('SAS9')
+    expect(config.getAttribute('apploc')).toBe(loc)
+    expect(config.getAttribute('loginmechanism')).toBe('Default')
+    expect(config.getAttribute('data-value')).toBe('keep')
+    expect(html).toContain('<!-- <sasjs servertype="DECOY"> -->')
+    dom.window.close()
+  })
+
+  it('stamps missing config attributes for an app that reads them', async () => {
+    const source =
+      '<html><head></head><body><sasjs data-custom="keep"></sasjs><script>const c = document.querySelector("sasjs"); window.adapter = new window.SASjs({serverUrl: c.getAttribute("serverurl"), serverType: c.getAttribute("servertype"), appLoc: c.getAttribute("apploc"), loginMechanism: c.getAttribute("loginmechanism")})</script></body></html>'
+    write(path.join(root, 'client', 'dist', 'index.html'), source)
+    await buildMockSite({
+      ...target({ mockWebBasePath: '/demo' }),
+      serverType: 'SAS9'
+    })
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const { ResourceLoader } = require('jsdom')
+    class Assets extends ResourceLoader {
+      fetch(url: string): Promise<Buffer> | null {
+        const name = new URL(url).pathname.split('/').pop()
+        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
+        const file = path.join(out(), 'host', name!)
+        return fs.existsSync(file)
+          ? Promise.resolve(fs.readFileSync(file))
+          : null
+      }
+    }
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/demo/',
+      resources: new Assets() as any,
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        ;(window as any).SASjs = require('@sasjs/adapter').default
+      }
+    })
+    await new Promise<void>((resolve) =>
+      dom.window.addEventListener('load', () => resolve())
+    )
+    const config = (dom.window as any).adapter.sasjsConfig
+    expect(config.serverUrl).toBe('https://example.com/demo')
+    expect(config.serverType).toBe('SAS9')
+    expect(config.appLoc).toBe(appLoc)
+    expect(config.loginMechanism).toBe('Default')
+    expect(
+      dom.window.document.querySelector('sasjs')!.getAttribute('data-custom')
+    ).toBe('keep')
+    expect(
+      fs.readFileSync(path.join(root, 'client', 'dist', 'index.html'), 'utf8')
+    ).toBe(source)
+    dom.window.close()
+  })
+
+  it('warns that apps ignoring missing DOM attributes can still use incompatible defaults', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head></head><body><sasjs></sasjs><script>window.adapter = new window.SASjs()</script></body></html>'
+    )
+    await buildMockSite({ ...target(), serverType: 'SAS9' })
+    const dom = new JSDOM(
+      fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
+      {
+        runScripts: 'dangerously',
+        beforeParse(window) {
+          ;(window as any).SASjs = require('@sasjs/adapter').default
+        }
+      }
+    )
+    expect((dom.window as any).adapter.sasjsConfig.serverType).not.toBe('SAS9')
+    expect((dom.window as any).adapter.sasjsConfig.appLoc).not.toBe(appLoc)
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('ignores')
+    )
+    dom.window.close()
+  })
+
   it('serves the site under a folder when the target names one', async () => {
     await buildMockSite(target({ mockWebBasePath: '/demo' }))
 

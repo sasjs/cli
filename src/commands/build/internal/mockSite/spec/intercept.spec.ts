@@ -69,7 +69,14 @@ class FakeXHR {
   }
 }
 
-const loadBridge = (fetchImpl: jest.Mock) => {
+const loadBridge = (
+  fetchImpl: jest.Mock,
+  base = '/',
+  script = true,
+  grantImpl: jest.Mock = jest.fn(async () =>
+    jsonResponse(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }))
+  )
+) => {
   jest.resetModules()
   // A fresh subclass per load: the bridge patches XMLHttpRequest.prototype, so
   // reusing one class would leave the previous bridge's wrapper in place as the
@@ -82,7 +89,14 @@ const loadBridge = (fetchImpl: jest.Mock) => {
     }
   }
   ;(global as any).window = window
-  ;(global as any).document = { baseURI: window.location.href }
+  window.location = new URL(`https://app.example${base}index.html`)
+  ;(global as any).location = window.location
+  ;(global as any).document = {
+    baseURI: window.location.href,
+    currentScript: script
+      ? { src: `https://app.example${base}host/intercept.js?v=1` }
+      : null
+  }
   ;(global as any).localStorage = { getItem: () => null }
   ;(global as any).XMLHttpRequest = XHR
   ;(global as any).Event = class {
@@ -91,9 +105,12 @@ const loadBridge = (fetchImpl: jest.Mock) => {
   ;(global as any).ProgressEvent = class {
     constructor(public type: string) {}
   }
-  ;(global as any).fetch = fetchImpl
+  ;(global as any).fetch = (url: string, init: any) =>
+    new URL(url).pathname.endsWith('/SASjsApi/info/myAuthorizedRoutes')
+      ? grantImpl(url, init)
+      : fetchImpl(url, init)
   require('../assets/intercept.js')
-  return { window, XHR }
+  return { window, XHR, grantImpl }
 }
 
 const jsonResponse = (body: any, status = 200) =>
@@ -113,6 +130,7 @@ describe('page-side bridge', () => {
   afterEach(() => {
     delete (global as any).window
     delete (global as any).document
+    delete (global as any).location
     delete (global as any).localStorage
     delete (global as any).XMLHttpRequest
     delete (global as any).fetch
@@ -426,6 +444,516 @@ describe('page-side bridge', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
+  it('bridges root API calls when the bridge is evaluated without a current script', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl, '/', false)
+    const xhr = new XHR()
+    await run(xhr, 'GET', '/api/info')
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['/', '/sasstoredprocess/do?_program=x'],
+    ['/site/', '/site/SasStoredProcess/DO/?_program=x']
+  ])(
+    'preauthorizes case-insensitive SAS9 uploads at %s before reading',
+    async (base, url) => {
+      const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+      const grantImpl = jest.fn(async () =>
+        jsonResponse(JSON.stringify({ paths: [] }))
+      )
+      const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+      const errors = jest.spyOn(console, 'error').mockImplementation()
+      try {
+        const { XHR } = loadBridge(fetchImpl, base, true, grantImpl)
+        const form = new FormData()
+        form.append('file', new Blob(['private']), 'private.csv')
+        const xhr = new XHR()
+        const loaded = new Promise((resolve) =>
+          xhr.addEventListener('load', resolve)
+        )
+        xhr.open('POST', url)
+        xhr.send(form)
+        expect(xhr.nativeSendCount).toBe(0)
+        expect(grantImpl).toHaveBeenCalledTimes(1)
+        await loaded
+        expect(xhr.status).toBe(401)
+        expect(JSON.parse(xhr.responseText)).toEqual({
+          message: 'Unauthorized'
+        })
+        expect(read).not.toHaveBeenCalled()
+        expect(fetchImpl).not.toHaveBeenCalled()
+      } finally {
+        errors.mockRestore()
+        read.mockRestore()
+      }
+    }
+  )
+
+  it('enforces the upload limit on a lowercase SAS9 endpoint after authorization', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const grantImpl = jest.fn(async () =>
+      jsonResponse(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }))
+    )
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    const errors = jest.spyOn(console, 'error').mockImplementation()
+    try {
+      const { XHR } = loadBridge(fetchImpl, '/', true, grantImpl)
+      const form = new FormData()
+      form.append(
+        'file',
+        new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]),
+        'large.csv'
+      )
+      const xhr = new XHR()
+      const loaded = new Promise((resolve) =>
+        xhr.addEventListener('load', resolve)
+      )
+      xhr.open('POST', '/sasstoredprocess/do')
+      xhr.send(form)
+      expect(xhr.nativeSendCount).toBe(0)
+      expect(grantImpl).toHaveBeenCalledTimes(1)
+      await loaded
+      expect(xhr.status).toBe(413)
+      expect(read).not.toHaveBeenCalled()
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      errors.mockRestore()
+      read.mockRestore()
+    }
+  })
+
+  it('refuses denied SAS9 uploads without reading file bytes', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const grantImpl = jest.fn(async () =>
+      jsonResponse(JSON.stringify({ paths: [] }))
+    )
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    const errors = jest.spyOn(console, 'error').mockImplementation()
+    try {
+      const { XHR } = loadBridge(fetchImpl, '/', true, grantImpl)
+      const form = new FormData()
+      form.append('file', new Blob(['private']), 'private.csv')
+      const xhr = new XHR()
+      await run(xhr, 'POST', '/SASStoredProcess/do?_program=x', form)
+      expect(xhr.status).toBe(401)
+      expect(JSON.parse(xhr.responseText)).toEqual({ message: 'Unauthorized' })
+      expect(read).not.toHaveBeenCalled()
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      errors.mockRestore()
+      read.mockRestore()
+    }
+  })
+
+  it('checks the same caller and token before reading SAS9 files', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    let resolveGrant: (value: Response) => void = () => {}
+    const grantImpl = jest.fn(
+      () => new Promise<Response>((resolve) => (resolveGrant = resolve))
+    )
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    try {
+      const { XHR } = loadBridge(fetchImpl, '/site/', true, grantImpl)
+      const form = new FormData()
+      form.append('file', new Blob(['private']), 'private.csv')
+      form.append('field', 'original')
+      const xhr = new XHR()
+      const loaded = new Promise((resolve) =>
+        xhr.addEventListener('load', resolve)
+      )
+      xhr.open(
+        'POST',
+        '/site/SASStoredProcess/do?access_token=first&access_token=last'
+      )
+      xhr.setRequestHeader('Authorization', 'Bearer secret')
+      xhr.send(form)
+      form.set('field', 'changed')
+      expect(read).not.toHaveBeenCalled()
+      const [target, init] = grantImpl.mock.calls[0] as any
+      expect(target).toBe(
+        'https://app.example/site/SASjsApi/info/myAuthorizedRoutes?access_token=first&access_token=last'
+      )
+      expect(init.method).toBe('GET')
+      expect(init.credentials).toBe('same-origin')
+      expect(init.mode).toBe('same-origin')
+      expect(init.headers.authorization).toBe('Bearer secret')
+      resolveGrant(
+        jsonResponse(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }))
+      )
+      await loaded
+      expect(read).toHaveBeenCalledTimes(1)
+      const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
+      expect(payload.params.field).toBe('original')
+      expect(payload.tables[0].csv).toBe('private')
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it('does not read SAS9 files after aborting a pending grant check', async () => {
+    let resolveGrant: (value: Response) => void = () => {}
+    const grantImpl = jest.fn(
+      () => new Promise<Response>((resolve) => (resolveGrant = resolve))
+    )
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    try {
+      const { XHR } = loadBridge(fetchImpl, '/', true, grantImpl)
+      const form = new FormData()
+      form.append('file', new Blob(['private']), 'private.csv')
+      const xhr = new XHR()
+      xhr.open('POST', '/SASStoredProcess/do')
+      xhr.send(form)
+      const signal = (grantImpl.mock.calls[0] as any)[1].signal
+      xhr.abort()
+      expect(signal.aborted).toBe(true)
+      resolveGrant(
+        jsonResponse(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }))
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(read).not.toHaveBeenCalled()
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it('does not read SAS9 files when reopened during the grant check', async () => {
+    let resolveGrant: (value: Response) => void = () => {}
+    const grantImpl = jest.fn(
+      () => new Promise<Response>((resolve) => (resolveGrant = resolve))
+    )
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    try {
+      const { XHR } = loadBridge(fetchImpl, '/', true, grantImpl)
+      const form = new FormData()
+      form.append('file', new Blob(['private']), 'private.csv')
+      const xhr = new XHR()
+      xhr.open('POST', '/SASStoredProcess/do')
+      xhr.send(form)
+      const signal = (grantImpl.mock.calls[0] as any)[1].signal
+      xhr.open('POST', 'https://evil.example/SASStoredProcess/do')
+      expect(signal.aborted).toBe(true)
+      resolveGrant(
+        jsonResponse(JSON.stringify({ paths: ['/SASjsApi/stp/execute'] }))
+      )
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(read).not.toHaveBeenCalled()
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it.each([
+    ['invalid token', 401, '{"message":"Unauthorized"}', 401],
+    ['malformed grant', 200, '{"unexpected":true}', 500],
+    ['upstream failure', 503, '{"message":"unavailable"}', 503]
+  ])(
+    'fails closed for %s before reading a SAS9 file',
+    async (_name, status, body, expected) => {
+      const grantImpl = jest.fn(async () => jsonResponse(body, status))
+      const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+      const errors = jest.spyOn(console, 'error').mockImplementation()
+      const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+      try {
+        const { XHR } = loadBridge(fetchImpl, '/', true, grantImpl)
+        const form = new FormData()
+        form.append('file', new Blob(['private']), 'private.csv')
+        const xhr = new XHR()
+        await run(xhr, 'POST', '/SASStoredProcess/do', form)
+        expect(xhr.status).toBe(expected)
+        expect(read).not.toHaveBeenCalled()
+        expect(fetchImpl).not.toHaveBeenCalled()
+      } finally {
+        errors.mockRestore()
+        read.mockRestore()
+      }
+    }
+  )
+
+  it('preserves SAS9 authorization and rejects late headers', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const xhr = new XHR()
+    const loaded = new Promise((resolve) =>
+      xhr.addEventListener('load', resolve)
+    )
+    xhr.open('POST', '/SASStoredProcess/do')
+    xhr.setRequestHeader('Authorization', 'Bearer secret')
+    xhr.setRequestHeader('X-Unrelated', 'do not forward')
+    xhr.send(new FormData())
+    expect(() => xhr.setRequestHeader('Authorization', 'late')).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+    await loaded
+    expect((fetchImpl.mock.calls[0] as any)[1].headers).toEqual({
+      accept: '*/*',
+      authorization: 'Bearer secret',
+      'content-type': 'application/json'
+    })
+  })
+
+  it('does not forward a SAS9 token when reopened while a file is being read', async () => {
+    let finishRead: (value: ArrayBuffer) => void = () => {}
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRead = resolve
+        })
+    )
+    try {
+      const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+      const { XHR } = loadBridge(fetchImpl)
+      const form = new FormData()
+      form.append('file', new Blob(['private']), 'input.csv')
+      const xhr = new XHR()
+      xhr.open('POST', '/SASStoredProcess/do')
+      xhr.setRequestHeader('Authorization', 'Bearer secret')
+      xhr.send(form)
+      xhr.open('POST', 'https://evil.example/SASStoredProcess/do')
+      finishRead(new TextEncoder().encode('private').buffer)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      read.mockRestore()
+    }
+  })
+
+  it('snapshots SAS9 table chunks and declarations before file reads', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append('file', new Blob(['file']), 'input.csv')
+    form.append('sasjs1data', 'first')
+    form.append('sasjs1data', 'second')
+    form.append('sasjs_tables', 'input')
+    const xhr = new XHR()
+    const loaded = new Promise((resolve) =>
+      xhr.addEventListener('load', resolve)
+    )
+    xhr.open('POST', '/SASStoredProcess/do')
+    xhr.send(form)
+    form.set('sasjs1data', 'changed')
+    form.set('sasjs_tables', '')
+    await loaded
+    expect(JSON.parse((fetchImpl.mock.calls[0] as any)[1].body).params).toEqual(
+      {
+        sasjs1data: 'firstsecond',
+        sasjs_tables: 'input'
+      }
+    )
+  })
+
+  it('rejects a second SAS9 send even if the replacement body is not multipart', () => {
+    const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
+    const xhr = new XHR()
+    xhr.open('POST', '/SASStoredProcess/do')
+    xhr.send(new FormData())
+    expect(() => xhr.send('plain body')).toThrow(
+      expect.objectContaining({ name: 'InvalidStateError' })
+    )
+  })
+
+  it('bridges a SAS9 multipart execution with fields and CSV files', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"ok":true}'))
+    const { XHR } = loadBridge(fetchImpl, '/site/')
+    const form = new FormData()
+    form.append('_debug', '131')
+    form.append('input', new Blob(['name:$char5.\nAlice']), 'input.csv')
+    const xhr = new XHR()
+    const url = '/site/SASStoredProcess/do/?_program=%2FPublic%2Ftest'
+    const loaded = new Promise((resolve) =>
+      xhr.addEventListener('load', resolve)
+    )
+    xhr.open('POST', url)
+    xhr.send(form)
+
+    expect(xhr.nativeSendCount).toBe(0)
+    await loaded
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [target, init] = fetchImpl.mock.calls[0] as any
+    expect(target).toBe(`https://app.example${url}`)
+    expect(JSON.parse(init.body)).toEqual({
+      params: { _debug: '131' },
+      tables: [
+        { name: 'input', filename: 'input.csv', csv: 'name:$char5.\nAlice' }
+      ]
+    })
+    expect(xhr.status).toBe(200)
+    expect(xhr.responseText).toBe('{"ok":true}')
+  })
+
+  it('refuses an oversized SAS9 upload before reading any files', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"ok":true}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append('first', new Blob(['small']), 'small.csv')
+    form.append(
+      'large',
+      new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]),
+      'large.csv'
+    )
+    const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+    const xhr = new XHR()
+    const events: string[] = []
+    for (const event of ['readystatechange', 'load', 'loadend'])
+      xhr.addEventListener(event, () => events.push(event))
+
+    await run(xhr, 'POST', '/SASStoredProcess/do?_program=x', form)
+
+    expect(xhr.status).toBe(413)
+    expect(xhr.readyState).toBe(4)
+    expect(xhr.getResponseHeader('content-type')).toBe('application/json')
+    expect(JSON.parse(xhr.responseText)).toEqual({
+      message: 'The upload is larger than the browser host allows (10 MB).'
+    })
+    expect(events).toEqual([
+      'readystatechange',
+      'readystatechange',
+      'load',
+      'loadend'
+    ])
+    expect(read).not.toHaveBeenCalled()
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(xhr.nativeSendCount).toBe(0)
+  })
+
+  it.each(['blob', 'arraybuffer'])(
+    'returns the SAS9 413 body as %s',
+    async (type) => {
+      const fetchImpl = jest.fn()
+      const { XHR } = loadBridge(fetchImpl)
+      const form = new FormData()
+      form.append(
+        'large',
+        new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]),
+        'large.csv'
+      )
+      const xhr = new XHR()
+      xhr.responseType = type
+
+      await run(xhr, 'POST', '/SASStoredProcess/do', form)
+
+      expect(xhr.status).toBe(413)
+      const bytes =
+        type === 'blob'
+          ? new Uint8Array(await xhr.response.arrayBuffer())
+          : new Uint8Array(xhr.response)
+      expect(JSON.parse(new TextDecoder().decode(bytes))).toEqual({
+        message: 'The upload is larger than the browser host allows (10 MB).'
+      })
+      expect(xhr.responseText).toBe('')
+      expect(fetchImpl).not.toHaveBeenCalled()
+    }
+  )
+
+  it('accepts each SAS9 file up to the 10 MiB per-file boundary', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"ok":true}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append(
+      'atLimit',
+      new Blob(['x'.repeat(10 * 1024 * 1024)]),
+      'limit.csv'
+    )
+    form.append('second', new Blob(['extra']), 'second.csv')
+    const xhr = new XHR()
+
+    await run(xhr, 'POST', '/SASStoredProcess/do', form)
+
+    expect(xhr.status).toBe(200)
+    const [, init] = fetchImpl.mock.calls[0] as any
+    const payload = JSON.parse(init.body)
+    expect(payload.tables.map((table: any) => table.csv.length)).toEqual([
+      10 * 1024 * 1024,
+      5
+    ])
+  })
+
+  it('returns a parsed JSON SAS9 upload refusal', async () => {
+    const fetchImpl = jest.fn()
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append(
+      'large',
+      new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]),
+      'large.csv'
+    )
+    const xhr = new XHR()
+    xhr.responseType = 'json'
+
+    await run(xhr, 'POST', '/SASStoredProcess/do', form)
+
+    expect(xhr.status).toBe(413)
+    expect(xhr.response).toEqual({
+      message: 'The upload is larger than the browser host allows (10 MB).'
+    })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('keeps similarly named or out-of-scope API requests native', () => {
+    const fetchImpl = jest.fn()
+    const { XHR } = loadBridge(fetchImpl, '/site/')
+    for (const url of [
+      'https://other.test/site/SASjsApi/info',
+      '/other/SASjsApi/info',
+      '/site/other/api/info',
+      '/site2/api/info',
+      '/site/health?next=/api/info',
+      'https://other.test/site/SASStoredProcess/do',
+      '/site2/SASStoredProcess/do',
+      '/site/SASStoredProcess/double',
+      '/site/SASStoredProcess/do/extra',
+      'https://other.test/site/sasstoredprocess/do',
+      '/SITE/sasstoredprocess/do',
+      '/site2/sasstoredprocess/do',
+      '/site/sasstoredprocess/double',
+      '/site/sasstoredprocess/do/extra'
+    ]) {
+      const xhr = new XHR()
+      xhr.open('POST', url)
+      xhr.send(new FormData())
+      expect({ url, native: xhr.nativeSendCount }).toEqual({ url, native: 1 })
+    }
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('leaves non-multipart SAS9 and authentication requests native', () => {
+    const fetchImpl = jest.fn()
+    const { XHR } = loadBridge(fetchImpl)
+    for (const [method, url, body] of [
+      ['GET', '/SASStoredProcess/do?_action=properties', undefined],
+      ['POST', '/SASStoredProcess/do', 'plain body'],
+      ['POST', '/SASLogon/login', new FormData()]
+    ]) {
+      const xhr = new XHR()
+      xhr.open(method as string, url as string)
+      xhr.send(body)
+      expect(xhr.nativeSendCount).toBe(1)
+      expect(xhr.sentWith).toBe(body)
+    }
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('bridges root-relative and absolute same-origin SAS9 endpoints', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('ok'))
+    const { XHR } = loadBridge(fetchImpl)
+    for (const url of [
+      '/SASStoredProcess/do?_program=x',
+      'https://app.example/SASStoredProcess/do/?_program=x',
+      'SASStoredProcess/do?_program=x'
+    ]) {
+      const xhr = new XHR()
+      await run(xhr, 'post', url, new FormData())
+      expect(xhr.nativeSendCount).toBe(0)
+      expect(xhr.responseText).toBe('ok')
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(3)
+  })
+
   it('bridges the short API spelling as well as the canonical one', async () => {
     // `/api` is the default spelling now: a caller that uses it has to be
     // bridged, or its answers would come from the static host instead of the
@@ -489,6 +1017,47 @@ describe('page-side bridge', () => {
     expect(payload.tables).toEqual([
       { name: 'file', filename: 'file.txt', csv: 'file' }
     ])
+  })
+
+  it('preserves adapter parameter-table chunks sent through a bridged XHR', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{"ok":true}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    const data = {
+      small: [{ TEXT: 'short' }],
+      long: [{ TEXT: 'a'.repeat(15980) + ',"Zoë\r\n' + 'b'.repeat(15000) }],
+      last: [{ TEXT: 'end' }]
+    }
+    // WebJobExecutor's parameter transport appends long chunks first, then
+    // sasjs_tables and short CSVs. A Viya endpoint can be configured under /api.
+    const { requestParams } =
+      require('@sasjs/adapter/file/generateTableUploadForm').generateTableUploadForm(
+        form,
+        data
+      )
+    const chunks = form.getAll('sasjs2data')
+    expect(chunks.length).toBeGreaterThan(1)
+    for (const [name, value] of Object.entries(requestParams))
+      form.append(name, String(value))
+    form.append('ordinary', 'first')
+    form.append('ordinary', 'second')
+    form.append('sasjs4data', 'first')
+    form.append('sasjs4data', 'second')
+    form.append('file', new Blob(['file contents']), 'test.csv')
+
+    const xhr = new XHR()
+    await run(xhr, 'POST', '/api/stp/execute/?_program=x', form)
+
+    const [, init] = fetchImpl.mock.calls[0] as any
+    expect(JSON.parse(init.body)).toEqual({
+      params: {
+        ...requestParams,
+        sasjs2data: chunks.join(''),
+        ordinary: 'second',
+        sasjs4data: 'second'
+      },
+      tables: [{ name: 'file', filename: 'test.csv', csv: 'file contents' }]
+    })
   })
 
   it('carries a binary file as base64 rather than as damaged text', async () => {

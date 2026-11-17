@@ -1241,6 +1241,123 @@ const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8\n'
  */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
+/**
+ * Browser-only JS API: webout('FETCH') returns an object keyed by the exact
+ * multipart field names or the table names in sasjs_tables; each value is an
+ * array of row objects keyed by the exact column names in the adapter CSV
+ * header. Character cells remain strings;
+ * numeric cells become numbers, ordinary missing values become null, and SAS
+ * special missings remain strings (e.g. '.a'). Repeated calls re-read the
+ * original inputs; they do not alter _WEBIN_* or create global table variables.
+ *
+ * Supports adapter $charN., $N., best. and N. informats, quoted commas,
+ * doubled quotes and embedded newlines. Other informats are refused rather than
+ * silently interpreted incorrectly. Adapter CSV joins rows with CRLF without a
+ * terminal record separator: an empty body or a trailing CRLF therefore encodes
+ * a final one-column empty row, not zero rows or a terminated previous row.
+ * Other CSV producers' trailing record terminators are indistinguishable.
+ * This API is browser-host-specific; @sasjs/utils 4.11.0 has no FETCH action.
+ */
+const fetchUploadedTables = (tables, params) => {
+  const names = String(params.sasjs_tables || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const parameterTables = names.map((name, index) => {
+    const key = `sasjs${index + 1}data`
+    if (Object.prototype.hasOwnProperty.call(params, key))
+      return { name, csv: params[key] }
+    const count = Number(params[key + '0'])
+    if (!Number.isSafeInteger(count) || count < 1)
+      throw new Error(
+        `webout('FETCH'): missing or invalid chunk count for ${name}`
+      )
+    const chunks = []
+    for (let i = 1; i <= count; i++) {
+      if (!Object.prototype.hasOwnProperty.call(params, key + i))
+        throw new Error(`webout('FETCH'): missing chunk ${i} for ${name}`)
+      chunks.push(String(params[key + i]))
+    }
+    return { name, csv: chunks.join('') }
+  })
+  const result = Object.create(null)
+  for (const table of [...tables, ...parameterTables]) {
+    const text = String(table.csv)
+    const end = text.search(/[\r\n]/)
+    const header = end < 0 ? text : text.slice(0, end)
+    const columns = header
+      .trim()
+      .split(/\s+/)
+      .map((item) => {
+        const match = /^([^:]+):([^\s]+)$/.exec(item)
+        if (!match) throw new Error(`webout('FETCH'): invalid header ${item}`)
+        if (!/^(?:\$(?:char)?\d+\.|best\.|\d+\.)$/i.test(match[2]))
+          throw new Error(`webout('FETCH'): unsupported informat ${match[2]}`)
+        return { name: match[1], character: match[2].startsWith('$') }
+      })
+    const rows = []
+    let row = []
+    let value = ''
+    let quoted = false
+    let started = false
+    const record = () => {
+      row.push(value)
+      if (row.length !== columns.length)
+        throw new Error(`webout('FETCH'): wrong column count in ${table.name}`)
+      const obj = Object.create(null)
+      columns.forEach((column, i) => {
+        const cell = row[i]
+        if (column.character) obj[column.name] = cell
+        else if (cell.trim() === '' || cell.trim() === '.')
+          obj[column.name] = null
+        else if (/^\.[a-z_]$/i.test(cell.trim())) obj[column.name] = cell.trim()
+        else if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(cell.trim()))
+          obj[column.name] = Number(cell.trim())
+        else
+          throw new Error(
+            `webout('FETCH'): unsupported numeric value in ${table.name}.${column.name}`
+          )
+      })
+      rows.push(obj)
+      row = []
+      value = ''
+      started = false
+    }
+    const body =
+      end < 0
+        ? ''
+        : text.slice(end + (text.slice(end, end + 2) === '\r\n' ? 2 : 1))
+    for (let i = 0; i < body.length; i++) {
+      const char = body[i]
+      if (quoted) {
+        if (char === '"' && body[i + 1] === '"') {
+          value += '"'
+          i++
+        } else if (char === '"') quoted = false
+        else value += char
+      } else if (char === '"' && value === '') {
+        quoted = true
+        started = true
+      } else if (char === ',') {
+        row.push(value)
+        value = ''
+        started = true
+      } else if (char === '\r' || char === '\n') {
+        if (char === '\r' && body[i + 1] === '\n') i++
+        record()
+      } else {
+        value += char
+        started = true
+      }
+    }
+    if (quoted)
+      throw new Error(`webout('FETCH'): unterminated quote in ${table.name}`)
+    if (started || row.length || end >= 0) record()
+    result[table.name] = rows
+  }
+  return result
+}
+
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
@@ -1318,6 +1435,14 @@ ${varStatements}
 ${webinStatements.join('\n')}
 ${preProgram}
 ${weboutPrelude}
+${
+  weboutPrelude
+    ? `globalThis.webout = (action, ...args) =>
+  String(action == null ? '' : action).toUpperCase() === 'FETCH'
+    ? __sasjsFetchTables()
+    : _sasjs_webout(action, ...args);`
+    : ''
+}
 ${payloadCode || FILES.get(codePath)}
 ${
   weboutPrelude
@@ -1333,7 +1458,14 @@ return _webout;
     // the construction sits inside the try: a service that declares a name the
     // prelude already binds (`const Buffer = ...`) makes new Function throw a
     // SyntaxError, which belongs in the run's error, not outside it
-    const fn = new Function('require', 'console', 'process', 'Buffer', source)
+    const fn = new Function(
+      'require',
+      'console',
+      'process',
+      'Buffer',
+      '__sasjsFetchTables',
+      source
+    )
     returned = fn(
       requireShim,
       sandboxConsole,
@@ -1341,7 +1473,8 @@ return _webout;
         pid: 4242,
         env: { NODE_ENV: 'browser' }
       },
-      BUFFERS
+      BUFFERS,
+      () => fetchUploadedTables(tables, params)
     )
   } catch (e) {
     // The stack alone is not an error message: WebKit's carries frames only, so

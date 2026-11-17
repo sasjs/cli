@@ -214,6 +214,7 @@ const bootIdentity = async (data) => {
 }
 
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
+const SAS9_FRAME = Symbol('sas9-frame')
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) =>
@@ -335,8 +336,14 @@ const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
  * artefact: one place decides what a service declared, and the transport reads
  * it.
  */
-const artifactOf = (result, debug) => {
+const artifactOf = (result, debug, sas9 = false) => {
   if (debug) {
+    if (sas9)
+      return {
+        contents: `${result.log || ''}\n>>weboutBEGIN<<${result.webout || ''}>>weboutEND<<\n${result.print || ''}`,
+        headers: { 'content-type': 'text/plain' },
+        log: result.log
+      }
     // webout SEP log SEP [listing] - the framing @sasjs/adapter and the Studio's
     // parser both split on, so a recorded session reads the same as a real one.
     const framed = [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR]
@@ -763,6 +770,8 @@ class BrowserRuntime extends API.MemorySessionHost {
   async run(request) {
     const program = request.program || {}
     const params = Object.assign({}, request.vars || {})
+    const sas9 = Boolean(params[SAS9_FRAME])
+    delete params[SAS9_FRAME]
 
     const resolved =
       program.code === undefined ? R.resolveProgram(program.path) : undefined
@@ -799,7 +808,7 @@ class BrowserRuntime extends API.MemorySessionHost {
       const result = R.run(payload)
       if (result.error) throw runFailure(result.error)
 
-      artifact = artifactOf(result, params._debug !== undefined)
+      artifact = artifactOf(result, params._debug !== undefined, sas9)
     }
     const session = request.session
     if (session) {
@@ -1406,7 +1415,7 @@ const payloadTooLarge = (limit) => {
  * that posts JSON directly (a `fetch` from the console, a test) sends its fields
  * flat, so both shapes are read.
  */
-const readJsonBody = async (request) => {
+const readJsonBody = async (request, allowLargeFile = false) => {
   const body = await readJson(request)
 
   // The bridge forwards a JSON body as `json` - a request the page made with
@@ -1429,6 +1438,25 @@ const readJsonBody = async (request) => {
     body.params &&
     typeof body.params === 'object'
   ) {
+    if (!allowLargeFile) {
+      for (const table of body.tables) {
+        const contents = String(table.csv === undefined ? '' : table.csv)
+        let size
+        if (table.binary) {
+          const encoded = contents.replace(/\s+/g, '')
+          const padding = (encoded.match(/=+$/) || [''])[0].length
+          size = Math.floor((encoded.length * 3) / 4) - padding
+        } else {
+          // UTF-8 is at least one byte per UTF-16 code unit. Avoid allocating
+          // an encoded copy when the string alone already exceeds the cap.
+          size =
+            contents.length > R.MAX_UPLOAD_BYTES
+              ? contents.length
+              : bytesOf(contents)
+        }
+        if (size > R.MAX_UPLOAD_BYTES) throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
+      }
+    }
     return {
       body: body.params,
       files: body.tables.map((table, index) => ({
@@ -1460,12 +1488,29 @@ const readPayload = async (request, allowLargeFile = false) => {
   const parsed = { body: {}, files: [] }
   if (request.method === 'GET' || request.method === 'HEAD') return parsed
   const type = request.headers.get('content-type') || ''
-  if (!type.includes('multipart/form-data')) return await readJsonBody(request)
+  if (!type.includes('multipart/form-data'))
+    return await readJsonBody(request, allowLargeFile)
   const form = await request.formData().catch(() => null)
   if (!form) return parsed
+  // Only declared parameter tables use repeated fields as ordered CSV chunks.
+  const tableNames = String(form.getAll('sasjs_tables').at(-1) || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const tableFields = new Set(
+    tableNames.map((_name, index) => `sasjs${index + 1}data`)
+  )
   for (const [name, value] of form.entries()) {
     if (typeof value === 'string') {
-      parsed.body[name] = value
+      // The web adapter appends long CSV chunks under the same field name.
+      // FormData preserves their order; ordinary repeated fields retain the
+      // existing last-value-wins behaviour.
+      if (
+        tableFields.has(name) &&
+        Object.prototype.hasOwnProperty.call(parsed.body, name)
+      )
+        parsed.body[name] += value
+      else parsed.body[name] = value
       continue
     }
     // refused from the File's size, before the body is read: a worker holds the
@@ -1683,7 +1728,7 @@ const subjectOf = async (request, query, publicPath) => {
  * times are offered - is still the package's decision; who may run it is not,
  * because it is asked here before this is reached (see `GRANTED_RUN_ROUTES`).
  */
-const runRoute = async (routeId, payload, subject) => {
+const runRoute = async (routeId, payload, subject, sas9 = false) => {
   // A program may read any file it likes - the drive is its filesystem - so
   // every piece of a sharded drive is fetched here rather than guessed from the
   // request. That is deliberately the whole drive and not just the app being
@@ -1692,6 +1737,15 @@ const runRoute = async (routeId, payload, subject) => {
   // time anything runs on a cold visit. A page that only lists apps never pays
   // it; the saving this change is for is on that page.
   await R.ensureAll()
+
+  if (
+    sas9 &&
+    isSasRun(false, undefined, payload.query._program || payload.body._program)
+  )
+    throw new API.ApiError(
+      501,
+      'SAS execution is unavailable in the browser mock.'
+    )
 
   const query = payload.query
   const body = payload.body
@@ -1704,6 +1758,7 @@ const runRoute = async (routeId, payload, subject) => {
     routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')
   const trigger = routeId.endsWith('/trigger')
   const vars = Object.assign({}, query, body)
+  if (sas9) vars[SAS9_FRAME] = true
 
   const runRequest = {
     source: code ? 'code' : 'program',
@@ -1854,11 +1909,14 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   if (webTier && namedFile && namedProgram)
     return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
-  const apiPath = askedForFile
-    ? '/SASjsApi/drive/file'
-    : askedForProgram && /^\/StoredProgram$/i.test(path)
-      ? '/SASjsApi/stp/execute'
-      : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
+  const sas9Run = /^\/SASStoredProcess\/do$/i.test(path)
+  const apiPath = sas9Run
+    ? '/SASjsApi/stp/execute'
+    : askedForFile
+      ? '/SASjsApi/drive/file'
+      : askedForProgram && /^\/StoredProgram$/i.test(path)
+        ? '/SASjsApi/stp/execute'
+        : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
   const query = {}
   for (const [k, v] of url.searchParams.entries()) query[k] = v
 
@@ -1922,6 +1980,21 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       )
     }
 
+    if (/^\/SASStoredProcess$/i.test(path) && request.method === 'GET') {
+      const subject = await subjectOf(request, query)
+      const user =
+        subject &&
+        IDENTITY_STATE.store
+          .snapshot()
+          .users.find((candidate) => candidate.uid === subject.userId)
+      if (!user) throw new API.ApiError(401, 'Unauthorized')
+      // The adapter extracts a title from this probe. JSON encoding prevents a
+      // fixture's display name from becoming executable HTML.
+      return text(
+        `SAS Stored Process\n${JSON.stringify({ title: `Log Off ${user.displayName}` })}`
+      )
+    }
+
     // The package's own matcher, so a route is recognised however its path is
     // cased and its parameters are read the way the document states them.
     const matched = API.findRoute(request.method, apiPath)
@@ -1954,22 +2027,43 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
           : publicGrantOn(uploadPath)
       if (!allowed) throw new API.ApiError(401, 'Unauthorized')
     }
+    // The SAS9 alias has the same grant as the canonical run route, but must
+    // refuse a denied multipart request before parsing or reading its files.
+    if (sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
+      const granted = await RECORDS.myAuthorizedRoutes(subject)
+      if (!granted.paths.includes(routePath))
+        throw new API.ApiError(401, 'Unauthorized')
+    }
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
+
+    // SAS parameter names are case-insensitive. Canonicalise only the two
+    // transport controls; application parameter names are left untouched.
+    if (sas9Run) {
+      for (const fields of [query, payload.body]) {
+        for (const key of Object.keys(fields)) {
+          const name = key.toLowerCase()
+          if (name === '_program' || name === '_debug') {
+            fields[name] = fields[key]
+            if (name !== key) delete fields[key]
+          }
+        }
+      }
+    }
 
     if (RUN_ROUTES.has(routeId)) {
       // The rule this host would apply, asked of the package: the run routes are
       // answered here rather than by `dispatch`, so the question is asked here.
       // It is the same answer `/info/myAuthorizedRoutes` gives the interface -
       // one decision, so a menu entry and the call behind it cannot disagree.
-      if (GRANTED_RUN_ROUTES.has(routeId)) {
+      if (!sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
         const routePath = routeId.slice(routeId.indexOf(' ') + 1)
         const granted = await RECORDS.myAuthorizedRoutes(subject)
         if (!granted.paths.includes(routePath))
           throw new API.ApiError(401, 'Unauthorized')
       }
 
-      return await runRoute(routeId, payload, subject)
+      return await runRoute(routeId, payload, subject, sas9Run)
     }
 
     const apiRequest = {
@@ -2135,7 +2229,7 @@ self.addEventListener('fetch', (event) => {
   if (/^\/api\/?$/i.test(path)) return
 
   if (
-    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram)(\/|$)/i.test(
+    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i.test(
       path
     )
   )

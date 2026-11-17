@@ -564,6 +564,226 @@ webout('CLOSE')`
     )
   })
 
+  it('fetches all uploaded adapter tables without changing their contents', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const convertToCSV =
+      require('@sasjs/adapter/utils/convertToCsv').convertToCSV
+    const data = {
+      people: [
+        { NAME: ' Ann', NOTE: 'quote " and, comma\nnext', COUNT: 3 },
+        { NAME: 'Zoë', NOTE: '', COUNT: null }
+      ],
+      settings: [{ KEY: 'theme', VALUE: 'dark' }]
+    }
+    const tables = Object.keys(data).map((name) => ({
+      name,
+      filename: `${name}.csv`,
+      csv: convertToCSV(data, name)
+    }))
+    const source = `
+const inputs = webout('FETCH')
+webout('OPEN')
+webout('OBJ', 'people', inputs.people)
+webout('OBJ', 'settings', inputs.settings)
+webout('OBJ', 'raw', [{ first: _WEBIN_FILEREF1, second: _WEBIN_FILEREF2 }])
+webout('CLOSE')`
+    // Both adapter server types use generateFileUploadForm for table uploads.
+    const result = runtime.run({
+      code: source,
+      params: { _program: '/svc' },
+      tables
+    })
+    expect(result.error).toBeNull()
+    const output = JSON.parse(result.webout)
+    expect(output.people).toEqual(data.people)
+    expect(output.settings).toEqual(data.settings)
+    expect(output.raw).toEqual([
+      { first: tables[0].csv, second: tables[1].csv }
+    ])
+  })
+
+  it('fetches adapter parameter tables without changing the parameter variables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      people: [
+        { NAME: 'Zoë, "Z"', COUNT: 3 },
+        { NAME: 'Ann', COUNT: null }
+      ],
+      settings: [{ KEY: 'theme', VALUE: 'dark' }]
+    }
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    const result = runtime.run({
+      params,
+      code: `
+const first = webout('FETCH')
+first.people[0].NAME = 'changed'
+const again = webout('FETCH')
+_webout = JSON.stringify({ again, sasjs_tables, sasjs1data, count: _WEBIN_FILE_COUNT })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      again: data,
+      sasjs_tables: params.sasjs_tables,
+      sasjs1data: params.sasjs1data,
+      count: 0
+    })
+  })
+
+  it('fetches ordered chunks from adapter-formatted parameter tables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      short: [{ TEXT: 'before' }],
+      long: [{ TEXT: 'a'.repeat(15980) + ',"Zoë\n' + 'b'.repeat(16500) }],
+      last: [{ TEXT: 'after' }]
+    }
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    expect(params.sasjs2data0).toBeGreaterThan(1)
+    const result = runtime.run({
+      params,
+      code: "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual(data)
+  })
+
+  it('fetches small tables from the adapter web form alongside uploaded tables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = { small: [{ TEXT: 'web form', N: 7 }] }
+    const fields: Array<[string, string]> = []
+    const form = {
+      append: (name: string, value: string) => fields.push([name, value])
+    }
+    const { requestParams } =
+      require('@sasjs/adapter/file/generateTableUploadForm').generateTableUploadForm(
+        form,
+        data
+      )
+    expect(fields).toEqual([])
+    expect(requestParams.sasjs_tables).toBe('small')
+    const result = runtime.run({
+      params: requestParams,
+      tables: [
+        { name: 'upload', filename: 'upload.csv', csv: 'VALUE:best.\r\n42' }
+      ],
+      code: "_webout = JSON.stringify({ inputs: webout('FETCH'), count: _WEBIN_FILE_COUNT })"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      inputs: { small: data.small, upload: [{ VALUE: 42 }] },
+      count: 1
+    })
+  })
+
+  it('reports a missing parameter chunk instead of returning truncated data', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      params: {
+        sasjs_tables: 'partial',
+        sasjs1data0: '2',
+        sasjs1data1: 'X:$char10.\r\nabc'
+      },
+      code: "webout('FETCH')"
+    })
+    expect(result.error).toContain(
+      "webout('FETCH'): missing chunk 2 for partial"
+    )
+  })
+
+  it('permits a program to declare its own webout binding', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      code: "const webout = () => 'local'; _webout = webout()"
+    })
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('local')
+  })
+
+  it('preserves a trailing empty row in adapter-generated CSV', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = { input: [{ x: 'a' }, { x: '' }] }
+    const csv = require('@sasjs/adapter/utils/convertToCsv').convertToCSV(
+      data,
+      'input'
+    )
+    expect(csv).toBe('x:$char1.\r\na\r\n')
+    const result = runtime.run({
+      code: "_webout = JSON.stringify(webout('FETCH'))",
+      tables: [{ name: 'input', filename: 'input.csv', csv }]
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual(data)
+  })
+
+  it('round-trips adapter row separators, including consecutive empty rows', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      empty: [{ x: '' }],
+      many: [{ x: 'a' }, { x: '' }, { x: '' }],
+      leading: [{ x: '' }, { x: 'a' }],
+      embedded: [{ x: 'a\nb' }, { x: '' }],
+      multi: [
+        { x: 'a', y: '' },
+        { x: '', y: '' }
+      ]
+    }
+    const convertToCSV =
+      require('@sasjs/adapter/utils/convertToCsv').convertToCSV
+    expect(() => convertToCSV({ zero: [] }, 'zero')).toThrow()
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    const result = runtime.run({
+      code: "_webout = JSON.stringify(webout('FETCH'))",
+      params
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual(data)
+  })
+
+  it('fetches a single empty character value generated by the adapter', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const csv = require('@sasjs/adapter/utils/convertToCsv').convertToCSV(
+      { empty: [{ VALUE: '' }] },
+      'empty'
+    )
+    const result = runtime.run({
+      code: "webout('OPEN'); webout('OBJ', 'empty', webout('FETCH').empty); webout('CLOSE')",
+      tables: [{ name: 'empty', filename: 'empty.csv', csv }]
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout).empty).toEqual([{ VALUE: '' }])
+  })
+
+  it('refuses an informat it cannot decode instead of returning wrong values', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      code: "webout('FETCH')",
+      tables: [
+        { name: 'dates', filename: 'dates.csv', csv: 'DAY:date9.\r\n01JAN2024' }
+      ]
+    })
+    expect(result.error).toContain(
+      "webout('FETCH'): unsupported informat date9."
+    )
+  })
+
   it('restores a persisted drive with the host files, so webout() still runs', async () => {
     // A visitor who has opened the site before: the page hands this worker the
     // drive it persisted, so seed() never runs here. The webout() block and the

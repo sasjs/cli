@@ -56,17 +56,51 @@
     }
   }
 
-  const readBody = async (body) => {
+  // Match the worker's per-file multipart limit before the page materialises
+  // the SAS9 adapter's files into its JSON envelope.
+  const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+  const readBody = async (body, limitFiles, snapshot, isCurrent) => {
     const params = {}
     const tables = []
     if (!body) return { params, tables }
 
     if (typeof FormData !== 'undefined' && body instanceof FormData) {
-      // Native XHR snapshots the form when send() is called, not after a file
-      // read resolves: the form's iterator itself remains live across awaits.
-      for (const [key, value] of Array.from(body.entries())) {
-        if (typeof value === 'string') params[key] = value
-        else {
+      // Snapshot once before any asynchronous file read; use the same entries
+      // for size checks, table declarations and conversion.
+      const entries = snapshot || Array.from(body.entries())
+      if (limitFiles) {
+        for (const [, value] of entries) {
+          if (typeof value !== 'string' && value.size > MAX_UPLOAD_BYTES) {
+            const error = new Error(
+              'The upload is larger than the browser host allows (10 MB).'
+            )
+            error.status = 413
+            throw error
+          }
+        }
+      }
+      // Long adapter CSVs are appended in ordered chunks, before the declaration.
+      const declarations = entries.filter(([key]) => key === 'sasjs_tables')
+      const tableNames = String(
+        (declarations.length && declarations[declarations.length - 1][1]) || ''
+      )
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+      const tableFields = new Set(
+        tableNames.map((_name, index) => `sasjs${index + 1}data`)
+      )
+      for (const [key, value] of entries) {
+        if (isCurrent && !isCurrent()) return { params, tables }
+        if (typeof value === 'string') {
+          if (
+            tableFields.has(key) &&
+            Object.prototype.hasOwnProperty.call(params, key)
+          )
+            params[key] += value
+          else params[key] = value
+        } else {
           const contents = await contentsOf(value)
 
           tables.push({
@@ -161,20 +195,36 @@
     xhr.dispatchEvent(new ProgressEvent('loadend'))
   }
 
-  // `/api` is the short spelling of the API and `/SASjsApi` the canonical one:
-  // the build bridges both, so a caller that uses either reaches the mock.
-  const isSasjs = (url) => {
+  // The mock worker only owns routes below its own mount on this origin.
+  const scriptSrc = document.currentScript && document.currentScript.src
+  const mockBase = scriptSrc
+    ? new URL('../', scriptSrc)
+    : new URL('/', window.location.href)
+  const mockPath = (url) => {
     try {
-      const parsed = new URL(url, document.baseURI || window.location.href)
-      return (
-        parsed.origin === window.location.origin &&
-        (parsed.pathname.indexOf('/SASjsApi/') >= 0 ||
-          parsed.pathname.indexOf('/api/') >= 0)
+      if (!mockBase) return null
+      const target = new URL(url, window.location.href)
+      if (
+        target.origin !== window.location.origin ||
+        target.origin !== mockBase.origin ||
+        !target.pathname.startsWith(mockBase.pathname)
       )
-    } catch (error) {
-      return false
+        return null
+      return target.pathname.slice(mockBase.pathname.length)
+    } catch (e) {
+      return null
     }
   }
+  // `/api` is the short spelling of `/SASjsApi`.
+  const isSasjs = (url) => /^(SASjsApi|api)\//.test(mockPath(url) || '')
+
+  // SAS9's adapter posts multipart to the stored-process endpoint. Session and
+  // authentication requests on that endpoint should remain native XHRs.
+  const isSas9Multipart = (url, method, body) =>
+    (method || '').toUpperCase() === 'POST' &&
+    typeof FormData !== 'undefined' &&
+    body instanceof FormData &&
+    /^SASStoredProcess\/do\/?$/i.test(mockPath(url) || '')
 
   const proto = XMLHttpRequest.prototype
   const nativeOpen = proto.open
@@ -336,8 +386,8 @@
   // forwarding arbitrary or browser-forbidden headers is not safe either.
   proto.setRequestHeader = function (name, value) {
     if (
-      isSasjs(this.__sasjsMockUrl) &&
       this.__sasjsMockGeneration &&
+      this.__sasjsMockGeneration.bridged &&
       this.__sasjsMockGeneration.sent
     )
       throw new DOMException(
@@ -355,7 +405,16 @@
   }
 
   proto.send = function (body) {
-    if (!isSasjs(this.__sasjsMockUrl)) return nativeSend.apply(this, arguments)
+    if (this.__sasjsMockGeneration && this.__sasjsMockGeneration.bridged)
+      throw new DOMException(
+        'The object is in an invalid state.',
+        'InvalidStateError'
+      )
+    if (
+      !isSasjs(this.__sasjsMockUrl) &&
+      !isSas9Multipart(this.__sasjsMockUrl, this.__sasjsMockMethod, body)
+    )
+      return nativeSend.apply(this, arguments)
     if (
       this.readyState !== 1 ||
       !this.__sasjsMockGeneration ||
@@ -366,6 +425,7 @@
         'InvalidStateError'
       )
     this.__sasjsMockGeneration.sent = true
+    this.__sasjsMockGeneration.bridged = true
 
     const xhr = this
     const method = (this.__sasjsMockMethod || 'GET').toUpperCase()
@@ -374,29 +434,54 @@
     const generation = this.__sasjsMockGeneration
     generation.controller = new AbortController()
 
-    readBody(body)
-      .then(async (payload) => {
-        if (xhr.__sasjsMockGeneration !== generation) return
-        const init = {
-          method,
-          credentials: 'same-origin',
-          mode: 'same-origin',
-          signal: generation.controller.signal,
-          headers: { accept: '*/*' }
-        }
-        if (authorization !== undefined)
-          init.headers.authorization = authorization
-        if (method !== 'GET' && method !== 'HEAD') {
-          init.headers['content-type'] = 'application/json'
-          init.body = JSON.stringify(payload)
-        }
-        dbg(
-          method,
-          xhr.__sasjsMockUrl,
-          payload.tables.map((t) => t.name).join('|')
-        )
+    const sas9 = isSas9Multipart(url, method, body)
+    // Snapshot at send(), before the grant lookup can yield to application code.
+    const snapshot = sas9 ? Array.from(body.entries()) : undefined
+    const isCurrent = () => xhr.__sasjsMockGeneration === generation
 
-        const res = await fetch(url, init)
+    ;(async () => {
+      const init = {
+        method,
+        credentials: 'same-origin',
+        mode: 'same-origin',
+        signal: generation.controller.signal,
+        headers: { accept: '*/*' }
+      }
+      if (authorization !== undefined)
+        init.headers.authorization = authorization
+
+      if (sas9) {
+        // The same package decision the run route uses, asked before any file
+        // bytes are read. The eventual execution still performs its own check.
+        const authUrl = new URL('SASjsApi/info/myAuthorizedRoutes', mockBase)
+        const token = new URL(url).searchParams
+        for (const value of token.getAll('access_token'))
+          authUrl.searchParams.append('access_token', value)
+        const grant = await fetch(authUrl.href, { ...init, method: 'GET' })
+        if (!isCurrent()) return
+        if (grant.status !== 200) return grant
+        const result = await grant.json()
+        if (!isCurrent()) return
+        if (!result || !Array.isArray(result.paths))
+          throw new Error('Invalid authorization response')
+        if (!result.paths.includes('/SASjsApi/stp/execute'))
+          return new Response(JSON.stringify({ message: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'content-type': 'application/json' }
+          })
+      }
+
+      const payload = await readBody(body, sas9, snapshot, isCurrent)
+      if (!isCurrent()) return
+      if (method !== 'GET' && method !== 'HEAD') {
+        init.headers['content-type'] = 'application/json'
+        init.body = JSON.stringify(payload)
+      }
+      dbg(method, url, payload.tables.map((t) => t.name).join('|'))
+      return fetch(url, init)
+    })()
+      .then(async (res) => {
+        if (!isCurrent()) return
         const contentType = res.headers.get('content-type') || 'text/plain'
 
         // A caller that asked for bytes must be handed them as bytes: the same
@@ -437,6 +522,15 @@
       .catch((err) => {
         if (xhr.__sasjsMockGeneration !== generation) return
         const message = String((err && err.message) || err)
+        if (err && err.status === 413) {
+          const body = JSON.stringify({ message })
+          const bytes =
+            xhr.responseType === 'blob' || xhr.responseType === 'arraybuffer'
+              ? new TextEncoder().encode(body)
+              : undefined
+          respond(xhr, 413, 'application/json', body, bytes)
+          return
+        }
         console.error(
           '[sasjs-mock] request failed: ' + xhr.__sasjsMockUrl + ' - ' + message
         )
