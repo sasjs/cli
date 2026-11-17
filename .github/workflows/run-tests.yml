@@ -363,7 +363,7 @@ jobs:
         # The browser test builds a site from the current TypeScript builder and
         # installed API package before serving it; it never uses a stale dist.
         run: npm ci
-      - name: Run Chromium lifecycle and XHR regressions
+      - name: Run Chromium lifecycle, XHR and real-adapter regressions
         # Chrome on the hosted Ubuntu image is intentionally unpinned: this
         # checks compatibility with the platform's current browser as it changes,
         # accepting that runner updates can change the test without a commit.
@@ -377,6 +377,7 @@ jobs:
               node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs || exit $?
               npm run test:browser:xhr || exit $?
               node --test src/commands/build/internal/mockSite/spec/intercept.browser.cleanup.test.cjs || exit $?
+              SASJS_BROWSER_TESTS=1 npx jest --config=jest.config.js --runInBand --coverage=false --runTestsByPath src/commands/build/internal/mockSite/spec/sas9-adapter.browser.spec.js || exit $?
               exit 0
             fi
           done

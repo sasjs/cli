@@ -611,6 +611,29 @@ const parseAttributes = (source: string) => {
 const bootTag = (version: string, basePath = '') =>
   `<script src="${basePath}/host/boot.js?v=${version}"></script>`
 
+// Install before app scripts. The observer stamps the config at a microtask
+// checkpoint before async app tasks and subsequent parser-executed scripts.
+const MOUNT_CONFIG_SCRIPT = `(function () {
+  var base = new URL('../', document.currentScript.src)
+  function stamp() {
+    var config = document.querySelector('sasjs')
+    if (!config || !config.hasAttribute('serverurl')) return false
+    config.setAttribute('serverurl', base.origin + base.pathname.slice(0, -1))
+    return true
+  }
+  if (!stamp() && !window.__sasjsMountObserver) {
+    var observer = new MutationObserver(function () {
+      if (stamp()) observer.disconnect()
+    })
+    window.__sasjsMountObserver = observer
+    observer.observe(document, { childList: true, subtree: true })
+  }
+})()\n`
+const MOUNT_CONFIG_VERSION = createHash('md5')
+  .update(MOUNT_CONFIG_SCRIPT)
+  .digest('hex')
+  .slice(0, 10)
+
 /**
  * The folder the site is published under, with a leading slash and no trailing
  * one.
@@ -762,36 +785,70 @@ const patchIndexHtml = (
   html: string,
   version: string,
   basePath = '',
-  outputFolder = ''
+  outputFolder = '',
+  serverType?: string,
+  appLoc?: string
 ) => {
   const warnings: string[] = []
   let patched = html
 
   patched = markBrowserHost(patched, warnings)
 
-  if (/<sasjs[^>]*>/i.test(patched)) {
-    // the app talks to the origin root by default; on a site published under a
-    // folder it has to name that folder, or its API calls leave the worker's
-    // scope and meet the static host
-    patched = patched.replace(
-      /(<sasjs[^>]*?)\sserverurl="[^"]*"/i,
-      `$1 serverurl="${basePath}"`
-    )
-    patched = patched.replace(
-      /(<sasjs[^>]*?)\sloginmechanism="[^"]*"/i,
-      '$1 loginmechanism="Default"'
-    )
-  } else {
-    warnings.push(
-      'no <sasjs> element found - check the adapter configuration manually'
-    )
-  }
-
   // Parse for locations but edit the original markup: serialising a DOM changes
   // attributes and inline text. The original tags remain parser-inserted.
   const dom = new JSDOM(patched, { includeNodeLocations: true })
   const document = dom.window.document
   const edits: { start: number; end: number; text: string }[] = []
+  const config = document.querySelector('sasjs')
+  if (config) {
+    const location = dom.nodeLocation(config) as ElementLocation | null
+
+    const values: { [name: string]: string | undefined } = {
+      serverurl: basePath,
+      loginmechanism: 'Default',
+      servertype: serverType,
+      apploc: appLoc
+    }
+    const missing: string[] = []
+    for (const [name, value] of Object.entries(values)) {
+      const attr = location?.attrs?.[name]
+      if (value === undefined) continue
+      const escaped = value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      if (!attr) {
+        missing.push(name)
+        continue
+      }
+      edits.push({
+        start: attr.startOffset,
+        end: attr.endOffset,
+        text: `${name}="${escaped}"`
+      })
+    }
+    if (missing.length && location?.startTag) {
+      const start = location.startTag.startOffset
+      const tagName = /^<[^\s/>]+/.exec(patched.slice(start))
+      if (tagName) {
+        const at = start + tagName[0].length
+        const attrs = missing
+          .map((name) => {
+            const value = values[name]!.replace(/&/g, '&amp;').replace(
+              /"/g,
+              '&quot;'
+            )
+            return ` ${name}="${value}"`
+          })
+          .join('')
+        edits.push({ start: at, end: at, text: attrs })
+      }
+      warnings.push(
+        `<sasjs> was missing ${missing.join(', ')}; mock attributes were added, but an app that ignores them may use incompatible adapter defaults - check its configuration manually`
+      )
+    }
+  } else {
+    warnings.push(
+      'no <sasjs> element found - check the adapter configuration manually'
+    )
+  }
   const scripts = Array.from(document.querySelectorAll('script'))
   if (outputFolder) {
     for (const script of scripts) {
@@ -901,7 +958,11 @@ const patchIndexHtml = (
     htmlLocation?.endTag?.startOffset ??
     htmlLocation?.startTag?.endOffset ??
     patched.length
-  const boot = bootTag(version, basePath)
+  const boot =
+    bootTag(version, basePath) +
+    (basePath && config
+      ? `<script src="${basePath}/host/mount-config.js?v=${MOUNT_CONFIG_VERSION}"></script>`
+      : '')
   const explicitHead = !head?.startTag && !lastHeadNode && !scriptLocation
   edits.push({
     start: at,
@@ -1426,12 +1487,22 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   }
 
   // 4. point the app at itself
+  if (basePath)
+    fs.writeFileSync(
+      path.join(hostFolder, 'mount-config.js'),
+      MOUNT_CONFIG_SCRIPT
+    )
   const indexPath = path.join(outputFolder, 'index.html')
   const { patched, warnings } = patchIndexHtml(
     fs.readFileSync(indexPath, 'utf8'),
     hostVersion,
     basePath,
-    outputFolder
+    outputFolder,
+    // Only SAS9 needs the backend target stamped into the copied frontend.
+    // Other targets historically kept the frontend's adapter configuration;
+    // in particular a Viya deployment target often serves a SASJS mock app.
+    target.serverType === 'SAS9' ? target.serverType : undefined,
+    target.serverType === 'SAS9' ? appLoc : undefined
   )
   fs.writeFileSync(indexPath, patched)
   warnings.forEach((warning) => process.logger?.warn(warning))

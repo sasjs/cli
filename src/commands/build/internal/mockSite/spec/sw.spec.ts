@@ -63,7 +63,10 @@ const lintBundle = () => {
   return lintBundlePath
 }
 
-const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
+const loadWorker = (
+  base = '',
+  options: { prelude?: boolean; skipLint?: boolean } = {}
+) => {
   jest.resetModules()
   const handlers: { [type: string]: ((event: any) => any)[] } = {}
   let refusingWrites = false
@@ -100,6 +103,7 @@ const loadWorker = (base = '', options: { prelude?: boolean } = {}) => {
     if (path.includes('md5')) return
     if (path.includes('api-browser')) return require(apiBrowserBuild())
     if (path.includes('lint-browser')) {
+      if (options.skipLint) return
       // the bundle assigns globalThis.SASjsCode, and this harness keeps the
       // worker's `self` apart from the module global
       require(lintBundle())
@@ -450,6 +454,458 @@ describe('service worker host', () => {
       delete (global as any).XMLHttpRequest
       delete (global as any).ProgressEvent
     }
+  })
+
+  it('advertises the runtime upload limit on the grant response', async () => {
+    const worker = loadWorker('/demo', { skipLint: true })
+    worker.runtime.MAX_UPLOAD_BYTES = 12345
+    const response = await worker.dispatch(
+      '/demo/SASjsApi/info/myAuthorizedRoutes'
+    )
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-sasjs-mock-max-upload-bytes')).toBe('12345')
+  })
+
+  it('SAS9 runs an existing JS service under the site base', async () => {
+    const worker = loadWorker('/demo', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+    })
+    const response = await worker.dispatch(
+      '/demo/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/getdata`)
+    )
+    expect(response?.status).toBe(200)
+    expect(await response.text()).toBe('seeded')
+  })
+
+  it.each(['GET', 'POST'])(
+    'SAS9 %s execution obeys the canonical stored-process grant',
+    async (method) => {
+      const identity = {
+        ...DEFAULT_IDENTITY,
+        permissions: [
+          ...DEFAULT_IDENTITY.permissions,
+          {
+            uid: 'deny-sas9-execution',
+            path: '/SASjsApi/stp/execute',
+            type: 'Route',
+            setting: 'Deny',
+            user: 'user-restricted'
+          }
+        ]
+      }
+      const worker = loadWorker('/demo', { skipLint: true })
+      const boot = worker.message({
+        type: 'sasjs-seed',
+        identity,
+        subject: 'sasjsuser'
+      })
+      await boot.pending
+      expect(boot.replies[0].error).toBeUndefined()
+      worker.runtime.load({
+        [drivePath('services/public/security.js')]:
+          "fs.writeFileSync('/sasjs/drive/files/executed.txt', 'executed'); _webout = 'executed'"
+      })
+      const program = encodeURIComponent(`${appLoc}/services/public/security`)
+      const requestPath = `/demo/SASStoredProcess/do?_program=${program}`
+      const denied = await worker.dispatch(requestPath, { method })
+      expect(denied.status).toBe(401)
+      expect(await worker.runtime.driveStore.exists('/executed.txt')).toBe(
+        false
+      )
+
+      await worker.message({ type: 'sasjs-as', username: 'sasjsadmin' }).pending
+      const granted = await worker.dispatch(requestPath, { method })
+      expect(granted.status).toBe(200)
+      expect(await granted.text()).toBe('executed')
+      expect(await worker.runtime.driveStore.exists('/executed.txt')).toBe(true)
+    }
+  )
+
+  it('SAS9 rejects a denied multipart execution without parsing its body', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      permissions: [
+        ...DEFAULT_IDENTITY.permissions,
+        {
+          uid: 'deny-sas9-body',
+          path: '/SASjsApi/stp/execute',
+          type: 'Route',
+          setting: 'Deny',
+          user: 'user-restricted'
+        }
+      ]
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsuser'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+    worker.runtime.load({})
+    const form = new FormData()
+    form.set('_PROGRAM', `${appLoc}/services/public/getdata`)
+    form.set('file', new Blob(['data']), 'data.csv')
+    const parse = jest.spyOn(Request.prototype, 'formData')
+    try {
+      const response = await worker.dispatch('/SASStoredProcess/do', {
+        method: 'POST',
+        body: form
+      })
+      expect(response.status).toBe(401)
+      expect(parse).not.toHaveBeenCalled()
+    } finally {
+      parse.mockRestore()
+    }
+  })
+
+  it.each(['text', 'base64'])(
+    'rejects oversized %s bridge envelope files on SAS9',
+    async (encoding) => {
+      const worker = loadWorker('', { skipLint: true })
+      worker.runtime.load({
+        [drivePath('services/public/echo.js')]: '_webout = "executed";'
+      })
+      const bytes = worker.runtime.MAX_UPLOAD_BYTES + 1
+      const table =
+        encoding === 'text'
+          ? { csv: 'é'.repeat(Math.ceil(bytes / 2)) }
+          : { csv: Buffer.alloc(bytes, 255).toString('base64'), binary: true }
+      const response = await worker.dispatch(
+        '/SASStoredProcess/do',
+        runRequest({
+          params: { _PROGRAM: `${appLoc}/services/public/echo` },
+          tables: [{ name: 'file', filename: 'file.csv', ...table }]
+        })
+      )
+      expect(response.status).toBe(413)
+    }
+  )
+
+  it.each([
+    { subject: 'sasjsadmin', token: undefined },
+    { subject: 'sasjsuser', token: undefined },
+    { subject: null, token: undefined },
+    { subject: 'sasjsadmin', token: 'invalid' }
+  ])(
+    'SAS9 grant decisions match the canonical run route for $subject',
+    async ({ subject, token }) => {
+      const worker = loadWorker('', { skipLint: true })
+      const boot = worker.message({ type: 'sasjs-seed', subject })
+      await boot.pending
+      expect(boot.replies[0].error).toBeUndefined()
+      worker.runtime.load({
+        [drivePath('services/public/echo.js')]: '_webout = "executed";'
+      })
+      const program = encodeURIComponent(`${appLoc}/services/public/echo`)
+      const init = {
+        method: 'POST',
+        headers: token ? { authorization: `Bearer ${token}` } : {}
+      }
+      const canonical = await worker.dispatch(
+        `/SASjsApi/stp/execute?_program=${program}`,
+        init
+      )
+      const sas9 = await worker.dispatch(
+        `/SASStoredProcess/do?_program=${program}`,
+        init
+      )
+      expect(sas9.status).toBe(canonical.status)
+      expect(await sas9.text()).toBe(await canonical.text())
+    }
+  )
+
+  it('accepts bridge files at the byte limit independently', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/echo.js')]: '_webout = "executed";'
+    })
+    const limit = worker.runtime.MAX_UPLOAD_BYTES
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do',
+      runRequest({
+        params: { _PROGRAM: `${appLoc}/services/public/echo` },
+        tables: [
+          { name: 'text', csv: 'é'.repeat(limit / 2) },
+          {
+            name: 'binary',
+            csv: Buffer.alloc(limit, 255).toString('base64'),
+            binary: true
+          }
+        ]
+      })
+    )
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('executed')
+  })
+
+  it('keeps the deploy archive exception for bridge envelopes', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({})
+    const bytes = Buffer.alloc(worker.runtime.MAX_UPLOAD_BYTES + 1, 255)
+    const response = await worker.dispatch(
+      '/SASjsApi/drive/deploy/upload',
+      runRequest({
+        params: { appLoc },
+        tables: [
+          {
+            name: 'file',
+            filename: 'bad.zip',
+            csv: bytes.toString('base64'),
+            binary: true
+          }
+        ]
+      })
+    )
+    // Reached the ZIP parser, rather than the ordinary per-file 413 guard.
+    expect(response.status).toBe(400)
+    expect(await response.text()).toContain('not a zip file')
+  })
+
+  it('SAS9 reads bridge form fields case-insensitively and frames debug webout', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/echo.js')]:
+        'console.log("mock log"); _webout = JSON.stringify({name: _WEBIN_NAME1, csv: _WEBIN_FILEREF1});'
+    })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do',
+      runRequest({
+        params: { _PROGRAM: `${appLoc}/services/public/echo`, _DEBUG: '131' },
+        tables: [
+          { name: 'people', filename: 'people.csv', csv: 'a:$3.\r\nhey' }
+        ]
+      })
+    )
+    expect(response.status).toBe(200)
+    const body = await response.text()
+    expect(body).toContain('>>weboutBEGIN<<')
+    expect(body).toContain('>>weboutEND<<')
+    expect(
+      JSON.parse(body.split('>>weboutBEGIN<<')[1].split('>>weboutEND<<')[0])
+    ).toEqual({
+      name: 'people',
+      csv: 'a:$3.\r\nhey'
+    })
+    expect(body).toContain('mock log')
+    expect(body).not.toContain(LOGS_SEPARATOR)
+  })
+
+  it('SAS9 refuses a SAS-only program instead of inventing a session', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/report.sas')]: 'data x; run;'
+    })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/report`)
+    )
+    expect(response.status).toBeGreaterThanOrEqual(400)
+    expect(await response.text()).not.toContain('MOCKED')
+  })
+
+  it('SAS9 identity probe names the selected demo account and rejects bad credentials', async () => {
+    const worker = loadWorker('/demo', { skipLint: true })
+    worker.runtime.load({})
+    const initial = await worker.dispatch('/demo/SASStoredProcess')
+    expect(initial.status).toBe(200)
+    const probe = await initial.text()
+    expect(probe).toContain('Log Off Demo Admin')
+    const { RequestClient } = require('@sasjs/adapter/request/RequestClient')
+    const { AuthManager } = require('@sasjs/adapter/auth/AuthManager')
+    const client = new RequestClient('')
+    const parsed = client.parseResponse({
+      data: probe,
+      headers: {},
+      status: 200
+    })
+    const { ServerType } = require('@sasjs/utils/types')
+    const auth = new AuthManager(
+      '',
+      ServerType.Sas9,
+      { get: async () => parsed },
+      () => {}
+    )
+    expect(await auth.fetchUserName()).toEqual({
+      isLoggedIn: true,
+      userName: '',
+      userLongName: 'Demo Admin'
+    })
+    await worker.message({ type: 'sasjs-as', username: 'sasjsuser' }).pending
+    const selected = await worker.dispatch('/demo/SASStoredProcess')
+    expect(await selected.text()).toContain('Log Off Demo User')
+    const refused = await worker.dispatch('/demo/SASStoredProcess', {
+      headers: { authorization: 'Bearer invalid' }
+    })
+    expect(refused.status).toBe(401)
+  })
+
+  it('SAS9 executes multipart bodies and refuses missing services and invalid credentials', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/echo.js')]:
+        '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+    })
+    const form = new FormData()
+    form.set('_PROGRAM', `${appLoc}/services/public/echo`)
+    form.set('people', new Blob(['name:$5.\r\nAlice']), 'people.csv')
+    const response = await worker.dispatch('/SASStoredProcess/do', {
+      method: 'POST',
+      body: form
+    })
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('people|name:$5.\r\nAlice')
+    const unknown = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' + encodeURIComponent(`${appLoc}/missing`)
+    )
+    expect(unknown.status).toBeGreaterThanOrEqual(400)
+    const invalid = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
+      {
+        headers: { authorization: 'Bearer invalid' }
+      }
+    )
+    expect(invalid.status).toBe(401)
+  })
+
+  it('SAS9 debug preserves separator text inside webout', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/sep.js')]:
+        `_webout = ${JSON.stringify(JSON.stringify({ value: LOGS_SEPARATOR }))};`
+    })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do?_debug=131&_program=' +
+        encodeURIComponent(`${appLoc}/services/public/sep`)
+    )
+    const body = await response.text()
+    expect(
+      JSON.parse(body.split('>>weboutBEGIN<<')[1].split('>>weboutEND<<')[0])
+    ).toEqual({ value: LOGS_SEPARATOR })
+  })
+
+  it('SAS9 selects the JS twin before the SAS twin', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/twin.js')]: '_webout = "javascript";',
+      [drivePath('services/public/twin.sas')]: 'data x; run;'
+    })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/twin`)
+    )
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('javascript')
+  })
+
+  it('SAS9 refuses a SAS-only program in a non-boot shard', async () => {
+    const program = drivePath('services/public/report.sas')
+    ;(global as any).__sasjsShards = {
+      index: {
+        format: DRIVE_FORMAT,
+        sharded: true,
+        boot: 0,
+        entries: { [program]: { shard: 1, bytes: 12 } },
+        shards: [
+          { id: 0, file: 'host/vfs-snapshot-0.json' },
+          { id: 1, file: 'host/vfs-snapshot-1.json' }
+        ]
+      },
+      0: {},
+      1: { [program]: 'data x; run;' }
+    }
+    const worker = loadWorker('', { skipLint: true })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/report`)
+    )
+    expect(response.status).toBe(501)
+  })
+
+  it('preserves repeated adapter parameter-table chunks in multipart order', async () => {
+    const worker = loadWorker('', { prelude: true, skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/echo.js')]:
+        "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    const data = {
+      small: [{ TEXT: 'short' }],
+      long: [{ TEXT: 'a'.repeat(15980) + ',"Zoë\r\n' + 'b'.repeat(15000) }],
+      last: [{ TEXT: 'end' }]
+    }
+    const form = new FormData()
+    const { requestParams } =
+      require('@sasjs/adapter/file/generateTableUploadForm').generateTableUploadForm(
+        form,
+        data
+      )
+    for (const [name, value] of Object.entries(requestParams))
+      form.append(name, String(value))
+    expect(form.getAll('sasjs2data').length).toBeGreaterThan(1)
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
+      { method: 'POST', body: form }
+    )
+    const text = await response.text()
+    expect({ status: response.status, body: text }).toEqual({
+      status: 200,
+      body: JSON.stringify(data)
+    })
+  })
+
+  it('leaves repeated non-table form fields as their last value', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/params.js')]:
+        '_webout = JSON.stringify({ ordinary, sasjs1data })'
+    })
+    const form = new FormData()
+    form.append('ordinary', 'first')
+    form.append('ordinary', 'second')
+    form.append('sasjs1data', 'first')
+    form.append('sasjs1data', 'second')
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/params`),
+      { method: 'POST', body: form }
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      ordinary: 'second',
+      sasjs1data: 'second'
+    })
+  })
+
+  it('recognizes mixed-case table fields without merging distinct caller keys', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/params.js')]:
+        '_webout = JSON.stringify({ SaSjS1DaTa, sasjs1data, Ordinary, SASJS_TABLES })'
+    })
+    const form = new FormData()
+    form.append('SaSjS1DaTa', 'first')
+    form.append('sasjs1data', 'lower')
+    form.append('SaSjS1DaTa', 'second')
+    form.append('Ordinary', 'one')
+    form.append('Ordinary', 'two')
+    form.append('SASJS_TABLES', 'input')
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/params`),
+      { method: 'POST', body: form }
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      SaSjS1DaTa: 'firstsecond',
+      sasjs1data: 'lower',
+      Ordinary: 'two',
+      SASJS_TABLES: 'input'
+    })
   })
 
   it('returns the webout as the response body', async () => {
