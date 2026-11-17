@@ -31,29 +31,14 @@
     if (DEBUG) console.log('[sasjs-mock]', ...args)
   }
 
-  /**
-   * A file's contents, as text or as base64 with a flag.
-   *
-   * An upload is a file, not a string: a PNG, a workbook or an .sas7bdat read
-   * with `text()` arrives as replacement characters, and the drive would store
-   * the damage under a success status. The bytes are decoded as UTF-8 strictly -
-   * if that fails, they are not text by any reading a browser would accept - and
-   * carried as base64, which the worker turns back into the bytes the drive
-   * keeps.
-   */
+  /** Carry every upload as base64 so valid UTF-8 BOMs and arbitrary bytes survive. */
   const contentsOf = async (value) => {
     const bytes = new Uint8Array(await value.arrayBuffer())
-
-    try {
-      return { csv: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-    } catch (error) {
-      let binary = ''
-      const chunk = 0x8000
-      for (let i = 0; i < bytes.length; i += chunk)
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
-
-      return { csv: btoa(binary), binary: true }
-    }
+    let binary = ''
+    const chunk = 0x8000
+    for (let i = 0; i < bytes.length; i += chunk)
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+    return { csv: btoa(binary), binary: true }
   }
 
   // The worker supplies its per-file limit with the authorization response.

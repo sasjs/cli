@@ -588,7 +588,7 @@ describe('page-side bridge', () => {
       expect(read).toHaveBeenCalledTimes(1)
       const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
       expect(payload.params.field).toBe('original')
-      expect(payload.tables[0].csv).toBe('private')
+      expect(atob(payload.tables[0].csv)).toBe('private')
     } finally {
       read.mockRestore()
     }
@@ -804,7 +804,12 @@ describe('page-side bridge', () => {
     expect(JSON.parse(init.body)).toEqual({
       params: { _debug: '131' },
       tables: [
-        { name: 'input', filename: 'input.csv', csv: 'name:$char5.\nAlice' }
+        {
+          name: 'input',
+          filename: 'input.csv',
+          csv: btoa('name:$char5.\nAlice'),
+          binary: true
+        }
       ]
     })
     expect(xhr.status).toBe(200)
@@ -947,7 +952,7 @@ describe('page-side bridge', () => {
     expect(xhr.status).toBe(200)
     const [, init] = fetchImpl.mock.calls[0] as any
     const payload = JSON.parse(init.body)
-    expect(payload.tables.map((table: any) => table.csv.length)).toEqual([
+    expect(payload.tables.map((table: any) => atob(table.csv).length)).toEqual([
       10 * 1024 * 1024,
       5
     ])
@@ -1070,7 +1075,14 @@ describe('page-side bridge', () => {
     expect(init.headers['content-type']).toBe('application/json')
     expect(JSON.parse(init.body)).toEqual({
       params: { _program: '/Public/app/test/services/public/getdata' },
-      tables: [{ name: 'table1', filename: 'data.csv', csv: 'a,b\n1,2\n' }]
+      tables: [
+        {
+          name: 'table1',
+          filename: 'data.csv',
+          csv: btoa('a,b\n1,2\n'),
+          binary: true
+        }
+      ]
     })
     expect(xhr.status).toBe(200)
     expect(xhr.readyState).toBe(4)
@@ -1095,7 +1107,7 @@ describe('page-side bridge', () => {
     const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
     expect(payload.params).toEqual({ field: 'original' })
     expect(payload.tables).toEqual([
-      { name: 'file', filename: 'file.txt', csv: 'file' }
+      { name: 'file', filename: 'file.txt', csv: btoa('file'), binary: true }
     ])
   })
 
@@ -1136,7 +1148,14 @@ describe('page-side bridge', () => {
         ordinary: 'second',
         sasjs4data: 'second'
       },
-      tables: [{ name: 'file', filename: 'test.csv', csv: 'file contents' }]
+      tables: [
+        {
+          name: 'file',
+          filename: 'test.csv',
+          csv: btoa('file contents'),
+          binary: true
+        }
+      ]
     })
   })
 

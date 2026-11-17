@@ -1306,6 +1306,13 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
     .join('\n')
 
   const webinStatements = []
+  const uploadPaths = tables.map((table, idx) => {
+    const uploadPath = `${sessionDir}/upload${idx + 1}`
+    const bytes = table.bytes === undefined ? table.csv || '' : table.bytes
+    const raw = typeof bytes === 'string' ? utf8Encoder.encode(bytes) : bytes
+    putEntry(uploadPath, BINARY_PREFIX + bytesToBase64(raw))
+    return uploadPath
+  })
   tables.forEach((table, idx) => {
     const n = idx + 1
     webinStatements.push(
@@ -1315,9 +1322,14 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
       `const _WEBIN_FILENAME${n} = __sasjsFetchContext.tables[${idx}].filename;`
     )
     webinStatements.push(
-      `const _WEBIN_FILEREF${n} = __sasjsFetchContext.tables[${idx}].csv;`
+      `const _WEBIN_FILEREF${n} = ${JSON.stringify(uploadPaths[idx])};`
     )
   })
+  if (tables.length) {
+    webinStatements.push(
+      'const _WEBIN_NAME = _WEBIN_NAME1; const _WEBIN_FILENAME = _WEBIN_FILENAME1; const _WEBIN_FILEREF = _WEBIN_FILEREF1;'
+    )
+  }
   webinStatements.push(
     `const _WEBIN_FILE_COUNT = __sasjsFetchContext.tables.length;`
   )
@@ -1386,7 +1398,16 @@ return _webout;
         env: { NODE_ENV: 'browser' }
       },
       BUFFERS,
-      { params, tables },
+      {
+        params,
+        tables: tables.map((table) => ({
+          name: table.name,
+          filename: table.filename,
+          get csv() {
+            return table.csv
+          }
+        }))
+      },
       requestVars
     )
   } catch (e) {
@@ -1401,6 +1422,14 @@ return _webout;
         ? message + '\n' + stack
         : stack || String(e)
     logLines.push(String(thrown))
+  } finally {
+    // Session uploads are transient and must never enter the persisted drive.
+    for (const uploadPath of uploadPaths) {
+      FILES.delete(uploadPath)
+      SIZES.delete(uploadPath)
+      dirty.delete(uploadPath)
+      DELETED.delete(uploadPath)
+    }
   }
 
   const stored = FILES.get(weboutPath) || ''

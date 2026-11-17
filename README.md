@@ -74,6 +74,10 @@ startApp().catch(showLoadError)
 
 Apply the same readiness gate to other request paths, not just initial loading. Application scripts now follow the browser's normal lifecycle; the host does not synthesize or redispatch `DOMContentLoaded` or `load` events.
 
+### Mock site uploaded files
+
+**Breaking change:** JavaScript mock services now receive `_WEBIN_FILEREF1`, `_WEBIN_FILEREF2`, etc. as session-local file paths, not decoded contents. Read bytes with `fs.readFileSync(_WEBIN_FILEREF1)` or text with `fs.readFileSync(_WEBIN_FILEREF1, 'utf8')`; do not stringify the path as if it were the file. `_WEBIN_NAME1` is the multipart field name and `_WEBIN_FILENAME1` the original filename. The unsuffixed names alias the first upload when present; `_WEBIN_FILE_COUNT` is zero without uploads. Uploads are transient. `webout('FETCH')` decodes adapter CSV tables only when called; it is not a binary interface. The browser host limits each upload to 10 MiB and keeps its data in memory, including base64 conversion for bridged XHR; it is not a streaming filesystem.
+
 ### Mock site SAS formatting
 
 The mock code-format API uses the browser SAS language formatter. Every generated mock site includes the complete language vocabulary, even if formatting is never called, so it can serve DATA and PROC formatting without an external service. With `@sasjs/sas-language` 0.7.2, the `data` and `pubsdata` files add approximately 22 MB (21 MiB) uncompressed per site; the size can change with the language package version. The worker fetches vocabulary on demand, and reports an error if a required file is missing.

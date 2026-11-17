@@ -54,9 +54,13 @@ async function buildSite(root, targetType, basePath) {
     `
     const files = [];
     for (let i = 1; i <= _WEBIN_FILE_COUNT; i++) {
-      files.push({name: eval('_WEBIN_NAME' + i), filename: eval('_WEBIN_FILENAME' + i), csv: String(eval('_WEBIN_FILEREF' + i))});
+      files.push({name: eval('_WEBIN_NAME' + i), filename: eval('_WEBIN_FILENAME' + i), csv: fs.readFileSync(eval('_WEBIN_FILEREF' + i), 'utf8')});
     }
     webout('OPEN'); webout('OBJ', 'files', files); webout('CLOSE');`
+  )
+  await fs.writeFile(
+    path.join(services, 'byteuploads.js'),
+    `_webout = JSON.stringify({count: _WEBIN_FILE_COUNT, aliases: _WEBIN_FILE_COUNT ? [_WEBIN_NAME, _WEBIN_FILENAME, _WEBIN_FILEREF === _WEBIN_FILEREF1] : [typeof _WEBIN_NAME, typeof _WEBIN_FILENAME, typeof _WEBIN_FILEREF], files: Array.from({length: _WEBIN_FILE_COUNT}, (_, i) => ({name: eval('_WEBIN_NAME' + (i + 1)), filename: eval('_WEBIN_FILENAME' + (i + 1)), path: eval('_WEBIN_FILEREF' + (i + 1)), hex: fs.readFileSync(eval('_WEBIN_FILEREF' + (i + 1))).toString('hex')}))});`
   )
   await fs.writeFile(
     path.join(services, 'fetch.js'),
@@ -468,6 +472,39 @@ async function main() {
       console.log(`PASS ${target} worker upload limit before page file read`)
 
       for (const transport of ['xhr', 'fetch']) {
+        for (const count of [0, 1, 3]) {
+          const actual = await evaluate(`(async () => {
+            const form = new FormData();
+            const samples = [[0xef,0xbb,0xbf,65], [0,255,128,65], []];
+            for (let i = 0; i < ${count}; i++) form.append('field' + i, new Blob([new Uint8Array(samples[i])]), 'original' + i + '.bin');
+            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/byteuploads')});
+            if (${JSON.stringify(transport)} === 'fetch') { const r = await fetch(url, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+            return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',url); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+          })()`)
+          assert.equal(actual.status, 200, JSON.stringify(actual))
+          assert.equal(actual.body.count, count)
+          assert.deepEqual(
+            actual.body.aliases,
+            count
+              ? ['field0', 'original0.bin', true]
+              : ['undefined', 'undefined', 'undefined']
+          )
+          assert.deepEqual(
+            actual.body.files.map((f) => [f.name, f.filename, f.hex]),
+            [
+              ['field0', 'original0.bin', 'efbbbf41'],
+              ['field1', 'original1.bin', '00ff8041'],
+              ['field2', 'original2.bin', '']
+            ].slice(0, count)
+          )
+          for (const file of actual.body.files)
+            assert.match(file.path, /^\/sasjs\/sessions\//)
+          assert.equal(
+            new Set(actual.body.files.map((f) => f.path)).size,
+            count
+          )
+          console.log(`PASS ${target} ${transport} ${count} exact-byte uploads`)
+        }
         const result = await evaluate(`(async () => {
           const form = new FormData();
           form.append('SaSjS1DaTa', 'first');

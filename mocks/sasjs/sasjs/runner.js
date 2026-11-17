@@ -20,7 +20,9 @@ switch(_requestMethod) {
 }
 
 function postMethod() {
-  const fileData = _WEBIN_FILEREF1.toString()
+  const fileData = (typeof _WEBIN_FILEREF1 === 'string'
+    ? fs.readFileSync(_WEBIN_FILEREF1)
+    : _WEBIN_FILEREF1).toString()
   const regex = /let compiled_apploc.*?;/gm
   const matched = fileData.match(regex)
 

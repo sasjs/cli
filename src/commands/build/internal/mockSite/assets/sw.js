@@ -863,7 +863,11 @@ const tablesOf = (files) => {
   return list.map((file, index) => ({
     name: file.name || `file${index + 1}`,
     filename: file.filename || file.name || `file${index + 1}`,
-    csv: toText(file.csv !== undefined ? file.csv : file.contents)
+    get csv() {
+      const csv = file.csv
+      return csv !== undefined ? csv : toText(file.contents)
+    },
+    bytes: file.bytes !== undefined ? file.bytes : file.contents
   }))
 }
 
@@ -1463,9 +1467,7 @@ const readJsonBody = async (request, allowLargeFile = false) => {
         name: table.name || `table${index + 1}`,
         filename:
           table.filename || `${table.name || 'table' + (index + 1)}.csv`,
-        // A file the bridge could not read as UTF-8 travels as base64 with a
-        // flag: writing its text would replace the bytes and store the damage
-        // under a success status, which is what a binary upload used to do.
+        // The bridge carries every file as base64 so BOM and arbitrary bytes survive.
         contents:
           table.csv === undefined
             ? ''
@@ -1756,7 +1758,13 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
   const tables = payload.files.map((file) => ({
     name: file.name,
     filename: file.filename,
-    csv: toText(file.contents)
+    get csv() {
+      return toText(file.contents)
+    },
+    bytes:
+      typeof file.contents === 'string'
+        ? new TextEncoder().encode(file.contents)
+        : file.contents
   }))
   const code =
     routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')

@@ -665,11 +665,57 @@ describe('service worker host', () => {
     expect(await response.text()).toContain('not a zip file')
   })
 
+  it('does not decode multipart bytes until a service calls FETCH', async () => {
+    const worker = loadWorker('', { prelude: true, skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/raw.js')]:
+        `_webout = fs.readFileSync(_WEBIN_FILEREF1).toString('hex')`,
+      [drivePath('services/public/fetch.js')]:
+        `_webout = JSON.stringify(webout('FETCH'))`
+    })
+    const decode = jest.spyOn(TextDecoder.prototype, 'decode')
+    const payload = () => {
+      const form = new FormData()
+      form.append(
+        'upload',
+        new Blob([new Uint8Array([255, 0, 128])]),
+        'binary.bin'
+      )
+      return { method: 'POST', body: form }
+    }
+    const uploadDecodes = () =>
+      decode.mock.calls.filter(
+        ([input]) =>
+          input instanceof Uint8Array &&
+          input.length === 3 &&
+          input[0] === 255 &&
+          input[1] === 0 &&
+          input[2] === 128
+      ).length
+    try {
+      const raw = await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/raw`),
+        payload()
+      )
+      expect(await raw.text()).toBe('ff0080')
+      expect(uploadDecodes()).toBe(0)
+      await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/fetch`),
+        payload()
+      )
+      expect(uploadDecodes()).toBeGreaterThan(0)
+    } finally {
+      decode.mockRestore()
+    }
+  })
+
   it('SAS9 reads bridge form fields case-insensitively and frames debug webout', async () => {
     const worker = loadWorker('', { skipLint: true })
     worker.runtime.load({
       [drivePath('services/public/echo.js')]:
-        'console.log("mock log"); _webout = JSON.stringify({name: _WEBIN_NAME1, csv: _WEBIN_FILEREF1});'
+        'console.log("mock log"); _webout = JSON.stringify({name: _WEBIN_NAME1, csv: fs.readFileSync(_WEBIN_FILEREF1, "utf8")});'
     })
     const response = await worker.dispatch(
       '/SASStoredProcess/do',
@@ -747,7 +793,7 @@ describe('service worker host', () => {
     const worker = loadWorker('', { skipLint: true })
     worker.runtime.load({
       [drivePath('services/public/echo.js')]:
-        '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+        '_webout = _WEBIN_NAME1 + "|" + fs.readFileSync(_WEBIN_FILEREF1, "utf8");'
     })
     const form = new FormData()
     form.set('_PROGRAM', `${appLoc}/services/public/echo`)
@@ -2643,7 +2689,7 @@ describe('service worker host', () => {
       const worker = seeded()
       worker.runtime.load({
         [drivePath('services/public/echo.js')]:
-          '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+          '_webout = _WEBIN_NAME1 + "|" + fs.readFileSync(_WEBIN_FILEREF1, "utf8");'
       })
 
       const unnamed = await worker.dispatch(
@@ -3170,7 +3216,7 @@ describe('service worker host', () => {
     const worker = seeded()
     worker.runtime.load({
       [drivePath('services/public/echo.js')]:
-        '_webout = _WEBIN_NAME1 + "|" + _WEBIN_FILEREF1;'
+        '_webout = _WEBIN_NAME1 + "|" + fs.readFileSync(_WEBIN_FILEREF1, "utf8");'
     })
 
     const response = await worker.dispatch(
