@@ -471,14 +471,14 @@ async function main() {
       )
       console.log(`PASS ${target} worker upload limit before page file read`)
 
-      for (const transport of ['xhr', 'fetch']) {
+      for (const transport of ['sas9-fetch', 'sasjs-fetch', 'sas9-xhr', 'sasjs-xhr']) {
         for (const count of [0, 1, 3]) {
           const actual = await evaluate(`(async () => {
             const form = new FormData();
             const samples = [[0xef,0xbb,0xbf,65], [0,255,128,65], []];
             for (let i = 0; i < ${count}; i++) form.append('field' + i, new Blob([new Uint8Array(samples[i])]), 'original' + i + '.bin');
-            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/byteuploads')});
-            if (${JSON.stringify(transport)} === 'fetch') { const r = await fetch(url, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/byteuploads')});
+            if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(url, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
             return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',url); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
           })()`)
           assert.equal(actual.status, 200, JSON.stringify(actual))
@@ -513,8 +513,8 @@ async function main() {
           form.append('Ordinary', 'one');
           form.append('Ordinary', 'two');
           form.append('SASJS_TABLES', 'input');
-          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/caseparams')});
-          if (${JSON.stringify(transport)} === 'fetch') {
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/caseparams')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) {
             const response = await fetch(path, { method: 'POST', body: form });
             return { status: response.status, body: await response.json() };
           }
@@ -547,8 +547,8 @@ async function main() {
           form.append('SaSjS1DaTa', 'first');
           form.append('SaSjS1DaTa', 'second');
           form.append('SASJS_TABLES', 'MixedTable');
-          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/casefetch')});
-          if (${JSON.stringify(transport)} === 'fetch') {
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/casefetch')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) {
             const response = await fetch(path, {method: 'POST', body: form});
             return {status: response.status, body: await response.json()};
           }

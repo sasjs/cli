@@ -187,7 +187,7 @@ const encodeText = (data) =>
   data.startsWith('\u0000') ? TEXT_PREFIX + data : data
 
 const utf8Encoder = new TextEncoder()
-const utf8Decoder = new TextDecoder()
+const utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true })
 const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
 /**
@@ -1400,11 +1400,11 @@ return _webout;
       BUFFERS,
       {
         params,
-        tables: tables.map((table) => ({
+        tables: tables.map((table, index) => ({
           name: table.name,
           filename: table.filename,
           get csv() {
-            return table.csv
+            return FS.readFileSync(uploadPaths[index], 'utf8')
           }
         }))
       },

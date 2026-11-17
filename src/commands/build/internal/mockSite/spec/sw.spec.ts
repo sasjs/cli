@@ -333,6 +333,16 @@ describe('service worker host', () => {
     const worker = seeded()
     const identity = {
       ...DEFAULT_IDENTITY,
+      permissions: [
+        ...DEFAULT_IDENTITY.permissions,
+        {
+          uid: 'deny-execution-upload',
+          path: '/SASjsApi/stp/execute',
+          type: 'Route',
+          setting: 'Deny',
+          user: 'user-restricted'
+        }
+      ],
       tokens: [
         {
           username: 'sasjsuser',
@@ -446,6 +456,41 @@ describe('service worker host', () => {
       expect(
         await worker.runtime.driveStore.read(`${appLoc}/proof.txt`)
       ).toEqual(new TextEncoder().encode('granted'))
+
+      await worker.runtime.driveStore.write(
+        `${appLoc}/services/public/getdata.js`,
+        '_webout = "seeded"'
+      )
+      const execution = async (token: string) => {
+        const xhr: any = new XHR()
+        const loaded = new Promise((resolve) =>
+          xhr.addEventListener('load', resolve)
+        )
+        xhr.open(
+          'POST',
+          '/SASjsApi/stp/execute?_program=' +
+            encodeURIComponent(`${appLoc}/services/public/getdata`)
+        )
+        xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+        const form = new FormData()
+        form.append('file', new Blob(['private']), 'private.csv')
+        xhr.send(form)
+        await loaded
+        return xhr
+      }
+      const fileRead = jest.spyOn(Blob.prototype, 'arrayBuffer')
+      try {
+        expect((await execution('restricted-token')).status).toBe(401)
+        expect(fileRead).not.toHaveBeenCalled()
+        const grantedExecution = await execution('admin-token')
+        expect([
+          grantedExecution.status,
+          grantedExecution.responseText
+        ]).toEqual([200, 'seeded'])
+        expect(fileRead).toHaveBeenCalled()
+      } finally {
+        fileRead.mockRestore()
+      }
     } finally {
       consoleError.mockRestore()
       delete (global as any).window
@@ -523,44 +568,51 @@ describe('service worker host', () => {
     }
   )
 
-  it('SAS9 rejects a denied multipart execution without parsing its body', async () => {
-    const worker = loadWorker('', { skipLint: true })
-    const identity = {
-      ...DEFAULT_IDENTITY,
-      permissions: [
-        ...DEFAULT_IDENTITY.permissions,
-        {
-          uid: 'deny-sas9-body',
-          path: '/SASjsApi/stp/execute',
-          type: 'Route',
-          setting: 'Deny',
-          user: 'user-restricted'
-        }
-      ]
-    }
-    const boot = worker.message({
-      type: 'sasjs-seed',
-      identity,
-      subject: 'sasjsuser'
-    })
-    await boot.pending
-    expect(boot.replies[0].error).toBeUndefined()
-    worker.runtime.load({})
-    const form = new FormData()
-    form.set('_PROGRAM', `${appLoc}/services/public/getdata`)
-    form.set('file', new Blob(['data']), 'data.csv')
-    const parse = jest.spyOn(Request.prototype, 'formData')
-    try {
-      const response = await worker.dispatch('/SASStoredProcess/do', {
-        method: 'POST',
-        body: form
+  it.each([
+    '/SASStoredProcess/do',
+    '/SASjsApi/stp/execute',
+    '/api/stp/execute'
+  ])(
+    'rejects denied multipart execution at %s without parsing its body',
+    async (endpoint) => {
+      const worker = loadWorker('', { skipLint: true })
+      const identity = {
+        ...DEFAULT_IDENTITY,
+        permissions: [
+          ...DEFAULT_IDENTITY.permissions,
+          {
+            uid: 'deny-sas9-body',
+            path: '/SASjsApi/stp/execute',
+            type: 'Route',
+            setting: 'Deny',
+            user: 'user-restricted'
+          }
+        ]
+      }
+      const boot = worker.message({
+        type: 'sasjs-seed',
+        identity,
+        subject: 'sasjsuser'
       })
-      expect(response.status).toBe(401)
-      expect(parse).not.toHaveBeenCalled()
-    } finally {
-      parse.mockRestore()
+      await boot.pending
+      expect(boot.replies[0].error).toBeUndefined()
+      worker.runtime.load({})
+      const form = new FormData()
+      form.set('_PROGRAM', `${appLoc}/services/public/getdata`)
+      form.set('file', new Blob(['data']), 'data.csv')
+      const parse = jest.spyOn(Request.prototype, 'formData')
+      try {
+        const response = await worker.dispatch(endpoint, {
+          method: 'POST',
+          body: form
+        })
+        expect(response.status).toBe(401)
+        expect(parse).not.toHaveBeenCalled()
+      } finally {
+        parse.mockRestore()
+      }
     }
-  })
+  )
 
   it.each(['text', 'base64'])(
     'rejects oversized %s bridge envelope files on SAS9',

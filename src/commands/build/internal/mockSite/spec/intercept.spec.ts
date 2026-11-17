@@ -457,9 +457,13 @@ describe('page-side bridge', () => {
 
   it.each([
     ['/', '/sasstoredprocess/do?_program=x'],
-    ['/site/', '/site/SasStoredProcess/DO/?_program=x']
+    ['/site/', '/site/SasStoredProcess/DO/?_program=x'],
+    ['/', '/SASjsApi/stp/execute?_program=x'],
+    ['/site/', '/site/api/stp/execute?_program=x'],
+    ['/', '/sasjsapi/STP/EXECUTE?_program=x'],
+    ['/', '/SASjsApi/code/execute']
   ])(
-    'preauthorizes case-insensitive SAS9 uploads at %s before reading',
+    'preauthorizes execution uploads at %s before reading',
     async (base, url) => {
       const fetchImpl = jest.fn(async () => jsonResponse('{}'))
       const grantImpl = jest.fn(async () =>

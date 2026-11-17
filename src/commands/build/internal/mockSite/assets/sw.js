@@ -2039,9 +2039,8 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
           : publicGrantOn(uploadPath)
       if (!allowed) throw new API.ApiError(401, 'Unauthorized')
     }
-    // The SAS9 alias has the same grant as the canonical run route, but must
-    // refuse a denied multipart request before parsing or reading its files.
-    if (sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
+    // Every gated execution route must refuse before parsing upload bytes.
+    if (GRANTED_RUN_ROUTES.has(routeId)) {
       const granted = await RECORDS.myAuthorizedRoutes(subject)
       if (!granted.paths.includes(routePath))
         throw new API.ApiError(401, 'Unauthorized')
@@ -2064,17 +2063,6 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      // The rule this host would apply, asked of the package: the run routes are
-      // answered here rather than by `dispatch`, so the question is asked here.
-      // It is the same answer `/info/myAuthorizedRoutes` gives the interface -
-      // one decision, so a menu entry and the call behind it cannot disagree.
-      if (!sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
-        const routePath = routeId.slice(routeId.indexOf(' ') + 1)
-        const granted = await RECORDS.myAuthorizedRoutes(subject)
-        if (!granted.paths.includes(routePath))
-          throw new API.ApiError(401, 'Unauthorized')
-      }
-
       return await runRoute(routeId, payload, subject, sas9Run)
     }
 

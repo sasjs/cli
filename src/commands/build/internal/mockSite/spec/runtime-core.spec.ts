@@ -677,6 +677,53 @@ globalThis.webout = _sasjs_webout;`
     expect(runtime.takeDirty()[output.first]).toBeUndefined()
   })
 
+  it('retains a UTF-8 BOM in raw bytes and Node-style text reads', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0, 0xff])
+    const result = runtime.run({
+      tables: [{ name: 'file', filename: 'file.bin', bytes }],
+      code: `_webout = JSON.stringify({ hex: fs.readFileSync(_WEBIN_FILEREF1).toString('hex'), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), bufferText: fs.readFileSync(_WEBIN_FILEREF1).toString('utf8') })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      hex: Buffer.from(bytes).toString('hex'),
+      text: Buffer.from(bytes).toString('utf8'),
+      bufferText: Buffer.from(bytes).toString('utf8')
+    })
+  })
+
+  it.each([
+    [
+      'overwrite',
+      "fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:$char8.\\nchanged'); _webout = JSON.stringify(webout('FETCH').input)",
+      '[{"VALUE":"changed"}]'
+    ],
+    [
+      'delete',
+      "fs.unlinkSync(_WEBIN_FILEREF1); try { webout('FETCH') } catch(e) { _webout = e.code }",
+      'ENOENT'
+    ]
+  ])(
+    'FETCH reads the staged path after %s',
+    async (_operation, code, expected) => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {}, weboutPrelude())
+      const result = runtime.run({
+        tables: [
+          {
+            name: 'input',
+            filename: 'input.csv',
+            bytes: new TextEncoder().encode('VALUE:$char8.\noriginal')
+          }
+        ],
+        code
+      })
+      expect(result.error).toBeNull()
+      expect(result.webout).toBe(expected)
+    }
+  )
+
   it('does not decode uploaded CSV until FETCH reads it', async () => {
     const runtime = loadRuntime()
     await seedDrive(
@@ -709,8 +756,8 @@ globalThis.webout = _sasjs_webout;`
       code: `_webout = webout('FETCH')`
     })
     expect(fetched.error).toBeNull()
-    expect(fetched.webout).toBe('decoded')
-    expect(decodes).toBe(1)
+    expect(fetched.webout).toBe('\ufffd')
+    expect(decodes).toBe(0)
   })
 
   it('fetches all uploaded adapter tables without changing their contents', async () => {
