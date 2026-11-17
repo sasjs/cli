@@ -1208,7 +1208,14 @@ let linter
 const code = () => {
   if (codeService) return codeService
   linter = self.SASjsCode
-  codeService = linter.createCodeService({ lintConfig })
+  codeService = linter.createCodeService({
+    lintConfig,
+    reprint: (text, options) =>
+      linter.formatText(text, {
+        ...options,
+        dataRoot: `${self.location.origin}${BASE}/host/${linter.dataPath}`
+      })
+  })
   return codeService
 }
 

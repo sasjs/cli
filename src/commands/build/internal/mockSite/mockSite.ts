@@ -84,6 +84,15 @@ const API_BROWSER_BUILD = path.join(
   'browser.js'
 )
 
+const LANGUAGE_ROOT = path.resolve(
+  path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+  '..',
+  '..'
+)
+const LANGUAGE_VERSION: string = JSON.parse(
+  fs.readFileSync(path.join(LANGUAGE_ROOT, '..', '..', 'package.json'), 'utf8')
+).version
+
 const toPosix = (value: string) => value.split(path.sep).join('/')
 
 /**
@@ -107,7 +116,8 @@ const LINT_BUNDLE_FILES: { [name: string]: string } = {
   'entry.js': [
     "import './process.js'",
     "import { createCodeService, LintConfig } from '@sasjs/api/code'",
-    'globalThis.SASjsCode = { createCodeService, LintConfig }'
+    "import { formatText } from '@sasjs/sas-language/format'",
+    `globalThis.SASjsCode = { createCodeService, LintConfig, formatText, dataPath: 'sas-language/${LANGUAGE_VERSION}/' }`
   ].join('\n'),
   'process.js': [
     '// the linter reads process.env for a default and process.cwd() for a root;',
@@ -226,6 +236,7 @@ export const buildLintBundle = (destination: string) => {
       entryPoints: [path.join(work, 'entry.js')],
       bundle: true,
       platform: 'browser',
+      define: { global: 'globalThis' },
       format: 'iife',
       outfile: destination,
       nodePaths: NODE_MODULES ? [NODE_MODULES] : [],
@@ -1223,6 +1234,15 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // 2. the linter, bundled from the installed packages so the code routes answer
   // with the rules this CLI resolved rather than a second implementation
   await buildLintBundle(path.join(hostFolder, 'lint-browser.js'))
+  // The browser formatter fetches its lexer vocabulary lazily. Version the
+  // directory to avoid a static host serving a previous release's cached data.
+  for (const folder of ['data', 'pubsdata']) {
+    fs.cpSync(
+      path.join(LANGUAGE_ROOT, folder),
+      path.join(hostFolder, 'sas-language', LANGUAGE_VERSION, folder),
+      { recursive: true }
+    )
+  }
   // sw.js sits at the site root: a worker can only control the folder it is
   // served from, and the app has to be controlled from /
   fs.copyFileSync(

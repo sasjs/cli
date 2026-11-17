@@ -74,6 +74,10 @@ startApp().catch(showLoadError)
 
 Apply the same readiness gate to other request paths, not just initial loading. Application scripts now follow the browser's normal lifecycle; the host does not synthesize or redispatch `DOMContentLoaded` or `load` events.
 
+### Mock site SAS formatting
+
+The mock code-format API uses the browser SAS language formatter. Every generated mock site includes the complete language vocabulary, even if formatting is never called, so it can serve DATA and PROC formatting without an external service. With `@sasjs/sas-language` 0.7.2, the `data` and `pubsdata` files add approximately 22 MB (21 MiB) uncompressed per site; the size can change with the language package version. The worker fetches vocabulary on demand, and reports an error if a required file is missing.
+
 ## Notes
 
 Running `npm i -g @sasjs/cli@latest` does not always upgrade properly. This is due to a known bug in npm, which is fixed in npm 7.
