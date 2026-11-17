@@ -564,6 +564,83 @@ webout('CLOSE')`
     )
   })
 
+  it('passes the original request to the shared FETCH prelude', async () => {
+    const runtime = loadRuntime()
+    // A minimal shared-prelude stand-in proves the host supplies the context,
+    // rather than intercepting FETCH with a second implementation.
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `
+const _sasjs_webout = (action) => action === 'FETCH' ? _sasjs_fetch_context : null;
+_sasjs_webout.finalise = (body) => { if (body) fs.writeFileSync(weboutPath, body); };
+globalThis.webout = _sasjs_webout;`
+      }
+    )
+    const params = JSON.parse(
+      '{"_program":"/svc","__proto__":"own","text":"\\\"; throw new Error(1); //"}'
+    )
+    const tables = [
+      { name: '__proto__', filename: 'x.csv', csv: 'X:$char8.\r\nhello' },
+      { name: 'other', filename: 'other.csv', csv: 'X:$char8.\r\nworld' }
+    ]
+    const result = runtime.run({
+      params,
+      tables,
+      code: `_webout = JSON.stringify({ context: webout('FETCH'), shared: webout === _sasjs_webout, name: _WEBIN_NAME1, csv: _WEBIN_FILEREF1, text })`
+    })
+
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      context: { params, tables },
+      shared: true,
+      name: tables[0].name,
+      csv: tables[0].csv,
+      text: params.text
+    })
+  })
+
+  it('protects host and prelude bindings from colliding request names', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `
+const _sasjs_webout_config = 'config';
+const _sasjs_fetch = () => _sasjs_fetch_context;
+const _sasjs_webout = (action) => action === 'FETCH' ? _sasjs_fetch() : null;
+_sasjs_webout.finalise = (body) => { if (body) fs.writeFileSync(weboutPath, body); };
+globalThis.webout = _sasjs_webout;`
+      }
+    )
+    const params = JSON.parse(
+      '{"_sasjs_fetch_context":"attack","__sasjsFetchContext":"attack","_sasjs_fetch":"attack","_sasjs_webout_config":"attack","_WEBIN_NAME1":"attack","_WEBIN_FILE_COUNT":"attack","_WEBIN_CUSTOM":"attack","fs":"attack","Buffer":"attack","const":"attack","class":"attack","let":"attack","await":"attack","safe":"ok","__proto__":"own"}'
+    )
+    const tables = [
+      { name: 'real', filename: 'real.csv', csv: 'X:$char1.\r\na' }
+    ]
+    const result = runtime.run({
+      params,
+      tables,
+      code: `_webout = JSON.stringify({ context: webout('FETCH'), safe, hasProto: Object.prototype.hasOwnProperty.call(_sasjs_fetch_context.params, '__proto__'), name: _WEBIN_NAME1, count: _WEBIN_FILE_COUNT, custom: typeof _WEBIN_CUSTOM, config: _sasjs_webout_config, hasFs: typeof fs.readFileSync })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      context: { params, tables },
+      safe: 'ok',
+      hasProto: true,
+      name: 'real',
+      count: 1,
+      custom: 'undefined',
+      config: 'config',
+      hasFs: 'function'
+    })
+  })
+
   it('fetches all uploaded adapter tables without changing their contents', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {}, weboutPrelude())
@@ -863,6 +940,44 @@ webout('CLOSE')`
     expect(result.error).toBeNull()
     expect(result.webout).toBe('ran')
   })
+
+  it.each([
+    'webout',
+    'String',
+    'Object',
+    'Number',
+    'Array',
+    'JSON',
+    'Date',
+    'Math',
+    'Error'
+  ])(
+    'keeps %s as a runtime binding while preserving the request in FETCH context',
+    async (name) => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {}, weboutPrelude())
+      const params = { [name]: 'caller value', safe: 'ok' }
+      const tables = [
+        { name: 'input', filename: 'input.csv', csv: 'N:best.\r\n42' }
+      ]
+      const result = runtime.run({
+        params,
+        tables,
+        code: `
+const input = webout('FETCH')
+webout('OPEN')
+webout('OBJ', 'input', input.input, { maxobs: 1 })
+webout('OBJ', 'context', [{ value: _sasjs_fetch_context.params[${JSON.stringify(name)}], safe, count: _WEBIN_FILE_COUNT }])
+webout('CLOSE')`
+      })
+      expect(result.error).toBeNull()
+      const output = JSON.parse(result.webout)
+      expect(output.input).toEqual([{ N: 42 }])
+      expect(output.context).toEqual([
+        { value: 'caller value', safe: 'ok', count: 1 }
+      ])
+    }
+  )
 
   it('exposes uploaded tables as WEBIN refs', () => {
     const runtime = loadRuntime()

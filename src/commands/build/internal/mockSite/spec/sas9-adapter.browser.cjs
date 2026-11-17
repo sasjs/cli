@@ -52,6 +52,14 @@ async function buildSite(root, targetType, basePath) {
     webout('OPEN'); webout('OBJ', 'areas', inputs.areas);
     webout('OBJ', 'extra', inputs.extra); webout('CLOSE');`
   )
+  await fs.writeFile(
+    path.join(services, 'caseparams.js'),
+    `_webout = JSON.stringify({ SaSjS1DaTa, sasjs1data, Ordinary, SASJS_TABLES });`
+  )
+  await fs.writeFile(
+    path.join(services, 'casefetch.js'),
+    `_webout = JSON.stringify(webout('FETCH'));`
+  )
   await fs.copyFile(
     process.env.ADAPTER_BUNDLE ||
       require.resolve('@sasjs/adapter/dist/sasjs-adapter.js'),
@@ -422,6 +430,71 @@ async function main() {
       )
       console.log(`PASS ${target} worker control and real adapter`)
 
+      for (const transport of ['xhr', 'fetch']) {
+        const result = await evaluate(`(async () => {
+          const form = new FormData();
+          form.append('SaSjS1DaTa', 'first');
+          form.append('sasjs1data', 'lower');
+          form.append('SaSjS1DaTa', 'second');
+          form.append('Ordinary', 'one');
+          form.append('Ordinary', 'two');
+          form.append('SASJS_TABLES', 'input');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/caseparams')});
+          if (${JSON.stringify(transport)} === 'fetch') {
+            const response = await fetch(path, { method: 'POST', body: form });
+            return { status: response.status, body: await response.json() };
+          }
+          return await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', path);
+            xhr.onload = () => resolve({status: xhr.status, body: JSON.parse(xhr.responseText)});
+            xhr.onerror = reject;
+            xhr.send(form);
+          });
+        })()`)
+        assert.deepEqual(
+          result,
+          {
+            status: 200,
+            body: {
+              SaSjS1DaTa: 'firstsecond',
+              sasjs1data: 'lower',
+              Ordinary: 'two',
+              SASJS_TABLES: 'input'
+            }
+          },
+          `${target} ${transport}: mixed-case chunks retain caller keys`
+        )
+        console.log(`PASS ${target} ${transport} mixed-case chunks`)
+
+        const fetched = await evaluate(`(async () => {
+          const form = new FormData();
+          form.append('SaSjS1DaTa', 'X:$20.\\r\\n');
+          form.append('SaSjS1DaTa', 'first');
+          form.append('SaSjS1DaTa', 'second');
+          form.append('SASJS_TABLES', 'MixedTable');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/casefetch')});
+          if (${JSON.stringify(transport)} === 'fetch') {
+            const response = await fetch(path, {method: 'POST', body: form});
+            return {status: response.status, body: await response.json()};
+          }
+          return await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest(); xhr.open('POST', path);
+            xhr.onload = () => resolve({status: xhr.status, body: JSON.parse(xhr.responseText)});
+            xhr.onerror = reject; xhr.send(form);
+          });
+        })()`)
+        assert.deepEqual(
+          fetched,
+          {
+            status: 200,
+            body: { MixedTable: [{ X: 'firstsecond' }] }
+          },
+          `${target} ${transport}: webout FETCH reads mixed-case chunks`
+        )
+        console.log(`PASS ${target} ${transport} mixed-case webout FETCH`)
+      }
+
       try {
         const expectedServerUrl = basePath
           ? `http://127.0.0.1:${server.address().port}${basePath}`
@@ -449,10 +522,15 @@ async function main() {
               const getdata = await sas.request('services/common/getdata', data);
               const uploads = await sas.request('services/common/uploads', data);
               const fetched = await sas.request('services/common/fetch', data);
+              const caseResults = [];
+              for (const column of ['area', 'AREA', 'ArEa']) {
+                const input = { areas: ${JSON.stringify(values)}.map(value => ({ [column]: value })), extra: [{ NOTE: 'second; table' }] };
+                caseResults.push({ column, getdata: await sas.request('services/common/getdata', input), fetched: await sas.request('services/common/fetch', input) });
+              }
               let missing;
               try { missing = { resolved: await sas.request('services/common/does-not-exist', data) }; }
               catch(e) { missing = { rejected: true, error: String(e && (e.message || e)) }; }
-              return { getdata, uploads, fetched, missing };
+              return { getdata, uploads, fetched, caseResults, missing };
             } catch(e) { return { error: String(e && (e.message || e)), detail: JSON.stringify(e) }; }
           })()`)
           assert.equal(
@@ -465,6 +543,18 @@ async function main() {
             springs,
             `${label}: existing mock selected all special-character rows`
           )
+          for (const { column, getdata, fetched } of result.caseResults) {
+            assert.deepEqual(
+              fetched.areas,
+              values.map((value) => ({ [column]: value })),
+              `${label}: FETCH preserves ${column} column spelling`
+            )
+            assert.deepEqual(
+              getdata.springs,
+              springs,
+              `${label}: getdata matches ${column} case-insensitively`
+            )
+          }
           assert.deepEqual(
             result.uploads.files.map((f) => [f.name, f.filename]),
             [

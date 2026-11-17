@@ -1241,122 +1241,16 @@ const SEEDED_HEADERS = 'content-type: text/html; charset=utf-8\n'
  */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
-/**
- * Browser-only JS API: webout('FETCH') returns an object keyed by the exact
- * multipart field names or the table names in sasjs_tables; each value is an
- * array of row objects keyed by the exact column names in the adapter CSV
- * header. Character cells remain strings;
- * numeric cells become numbers, ordinary missing values become null, and SAS
- * special missings remain strings (e.g. '.a'). Repeated calls re-read the
- * original inputs; they do not alter _WEBIN_* or create global table variables.
- *
- * Supports adapter $charN., $N., best. and N. informats, quoted commas,
- * doubled quotes and embedded newlines. Other informats are refused rather than
- * silently interpreted incorrectly. Adapter CSV joins rows with CRLF without a
- * terminal record separator: an empty body or a trailing CRLF therefore encodes
- * a final one-column empty row, not zero rows or a terminated previous row.
- * Other CSV producers' trailing record terminators are indistinguishable.
- * This API is browser-host-specific; @sasjs/utils 4.11.0 has no FETCH action.
- */
-const fetchUploadedTables = (tables, params) => {
-  const names = String(params.sasjs_tables || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  const parameterTables = names.map((name, index) => {
-    const key = `sasjs${index + 1}data`
-    if (Object.prototype.hasOwnProperty.call(params, key))
-      return { name, csv: params[key] }
-    const count = Number(params[key + '0'])
-    if (!Number.isSafeInteger(count) || count < 1)
-      throw new Error(
-        `webout('FETCH'): missing or invalid chunk count for ${name}`
-      )
-    const chunks = []
-    for (let i = 1; i <= count; i++) {
-      if (!Object.prototype.hasOwnProperty.call(params, key + i))
-        throw new Error(`webout('FETCH'): missing chunk ${i} for ${name}`)
-      chunks.push(String(params[key + i]))
-    }
-    return { name, csv: chunks.join('') }
-  })
-  const result = Object.create(null)
-  for (const table of [...tables, ...parameterTables]) {
-    const text = String(table.csv)
-    const end = text.search(/[\r\n]/)
-    const header = end < 0 ? text : text.slice(0, end)
-    const columns = header
-      .trim()
-      .split(/\s+/)
-      .map((item) => {
-        const match = /^([^:]+):([^\s]+)$/.exec(item)
-        if (!match) throw new Error(`webout('FETCH'): invalid header ${item}`)
-        if (!/^(?:\$(?:char)?\d+\.|best\.|\d+\.)$/i.test(match[2]))
-          throw new Error(`webout('FETCH'): unsupported informat ${match[2]}`)
-        return { name: match[1], character: match[2].startsWith('$') }
-      })
-    const rows = []
-    let row = []
-    let value = ''
-    let quoted = false
-    let started = false
-    const record = () => {
-      row.push(value)
-      if (row.length !== columns.length)
-        throw new Error(`webout('FETCH'): wrong column count in ${table.name}`)
-      const obj = Object.create(null)
-      columns.forEach((column, i) => {
-        const cell = row[i]
-        if (column.character) obj[column.name] = cell
-        else if (cell.trim() === '' || cell.trim() === '.')
-          obj[column.name] = null
-        else if (/^\.[a-z_]$/i.test(cell.trim())) obj[column.name] = cell.trim()
-        else if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(cell.trim()))
-          obj[column.name] = Number(cell.trim())
-        else
-          throw new Error(
-            `webout('FETCH'): unsupported numeric value in ${table.name}.${column.name}`
-          )
-      })
-      rows.push(obj)
-      row = []
-      value = ''
-      started = false
-    }
-    const body =
-      end < 0
-        ? ''
-        : text.slice(end + (text.slice(end, end + 2) === '\r\n' ? 2 : 1))
-    for (let i = 0; i < body.length; i++) {
-      const char = body[i]
-      if (quoted) {
-        if (char === '"' && body[i + 1] === '"') {
-          value += '"'
-          i++
-        } else if (char === '"') quoted = false
-        else value += char
-      } else if (char === '"' && value === '') {
-        quoted = true
-        started = true
-      } else if (char === ',') {
-        row.push(value)
-        value = ''
-        started = true
-      } else if (char === '\r' || char === '\n') {
-        if (char === '\r' && body[i + 1] === '\n') i++
-        record()
-      } else {
-        value += char
-        started = true
-      }
-    }
-    if (quoted)
-      throw new Error(`webout('FETCH'): unterminated quote in ${table.name}`)
-    if (started || row.length || end >= 0) record()
-    result[table.name] = rows
-  }
-  return result
-}
+// Match the server's reserved runtime names and prefixes. The worker's own
+// globals are also reserved (as Node globals are on the server): otherwise a
+// request can shadow a builtin used anywhere in the generated shared prelude.
+// Names omitted as bindings remain unchanged in _sasjs_fetch_context.params.
+const RESERVED_PARAMS = new Set(
+  (
+    'break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof new return super switch this throw try typeof var void while with yield enum await implements interface let package private protected public static null true false arguments eval ' +
+    'require module exports __filename __dirname console process Buffer fs webout _webout weboutPath _SASJS_TOKENFILE _SASJS_WEBOUT_HEADERS _SASJS_APISERVERURL _SASJS_USERNAME _SASJS_USERID _SASJS_DISPLAYNAME _METAPERSON _METAUSER SASJSPROCESSMODE __sasjsFetchContext __sasjsParams'
+  ).split(' ')
+)
 
 const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const payloadCode = code
@@ -1384,25 +1278,38 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   FILES.set(headersPath, SEEDED_HEADERS)
   FILES.set(tokenFile, '')
 
-  const varStatements = Object.entries(params)
-    .filter(([name]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
-    .map(([name, value]) => `const ${name} = ${JSON.stringify(String(value))};`)
+  const requestVars = Object.create(null)
+  for (const name of Object.keys(params))
+    requestVars[name] = String(params[name])
+
+  const varStatements = Object.keys(params)
+    .filter(
+      (name) =>
+        /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) &&
+        !RESERVED_PARAMS.has(name) &&
+        !(name in globalThis) &&
+        !name.startsWith('_sasjs_') &&
+        !name.startsWith('_WEBIN_')
+    )
+    .map((name) => `const ${name} = __sasjsParams.${name};`)
     .join('\n')
 
   const webinStatements = []
   tables.forEach((table, idx) => {
     const n = idx + 1
     webinStatements.push(
-      `const _WEBIN_NAME${n} = ${JSON.stringify(table.name)};`
+      `const _WEBIN_NAME${n} = __sasjsFetchContext.tables[${idx}].name;`
     )
     webinStatements.push(
-      `const _WEBIN_FILENAME${n} = ${JSON.stringify(table.filename)};`
+      `const _WEBIN_FILENAME${n} = __sasjsFetchContext.tables[${idx}].filename;`
     )
     webinStatements.push(
-      `const _WEBIN_FILEREF${n} = ${JSON.stringify(table.csv)};`
+      `const _WEBIN_FILEREF${n} = __sasjsFetchContext.tables[${idx}].csv;`
     )
   })
-  webinStatements.push(`const _WEBIN_FILE_COUNT = ${tables.length};`)
+  webinStatements.push(
+    `const _WEBIN_FILE_COUNT = __sasjsFetchContext.tables.length;`
+  )
 
   // The webout() block, filled in for this run. Empty only for a site whose
   // build predates it, where the _webout-only tail below still works.
@@ -1431,18 +1338,11 @@ const SASJSPROCESSMODE = 'Stored Program';
 
   const source = `
 const fs = require('fs');
+const _sasjs_fetch_context = __sasjsFetchContext;
 ${varStatements}
 ${webinStatements.join('\n')}
 ${preProgram}
 ${weboutPrelude}
-${
-  weboutPrelude
-    ? `globalThis.webout = (action, ...args) =>
-  String(action == null ? '' : action).toUpperCase() === 'FETCH'
-    ? __sasjsFetchTables()
-    : _sasjs_webout(action, ...args);`
-    : ''
-}
 ${payloadCode || FILES.get(codePath)}
 ${
   weboutPrelude
@@ -1463,7 +1363,8 @@ return _webout;
       'console',
       'process',
       'Buffer',
-      '__sasjsFetchTables',
+      '__sasjsFetchContext',
+      '__sasjsParams',
       source
     )
     returned = fn(
@@ -1474,7 +1375,8 @@ return _webout;
         env: { NODE_ENV: 'browser' }
       },
       BUFFERS,
-      () => fetchUploadedTables(tables, params)
+      { params, tables },
+      requestVars
     )
   } catch (e) {
     // The stack alone is not an error message: WebKit's carries frames only, so

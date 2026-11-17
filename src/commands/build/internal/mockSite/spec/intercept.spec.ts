@@ -747,6 +747,28 @@ describe('page-side bridge', () => {
     )
   })
 
+  it('recognizes mixed-case table fields without merging distinct caller keys', async () => {
+    const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+    const { XHR } = loadBridge(fetchImpl)
+    const form = new FormData()
+    form.append('SaSjS1DaTa', 'first')
+    form.append('sasjs1data', 'lower')
+    form.append('SaSjS1DaTa', 'second')
+    form.append('Ordinary', 'one')
+    form.append('Ordinary', 'two')
+    form.append('SASJS_TABLES', 'input')
+    const xhr = new XHR()
+    await run(xhr, 'POST', '/SASStoredProcess/do', form)
+    expect(JSON.parse((fetchImpl.mock.calls[0] as any)[1].body).params).toEqual(
+      {
+        SaSjS1DaTa: 'firstsecond',
+        sasjs1data: 'lower',
+        Ordinary: 'two',
+        SASJS_TABLES: 'input'
+      }
+    )
+  })
+
   it('rejects a second SAS9 send even if the replacement body is not multipart', () => {
     const { XHR } = loadBridge(jest.fn(async () => jsonResponse('{}')))
     const xhr = new XHR()

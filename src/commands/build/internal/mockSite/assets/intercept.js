@@ -81,7 +81,9 @@
         }
       }
       // Long adapter CSVs are appended in ordered chunks, before the declaration.
-      const declarations = entries.filter(([key]) => key === 'sasjs_tables')
+      const declarations = entries.filter(
+        ([key]) => key.toLowerCase() === 'sasjs_tables'
+      )
       const tableNames = String(
         (declarations.length && declarations[declarations.length - 1][1]) || ''
       )
@@ -95,7 +97,7 @@
         if (isCurrent && !isCurrent()) return { params, tables }
         if (typeof value === 'string') {
           if (
-            tableFields.has(key) &&
+            tableFields.has(key.toLowerCase()) &&
             Object.prototype.hasOwnProperty.call(params, key)
           )
             params[key] += value

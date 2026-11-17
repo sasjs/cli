@@ -1493,20 +1493,24 @@ const readPayload = async (request, allowLargeFile = false) => {
   const form = await request.formData().catch(() => null)
   if (!form) return parsed
   // Only declared parameter tables use repeated fields as ordered CSV chunks.
-  const tableNames = String(form.getAll('sasjs_tables').at(-1) || '')
+  const entries = Array.from(form.entries())
+  const declarations = entries.filter(
+    ([name]) => name.toLowerCase() === 'sasjs_tables'
+  )
+  const tableNames = String(declarations.at(-1)?.[1] || '')
     .trim()
     .split(/\s+/)
     .filter(Boolean)
   const tableFields = new Set(
     tableNames.map((_name, index) => `sasjs${index + 1}data`)
   )
-  for (const [name, value] of form.entries()) {
+  for (const [name, value] of entries) {
     if (typeof value === 'string') {
       // The web adapter appends long CSV chunks under the same field name.
       // FormData preserves their order; ordinary repeated fields retain the
       // existing last-value-wins behaviour.
       if (
-        tableFields.has(name) &&
+        tableFields.has(name.toLowerCase()) &&
         Object.prototype.hasOwnProperty.call(parsed.body, name)
       )
         parsed.body[name] += value

@@ -871,6 +871,33 @@ describe('service worker host', () => {
     })
   })
 
+  it('recognizes mixed-case table fields without merging distinct caller keys', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/params.js')]:
+        '_webout = JSON.stringify({ SaSjS1DaTa, sasjs1data, Ordinary, SASJS_TABLES })'
+    })
+    const form = new FormData()
+    form.append('SaSjS1DaTa', 'first')
+    form.append('sasjs1data', 'lower')
+    form.append('SaSjS1DaTa', 'second')
+    form.append('Ordinary', 'one')
+    form.append('Ordinary', 'two')
+    form.append('SASJS_TABLES', 'input')
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/params`),
+      { method: 'POST', body: form }
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      SaSjS1DaTa: 'firstsecond',
+      sasjs1data: 'lower',
+      Ordinary: 'two',
+      SASJS_TABLES: 'input'
+    })
+  })
+
   it('returns the webout as the response body', async () => {
     const { dispatch } = seeded()
 
