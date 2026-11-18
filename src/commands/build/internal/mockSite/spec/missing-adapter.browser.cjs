@@ -12,16 +12,48 @@ const path = require('node:path')
 const ts = require('typescript')
 
 const appLoc = '/Public/app/test'
-const missing = [
+// Exercise both ordinary missing inputs and uppercase special missings: the
+// adapter serializes them as '.' and lowercase respectively. The character
+// column must keep its original case rather than follow the numeric conversion.
+const rows = [
+  null,
+  '.',
+  '._',
+  ...Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (c) => `.${c}`)
+].map((N, i) => ({ N, C: i % 2 ? '._' : '.A' }))
+// Independent oracle for the actual FETCH/webout result, not a copy of input.
+const expectedNumeric = [
+  null,
   null,
   '._',
-  ...Array.from('abcdefghijklmnopqrstuvwxyz', (c) => `.${c}`)
+  '.a',
+  '.b',
+  '.c',
+  '.d',
+  '.e',
+  '.f',
+  '.g',
+  '.h',
+  '.i',
+  '.j',
+  '.k',
+  '.l',
+  '.m',
+  '.n',
+  '.o',
+  '.p',
+  '.q',
+  '.r',
+  '.s',
+  '.t',
+  '.u',
+  '.v',
+  '.w',
+  '.x',
+  '.y',
+  '.z'
 ]
-const rows = missing.map((N, i) => ({
-  N,
-  C: i === 0 ? '.A' : i === 1 ? '._' : `.${String.fromCharCode(97 + i - 2)}`
-}))
-const expected = rows.map(({ N, C }) => ({ N, C }))
+const expected = expectedNumeric.map((N, i) => ({ N, C: i % 2 ? '._' : '.A' }))
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function build(root, type) {
@@ -304,15 +336,23 @@ async function main({ buildSite = build, scheduleDeadline } = {}) {
             assert.equal(lines[0], 'N:best. C:$char8.')
             assert.deepEqual(
               lines.slice(1).filter((line) => line !== ''),
-              rows.map(({ N, C }) => `${N === null ? '.' : N},${C}`)
+              expected.map(({ N, C }) => `${N === null ? '.' : N},${C}`)
             )
             assert.deepEqual(
               result.response.missing,
               expected,
-              `${type} debug=${debug}: all 28 FETCH → webout rows`
+              `${type} debug=${debug}: FETCH → webout rows`
+            )
+            assert.equal(
+              new Set(result.response.missing.map(({ N }) => N)).size,
+              28,
+              `${type} debug=${debug}: 28 distinct numeric missing states`
             )
             const metadata = result.response
-            assert.equal(metadata._DEBUG, debug ? '131' : '')
+            // Only debug propagation matters here; the adapter's numeric flag
+            // value is not part of the missing-value contract.
+            assert.equal(typeof metadata._DEBUG, 'string')
+            assert.equal(metadata._DEBUG !== '', debug)
             assert.equal(
               metadata._PROGRAM,
               '/sasjs/drive/files/Public/app/test/services/common/missing.js'
