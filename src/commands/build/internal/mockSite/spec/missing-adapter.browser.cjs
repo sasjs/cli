@@ -53,6 +53,8 @@ async function build(root, type) {
       esModuleInterop: true
     }
   }).outputText
+  // The source builder is transpiled in memory; these Node internals give it
+  // the same dependency resolution as a CommonJS module at its original path.
   const mod = new Module(file, module)
   mod.filename = file
   mod.paths = Module._nodeModulePaths(path.dirname(file))
@@ -106,22 +108,27 @@ function serve(site) {
   return server
 }
 
-async function main() {
+async function main({ buildSite = build, scheduleDeadline } = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'missing-adapter-'))
-  let browser, ws, server, exited, deadlineTimer
+  let browser, ws, server, exited, cancelDeadline
   let stage = 'building sites'
   let timedOut = false
   const abort = new AbortController()
   const pending = new Map()
   const deadlineMs = Number(process.env.SASJS_BROWSER_DEADLINE_MS || 90000)
   const deadline = new Promise((_, reject) => {
-    deadlineTimer = setTimeout(() => {
+    const expire = () => {
       timedOut = true
       abort.abort()
       reject(
         new Error(`Browser deadline exceeded during ${stage} (${deadlineMs}ms)`)
       )
-    }, deadlineMs)
+    }
+    if (scheduleDeadline) cancelDeadline = scheduleDeadline(expire, () => stage)
+    else {
+      const timer = setTimeout(expire, deadlineMs)
+      cancelDeadline = () => clearTimeout(timer)
+    }
   })
   const checkDeadline = () => {
     if (timedOut) throw new Error(`Browser deadline exceeded during ${stage}`)
@@ -131,7 +138,10 @@ async function main() {
       (async () => {
         const sites = []
         for (const type of ['SAS9', 'SASJS']) {
-          sites.push({ type, site: await build(path.join(root, type), type) })
+          sites.push({
+            type,
+            site: await buildSite(path.join(root, type), type)
+          })
           checkDeadline()
         }
         const profile = path.join(root, 'profile')
@@ -327,7 +337,7 @@ async function main() {
       deadline
     ])
   } finally {
-    clearTimeout(deadlineTimer)
+    cancelDeadline()
     abort.abort()
     for (const request of pending.values()) clearTimeout(request.timer)
     if (ws) ws.close()
@@ -356,4 +366,4 @@ if (require.main === module) {
     process.exitCode = 1
   })
 }
-module.exports = { serve }
+module.exports = { main, serve }
