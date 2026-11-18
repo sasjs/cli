@@ -19,6 +19,19 @@ const fixtures = path.join(__dirname, 'fixtures/sas9-adapter')
 const appLoc = '/Public/app/test'
 const values = ['Alder Basin', 'café, "spring"\nnext; line', 'tab\there']
 const springs = values.map((AREA, i) => ({ AREA, NAME: `spring-${i}` }))
+const edgeSprings = [
+  { AREA: 'null', NAME: 'literal-null' },
+  { AREA: '0', NAME: 'character-zero' },
+  { AREA: '.A', NAME: 'literal-special' },
+  { AREA: ' A', NAME: 'leading' },
+  { AREA: 'A  ', NAME: 'trailing' },
+  { AREA: '  ', NAME: 'missing-character' }
+]
+const allSprings = [
+  ...springs,
+  { AREA: 'undefined', NAME: 'missing-column' },
+  ...edgeSprings
+]
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 async function buildSite(root, targetType, basePath) {
@@ -33,7 +46,7 @@ async function buildSite(root, targetType, basePath) {
   )
   await fs.writeFile(
     path.join(services, 'springs.json'),
-    JSON.stringify(springs)
+    JSON.stringify(allSprings)
   )
   // An extra independent service verifies both uploaded files, not just areas.
   await fs.writeFile(
@@ -517,6 +530,40 @@ async function main() {
           `${target} ${transport}: webout FETCH reads mixed-case chunks`
         )
         console.log(`PASS ${target} ${transport} mixed-case webout FETCH`)
+
+        for (const [csv, expected] of [
+          ['AREA:best32.\r\n.\r\n0', []],
+          ['AREA:$char40.\r\nnull', [edgeSprings[0]]],
+          ['AREA:$char40.\r\n.A', [edgeSprings[2]]],
+          ['AREA:$char40.\r\n" A "', [edgeSprings[3]]],
+          ['AREA:$char40.\r\nA', [edgeSprings[4]]],
+          ['AREA:$char40.\r\n" "', [edgeSprings[5]]]
+        ]) {
+          const selected = await evaluate(`(async () => {
+            const form = new FormData();
+            form.append('sasjs1data', ${JSON.stringify(csv)});
+            form.append('sasjs_tables', 'areas');
+            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/getdata')});
+            if (${JSON.stringify(transport)} === 'fetch') {
+              const response = await fetch(url, {method: 'POST', body: form});
+              return {status: response.status, body: await response.json()};
+            }
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest(); xhr.open('POST', url);
+              xhr.onload = () => resolve({status: xhr.status, body: JSON.parse(xhr.responseText)});
+              xhr.onerror = reject; xhr.send(form);
+            });
+          })()`)
+          assert.equal(selected.status, 200, `${target} ${transport}: ${csv}`)
+          assert.deepEqual(
+            selected.body.springs,
+            expected,
+            `${target} ${transport}: ${csv}`
+          )
+        }
+        console.log(
+          `PASS ${target} ${transport} character AREA and numeric coercion`
+        )
       }
 
       try {
@@ -544,6 +591,8 @@ async function main() {
             const data = { areas: ${JSON.stringify(values.map((AREA) => ({ AREA })))}, extra: [{ NOTE: 'second, "table"\\n雪; ok' }] };
             try {
               const getdata = await sas.request('services/common/getdata', data);
+              const absentArea = await sas.request('services/common/getdata', {areas: [{OTHER: 'test; file'}]});
+              const unrelated = await sas.request('services/common/getdata', {unrelated: [{AREA: 'undefined'}]});
               const uploads = await sas.request('services/common/uploads', data);
               const fetched = await sas.request('services/common/fetch', data);
               const caseResults = [];
@@ -554,7 +603,7 @@ async function main() {
               let missing;
               try { missing = { resolved: await sas.request('services/common/does-not-exist', data) }; }
               catch(e) { missing = { rejected: true, error: String(e && (e.message || e)) }; }
-              return { getdata, uploads, fetched, caseResults, missing };
+              return { getdata, absentArea, unrelated, uploads, fetched, caseResults, missing };
             } catch(e) { return { error: String(e && (e.message || e)), detail: JSON.stringify(e) }; }
           })()`)
           assert.equal(
@@ -566,6 +615,16 @@ async function main() {
             result.getdata.springs,
             springs,
             `${label}: existing mock selected all special-character rows`
+          )
+          assert.deepEqual(
+            result.absentArea.springs,
+            [],
+            `${label}: missing AREA`
+          )
+          assert.deepEqual(
+            result.unrelated.springs,
+            [],
+            `${label}: unrelated table`
           )
           for (const { column, getdata, fetched } of result.caseResults) {
             assert.deepEqual(

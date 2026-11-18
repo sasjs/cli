@@ -26,12 +26,20 @@ const SPRINGS_FILE = path.join(
   'springs.json'
 )
 
-/* FETCH preserves column spelling; SAS column names are case-insensitive. */
+/* FETCH preserves column spelling; SAS column names are case-insensitive.
+ * AREA is character in the seed dataset. Compare character values with SAS
+ * blank-padding semantics: trailing spaces are insignificant, leading are not.
+ * FETCH returns special numeric missings as strings without type metadata, so
+ * a numeric .A cannot be distinguished from the character value '.A'. Numeric
+ * AREA is a SAS SQL type mismatch; this mock cannot reproduce that error. */
+const unpad = (value) => value.replace(/ +$/, '')
 const areas = webout('FETCH').areas || []
 const wanted = new Set(
-  areas.map((row) => {
+  areas.flatMap((row) => {
     const key = Object.keys(row).find((name) => name.toUpperCase() === 'AREA')
-    return String(key === undefined ? undefined : row[key]).trim()
+    return key === undefined || typeof row[key] !== 'string'
+      ? []
+      : [unpad(row[key])]
   })
 )
 
@@ -41,7 +49,9 @@ const springs = JSON.parse(fs.readFileSync(SPRINGS_FILE, 'utf-8'))
 
 /* proc sql; create table springs as select * from mydb.springs
  *   where area in (select area from work.areas); - dataset order, no sort. */
-const rows = springs.filter((row) => wanted.has(row.AREA))
+const rows = springs.filter(
+  (row) => typeof row.AREA === 'string' && wanted.has(unpad(row.AREA))
+)
 
 webout('OPEN')
 webout('OBJ', 'springs', rows)
