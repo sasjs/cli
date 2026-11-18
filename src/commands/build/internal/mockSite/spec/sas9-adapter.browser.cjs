@@ -74,6 +74,14 @@ async function buildSite(root, targetType, basePath) {
     `const first = webout('FETCH').input; fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:best.\\n99'); const second = webout('FETCH').input; fs.unlinkSync(_WEBIN_FILEREF1); let error; try { webout('FETCH'); } catch (e) { error = e.code; } _webout = JSON.stringify({first, second, error});`
   )
   await fs.writeFile(
+    path.join(services, 'mutateupload.js'),
+    `const dir = require('path').dirname(_WEBIN_FILEREF1); const copy = dir + '/copy'; fs.writeFileSync(_WEBIN_FILEREF1, 'abc'); const text = fs.readFileSync(_WEBIN_FILEREF1); fs.writeFileSync(_WEBIN_FILEREF1, Buffer.from([0,255,128])); fs.copyFileSync(_WEBIN_FILEREF1, copy); const binary = fs.readFileSync(copy).toString('hex'); fs.unlinkSync(_WEBIN_FILEREF1); let error; try { fs.readFileSync(_WEBIN_FILEREF1); } catch(e) { error=e.code; } _webout=JSON.stringify({buffer:Buffer.isBuffer(text),hex:text.toString('hex'),binary,error,copy,stream:typeof fs.createReadStream});`
+  )
+  await fs.writeFile(
+    path.join(services, 'uploadprobe.js'),
+    `_webout=JSON.stringify({exists:fs.existsSync(file)});`
+  )
+  await fs.writeFile(
     path.join(services, 'caseparams.js'),
     `_webout = JSON.stringify({ SaSjS1DaTa, sasjs1data, Ordinary, SASJS_TABLES });`
   )
@@ -539,6 +547,17 @@ async function main() {
         })()`)
         assert.deepEqual(lazy, {status: 200, body: {first: [{VALUE: 42}], second: [{VALUE: 99}], error: 'ENOENT'}}, `${target} ${transport}: FETCH re-reads edited and deleted file`)
         console.log(`PASS ${target} ${transport} lazy FETCH after edit and delete`)
+        const mutation = await evaluate(`(async () => {
+          const form = new FormData(); form.append('input', new Blob(['initial']), 'input.bin');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/mutateupload')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(path, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+          return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+        })()`)
+        assert.equal(mutation.status, 200)
+        assert.deepEqual({...mutation.body, copy: undefined}, {buffer:true,hex:'616263',binary:'00ff80',error:'ENOENT',copy:undefined,stream:'undefined'}, `${target} ${transport}: mutation parity and stream limitation`)
+        const probe = await evaluate(`(async () => { const url = ${JSON.stringify(basePath + '/SASjsApi/stp/execute')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploadprobe')}) + '&file=' + encodeURIComponent(${JSON.stringify(mutation.body.copy)}); const r = await fetch(url); return {status:r.status, body:await r.json()}; })()`)
+        assert.deepEqual(probe, {status:200,body:{exists:false}}, `${target} ${transport}: derived upload is transient`)
+        console.log(`PASS ${target} ${transport} mutation and cleanup`)
         const result = await evaluate(`(async () => {
           const form = new FormData();
           form.append('SaSjS1DaTa', 'first');

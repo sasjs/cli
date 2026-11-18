@@ -876,7 +876,13 @@ const FS = {
     // entry is its utf8 bytes
     if (onOptions && 'encoding' in options)
       return bytes || asBuffer(utf8Encoder.encode(entryText(contents)))
-    return bytes || entryText(contents)
+    // A staged file must read as a Node Buffer even after a text overwrite.
+    return (
+      bytes ||
+      (/^\/sasjs\/sessions\/s\d+\/uploads\//.test(abs)
+        ? asBuffer(utf8Encoder.encode(entryText(contents)))
+        : entryText(contents))
+    )
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
@@ -1270,6 +1276,7 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   }
 
   const sessionDir = `/sasjs/sessions/s${++sessionSeq}`
+  const uploadDir = `${sessionDir}/uploads`
   mkdirp(sessionDir)
   const weboutPath = `${sessionDir}/webout.txt`
   const headersPath = `${sessionDir}/stpsrv_header.txt`
@@ -1307,7 +1314,8 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
 
   const webinStatements = []
   const uploadPaths = tables.map((table, idx) => {
-    const uploadPath = `${sessionDir}/upload${idx + 1}`
+    const uploadPath = `${uploadDir}/upload${idx + 1}`
+    mkdirp(uploadDir)
     const bytes = table.bytes === undefined ? table.csv || '' : table.bytes
     const raw = typeof bytes === 'string' ? utf8Encoder.encode(bytes) : bytes
     putEntry(uploadPath, BINARY_PREFIX + bytesToBase64(raw))
@@ -1423,13 +1431,11 @@ return _webout;
         : stack || String(e)
     logLines.push(String(thrown))
   } finally {
-    // Session uploads are transient and must never enter the persisted drive.
-    for (const uploadPath of uploadPaths) {
-      FILES.delete(uploadPath)
-      SIZES.delete(uploadPath)
-      dirty.delete(uploadPath)
-      DELETED.delete(uploadPath)
-    }
+    // Only the per-request staging subtree is transient. A service may
+    // intentionally copy an upload elsewhere, including elsewhere in sessionDir.
+    const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
+    for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
+      for (const p of store.keys()) if (inUploads(p)) store.delete(p)
   }
 
   const stored = FILES.get(weboutPath) || ''

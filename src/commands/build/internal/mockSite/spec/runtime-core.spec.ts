@@ -641,6 +641,46 @@ globalThis.webout = _sasjs_webout;`
     })
   })
 
+  it('returns bytes after an upload is overwritten with text', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0, 255])
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes }],
+      code: `fs.writeFileSync(_WEBIN_FILEREF1, 'abc'); const b = fs.readFileSync(_WEBIN_FILEREF1); _webout = JSON.stringify({buffer: Buffer.isBuffer(b), hex: b.toString('hex'), options: Buffer.isBuffer(fs.readFileSync(_WEBIN_FILEREF1, {})), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8')})`
+    })
+    expect(result.error).toBeFalsy()
+    expect(JSON.parse(result.webout)).toEqual({
+      buffer: true,
+      hex: '616263',
+      options: true,
+      text: 'abc'
+    })
+  })
+
+  it('removes derived files only within the upload staging namespace', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        { name: 'input', filename: 'x', bytes: new Uint8Array([0, 255]) }
+      ],
+      code: `const path = require('path'); const folder = path.dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, folder + '/copy'); fs.writeFileSync(folder + '/nested/derived', 'secret'); fs.writeFileSync(path.dirname(folder) + '/keep', 'keep'); fs.writeFileSync('/sasjs/drive/files/keep', 'keep'); _webout = folder;`
+    })
+    expect(result.error).toBeFalsy()
+    const folder = result.webout
+    const dirty = runtime.takeDirty()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(Object.keys(dirty)).toContain(path.posix.dirname(folder) + '/keep')
+    expect(Object.keys(dirty)).toContain('/sasjs/drive/files/keep')
+    const probe = runtime.run({
+      code: `_webout = JSON.stringify([fs.existsSync(${JSON.stringify(folder + '/copy')}), fs.existsSync(${JSON.stringify(folder + '/nested/derived')})]);`
+    })
+    expect(JSON.parse(probe.webout)).toEqual([false, false])
+  })
+
   it('reports staged upload metadata through fs.statSync', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {})
