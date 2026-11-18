@@ -681,6 +681,23 @@ globalThis.webout = _sasjs_webout;`
     expect(JSON.parse(probe.webout)).toEqual([false, false])
   })
 
+  it('cleans the upload staging subtree when a service throws', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes: new Uint8Array([1]) }],
+      code: `const dir = require('path').dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, dir + '/copy'); fs.writeFileSync('/sasjs/drive/files/location', dir); throw new Error('failed');`
+    })
+    expect(result.error).toContain('failed')
+    const dirty = runtime.takeDirty()
+    const folder = dirty['/sasjs/drive/files/location']
+    expect(folder).toBeTruthy()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(runtime.dumpAll()[folder + '/copy']).toBeUndefined()
+  })
+
   it('reports staged upload metadata through fs.statSync', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {})
