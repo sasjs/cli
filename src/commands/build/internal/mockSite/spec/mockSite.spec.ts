@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { JSDOM } from 'jsdom'
+import { satisfies, validRange } from 'semver'
 import {
   buildMockSite,
   DRIVE_FORMAT,
@@ -389,19 +390,34 @@ describe('browser-hosted build', () => {
 
   it('resolves the same linter for the API code service and CLI', () => {
     const cliLint = require.resolve('@sasjs/lint/package.json')
+    const apiEntry = require.resolve('@sasjs/api/code')
     const apiLint = require.resolve('@sasjs/lint/package.json', {
-      paths: [path.dirname(require.resolve('@sasjs/api/code'))]
+      paths: [path.dirname(apiEntry)]
     })
     const manifest = JSON.parse(fs.readFileSync(cliLint, 'utf8'))
-    const cliManifest = JSON.parse(
-      fs.readFileSync(
-        path.resolve(__dirname, '../../../../../../package.json'),
-        'utf8'
-      )
-    )
+    // The API does not export package.json. Walk up from its actual entry point
+    // to its package root rather than assuming a fixed build directory depth.
+    let dir = path.dirname(apiEntry)
+    let apiManifest: any
+    while (true) {
+      const file = path.join(dir, 'package.json')
+      if (fs.existsSync(file)) {
+        const candidate = JSON.parse(fs.readFileSync(file, 'utf8'))
+        if (candidate.name === '@sasjs/api') {
+          apiManifest = candidate
+          break
+        }
+      }
+      const parent = path.dirname(dir)
+      if (parent === dir) throw new Error('Cannot find @sasjs/api package.json')
+      dir = parent
+    }
+    const apiRequirement = apiManifest.dependencies?.['@sasjs/lint']
 
     expect(apiLint).toBe(cliLint)
-    expect(manifest.version).toBe(cliManifest.dependencies['@sasjs/lint'])
+    expect(typeof apiRequirement).toBe('string')
+    expect(validRange(apiRequirement)).not.toBeNull()
+    expect(satisfies(manifest.version, apiRequirement)).toBe(true)
   })
 
   it('bundles the linter from the installed packages, ready for a worker', async () => {
