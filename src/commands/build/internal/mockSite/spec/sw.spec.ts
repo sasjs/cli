@@ -678,9 +678,10 @@ describe('service worker host', () => {
     })
     const limit = worker.runtime.MAX_UPLOAD_BYTES
     const response = await worker.dispatch(
-      '/SASStoredProcess/do',
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
       runRequest({
-        params: { _PROGRAM: `${appLoc}/services/public/echo` },
+        params: {},
         tables: [
           { name: 'text', csv: 'é'.repeat(limit / 2) },
           {
@@ -764,16 +765,39 @@ describe('service worker host', () => {
     }
   })
 
-  it('SAS9 reads bridge form fields case-insensitively and frames debug webout', async () => {
+  it.each(['GET', 'POST'])(
+    'SAS9 %s debug response is parsed by the installed adapter with mixed-case query names',
+    async (method) => {
+      const worker = loadWorker('', { skipLint: true })
+      worker.runtime.load({
+        [drivePath('services/public/adapterdebug.js')]:
+          "console.log('adapter log'); _webout = JSON.stringify({custom: customparam})"
+      })
+      const response = await worker.dispatch(
+        `/SASStoredProcess/do?_PrOgRaM=${appLoc}/services/public/adapterdebug&_DeBuG=131&CuStOmPaRaM=hello`,
+        { method }
+      )
+      expect(response.status).toBe(200)
+      const body = await response.text()
+      const {
+        parseWeboutResponse
+      } = require('@sasjs/adapter/utils/parseWeboutResponse')
+      expect(JSON.parse(parseWeboutResponse(body))).toEqual({ custom: 'hello' })
+      expect(body).toContain('adapter log')
+    }
+  )
+
+  it('SAS9 reads multipart uploads and frames lowercase debug webout', async () => {
     const worker = loadWorker('', { skipLint: true })
     worker.runtime.load({
       [drivePath('services/public/echo.js')]:
         'console.log("mock log"); _webout = JSON.stringify({name: _WEBIN_NAME1, csv: fs.readFileSync(_WEBIN_FILEREF1, "utf8")});'
     })
     const response = await worker.dispatch(
-      '/SASStoredProcess/do',
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
       runRequest({
-        params: { _PROGRAM: `${appLoc}/services/public/echo`, _DEBUG: '131' },
+        params: { _debug: '131' },
         tables: [
           { name: 'people', filename: 'people.csv', csv: 'a:$3.\r\nhey' }
         ]
@@ -781,16 +805,129 @@ describe('service worker host', () => {
     )
     expect(response.status).toBe(200)
     const body = await response.text()
-    expect(body).toContain('>>weboutBEGIN<<')
-    expect(body).toContain('>>weboutEND<<')
-    expect(
-      JSON.parse(body.split('>>weboutBEGIN<<')[1].split('>>weboutEND<<')[0])
-    ).toEqual({
+    const {
+      parseWeboutResponse
+    } = require('@sasjs/adapter/utils/parseWeboutResponse')
+    expect(JSON.parse(parseWeboutResponse(body))).toEqual({
       name: 'people',
       csv: 'a:$3.\r\nhey'
     })
     expect(body).toContain('mock log')
     expect(body).not.toContain(LOGS_SEPARATOR)
+  })
+
+  it.each(['GET', 'POST'])(
+    'SAS9 %s frames only numeric debug levels of at least 131',
+    async (method) => {
+      const worker = loadWorker('', { skipLint: true })
+      worker.runtime.load({
+        [drivePath('services/public/debuglevel.js')]:
+          "console.log('debug log'); _webout = 'webout'"
+      })
+      for (const [level, framed] of [
+        ['0', false],
+        ['130', false],
+        ['131', true],
+        ['log', false]
+      ] as const) {
+        const response = await worker.dispatch(
+          `/SASStoredProcess/do?_program=${appLoc}/services/public/debuglevel&_debug=${level}`,
+          { method }
+        )
+        expect(response.status).toBe(200)
+        const body = await response.text()
+        expect(body.includes('>>weboutBEGIN<<')).toBe(framed)
+        if (framed) {
+          expect(body).toContain('debug log')
+          expect(body).toContain('>>weboutBEGIN<<webout>>weboutEND<<')
+          expect(body).not.toContain(LOGS_SEPARATOR)
+        } else expect(body).toBe('webout')
+      }
+    }
+  )
+
+  it.each([
+    ['log', true, false],
+    ['0x10', true, false],
+    ['1e3', true, true],
+    ['130', false, false],
+    ['131', true, true]
+  ])(
+    'keeps StoredProgram and SAS9 debug framing distinct for %s',
+    async (value, tierFramed, sas9Framed) => {
+      const worker = loadWorker('', { skipLint: true })
+      worker.runtime.load({
+        [drivePath('services/public/debugparity.js')]:
+          "console.log('debug log'); _webout = JSON.stringify({ok: true})"
+      })
+      const {
+        parseWeboutResponse
+      } = require('@sasjs/adapter/utils/parseWeboutResponse')
+      for (const [tier, framed] of [
+        ['/StoredProgram', tierFramed],
+        ['/SASStoredProcess/do', sas9Framed]
+      ] as const) {
+        const response = await worker.dispatch(
+          `${tier}?_program=${appLoc}/services/public/debugparity&_debug=${value}`
+        )
+        expect(response.status).toBe(200)
+        const body = await response.text()
+        const marker =
+          tier === '/StoredProgram' ? LOGS_SEPARATOR : '>>weboutBEGIN<<'
+        expect(body.includes(marker)).toBe(framed)
+        if (tier === '/SASStoredProcess/do' && framed)
+          expect(JSON.parse(parseWeboutResponse(body))).toEqual({ ok: true })
+        if (!framed) expect(JSON.parse(body)).toEqual({ ok: true })
+      }
+    }
+  )
+
+  it('SAS9 passes raw lowercase debug values into the program', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/rawdebug.js')]: '_webout = String(_debug)'
+    })
+    for (const value of ['0', 'log']) {
+      const response = await worker.dispatch(
+        `/SASStoredProcess/do?_program=${appLoc}/services/public/rawdebug&_debug=${value}`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe(value)
+    }
+  })
+
+  it('SAS9 preserves body debug casing without enabling uppercase debug', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/bodydebug.js')]:
+        '_webout = JSON.stringify({ lower: typeof _debug === "undefined" ? null : _debug, upper: typeof _DEBUG === "undefined" ? null : _DEBUG })'
+    })
+    const path = `/SASStoredProcess/do?_program=${appLoc}/services/public/bodydebug`
+    const response = await worker.dispatch(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ _DEBUG: '131' })
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ lower: null, upper: '131' })
+  })
+
+  it('SAS9 keeps query debug distinct from differently cased body fields', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/debugcollision.js')]:
+        '_webout = JSON.stringify({ lower: _debug, upper: _DEBUG })'
+    })
+    const response = await worker.dispatch(
+      `/SASStoredProcess/do?_program=${appLoc}/services/public/debugcollision&_debug=0`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _DEBUG: '131' })
+      }
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ lower: '0', upper: '131' })
   })
 
   it('SAS9 refuses a SAS-only program instead of inventing a session', async () => {
@@ -849,12 +986,15 @@ describe('service worker host', () => {
         '_webout = _WEBIN_NAME1 + "|" + fs.readFileSync(_WEBIN_FILEREF1, "utf8");'
     })
     const form = new FormData()
-    form.set('_PROGRAM', `${appLoc}/services/public/echo`)
     form.set('people', new Blob(['name:$5.\r\nAlice']), 'people.csv')
-    const response = await worker.dispatch('/SASStoredProcess/do', {
-      method: 'POST',
-      body: form
-    })
+    const response = await worker.dispatch(
+      '/SASStoredProcess/do?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/echo`),
+      {
+        method: 'POST',
+        body: form
+      }
+    )
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('people|name:$5.\r\nAlice')
     const unknown = await worker.dispatch(
@@ -882,9 +1022,12 @@ describe('service worker host', () => {
         encodeURIComponent(`${appLoc}/services/public/sep`)
     )
     const body = await response.text()
-    expect(
-      JSON.parse(body.split('>>weboutBEGIN<<')[1].split('>>weboutEND<<')[0])
-    ).toEqual({ value: LOGS_SEPARATOR })
+    const {
+      parseWeboutResponse
+    } = require('@sasjs/adapter/utils/parseWeboutResponse')
+    expect(JSON.parse(parseWeboutResponse(body))).toEqual({
+      value: LOGS_SEPARATOR
+    })
   })
 
   it('SAS9 selects the JS twin before the SAS twin', async () => {
@@ -4994,6 +5137,515 @@ describe('service worker host', () => {
 
   describe('the read a streamed deployment links to', () => {
     const asset = (name: string) => drivePath(`services/web/${name}`)
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'accepts a mixed-case, encoded file parameter on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+
+        const response = await worker.dispatch(
+          `${tier}?%5FfIlE=${appLoc}/services/web/main.js`
+        )
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('console.log(1)')
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'refuses a mixed-case filePath together with file on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({ [asset('main.js')]: 'console.log(1)' })
+        const response = await worker.dispatch(
+          `${tier}?_FILE=${appLoc}/services/web/main.js` +
+            `&%5ffIlEpAtH=${appLoc}/services/web/main.js`
+        )
+        expect(response.status).toBe(400)
+        expect(await response.text()).toBe(
+          'Exactly one of "_filePath" and "_FILE" may be given.'
+        )
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'rejects repeated file names on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [asset('first.js')]: 'first',
+          [asset('last.js')]: 'last'
+        })
+        const response = await worker.dispatch(
+          `${tier}?_FILE=${appLoc}/services/web/first.js` +
+            `&%5ffile=${appLoc}/services/web/last.js`
+        )
+        expect(response.status).toBe(400)
+        expect(await response.text()).toContain('"_FILE" must be a string')
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'rejects mixed-case controls even when one is empty on %s',
+      async (tier) => {
+        const worker = seeded()
+        const response = await worker.dispatch(
+          `${tier}?%5ffile=&_ProGram=${appLoc}/services/public/getdata`
+        )
+        expect(response.status).toBe(400)
+        expect(await response.text()).toBe(
+          'Exactly one of "_program" and "_FILE" may be given.'
+        )
+      }
+    )
+
+    it.each(['GET', 'POST'])(
+      'rejects empty or duplicate web-tier debug on %s',
+      async (method) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/debug.js')]: "_webout = 'ran'"
+        })
+        const path = `/StoredProgram?_program=${appLoc}/services/public/debug`
+        for (const [query, message] of [
+          ['_DeBuG=', '"_debug" is not allowed to be empty'],
+          ['_debug=1&_DEBUG=2', '"_debug" must be one of [number, string]']
+        ]) {
+          const response = await worker.dispatch(`${path}&${query}`, { method })
+          expect(response.status).toBe(400)
+          expect(await response.text()).toContain(message)
+        }
+      }
+    )
+
+    it.each([
+      ['_DeBuG=', '"_debug" is not allowed to be empty'],
+      ['_debug=1&_DEBUG=2', '"_debug" must be one of [number, string]']
+    ])(
+      'rejects invalid SAS9 POST query %s before execution',
+      async (query, message) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/invaliddebug.js')]:
+            "fs.writeFileSync('/sasjs/drive/files/invaliddebug.txt', 'ran')"
+        })
+        const response = await worker.dispatch(
+          `/SASStoredProcess/do?_program=${appLoc}/services/public/invaliddebug&${query}`,
+          { method: 'POST' }
+        )
+        expect(response.status).toBe(400)
+        expect(await response.text()).toContain(message)
+        expect(
+          await worker.runtime.driveStore.exists('/invaliddebug.txt')
+        ).toBe(false)
+      }
+    )
+
+    it('passes duplicate SAS9 GET parameters through as arrays', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/arrays.js')]:
+          '_webout = JSON.stringify(_sasjs_fetch_context.params)'
+      })
+      const response = await worker.dispatch(
+        `/SASStoredProcess/do?_program=${appLoc}/services/public/arrays&Region=a&REGION=b`
+      )
+      expect(response.status).toBe(200)
+      expect((await response.json()).region).toEqual(['a', 'b'])
+    })
+
+    it('rejects a body-only uppercase SAS9 POST program before execution', async () => {
+      const worker = seeded()
+      const program = `${appLoc}/services/public/uppercaseprogram`
+      await worker.runtime.load({
+        [drivePath('services/public/uppercaseprogram.js')]:
+          "fs.writeFileSync('/sasjs/drive/files/uppercaseprogram.txt', 'ran')"
+      })
+      const response = await worker.dispatch('/SASStoredProcess/do', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ _PROGRAM: program })
+      })
+      expect(response.status).toBe(400)
+      expect(
+        await worker.runtime.driveStore.exists('/uppercaseprogram.txt')
+      ).toBe(false)
+    })
+
+    it('selects the lowercase SAS9 POST program regardless of body key order', async () => {
+      const worker = seeded()
+      const program = `${appLoc}/services/public/bodyprogram`
+      await worker.runtime.load({
+        [drivePath('services/public/bodyprogram.js')]: "_webout = 'correct'"
+      })
+      for (const body of [
+        { _program: program, _PROGRAM: '/wrong' },
+        { _PROGRAM: '/wrong', _program: program }
+      ]) {
+        const response = await worker.dispatch('/SASStoredProcess/do', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe('correct')
+      }
+    })
+
+    it.each(['/StoredProgram', '/SASStoredProcess/do'])(
+      'does not run the body program when %s query program is empty',
+      async (tier) => {
+        const worker = seeded()
+        const program = `${appLoc}/services/public/emptyquery`
+        await worker.runtime.load({
+          [drivePath('services/public/emptyquery.js')]:
+            "fs.writeFileSync('/sasjs/drive/files/emptyquery.txt', 'ran')"
+        })
+        const response = await worker.dispatch(`${tier}?_program=`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ _program: program })
+        })
+        expect(response.status).not.toBe(200)
+        expect(await worker.runtime.driveStore.exists('/emptyquery.txt')).toBe(
+          false
+        )
+      }
+    )
+
+    it('does not let URL parameters shadow local var bindings', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/localvar.js')]:
+          'var Count = 5; Count++; _webout = String(Count)'
+      })
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=${appLoc}/services/public/localvar&count=99`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.text()).toBe('6')
+    })
+
+    it.each([
+      ['/StoredProgram', 'GET'],
+      ['/StoredProgram', 'POST'],
+      ['/SASStoredProcess/do', 'POST']
+    ])(
+      'rejects duplicate custom URL names without running on %s %s',
+      async (tier, method) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/duplicate.js')]:
+            "fs.writeFileSync('/sasjs/drive/files/duplicate.txt', 'executed')"
+        })
+        for (const query of ['region=a&region=b', 'Region=a&%52EGION=b']) {
+          const response = await worker.dispatch(
+            `${tier}?_program=${appLoc}/services/public/duplicate&${query}`,
+            method === 'POST'
+              ? {
+                  method,
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ region: 'body' })
+                }
+              : { method }
+          )
+          expect(response.status).toBe(400)
+          expect((await response.json()).message).toBe(
+            '"region" must be one of [string, number]'
+          )
+          expect(await worker.runtime.driveStore.exists('/duplicate.txt')).toBe(
+            false
+          )
+        }
+      }
+    )
+
+    it('does not execute programs on the SASJobExecution tier', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/notrun.js')]:
+          "fs.writeFileSync('/sasjs/drive/files/notrun.txt', 'executed')"
+      })
+      const path = `/SASJobExecution?_program=${appLoc}/services/public/notrun`
+      const get = await worker.dispatch(path)
+      expect(get.status).toBe(404)
+      const post = await worker.dispatch(path, { method: 'POST' })
+      expect(post.status).toBe(200)
+      expect(await post.json()).toEqual({ test: 'test' })
+      expect(await worker.runtime.driveStore.exists('/notrun.txt')).toBe(false)
+    })
+
+    it.each([
+      ['0', false, '_DeBuG'],
+      ['0', false, '_debug'],
+      ['130', false, '_DeBuG'],
+      ['131', true, '_DeBuG'],
+      ['log', true, '_DeBuG']
+    ])(
+      'honours tier POST body debug %s over query debug',
+      async (debug, framed, key) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/debugmerge.js')]: "_webout = 'unframed'"
+        })
+        const response = await worker.dispatch(
+          `/StoredProgram?_program=${appLoc}/services/public/debugmerge&_debug=131`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ [key]: debug })
+          }
+        )
+        expect(response.status).toBe(200)
+        const body = await response.text()
+        expect(body.startsWith('unframed')).toBe(true)
+        expect(body.includes(LOGS_SEPARATOR)).toBe(framed)
+        if (!framed) expect(body).toBe('unframed')
+      }
+    )
+
+    it('merges tier POST body collisions into the canonical query name', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/merge.js')]:
+          '_webout = JSON.stringify({ region, params: _sasjs_fetch_context.params, OtherField, _program })'
+      })
+      const path = `/StoredProgram?_program=${appLoc}/services/public/merge&ReGiOn=query`
+      const response = await worker.dispatch(path, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          Region: 'body',
+          OtherField: 'kept',
+          _PrOgRaM: '/wrong'
+        })
+      })
+      expect(response.status).toBe(200)
+      const output = await response.json()
+      expect(output.region).toBe('body')
+      expect(output.OtherField).toBe('kept')
+      expect(output.params.region).toBe('body')
+      expect(output.params.Region).toBeUndefined()
+      expect(output.params._PrOgRaM).toBeUndefined()
+      expect(output._program).toBe(`${appLoc}/services/public/merge`)
+    })
+
+    it.each(['/StoredProgram', '/SASStoredProcess/do'])(
+      'normalizes every URL name on %s without changing values',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/case.js')]:
+            `_webout = JSON.stringify({ value: customerid, params: _sasjs_fetch_context.params })`
+        })
+        for (const name of ['customerid', 'CUSTOMERID', '%43ustomerId']) {
+          const response = await worker.dispatch(
+            `${tier}?_PROGRAM=${appLoc}/services/public/case&${name}=Keep%2FCase%3DYes%2B%25&EMPTY=&Unicode=%C3%A9&bad-name=kept`
+          )
+          expect(response.status).toBe(200)
+          const output = await response.json()
+          expect(output.value).toBe('Keep/Case=Yes+%')
+          expect(output.params).toMatchObject({
+            customerid: 'Keep/Case=Yes+%',
+            empty: '',
+            unicode: 'é',
+            'bad-name': 'kept'
+          })
+          expect(output.params.CustomerId).toBeUndefined()
+        }
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASStoredProcess/do'])(
+      'rejects repeated program names without execution on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/repeat.js')]:
+            `fs.writeFileSync('/sasjs/drive/files/repeat.txt', 'executed')`
+        })
+        const program = `${appLoc}/services/public/repeat`
+        const response = await worker.dispatch(
+          `${tier}?_program=${program}&_PROGRAM=${program}`
+        )
+        expect(response.status).toBe(400)
+        expect((await response.json()).message).toBe(
+          '"_program" must be a string'
+        )
+        expect(await worker.runtime.driveStore.exists('/repeat.txt')).toBe(
+          false
+        )
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASStoredProcess/do'])(
+      'honours mixed-case debug and denies invalid mixed-case tokens on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({
+          [drivePath('services/public/security.js')]: "_webout = 'executed'"
+        })
+        const path = `${tier}?_program=${appLoc}/services/public/security`
+        const debug = await worker.dispatch(path + '&_DeBuG=131')
+        expect(debug.status).toBe(200)
+        expect(await debug.text()).toContain(
+          tier === '/SASStoredProcess/do' ? '>>weboutBEGIN<<' : LOGS_SEPARATOR
+        )
+        const denied = await worker.dispatch(
+          path + '&AcCeSs_ToKeN=invalid-token'
+        )
+        expect(denied.status).toBe(401)
+        expect(await denied.text()).not.toContain('executed')
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'keeps duplicate query tokens from bypassing authentication on %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({ [asset('private.js')]: 'private' })
+        const path = `${tier}?_FILE=${appLoc}/services/web/private.js`
+        const denied = await worker.dispatch(
+          path + '&access_token=&ACCESS_TOKEN=invalid-token'
+        )
+        expect(denied.status).toBe(401)
+        expect(await denied.text()).not.toBe('private')
+        const headerDenied = await worker.dispatch(path + '&ACCESS_TOKEN=', {
+          headers: { authorization: 'Bearer invalid-token' }
+        })
+        expect(headerDenied.status).toBe(401)
+      }
+    )
+
+    it('keeps runner bindings protected and preserves canonical parameter names', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/reserved.js')]:
+          `_webout = JSON.stringify({ fs: typeof fs.readFileSync, output: typeof _webout, webin: _WEBIN_FILE_COUNT, stored: _sasjs_fetch_context.params.fs, invalid: _sasjs_fetch_context.params['bad-name'] })`
+      })
+      const response = await worker.dispatch(
+        `/StoredProgram?_program=${appLoc}/services/public/reserved&Fs=attacker&_WEBOUT=attacker&_webin_file_count=42&bad-name=kept`
+      )
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({
+        fs: 'function',
+        output: 'string',
+        webin: 0,
+        stored: 'attacker',
+        invalid: 'kept'
+      })
+    })
+
+    it('leaves direct API query names case-sensitive', async () => {
+      const worker = seeded()
+      await worker.runtime.load({
+        [drivePath('services/public/direct.js')]:
+          `_webout = JSON.stringify({ MixedParam, params: _sasjs_fetch_context.params })`
+      })
+      const response = await worker.dispatch(
+        `/SASjsApi/stp/execute?_program=${appLoc}/services/public/direct&MixedParam=Keep`
+      )
+      expect(response.status).toBe(200)
+      const output = await response.json()
+      expect(output.MixedParam).toBe('Keep')
+      expect(output.params.MixedParam).toBe('Keep')
+      expect(output.params.mixedparam).toBeUndefined()
+      const invalid = await worker.dispatch(
+        `/SASjsApi/stp/execute?_PROGRAM=${appLoc}/services/public/direct`
+      )
+      expect(invalid.status).toBe(400)
+      expect(await invalid.json()).toEqual({
+        message: '"_program" is required'
+      })
+    })
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'does not load shards for repeated file names on %s',
+      async (tier) => {
+        const first = asset('first.js')
+        const last = asset('last.js')
+        ;(global as any).__sasjsShards = {
+          index: {
+            format: DRIVE_FORMAT,
+            sharded: true,
+            boot: 0,
+            entries: {
+              [first]: { shard: 1, bytes: 5 },
+              [last]: { shard: 2, bytes: 4 }
+            },
+            shards: [
+              { id: 0, file: 'host/vfs-snapshot-0.json' },
+              { id: 1, file: 'host/vfs-snapshot-1.json' },
+              { id: 2, file: 'host/vfs-snapshot-2.json' }
+            ]
+          },
+          0: {},
+          1: { [first]: 'first' },
+          2: { [last]: 'last' }
+        }
+        const worker = loadWorker('', { skipLint: true })
+        const response = await worker.dispatch(
+          `${tier}?_FILE=${appLoc}/services/web/first.js` +
+            `&_file=${appLoc}/services/web/last.js`
+        )
+        expect(response.status).toBe(400)
+        expect((global as any).__sasjsShardFetches).not.toContain(2)
+        expect((global as any).__sasjsShardFetches).not.toContain(1)
+      }
+    )
+
+    it.each(['/StoredProgram', '/SASJobExecution'])(
+      'keeps authentication on a mixed-case file request to %s',
+      async (tier) => {
+        const worker = seeded()
+        await worker.runtime.load({ [asset('private.js')]: 'private' })
+        const response = await worker.dispatch(
+          `${tier}?_fIlE=${appLoc}/services/web/private.js`,
+          { headers: { authorization: 'Bearer invalid-token' } }
+        )
+        expect(response.status).toBe(401)
+        expect(await response.text()).not.toBe('private')
+      }
+    )
+
+    it('keeps execution grants on a mixed-case program request', async () => {
+      const identity = {
+        ...DEFAULT_IDENTITY,
+        permissions: [
+          ...DEFAULT_IDENTITY.permissions,
+          {
+            uid: 'deny-tier-execution',
+            path: '/SASjsApi/stp/execute',
+            type: 'Route',
+            setting: 'Deny',
+            user: 'user-restricted'
+          }
+        ]
+      }
+      const worker = loadWorker('', { skipLint: true })
+      const boot = worker.message({
+        type: 'sasjs-seed',
+        identity,
+        subject: 'sasjsuser'
+      })
+      await boot.pending
+      expect(boot.replies[0].error).toBeUndefined()
+      worker.runtime.load({
+        [drivePath('services/public/security.js')]:
+          "fs.writeFileSync('/sasjs/drive/files/executed.txt', 'yes'); _webout = 'executed'"
+      })
+      const requestPath = `/StoredProgram?_PROGRAM=${appLoc}/services/public/security`
+      const denied = await worker.dispatch(requestPath)
+      expect(denied.status).toBe(401)
+      expect(await worker.runtime.driveStore.exists('/executed.txt')).toBe(
+        false
+      )
+      await worker.message({ type: 'sasjs-as', username: 'sasjsadmin' }).pending
+      const granted = await worker.dispatch(requestPath)
+      expect(granted.status).toBe(200)
+      expect(await granted.text()).toBe('executed')
+    })
 
     it(`answers the SASjs tier spelling, typed as a script`, async () => {
       const worker = seeded()
