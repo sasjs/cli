@@ -1,4 +1,48 @@
+import fs from 'fs'
+import path from 'path'
+import ts from 'typescript'
+
 export {}
+
+// Refuse an unrecognizable inventory rather than letting a refactor silently
+// disable this cross-runtime security guard.
+const workerGrantRoutes = (): string[] => {
+  const source = ts.createSourceFile(
+    'sw.js',
+    fs.readFileSync(path.join(__dirname, '../assets/sw.js'), 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.JS
+  )
+  const declarations: ts.VariableDeclaration[] = []
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      node.name.getText(source) === 'GRANTED_RUN_ROUTES'
+    )
+      declarations.push(node)
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  if (declarations.length !== 1)
+    throw new Error('Missing worker grant inventory')
+  const init = declarations[0].initializer
+  if (
+    !init ||
+    !ts.isNewExpression(init) ||
+    init.expression.getText(source) !== 'Set' ||
+    init.arguments?.length !== 1 ||
+    !ts.isArrayLiteralExpression(init.arguments[0]) ||
+    !init.arguments[0].elements.every(ts.isStringLiteral)
+  )
+    throw new Error('Unrecognized worker grant inventory')
+  const routes = init.arguments[0].elements.map(
+    (element) => (element as ts.StringLiteral).text
+  )
+  if (!routes.length || new Set(routes).size !== routes.length)
+    throw new Error('Empty or duplicate worker grant inventory')
+  return routes
+}
 
 /**
  * The page-side half of the request path: the adapter sends multipart XHRs, so
@@ -455,11 +499,79 @@ describe('page-side bridge', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps pre-read authorization in step with every worker grant route that can carry an upload', async () => {
+    const routes = workerGrantRoutes().filter(
+      (route) => !/^(GET|HEAD) /.test(route)
+    )
+    expect(routes.length).toBeGreaterThan(0)
+    for (const route of routes) {
+      const separator = route.indexOf(' ')
+      expect(separator).toBeGreaterThan(0)
+      const method = route.slice(0, separator)
+      const canonical = route.slice(separator + 1)
+      expect(canonical).toMatch(/^\/SASjsApi\//)
+      for (const base of ['/', '/site/']) {
+        for (const prefix of ['/SASjsApi/', '/api/']) {
+          const suffix = canonical.slice('/SASjsApi/'.length)
+          const url = base.slice(0, -1) + prefix + suffix.toUpperCase() + '///'
+          for (const allowed of [false, true]) {
+            const fetchImpl = jest.fn(async () => jsonResponse('{}'))
+            const grantImpl = jest.fn(async () =>
+              jsonResponse(
+                JSON.stringify({ paths: allowed ? [canonical] : [] })
+              )
+            )
+            const read = jest.spyOn(Blob.prototype, 'arrayBuffer')
+            const errors = jest.spyOn(console, 'error').mockImplementation()
+            try {
+              const { XHR } = loadBridge(fetchImpl, base, true, grantImpl)
+              const bytes = [0xef, 0xbb, 0xbf, 0, 0xff]
+              const form = new FormData()
+              form.append(
+                'file',
+                new Blob([new Uint8Array(bytes)]),
+                'bytes.bin'
+              )
+              const xhr = new XHR()
+              await run(xhr, method, url, form)
+              expect(grantImpl).toHaveBeenCalledTimes(1)
+              if (allowed) {
+                expect(xhr.status).toBe(200)
+                expect(read).toHaveBeenCalledTimes(1)
+                expect(fetchImpl).toHaveBeenCalledTimes(1)
+                const payload = JSON.parse(
+                  (fetchImpl.mock.calls[0] as any)[1].body
+                )
+                expect(
+                  Array.from(Buffer.from(payload.tables[0].csv, 'base64'))
+                ).toEqual(bytes)
+              } else {
+                expect(xhr.status).toBe(401)
+                expect(read).not.toHaveBeenCalled()
+                expect(fetchImpl).not.toHaveBeenCalled()
+              }
+            } finally {
+              errors.mockRestore()
+              read.mockRestore()
+            }
+          }
+        }
+      }
+    }
+  })
+
   it.each([
     ['/', '/sasstoredprocess/do?_program=x'],
-    ['/site/', '/site/SasStoredProcess/DO/?_program=x']
+    ['/site/', '/site/SasStoredProcess/DO/?_program=x'],
+    ['/', '/SASjsApi/stp/execute?_program=x'],
+    ['/site/', '/site/api/stp/execute?_program=x'],
+    ['/', '/sasjsapi/STP/EXECUTE?_program=x'],
+    ['/', '/SASjsApi/code/execute'],
+    ['/', '/api/stp/execute//?_program=x'],
+    ['/site/', '/site/SASjsApi/code/execute///'],
+    ['/', '/SASStoredProcess/do//?_program=x']
   ])(
-    'preauthorizes case-insensitive SAS9 uploads at %s before reading',
+    'preauthorizes execution uploads at %s before reading',
     async (base, url) => {
       const fetchImpl = jest.fn(async () => jsonResponse('{}'))
       const grantImpl = jest.fn(async () =>
@@ -588,7 +700,7 @@ describe('page-side bridge', () => {
       expect(read).toHaveBeenCalledTimes(1)
       const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
       expect(payload.params.field).toBe('original')
-      expect(payload.tables[0].csv).toBe('private')
+      expect(atob(payload.tables[0].csv)).toBe('private')
     } finally {
       read.mockRestore()
     }
@@ -804,7 +916,12 @@ describe('page-side bridge', () => {
     expect(JSON.parse(init.body)).toEqual({
       params: { _debug: '131' },
       tables: [
-        { name: 'input', filename: 'input.csv', csv: 'name:$char5.\nAlice' }
+        {
+          name: 'input',
+          filename: 'input.csv',
+          csv: btoa('name:$char5.\nAlice'),
+          binary: true
+        }
       ]
     })
     expect(xhr.status).toBe(200)
@@ -947,7 +1064,7 @@ describe('page-side bridge', () => {
     expect(xhr.status).toBe(200)
     const [, init] = fetchImpl.mock.calls[0] as any
     const payload = JSON.parse(init.body)
-    expect(payload.tables.map((table: any) => table.csv.length)).toEqual([
+    expect(payload.tables.map((table: any) => atob(table.csv).length)).toEqual([
       10 * 1024 * 1024,
       5
     ])
@@ -1070,7 +1187,14 @@ describe('page-side bridge', () => {
     expect(init.headers['content-type']).toBe('application/json')
     expect(JSON.parse(init.body)).toEqual({
       params: { _program: '/Public/app/test/services/public/getdata' },
-      tables: [{ name: 'table1', filename: 'data.csv', csv: 'a,b\n1,2\n' }]
+      tables: [
+        {
+          name: 'table1',
+          filename: 'data.csv',
+          csv: btoa('a,b\n1,2\n'),
+          binary: true
+        }
+      ]
     })
     expect(xhr.status).toBe(200)
     expect(xhr.readyState).toBe(4)
@@ -1095,7 +1219,7 @@ describe('page-side bridge', () => {
     const payload = JSON.parse((fetchImpl.mock.calls[0] as any)[1].body)
     expect(payload.params).toEqual({ field: 'original' })
     expect(payload.tables).toEqual([
-      { name: 'file', filename: 'file.txt', csv: 'file' }
+      { name: 'file', filename: 'file.txt', csv: btoa('file'), binary: true }
     ])
   })
 
@@ -1136,7 +1260,14 @@ describe('page-side bridge', () => {
         ordinary: 'second',
         sasjs4data: 'second'
       },
-      tables: [{ name: 'file', filename: 'test.csv', csv: 'file contents' }]
+      tables: [
+        {
+          name: 'file',
+          filename: 'test.csv',
+          csv: btoa('file contents'),
+          binary: true
+        }
+      ]
     })
   })
 

@@ -54,9 +54,13 @@ async function buildSite(root, targetType, basePath) {
     `
     const files = [];
     for (let i = 1; i <= _WEBIN_FILE_COUNT; i++) {
-      files.push({name: eval('_WEBIN_NAME' + i), filename: eval('_WEBIN_FILENAME' + i), csv: String(eval('_WEBIN_FILEREF' + i))});
+      files.push({name: eval('_WEBIN_NAME' + i), filename: eval('_WEBIN_FILENAME' + i), csv: fs.readFileSync(eval('_WEBIN_FILEREF' + i), 'utf8')});
     }
     webout('OPEN'); webout('OBJ', 'files', files); webout('CLOSE');`
+  )
+  await fs.writeFile(
+    path.join(services, 'byteuploads.js'),
+    `_webout = JSON.stringify({count: _WEBIN_FILE_COUNT, aliases: _WEBIN_FILE_COUNT ? [_WEBIN_NAME, _WEBIN_FILENAME, _WEBIN_FILEREF === _WEBIN_FILEREF1] : [typeof _WEBIN_NAME, typeof _WEBIN_FILENAME, typeof _WEBIN_FILEREF], files: Array.from({length: _WEBIN_FILE_COUNT}, (_, i) => ({name: eval('_WEBIN_NAME' + (i + 1)), filename: eval('_WEBIN_FILENAME' + (i + 1)), path: eval('_WEBIN_FILEREF' + (i + 1)), hex: fs.readFileSync(eval('_WEBIN_FILEREF' + (i + 1))).toString('hex')}))});`
   )
   await fs.writeFile(
     path.join(services, 'fetch.js'),
@@ -64,6 +68,18 @@ async function buildSite(root, targetType, basePath) {
     const inputs = webout('FETCH');
     webout('OPEN'); webout('OBJ', 'areas', inputs.areas);
     webout('OBJ', 'extra', inputs.extra); webout('CLOSE');`
+  )
+  await fs.writeFile(
+    path.join(services, 'lazyfetch.js'),
+    `const first = webout('FETCH').input; fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:best.\\n99'); const second = webout('FETCH').input; fs.unlinkSync(_WEBIN_FILEREF1); let error; try { webout('FETCH'); } catch (e) { error = e.code; } _webout = JSON.stringify({first, second, error});`
+  )
+  await fs.writeFile(
+    path.join(services, 'mutateupload.js'),
+    `const dir = require('path').dirname(_WEBIN_FILEREF1); const copy = dir + '/copy'; fs.writeFileSync(_WEBIN_FILEREF1, 'abc'); const text = fs.readFileSync(_WEBIN_FILEREF1); fs.writeFileSync(_WEBIN_FILEREF1, Buffer.from([0,255,128])); fs.copyFileSync(_WEBIN_FILEREF1, copy); const binary = fs.readFileSync(copy).toString('hex'); fs.unlinkSync(_WEBIN_FILEREF1); let error; try { fs.readFileSync(_WEBIN_FILEREF1); } catch(e) { error=e.code; } _webout=JSON.stringify({buffer:Buffer.isBuffer(text),hex:text.toString('hex'),binary,error,copy,stream:typeof fs.createReadStream});`
+  )
+  await fs.writeFile(
+    path.join(services, 'uploadprobe.js'),
+    `_webout=JSON.stringify({exists:fs.existsSync(file)});`
   )
   await fs.writeFile(
     path.join(services, 'caseparams.js'),
@@ -443,6 +459,54 @@ async function main() {
       )
       console.log(`PASS ${target} worker control and real adapter`)
 
+      for (const route of ['/api/stp/execute//', '/SASjsApi/code/execute///', '/SASStoredProcess/do//']) {
+        const denied = await evaluate(`(async () => {
+          let reads = 0;
+          const original = Blob.prototype.arrayBuffer;
+          Blob.prototype.arrayBuffer = function () { reads++; return original.call(this); };
+          try {
+            const form = new FormData();
+            form.append('upload', new Blob(['private']), 'private.csv');
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', ${JSON.stringify(basePath)} + ${JSON.stringify(route)} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploads')}));
+              xhr.setRequestHeader('Authorization', 'Bearer invalid-token');
+              xhr.onload = () => resolve({ status: xhr.status, reads });
+              xhr.onerror = reject; xhr.send(form);
+            });
+          } finally { Blob.prototype.arrayBuffer = original; }
+        })()`)
+        assert.deepEqual(denied, { status: 401, reads: 0 }, `${target} ${route}: denied before reading`)
+      }
+      console.log(`PASS ${target} slash-suffixed denied uploads before page file read`)
+
+      for (const route of ['/SASjsApi/code/execute', '/api/CODE/EXECUTE///']) {
+        const granted = await evaluate(`(async () => {
+          let reads = 0;
+          const original = Blob.prototype.arrayBuffer;
+          Blob.prototype.arrayBuffer = function () { reads++; return original.call(this); };
+          try {
+            const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
+            const paths = (await grant.json()).paths;
+            const form = new FormData();
+            form.append('code', '_webout = JSON.stringify(Array.from(fs.readFileSync(_WEBIN_FILEREF1)));');
+            form.append('runTime', 'js');
+            form.append('upload', new Blob([new Uint8Array([239,187,191,0,255])]), 'bytes.bin');
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', ${JSON.stringify(basePath)} + ${JSON.stringify(route)});
+              xhr.onload = () => resolve({ status: xhr.status, reads, paths, body: xhr.responseText });
+              xhr.onerror = reject; xhr.send(form);
+            });
+          } finally { Blob.prototype.arrayBuffer = original; }
+        })()`)
+        assert.ok(granted.paths.includes('/SASjsApi/code/execute'), `${target} code route grant`)
+        assert.equal(granted.status, 200, `${target} ${route}: ${granted.body}`)
+        assert.equal(granted.reads, 1, `${target} ${route}: reads upload`)
+        assert.ok(granted.body.includes('[239,187,191,0,255]'), `${target} ${route}: ${granted.body}`)
+      }
+      console.log(`PASS ${target} authorized code execute XHR exact bytes`)
+
       const limitProbe = await evaluate(`(async () => {
         const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
         const limit = Number(grant.headers.get('x-sasjs-mock-max-upload-bytes'));
@@ -467,7 +531,60 @@ async function main() {
       )
       console.log(`PASS ${target} worker upload limit before page file read`)
 
-      for (const transport of ['xhr', 'fetch']) {
+      for (const transport of ['sas9-fetch', 'sasjs-fetch', 'sas9-xhr', 'sasjs-xhr']) {
+        for (const count of [0, 1, 3]) {
+          const actual = await evaluate(`(async () => {
+            const form = new FormData();
+            const samples = [[0xef,0xbb,0xbf,65], [0,255,128,65], []];
+            for (let i = 0; i < ${count}; i++) form.append('field' + i, new Blob([new Uint8Array(samples[i])]), 'original' + i + '.bin');
+            const url = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/byteuploads')});
+            if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(url, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+            return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',url); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+          })()`)
+          assert.equal(actual.status, 200, JSON.stringify(actual))
+          assert.equal(actual.body.count, count)
+          assert.deepEqual(
+            actual.body.aliases,
+            count
+              ? ['field0', 'original0.bin', true]
+              : ['undefined', 'undefined', 'undefined']
+          )
+          assert.deepEqual(
+            actual.body.files.map((f) => [f.name, f.filename, f.hex]),
+            [
+              ['field0', 'original0.bin', 'efbbbf41'],
+              ['field1', 'original1.bin', '00ff8041'],
+              ['field2', 'original2.bin', '']
+            ].slice(0, count)
+          )
+          for (const file of actual.body.files)
+            assert.match(file.path, /^\/sasjs\/sessions\//)
+          assert.equal(
+            new Set(actual.body.files.map((f) => f.path)).size,
+            count
+          )
+          console.log(`PASS ${target} ${transport} ${count} exact-byte uploads`)
+        }
+        const lazy = await evaluate(`(async () => {
+          const form = new FormData();
+          form.append('input', new Blob(['VALUE:best.\\r\\n42']), 'input.csv');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/lazyfetch')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(path, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+          return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+        })()`)
+        assert.deepEqual(lazy, {status: 200, body: {first: [{VALUE: 42}], second: [{VALUE: 99}], error: 'ENOENT'}}, `${target} ${transport}: FETCH re-reads edited and deleted file`)
+        console.log(`PASS ${target} ${transport} lazy FETCH after edit and delete`)
+        const mutation = await evaluate(`(async () => {
+          const form = new FormData(); form.append('input', new Blob(['initial']), 'input.bin');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/mutateupload')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(path, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+          return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+        })()`)
+        assert.equal(mutation.status, 200)
+        assert.deepEqual({...mutation.body, copy: undefined}, {buffer:true,hex:'616263',binary:'00ff80',error:'ENOENT',copy:undefined,stream:'undefined'}, `${target} ${transport}: mutation parity and stream limitation`)
+        const probe = await evaluate(`(async () => { const url = ${JSON.stringify(basePath + '/SASjsApi/stp/execute')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploadprobe')}) + '&file=' + encodeURIComponent(${JSON.stringify(mutation.body.copy)}); const r = await fetch(url); return {status:r.status, body:await r.json()}; })()`)
+        assert.deepEqual(probe, {status:200,body:{exists:false}}, `${target} ${transport}: derived upload is transient`)
+        console.log(`PASS ${target} ${transport} mutation and cleanup`)
         const result = await evaluate(`(async () => {
           const form = new FormData();
           form.append('SaSjS1DaTa', 'first');
@@ -476,8 +593,8 @@ async function main() {
           form.append('Ordinary', 'one');
           form.append('Ordinary', 'two');
           form.append('SASJS_TABLES', 'input');
-          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/caseparams')});
-          if (${JSON.stringify(transport)} === 'fetch') {
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/caseparams')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) {
             const response = await fetch(path, { method: 'POST', body: form });
             return { status: response.status, body: await response.json() };
           }
@@ -510,8 +627,8 @@ async function main() {
           form.append('SaSjS1DaTa', 'first');
           form.append('SaSjS1DaTa', 'second');
           form.append('SASJS_TABLES', 'MixedTable');
-          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)} === 'fetch' ? '/SASjsApi/stp/execute' : '/SASStoredProcess/do') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/casefetch')});
-          if (${JSON.stringify(transport)} === 'fetch') {
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/casefetch')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) {
             const response = await fetch(path, {method: 'POST', body: form});
             return {status: response.status, body: await response.json()};
           }

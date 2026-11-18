@@ -863,7 +863,11 @@ const tablesOf = (files) => {
   return list.map((file, index) => ({
     name: file.name || `file${index + 1}`,
     filename: file.filename || file.name || `file${index + 1}`,
-    csv: toText(file.csv !== undefined ? file.csv : file.contents)
+    get csv() {
+      const csv = file.csv
+      return csv !== undefined ? csv : toText(file.contents)
+    },
+    bytes: file.bytes !== undefined ? file.bytes : file.contents
   }))
 }
 
@@ -1351,7 +1355,8 @@ const RUN_ROUTES = new Set([
  * retired by the `@sasjs/api` release that carries `mayUseRoute` - when the pin
  * reaches that version, delete this set and ask the method instead, which is one
  * decision rather than a read of the whole reported list, and stops the per-run
- * re-read of the rules and the groups.
+ * re-read of the rules and the groups. The page bridge's executionGrant is
+ * checked against each upload-capable route in this set by intercept.spec.ts.
  */
 const GRANTED_RUN_ROUTES = new Set([
   'GET /SASjsApi/stp/execute',
@@ -1463,9 +1468,7 @@ const readJsonBody = async (request, allowLargeFile = false) => {
         name: table.name || `table${index + 1}`,
         filename:
           table.filename || `${table.name || 'table' + (index + 1)}.csv`,
-        // A file the bridge could not read as UTF-8 travels as base64 with a
-        // flag: writing its text would replace the bytes and store the damage
-        // under a success status, which is what a binary upload used to do.
+        // The bridge carries every file as base64 so BOM and arbitrary bytes survive.
         contents:
           table.csv === undefined
             ? ''
@@ -1756,7 +1759,13 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
   const tables = payload.files.map((file) => ({
     name: file.name,
     filename: file.filename,
-    csv: toText(file.contents)
+    get csv() {
+      return toText(file.contents)
+    },
+    bytes:
+      typeof file.contents === 'string'
+        ? new TextEncoder().encode(file.contents)
+        : file.contents
   }))
   const code =
     routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')
@@ -2031,9 +2040,8 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
           : publicGrantOn(uploadPath)
       if (!allowed) throw new API.ApiError(401, 'Unauthorized')
     }
-    // The SAS9 alias has the same grant as the canonical run route, but must
-    // refuse a denied multipart request before parsing or reading its files.
-    if (sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
+    // Every gated execution route must refuse before parsing upload bytes.
+    if (GRANTED_RUN_ROUTES.has(routeId)) {
       const granted = await RECORDS.myAuthorizedRoutes(subject)
       if (!granted.paths.includes(routePath))
         throw new API.ApiError(401, 'Unauthorized')
@@ -2056,17 +2064,6 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      // The rule this host would apply, asked of the package: the run routes are
-      // answered here rather than by `dispatch`, so the question is asked here.
-      // It is the same answer `/info/myAuthorizedRoutes` gives the interface -
-      // one decision, so a menu entry and the call behind it cannot disagree.
-      if (!sas9Run && GRANTED_RUN_ROUTES.has(routeId)) {
-        const routePath = routeId.slice(routeId.indexOf(' ') + 1)
-        const granted = await RECORDS.myAuthorizedRoutes(subject)
-        if (!granted.paths.includes(routePath))
-          throw new API.ApiError(401, 'Unauthorized')
-      }
-
       return await runRoute(routeId, payload, subject, sas9Run)
     }
 

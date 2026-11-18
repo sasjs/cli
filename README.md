@@ -74,6 +74,10 @@ startApp().catch(showLoadError)
 
 Apply the same readiness gate to other request paths, not just initial loading. Application scripts now follow the browser's normal lifecycle; the host does not synthesize or redispatch `DOMContentLoaded` or `load` events.
 
+### Mock site uploaded files
+
+JavaScript mock services receive `_WEBIN_FILEREF1`, `_WEBIN_FILEREF2`, etc. as session-local file paths. Read bytes with `fs.readFileSync(_WEBIN_FILEREF1)` or text with `fs.readFileSync(_WEBIN_FILEREF1, 'utf8')`. `_WEBIN_NAME1` is the multipart field name and `_WEBIN_FILENAME1` the original filename. The unsuffixed names alias the first upload when present; `_WEBIN_FILE_COUNT` is zero without uploads. Uploads and derived files inside the per-request upload staging directory are transient; files a service writes elsewhere remain persistent. The browser mock supplies `fs` automatically: a top-level `const fs = require('fs')` currently collides with the host prelude and must be omitted. `webout('FETCH')` reads the current staged file lazily and decodes adapter CSV; it is not a binary interface. UTF-8 reads preserve a BOM, as in Node. The browser host limits each upload to 10 MiB and keeps its data in memory, including base64 conversion for bridged XHR. **`fs.createReadStream` and asynchronous service execution are not supported in the browser mock**: services are executed synchronously and uploads are removed when the service returns. Use synchronous reads in mock services; Server stream-based services require a separate browser-compatible implementation.
+
 ### Mock site SAS formatting
 
 The mock code-format API uses the browser SAS language formatter. Every generated mock site includes the complete language vocabulary, even if formatting is never called, so it can serve DATA and PROC formatting without an external service. With `@sasjs/sas-language` 0.7.2, the `data` and `pubsdata` files add approximately 22 MB (21 MiB) uncompressed per site; the size can change with the language package version. The worker fetches vocabulary on demand, and reports an error if a required file is missing.

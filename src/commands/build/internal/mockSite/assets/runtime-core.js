@@ -187,7 +187,7 @@ const encodeText = (data) =>
   data.startsWith('\u0000') ? TEXT_PREFIX + data : data
 
 const utf8Encoder = new TextEncoder()
-const utf8Decoder = new TextDecoder()
+const utf8Decoder = new TextDecoder('utf-8', { ignoreBOM: true })
 const utf16Decoder = new TextDecoder('utf-16le', { ignoreBOM: true })
 
 /**
@@ -876,7 +876,13 @@ const FS = {
     // entry is its utf8 bytes
     if (onOptions && 'encoding' in options)
       return bytes || asBuffer(utf8Encoder.encode(entryText(contents)))
-    return bytes || entryText(contents)
+    // A staged file must read as a Node Buffer even after a text overwrite.
+    return (
+      bytes ||
+      (/^\/sasjs\/sessions\/s\d+\/uploads\//.test(abs)
+        ? asBuffer(utf8Encoder.encode(entryText(contents)))
+        : entryText(contents))
+    )
   },
   existsSync(p) {
     const abs = P.resolve(String(p))
@@ -1270,6 +1276,7 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   }
 
   const sessionDir = `/sasjs/sessions/s${++sessionSeq}`
+  const uploadDir = `${sessionDir}/uploads`
   mkdirp(sessionDir)
   const weboutPath = `${sessionDir}/webout.txt`
   const headersPath = `${sessionDir}/stpsrv_header.txt`
@@ -1306,6 +1313,14 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
     .join('\n')
 
   const webinStatements = []
+  const uploadPaths = tables.map((table, idx) => {
+    const uploadPath = `${uploadDir}/upload${idx + 1}`
+    mkdirp(uploadDir)
+    const bytes = table.bytes === undefined ? table.csv || '' : table.bytes
+    const raw = typeof bytes === 'string' ? utf8Encoder.encode(bytes) : bytes
+    putEntry(uploadPath, BINARY_PREFIX + bytesToBase64(raw))
+    return uploadPath
+  })
   tables.forEach((table, idx) => {
     const n = idx + 1
     webinStatements.push(
@@ -1315,9 +1330,14 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
       `const _WEBIN_FILENAME${n} = __sasjsFetchContext.tables[${idx}].filename;`
     )
     webinStatements.push(
-      `const _WEBIN_FILEREF${n} = __sasjsFetchContext.tables[${idx}].csv;`
+      `const _WEBIN_FILEREF${n} = ${JSON.stringify(uploadPaths[idx])};`
     )
   })
+  if (tables.length) {
+    webinStatements.push(
+      'const _WEBIN_NAME = _WEBIN_NAME1; const _WEBIN_FILENAME = _WEBIN_FILENAME1; const _WEBIN_FILEREF = _WEBIN_FILEREF1;'
+    )
+  }
   webinStatements.push(
     `const _WEBIN_FILE_COUNT = __sasjsFetchContext.tables.length;`
   )
@@ -1386,7 +1406,16 @@ return _webout;
         env: { NODE_ENV: 'browser' }
       },
       BUFFERS,
-      { params, tables },
+      {
+        params,
+        tables: tables.map((table, index) => ({
+          name: table.name,
+          filename: table.filename,
+          get csv() {
+            return FS.readFileSync(uploadPaths[index], 'utf8')
+          }
+        }))
+      },
       requestVars
     )
   } catch (e) {
@@ -1401,6 +1430,12 @@ return _webout;
         ? message + '\n' + stack
         : stack || String(e)
     logLines.push(String(thrown))
+  } finally {
+    // Only the per-request staging subtree is transient. A service may
+    // intentionally copy an upload elsewhere, including elsewhere in sessionDir.
+    const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
+    for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
+      for (const p of store.keys()) if (inUploads(p)) store.delete(p)
   }
 
   const stored = FILES.get(weboutPath) || ''

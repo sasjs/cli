@@ -276,7 +276,9 @@ async function main() {
     assert.equal(uploadRequests.length, 1)
     assert.deepEqual(JSON.parse(uploadRequests[0].body), {
       params: { field: 'original' },
-      tables: [{ name: 'file', filename: 'file.txt', csv: 'file' }]
+      tables: [
+        { name: 'file', filename: 'file.txt', csv: 'ZmlsZQ==', binary: true }
+      ]
     })
     assert.equal(requests.filter((r) => r.url === '/api/slow').length, 1)
     const eventRequests = requests.filter(

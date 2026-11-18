@@ -31,29 +31,14 @@
     if (DEBUG) console.log('[sasjs-mock]', ...args)
   }
 
-  /**
-   * A file's contents, as text or as base64 with a flag.
-   *
-   * An upload is a file, not a string: a PNG, a workbook or an .sas7bdat read
-   * with `text()` arrives as replacement characters, and the drive would store
-   * the damage under a success status. The bytes are decoded as UTF-8 strictly -
-   * if that fails, they are not text by any reading a browser would accept - and
-   * carried as base64, which the worker turns back into the bytes the drive
-   * keeps.
-   */
+  /** Carry every upload as base64 so valid UTF-8 BOMs and arbitrary bytes survive. */
   const contentsOf = async (value) => {
     const bytes = new Uint8Array(await value.arrayBuffer())
-
-    try {
-      return { csv: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-    } catch (error) {
-      let binary = ''
-      const chunk = 0x8000
-      for (let i = 0; i < bytes.length; i += chunk)
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
-
-      return { csv: btoa(binary), binary: true }
-    }
+    let binary = ''
+    const chunk = 0x8000
+    for (let i = 0; i < bytes.length; i += chunk)
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk))
+    return { csv: btoa(binary), binary: true }
   }
 
   // The worker supplies its per-file limit with the authorization response.
@@ -215,7 +200,30 @@
     }
   }
   // `/api` is the short spelling of `/SASjsApi`.
-  const isSasjs = (url) => /^(SASjsApi|api)\//.test(mockPath(url) || '')
+  const isSasjs = (url) => /^(SASjsApi|api)\//i.test(mockPath(url) || '')
+
+  // Only the execution routes gated by the worker require this grant; other
+  // API routes have their own authorization and may be publicly accessible.
+  // The worker's GRANTED_RUN_ROUTES inventory is checked against this behavior
+  // by intercept.spec.ts, including denials before file reads.
+  const executionGrant = (url, method, body) => {
+    if (
+      (method || '').toUpperCase() !== 'POST' ||
+      typeof FormData === 'undefined' ||
+      !(body instanceof FormData)
+    )
+      return null
+    // Match the worker's normalization without broadening which routes are gated.
+    const path = (mockPath(url) || '').replace(/\/+$/, '')
+    if (
+      /^SASStoredProcess\/do$/i.test(path) ||
+      /^(?:SASjsApi|api)\/stp\/execute$/i.test(path)
+    )
+      return '/SASjsApi/stp/execute'
+    if (/^(?:SASjsApi|api)\/code\/execute$/i.test(path))
+      return '/SASjsApi/code/execute'
+    return null
+  }
 
   // SAS9's adapter posts multipart to the stored-process endpoint. Session and
   // authentication requests on that endpoint should remain native XHRs.
@@ -223,7 +231,7 @@
     (method || '').toUpperCase() === 'POST' &&
     typeof FormData !== 'undefined' &&
     body instanceof FormData &&
-    /^SASStoredProcess\/do\/?$/i.test(mockPath(url) || '')
+    /^SASStoredProcess\/do$/i.test((mockPath(url) || '').replace(/\/+$/, ''))
 
   const proto = XMLHttpRequest.prototype
   const nativeOpen = proto.open
@@ -433,9 +441,9 @@
     const generation = this.__sasjsMockGeneration
     generation.controller = new AbortController()
 
-    const sas9 = isSas9Multipart(url, method, body)
+    const grantPath = executionGrant(url, method, body)
     // Snapshot at send(), before the grant lookup can yield to application code.
-    const snapshot = sas9 ? Array.from(body.entries()) : undefined
+    const snapshot = grantPath ? Array.from(body.entries()) : undefined
     const isCurrent = () => xhr.__sasjsMockGeneration === generation
 
     ;(async () => {
@@ -450,7 +458,7 @@
         init.headers.authorization = authorization
 
       let maxUploadBytes
-      if (sas9) {
+      if (grantPath) {
         // The same package decision the run route uses, asked before any file
         // bytes are read. The eventual execution still performs its own check.
         const authUrl = new URL('SASjsApi/info/myAuthorizedRoutes', mockBase)
@@ -464,7 +472,7 @@
         if (!isCurrent()) return
         if (!result || !Array.isArray(result.paths))
           throw new Error('Invalid authorization response')
-        if (!result.paths.includes('/SASjsApi/stp/execute'))
+        if (!result.paths.includes(grantPath))
           return new Response(JSON.stringify({ message: 'Unauthorized' }), {
             status: 401,
             headers: { 'content-type': 'application/json' }

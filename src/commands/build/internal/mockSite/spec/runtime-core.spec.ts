@@ -589,7 +589,7 @@ globalThis.webout = _sasjs_webout;`
     const result = runtime.run({
       params,
       tables,
-      code: `_webout = JSON.stringify({ context: webout('FETCH'), shared: webout === _sasjs_webout, name: _WEBIN_NAME1, csv: _WEBIN_FILEREF1, text })`
+      code: `_webout = JSON.stringify({ context: webout('FETCH'), shared: webout === _sasjs_webout, name: _WEBIN_NAME1, csv: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), text })`
     })
 
     expect(result.error).toBeNull()
@@ -641,6 +641,205 @@ globalThis.webout = _sasjs_webout;`
     })
   })
 
+  it('returns bytes after an upload is overwritten with text', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0, 255])
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes }],
+      code: `fs.writeFileSync(_WEBIN_FILEREF1, 'abc'); const b = fs.readFileSync(_WEBIN_FILEREF1); _webout = JSON.stringify({buffer: Buffer.isBuffer(b), hex: b.toString('hex'), options: Buffer.isBuffer(fs.readFileSync(_WEBIN_FILEREF1, {})), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8')})`
+    })
+    expect(result.error).toBeFalsy()
+    expect(JSON.parse(result.webout)).toEqual({
+      buffer: true,
+      hex: '616263',
+      options: true,
+      text: 'abc'
+    })
+  })
+
+  it('removes derived files only within the upload staging namespace', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        { name: 'input', filename: 'x', bytes: new Uint8Array([0, 255]) }
+      ],
+      code: `const path = require('path'); const folder = path.dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, folder + '/copy'); fs.writeFileSync(folder + '/nested/derived', 'secret'); fs.writeFileSync(path.dirname(folder) + '/keep', 'keep'); fs.writeFileSync('/sasjs/drive/files/keep', 'keep'); _webout = folder;`
+    })
+    expect(result.error).toBeFalsy()
+    const folder = result.webout
+    const dirty = runtime.takeDirty()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(Object.keys(dirty)).toContain(path.posix.dirname(folder) + '/keep')
+    expect(Object.keys(dirty)).toContain('/sasjs/drive/files/keep')
+    const probe = runtime.run({
+      code: `_webout = JSON.stringify([fs.existsSync(${JSON.stringify(folder + '/copy')}), fs.existsSync(${JSON.stringify(folder + '/nested/derived')})]);`
+    })
+    expect(JSON.parse(probe.webout)).toEqual([false, false])
+  })
+
+  it('cleans the upload staging subtree when a service throws', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes: new Uint8Array([1]) }],
+      code: `const dir = require('path').dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, dir + '/copy'); fs.writeFileSync('/sasjs/drive/files/location', dir); throw new Error('failed');`
+    })
+    expect(result.error).toContain('failed')
+    const dirty = runtime.takeDirty()
+    const folder = dirty['/sasjs/drive/files/location']
+    expect(folder).toBeTruthy()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(runtime.dumpAll()[folder + '/copy']).toBeUndefined()
+  })
+
+  it('reports staged upload metadata through fs.statSync', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'binary',
+          filename: 'raw.bin',
+          bytes: new Uint8Array([0, 255, 128])
+        }
+      ],
+      code: `const file = fs.statSync(_WEBIN_FILEREF1); const dir = fs.statSync(require('path').dirname(_WEBIN_FILEREF1)); _webout = JSON.stringify({ size: file.size, file: file.isFile(), fileDir: file.isDirectory(), dir: dir.isDirectory(), dirFile: dir.isFile() });`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      size: 3,
+      file: true,
+      fileDir: false,
+      dir: true,
+      dirFile: false
+    })
+  })
+
+  it('exposes uploaded bytes through session-local file references and first aliases', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0, 0xff, 0x80])
+    const result = runtime.run({
+      tables: [
+        { name: 'field', filename: 'original.bin', csv: 'ignored', bytes },
+        {
+          name: 'empty',
+          filename: 'empty.bin',
+          csv: '',
+          bytes: new Uint8Array()
+        }
+      ],
+      code: `_webout = JSON.stringify({ count: _WEBIN_FILE_COUNT, name: _WEBIN_NAME, filename: _WEBIN_FILENAME, ref: _WEBIN_FILEREF, first: _WEBIN_FILEREF1, second: _WEBIN_FILEREF2, hex: fs.readFileSync(_WEBIN_FILEREF).toString('hex'), empty: fs.readFileSync(_WEBIN_FILEREF2).length })`
+    })
+    expect(result.error).toBeNull()
+    const output = JSON.parse(result.webout)
+    expect(output).toMatchObject({
+      count: 2,
+      name: 'field',
+      filename: 'original.bin',
+      hex: 'efbbbf00ff80',
+      empty: 0
+    })
+    expect(output.ref).toBe(output.first)
+    expect(output.first).not.toBe(output.second)
+    expect(output.first).toMatch(/^\/sasjs\/sessions\//)
+    const next = runtime.run({
+      code: `_webout = String(_WEBIN_FILE_COUNT) + '|' + typeof _WEBIN_FILEREF + '|' + fs.existsSync(${JSON.stringify(output.first)})`
+    })
+    expect(next.webout).toBe('0|undefined|false')
+    expect(runtime.dumpAll()[output.first]).toBeUndefined()
+    expect(runtime.takeDirty()[output.first]).toBeUndefined()
+  })
+
+  it('retains a UTF-8 BOM in raw bytes and Node-style text reads', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0, 0xff])
+    const result = runtime.run({
+      tables: [{ name: 'file', filename: 'file.bin', bytes }],
+      code: `_webout = JSON.stringify({ hex: fs.readFileSync(_WEBIN_FILEREF1).toString('hex'), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), bufferText: fs.readFileSync(_WEBIN_FILEREF1).toString('utf8') })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      hex: Buffer.from(bytes).toString('hex'),
+      text: Buffer.from(bytes).toString('utf8'),
+      bufferText: Buffer.from(bytes).toString('utf8')
+    })
+  })
+
+  it.each([
+    [
+      'overwrite',
+      "fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:$char8.\\nchanged'); _webout = JSON.stringify(webout('FETCH').input)",
+      '[{"VALUE":"changed"}]'
+    ],
+    [
+      'delete',
+      "fs.unlinkSync(_WEBIN_FILEREF1); try { webout('FETCH') } catch(e) { _webout = e.code }",
+      'ENOENT'
+    ]
+  ])(
+    'FETCH reads the staged path after %s',
+    async (_operation, code, expected) => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {}, weboutPrelude())
+      const result = runtime.run({
+        tables: [
+          {
+            name: 'input',
+            filename: 'input.csv',
+            bytes: new TextEncoder().encode('VALUE:$char8.\noriginal')
+          }
+        ],
+        code
+      })
+      expect(result.error).toBeNull()
+      expect(result.webout).toBe(expected)
+    }
+  )
+
+  it('does not decode uploaded CSV until FETCH reads it', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `const webout = () => _sasjs_fetch_context.tables[0].csv; const _sasjs_webout = { finalise: body => { if (body) fs.writeFileSync(weboutPath, body) } };`
+      }
+    )
+    let decodes = 0
+    const table = {
+      name: 'file',
+      filename: 'file.bin',
+      bytes: new Uint8Array([255]),
+      get csv() {
+        decodes++
+        return 'decoded'
+      }
+    }
+    const raw = runtime.run({
+      tables: [table],
+      code: `_webout = fs.readFileSync(_WEBIN_FILEREF1).toString('hex')`
+    })
+    expect(raw.error).toBeNull()
+    expect(raw.webout).toBe('ff')
+    expect(decodes).toBe(0)
+    const fetched = runtime.run({
+      tables: [table],
+      code: `_webout = webout('FETCH')`
+    })
+    expect(fetched.error).toBeNull()
+    expect(fetched.webout).toBe('\ufffd')
+    expect(decodes).toBe(0)
+  })
+
   it('fetches all uploaded adapter tables without changing their contents', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {}, weboutPrelude())
@@ -663,7 +862,7 @@ const inputs = webout('FETCH')
 webout('OPEN')
 webout('OBJ', 'people', inputs.people)
 webout('OBJ', 'settings', inputs.settings)
-webout('OBJ', 'raw', [{ first: _WEBIN_FILEREF1, second: _WEBIN_FILEREF2 }])
+webout('OBJ', 'raw', [{ first: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), second: fs.readFileSync(_WEBIN_FILEREF2, 'utf8') }])
 webout('CLOSE')`
     // Both adapter server types use generateFileUploadForm for table uploads.
     const result = runtime.run({
@@ -1009,13 +1208,13 @@ webout('CLOSE')`
     const runtime = loadRuntime()
 
     const result = runtime.run({
-      code: '_webout = [_WEBIN_FILE_COUNT, _WEBIN_NAME1, _WEBIN_FILENAME1, _WEBIN_FILEREF1].join(",");',
+      code: '_webout = [_WEBIN_FILE_COUNT, _WEBIN_NAME1, _WEBIN_FILENAME1, fs.readFileSync(_WEBIN_FILEREF1, "utf8")].join(",");',
       tables: [{ name: 'table1', filename: 'data.csv', csv: 'a,b\n1,2\n' }]
     })
 
     expect(result.error).toBeNull()
     expect(result.webout).toBe('1,table1,data.csv,a,b\n1,2\n')
-    // the fileref carries the CSV verbatim, as the fileref does on the server
+    // the referenced file carries the CSV verbatim
     expect(result.webout).toContain('a,b\n1,2')
   })
 
