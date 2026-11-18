@@ -480,6 +480,33 @@ async function main() {
       }
       console.log(`PASS ${target} slash-suffixed denied uploads before page file read`)
 
+      for (const route of ['/SASjsApi/code/execute', '/api/CODE/EXECUTE///']) {
+        const granted = await evaluate(`(async () => {
+          let reads = 0;
+          const original = Blob.prototype.arrayBuffer;
+          Blob.prototype.arrayBuffer = function () { reads++; return original.call(this); };
+          try {
+            const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
+            const paths = (await grant.json()).paths;
+            const form = new FormData();
+            form.append('code', '_webout = JSON.stringify(Array.from(fs.readFileSync(_WEBIN_FILEREF1)));');
+            form.append('runTime', 'js');
+            form.append('upload', new Blob([new Uint8Array([239,187,191,0,255])]), 'bytes.bin');
+            return await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', ${JSON.stringify(basePath)} + ${JSON.stringify(route)});
+              xhr.onload = () => resolve({ status: xhr.status, reads, paths, body: xhr.responseText });
+              xhr.onerror = reject; xhr.send(form);
+            });
+          } finally { Blob.prototype.arrayBuffer = original; }
+        })()`)
+        assert.ok(granted.paths.includes('/SASjsApi/code/execute'), `${target} code route grant`)
+        assert.equal(granted.status, 200, `${target} ${route}: ${granted.body}`)
+        assert.equal(granted.reads, 1, `${target} ${route}: reads upload`)
+        assert.ok(granted.body.includes('[239,187,191,0,255]'), `${target} ${route}: ${granted.body}`)
+      }
+      console.log(`PASS ${target} authorized code execute XHR exact bytes`)
+
       const limitProbe = await evaluate(`(async () => {
         const grant = await fetch(${JSON.stringify(basePath + '/SASjsApi/info/myAuthorizedRoutes')});
         const limit = Number(grant.headers.get('x-sasjs-mock-max-upload-bytes'));

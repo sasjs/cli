@@ -204,6 +204,8 @@
 
   // Only the execution routes gated by the worker require this grant; other
   // API routes have their own authorization and may be publicly accessible.
+  // The worker's GRANTED_RUN_ROUTES inventory is checked against this behavior
+  // by intercept.spec.ts, including denials before file reads.
   const executionGrant = (url, method, body) => {
     if (
       (method || '').toUpperCase() !== 'POST' ||

@@ -1355,7 +1355,8 @@ const RUN_ROUTES = new Set([
  * retired by the `@sasjs/api` release that carries `mayUseRoute` - when the pin
  * reaches that version, delete this set and ask the method instead, which is one
  * decision rather than a read of the whole reported list, and stops the per-run
- * re-read of the rules and the groups.
+ * re-read of the rules and the groups. The page bridge's executionGrant is
+ * checked against each upload-capable route in this set by intercept.spec.ts.
  */
 const GRANTED_RUN_ROUTES = new Set([
   'GET /SASjsApi/stp/execute',
