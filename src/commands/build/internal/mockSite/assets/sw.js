@@ -215,6 +215,19 @@ const bootIdentity = async (data) => {
 
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 const SAS9_FRAME = Symbol('sas9-frame')
+const TIER_FRAME = Symbol('tier-frame')
+
+// The server frames a tier run only when its normalized debug level is >= 131.
+// Its parseDebugValue maps every nonempty, non-integer string (including 1e3
+// and 0x10) to 131, so these values enable framing rather than being parsed as
+// numbers. Whitespace-only values remain absent.
+const tierDebugOn = (value) => {
+  if (value === undefined || value === null || value === '') return false
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 131
+  const text = String(value).trim()
+  if (!text) return false
+  return /^[+-]?\d+$/.test(text) ? Number(text) >= 131 : true
+}
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) =>
@@ -338,6 +351,7 @@ const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
  */
 const artifactOf = (result, debug, sas9 = false) => {
   if (debug) {
+    // SAS9 adapters extract JSON from these markers, unlike SASjs/Studio frames.
     if (sas9)
       return {
         contents: `${result.log || ''}\n>>weboutBEGIN<<${result.webout || ''}>>weboutEND<<\n${result.print || ''}`,
@@ -769,9 +783,24 @@ class BrowserRuntime extends API.MemorySessionHost {
 
   async run(request) {
     const program = request.program || {}
-    const params = Object.assign({}, request.vars || {})
-    const sas9 = Boolean(params[SAS9_FRAME])
+    const params = Object.assign(Object.create(null), request.vars || {})
+    const sas9 = params[SAS9_FRAME]
+    const tier = Boolean(params[TIER_FRAME])
     delete params[SAS9_FRAME]
+    delete params[TIER_FRAME]
+    // The package normalizes named debug values for the API, but the SAS9
+    // controller passes its original variable directly to the execution host.
+    // Its isDebugOn uses Number coercion instead of tier parseDebugValue; only
+    // the output markers differ here so SAS9 adapters can extract the webout.
+    if (sas9) {
+      if (sas9.present) params._debug = sas9.value
+      else delete params._debug
+    }
+    const debug = sas9
+      ? Number.isFinite(Number(params._debug)) && Number(params._debug) >= 131
+      : tier
+        ? tierDebugOn(params._debug)
+        : params._debug !== undefined
 
     const resolved =
       program.code === undefined ? R.resolveProgram(program.path) : undefined
@@ -798,7 +827,8 @@ class BrowserRuntime extends API.MemorySessionHost {
           print: recording.print || '',
           headers: SEEDED_HEADER_LINE
         },
-        params._debug !== undefined
+        debug,
+        Boolean(sas9)
       )
     } else {
       const payload = { params, tables: tablesOf(request.files) }
@@ -808,7 +838,7 @@ class BrowserRuntime extends API.MemorySessionHost {
       const result = R.run(payload)
       if (result.error) throw runFailure(result.error)
 
-      artifact = artifactOf(result, params._debug !== undefined, sas9)
+      artifact = artifactOf(result, debug, Boolean(sas9))
     }
     const session = request.session
     if (session) {
@@ -1735,7 +1765,13 @@ const subjectOf = async (request, query, publicPath) => {
  * times are offered - is still the package's decision; who may run it is not,
  * because it is asked here before this is reached (see `GRANTED_RUN_ROUTES`).
  */
-const runRoute = async (routeId, payload, subject, sas9 = false) => {
+const runRoute = async (
+  routeId,
+  payload,
+  subject,
+  sas9 = false,
+  tier = false
+) => {
   // A program may read any file it likes - the drive is its filesystem - so
   // every piece of a sharded drive is fetched here rather than guessed from the
   // request. That is deliberately the whole drive and not just the app being
@@ -1747,7 +1783,7 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
 
   if (
     sas9 &&
-    isSasRun(false, undefined, payload.query._program || payload.body._program)
+    isSasRun(false, undefined, payload.query._program ?? payload.body._program)
   )
     throw new API.ApiError(
       501,
@@ -1770,8 +1806,21 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
   const code =
     routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')
   const trigger = routeId.endsWith('/trigger')
-  const vars = Object.assign({}, query, body)
-  if (sas9) vars[SAS9_FRAME] = true
+  const vars = Object.assign(Object.create(null), query)
+  if (tier && !sas9 && payload.method === 'POST') {
+    const queryNames = new Map(
+      Object.keys(query).map((key) => [key.toLowerCase(), key])
+    )
+    for (const [key, value] of Object.entries(body))
+      vars[queryNames.get(key.toLowerCase()) || key] = value
+    if (query._program !== undefined) vars._program = query._program
+  } else Object.assign(vars, body)
+  if (sas9)
+    vars[SAS9_FRAME] = {
+      present: Object.hasOwn(vars, '_debug'),
+      value: vars._debug
+    }
+  if (tier && !sas9) vars[TIER_FRAME] = true
 
   const runRequest = {
     source: code ? 'code' : 'program',
@@ -1783,7 +1832,7 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
     runRequest.runTime = body.runTime
   } else {
     // the query wins over the body, which is the order the server resolves them in
-    runRequest.program = query._program || body._program
+    runRequest.program = query._program ?? body._program
   }
 
   // A SAS run is answered here, ahead of the run: this host cannot execute one, so the answer
@@ -1811,7 +1860,11 @@ const runRoute = async (routeId, payload, subject, sas9 = false) => {
         // a code run carries no `_debug` and still answers with its log: the
         // package compiles a code run at its own debug level, and the Studio
         // splits the three parts on the separator it writes
-        code ? true : vars._debug !== undefined
+        code
+          ? true
+          : tier && !sas9
+            ? tierDebugOn(vars._debug)
+            : vars._debug !== undefined
       )
     )
   }
@@ -1868,11 +1921,11 @@ const contentsResponse = (answer, path) => {
  * `routeRequest`, which knows the path from the read that failed rather than
  * guessing at it from the URL.
  */
-const ensureForRequest = async (url) => {
+const ensureForRequest = async (url, tierQuery) => {
   const paths = []
   for (const name of ['_filePath', '_FILE', '_program']) {
-    const value = url.searchParams.get(name)
-    if (value) paths.push(value)
+    const value = tierQuery ? tierQuery[name] : url.searchParams.get(name)
+    if (value && !Array.isArray(value)) paths.push(value)
   }
   if (paths.length) await R.ensurePaths(paths)
 }
@@ -1900,19 +1953,37 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // for rather than answered twice - `_FILE=` is the drive read (the package
   // decides its typing and its refusal), `_program=` is the run.
   const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
+  const sas9Run = /^\/SASStoredProcess\/do$/i.test(path)
+  const tierQuery = webTier || sas9Run
+  // URLSearchParams preserves wire order and repeated names. Mirror the web
+  // tier's canonical spellings and leave duplicates for destination validation.
+  const query = Object.create(null)
+  const controls = { _file: '_FILE', _filepath: '_filePath' }
+  for (const [key, value] of url.searchParams.entries()) {
+    const lower = key.toLowerCase()
+    const name = tierQuery
+      ? Object.hasOwn(controls, lower)
+        ? controls[lower]
+        : lower
+      : key
+    if (tierQuery && Object.hasOwn(query, name))
+      query[name] = Array.isArray(query[name])
+        ? [...query[name], value]
+        : [query[name], value]
+    else query[name] = value
+  }
   // Presence, not truthiness: the server tests `!== undefined`, and Express
   // parses `_program=` to the empty string, so a request naming both with an
   // empty value is refused there - a `get`-based guard reads the empty string as
   // absent and answers the file instead, which is the disagreement to avoid.
-  const namedFile = url.searchParams.has('_FILE')
-  const namedProgram = url.searchParams.has('_program')
+  const namedFile = Object.hasOwn(query, '_FILE')
+  const namedProgram = Object.hasOwn(query, '_program')
   // presence decides which branch runs, as it does on the server (`!== undefined`
   // there): an empty `_FILE=` still reaches the read, and the host refuses the
   // empty name - falling through to "not part of the API" would answer a 404 the
   // server never gives
   const askedForFile = webTier && request.method === 'GET' && namedFile
-  const askedForProgram =
-    webTier && /^\/StoredProgram$/i.test(path) && namedProgram
+  const askedForProgram = /^\/StoredProgram$/i.test(path) && namedProgram
 
   // A request naming both is refused before either branch is chosen, in the
   // server's own words - by parameter, and before either tier or method is
@@ -1922,16 +1993,20 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   if (webTier && namedFile && namedProgram)
     return text(TIER_NEEDS_ONE_PARAMETER, 400)
 
-  const sas9Run = /^\/SASStoredProcess\/do$/i.test(path)
+  // Mirror the sasjs/server Viya mock stub in routes/web/sasviya-web.ts: this
+  // literal does not execute a program and that router has no auth/run-grant
+  // guard. Server startup disallows MOCK_SERVERTYPE in server mode; the real
+  // /StoredProgram and /SASjsApi/stp/execute routes remain separately guarded.
+  if (/^\/SASJobExecution$/i.test(path) && request.method === 'POST')
+    return json({ test: 'test' }, 200)
+
   const apiPath = sas9Run
     ? '/SASjsApi/stp/execute'
     : askedForFile
       ? '/SASjsApi/drive/file'
-      : askedForProgram && /^\/StoredProgram$/i.test(path)
+      : askedForProgram
         ? '/SASjsApi/stp/execute'
         : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
-  const query = {}
-  for (const [k, v] of url.searchParams.entries()) query[k] = v
 
   try {
     // the identity is a file the build shipped, so it is read before anything
@@ -1939,7 +2014,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
     await R.ensureReady(askHostForDrive)
-    await ensureForRequest(url)
+    await ensureForRequest(url, tierQuery ? query : null)
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
@@ -2046,25 +2121,56 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       if (!granted.paths.includes(routePath))
         throw new API.ApiError(401, 'Unauthorized')
     }
+    // The execution API validates URL values before merging POST fields.
+    if (
+      (askedForProgram || (sas9Run && request.method === 'POST')) &&
+      RUN_ROUTES.has(routeId)
+    ) {
+      if (Array.isArray(query._debug))
+        return text('"_debug" must be one of [number, string]', 400)
+      if (query._debug === '')
+        return text('"_debug" is not allowed to be empty', 400)
+      // SAS9 GET bypasses the upload validator; repeated custom values reach JS.
+      for (const [name, value] of Object.entries(query)) {
+        if (Array.isArray(value) && name !== '_program' && name !== '_debug')
+          throw badRequest(`"${name}" must be one of [string, number]`)
+      }
+    }
+    if (askedForFile && Array.isArray(query._FILE))
+      throw badRequest('"_FILE" must be a string')
+    if (askedForFile && Array.isArray(query._filePath))
+      throw badRequest('"_filePath" must be a string')
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
+    payload.method = request.method
 
-    // SAS parameter names are case-insensitive. Canonicalise only the two
-    // transport controls; application parameter names are left untouched.
+    // Preserve SAS9 body parameter casing apart from the existing program lookup;
+    // URL names were already normalised before authentication and routing.
     if (sas9Run) {
-      for (const fields of [query, payload.body]) {
-        for (const key of Object.keys(fields)) {
-          const name = key.toLowerCase()
-          if (name === '_program' || name === '_debug') {
-            fields[name] = fields[key]
-            if (name !== key) delete fields[key]
-          }
+      const bodyProgram = payload.body._program
+      const hasLowercaseProgram = Object.hasOwn(payload.body, '_program')
+      for (const key of Object.keys(payload.body)) {
+        const name = key.toLowerCase()
+        // The upload validator accepts a body-only program only as `_program`.
+        if (
+          name === '_program' &&
+          key !== '_program' &&
+          request.method === 'POST' &&
+          query._program === undefined &&
+          !hasLowercaseProgram
+        )
+          continue
+        if (name === '_program') {
+          payload.body[name] = hasLowercaseProgram
+            ? bodyProgram
+            : payload.body[key]
+          if (name !== key) delete payload.body[key]
         }
       }
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      return await runRoute(routeId, payload, subject, sas9Run)
+      return await runRoute(routeId, payload, subject, sas9Run, tierQuery)
     }
 
     const apiRequest = {
