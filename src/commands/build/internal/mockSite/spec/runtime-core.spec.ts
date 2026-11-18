@@ -840,6 +840,25 @@ globalThis.webout = _sasjs_webout;`
     expect(decodes).toBe(0)
   })
 
+  it('fetches a CRLF-terminated multi-column upload without a phantom row', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'input',
+          filename: 'input.csv',
+          csv: 'name:$char8. count:best.\r\nAda,2\r\n'
+        }
+      ],
+      code: "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      input: [{ name: 'Ada', count: 2 }]
+    })
+  })
+
   it('fetches all uploaded adapter tables without changing their contents', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {}, weboutPrelude())
