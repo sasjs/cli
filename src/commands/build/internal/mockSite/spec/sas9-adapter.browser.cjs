@@ -70,6 +70,10 @@ async function buildSite(root, targetType, basePath) {
     webout('OBJ', 'extra', inputs.extra); webout('CLOSE');`
   )
   await fs.writeFile(
+    path.join(services, 'lazyfetch.js'),
+    `const first = webout('FETCH').input; fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:best.\\n99'); const second = webout('FETCH').input; fs.unlinkSync(_WEBIN_FILEREF1); let error; try { webout('FETCH'); } catch (e) { error = e.code; } _webout = JSON.stringify({first, second, error});`
+  )
+  await fs.writeFile(
     path.join(services, 'caseparams.js'),
     `_webout = JSON.stringify({ SaSjS1DaTa, sasjs1data, Ordinary, SASJS_TABLES });`
   )
@@ -526,6 +530,15 @@ async function main() {
           )
           console.log(`PASS ${target} ${transport} ${count} exact-byte uploads`)
         }
+        const lazy = await evaluate(`(async () => {
+          const form = new FormData();
+          form.append('input', new Blob(['VALUE:best.\\r\\n42']), 'input.csv');
+          const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/lazyfetch')});
+          if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(path, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
+          return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
+        })()`)
+        assert.deepEqual(lazy, {status: 200, body: {first: [{VALUE: 42}], second: [{VALUE: 99}], error: 'ENOENT'}}, `${target} ${transport}: FETCH re-reads edited and deleted file`)
+        console.log(`PASS ${target} ${transport} lazy FETCH after edit and delete`)
         const result = await evaluate(`(async () => {
           const form = new FormData();
           form.append('SaSjS1DaTa', 'first');
