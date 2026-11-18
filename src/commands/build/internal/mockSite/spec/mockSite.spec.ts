@@ -387,6 +387,15 @@ describe('browser-hosted build', () => {
     expect(sw).not.toContain("importScripts('/host/runtime-core.js')")
   })
 
+  it('resolves the same linter for the API code service and CLI', () => {
+    const cliLint = require.resolve('@sasjs/lint/package.json')
+    const apiEntry = require.resolve('@sasjs/api/code')
+    const apiLint = require.resolve('@sasjs/lint/package.json', {
+      paths: [path.dirname(apiEntry)]
+    })
+    expect(apiLint).toBe(cliLint)
+  })
+
   it('bundles the linter from the installed packages, ready for a worker', async () => {
     await buildMockSite(target())
 
