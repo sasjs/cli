@@ -33,6 +33,49 @@ describe('sasjs format released formatter integration', () => {
 
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
 
+  it('keeps returned macro values separate from their closing do blocks', () => {
+    const header = [
+      '/**',
+      '  @file',
+      '  @brief <Your brief here>',
+      '',
+      '  <h4> SAS Macros </h4>',
+      '',
+      '**/'
+    ]
+    const original = [
+      ...header,
+      '%macro f();',
+      '%if &type=N %then %do;',
+      '&valn',
+      '%end;',
+      '%else %if &type=C %then %do;',
+      '&valc',
+      '%end;',
+      '%mend f;',
+      ''
+    ].join('\n')
+    const expected = [
+      ...header,
+      '%macro f();',
+      '  %if &type=N %then %do;',
+      '    &valn',
+      '  %end;',
+      '  %else %if &type=C %then %do;',
+      '    &valc',
+      '  %end;',
+      '%mend f;',
+      ''
+    ].join('\n')
+    fs.writeFileSync(file, original)
+
+    expect(run().status).toBe(0)
+    expect(fs.readFileSync(file, 'utf8')).toBe(expected)
+    expect(run().status).toBe(0)
+    expect(fs.readFileSync(file, 'utf8')).toBe(expected)
+    expect(run('--check').status).toBe(0)
+  })
+
   it('keeps standalone calls separate and preserves header sample indentation', () => {
     const original = `/**\n  @file regression.sas\n  @example\n      %let x = 1;\n        proc sql; quit;\n**/\n%mp_assert(\n  iftrue=(%mf_existfunction(CAT)=1),\n  desc=Checking if CAT function exists,\n  outds=work.test_results\n)\n\n%mp_assert(\n  iftrue=(%mf_existfunction(DOG)=0),\n  desc=Checking DOG function does not exist,\n  outds=work.test_results\n)\n%let x=1;\n`
     fs.writeFileSync(file, original)
