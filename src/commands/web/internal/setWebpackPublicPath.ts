@@ -47,5 +47,8 @@ export const setWebpackPublicPath = (content: string, assetPrefix: string) => {
   // a function replacement, so a `$` sequence in the appLoc is copied rather
   // than read as a replacement pattern (`$&`, `` $` `` and `$'` would splice the
   // matched text or the rest of the file into the address)
-  return content.replace(match[0], () => `${runtimeName}.p="${assetPrefix}"`)
+  return content.replace(
+    match[0],
+    () => `${runtimeName}.p=${JSON.stringify(assetPrefix)}`
+  )
 }

@@ -52,6 +52,14 @@ describe('setWebpackPublicPath', () => {
     )
   })
 
+  it('emits a valid runtime and preserves quotes and backslashes in the prefix', () => {
+    const runtime = 'var t={};t.u=e=>e+".js";t.p="";t.p;'
+    const configuredPrefix = '/StoredProgram?_FILE=/Public/a"b\\c/services/web/'
+    const updated = setWebpackPublicPath(runtime, configuredPrefix)
+
+    expect(require('vm').runInNewContext(updated)).toBe(configuredPrefix)
+  })
+
   it('leaves a file that does not name chunks alone', () => {
     // a public path on its own is not a runtime: something else owns `p` here,
     // and rewriting it would be a change we cannot reason about
