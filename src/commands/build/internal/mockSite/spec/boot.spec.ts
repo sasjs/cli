@@ -1,15 +1,6 @@
-import { JSDOM, VirtualConsole } from 'jsdom'
+import { JSDOM, VirtualConsole, requestInterceptor } from 'jsdom'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-
-// The installed @types/jsdom still describes the pre-31 resource API.
-const {
-  requestInterceptor
-}: {
-  requestInterceptor: (
-    callback: (request: Request) => Response | Promise<Response>
-  ) => any
-} = require('jsdom')
 
 const source = readFileSync(join(__dirname, '../assets/boot.js'), 'utf8')
 

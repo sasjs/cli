@@ -3,7 +3,7 @@ import path from 'path'
 import os from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
-import { JSDOM } from 'jsdom'
+import { JSDOM, requestInterceptor } from 'jsdom'
 import {
   buildMockSite,
   DRIVE_FORMAT,
@@ -17,7 +17,7 @@ const assetResources = (
   fetchAsset: (url: string) => Buffer | Promise<Buffer> | null
 ): any => ({
   interceptors: [
-    require('jsdom').requestInterceptor(async (request: Request) => {
+    requestInterceptor(async (request) => {
       const bytes = await fetchAsset(request.url)
       return bytes === null
         ? new Response(null, { status: 404 })

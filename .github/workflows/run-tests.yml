@@ -489,8 +489,8 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Keep the legacy required check name `test (22)` until branch protection
-    # is updated, even though all jobs above run on supported Node versions.
+    # Transitional compatibility check: it does not run Node 22. Remove this
+    # matrix only after branch protection requires the new CI gate instead.
     strategy:
       matrix:
         node-version: [22]
@@ -513,3 +513,17 @@ jobs:
             esac
           done
           exit $failed
+
+  ci-gate:
+    # Require this unversioned check in branch protection before retiring
+    # the legacy `test (22)` check above.
+    name: CI gate
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require successful fan-in
+        env:
+          FAN_IN_RESULT: ${{ needs.test.result }}
+        run: test "$FAN_IN_RESULT" = success
