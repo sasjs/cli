@@ -459,11 +459,7 @@ async function main() {
       )
       console.log(`PASS ${target} worker control and real adapter`)
 
-      for (const route of [
-        '/api/stp/execute//',
-        '/SASjsApi/code/execute///',
-        '/SASStoredProcess/do//'
-      ]) {
+      for (const route of ['/api/stp/execute//', '/SASjsApi/code/execute///', '/SASStoredProcess/do//']) {
         const denied = await evaluate(`(async () => {
           let reads = 0;
           const original = Blob.prototype.arrayBuffer;
@@ -480,15 +476,9 @@ async function main() {
             });
           } finally { Blob.prototype.arrayBuffer = original; }
         })()`)
-        assert.deepEqual(
-          denied,
-          { status: 401, reads: 0 },
-          `${target} ${route}: denied before reading`
-        )
+        assert.deepEqual(denied, { status: 401, reads: 0 }, `${target} ${route}: denied before reading`)
       }
-      console.log(
-        `PASS ${target} slash-suffixed denied uploads before page file read`
-      )
+      console.log(`PASS ${target} slash-suffixed denied uploads before page file read`)
 
       for (const route of ['/SASjsApi/code/execute', '/api/CODE/EXECUTE///']) {
         const granted = await evaluate(`(async () => {
@@ -510,16 +500,10 @@ async function main() {
             });
           } finally { Blob.prototype.arrayBuffer = original; }
         })()`)
-        assert.ok(
-          granted.paths.includes('/SASjsApi/code/execute'),
-          `${target} code route grant`
-        )
+        assert.ok(granted.paths.includes('/SASjsApi/code/execute'), `${target} code route grant`)
         assert.equal(granted.status, 200, `${target} ${route}: ${granted.body}`)
         assert.equal(granted.reads, 1, `${target} ${route}: reads upload`)
-        assert.ok(
-          granted.body.includes('[239,187,191,0,255]'),
-          `${target} ${route}: ${granted.body}`
-        )
+        assert.ok(granted.body.includes('[239,187,191,0,255]'), `${target} ${route}: ${granted.body}`)
       }
       console.log(`PASS ${target} authorized code execute XHR exact bytes`)
 
@@ -547,12 +531,7 @@ async function main() {
       )
       console.log(`PASS ${target} worker upload limit before page file read`)
 
-      for (const transport of [
-        'sas9-fetch',
-        'sasjs-fetch',
-        'sas9-xhr',
-        'sasjs-xhr'
-      ]) {
+      for (const transport of ['sas9-fetch', 'sasjs-fetch', 'sas9-xhr', 'sasjs-xhr']) {
         for (const count of [0, 1, 3]) {
           const actual = await evaluate(`(async () => {
             const form = new FormData();
@@ -593,21 +572,8 @@ async function main() {
           if (${JSON.stringify(transport)}.endsWith('fetch')) { const r = await fetch(path, {method:'POST', body:form}); return {status:r.status, body:await r.json()}; }
           return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
         })()`)
-        assert.deepEqual(
-          lazy,
-          {
-            status: 200,
-            body: {
-              first: [{ VALUE: 42 }],
-              second: [{ VALUE: 99 }],
-              error: 'ENOENT'
-            }
-          },
-          `${target} ${transport}: FETCH re-reads edited and deleted file`
-        )
-        console.log(
-          `PASS ${target} ${transport} lazy FETCH after edit and delete`
-        )
+        assert.deepEqual(lazy, {status: 200, body: {first: [{VALUE: 42}], second: [{VALUE: 99}], error: 'ENOENT'}}, `${target} ${transport}: FETCH re-reads edited and deleted file`)
+        console.log(`PASS ${target} ${transport} lazy FETCH after edit and delete`)
         const mutation = await evaluate(`(async () => {
           const form = new FormData(); form.append('input', new Blob(['initial']), 'input.bin');
           const path = ${JSON.stringify(basePath)} + (${JSON.stringify(transport)}.startsWith('sas9') ? '/SASStoredProcess/do' : '/SASjsApi/stp/execute') + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/mutateupload')});
@@ -615,26 +581,9 @@ async function main() {
           return await new Promise((resolve,reject) => { const x = new XMLHttpRequest(); x.open('POST',path); x.onload = () => resolve({status:x.status,body:JSON.parse(x.responseText)}); x.onerror=reject; x.send(form); });
         })()`)
         assert.equal(mutation.status, 200)
-        assert.deepEqual(
-          { ...mutation.body, copy: undefined },
-          {
-            buffer: true,
-            hex: '616263',
-            binary: '00ff80',
-            error: 'ENOENT',
-            copy: undefined,
-            stream: 'undefined'
-          },
-          `${target} ${transport}: mutation parity and stream limitation`
-        )
-        const probe = await evaluate(
-          `(async () => { const url = ${JSON.stringify(basePath + '/SASjsApi/stp/execute')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploadprobe')}) + '&file=' + encodeURIComponent(${JSON.stringify(mutation.body.copy)}); const r = await fetch(url); return {status:r.status, body:await r.json()}; })()`
-        )
-        assert.deepEqual(
-          probe,
-          { status: 200, body: { exists: false } },
-          `${target} ${transport}: derived upload is transient`
-        )
+        assert.deepEqual({...mutation.body, copy: undefined}, {buffer:true,hex:'616263',binary:'00ff80',error:'ENOENT',copy:undefined,stream:'undefined'}, `${target} ${transport}: mutation parity and stream limitation`)
+        const probe = await evaluate(`(async () => { const url = ${JSON.stringify(basePath + '/SASjsApi/stp/execute')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/uploadprobe')}) + '&file=' + encodeURIComponent(${JSON.stringify(mutation.body.copy)}); const r = await fetch(url); return {status:r.status, body:await r.json()}; })()`)
+        assert.deepEqual(probe, {status:200,body:{exists:false}}, `${target} ${transport}: derived upload is transient`)
         console.log(`PASS ${target} ${transport} mutation and cleanup`)
         const result = await evaluate(`(async () => {
           const form = new FormData();
