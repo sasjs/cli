@@ -199,6 +199,10 @@ describe('sasjs web', () => {
         'var t={};t.u=e=>e+"."+{15:"ba407bec"}[e]+".js";t.p="";'
       )
       await createFile(
+        path.join(__dirname, appName, sourceFolder, '15.ba407bec.js'),
+        'console.log("lazy chunk")'
+      )
+      await createFile(
         path.join(__dirname, appName, sourceFolder, 'app.js'),
         'console.log(1)'
       )
@@ -243,6 +247,11 @@ describe('sasjs web', () => {
       await expect(
         readFile(path.join(servicesFolder, 'websas', 'app.js'))
       ).resolves.toEqual('console.log(1)')
+
+      // The chunk is not named in index.html, but must still be deployed.
+      await expect(
+        readFile(path.join(servicesFolder, 'websas', '15.ba407bec.js'))
+      ).resolves.toEqual('console.log("lazy chunk")')
 
       // a lazily loaded chunk is named by the runtime, not by the entry page, so
       // the runtime's public path is what sends it to the deployment folder
