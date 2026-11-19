@@ -5829,3 +5829,79 @@ describe('service worker host', () => {
     })
   })
 })
+
+describe('the emulated Viya estate', () => {
+  /** The status, the emulated stamp and the JSON body of one answer. */
+  const read = async (response: Promise<Response> | undefined) => {
+    expect(response).toBeDefined()
+    const answer = await (response as Promise<Response>)
+
+    return {
+      status: answer.status,
+      emulated: answer.headers.get('x-sasjs-emulated'),
+      body: (await answer.json().catch(() => undefined)) as any
+    }
+  }
+
+  it('answers the estate paths from the package, and says which contract', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(worker.dispatch('/folders/folders/@item?path=/'))
+
+    expect(answer.status).toBe(200)
+    // the stamp is the package's, on every answer including a refusal - which is
+    // what stops an emulated 404 being read as evidence about Viya
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.body.type).toBe('folder')
+  })
+
+  it('creates a folder the SASjs routes can see, because there is one drive', async () => {
+    const worker = loadWorker()
+
+    const created = await read(
+      worker.dispatch('/folders/folders?parentFolderUri=', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'viya-demo' })
+      })
+    )
+
+    expect(created.status).toBe(201)
+    expect(created.body.name).toBe('viya-demo')
+    // the bodies name the account the page is signed in as, not a placeholder:
+    // the same subject the SASjs routes resolve
+    expect(created.body.createdBy).toBe('user-admin')
+
+    // the id the estate handed out resolves, which is what a client stores
+    const again = await read(
+      worker.dispatch(`/folders/folders/${created.body.id}`)
+    )
+    expect(again.status).toBe(200)
+    expect(again.body.id).toBe(created.body.id)
+
+    // and the folder is a folder in the host's own drive: the SASjs route lists
+    // it, so an app's two APIs see one filesystem here as they do on a server
+    const sasjs = await read(
+      worker.dispatch('/SASjsApi/drive/filetree?_folderPath=/viya-demo')
+    )
+    expect(sasjs.status).toBe(200)
+    expect(JSON.stringify(sasjs.body)).toContain('viya-demo')
+  })
+
+  it('answers the current user with the account the page chose', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(worker.dispatch('/identities/users/@currentUser'))
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.id).toBe('user-admin')
+  })
+
+  it('leaves every other path to the static host', async () => {
+    const worker = loadWorker()
+
+    // no respondWith: the fetch listener only takes the estate's prefixes, the
+    // API's, the web tier's and the app stream's
+    expect(worker.dispatch('/notes/not-an-api')).toBeUndefined()
+  })
+})
