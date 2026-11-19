@@ -61,7 +61,7 @@ const WORKER_SILENT = `self.addEventListener('install', () => self.skipWaiting()
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 `
 
-function pagesLike(root, hits) {
+function pagesLike(root, hits, fallbackStatus) {
   const types = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'application/javascript; charset=utf-8'
@@ -82,12 +82,14 @@ function pagesLike(root, hits) {
       })
       return res.end(body)
     }
-    // what GitHub Pages does: 404.html, with a 404 status
+    // Some static hosts rewrite missing paths to the fallback with status 200.
     const fallback = await fs
       .readFile(path.join(root, '404.html'))
       .catch(() => null)
     if (fallback) {
-      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
+      res.writeHead(fallbackStatus, {
+        'Content-Type': 'text/html; charset=utf-8'
+      })
       return res.end(fallback)
     }
     res.writeHead(404, { 'Content-Type': 'text/plain' })
@@ -98,7 +100,7 @@ function pagesLike(root, hits) {
 /* workerScript: a worker to serve, or null for a host that has none - the
  * state in which the page never becomes controlled and the count has nowhere
  * to live but the address */
-async function site(workerScript) {
+async function site(workerScript, fallbackStatus = 404) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sasjs-404-browser-'))
   const page = (
     await fs.readFile(path.join(ASSETS, 'fallback.html'), 'utf8')
@@ -114,7 +116,7 @@ async function site(workerScript) {
   await fs.writeFile(path.join(root, '404.js'), script)
   if (workerScript) await fs.writeFile(path.join(root, 'sw.js'), workerScript)
   const hits = []
-  const server = pagesLike(root, hits)
+  const server = pagesLike(root, hits, fallbackStatus)
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   return {
@@ -193,7 +195,7 @@ async function startBrowser() {
 // leak from one case into the next
 async function openCase(
   browser,
-  { disableCookies, blockWindowName, appWindowName }
+  { disableCookies, blockWindowName, blockSession, appWindowName }
 ) {
   const { browserContextId } = await browser.send('Target.createBrowserContext')
   const { targetId } = await browser.send('Target.createTarget', {
@@ -233,6 +235,12 @@ async function openCase(
         configurable: false,
         get: function () { return '' },
         set: function () {}
+      })`
+    })
+  if (blockSession)
+    await send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `Object.defineProperty(window, 'sessionStorage', {
+        get: function () { throw new Error('storage blocked') }
       })`
     })
   return { browserContextId, send, evalJS }
@@ -398,15 +406,15 @@ async function main() {
       )
     }
 
-    // 5. both storage carriers refused, worker claims the page but answers
-    // nothing: the page is controlled, so it probes the address instead of
-    // marking it - the static host's 404 ends it there
+    // 5. Every durable carrier is refused: even a controlling silent worker
+    // cannot justify a clean retry, because its host might rewrite to 200.
     {
       const s = await site(WORKER_SILENT)
       servers.push(s.server)
       const c = await openCase(browser, {
         disableCookies: true,
-        blockWindowName: true
+        blockWindowName: true,
+        blockSession: true
       })
       await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
       const text = await settle(c.evalJS, (t) => t.includes(SILENT))
@@ -434,7 +442,7 @@ async function main() {
         'the address must stay clean'
       )
       console.log(
-        'fallback: a worker that claims the page but answers nothing stops it on a probe'
+        'fallback: a silent controlling worker stops without storage carriers'
       )
     }
 
@@ -475,7 +483,8 @@ async function main() {
       servers.push(s.server)
       const c = await openCase(browser, {
         disableCookies: true,
-        blockWindowName: true
+        blockWindowName: true,
+        blockSession: true
       })
       await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
       const text = await settle(c.evalJS, (t) => t.includes(SILENT))
@@ -514,7 +523,8 @@ async function main() {
       servers.push(s.server)
       const c = await openCase(browser, {
         disableCookies: true,
-        appWindowName: 'app-owned-value'
+        appWindowName: 'app-owned-value',
+        blockSession: true
       })
       await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
       const text = await settle(c.evalJS, (t) => t.includes(SILENT))
@@ -560,6 +570,73 @@ async function main() {
       )
       console.log(
         'fallback: a raw drive path is left to the static host and gives up'
+      )
+    }
+    // 10. A silent controlling worker on a host rewriting missing routes to
+    // 200 must stop even when neither cookie nor window.name can hold a count.
+    {
+      const s = await site(WORKER_SILENT, 200)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        blockWindowName: true,
+        blockSession: true
+      })
+      const hostResponse = await fetch(s.origin + DEEP_LINK)
+      assert.equal(hostResponse.status, 200)
+      assert.match(await hostResponse.text(), /404\.js/)
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `200 fallback with a silent worker never stopped: ${JSON.stringify(text.slice(0, 80))}; target requests: ${s.hits.filter((p) => p.startsWith(TARGET_PATH)).length}`
+      )
+      assert.ok(await c.evalJS('!!navigator.serviceWorker.controller'))
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
+      await sleep(1500)
+      const after = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
+      assert.equal(
+        after,
+        before,
+        '200 fallback kept navigating after giving up'
+      )
+      assert.equal(await searchOf(c), DEEP_SEARCH)
+      console.log(
+        'fallback: a 200 rewrite and silent controller stop without storage'
+      )
+    }
+    // 11. Session storage carries a bounded clean retry when the other
+    // carriers are unavailable; giving up clears it for a subsequent reload.
+    {
+      const s = await site(WORKER_SILENT, 200)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        blockWindowName: true
+      })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(text.includes(SILENT), 'session-carried retries never stopped')
+      assert.ok(await c.evalJS('!!navigator.serviceWorker.controller'))
+      assert.equal(await c.evalJS("sessionStorage.getItem('sasjs404')"), null)
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
+      assert.ok(
+        before >= 2 && before <= 5,
+        `unexpected request count: ${before}`
+      )
+      await sleep(1500)
+      assert.equal(
+        s.hits.filter((p) => p.startsWith(TARGET_PATH)).length,
+        before
+      )
+      await c.send('Page.reload')
+      await settle(c.evalJS, (t) => t.includes(SILENT))
+      const second =
+        s.hits.filter((p) => p.startsWith(TARGET_PATH)).length - before
+      assert.ok(second >= 2, `reload did not retry: ${second} requests`)
+      assert.equal(await searchOf(c), DEEP_SEARCH)
+      console.log(
+        'fallback: session-carried 200 retries stop and reset on reload'
       )
     }
   } finally {

@@ -16,22 +16,18 @@
  *
  * A retry can miss: the worker is active but the page that issued the
  * navigation is not controlled yet, and under load that window is wide enough
- * to swallow more than one attempt. Once the page IS controlled the next
- * navigation is certainly intercepted, so this keeps trying for a few attempts
- * and gives up when the cap is reached - at which point the address really is
- * not part of the site.
+ * to swallow more than one attempt. Control does not itself prove that the
+ * worker answers this path, so the page caps retries and then gives up.
  *
  * The attempt count has to survive the retry, and the retry is a navigation:
- * every load of this page is a new document. A cookie carries it, and where a
- * cookie cannot be written (private mode, cookies disabled for the origin) the
- * count travels in the URL instead - a counter that storage can silently drop
- * is a counter that bounds nothing, and the failure mode there is a reload loop
- * rather than a message. It is per address, so one bad link cannot spend a
- * later link's budget.
+ * every load of this page is a new document. A cookie, window.name or per-tab
+ * sessionStorage carries it; if all three are unavailable the URL carries it
+ * while the page is uncontrolled. Once controlled, a clean retry cannot be
+ * bounded without storage, so the page fails closed instead. The count is per
+ * address, so one bad link cannot spend a later link's budget.
  *
- * The URL carrier is only used while no worker controls the page: once one
- * does, the next navigation is answered, so the count is not needed and the
- * address stays the one that was asked for. The marker can still reach a
+ * The URL carrier is only used while no worker controls the page, to avoid
+ * passing the marker to an application. The marker can still reach a
  * visitor by being copied out of the address bar of a page that was retrying;
  * the give-up branch strips it, so the address they can share or reload is
  * clean, and a reload is one real attempt.
@@ -96,10 +92,10 @@
    * context, so the retry's navigation cannot lose it, and no storage policy
    * can refuse it the way a cookie policy can. It is borrowed, not taken: a
    * name this page did not write belongs to the app, and overwriting it would
-   * leave the app reading our record after a retry that worked - so a used name
-   * is left alone and the next carrier is tried instead. Only the last resort
-   * is the address itself, because a count written there is a count a visitor
-   * can copy and hand to someone else. */
+   * leave the app reading our record after a retry that worked. An app-owned
+   * name is left alone. Session storage is tried next and the
+   * address is the last resort while uncontrolled; a visitor can copy a count
+   * written there and hand it to someone else. */
   function readName() {
     try {
       return recordOf(window.name)
@@ -152,6 +148,12 @@
     } catch (e) {
       /* nothing to clear where nothing could be written */
     }
+    try {
+      if (sessionStorage.getItem(COOKIE) !== null && readSession() !== null)
+        sessionStorage.removeItem(COOKIE)
+    } catch (e) {
+      /* storage can be disabled */
+    }
     if (readName() !== null) {
       try {
         window.name = ''
@@ -176,7 +178,28 @@
     })
   }
 
-  var attempts = fromUrl > 0 ? fromUrl : readCookie() || readName() || 0
+  /* A per-tab fallback when cookies and window.name cannot hold the count. */
+  function readSession() {
+    try {
+      return recordOf(sessionStorage.getItem(COOKIE))
+    } catch (e) {
+      return null
+    }
+  }
+
+  function writeSession(n) {
+    try {
+      var existing = sessionStorage.getItem(COOKIE)
+      if (existing && !isOurRecord(existing)) return false
+      sessionStorage.setItem(COOKIE, JSON.stringify({ target: target, n: n }))
+      return readSession() === n
+    } catch (e) {
+      return false
+    }
+  }
+
+  var attempts =
+    fromUrl > 0 ? fromUrl : readCookie() || readName() || readSession() || 0
 
   if (!('serviceWorker' in navigator)) {
     giveUp('This browser cannot open this page from a direct link.')
@@ -240,39 +263,22 @@
       return waited.then(function () {
         var next = attempts + 1
         /* the carriers that keep the address clean come first */
-        if (writeCookie(next) || writeName(next)) {
+        if (writeCookie(next) || writeName(next) || writeSession(next)) {
           location.replace(target)
           return
         }
-        /* no carrier could hold the count, so the address is the only place
-         * left - but only while no worker is in control, because a controlled
-         * navigation is answered and needs no count. That is read here and not
-         * before the wait: control usually arrives during it, and a stale "not
-         * controlled" is how a marker ended up in an application's address. */
+        /* With no durable carrier, use the URL while uncontrolled. Once a
+         * worker controls this page, do not leak the marker to the application. */
         if (!navigator.serviceWorker.controller) {
           var retry = new URL(location.href)
           retry.searchParams.set(PARAM, String(next))
           location.replace(retry.pathname + retry.search + retry.hash)
           return
         }
-        /* controlled, but a worker in control is not a worker that answers:
-         * ask for the address once, from inside the worker's own scope. An
-         * answer means the clean navigation below is the one the app gets; the
-         * static host's 404 means nothing is answering, and giving up is what
-         * keeps this from looping with no count to stop it. */
-        fetch(target, { cache: 'no-store' }).then(
-          function (response) {
-            if (response.status === 404) {
-              giveUp('This page is not part of this site.')
-              return
-            }
-            location.replace(target)
-          },
-          function () {
-            /* a network failure says nothing about the worker: try the address */
-            location.replace(target)
-          }
-        )
+        /* No durable carrier remains. A clean retry cannot be bounded, and a
+         * successful fetch may be a host rewrite, not an answer from a worker.
+         * Fail closed even if the worker might have answered the navigation. */
+        giveUp('This page is not part of this site.')
       })
     })
 })()
