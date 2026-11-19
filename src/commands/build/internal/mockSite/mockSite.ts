@@ -1061,7 +1061,11 @@ const API_CONSOLE_FILES = [
  * screen of the app, so nothing in the page links to it and nothing preloads it -
  * a visit costs the demo nothing until someone types the URL.
  */
-const writeApiConsole = (outputFolder: string, version: string) => {
+const writeApiConsole = (
+  outputFolder: string,
+  version: string,
+  basePath: string
+) => {
   const folder = path.join(outputFolder, API_CONSOLE_DIR)
   // `<base>/api-console/` is this build's, not the project's: a site that ships its own
   // files there would have them replaced without a word, so it keeps them and
@@ -1086,11 +1090,20 @@ const writeApiConsole = (outputFolder: string, version: string) => {
   // app's loader asks for: a registration is identified by its script URL, and a
   // bare `sw.js` here would replace the versioned one on every visit to either
   // page - an install nobody asked for, which is what the version exists to avoid.
+  const consoleScript = fs.readFileSync(
+    path.join(ASSETS_FOLDER, 'api-console.js')
+  )
+  const consoleVersion = createHash('md5')
+    .update(consoleScript)
+    .digest('hex')
+    .slice(0, 10)
   fs.writeFileSync(
     path.join(folder, 'index.html'),
     fs
       .readFileSync(path.join(ASSETS_FOLDER, 'api-index.html'), 'utf8')
       .replace('__MOCK_VERSION__', version)
+      .replace('__MOCK_BASE__', basePath + '/')
+      .replace('src="console.js"', `src="console.js?v=${consoleVersion}"`)
   )
   fs.copyFileSync(
     path.join(ASSETS_FOLDER, 'api-console.js'),
@@ -1481,7 +1494,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // demo nothing.
   let apiConsole = false
   if (target.streamConfig?.mockApi !== false) {
-    const written = writeApiConsole(outputFolder, hostVersion)
+    const written = writeApiConsole(outputFolder, hostVersion, basePath)
     apiConsole = written.written
     if (written.warning) process.logger?.warn(written.warning)
   }

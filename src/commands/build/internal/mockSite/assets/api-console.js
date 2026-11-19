@@ -25,15 +25,15 @@
   /**
    * The site's root.
    *
-   * Taken from the worker that controls this page, `<base>/sw.js`: that is the
-   * one statement of the base the page carries, and it holds wherever the console
-   * sits - a copy under `<base>/tools/api-console/` still calls the site's own
-   * API rather than a folder that happens to be two levels up. Only a worker
-   * whose root covers this page counts, since a page can be controlled by another
-   * site's worker, and one registered below the page names a folder inside it. A
-   * page with no such worker falls back to its own URL, one level below the root.
+   * The generated page carries its build's mount, which also distinguishes a
+   * root-site console copied deeper down from a nested site's first navigation
+   * while a root worker still controls it. Older unstamped pages use a covering
+   * non-root worker or their parent folder as a compatibility fallback.
    */
   const base = (function () {
+    const stamp = document.querySelector('meta[name="sasjs-mock-base"]')
+    const stamped = stamp && stamp.getAttribute('content')
+    if (stamped && stamped !== '__MOCK_BASE__') return stamped
     // this page's own folder, however it was typed: with the page, with the
     // file, or without the trailing slash
     let dir = location.pathname
@@ -134,32 +134,52 @@
       })
     } catch (e) {
       console.error('[api console] the demo host could not register: ' + e)
-      return
+      throw e
     }
 
-    if (!navigator.serviceWorker.controller) {
+    const controllerMatches = () => {
+      const controller = navigator.serviceWorker.controller
+      if (!controller || !controller.scriptURL) return Boolean(controller)
+      const stamp = document.querySelector('meta[name="sasjs-mock-base"]')
+      if (stamp && stamp.getAttribute('content') !== '__MOCK_BASE__')
+        return controller.scriptURL === workerUrl
+      return (
+        new URL(controller.scriptURL).pathname === new URL(workerUrl).pathname
+      )
+    }
+    if (!controllerMatches()) {
       await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 4000)
-        navigator.serviceWorker.addEventListener(
-          'controllerchange',
-          () => {
-            clearTimeout(timer)
-            resolve()
-          },
-          { once: true }
-        )
+        const changed = () => {
+          if (!controllerMatches()) return
+          clearTimeout(timer)
+          navigator.serviceWorker.removeEventListener(
+            'controllerchange',
+            changed
+          )
+          resolve()
+        }
+        const timer = setTimeout(() => {
+          navigator.serviceWorker.removeEventListener(
+            'controllerchange',
+            changed
+          )
+          resolve()
+        }, 4000)
+        navigator.serviceWorker.addEventListener('controllerchange', changed)
+        changed()
       })
     }
 
-    if (!navigator.serviceWorker.controller) {
+    if (!controllerMatches()) {
       if (!sessionStorage.getItem(RELOADED_KEY)) {
         sessionStorage.setItem(RELOADED_KEY, '1')
         location.reload()
-        return
+        return false
       }
       console.error(
         '[api console] the demo host did not take control; calls may not answer'
       )
+      throw new Error('the demo host did not take control')
     }
 
     // The host stamp includes persist.js, so a new bridge cannot be replaced by
@@ -184,6 +204,10 @@
       console.error('[api console] the drive could not be handed over: ' + e)
       throw e
     }
+    // Returning when no worker controls the page prevents persistence from
+    // booting against a different site's controller or issuing calls there.
+    if (!navigator.serviceWorker.controller || !controllerMatches())
+      throw new Error('the demo host controller changed during startup')
   }
 
   // ------------------------------------------------------------------ routes
@@ -790,7 +814,7 @@
       }
     })
 
-    await startHost()
+    if ((await startHost()) === false) return
     if (await resetIfAsked()) return
 
     await Promise.all([loadOperations(), loadAccounts()])

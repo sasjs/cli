@@ -1551,7 +1551,7 @@ describe('browser-hosted build', () => {
     // the page is static and carries no inline script: a project that serves it
     // under `default-src 'self'` would refuse one
     const html = fs.readFileSync(path.join(folder, 'index.html'), 'utf8')
-    expect(html).toContain('<script src="console.js"></script>')
+    expect(html).toMatch(/<script src="console\.js\?v=[0-9a-f]{10}"><\/script>/)
     expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/)
     // the page starts the host itself, so it registers the worker under the same
     // versioned URL the app's loader uses: two URLs for one scope replace each

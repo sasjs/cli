@@ -58,17 +58,43 @@ async function main() {
     sites.set(mount, result.outputFolder)
   }
   for (const [i, mount] of mounts.entries()) await buildSite(i, mount)
+  await fs.cp(
+    path.join(sites.get(''), 'api-console'),
+    path.join(sites.get(''), 'tools/api-console'),
+    { recursive: true }
+  )
+  let holdNestedWorker = false
+  let releaseNestedWorker
+  let nestedWorkerRequested = false
   const server = http.createServer(async (req, res) => {
     try {
       const pathname = decodeURIComponent(
         new URL(req.url, 'http://localhost').pathname
       )
+      if (pathname === '/test-worker-gate') {
+        nestedWorkerRequested = true
+        await new Promise((resolve) => {
+          releaseNestedWorker = resolve
+        })
+        res.end('ok')
+        return
+      }
       const mount = [...mounts]
         .sort((a, b) => b.length - a.length)
         .find((m) => !m || pathname === m || pathname.startsWith(m + '/'))
       let name = pathname.slice(mount.length) || '/'
       if (name.endsWith('/')) name += 'index.html'
       let data = await fs.readFile(path.join(sites.get(mount), name))
+      if (holdNestedWorker && mount === mounts[1] && name === '/sw.js') {
+        data = Buffer.from(
+          data
+            .toString()
+            .replace(
+              "self.addEventListener('install', () => self.skipWaiting())",
+              "self.addEventListener('install', (event) => event.waitUntil(fetch('/test-worker-gate').then(() => self.skipWaiting())))"
+            )
+        )
+      }
       if (process.env.NEGATIVE_CONTROL && name === '/host/persist.js') {
         let text = data.toString()
         text = text
@@ -198,6 +224,106 @@ async function main() {
     }
     const a = await tab(),
       b = await tab()
+    // Start the root worker, then use a copied console two folders down. Drive
+    // the console's own UI and inspect the API request, not just a derived URL.
+    await navigate(a, '')
+    await send('Network.enable', {}, a)
+    const requests = []
+    ws.addEventListener('message', ({ data }) => {
+      const msg = JSON.parse(data)
+      if (msg.sessionId === a && msg.method === 'Network.requestWillBeSent')
+        requests.push(msg.params.request.url)
+    })
+    await send('Page.navigate', { url: origin + '/tools/api-console/' }, a)
+    for (let i = 0; i < 300; i++) {
+      if (
+        await evaluate(a, `!!document.querySelector('#routes .route')`).catch(
+          () => false
+        )
+      )
+        break
+      await sleep(50)
+    }
+    await evaluate(
+      a,
+      `document.querySelector('#routes .route').click(); document.querySelector('#send').click()`
+    )
+    for (let i = 0; i < 200; i++) {
+      if (requests.some((url) => url.includes('/SASjsApi/'))) break
+      await sleep(50)
+    }
+    await evaluate(
+      a,
+      `(async () => { for (let i = 0; i < 200 && document.querySelector('#response').hidden; i++) await new Promise(r => setTimeout(r, 50)); if (document.querySelector('#response').hidden || !document.querySelector('#status').textContent.startsWith('200')) throw Error('console response: ' + document.querySelector('#status').textContent) })()`
+    )
+    const consoleRequests = requests.filter((url) => url.includes('/SASjsApi/'))
+    assert.ok(consoleRequests.length, 'root console sent an API request')
+    assert.ok(
+      consoleRequests.every((url) =>
+        new URL(url).pathname.startsWith('/SASjsApi/')
+      ),
+      JSON.stringify(consoleRequests)
+    )
+    // The root worker initially controls the nested page. Hold installation to
+    // ensure the console never boots persistence or issues calls against it.
+    requests.length = 0
+    holdNestedWorker = true
+    await send(
+      'Page.navigate',
+      { url: origin + mounts[1] + '/api-console/' },
+      a
+    )
+    for (let i = 0; i < 200 && !nestedWorkerRequested; i++) await sleep(50)
+    assert.ok(nestedWorkerRequested, 'nested worker requested')
+    assert.equal(
+      new URL(await evaluate(a, 'navigator.serviceWorker.controller.scriptURL'))
+        .pathname,
+      '/sw.js'
+    )
+    assert.ok(
+      !requests.some((url) => url.includes('/host/persist.js')),
+      'persistence waits for nested controller'
+    )
+    assert.ok(
+      !requests.some((url) => url.includes('/SASjsApi/')),
+      'no API calls while old worker controls page'
+    )
+    holdNestedWorker = false
+    releaseNestedWorker()
+    for (let i = 0; i < 300; i++) {
+      if (
+        await evaluate(a, `!!document.querySelector('#routes .route')`).catch(
+          () => false
+        )
+      )
+        break
+      await sleep(50)
+    }
+    assert.equal(
+      new URL(await evaluate(a, 'navigator.serviceWorker.controller.scriptURL'))
+        .pathname,
+      mounts[1] + '/sw.js'
+    )
+    await evaluate(
+      a,
+      `document.querySelector('#routes .route').click(); document.querySelector('#send').click()`
+    )
+    for (let i = 0; i < 200; i++) {
+      if (requests.some((url) => url.includes('/SASjsApi/'))) break
+      await sleep(50)
+    }
+    await evaluate(
+      a,
+      `(async () => { for (let i = 0; i < 200 && document.querySelector('#response').hidden; i++) await new Promise(r => setTimeout(r, 50)); if (document.querySelector('#response').hidden || !document.querySelector('#status').textContent.startsWith('200')) throw Error('console response: ' + document.querySelector('#status').textContent) })()`
+    )
+    const nestedCalls = requests.filter((url) => url.includes('/SASjsApi/'))
+    assert.ok(
+      nestedCalls.length &&
+        nestedCalls.every((url) =>
+          new URL(url).pathname.startsWith(mounts[1] + '/SASjsApi/')
+        ),
+      JSON.stringify(nestedCalls)
+    )
     for (const [i, mount] of mounts.entries()) {
       await navigate(a, mount)
       await evaluate(

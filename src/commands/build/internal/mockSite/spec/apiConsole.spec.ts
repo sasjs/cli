@@ -100,6 +100,10 @@ const withServiceWorker = (options: { registerFails?: boolean } = {}) => {
     }),
     addEventListener: (type: string, fn: () => void) => {
       if (type === 'controllerchange') listeners.push(fn)
+    },
+    removeEventListener: (type: string, fn: () => void) => {
+      const index = listeners.indexOf(fn)
+      if (type === 'controllerchange' && index >= 0) listeners.splice(index, 1)
     }
   }
   Object.defineProperty(navigator, 'serviceWorker', {
@@ -877,21 +881,16 @@ describe('the API console', () => {
   })
 
   it('uses the nested console folder when a root worker controls first navigation', async () => {
-    const register = jest.fn(async (_url: string) => ({}))
-    await loadConsole(() => {
+    const host = withServiceWorker()
+    host.sw.controller = { scriptURL: location.origin + '/sw.js' }
+    const loading = loadConsole(() => {
       history.replaceState({}, '', '/demo/api-console/')
-      Object.defineProperty(navigator, 'serviceWorker', {
-        configurable: true,
-        value: {
-          controller: { scriptURL: location.origin + '/sw.js' },
-          register,
-          addEventListener: jest.fn(),
-          ready: Promise.resolve({})
-        }
-      })
     })
-    await settle(() => register.mock.calls.length > 0)
-    expect(register.mock.calls[0][0]).toContain('/demo/sw.js')
+    await settle(() => host.sw.register.mock.calls.length > 0)
+    expect(host.sw.register.mock.calls[0][0]).toContain('/demo/sw.js')
+    host.sw.controller = { scriptURL: location.origin + '/demo/sw.js' }
+    host.takeControl()
+    await loading
     history.replaceState({}, '', '/api-console/')
   })
   it('reset of a nested console leaves another site session and stamp alone', async () => {
