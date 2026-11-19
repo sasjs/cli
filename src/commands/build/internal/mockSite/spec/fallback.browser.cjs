@@ -41,7 +41,9 @@ function pagesLike(root) {
       return res.end(body)
     }
     // what GitHub Pages does: 404.html, with a 404 status
-    const fallback = await fs.readFile(path.join(root, '404.html')).catch(() => null)
+    const fallback = await fs
+      .readFile(path.join(root, '404.html'))
+      .catch(() => null)
     if (fallback) {
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
       return res.end(fallback)
@@ -54,11 +56,20 @@ function pagesLike(root) {
 async function main() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sasjs-404-browser-'))
   const servers = []
-  let browser, browserDone = false, browserError, ws
+  let browser,
+    browserDone = false,
+    browserError,
+    ws
   try {
     // the shipped page and script, under the names a host looks for
-    await fs.copyFile(path.join(ASSETS, 'fallback.html'), path.join(root, '404.html'))
-    await fs.copyFile(path.join(ASSETS, 'fallback.js'), path.join(root, '404.js'))
+    await fs.copyFile(
+      path.join(ASSETS, 'fallback.html'),
+      path.join(root, '404.html')
+    )
+    await fs.copyFile(
+      path.join(ASSETS, 'fallback.js'),
+      path.join(root, '404.js')
+    )
     // the stub backend: answers every request once it controls the page
     await fs.writeFile(
       path.join(root, 'sw.js'),
@@ -109,7 +120,12 @@ self.addEventListener('fetch', (event) => event.respondWith(
       if (browserDone) throw new Error('Chromium exited before startup')
       try {
         port = Number(
-          (await fs.readFile(path.join(root, 'profile/DevToolsActivePort'), 'utf8')).split('\n')[0]
+          (
+            await fs.readFile(
+              path.join(root, 'profile/DevToolsActivePort'),
+              'utf8'
+            )
+          ).split('\n')[0]
         )
       } catch (_) {
         await sleep(50)
@@ -117,7 +133,9 @@ self.addEventListener('fetch', (event) => event.respondWith(
     }
     if (!port) throw new Error('Chromium did not start')
 
-    const info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()
+    const info = await (
+      await fetch(`http://127.0.0.1:${port}/json/version`)
+    ).json()
     ws = new WebSocket(info.webSocketDebuggerUrl)
     await once(ws, 'open')
     let id = 0
@@ -127,7 +145,9 @@ self.addEventListener('fetch', (event) => event.respondWith(
       if (!pending.has(msg.id)) return
       const { resolve, reject } = pending.get(msg.id)
       pending.delete(msg.id)
-      msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
+      msg.error
+        ? reject(new Error(JSON.stringify(msg.error)))
+        : resolve(msg.result)
     })
     const send = (method, params = {}, sessionId) =>
       new Promise((resolve, reject) => {
@@ -135,15 +155,21 @@ self.addEventListener('fetch', (event) => event.respondWith(
         pending.set(requestId, { resolve, reject })
         ws.send(JSON.stringify({ id: requestId, method, params, sessionId }))
       })
-    const { targetId } = await send('Target.createTarget', { url: 'about:blank' })
-    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true })
+    const { targetId } = await send('Target.createTarget', {
+      url: 'about:blank'
+    })
+    const { sessionId } = await send('Target.attachToTarget', {
+      targetId,
+      flatten: true
+    })
     const evalJS = async (expression) => {
       const result = await send(
         'Runtime.evaluate',
         { expression, awaitPromise: true, returnByValue: true },
         sessionId
       )
-      if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails))
+      if (result.exceptionDetails)
+        throw new Error(JSON.stringify(result.exceptionDetails))
       return result.result.value
     }
     await send('Page.enable', {}, sessionId)
@@ -154,7 +180,8 @@ self.addEventListener('fetch', (event) => event.respondWith(
     let answered = false
     let lastText = ''
     for (let n = 0; n < 200; n++) {
-      lastText = (await evalJS("document.body ? document.body.innerText : ''")) || ''
+      lastText =
+        (await evalJS("document.body ? document.body.innerText : ''")) || ''
       if (lastText.includes(MARKER)) {
         answered = true
         break
@@ -166,11 +193,22 @@ self.addEventListener('fetch', (event) => event.respondWith(
       `the worker never answered the deep link (page said: ${JSON.stringify(lastText.slice(0, 80))})`
     )
     const href = await evalJS('location.href')
-    assert.equal(href, deepUrl, 'the retry must ask for the same address it was given')
-    const controlled = await evalJS('navigator.serviceWorker.controller !== null')
-    assert.ok(controlled, 'the page that loaded is not the one the worker answered')
+    assert.equal(
+      href,
+      deepUrl,
+      'the retry must ask for the same address it was given'
+    )
+    const controlled = await evalJS(
+      'navigator.serviceWorker.controller !== null'
+    )
+    assert.ok(
+      controlled,
+      'the page that loaded is not the one the worker answered'
+    )
 
-    console.log('fallback: a cold deep link reaches the worker at the address it was given')
+    console.log(
+      'fallback: a cold deep link reaches the worker at the address it was given'
+    )
   } finally {
     try {
       if (ws) ws.close()
@@ -181,6 +219,9 @@ self.addEventListener('fetch', (event) => event.respondWith(
 }
 
 main().catch((error) => {
-  console.error('fallback browser check failed:', error && error.message ? error.message : error)
+  console.error(
+    'fallback browser check failed:',
+    error && error.message ? error.message : error
+  )
   process.exit(1)
 })
