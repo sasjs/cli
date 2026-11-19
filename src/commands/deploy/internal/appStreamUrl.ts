@@ -33,6 +33,11 @@ export const streamedAppUrl = (
  * not reported. The folder still carries a copy of the frontend whose links
  * point at the same appLoc, so opening it is a second door to one app rather
  * than a second address an operator has to know.
+ *
+ * The tier that answers the entry page is younger than the server itself, so a
+ * SASjs deploy says which release carries it: without that, a server that
+ * predates the tier prints one address, answers it with a 404, and gives no clue
+ * why.
  */
 export const reportStreamedApp = (
   serverUrl: string,
@@ -41,12 +46,17 @@ export const reportStreamedApp = (
   streamServiceName: string,
   info?: (message: string) => void
 ): void => {
-  info?.(
-    `Web app is available at ${streamedAppUrl(
-      serverUrl,
-      serverType,
-      appLoc,
-      streamServiceName
-    )}`
+  const entryPage = streamedAppUrl(
+    serverUrl,
+    serverType,
+    appLoc,
+    streamServiceName
   )
+
+  const requirement =
+    serverType === ServerType.Sasjs
+      ? ' (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)'
+      : ''
+
+  info?.(`Web app is available at ${entryPage}${requirement}`)
 }

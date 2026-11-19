@@ -51,7 +51,26 @@ describe('the url a streamed deploy reports', () => {
     expect(said).toEqual([
       'Web app is available at https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html'
+        '/services/mario.html' +
+        ' (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)'
     ])
+  })
+
+  it('adds no version caveat where the tier has always been there', () => {
+    // Viya's job execution route is not a recent addition, so a caveat would be
+    // noise for an operator who never has to act on it
+    const said: string[] = []
+    const info = (message: string) => said.push(message)
+
+    reportStreamedApp(
+      'https://viya.example',
+      ServerType.SasViya,
+      '/Public/app',
+      'mario',
+      info
+    )
+
+    expect(said).toHaveLength(1)
+    expect(said[0]).not.toContain('sasjs/server')
   })
 })

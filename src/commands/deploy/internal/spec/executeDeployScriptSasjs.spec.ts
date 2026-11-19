@@ -90,7 +90,7 @@ describe('executeDeployScriptSasjs', () => {
     expect(process.logger?.info).toHaveBeenCalledWith(
       `Web app is available at ${target.serverUrl}/StoredProgram?_FILE=${encodeURI(
         target.appLoc
-      )}/services/clickme.html`
+      )}/services/clickme.html (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)`
     )
 
     // and nothing else: the app stream is a second door to the same app, not an

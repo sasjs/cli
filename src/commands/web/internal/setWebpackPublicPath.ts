@@ -1,9 +1,10 @@
 /**
- * The public path a webpack runtime assigns when it is happy to resolve chunk
- * URLs against the document: empty, or "auto" when the runtime should derive it
- * from the script element. Both resolve a chunk against the page's own address.
+ * The public path a webpack runtime assigns to its chunks: a string literal.
+ * Angular emits an empty one, but a build given a deploy URL or a base href
+ * emits that address instead - and a streamed deployment owns where the assets
+ * are fetched from, so either value is the wrong one to keep.
  */
-const emptyPublicPath = /([A-Za-z_$][\w$]*)\.p\s*=\s*(?:"auto"|""|'')/
+const publicPathAssignment = /([A-Za-z_$][\w$]*)\.p\s*=\s*("[^"]*"|'[^']*')/
 
 const escapeRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -23,11 +24,13 @@ const escapeRegExp = (value: string) =>
  *
  * The public path is the one value that can be set without knowing the chunk
  * names, so it is set to the same prefix the other assets are addressed with.
- * Only a runtime is changed: the file has to assign an empty public path on the
- * same object that builds chunk file names, or it is returned untouched.
+ * Only a runtime is changed: the file has to assign a literal public path on the
+ * same object that builds chunk file names, or it is returned untouched. A
+ * public path that is computed rather than a literal is left as it is - the
+ * value it will hold cannot be read here.
  */
 export const setWebpackPublicPath = (content: string, assetPrefix: string) => {
-  const match = emptyPublicPath.exec(content)
+  const match = publicPathAssignment.exec(content)
 
   if (!match) return content
 
@@ -41,5 +44,8 @@ export const setWebpackPublicPath = (content: string, assetPrefix: string) => {
 
   if (!namesChunks) return content
 
-  return content.replace(match[0], `${runtimeName}.p="${assetPrefix}"`)
+  // a function replacement, so a `$` sequence in the appLoc is copied rather
+  // than read as a replacement pattern (`$&`, `` $` `` and `$'` would splice the
+  // matched text or the rest of the file into the address)
+  return content.replace(match[0], () => `${runtimeName}.p="${assetPrefix}"`)
 }

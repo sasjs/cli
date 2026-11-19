@@ -32,6 +32,26 @@ describe('setWebpackPublicPath', () => {
     )
   })
 
+  it('replaces a deploy URL or base href the build carried', () => {
+    // `ng build --deploy-url=/deploy/` and a baseHref build both write a literal
+    // public path, and a streamed deployment owns where the chunks come from -
+    // keeping the build's own answer is the same 404 for a different reason
+    const runtime = 'var t={};t.u=e=>e+".js";t.p="/deploy/";'
+
+    expect(setWebpackPublicPath(runtime, prefix)).toContain(`t.p="${prefix}"`)
+  })
+
+  it('copies a prefix carrying a `$` instead of reading it as a pattern', () => {
+    // a replacement string would read `$&` as the matched text and splice it
+    // into the address, corrupting the runtime for an appLoc that holds one
+    const runtime = 'var t={};t.u=e=>e+".js";t.p="";'
+    const dollarPrefix = '/StoredProgram?_FILE=/Public/$&/services/web/'
+
+    expect(setWebpackPublicPath(runtime, dollarPrefix)).toEqual(
+      `var t={};t.u=e=>e+".js";t.p="${dollarPrefix}";`
+    )
+  })
+
   it('leaves a file that does not name chunks alone', () => {
     // a public path on its own is not a runtime: something else owns `p` here,
     // and rewriting it would be a change we cannot reason about
