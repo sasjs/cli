@@ -15,7 +15,7 @@
 // the URL instead. The last one is the one that used to loop.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
-const fsSync = require('node:fs')
+const { allowListLiteral } = require('./web-tier-allow-list.cjs')
 const http = require('node:http')
 const { spawn } = require('node:child_process')
 const { once } = require('node:events')
@@ -37,18 +37,11 @@ const BASE = ''
 
 /* The stub is shaped like the site's own worker, not like a catch-all: it
  * answers the routes the site publishes and leaves every other path to the
- * static host. Its allow-list is READ OUT OF assets/sw.js rather than copied -
- * a copy drifts, and a stub answering paths the worker refuses would make every
- * case here pass in a world the site does not have. It is exported so the unit
- * suite can compare it with the worker's own literal, by value. */
-const ALLOW_LITERAL = (() => {
-  const source = fsSync.readFileSync(path.join(ASSETS, 'sw.js'), 'utf8')
-  const matches = source.match(/\/\^\\\/\([^)]*\)\(\\\/\|\$\)\/i/g) || []
-  const found = matches.find((text) => text.includes('StoredProgram'))
-  if (!found)
-    throw new Error('assets/sw.js no longer carries the web-tier allow-list')
-  return found
-})()
+ * static host. Its allow-list is the worker's own literal, read out of
+ * assets/sw.js through the shared module rather than copied - a copy drifts,
+ * and a stub answering paths the worker refuses would make every case here pass
+ * in a world the site does not have. */
+const ALLOW_LITERAL = allowListLiteral()
 
 const WORKER_ANSWERS = `self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
@@ -575,11 +568,6 @@ async function main() {
     for (const server of servers) server.close()
   }
 }
-
-/* the check runs only when it is the program: the unit suite requires this file
- * to compare the allow-list the stub routes on with the worker's own, and
- * starting a browser for that would be a different test */
-module.exports = { ALLOW_LITERAL }
 
 if (require.main === module) {
   main().catch((error) => {

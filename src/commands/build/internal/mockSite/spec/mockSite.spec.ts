@@ -1967,14 +1967,14 @@ describe('browser-hosted build', () => {
     // and a raw drive path, which the worker deliberately leaves to the host
     expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
 
-    // and the browser check must route on that same list, not on a copy of it:
-    // the check's own allow-list is compared by value with the worker's, so a
-    // hand-written array there fails here whatever it is called and however it
-    // is spelled
-    const loaded = require(path.join(__dirname, 'fallback.browser.cjs')) as any
-    // jest's interop can hand the module back under `default`
-    const checkLiteral = loaded.ALLOW_LITERAL ?? loaded.default?.ALLOW_LITERAL
-    expect(checkLiteral).toBe(literal)
+    // and the browser check must route on that same list, not on a copy: it
+    // takes it from the shared module, and that module's literal is compared
+    // here with the worker's own - by value, so renaming or reformatting either
+    // side is free and a different list is not
+    const { allowListLiteral } = require(
+      path.join(__dirname, 'web-tier-allow-list.cjs')
+    )
+    expect(allowListLiteral()).toBe(literal)
   })
 
   it('says so when the project supplies its own not-found page', async () => {
