@@ -48,7 +48,8 @@
     if (script) {
       const swPath = new URL(script).pathname
       const root = /\/sw\.js$/.test(swPath) ? swPath.replace(/sw\.js$/, '') : ''
-      if (root && parent.startsWith(root)) return root
+      if (root && parent.startsWith(root) && (root !== '/' || parent === '/'))
+        return root
     }
     return parent || '/'
   })()
@@ -56,7 +57,9 @@
   const apiUrl = (path) => base + String(path).replace(/^\/+/, '')
   const el = (id) => document.getElementById(id)
 
-  const TOKEN_KEY = 'mock-console-token'
+  const suffix = base === '/' ? '' : ':' + base
+  const TOKEN_KEY = 'mock-console-token' + suffix
+  const RELOADED_KEY = 'mock-console-reloaded' + suffix
 
   /** The types the form treats as text rather than as JSON shapes. */
   const SCALAR_TYPES = ['string', 'number', 'integer', 'boolean']
@@ -149,8 +152,8 @@
     }
 
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('mock-console-reloaded')) {
-        sessionStorage.setItem('mock-console-reloaded', '1')
+      if (!sessionStorage.getItem(RELOADED_KEY)) {
+        sessionStorage.setItem(RELOADED_KEY, '1')
         location.reload()
         return
       }
@@ -714,7 +717,7 @@
    */
   const deleteDriveDatabase = () =>
     new Promise((resolve, reject) => {
-      const request = indexedDB.deleteDatabase('sasjs-mock-host')
+      const request = indexedDB.deleteDatabase('sasjs-mock-host' + suffix)
       request.onsuccess = () => resolve()
       request.onerror = () =>
         reject(request.error || new Error('the drive could not be deleted'))
@@ -751,8 +754,9 @@
       if (window.SASjsMock && window.SASjsMock.reset)
         await window.SASjsMock.reset()
       else await deleteDriveDatabase()
-      sessionStorage.clear()
-      localStorage.removeItem('sasjs-mock-build')
+      sessionStorage.removeItem(TOKEN_KEY)
+      sessionStorage.removeItem(RELOADED_KEY)
+      localStorage.removeItem('sasjs-mock-build' + suffix)
     } catch (e) {
       // the drive is unchanged, so replacing the page would come straight back to
       // it and look like the flag did nothing

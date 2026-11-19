@@ -398,9 +398,22 @@ const artifactResponse = (artifact) =>
     { status: 200, headers: artifact.headers || {} }
   )
 
+const inWorkerScope = (client) => {
+  if (!client.url) return false
+  try {
+    const url = new URL(client.url)
+    const scope = new URL(self.registration.scope)
+    return (
+      url.origin === scope.origin && url.pathname.startsWith(scope.pathname)
+    )
+  } catch (e) {
+    return false
+  }
+}
+
 const broadcast = async (message) => {
-  const clients = await self.clients.matchAll({ includeUncontrolled: true })
-  clients.forEach((client) => {
+  const clients = await self.clients.matchAll({ type: 'window' })
+  clients.filter(inWorkerScope).forEach((client) => {
     // a tab that closed between matchAll() and the send raises
     // InvalidStateError, and one closed tab must not fail the broadcast the
     // others just received - nor the load that is waiting on this call
@@ -476,10 +489,11 @@ const askHostForDrive = () => {
     const deadline = Date.now() + ASK_BUDGET
 
     while (Date.now() < deadline) {
-      const clients = await self.clients.matchAll({
-        includeUncontrolled: true,
-        type: 'window'
-      })
+      const clients = (
+        await self.clients.matchAll({
+          type: 'window'
+        })
+      ).filter(inWorkerScope)
       // no page to ask: nothing can have the drive
       if (!clients.length) return 'none'
 
