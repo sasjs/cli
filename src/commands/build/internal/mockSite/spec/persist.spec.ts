@@ -191,6 +191,12 @@ const loadPersist = (
       fake.identity.set('deleted', options.seededDeleted)
     return fake
   })()
+  const opened: string[] = []
+  const originalOpen = idb.open
+  idb.open = ((name: string) => {
+    opened.push(name)
+    return originalOpen()
+  }) as any
   ;(global as any).indexedDB = options.indexedDBUnavailable
     ? {
         open: () => {
@@ -216,7 +222,8 @@ const loadPersist = (
     reply,
     rows: idb.files,
     identityRows: idb.identity,
-    stored: local
+    stored: local,
+    opened
   }
 }
 
@@ -237,6 +244,50 @@ const settleUntil = async (check: () => boolean, timeout = 4000) => {
 }
 
 describe('the page-side store', () => {
+  it('isolates the database by worker mount and preserves the root name', async () => {
+    const root = loadPersist()
+    await root.window.SASjsMock.readAll()
+    expect(root.opened).toContain('sasjs-mock-host')
+    const nested = loadPersist({
+      scriptURL: 'https://host.test/sas9/minimal/sw.js?v=1'
+    })
+    await nested.window.SASjsMock.readAll()
+    expect(nested.opened).not.toContain('sasjs-mock-host')
+  })
+  it('ignores persistence messages from a worker at a different mount', async () => {
+    const { reply, rows } = loadPersist({
+      scriptURL: 'https://host.test/sas9/minimal/sw.js'
+    })
+    reply(
+      { type: 'sasjs-persist', files: { '/foreign': 'wrong' } },
+      {
+        scriptURL: 'https://host.test/sasjs/minimal/sw.js',
+        postMessage() {}
+      }
+    )
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    expect(rows.has('/foreign')).toBe(false)
+  })
+  it('records a separate build stamp at a nested mount', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, stored, listeners } = loadPersist({
+      controller,
+      scriptURL: 'https://host.test/sas9/minimal/sw.js?v=1',
+      ready: Promise.resolve(),
+      buildStamp: 'new-build'
+    })
+    const timer = setInterval(() => {
+      for (const [message] of controller.postMessage.mock.calls)
+        listeners.forEach((fn) => fn({ data: { type: message.type + '-ack' } }))
+    }, 5)
+    try {
+      await window.__sasjsMockPersistReady
+    } finally {
+      clearInterval(timer)
+    }
+    expect(stored.has('sasjs-mock-build')).toBe(false)
+    expect([...stored.values()]).toContain('new-build')
+  })
   it('reports a config network error rather than booting an unknown drive', async () => {
     const { window, posted } = loadPersist({
       ready: Promise.resolve(),

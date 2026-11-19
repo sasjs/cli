@@ -8,7 +8,17 @@
  * changed it, and both are written here.
  */
 ;(function () {
-  const DB_NAME = 'sasjs-mock-host'
+  // The asset URL names the generated site's mount even before it is controlled.
+  // Keep the legacy root database untouched; non-root sites never read it.
+  const scriptUrl = document.currentScript && document.currentScript.src
+  const controller = navigator.serviceWorker.controller
+  const mount = scriptUrl
+    ? new URL('../', scriptUrl).pathname
+    : controller && controller.scriptURL
+      ? new URL('.', controller.scriptURL).pathname
+      : '/'
+  const suffix = mount === '/' ? '' : ':' + mount
+  const DB_NAME = 'sasjs-mock-host' + suffix
   const FILES = 'files'
   /**
    * The identity the visitor last had: the fixture the worker's store reported
@@ -212,7 +222,7 @@
   }
 
   /** Where the stamp of the build that wrote the stored drive is kept. */
-  const BUILD_STAMP_KEY = 'sasjs-mock-build'
+  const BUILD_STAMP_KEY = 'sasjs-mock-build' + suffix
 
   /**
    * The stamp recorded for the stored drive, '' when there is none (a drive
@@ -298,6 +308,12 @@
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
+    if (
+      ev.source &&
+      ev.source.scriptURL &&
+      new URL('.', ev.source.scriptURL).pathname !== mount
+    )
+      return
     if (data.type === 'sasjs-persist') {
       writeFiles(data.files).catch((e) =>
         console.error('[sasjs-mock] persist failed', e)

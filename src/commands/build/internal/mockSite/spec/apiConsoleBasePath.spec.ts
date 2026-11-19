@@ -154,7 +154,10 @@ describe('the API console under a base path', () => {
 
     const sw: any = {
       controller: { scriptURL: 'http://localhost/other/sw.js' },
-      register: jest.fn(async () => ({})),
+      register: jest.fn(async () => {
+        sw.controller = { scriptURL: 'http://localhost/demo/sw.js' }
+        return {}
+      }),
       addEventListener: jest.fn()
     }
     Object.defineProperty(navigator, 'serviceWorker', {

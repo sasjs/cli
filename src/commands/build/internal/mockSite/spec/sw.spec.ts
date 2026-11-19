@@ -73,6 +73,7 @@ const loadWorker = (
   const self: any = {
     // the worker's own location names the folder the site is served from
     location: { origin, pathname: `${base}/sw.js` },
+    registration: { scope: `${origin}${base}/` },
     addEventListener: (type: string, fn: (event: any) => any) => {
       handlers[type] = handlers[type] || []
       handlers[type].push(fn)
@@ -88,7 +89,12 @@ const loadWorker = (
       // new objects with the same ids.
       matchAll: async () => {
         const clients = (global as any).__mockHostClients
-        return typeof clients === 'function' ? clients() : (clients ?? [])
+        const found =
+          typeof clients === 'function' ? clients() : (clients ?? [])
+        return found.map((client: any) => {
+          if (!client.url) client.url = `${origin}${base}/`
+          return client
+        })
       }
     }
   }
@@ -3588,6 +3594,29 @@ describe('service worker host', () => {
       }
     }
 
+    it('does not ask a sibling mount for its drive', async () => {
+      const foreign = {
+        url: origin + '/sasjs/minimal/',
+        postMessage: jest.fn()
+      }
+      const own = { url: origin + '/sas9/minimal/', postMessage: jest.fn() }
+      ;(global as any).__mockHostClients = [foreign, own]
+      const { dispatch, message } = loadWorker('/sas9/minimal')
+      const pending = dispatch(
+        '/sas9/minimal/SASjsApi/drive/fileTree?_folderPath='
+      )
+      await settleUntil(
+        () =>
+          !!(
+            own.postMessage.mock.calls.length ||
+            foreign.postMessage.mock.calls.length
+          )
+      )
+      expect(foreign.postMessage).not.toHaveBeenCalled()
+      expect(own.postMessage).toHaveBeenCalledWith({ type: 'sasjs-need-drive' })
+      await message({ type: 'sasjs-seed' }).pending
+      await pending
+    })
     it('asks a live page for the drive, and serves the request from the answer', async () => {
       const client = { postMessage: jest.fn() }
       ;(global as any).__mockHostClients = [client]

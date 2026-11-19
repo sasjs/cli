@@ -100,6 +100,10 @@ const withServiceWorker = (options: { registerFails?: boolean } = {}) => {
     }),
     addEventListener: (type: string, fn: () => void) => {
       if (type === 'controllerchange') listeners.push(fn)
+    },
+    removeEventListener: (type: string, fn: () => void) => {
+      const index = listeners.indexOf(fn)
+      if (type === 'controllerchange' && index >= 0) listeners.splice(index, 1)
     }
   }
   Object.defineProperty(navigator, 'serviceWorker', {
@@ -876,6 +880,36 @@ describe('the API console', () => {
     )
   })
 
+  it('uses the nested console folder when a root worker controls first navigation', async () => {
+    const host = withServiceWorker()
+    host.sw.controller = { scriptURL: location.origin + '/sw.js' }
+    const loading = loadConsole(() => {
+      history.replaceState({}, '', '/demo/api-console/')
+    })
+    await settle(() => host.sw.register.mock.calls.length > 0)
+    expect(host.sw.register.mock.calls[0][0]).toContain('/demo/sw.js')
+    host.sw.controller = { scriptURL: location.origin + '/demo/sw.js' }
+    host.takeControl()
+    await loading
+    history.replaceState({}, '', '/api-console/')
+  })
+  it('reset of a nested console leaves another site session and stamp alone', async () => {
+    const reset = jest.fn(async () => {})
+    localStorage.setItem('sasjs-mock-build', 'root-stamp')
+    sessionStorage.setItem('another-app', 'keep')
+    sessionStorage.setItem('mock-console-token:/demo/', 'test-token')
+    await loadConsole(() => {
+      history.replaceState({}, '', '/demo/api-console/?reset=1')
+      ;(window as any).SASjsMock = { reset }
+    })
+    await settle(() => reset.mock.calls.length > 0)
+    await settle(
+      () => sessionStorage.getItem('mock-console-token:/demo/') === null
+    )
+    expect(localStorage.getItem('sasjs-mock-build')).toBe('root-stamp')
+    expect(sessionStorage.getItem('another-app')).toBe('keep')
+    history.replaceState({}, '', '/api-console/')
+  })
   it('clears the drive and starts again when the URL asks it to', async () => {
     const reset = jest.fn(async () => {})
     sessionStorage.setItem('mock-console-token', 'stale')
