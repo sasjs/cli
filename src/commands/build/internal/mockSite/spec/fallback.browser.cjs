@@ -170,7 +170,7 @@ async function startBrowser() {
 
 // a fresh browser context per case: cookies and worker registrations must not
 // leak from one case into the next
-async function openCase(browser, { disableCookies }) {
+async function openCase(browser, { disableCookies, blockWindowName }) {
   const { browserContextId } = await browser.send('Target.createBrowserContext')
   const { targetId } = await browser.send('Target.createTarget', {
     url: 'about:blank',
@@ -195,6 +195,16 @@ async function openCase(browser, { disableCookies }) {
   await send('Page.enable')
   if (disableCookies)
     await send('Emulation.setDocumentCookieDisabled', { disabled: true })
+  if (blockWindowName)
+    /* runs before every document's own scripts: a window whose name cannot be
+     * used as a carrier, which leaves the address as the only one left */
+    await send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `Object.defineProperty(window, 'name', {
+        configurable: false,
+        get: function () { return '' },
+        set: function () {}
+      })`
+    })
   return { browserContextId, send, evalJS }
 }
 
@@ -270,8 +280,18 @@ async function main() {
         before >= 2 && before <= 5,
         `expected a bounded number of attempts, saw ${before}`
       )
+      /* the cap bounds one visit, not the address: a reload has to try again
+       * rather than refuse at once, which is what a leftover count would do */
+      await c.send('Page.reload')
+      await settle(c.evalJS, (t) => t.includes(SILENT))
+      const second =
+        s.hits.filter((q) => q.startsWith('/Public/')).length - before
+      assert.ok(
+        second >= 2,
+        `a reload after the cap did not retry (only ${second} request(s)) - the count outlived the visit`
+      )
       console.log(
-        `fallback: with no worker answering it stops on the message after ${before} attempts`
+        `fallback: with no worker answering it stops on the message after ${before} attempts, and a reload tries again`
       )
     }
 
@@ -301,12 +321,11 @@ async function main() {
         before >= 2 && before <= 5,
         `expected a bounded number of attempts, saw ${before}`
       )
-      // the count travelled in the address here, and a stranded visitor must be
-      // left with the address they followed, not this page's bookkeeping
+      // the window name carried the count here, so the address never held it
       assert.equal(
         await c.evalJS('location.search'),
         '?x=1',
-        'the marker must not outlive the give-up'
+        'the count reached the address although the window name could carry it'
       )
       assert.equal(
         await c.evalJS('document.title'),
@@ -341,6 +360,45 @@ async function main() {
       )
       console.log(
         'fallback: with cookies disabled the worker answers at the address that was asked for'
+      )
+    }
+
+    // 5. both storage carriers refused: the count goes into the address, which
+    // is the one carrier that cannot be refused - so this is the case that
+    // exercises the marker and the strip the give-up does
+    {
+      const s = await site(WORKER_SILENT)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        blockWindowName: true
+      })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `expected the give-up message on the address carrier, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      const marked = s.hits.filter((p) => p.includes('sasjs404=')).length
+      assert.ok(
+        marked >= 2,
+        `expected the retries to carry the marker, saw ${marked}`
+      )
+      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      await sleep(1500)
+      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      assert.equal(
+        after,
+        before,
+        `the page kept navigating after it gave up (${before} -> ${after})`
+      )
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the marker must not outlive the give-up'
+      )
+      console.log(
+        `fallback: with both storage carriers refused it stops after ${before} attempts and cleans the address`
       )
     }
   } finally {

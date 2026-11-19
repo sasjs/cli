@@ -1929,9 +1929,14 @@ describe('browser-hosted build', () => {
     expect(fallbackScript).toContain("updateViaCache: 'none'")
     expect(fallbackScript).toContain('location.replace')
     expect(fallbackScript).toMatch(/MAX_ATTEMPTS\s*=\s*\d+/)
-    // the count has to survive the navigation it bounds
+    // the count has to survive the navigation it bounds, with the carriers a
+    // browser cannot silently drop in front of the address
     expect(fallbackScript).toContain('document.cookie')
+    expect(fallbackScript).toContain('window.name')
     expect(fallbackScript).toContain('searchParams.set(PARAM')
+    // and it has to be cleared when the page gives up, so the cap bounds one
+    // visit rather than refusing the address from then on
+    expect(fallbackScript).toContain('max-age=0')
 
     // nothing app-specific: this page is written for every project that builds
     // a mock site, so it cannot name one

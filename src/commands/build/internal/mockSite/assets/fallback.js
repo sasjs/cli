@@ -45,6 +45,9 @@
 
   /* the address that was asked for, without the marker this page adds */
   var fromUrl = Number(here.searchParams.get(PARAM))
+  /* read before the marker is taken off: the give-up branch asks whether this
+   * address carried one, and after the delete it no longer does */
+  var marked = here.searchParams.has(PARAM)
   here.searchParams.delete(PARAM)
   var target = here.pathname + here.search + here.hash
 
@@ -116,9 +119,27 @@
       'afterend',
       '<p><a href="__BASE__/">Open the site</a></p>'
     )
+    /* the cap bounds this visit's retries, not the address: leaving the count
+     * behind would refuse the address on every reload until the cookie expires
+     * (or, with window.name carrying it, until the tab is closed) - and a
+     * worker still installing, or a deploy caught mid-flight, is exactly the
+     * case this page exists to retry. Only our own record is cleared: an app
+     * that puts its own value in window.name keeps it. */
+    try {
+      document.cookie = COOKIE + '=;path=/;max-age=0;SameSite=Lax'
+    } catch (e) {
+      /* nothing to clear where nothing could be written */
+    }
+    if (readName() !== null) {
+      try {
+        window.name = ''
+      } catch (e) {
+        /* a barred assignment leaves the record; the message is unaffected */
+      }
+    }
     /* a count carried in the address is a retry's, not this visitor's: drop it,
      * so what they copy or reload is the address they followed */
-    if (here.searchParams.has(PARAM)) {
+    if (marked) {
       try {
         history.replaceState({}, '', here.pathname + here.search + here.hash)
       } catch (e) {
@@ -134,7 +155,6 @@
   }
 
   var attempts = fromUrl > 0 ? fromUrl : readCookie() || readName() || 0
-  if (attempts === null) attempts = 0
 
   if (!('serviceWorker' in navigator)) {
     giveUp('This browser cannot open this page from a direct link.')
