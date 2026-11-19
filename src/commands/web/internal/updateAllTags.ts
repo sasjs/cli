@@ -22,6 +22,8 @@ interface paramsType {
   destinationPath: string
   serverType: ServerType
   assetPathMap: AssetPathMap[]
+  /** prefix every streamed asset of this deployment is fetched from */
+  assetPrefix?: string
 }
 
 /**
@@ -32,7 +34,13 @@ interface paramsType {
 export const updateAllTags = async (
   parsedHtml: JSDOM,
   target: Target,
-  { webSourcePathFull, destinationPath, serverType, assetPathMap }: paramsType
+  {
+    webSourcePathFull,
+    destinationPath,
+    serverType,
+    assetPathMap,
+    assetPrefix
+  }: paramsType
 ) => {
   const assetsNotFound: Error[] = []
 
@@ -48,7 +56,8 @@ export const updateAllTags = async (
       webSourcePathFull,
       destinationPath,
       serverType,
-      assetPathMap
+      assetPathMap,
+      assetPrefix
     ).catch((e) => assetsNotFound.push(e))
   })
 

@@ -187,8 +187,16 @@ describe('sasjs web', () => {
       await createFile(
         path.join(__dirname, appName, sourceFolder, 'index.html'),
         '<html><head><sasjs appLoc="/Public/app/default" serverType="SASJS"></sasjs>' +
+          '<script src="runtime.js" type="module"></script>' +
           '<script src="app.js"></script>' +
           '<link rel="stylesheet" href="app.css"></head><body></body></html>'
+      )
+      // a split bundle: the runtime composes each chunk's name at run time and
+      // joins it to an empty public path, so no chunk file name exists in the
+      // text the build rewrites
+      await createFile(
+        path.join(__dirname, appName, sourceFolder, 'runtime.js'),
+        'var t={};t.u=e=>e+"."+{15:"ba407bec"}[e]+".js";t.p="";'
       )
       await createFile(
         path.join(__dirname, appName, sourceFolder, 'app.js'),
@@ -235,6 +243,24 @@ describe('sasjs web', () => {
       await expect(
         readFile(path.join(servicesFolder, 'websas', 'app.js'))
       ).resolves.toEqual('console.log(1)')
+
+      // a lazily loaded chunk is named by the runtime, not by the entry page, so
+      // the runtime's public path is what sends it to the deployment folder
+      const runtime = await readFile(
+        path.join(servicesFolder, 'websas', 'runtime.js')
+      )
+      expect(runtime).toContain(
+        't.p="/StoredProgram?_FILE=/Public/app/AnotherLoc/services/websas/"'
+      )
+
+      // the copy of the entry page in the asset folder is served as a web app in
+      // its own right - an app stream on this server - and it has to talk to the
+      // appLoc the deployment was made to, not the one the frontend was built for
+      const folderEntry = (
+        await readFile(path.join(servicesFolder, 'websas', 'index.html'))
+      ).toLowerCase()
+      expect(folderEntry).toContain('apploc="/public/app/anotherloc"')
+      expect(folderEntry).not.toContain('/public/app/default')
     },
     2 * 60 * 1000
   )

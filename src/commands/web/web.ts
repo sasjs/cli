@@ -3,6 +3,7 @@ import {
   fileExists,
   folderExists,
   createFolder,
+  createFile,
   deleteFolder,
   ServerType,
   Target,
@@ -16,6 +17,7 @@ import { createAssetServices } from './internal/createAssetServices'
 import { updateAllTags } from './internal/updateAllTags'
 import { createClickMeService } from './internal/sas9'
 import { createClickMeFile } from './internal/createClickMeFile'
+import { getAssetPrefix } from './internal/getAssetPath'
 
 const exampleStreamConfig: StreamConfig = {
   streamWeb: true,
@@ -67,11 +69,18 @@ export async function createWebAppServices(target: Target) {
     (content) => new jsdom.JSDOM(content)
   )
 
+  const assetPrefix = getAssetPrefix(
+    target.appLoc,
+    target.serverType,
+    streamConfig.streamWebFolder
+  )
+
   await updateAllTags(indexHtml, target, {
     webSourcePathFull,
     destinationPath,
     serverType: target.serverType,
-    assetPathMap
+    assetPathMap,
+    assetPrefix
   })
 
   switch (target.serverType) {
@@ -106,6 +115,23 @@ export async function createWebAppServices(target: Target) {
       throw new Error(
         `Server Type: ${target.serverType} is not supported for processing streaming index file.`
       )
+  }
+
+  // The folder holding the assets is itself served as a web app - an app stream
+  // on SASjs server, and whatever a web server is pointed at elsewhere - and the
+  // entry page the frontend was built with sits in it. Left as the frontend
+  // wrote it, that copy names the appLoc the frontend was compiled against, so a
+  // deployment to any other appLoc talks to a different one. Writing the
+  // rewritten entry there makes every copy of the frontend resolve to this
+  // target's appLoc, through the route the entry page above already uses.
+  if (
+    target.serverType === ServerType.SasViya ||
+    target.serverType === ServerType.Sasjs
+  ) {
+    await createFile(
+      path.join(destinationPath, 'index.html'),
+      indexHtml.serialize()
+    )
   }
 }
 

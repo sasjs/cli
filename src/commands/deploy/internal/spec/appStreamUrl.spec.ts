@@ -1,54 +1,42 @@
 import { ServerType } from '@sasjs/utils'
 
-import { reportStreamedApp, webAppStreamUrl } from '../appStreamUrl'
+import { reportStreamedApp, streamedAppUrl } from '../appStreamUrl'
 
-describe('the url a deploy reports', () => {
-  it('is the address the server states, when it states one', () => {
+describe('the url a streamed deploy reports', () => {
+  it('opens a SASjs build at its entry page on its own appLoc', () => {
     expect(
-      webAppStreamUrl('https://server.example', {
-        app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' }
-      })
-    ).toBe('https://server.example/app/0e6f1d2c/')
-
-    expect(
-      webAppStreamUrl('https://server.example', {
-        app: { url: 'https://apps.example/mario/' }
-      })
-    ).toBe('https://apps.example/mario/')
+      streamedAppUrl(
+        'https://server.example',
+        ServerType.Sasjs,
+        '/Public/app',
+        'mario'
+      )
+    ).toBe(
+      'https://server.example/StoredProgram?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/mario.html'
+    )
   })
 
-  it('is the stream name when that is all the server answered', () => {
+  it('opens a Viya build at the same file through the job execution route', () => {
     expect(
-      webAppStreamUrl('https://server.example', { streamServiceName: 'mario' })
-    ).toBe('https://server.example/app/mario/')
+      streamedAppUrl(
+        'https://viya.example',
+        ServerType.SasViya,
+        '/Public/app',
+        'mario'
+      )
+    ).toBe(
+      'https://viya.example/SASJobExecution?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/mario.html'
+    )
   })
 
-  it('does not invent a url from an id alone', () => {
-    // a server that answers an id can say where it serves the app; guessing would
-    // print an address that may not exist
-    expect(
-      webAppStreamUrl('https://server.example', { app: { id: '0e6f1d2c' } })
-    ).toBeUndefined()
-  })
-
-  it('prefers the stated url over the stream name', () => {
-    expect(
-      webAppStreamUrl('https://server.example', {
-        app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' },
-        streamServiceName: 'mario'
-      })
-    ).toBe('https://server.example/app/0e6f1d2c/')
-  })
-
-  it('is nothing when the deploy published no app', () => {
-    expect(webAppStreamUrl('https://server.example', {})).toBeUndefined()
-    expect(webAppStreamUrl('https://server.example', undefined)).toBeUndefined()
-    expect(
-      webAppStreamUrl('https://server.example', { app: {} })
-    ).toBeUndefined()
-  })
-
-  it('says where a streamed build opens, and where a SASjs server published it', () => {
+  it('reports the entry page and nothing else', () => {
+    // the folder the deploy published carries a copy of the frontend whose links
+    // point at the same appLoc, so it is a second door to one app rather than an
+    // address of its own - reporting it invites an operator to learn two
     const said: string[] = []
     const info = (message: string) => said.push(message)
 
@@ -60,22 +48,20 @@ describe('the url a deploy reports', () => {
       info
     )
 
-    // two addresses, because the entry page needs a server carrying the
-    // /StoredProgram tier and the published folder does not
     expect(said).toEqual([
       'Web app is available at https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html',
-      'App stream: https://server.example/app/mario/ ' +
-        '(any server release; the entry page above needs sasjs/server v7.23.0 or later)'
+        '/services/mario.html' +
+        ' (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)'
     ])
   })
 
-  it('names only the entry page where no app stream was published', () => {
+  it('adds no version caveat where the tier has always been there', () => {
+    // Viya's job execution route is not a recent addition, so a caveat would be
+    // noise for an operator who never has to act on it
     const said: string[] = []
     const info = (message: string) => said.push(message)
 
-    // Viya serves the streamed artefact and has no app stream of its own
     reportStreamedApp(
       'https://viya.example',
       ServerType.SasViya,
@@ -85,6 +71,6 @@ describe('the url a deploy reports', () => {
     )
 
     expect(said).toHaveLength(1)
-    expect(said[0]).toContain('/SASJobExecution?_FILE=')
+    expect(said[0]).not.toContain('sasjs/server')
   })
 })

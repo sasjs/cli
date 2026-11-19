@@ -4,6 +4,7 @@
 
 import path from 'path'
 import {
+  createFile,
   createFolder,
   deleteFolder,
   readFile,
@@ -117,6 +118,37 @@ describe('updateScriptTag', () => {
     gameJSSoundLinks.forEach((link) =>
       expect(updatedContent).toContain(link.target)
     )
+  })
+
+  it(`should point a streamed runtime's chunks at the asset route`, async () => {
+    const sourceFolder = path.join(destinationPath, 'runtime-src')
+    await createFolder(sourceFolder)
+    await createFile(
+      path.join(sourceFolder, 'runtime.js'),
+      'var t={};t.u=e=>e+"."+{15:"abc"}[e]+".js";t.p="";'
+    )
+
+    const scriptTag: HTMLScriptElement = document.createElement('script')
+    scriptTag.setAttribute('src', 'runtime.js')
+
+    // a runtime names its chunks at run time, so the prefix - not a file name -
+    // is what decides where they are fetched from
+    const prefix = '/StoredProgram?_FILE=/Public/app/services/web/'
+
+    await updateScriptTag(
+      scriptTag,
+      sourceFolder,
+      destinationPath,
+      ServerType.Sasjs,
+      [{ source: 'runtime.js', target: `${prefix}runtime.js` }],
+      prefix
+    )
+
+    const written = await readFile(path.join(destinationPath, 'runtime.js'))
+
+    expect(written).toContain(`t.p="${prefix}"`)
+    expect(written).not.toContain('t.p=""')
+    expect(scriptTag.getAttribute('src')).toEqual(`${prefix}runtime.js`)
   })
 })
 

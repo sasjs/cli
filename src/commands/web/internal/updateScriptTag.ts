@@ -4,13 +4,15 @@ import { encode } from 'js-base64'
 import { getWebServiceContent } from './sas9'
 import { AssetPathMap } from './createAssetServices'
 import { modifyLinksInContent } from './modifyLinksInContent'
+import { setWebpackPublicPath } from './setWebpackPublicPath'
 
 export const updateScriptTag = async (
   tag: HTMLScriptElement,
   webSourcePathFull: string,
   destinationPath: string,
   serverType: ServerType,
-  assetPathMap: AssetPathMap[]
+  assetPathMap: AssetPathMap[],
+  assetPrefix?: string
 ) => {
   const scriptPath = tag.getAttribute('src')
 
@@ -25,13 +27,25 @@ export const updateScriptTag = async (
 
       const content = modifyLinksInContent(_content, assetPathMap)
 
+      // a runtime that composes chunk names at run time is addressed by its
+      // public path, not by the file names the other assets are rewritten by -
+      // see setWebpackPublicPath. SAS 9 names each asset service by hand, so it
+      // is left to the stored process generated below.
+      const streamedContent =
+        assetPrefix && serverType !== ServerType.Sas9
+          ? setWebpackPublicPath(content, assetPrefix)
+          : content
+
       switch (serverType) {
         // Viya and SASjs server both serve the asset itself, so the rewritten
         // content is written beside the copy createAssetServices made; SAS 9 has
         // no file service, so the same content becomes a stored process
         case ServerType.SasViya:
         case ServerType.Sasjs:
-          await createFile(path.join(destinationPath, scriptPath), content)
+          await createFile(
+            path.join(destinationPath, scriptPath),
+            streamedContent
+          )
           break
 
         case ServerType.Sas9:
