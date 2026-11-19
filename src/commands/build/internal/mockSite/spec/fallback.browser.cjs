@@ -39,8 +39,9 @@ const BASE = ''
  * answers the routes the site publishes and leaves every other path to the
  * static host. Its allow-list is READ OUT OF assets/sw.js rather than copied -
  * a copy drifts, and a stub answering paths the worker refuses would make every
- * case here pass in a world the site does not have. */
-const ALLOW_LIST = (() => {
+ * case here pass in a world the site does not have. It is exported so the unit
+ * suite can compare it with the worker's own literal, by value. */
+const ALLOW_LITERAL = (() => {
   const source = fsSync.readFileSync(path.join(ASSETS, 'sw.js'), 'utf8')
   const matches = source.match(/\/\^\\\/\([^)]*\)\(\\\/\|\$\)\/i/g) || []
   const found = matches.find((text) => text.includes('StoredProgram'))
@@ -53,7 +54,7 @@ const WORKER_ANSWERS = `self.addEventListener('install', () => self.skipWaiting(
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 self.addEventListener('fetch', (event) => {
   const path = new URL(event.request.url).pathname
-  if (!${ALLOW_LIST}.test(path)) return
+  if (!${ALLOW_LITERAL}.test(path)) return
   event.respondWith(new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
     { headers: { 'Content-Type': 'text/html' } }))
 })
@@ -575,10 +576,17 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(
-    'fallback browser check failed:',
-    error && error.message ? error.message : error
-  )
-  process.exit(1)
-})
+/* the check runs only when it is the program: the unit suite requires this file
+ * to compare the allow-list the stub routes on with the worker's own, and
+ * starting a browser for that would be a different test */
+module.exports = { ALLOW_LITERAL }
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(
+      'fallback browser check failed:',
+      error && error.message ? error.message : error
+    )
+    process.exit(1)
+  })
+}

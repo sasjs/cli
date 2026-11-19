@@ -1967,14 +1967,14 @@ describe('browser-hosted build', () => {
     // and a raw drive path, which the worker deliberately leaves to the host
     expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
 
-    // and the browser check must route on that same list, not on a copy: the
-    // routing line is what is pinned, so a stub that builds its own list from a
-    // hand-written array fails here even if the extraction is still in place
-    const browserCheck = fs.readFileSync(
-      path.join(__dirname, 'fallback.browser.cjs'),
-      'utf8'
-    )
-    expect(browserCheck).toContain('${ALLOW_LIST}.test(path)')
+    // and the browser check must route on that same list, not on a copy of it:
+    // the check's own allow-list is compared by value with the worker's, so a
+    // hand-written array there fails here whatever it is called and however it
+    // is spelled
+    const loaded = require(path.join(__dirname, 'fallback.browser.cjs')) as any
+    // jest's interop can hand the module back under `default`
+    const checkLiteral = loaded.ALLOW_LITERAL ?? loaded.default?.ALLOW_LITERAL
+    expect(checkLiteral).toBe(literal)
   })
 
   it('says so when the project supplies its own not-found page', async () => {
