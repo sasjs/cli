@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* istanbul ignore file -- browser harness, not unit-test coverage */
 // The not-found page has to make a cold deep link work, and has to stop when it
 // cannot (Node 22+).
 // Run: CHROMIUM_PATH=/path/to/chromium npm run test:browser:fallback
@@ -569,6 +570,8 @@ async function main() {
     for (const server of servers) server.close()
   }
 }
+
+module.exports = { WORKER_ANSWERS }
 
 if (require.main === module) {
   main().catch((error) => {

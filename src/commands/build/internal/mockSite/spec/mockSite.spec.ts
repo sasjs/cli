@@ -1967,14 +1967,45 @@ describe('browser-hosted build', () => {
     // and a raw drive path, which the worker deliberately leaves to the host
     expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
 
-    // and the browser check must route on that same list, not on a copy: it
-    // takes it from the shared module, and that module's literal is compared
-    // here with the worker's own - by value, so renaming or reformatting either
-    // side is free and a different list is not
-    const { allowListLiteral } = require(
-      path.join(__dirname, 'web-tier-allow-list.cjs')
+    // Exercise the generated stub's actual fetch listener, not just the helper
+    // that supplies it. A separate list in the stub must not change routing.
+    const { WORKER_ANSWERS } = require(
+      path.join(__dirname, 'fallback.browser.cjs')
     )
-    expect(allowListLiteral()).toBe(literal)
+    const { runInNewContext } = require('node:vm')
+    let fetchHandler: (event: any) => void = () => {
+      throw new Error('stub did not register a fetch listener')
+    }
+    runInNewContext(WORKER_ANSWERS, {
+      self: {
+        addEventListener: (name: string, handler: (event: any) => void) => {
+          if (name === 'fetch') fetchHandler = handler
+        }
+      },
+      URL,
+      Response: class {}
+    })
+    const tiers = source.match(/\(([^)]+)\)/)![1].split('|')
+    const paths = tiers.flatMap((tier) => [
+      `/${tier}`,
+      `/${tier}/child`,
+      `/${tier.toLowerCase()}`,
+      `/${tier}Extra`
+    ])
+    paths.push('/Public/app/services/web/index.html', '/unknown', '/')
+    for (const route of paths) {
+      let answered = false
+      fetchHandler({
+        request: { url: `https://example.test${route}` },
+        respondWith: () => {
+          answered = true
+        }
+      })
+      expect({ route, answered }).toEqual({
+        route,
+        answered: allowed.test(route)
+      })
+    }
   })
 
   it('says so when the project supplies its own not-found page', async () => {
