@@ -5949,6 +5949,25 @@ describe('the emulated Viya estate', () => {
     expect(answer.body.id).toBe('user-admin')
   })
 
+  it('routes the batch families to the emulator, which refuses them by name', async () => {
+    const worker = loadWorker()
+
+    // jobDefinitions, jobExecution and launcher are families in the package's
+    // table, so they reach the emulator - the overlay has not implemented them,
+    // and the emulator says so with a stamp and a reason. Left to the static
+    // host they would answer with `index.html`, which a client parses as JSON.
+    const launcher = await read(worker.dispatch('/launcher/contexts'))
+    expect(launcher.emulated).toMatch(/^viya@/)
+    expect(launcher.status).toBe(501)
+    expect(String(launcher.body.message)).toMatch(/not emulated/)
+
+    // mixed case in the family name: `/jobExecution`, not `/jobexecution`
+    const job = await read(worker.dispatch('/jobExecution/jobs/not-a-job'))
+    expect(job.emulated).toMatch(/^viya@/)
+    expect(job.status).toBe(501)
+    expect(String(job.body.message)).toMatch(/not emulated/)
+  })
+
   it('leaves every other path to the static host', async () => {
     const worker = loadWorker()
 

@@ -1120,39 +1120,49 @@ const APP_STREAM = API.createAppStreamService(
 const APP_STREAM_PREFIX = '/AppStream'
 
 /**
- * The paths a Viya-targeted application asks for, which no SASjs route table has.
+ * The paths a Viya-targeted application asks for, which no SASjs route table has:
+ * compute, folders, files, identities, types, and the batch families
+ * (jobDefinitions, jobExecution, launcher).
  *
- * They are the emulated estate's surface, so the worker answers them from
- * `@sasjs/api`'s emulator over the drive and identity it already holds - the same
- * answers, and the same `x-sasjs-emulated` header, a server running
- * `EMULATE_VIYA` gives.
+ * Read from the package's route table rather than written out, so a family the
+ * emulator gains is answered here without a second list to remember. `/SASLogon`
+ * is the one family left out: its route is the token endpoint, and a token this
+ * host minted would claim an authentication it does not perform - the estate
+ * answers from the identity the page already holds.
+ *
+ * The worker answers these from `@sasjs/api`'s emulator over the drive and
+ * identity it already holds - the same answers, and the same `x-sasjs-emulated`
+ * header, a server running `EMULATE_VIYA` gives.
  */
 const VIYA_PREFIXES = [
-  '/compute',
-  '/folders',
-  '/files',
-  '/identities',
-  '/types'
+  ...new Set(
+    API.VIYA_TABLE.map(
+      (route) => `/${route.path.split('/').filter(Boolean)[0]}`
+    )
+  )
 ]
+  .map((prefix) => prefix.toLowerCase())
+  .filter((prefix) => prefix !== '/saslogon')
 
 /**
- * Every path the worker answers: the SASjs API's, the web tier's, the app
- * stream's and the estate's.
- *
- * The estate group is built from `VIYA_PREFIXES` rather than written out, so a
- * sixth prefix reaches the emulator instead of the static host, where a client
- * would parse `index.html` as JSON.
+ * The tiers a build's links address, answered here rather than by the static
+ * host. The estate's prefixes are not in this literal: they come from
+ * `VIYA_PREFIXES`, and `isAnswered` joins the two, so a family the emulator
+ * gains is routed rather than served `index.html`.
  */
-/** The tiers a build's links address, which the worker answers as the host does. */
 const TIER_PATHS =
   /^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i
 
-const isViyaPath = (path) =>
-  VIYA_PREFIXES.some(
-    (prefix) =>
-      path.toLowerCase() === prefix ||
-      path.toLowerCase().startsWith(`${prefix}/`)
+const isViyaPath = (path) => {
+  // the prefixes are lowercased when the list is built: Viya's own families are
+  // mixed case (`/jobExecution`), and a path compared as written would never
+  // match them
+  const lower = path.toLowerCase()
+
+  return VIYA_PREFIXES.some(
+    (prefix) => lower === prefix || lower.startsWith(`${prefix}/`)
   )
+}
 
 /**
  * Whether the worker is handed this request at all: a build's tiers, or the
