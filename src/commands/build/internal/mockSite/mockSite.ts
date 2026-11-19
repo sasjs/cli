@@ -1359,12 +1359,25 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // only for a visitor who loaded the site once first. Published for every
   // target, streamed or not: any path the host has no file for lands here.
   //
-  // Three things are baked in, because the page cannot know them at runtime:
-  // the base path (a site mounted one folder down names its own script, worker
-  // and home link, not the host's root), and the host version - the same
-  // `?v=` stamp and `updateViaCache: 'none'` the app's own loader uses, so this
+  // Two things are baked in, because the page cannot know them at runtime: the
+  // base path (a site mounted one folder down names its own script, worker and
+  // home link, not the host's root) and the host version - the same `?v=` stamp
+  // and `updateViaCache: 'none'` the app's own loader uses, so this
   // registration asks for the same worker instead of installing a second one
   // for the same scope.
+  // A project may ship its own not-found page - macro-dash did, for exactly this
+  // reason, before the build carried one. Publishing the generated page over it
+  // silently would throw that work away, so it is said out loud: the generated
+  // page is the one that installs the worker, so it is the one that is published.
+  if (fs.existsSync(path.join(outputFolder, '404.html')))
+    process.logger?.warn(
+      'The project supplies a 404.html; the generated not-found page replaces it ' +
+        'in the published site (it is the one that installs the worker and retries ' +
+        'the address). Keep project-specific messaging in the app itself.'
+    )
+  process.logger?.info(
+    'Published the generated not-found page as 404.html (and 404.js).'
+  )
   fs.writeFileSync(
     path.join(outputFolder, '404.html'),
     fs

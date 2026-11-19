@@ -1944,6 +1944,51 @@ describe('browser-hosted build', () => {
     expect(fallbackScript).not.toContain(appLoc)
   })
 
+  it('answers at the addresses the site worker answers, not at raw drive paths', () => {
+    // the page retries the address it was given, so its claim is only true for
+    // paths the worker takes. Both halves are read from source: the worker's
+    // allow-list, and the addresses the page's own docstring names.
+    const swSource = fs.readFileSync(
+      path.join(__dirname, '..', 'assets', 'sw.js'),
+      'utf8'
+    )
+    // the worker has more than one allow-list; the one that matters is the one
+    // naming the web tiers a build links to
+    const literal = swSource
+      .match(/\/\^\\\/\([^)]*\)\(\\\/\|\$\)\/i/g)
+      ?.find((text) => text.includes('StoredProgram'))
+    expect(literal).toBeDefined()
+    const source = literal!.slice(1, literal!.lastIndexOf('/'))
+    const allowed = new RegExp(source, 'i')
+
+    // the addresses a streamed build links to
+    expect(allowed.test('/StoredProgram')).toBe(true)
+    expect(allowed.test('/SASJobExecution')).toBe(true)
+    // and a raw drive path, which the worker deliberately leaves to the host
+    expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
+
+    const fallback = fs.readFileSync(
+      path.join(__dirname, '..', 'assets', 'fallback.js'),
+      'utf8'
+    )
+    expect(fallback).toContain('/StoredProgram?_FILE=')
+    expect(fallback).toContain('/SASJobExecution?_FILE=')
+  })
+
+  it('says so when the project supplies its own not-found page', async () => {
+    write(path.join(root, 'client', 'dist', '404.html'), '<html>mine</html>')
+
+    await buildMockSite(target())
+
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('404.html')
+    )
+    // the generated page is the one published: it is what installs the worker
+    const published = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    expect(published).toContain(`default-src 'self'`)
+    expect(published).not.toContain('mine')
+  })
+
   it("points the not-found page at the site's own folder when it is mounted under a base path", async () => {
     await buildMockSite(target({ mockWebBasePath: '/some/base' }))
 

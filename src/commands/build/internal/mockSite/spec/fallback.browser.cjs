@@ -25,16 +25,27 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MARKER = 'WORKER ANSWERED'
 const SILENT = 'This page is not part of this site.'
-const DEEP_LINK = '/Public/app/services/entry.html?x=1'
+/* a published address, not a raw drive path: the worker answers the web tier
+ * spellings and leaves drive paths to the static host (case 9) */
+const DEEP_LINK = '/StoredProgram?_FILE=/Public/app/services/entry.html'
+const DEEP_SEARCH = '?_FILE=/Public/app/services/entry.html'
+const TARGET_PATH = '/StoredProgram'
 const HOST_VERSION = 'abc123def4'
 // the build substitutes both; the assets themselves carry the placeholders
 const BASE = ''
 
+/* shaped like the site's own worker, not like a catch-all: it answers the routes
+ * the site publishes (the tier spellings, /api, /AppStream) and leaves every
+ * other path to the static host. A catch-all stub would prove the page works in
+ * a world the site does not have. */
 const WORKER_ANSWERS = `self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
-self.addEventListener('fetch', (event) => event.respondWith(
-  new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
-    { headers: { 'Content-Type': 'text/html' } })))
+self.addEventListener('fetch', (event) => {
+  const path = new URL(event.request.url).pathname
+  if (!/^\\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\\/|$)/i.test(path)) return
+  event.respondWith(new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
+    { headers: { 'Content-Type': 'text/html' } }))
+})
 `
 
 // installs and claims, but never answers a request: the retries are not
@@ -220,6 +231,11 @@ async function openCase(
   return { browserContextId, send, evalJS }
 }
 
+/* the browser percent-encodes the query it navigated to, so compare decoded */
+async function searchOf(c) {
+  return c.evalJS('decodeURIComponent(location.search)')
+}
+
 async function settle(evalJS, done) {
   let last = ''
   for (let n = 0; n < 200; n++) {
@@ -250,8 +266,8 @@ async function main() {
         `the worker never answered the deep link (page said: ${JSON.stringify(text.slice(0, 80))})`
       )
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the address must not gain a marker'
       )
       assert.ok(
@@ -280,9 +296,9 @@ async function main() {
         text.includes(SILENT),
         `expected the give-up message, got ${JSON.stringify(text.slice(0, 80))}`
       )
-      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       await sleep(1500)
-      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const after = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       assert.equal(
         after,
         before,
@@ -297,7 +313,7 @@ async function main() {
       await c.send('Page.reload')
       await settle(c.evalJS, (t) => t.includes(SILENT))
       const second =
-        s.hits.filter((q) => q.startsWith('/Public/')).length - before
+        s.hits.filter((q) => q.startsWith(TARGET_PATH)).length - before
       assert.ok(
         second >= 2,
         `a reload after the cap did not retry (only ${second} request(s)) - the count outlived the visit`
@@ -321,9 +337,9 @@ async function main() {
         text.includes(SILENT),
         `expected the give-up message with cookies disabled, got ${JSON.stringify(text.slice(0, 80))}`
       )
-      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       await sleep(1500)
-      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const after = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       assert.equal(
         after,
         before,
@@ -335,8 +351,8 @@ async function main() {
       )
       // the window name carried the count here, so the address never held it
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the count reached the address although the window name could carry it'
       )
       assert.equal(
@@ -366,8 +382,8 @@ async function main() {
         `expected the worker's answer, got ${JSON.stringify(text.slice(0, 80))}`
       )
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the app was handed a marker its caller never sent'
       )
       console.log(
@@ -397,17 +413,17 @@ async function main() {
         0,
         `a controlled page must not mark the address (saw ${marked})`
       )
-      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       await sleep(1500)
-      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const after = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       assert.equal(
         after,
         before,
         `the page kept navigating after it gave up (${before} -> ${after})`
       )
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the address must stay clean'
       )
       console.log(
@@ -435,8 +451,8 @@ async function main() {
         `expected the worker's answer with no carrier, got ${JSON.stringify(text.slice(0, 80))}`
       )
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the app was handed a marker because control was read before the wait'
       )
       console.log(
@@ -465,17 +481,17 @@ async function main() {
         marked >= 2,
         `expected the retries to carry the marker, saw ${marked}`
       )
-      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const before = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       await sleep(1500)
-      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      const after = s.hits.filter((p) => p.startsWith(TARGET_PATH)).length
       assert.equal(
         after,
         before,
         `the page kept navigating after it gave up (${before} -> ${after})`
       )
       assert.equal(
-        await c.evalJS('location.search'),
-        '?x=1',
+        await searchOf(c),
+        DEEP_SEARCH,
         'the marker must not outlive the give-up'
       )
       console.log(
@@ -510,6 +526,34 @@ async function main() {
         `expected the address carrier to take over, saw ${marked}`
       )
       console.log('fallback: an app-owned window.name is left alone')
+    }
+
+    // 9. a raw drive path is not an address the site publishes: the worker
+    // leaves it to the static host on purpose, so the page gives up rather than
+    // pretending - the boundary the docstring names
+    {
+      const s = await site(WORKER_ANSWERS)
+      servers.push(s.server)
+      const c = await openCase(browser, { disableCookies: false })
+      await c.send('Page.navigate', {
+        url: s.origin + '/Public/app/services/web/index.html'
+      })
+      const text = await settle(
+        c.evalJS,
+        (t) => t.includes(SILENT) || t.includes(MARKER)
+      )
+      assert.ok(
+        text.includes(SILENT),
+        `a raw drive path must not be answered by the worker, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      assert.equal(
+        await searchOf(c),
+        '',
+        'a give-up on a raw path must not leave a marker behind'
+      )
+      console.log(
+        'fallback: a raw drive path is left to the static host and gives up'
+      )
     }
   } finally {
     try {

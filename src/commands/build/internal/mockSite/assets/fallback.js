@@ -2,10 +2,17 @@
  *
  * A static host answers a path it has no file for with 404.html and a 404
  * status. This site's backend is a service worker, and a worker only answers a
- * page it already controls - so a deep link into the site (a streamed app's
- * entry page at `<appLoc>/services/<name>.html`, a route under the API) reaches
- * the static host and gets this page. It installs the worker and asks for the
- * same address again, which the worker then answers.
+ * page it already controls - so a deep link into the site reaches the static
+ * host and gets this page. It installs the worker and asks for the same address
+ * again, which the worker then answers.
+ *
+ * "A deep link" means an address the site publishes through the worker: the web
+ * tier a streamed build links to (`/StoredProgram?_FILE=...`, and the estate's
+ * `/SASJobExecution?_FILE=...`), a route under `/api`, an app under `/AppStream`.
+ * A raw drive path - `/Public/app/services/web/index.html` - is not one of them:
+ * the worker deliberately leaves any path outside its own routes to the static
+ * host, and that is the right answer, because a typo must not be filled in with
+ * the single-page app or with drive contents.
  *
  * A retry can miss: the worker is active but the page that issued the
  * navigation is not controlled yet, and under load that window is wide enough
