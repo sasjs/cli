@@ -1135,12 +1135,32 @@ const VIYA_PREFIXES = [
   '/types'
 ]
 
+/**
+ * Every path the worker answers: the SASjs API's, the web tier's, the app
+ * stream's and the estate's.
+ *
+ * The estate group is built from `VIYA_PREFIXES` rather than written out, so a
+ * sixth prefix reaches the emulator instead of the static host, where a client
+ * would parse `index.html` as JSON.
+ */
+/** The tiers a build's links address, which the worker answers as the host does. */
+const TIER_PATHS =
+  /^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i
+
 const isViyaPath = (path) =>
   VIYA_PREFIXES.some(
     (prefix) =>
       path.toLowerCase() === prefix ||
       path.toLowerCase().startsWith(`${prefix}/`)
   )
+
+/**
+ * Whether the worker is handed this request at all: a build's tiers, or the
+ * estate's prefixes - which come from `VIYA_PREFIXES` rather than a second list
+ * written into the listener, so a sixth prefix is answered instead of being left
+ * to the static host, where a client would parse `index.html` as JSON.
+ */
+const isAnswered = (path) => TIER_PATHS.test(path) || isViyaPath(path)
 
 /** One caller's rules, in the shape the route decision takes them. */
 const routeRulesOf = (permissions) => ({
@@ -1392,6 +1412,84 @@ const SERVICES = {
   // `.sasjslint` at or above its folder, so editing that file changes the
   // editor here exactly as it does on a server
   code: lazyCode()
+}
+
+/**
+ * The services the emulated estate answers through.
+ *
+ * The drive is this host's own, so a file uploaded over the Viya paths is the
+ * file the SASjs API routes read back, and the address the site is served from is
+ * the estate's identity - the only input to its seed, exactly as it is on a
+ * server, so two sites are two estates.
+ */
+const VIYA_SERVICES = {
+  drive: SERVICES.drive,
+  viya: { serverUrl: self.location.origin }
+}
+
+/** A file's content, which arrives as the body rather than as JSON. */
+const VIYA_CONTENT = /^\/files\/files\/[^/]+\/content$/i
+
+/**
+ * One request to the emulated estate, answered by `@sasjs/api`.
+ *
+ * The transport is the whole of this function: a `Request` is not the package's
+ * `ApiRequest`, so the query, the body (or the bytes, or the multipart part) and
+ * the caller are read here, and the answer's status, headers, body and byte
+ * content are written back unchanged - including the `x-sasjs-emulated` stamp,
+ * which is the package's to set, not this host's.
+ *
+ * The caller is the account the page chose, which is the same answer the SASjs
+ * routes get - so the bodies this host returns name that account, not a generic
+ * emulated user.
+ */
+const viyaRequest = async (request, url, path) => {
+  const query = Object.create(null)
+  for (const [key, value] of url.searchParams.entries()) query[key] = value
+
+  const apiRequest = {
+    query,
+    token: bearerOf(request, query),
+    subject: await subjectOf(request, query)
+  }
+
+  if (request.method === 'POST' && /^\/files\/files$/i.test(path)) {
+    // the multipart part, read by the host's own reader: the emulator takes the
+    // name the client sent and the bytes, not a file this worker staged
+    const payload = await readPayload(request)
+    apiRequest.body = payload.body
+    const file = singleFile(payload)
+    if (file) apiRequest.file = file
+  } else if (request.method !== 'GET' && request.method !== 'HEAD') {
+    if (VIYA_CONTENT.test(path))
+      apiRequest.contents = new Uint8Array(await request.arrayBuffer())
+    else apiRequest.body = await readJson(request)
+  }
+
+  const answer = await API.dispatchViya(
+    VIYA_SERVICES,
+    request.method,
+    path,
+    apiRequest
+  )
+
+  // a folder or file the estate created is a change to this host's drive
+  if (request.method !== 'GET' && request.method !== 'HEAD')
+    await persistChanges()
+
+  const headers = Object.assign({}, answer.headers || {})
+
+  if (answer.contents !== undefined)
+    return new Response(answer.contents, { status: answer.status, headers })
+
+  if (!headers['content-type']) headers['content-type'] = 'application/json'
+
+  return new Response(
+    answer.body === undefined || answer.body === null
+      ? null
+      : JSON.stringify(answer.body),
+    { status: answer.status, headers }
+  )
 }
 
 /** The routes this host performs itself, because the answer is not JSON. */
@@ -1976,85 +2074,6 @@ const ensureForRequest = async (url, tierQuery) => {
  * request with a body needs one, and `source` is what carries it through the
  * recursion.
  */
-/**
- * The services the emulated estate answers through.
- *
- * The drive is this host's own, so a file uploaded over the Viya paths is the
- * file the SASjs API routes read back, and the address the site is served from is
- * the estate's identity - the only input to its seed, exactly as it is on a
- * server, so two sites are two estates.
- */
-const VIYA_SERVICES = {
-  drive: SERVICES.drive,
-  viya: { serverUrl: self.location.origin }
-}
-
-/** A file's content, which arrives as the body rather than as JSON. */
-const VIYA_CONTENT = /^\/files\/files\/[^/]+\/content$/i
-
-/**
- * One request to the emulated estate, answered by `@sasjs/api`.
- *
- * The transport is the whole of this function: a `Request` is not the package's
- * `ApiRequest`, so the query, the body (or the bytes, or the multipart part) and
- * the caller are read here, and the answer's status, headers, body and byte
- * content are written back unchanged - including the `x-sasjs-emulated` stamp,
- * which is the package's to set, not this host's.
- *
- * The caller is the account the page chose, which is the same answer the SASjs
- * routes get - so the bodies this host returns name that account, not a generic
- * emulated user.
- */
-const viyaRequest = async (request, url, path, replay) => {
-  const query = Object.create(null)
-  for (const [key, value] of url.searchParams.entries()) query[key] = value
-
-  const body = replay || request
-  const apiRequest = {
-    query,
-    token: bearerOf(request, query),
-    subject: await subjectOf(request, query)
-  }
-
-  if (request.method === 'POST' && /^\/files\/files$/i.test(path)) {
-    // the multipart part, read by the host's own reader: the emulator takes the
-    // name the client sent and the bytes, not a file this worker staged
-    const payload = await readPayload(request)
-    apiRequest.body = payload.body
-    const file = singleFile(payload)
-    if (file) apiRequest.file = file
-  } else if (request.method !== 'GET' && request.method !== 'HEAD') {
-    if (VIYA_CONTENT.test(path))
-      apiRequest.contents = new Uint8Array(await body.arrayBuffer())
-    else apiRequest.body = await readJson(body)
-  }
-
-  const answer = await API.dispatchViya(
-    VIYA_SERVICES,
-    request.method,
-    path,
-    apiRequest
-  )
-
-  // a folder or file the estate created is a change to this host's drive
-  if (request.method !== 'GET' && request.method !== 'HEAD')
-    await persistChanges()
-
-  const headers = Object.assign({}, answer.headers || {})
-
-  if (answer.contents !== undefined)
-    return new Response(answer.contents, { status: answer.status, headers })
-
-  if (!headers['content-type']) headers['content-type'] = 'application/json'
-
-  return new Response(
-    answer.body === undefined || answer.body === null
-      ? null
-      : JSON.stringify(answer.body),
-    { status: answer.status, headers }
-  )
-}
-
 const routeRequest = async (request, url, attempts = 0, source = null) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null
@@ -2135,8 +2154,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which
     // is what makes a Viya build mockable in the browser at all.
-    if (isViyaPath(apiPath))
-      return await viyaRequest(request, url, apiPath, replay)
+    if (isViyaPath(apiPath)) return await viyaRequest(request, url, apiPath)
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
@@ -2468,12 +2486,7 @@ self.addEventListener('fetch', (event) => {
   // canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
 
-  if (
-    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess|compute|folders|files|identities|types)(\/|$)/i.test(
-      path
-    )
-  )
-    return
+  if (!isAnswered(path)) return
   event.respondWith(handle(event.request, url))
 })
 

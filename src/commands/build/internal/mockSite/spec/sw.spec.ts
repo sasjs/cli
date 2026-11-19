@@ -5849,8 +5849,7 @@ describe('the emulated Viya estate', () => {
     const answer = await read(worker.dispatch('/folders/folders/@item?path=/'))
 
     expect(answer.status).toBe(200)
-    // the stamp is the package's, on every answer including a refusal - which is
-    // what stops an emulated 404 being read as evidence about Viya
+    // the stamp is the package's: this host relays it rather than adding it
     expect(answer.emulated).toMatch(/^viya@/)
     expect(answer.body.type).toBe('folder')
   })
@@ -5886,6 +5885,59 @@ describe('the emulated Viya estate', () => {
     )
     expect(sasjs.status).toBe(200)
     expect(JSON.stringify(sasjs.body)).toContain('viya-demo')
+  })
+
+  it('answers a refusal in the estate envelope, stamped like every other', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(
+      worker.dispatch('/folders/folders/@item?path=/not-there')
+    )
+
+    // a refusal is an answer, and carries the stamp, so an emulated 404 is never
+    // read as evidence about a real estate
+    expect(answer.status).toBe(404)
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.body.httpStatusCode).toBe(404)
+    expect(answer.body.version).toBe(2)
+  })
+
+  it('lands an uploaded file and its content in the drive, bytes and all', async () => {
+    const worker = loadWorker()
+
+    // the multipart part: the name the client sent and the bytes it sent
+    const form = new FormData()
+    form.append(
+      'file',
+      new Blob(['first content'], { type: 'text/plain' }),
+      'notes.txt'
+    )
+
+    const uploaded = await read(
+      worker.dispatch('/files/files?parentFolderUri=', {
+        method: 'POST',
+        body: form
+      })
+    )
+
+    expect(uploaded.status).toBe(201)
+    expect(uploaded.body.name).toBe('notes.txt')
+
+    // a content PUT arrives as the body itself, not as JSON: the byte branch in
+    // the transport, which a JSON-only transport would have parsed and broken
+    const put = await read(
+      worker.dispatch(`/files/files/${uploaded.body.id}/content`, {
+        method: 'PUT',
+        headers: { 'content-type': 'text/plain' },
+        body: 'replaced content'
+      })
+    )
+    expect(put.status).toBeLessThan(300)
+
+    const fetched = await worker.dispatch(
+      `/files/files/${uploaded.body.id}/content`
+    )
+    expect(await fetched!.text()).toBe('replaced content')
   })
 
   it('answers the current user with the account the page chose', async () => {
