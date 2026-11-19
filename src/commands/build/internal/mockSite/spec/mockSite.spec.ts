@@ -2042,6 +2042,154 @@ describe('browser-hosted build', () => {
     expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
   })
 
+  it('publishes the not-found page a deep link needs, on a streamed build or any other', async () => {
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'web', 'index.html'),
+      '<html></html>'
+    )
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'clickme.html'),
+      `<html><script src="/StoredProgram?_FILE=${appLoc}/services/web/index.html"></script></html>`
+    )
+
+    await buildMockSite(target({ streamWeb: true, streamWebFolder: 'web' }))
+
+    // a static host answers an unknown path with 404.html and a 404 status; the
+    // entry page is on the drive, so without this page a first visit to it dies
+    // on the host before any worker exists
+    const fallbackPage = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    const fallbackScript = fs.readFileSync(path.join(out(), '404.js'), 'utf8')
+
+    // the page carries the policy the rest of the site carries, and its script
+    // is a file: an inline one would be the single exemption on the site
+    expect(fallbackPage).toContain(`default-src 'self'`)
+    expect(fallbackPage).toContain('src="/404.js"')
+    expect(fallbackPage).not.toContain('<script>')
+
+    // what the fallback has to do: install the site's own worker (stamped the
+    // way the app's loader stamps it, so this is the same registration and not
+    // a second one for the same scope), retry the same address, and stop after
+    // a bounded number of attempts rather than loop
+    expect(fallbackScript).toMatch(/register\('\/sw\.js\?v=[0-9a-f]+'/)
+    expect(fallbackScript).toContain("updateViaCache: 'none'")
+    expect(fallbackScript).toContain('location.replace')
+    expect(fallbackScript).toMatch(/MAX_ATTEMPTS\s*=\s*\d+/)
+    // the count has to survive the navigation it bounds, with the carriers a
+    // browser cannot silently drop in front of the address
+    expect(fallbackScript).toContain('document.cookie')
+    expect(fallbackScript).toContain('window.name')
+    expect(fallbackScript).toContain('searchParams.set(PARAM')
+    // and it has to be cleared when the page gives up, so the cap bounds one
+    // visit rather than refusing the address from then on
+    expect(fallbackScript).toContain('max-age=0')
+
+    // nothing app-specific: this page is written for every project that builds
+    // a mock site, so it cannot name one
+    expect(fallbackPage).not.toContain('clickme')
+    expect(fallbackScript).not.toContain(appLoc)
+  })
+
+  it('answers at the addresses the site worker answers, not at raw drive paths', () => {
+    // the page retries the address it was given, so its claim is only true for
+    // paths the worker takes. Both halves are read from source: the worker's
+    // allow-list, and the addresses the page's own docstring names.
+    const swSource = fs.readFileSync(
+      path.join(__dirname, '..', 'assets', 'sw.js'),
+      'utf8'
+    )
+    // the worker has more than one allow-list; the one that matters is the one
+    // naming the web tiers a build links to
+    const literal = swSource
+      .match(/\/\^\\\/\([^)]*\)\(\\\/\|\$\)\/i/g)
+      ?.find((text) => text.includes('StoredProgram'))
+    expect(literal).toBeDefined()
+    const source = literal!.slice(1, literal!.lastIndexOf('/'))
+    const allowed = new RegExp(source, 'i')
+
+    // the addresses a streamed build links to
+    expect(allowed.test('/StoredProgram')).toBe(true)
+    expect(allowed.test('/SASJobExecution')).toBe(true)
+    // and a raw drive path, which the worker deliberately leaves to the host
+    expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
+
+    // Exercise the generated stub's actual fetch listener, not just the helper
+    // that supplies it. A separate list in the stub must not change routing.
+    const { WORKER_ANSWERS } = require(
+      path.join(__dirname, 'fallback.browser.cjs')
+    )
+    const { runInNewContext } = require('node:vm')
+    let fetchHandler: (event: any) => void = () => {
+      throw new Error('stub did not register a fetch listener')
+    }
+    runInNewContext(WORKER_ANSWERS, {
+      self: {
+        addEventListener: (name: string, handler: (event: any) => void) => {
+          if (name === 'fetch') fetchHandler = handler
+        }
+      },
+      URL,
+      Response: class {}
+    })
+    const tiers = source.match(/\(([^)]+)\)/)![1].split('|')
+    const paths = tiers.flatMap((tier) => [
+      `/${tier}`,
+      `/${tier}/child`,
+      `/${tier.toLowerCase()}`,
+      `/${tier}Extra`
+    ])
+    paths.push('/Public/app/services/web/index.html', '/unknown', '/')
+    for (const route of paths) {
+      let answered = false
+      fetchHandler({
+        request: { url: `https://example.test${route}` },
+        respondWith: () => {
+          answered = true
+        }
+      })
+      expect({ route, answered }).toEqual({
+        route,
+        answered: allowed.test(route)
+      })
+    }
+  })
+
+  it('says so when the project supplies its own not-found page', async () => {
+    write(path.join(root, 'client', 'dist', '404.html'), '<html>mine</html>')
+
+    await buildMockSite(target())
+
+    expect(process.logger?.warn).toHaveBeenCalledWith(
+      expect.stringContaining('404.html')
+    )
+    // the generated page is the one published: it is what installs the worker
+    const published = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    expect(published).toContain(`default-src 'self'`)
+    expect(published).not.toContain('mine')
+  })
+
+  it("points the not-found page at the site's own folder when it is mounted under a base path", async () => {
+    await buildMockSite(target({ mockWebBasePath: '/some/base' }))
+
+    const fallbackPage = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    const fallbackScript = fs.readFileSync(path.join(out(), '404.js'), 'utf8')
+
+    // a mounted site is served one folder down: the page's script, the worker
+    // it installs and the one link it offers a stranded visitor are all in that
+    // folder, not at the host's root
+    expect(fallbackPage).toContain('src="/some/base/404.js"')
+    expect(fallbackScript).toMatch(
+      /register\('\/some\/base\/sw\.js\?v=[0-9a-f]+'/
+    )
+    expect(fallbackScript).toContain('href="/some/base/"')
+  })
+
+  it('publishes the not-found page when the target does not stream web at all', async () => {
+    await buildMockSite(target())
+
+    expect(fs.existsSync(path.join(out(), '404.html'))).toBe(true)
+    expect(fs.existsSync(path.join(out(), '404.js'))).toBe(true)
+  })
+
   it('refuses a mockWebFolder outside the project', async () => {
     const outside = fs.mkdtempSync(
       path.join(require('os').tmpdir(), 'outside-')

@@ -25,7 +25,8 @@
     "test": "npm run test:mocked && npm run test:server",
     "test:mocked": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.config.js --coverage",
     "test:server": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.server.config.js",
-    "test:browser:xhr": "node src/commands/build/internal/mockSite/spec/intercept.browser.cjs"
+    "test:browser:xhr": "node src/commands/build/internal/mockSite/spec/intercept.browser.cjs",
+    "test:browser:fallback": "node src/commands/build/internal/mockSite/spec/fallback.browser.cjs"
   },
   "testServerTypes": "sasjs",
   "bin": {
@@ -56,7 +57,7 @@
     "@sasjs/api": "0.46.0",
     "@sasjs/core": "7.1.12",
     "@sasjs/lint": "5.5.10",
-    "@sasjs/sas-language": "0.7.3",
+    "@sasjs/sas-language": "0.7.4",
     "@sasjs/utils": "4.13.2",
     "axios": "1.21.1",
     "chalk": "4.1.2",
