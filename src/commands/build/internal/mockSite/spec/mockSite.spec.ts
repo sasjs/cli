@@ -1897,6 +1897,61 @@ describe('browser-hosted build', () => {
     expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
   })
 
+  it('publishes the not-found page a deep link needs, on a streamed build or any other', async () => {
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'web', 'index.html'),
+      '<html></html>'
+    )
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'clickme.html'),
+      `<html><script src="/StoredProgram?_FILE=${appLoc}/services/web/index.html"></script></html>`
+    )
+
+    await buildMockSite(target({ streamWeb: true, streamWebFolder: 'web' }))
+
+    // a static host answers an unknown path with 404.html and a 404 status; the
+    // entry page is on the drive, so without this page a first visit to it dies
+    // on the host before any worker exists
+    const fallbackPage = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    const fallbackScript = fs.readFileSync(path.join(out(), '404.js'), 'utf8')
+
+    // the page carries the policy the rest of the site carries, and its script
+    // is a file: an inline one would be the single exemption on the site
+    expect(fallbackPage).toContain(`default-src 'self'`)
+    expect(fallbackPage).toContain('src="/404.js"')
+    expect(fallbackPage).not.toContain('<script>')
+
+    // what the fallback has to do: install the site's worker, retry the same
+    // address, and stop after a bounded number of attempts rather than loop
+    expect(fallbackScript).toContain("register('/sw.js')")
+    expect(fallbackScript).toContain('location.replace(target)')
+    expect(fallbackScript).toMatch(/MAX_ATTEMPTS\s*=\s*\d+/)
+
+    // nothing app-specific: this page is written for every project that builds
+    // a mock site, so it cannot name one
+    expect(fallbackPage).not.toContain('clickme')
+    expect(fallbackScript).not.toContain(appLoc)
+  })
+
+  it("points the not-found page at the site's own folder when it is mounted under a base path", async () => {
+    await buildMockSite(target({ mockWebBasePath: '/some/base' }))
+
+    const fallbackPage = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
+    const fallbackScript = fs.readFileSync(path.join(out(), '404.js'), 'utf8')
+
+    // a mounted site is served one folder down: the page's script and the
+    // worker it installs are in that folder, not at the host's root
+    expect(fallbackPage).toContain('src="/some/base/404.js"')
+    expect(fallbackScript).toContain("register('/some/base/sw.js')")
+  })
+
+  it('publishes the not-found page when the target does not stream web at all', async () => {
+    await buildMockSite(target())
+
+    expect(fs.existsSync(path.join(out(), '404.html'))).toBe(true)
+    expect(fs.existsSync(path.join(out(), '404.js'))).toBe(true)
+  })
+
   it('refuses a mockWebFolder outside the project', async () => {
     const outside = fs.mkdtempSync(
       path.join(require('os').tmpdir(), 'outside-')

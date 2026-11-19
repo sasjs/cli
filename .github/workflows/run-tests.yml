@@ -376,6 +376,7 @@ jobs:
               "$CHROMIUM_PATH" --version
               node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs || exit $?
               npm run test:browser:xhr || exit $?
+              npm run test:browser:fallback || exit $?
               node --test src/commands/build/internal/mockSite/spec/intercept.browser.cleanup.test.cjs src/commands/build/internal/mockSite/spec/missing-adapter.harness.test.cjs || exit $?
               SASJS_BROWSER_TESTS=1 npx jest --config=jest.config.js --runInBand --coverage=false --runTestsByPath src/commands/build/internal/mockSite/spec/sas9-adapter.browser.spec.js src/commands/build/internal/mockSite/spec/missing-adapter.browser.spec.js || exit $?
               exit 0
