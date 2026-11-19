@@ -22,7 +22,7 @@ const rows = [
   ...Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ', (c) => `.${c}`)
 ].map((N, i) => ({ N, C: i % 2 ? '._' : '.A' }))
 // Independent oracle for the actual FETCH/webout result, not a copy of input.
-// The released adapter 6.1.2 convertToCSV lowercases best. special missings;
+// The adapter's convertToCSV lowercases best. special missings;
 // mock FETCH preserves the CSV spelling, rather than performing case folding.
 // SAS treats .a and .A as the same numeric missing and displays letters uppercase:
 // https://documentation.sas.com/doc/en/lrcon/9.4/p02bj999n0f31zn1wu3feqd5s7ke.htm
