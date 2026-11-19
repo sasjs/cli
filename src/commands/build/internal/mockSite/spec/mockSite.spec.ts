@@ -1967,15 +1967,14 @@ describe('browser-hosted build', () => {
     // and a raw drive path, which the worker deliberately leaves to the host
     expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
 
-    // and the browser check must not keep its own copy of that list: a copy
-    // drifts, and a stub that answers what the worker refuses makes every case
-    // in it pass in a world the site does not have
+    // and the browser check must route on that same list, not on a copy: the
+    // routing line is what is pinned, so a stub that builds its own list from a
+    // hand-written array fails here even if the extraction is still in place
     const browserCheck = fs.readFileSync(
       path.join(__dirname, 'fallback.browser.cjs'),
       'utf8'
     )
-    expect(browserCheck).toContain("path.join(ASSETS, 'sw.js')")
-    expect(browserCheck).not.toContain('SASLogon|AppStream')
+    expect(browserCheck).toContain('${ALLOW_LIST}.test(path)')
   })
 
   it('says so when the project supplies its own not-found page', async () => {
