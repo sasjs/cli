@@ -1,12 +1,18 @@
 #!/usr/bin/env node
-// The not-found page has to make a cold deep link work (Node 22+).
-// Run: CHROMIUM_PATH=/path/to/chromium node src/commands/build/internal/mockSite/spec/fallback.browser.cjs
+// The not-found page has to make a cold deep link work, and has to stop when it
+// cannot (Node 22+).
+// Run: CHROMIUM_PATH=/path/to/chromium npm run test:browser:fallback
 //
 // What this proves, without a built site and without @sasjs/api: a static host
 // answers a path it has no file for with 404.html, the page installs the site's
 // worker, and the SAME address then answers from the worker. The worker here is
 // a stub that answers everything with one marker page - the point is the
 // hand-off, not what a site answers with.
+//
+// Three cases, because the page has three endings: the worker answers; the
+// worker never answers the navigation (the cap is reached, once, with a
+// message); and the same, with cookies disabled so the count has to travel in
+// the URL instead. The last one is the one that used to loop.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const http = require('node:http')
@@ -18,15 +24,33 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MARKER = 'WORKER ANSWERED'
+const SILENT = 'This page is not part of this site.'
 const DEEP_LINK = '/Public/app/services/entry.html?x=1'
+const HOST_VERSION = 'abc123def4'
+// the build substitutes both; the assets themselves carry the placeholders
+const BASE = ''
 
-function pagesLike(root) {
+const WORKER_ANSWERS = `self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
+self.addEventListener('fetch', (event) => event.respondWith(
+  new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
+    { headers: { 'Content-Type': 'text/html' } })))
+`
+
+// installs and claims, but never answers a request: the retries are not
+// intercepted, so the page has to stop itself
+const WORKER_SILENT = `self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
+`
+
+function pagesLike(root, hits) {
   const types = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'application/javascript; charset=utf-8'
   }
   return http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://127.0.0.1')
+    hits.push(url.pathname + url.search)
     const file = path.join(root, url.pathname)
     let body = null
     try {
@@ -53,167 +77,239 @@ function pagesLike(root) {
   })
 }
 
-async function main() {
+async function site(workerScript) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sasjs-404-browser-'))
-  const servers = []
-  let browser,
-    browserDone = false,
-    browserError,
-    ws
-  try {
-    // the shipped page and script, under the names a host looks for
-    await fs.copyFile(
-      path.join(ASSETS, 'fallback.html'),
-      path.join(root, '404.html')
-    )
-    await fs.copyFile(
-      path.join(ASSETS, 'fallback.js'),
-      path.join(root, '404.js')
-    )
-    // the stub backend: answers every request once it controls the page
-    await fs.writeFile(
-      path.join(root, 'sw.js'),
-      /* respondWith, not a returned promise: a fetch listener that returns is a
-       * listener that passes the request straight through to the network */
-      `self.addEventListener('install', () => self.skipWaiting())
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
-self.addEventListener('fetch', (event) => event.respondWith(
-  new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
-    { headers: { 'Content-Type': 'text/html' } })))
-`
-    )
+  const page = (
+    await fs.readFile(path.join(ASSETS, 'fallback.html'), 'utf8')
+  ).replace('src="/404.js"', `src="${BASE}/404.js"`)
+  const script = (await fs.readFile(path.join(ASSETS, 'fallback.js'), 'utf8'))
+    .replaceAll('__BASE__', BASE)
+    .replaceAll('__HOST_VERSION__', HOST_VERSION)
+  assert.ok(
+    !script.includes('__'),
+    'a placeholder survived the build substitution'
+  )
+  await fs.writeFile(path.join(root, '404.html'), page)
+  await fs.writeFile(path.join(root, '404.js'), script)
+  await fs.writeFile(path.join(root, 'sw.js'), workerScript)
+  const hits = []
+  const server = pagesLike(root, hits)
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  return {
+    root,
+    server,
+    hits,
+    origin: `http://localhost:${server.address().port}`
+  }
+}
 
-    const server = pagesLike(root)
-    servers.push(server)
-    server.listen(0, '127.0.0.1')
-    await once(server, 'listening')
-    const origin = `http://localhost:${server.address().port}`
-    const deepUrl = origin + DEEP_LINK
-
-    const chromium = process.env.CHROMIUM_PATH || 'chromium'
-    browser = spawn(
-      chromium,
-      [
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        `--user-data-dir=${path.join(root, 'profile')}`,
-        '--remote-debugging-port=0',
-        'about:blank'
-      ],
-      { stdio: 'ignore' }
-    )
-    browser.on('error', (error) => {
-      browserError = error
-    })
-    const browserClosed = new Promise((resolve) =>
-      browser.once('close', () => {
-        browserDone = true
-        resolve()
-      })
-    )
-
-    let port
-    for (let n = 0; n < 200 && !port; n++) {
-      if (browserError) throw browserError
-      if (browserDone) throw new Error('Chromium exited before startup')
-      try {
-        port = Number(
-          (
-            await fs.readFile(
-              path.join(root, 'profile/DevToolsActivePort'),
-              'utf8'
-            )
-          ).split('\n')[0]
-        )
-      } catch (_) {
-        await sleep(50)
-      }
-    }
-    if (!port) throw new Error('Chromium did not start')
-
-    const info = await (
-      await fetch(`http://127.0.0.1:${port}/json/version`)
-    ).json()
-    ws = new WebSocket(info.webSocketDebuggerUrl)
-    await once(ws, 'open')
-    let id = 0
-    const pending = new Map()
-    ws.addEventListener('message', ({ data }) => {
-      const msg = JSON.parse(data)
-      if (!pending.has(msg.id)) return
-      const { resolve, reject } = pending.get(msg.id)
-      pending.delete(msg.id)
-      msg.error
-        ? reject(new Error(JSON.stringify(msg.error)))
-        : resolve(msg.result)
-    })
-    const send = (method, params = {}, sessionId) =>
-      new Promise((resolve, reject) => {
-        const requestId = ++id
-        pending.set(requestId, { resolve, reject })
-        ws.send(JSON.stringify({ id: requestId, method, params, sessionId }))
-      })
-    const { targetId } = await send('Target.createTarget', {
-      url: 'about:blank'
-    })
-    const { sessionId } = await send('Target.attachToTarget', {
-      targetId,
-      flatten: true
-    })
-    const evalJS = async (expression) => {
-      const result = await send(
-        'Runtime.evaluate',
-        { expression, awaitPromise: true, returnByValue: true },
-        sessionId
+async function startBrowser() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sasjs-404-chrome-'))
+  const chromium = process.env.CHROMIUM_PATH || 'chromium'
+  const browser = spawn(
+    chromium,
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      `--user-data-dir=${path.join(root, 'profile')}`,
+      '--remote-debugging-port=0',
+      'about:blank'
+    ],
+    { stdio: 'ignore' }
+  )
+  let port
+  for (let n = 0; n < 200 && !port; n++) {
+    try {
+      port = Number(
+        (
+          await fs.readFile(
+            path.join(root, 'profile/DevToolsActivePort'),
+            'utf8'
+          )
+        ).split('\n')[0]
       )
-      if (result.exceptionDetails)
-        throw new Error(JSON.stringify(result.exceptionDetails))
-      return result.result.value
+    } catch (_) {
+      await sleep(50)
     }
-    await send('Page.enable', {}, sessionId)
+  }
+  if (!port) throw new Error('Chromium did not start')
+  const info = await (
+    await fetch(`http://127.0.0.1:${port}/json/version`)
+  ).json()
+  const ws = new WebSocket(info.webSocketDebuggerUrl)
+  await once(ws, 'open')
+  let id = 0
+  const pending = new Map()
+  ws.addEventListener('message', ({ data }) => {
+    const msg = JSON.parse(data)
+    if (!pending.has(msg.id)) return
+    const { resolve, reject } = pending.get(msg.id)
+    pending.delete(msg.id)
+    msg.error
+      ? reject(new Error(JSON.stringify(msg.error)))
+      : resolve(msg.result)
+  })
+  const send = (method, params = {}, browserSession) =>
+    new Promise((resolve, reject) => {
+      const requestId = ++id
+      pending.set(requestId, { resolve, reject })
+      ws.send(
+        JSON.stringify({
+          id: requestId,
+          method,
+          params,
+          ...(browserSession || {})
+        })
+      )
+    })
+  return { ws, send, browser }
+}
 
-    // a browser that has never loaded the site, straight at the deep link
-    await send('Page.navigate', { url: deepUrl }, sessionId)
+// a fresh browser context per case: cookies and worker registrations must not
+// leak from one case into the next
+async function openCase(browser, { disableCookies }) {
+  const { browserContextId } = await browser.send('Target.createBrowserContext')
+  const { targetId } = await browser.send('Target.createTarget', {
+    url: 'about:blank',
+    browserContextId
+  })
+  const { sessionId } = await browser.send('Target.attachToTarget', {
+    targetId,
+    flatten: true
+  })
+  const send = (method, params = {}) =>
+    browser.send(method, params, { sessionId })
+  const evalJS = async (expression) => {
+    const result = await send('Runtime.evaluate', {
+      expression,
+      awaitPromise: true,
+      returnByValue: true
+    })
+    if (result.exceptionDetails)
+      throw new Error(JSON.stringify(result.exceptionDetails))
+    return result.result.value
+  }
+  await send('Page.enable')
+  if (disableCookies)
+    await send('Emulation.setDocumentCookieDisabled', { disabled: true })
+  return { browserContextId, send, evalJS }
+}
 
-    let answered = false
-    let lastText = ''
-    for (let n = 0; n < 200; n++) {
-      lastText =
-        (await evalJS("document.body ? document.body.innerText : ''")) || ''
-      if (lastText.includes(MARKER)) {
-        answered = true
-        break
-      }
-      await sleep(100)
+async function settle(evalJS, done) {
+  let last = ''
+  for (let n = 0; n < 200; n++) {
+    last = (await evalJS("document.body ? document.body.innerText : ''")) || ''
+    if (done(last)) return last
+    await sleep(100)
+  }
+  return last
+}
+
+async function main() {
+  const browser = await startBrowser()
+  const servers = []
+  try {
+    // 1. the worker answers the deep link
+    {
+      const s = await site(WORKER_ANSWERS)
+      servers.push(s.server)
+      const c = await openCase(browser, { disableCookies: false })
+      const url = s.origin + DEEP_LINK
+      await c.send('Page.navigate', { url })
+      const text = await settle(
+        c.evalJS,
+        (t) => t.includes(MARKER) || t.includes(SILENT)
+      )
+      assert.ok(
+        text.includes(MARKER),
+        `the worker never answered the deep link (page said: ${JSON.stringify(text.slice(0, 80))})`
+      )
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the address must not gain a marker'
+      )
+      assert.ok(
+        await c.evalJS('navigator.serviceWorker.controller !== null'),
+        'the page that loaded is not the one the worker answered'
+      )
+      const swFetches = s.hits.filter((p) => p.startsWith('/sw.js'))
+      assert.ok(
+        swFetches.every((p) => p === `/sw.js?v=${HOST_VERSION}`),
+        `the worker was fetched by an unstamped URL: ${JSON.stringify(swFetches)}`
+      )
+      console.log(
+        'fallback: a cold deep link reaches the worker at the address it was given'
+      )
     }
-    assert.ok(
-      answered,
-      `the worker never answered the deep link (page said: ${JSON.stringify(lastText.slice(0, 80))})`
-    )
-    const href = await evalJS('location.href')
-    assert.equal(
-      href,
-      deepUrl,
-      'the retry must ask for the same address it was given'
-    )
-    const controlled = await evalJS(
-      'navigator.serviceWorker.controller !== null'
-    )
-    assert.ok(
-      controlled,
-      'the page that loaded is not the one the worker answered'
-    )
 
-    console.log(
-      'fallback: a cold deep link reaches the worker at the address it was given'
-    )
+    // 2. the worker never answers: the cap ends on a message, once
+    {
+      const s = await site(WORKER_SILENT)
+      servers.push(s.server)
+      const c = await openCase(browser, { disableCookies: false })
+      const url = s.origin + DEEP_LINK
+      await c.send('Page.navigate', { url })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `expected the give-up message, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      await sleep(1500)
+      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      assert.equal(
+        after,
+        before,
+        `the page kept navigating after it gave up (${before} -> ${after})`
+      )
+      assert.ok(
+        before >= 2 && before <= 5,
+        `expected a bounded number of attempts, saw ${before}`
+      )
+      console.log(
+        `fallback: with no worker answering it stops on the message after ${before} attempts`
+      )
+    }
+
+    // 3. the same, with cookies disabled: the count travels in the URL, so the
+    // cap still holds - this is the case that reloaded forever when the count
+    // lived in storage alone
+    {
+      const s = await site(WORKER_SILENT)
+      servers.push(s.server)
+      const c = await openCase(browser, { disableCookies: true })
+      const url = s.origin + DEEP_LINK
+      await c.send('Page.navigate', { url })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `expected the give-up message with cookies disabled, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      await sleep(1500)
+      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      assert.equal(
+        after,
+        before,
+        `the page kept navigating after it gave up (${before} -> ${after})`
+      )
+      assert.ok(
+        before >= 2 && before <= 5,
+        `expected a bounded number of attempts, saw ${before}`
+      )
+      console.log(
+        `fallback: with cookies disabled it still stops after ${before} attempts`
+      )
+    }
   } finally {
     try {
-      if (ws) ws.close()
+      browser.ws.close()
     } catch (_) {}
-    if (browser) browser.kill()
+    browser.browser.kill()
     for (const server of servers) server.close()
   }
 }

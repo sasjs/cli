@@ -1921,11 +1921,17 @@ describe('browser-hosted build', () => {
     expect(fallbackPage).toContain('src="/404.js"')
     expect(fallbackPage).not.toContain('<script>')
 
-    // what the fallback has to do: install the site's worker, retry the same
-    // address, and stop after a bounded number of attempts rather than loop
-    expect(fallbackScript).toContain("register('/sw.js')")
-    expect(fallbackScript).toContain('location.replace(target)')
+    // what the fallback has to do: install the site's own worker (stamped the
+    // way the app's loader stamps it, so this is the same registration and not
+    // a second one for the same scope), retry the same address, and stop after
+    // a bounded number of attempts rather than loop
+    expect(fallbackScript).toMatch(/register\('\/sw\.js\?v=[0-9a-f]+'/)
+    expect(fallbackScript).toContain("updateViaCache: 'none'")
+    expect(fallbackScript).toContain('location.replace')
     expect(fallbackScript).toMatch(/MAX_ATTEMPTS\s*=\s*\d+/)
+    // the count has to survive the navigation it bounds
+    expect(fallbackScript).toContain('document.cookie')
+    expect(fallbackScript).toContain('searchParams.set(PARAM')
 
     // nothing app-specific: this page is written for every project that builds
     // a mock site, so it cannot name one
@@ -1939,10 +1945,14 @@ describe('browser-hosted build', () => {
     const fallbackPage = fs.readFileSync(path.join(out(), '404.html'), 'utf8')
     const fallbackScript = fs.readFileSync(path.join(out(), '404.js'), 'utf8')
 
-    // a mounted site is served one folder down: the page's script and the
-    // worker it installs are in that folder, not at the host's root
+    // a mounted site is served one folder down: the page's script, the worker
+    // it installs and the one link it offers a stranded visitor are all in that
+    // folder, not at the host's root
     expect(fallbackPage).toContain('src="/some/base/404.js"')
-    expect(fallbackScript).toContain("register('/some/base/sw.js')")
+    expect(fallbackScript).toMatch(
+      /register\('\/some\/base\/sw\.js\?v=[0-9a-f]+'/
+    )
+    expect(fallbackScript).toContain('href="/some/base/"')
   })
 
   it('publishes the not-found page when the target does not stream web at all', async () => {

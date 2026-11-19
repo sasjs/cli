@@ -1302,29 +1302,6 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     path.join(outputFolder, 'sw.js')
   )
 
-  // the page a static host answers an unknown path with. The backend is the
-  // worker, and a worker only answers a page it controls, so the site needs one
-  // page that installs it and asks again - otherwise a deep link into the
-  // deployment (a streamed app's entry page, a route under the API) resolves
-  // only for a visitor who loaded the site once first. Published for every
-  // target, streamed or not: any path the host has no file for lands here.
-  //
-  // The two paths are baked in, like the boot tag's: a site mounted under a
-  // base path is served one folder down, so `/404.js` and `/sw.js` would name
-  // the host's root rather than the site's own folder.
-  fs.writeFileSync(
-    path.join(outputFolder, '404.html'),
-    fs
-      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.html'), 'utf8')
-      .replace('src="/404.js"', `src="${basePath}/404.js"`)
-  )
-  fs.writeFileSync(
-    path.join(outputFolder, '404.js'),
-    fs
-      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.js'), 'utf8')
-      .replace("register('/sw.js')", `register('${basePath}/sw.js')`)
-  )
-
   // 2a. the webout() block, generated once with sentinels that runtime-core.js
   // fills in per run. It is the same text the server emits, from @sasjs/utils,
   // so a service cannot behave differently in a mock build.
@@ -1374,6 +1351,33 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
     .digest('hex')
     .slice(0, 10)
+
+  // The page a static host answers an unknown path with. The backend is the
+  // worker, and a worker only answers a page it controls, so the site needs one
+  // page that installs it and asks again - otherwise a deep link into the
+  // deployment (a streamed app's entry page, a route under the API) resolves
+  // only for a visitor who loaded the site once first. Published for every
+  // target, streamed or not: any path the host has no file for lands here.
+  //
+  // Three things are baked in, because the page cannot know them at runtime:
+  // the base path (a site mounted one folder down names its own script, worker
+  // and home link, not the host's root), and the host version - the same
+  // `?v=` stamp and `updateViaCache: 'none'` the app's own loader uses, so this
+  // registration asks for the same worker instead of installing a second one
+  // for the same scope.
+  fs.writeFileSync(
+    path.join(outputFolder, '404.html'),
+    fs
+      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.html'), 'utf8')
+      .replace('src="/404.js"', `src="${basePath}/404.js"`)
+  )
+  fs.writeFileSync(
+    path.join(outputFolder, '404.js'),
+    fs
+      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.js'), 'utf8')
+      .replace(/__BASE__/g, basePath)
+      .replace(/__HOST_VERSION__/g, hostVersion)
+  )
 
   // The identity of this build's drive AND its fixture: the seed itself, and the
   // identity the site signs in with. The host files are re-fetched on every
