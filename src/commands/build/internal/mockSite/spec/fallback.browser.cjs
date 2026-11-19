@@ -15,6 +15,7 @@
 // the URL instead. The last one is the one that used to loop.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
+const fsSync = require('node:fs')
 const http = require('node:http')
 const { spawn } = require('node:child_process')
 const { once } = require('node:events')
@@ -34,15 +35,25 @@ const HOST_VERSION = 'abc123def4'
 // the build substitutes both; the assets themselves carry the placeholders
 const BASE = ''
 
-/* shaped like the site's own worker, not like a catch-all: it answers the routes
- * the site publishes (the tier spellings, /api, /AppStream) and leaves every
- * other path to the static host. A catch-all stub would prove the page works in
- * a world the site does not have. */
+/* The stub is shaped like the site's own worker, not like a catch-all: it
+ * answers the routes the site publishes and leaves every other path to the
+ * static host. Its allow-list is READ OUT OF assets/sw.js rather than copied -
+ * a copy drifts, and a stub answering paths the worker refuses would make every
+ * case here pass in a world the site does not have. */
+const ALLOW_LIST = (() => {
+  const source = fsSync.readFileSync(path.join(ASSETS, 'sw.js'), 'utf8')
+  const matches = source.match(/\/\^\\\/\([^)]*\)\(\\\/\|\$\)\/i/g) || []
+  const found = matches.find((text) => text.includes('StoredProgram'))
+  if (!found)
+    throw new Error('assets/sw.js no longer carries the web-tier allow-list')
+  return found
+})()
+
 const WORKER_ANSWERS = `self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 self.addEventListener('fetch', (event) => {
   const path = new URL(event.request.url).pathname
-  if (!/^\\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\\/|$)/i.test(path)) return
+  if (!${ALLOW_LIST}.test(path)) return
   event.respondWith(new Response('<!doctype html><title>stub</title><p id="app">${MARKER}</p>',
     { headers: { 'Content-Type': 'text/html' } }))
 })

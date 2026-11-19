@@ -1967,12 +1967,15 @@ describe('browser-hosted build', () => {
     // and a raw drive path, which the worker deliberately leaves to the host
     expect(allowed.test('/Public/app/services/web/index.html')).toBe(false)
 
-    const fallback = fs.readFileSync(
-      path.join(__dirname, '..', 'assets', 'fallback.js'),
+    // and the browser check must not keep its own copy of that list: a copy
+    // drifts, and a stub that answers what the worker refuses makes every case
+    // in it pass in a world the site does not have
+    const browserCheck = fs.readFileSync(
+      path.join(__dirname, 'fallback.browser.cjs'),
       'utf8'
     )
-    expect(fallback).toContain('/StoredProgram?_FILE=')
-    expect(fallback).toContain('/SASJobExecution?_FILE=')
+    expect(browserCheck).toContain("path.join(ASSETS, 'sw.js')")
+    expect(browserCheck).not.toContain('SASLogon|AppStream')
   })
 
   it('says so when the project supplies its own not-found page', async () => {
