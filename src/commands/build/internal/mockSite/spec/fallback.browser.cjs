@@ -173,7 +173,10 @@ async function startBrowser() {
 
 // a fresh browser context per case: cookies and worker registrations must not
 // leak from one case into the next
-async function openCase(browser, { disableCookies, blockWindowName }) {
+async function openCase(
+  browser,
+  { disableCookies, blockWindowName, appWindowName }
+) {
   const { browserContextId } = await browser.send('Target.createBrowserContext')
   const { targetId } = await browser.send('Target.createTarget', {
     url: 'about:blank',
@@ -198,6 +201,12 @@ async function openCase(browser, { disableCookies, blockWindowName }) {
   await send('Page.enable')
   if (disableCookies)
     await send('Emulation.setDocumentCookieDisabled', { disabled: true })
+  if (appWindowName)
+    /* the app has its own value in window.name before this page runs: it is not
+     * ours to overwrite, so this must fall through to the next carrier */
+    await send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `window.name = ${JSON.stringify(appWindowName)}`
+    })
   if (blockWindowName)
     /* runs before every document's own scripts: a window whose name cannot be
      * used as a carrier, which leaves the address as the only one left */
@@ -472,6 +481,35 @@ async function main() {
       console.log(
         `fallback: with no worker and no carrier it stops after ${before} attempts and cleans the address`
       )
+    }
+
+    // 8. the app owns window.name: borrowed carriers must not take it. With the
+    // cookie refused too, the count goes to the address, and the app's value is
+    // still there afterwards
+    {
+      const s = await site(null)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        appWindowName: 'app-owned-value'
+      })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `expected the give-up message, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      assert.equal(
+        await c.evalJS('window.name'),
+        'app-owned-value',
+        'the page overwrote a window.name it did not write'
+      )
+      const marked = s.hits.filter((p) => p.includes('sasjs404=')).length
+      assert.ok(
+        marked >= 2,
+        `expected the address carrier to take over, saw ${marked}`
+      )
+      console.log('fallback: an app-owned window.name is left alone')
     }
   } finally {
     try {

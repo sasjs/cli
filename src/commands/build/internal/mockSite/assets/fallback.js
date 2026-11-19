@@ -87,9 +87,12 @@
 
   /* The second carrier is the window's name: it belongs to the browsing
    * context, so the retry's navigation cannot lose it, and no storage policy
-   * can refuse it the way a cookie policy can. Only the last resort is the
-   * address itself, because a count written there is a count a visitor can
-   * copy and hand to someone else. */
+   * can refuse it the way a cookie policy can. It is borrowed, not taken: a
+   * name this page did not write belongs to the app, and overwriting it would
+   * leave the app reading our record after a retry that worked - so a used name
+   * is left alone and the next carrier is tried instead. Only the last resort
+   * is the address itself, because a count written there is a count a visitor
+   * can copy and hand to someone else. */
   function readName() {
     try {
       return recordOf(window.name)
@@ -98,8 +101,20 @@
     }
   }
 
+  function isOurRecord(value) {
+    try {
+      var parsed = JSON.parse(value || 'null')
+      return !!parsed && typeof parsed === 'object' && 'target' in parsed
+    } catch (e) {
+      return false
+    }
+  }
+
   function writeName(n) {
     try {
+      /* borrowed, not taken: a value this page did not write stays where the
+       * app put it, and this carrier simply is not available */
+      if (window.name && !isOurRecord(window.name)) return false
       window.name = JSON.stringify({ target: target, n: n })
       return readName() === n
     } catch (e) {
@@ -123,8 +138,8 @@
      * behind would refuse the address on every reload until the cookie expires
      * (or, with window.name carrying it, until the tab is closed) - and a
      * worker still installing, or a deploy caught mid-flight, is exactly the
-     * case this page exists to retry. Only our own record is cleared: an app
-     * that puts its own value in window.name keeps it. */
+     * case this page exists to retry. Our own record is what is cleared; a name
+     * the app wrote was never ours to clear, and was never overwritten. */
     try {
       document.cookie = COOKIE + '=;path=/;max-age=0;SameSite=Lax'
     } catch (e) {
