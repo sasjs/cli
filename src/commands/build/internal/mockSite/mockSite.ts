@@ -1365,6 +1365,48 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     .digest('hex')
     .slice(0, 10)
 
+  // The page a static host answers an unknown path with. The backend is the
+  // worker, and a worker only answers a page it controls, so the site needs one
+  // page that installs it and asks again - otherwise a deep link into the
+  // deployment (a streamed app's entry page, a route under the API) resolves
+  // only for a visitor who loaded the site once first. Published for every
+  // target, streamed or not: any path the host has no file for lands here.
+  //
+  // Two things are baked in, because the page cannot know them at runtime: the
+  // base path (a site mounted one folder down names its own script, worker and
+  // home link, not the host's root) and the host version - the same `?v=` stamp
+  // and `updateViaCache: 'none'` the app's own loader uses, so this
+  // registration asks for the same worker instead of installing a second one
+  // for the same scope.
+  // A project may ship its own not-found page - macro-dash did, for exactly this
+  // reason, before the build carried one. Publishing the generated page over it
+  // silently would throw that work away, so it is said out loud: the generated
+  // page is the one that installs the worker, so it is the one that is published.
+  if (fs.existsSync(path.join(outputFolder, '404.html')))
+    process.logger?.warn(
+      'The project supplies a 404.html; the generated not-found page replaces it ' +
+        'in the published site (it is the one that installs the worker and retries ' +
+        'the address). Keep project-specific messaging in the app itself.'
+    )
+  process.logger?.info(
+    'Published the generated not-found page as 404.html (and 404.js).'
+  )
+  fs.writeFileSync(
+    path.join(outputFolder, '404.html'),
+    fs
+      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.html'), 'utf8')
+      .replace('src="/404.js"', () => `src="${basePath}/404.js"`)
+  )
+  fs.writeFileSync(
+    path.join(outputFolder, '404.js'),
+    fs
+      .readFileSync(path.join(ASSETS_FOLDER, 'fallback.js'), 'utf8')
+      /* a function replacement: a base path is configuration, and `$&` in one
+       * would be read as a replacement pattern and corrupt the script */
+      .replace(/__BASE__/g, () => basePath)
+      .replace(/__HOST_VERSION__/g, () => hostVersion)
+  )
+
   // The identity of this build's drive AND its fixture: the seed itself, and the
   // identity the site signs in with. The host files are re-fetched on every
   // load, so a change to them needs no re-seed; a change to either the seed or
