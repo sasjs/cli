@@ -1,5 +1,5 @@
 import { ServerType } from '@sasjs/utils'
-import { getAssetPath } from '../getAssetPath'
+import { getAssetPath, getAssetPrefix } from '../getAssetPath'
 
 /**
  * The address one streamed asset is fetched from, per server type.
@@ -32,5 +32,19 @@ describe('getAssetPath', () => {
     expect(
       getAssetPath('/Public/app', ServerType.Sas9, 'web', 'main-js')
     ).toEqual('/SASStoredProcess/?_PROGRAM=abc123/web/main-js')
+  })
+
+  it('answers the same prefix with a trailing slash for each server type', () => {
+    // a runtime appends a chunk name it composes itself, so the prefix has to
+    // end where a file name begins
+    expect(getAssetPrefix('/Public/app', ServerType.SasViya, 'web')).toEqual(
+      '/SASJobExecution?_FILE=/Public/app/services/web/'
+    )
+    expect(getAssetPrefix('/Public/app', ServerType.Sasjs, 'web')).toEqual(
+      '/StoredProgram?_FILE=/Public/app/services/web/'
+    )
+    expect(getAssetPrefix('/Public/app', ServerType.Sas9, 'web')).toEqual(
+      '/SASStoredProcess/?_PROGRAM=abc123/web/'
+    )
   })
 })

@@ -90,13 +90,13 @@ describe('executeDeployScriptSasjs', () => {
     expect(process.logger?.info).toHaveBeenCalledWith(
       `Web app is available at ${target.serverUrl}/StoredProgram?_FILE=${encodeURI(
         target.appLoc
-      )}/services/clickme.html`
+      )}/services/clickme.html (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)`
     )
 
-    // and the published folder as well: a server that predates the tier does
-    // not answer the line above, so the deploy names an address that works
-    expect(process.logger?.info).toHaveBeenCalledWith(
-      `App stream: ${target.serverUrl}/app/clickme/ (any server release; the entry page above needs sasjs/server v7.23.0 or later)`
+    // and nothing else: the app stream is a second door to the same app, not an
+    // address of its own, so a streamed deploy does not name it
+    expect(process.logger?.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('App stream:')
     )
   })
 })

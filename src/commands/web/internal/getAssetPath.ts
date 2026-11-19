@@ -1,7 +1,9 @@
 import { ServerType } from '@sasjs/utils'
 
 /**
- * The address one streamed asset is fetched from, per server type.
+ * The prefix every streamed asset of one deployment is fetched from, ending in
+ * a slash so a file name - or a chunk name a bundler composes at run time - can
+ * be appended to it.
  *
  * Each server type has a web tier the browser talks to - `/SASStoredProcess` on
  * SAS 9, `/SASJobExecution` on Viya - and each reads one file through a query
@@ -9,11 +11,10 @@ import { ServerType } from '@sasjs/utils'
  * and it answers both `_FILE=` (ours) and the estate's spelling, so a build made
  * for an estate opens here unchanged.
  */
-export const getAssetPath = (
+export const getAssetPrefix = (
   appLoc: string,
   serverType: ServerType,
-  streamWebFolder: string,
-  fileName: string
+  streamWebFolder: string
 ) => {
   const { sas9GUID } = process.sasjsConstants
   const storedProcessPath =
@@ -27,5 +28,16 @@ export const getAssetPath = (
       : serverType === ServerType.Sasjs
         ? `/StoredProgram?_FILE=${appLoc}/services`
         : `/SASStoredProcess/?_PROGRAM=${sas9GUID}`
-  return `${storedProcessPath}/${streamWebFolder}/${fileName}`
+
+  return `${storedProcessPath}/${streamWebFolder}/`
 }
+
+/**
+ * The address one streamed asset is fetched from, per server type.
+ */
+export const getAssetPath = (
+  appLoc: string,
+  serverType: ServerType,
+  streamWebFolder: string,
+  fileName: string
+) => `${getAssetPrefix(appLoc, serverType, streamWebFolder)}${fileName}`
