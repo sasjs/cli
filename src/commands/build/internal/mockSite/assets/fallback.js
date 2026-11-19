@@ -21,6 +21,13 @@
  * is a counter that bounds nothing, and the failure mode there is a reload loop
  * rather than a message. It is per address, so one bad link cannot spend a
  * later link's budget.
+ *
+ * The URL carrier is only used while no worker controls the page: once one
+ * does, the next navigation is answered, so the count is not needed and the
+ * address stays the one that was asked for. The marker can still reach a
+ * visitor by being copied out of the address bar of a page that was retrying;
+ * the give-up branch strips it, so the address they can share or reload is
+ * clean, and a reload is one real attempt.
  */
 ;(function () {
   'use strict'
@@ -41,18 +48,23 @@
   here.searchParams.delete(PARAM)
   var target = here.pathname + here.search + here.hash
 
+  function recordOf(value) {
+    try {
+      var stored = JSON.parse(value || 'null')
+      /* a different address starts its own count */
+      if (!stored || stored.target !== target) return stored ? 0 : null
+      return Number(stored.n) || 0
+    } catch (e) {
+      return null
+    }
+  }
+
   function readCookie() {
     var match = document.cookie.match(
       new RegExp('(?:^|;\\s*)' + COOKIE + '=([^;]*)')
     )
     if (!match) return null
-    try {
-      var stored = JSON.parse(decodeURIComponent(match[1]))
-      /* a different address starts its own count */
-      return stored && stored.target === target ? Number(stored.n) || 0 : 0
-    } catch (e) {
-      return 0
-    }
+    return recordOf(decodeURIComponent(match[1]))
   }
 
   function writeCookie(n) {
@@ -70,7 +82,32 @@
     }
   }
 
+  /* The second carrier is the window's name: it belongs to the browsing
+   * context, so the retry's navigation cannot lose it, and no storage policy
+   * can refuse it the way a cookie policy can. Only the last resort is the
+   * address itself, because a count written there is a count a visitor can
+   * copy and hand to someone else. */
+  function readName() {
+    try {
+      return recordOf(window.name)
+    } catch (e) {
+      return null
+    }
+  }
+
+  function writeName(n) {
+    try {
+      window.name = JSON.stringify({ target: target, n: n })
+      return readName() === n
+    } catch (e) {
+      return false
+    }
+  }
+
   function giveUp(text) {
+    /* the tab is not loading anything, and a title that says it is outlives the
+     * message for as long as the visitor leaves it open */
+    document.title = 'Page not found'
     msg.textContent = text
     /* the one link a stranded visitor is offered has to be the site's own
      * folder, which is not the host root when the site is mounted under a base
@@ -79,6 +116,15 @@
       'afterend',
       '<p><a href="__BASE__/">Open the site</a></p>'
     )
+    /* a count carried in the address is a retry's, not this visitor's: drop it,
+     * so what they copy or reload is the address they followed */
+    if (here.searchParams.has(PARAM)) {
+      try {
+        history.replaceState({}, '', here.pathname + here.search + here.hash)
+      } catch (e) {
+        /* a barred replaceState leaves the marker; the message is unaffected */
+      }
+    }
   }
 
   function delay(ms) {
@@ -87,7 +133,8 @@
     })
   }
 
-  var attempts = fromUrl > 0 ? fromUrl : readCookie() || 0
+  var attempts = fromUrl > 0 ? fromUrl : readCookie() || readName() || 0
+  if (attempts === null) attempts = 0
 
   if (!('serviceWorker' in navigator)) {
     giveUp('This browser cannot open this page from a direct link.')
@@ -150,9 +197,11 @@
           ])
       return waited.then(function () {
         var next = attempts + 1
-        /* the cookie is the carrier that keeps the address clean; the query
-         * parameter is the one that cannot be refused */
-        if (writeCookie(next)) {
+        /* the carriers that keep the address clean come first; the address
+         * itself is the one that cannot be refused, and the one that follows a
+         * copied link. Every path increments: a retry that does not count is
+         * the loop this page exists to stop. */
+        if (writeCookie(next) || writeName(next)) {
           location.replace(target)
           return
         }

@@ -301,8 +301,46 @@ async function main() {
         before >= 2 && before <= 5,
         `expected a bounded number of attempts, saw ${before}`
       )
+      // the count travelled in the address here, and a stranded visitor must be
+      // left with the address they followed, not this page's bookkeeping
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the marker must not outlive the give-up'
+      )
+      assert.equal(
+        await c.evalJS('document.title'),
+        'Page not found',
+        'a stuck tab must not keep a loading title'
+      )
       console.log(
         `fallback: with cookies disabled it still stops after ${before} attempts`
+      )
+    }
+
+    // 4. cookies disabled, worker answering: the count is not needed once the
+    // page is controlled, so the app receives the address that was asked for -
+    // no ?sasjs404= marker in its query string
+    {
+      const s = await site(WORKER_ANSWERS)
+      servers.push(s.server)
+      const c = await openCase(browser, { disableCookies: true })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(
+        c.evalJS,
+        (t) => t.includes(MARKER) || t.includes(SILENT)
+      )
+      assert.ok(
+        text.includes(MARKER),
+        `expected the worker's answer, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the app was handed a marker its caller never sent'
+      )
+      console.log(
+        'fallback: with cookies disabled the worker answers at the address that was asked for'
       )
     }
   } finally {
