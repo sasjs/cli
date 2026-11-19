@@ -90,7 +90,11 @@ const createAssetsServicesNested = async (
       let assetServiceUrl: string
 
       switch (target.serverType) {
+        // Viya and SASjs server both keep the asset as a file and read it back
+        // by name, so the build is the same for both: the bytes are copied into
+        // the deployment folder and only the URL that fetches them differs
         case ServerType.SasViya:
+        case ServerType.Sasjs:
           await copy(sourcePath, path.join(destinationPath, fullFileName))
           assetServiceUrl = getAssetPath(
             target.appLoc,

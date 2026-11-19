@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -52,13 +52,12 @@ jobs:
         run: npm run lint
 
       - name: Test the CI scripts
-        # node's own runner: this needs no dependencies beyond the node the job
-        # already sets up, and it runs in well under a second
-        # both suites: the ratchet, and the gate over the tool that publishes
+        # The discovery fixture uses git and the @sasjs/release installed by npm ci.
         run: >-
           node --test
           .github/scripts/coverage-ratchet.test.mjs
           .github/scripts/release-tool-dependencies.test.mjs
+          .github/scripts/publish-discovery.test.mjs
 
   audit:
     name: audit
@@ -66,7 +65,7 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -109,7 +108,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -136,7 +135,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -179,10 +178,9 @@ jobs:
       issues: write
     timeout-minutes: 30
     strategy:
-      # the floor the package declares (engines >=22) and the next LTS, so a
-      # forward-compatibility break shows up here rather than for a user
+      # Node 24 and the next supported LTS catch forward-compatibility issues.
       matrix:
-        node-version: [22, 24]
+        node-version: [24, 26]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -204,9 +202,9 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      # Mocked (*.spec.ts) tests. Node 22 produces the coverage summary the
-      # ratchet reads; node 24 runs the same suite without coverage, as a
-      # forward-compatibility check on the next LTS.
+      # Mocked (*.spec.ts) tests. Node 24 produces the coverage summary the
+      # ratchet reads; Node 26 runs the same suite without coverage as a
+      # forward-compatibility check.
       #
       # The summary comes from jest itself rather than from a coverage-reporting
       # action. The ArtiomTr action checks the pull request's base branch out
@@ -216,16 +214,16 @@ jobs:
       # tree. The ratchet step failed exactly that way with
       # `Cannot find module .../coverage-ratchet.mjs` (run 41109073336).
       - name: Run mocked tests with coverage
-        if: matrix.node-version == 22
-        run: npx jest --config=jest.config.js --silent --runInBand --ci --coverage
+        if: matrix.node-version == 24
+        run: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --silent --runInBand --ci --coverage
 
       - name: Run mocked tests
-        if: matrix.node-version != 22
-        run: npx jest --config=jest.config.js --silent --runInBand --ci
+        if: matrix.node-version != 24
+        run: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --silent --runInBand --ci
 
       - name: Find the coverage baseline
         id: coverage-baseline
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -301,7 +299,7 @@ jobs:
         # fails the job when there is nothing to download: a missing baseline is
         # a broken gate, and the step that notices should be this one rather
         # than a green tick with a warning buried in the log
-        if: matrix.node-version == 22 && steps.coverage-baseline.outputs.run-id != ''
+        if: matrix.node-version == 24 && steps.coverage-baseline.outputs.run-id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >-
@@ -315,7 +313,7 @@ jobs:
         # "Fail on a coverage regression" step turns the outcome into the job's
         # result. See the script's header for why the comparison is the gate.
         continue-on-error: true
-        if: matrix.node-version == 22
+        if: matrix.node-version == 24
         run: >-
           node .github/scripts/coverage-ratchet.mjs
           --head coverage/coverage-summary.json
@@ -326,7 +324,7 @@ jobs:
 
       - name: Report the coverage
         # one comment per pull request, edited in place on each push
-        if: matrix.node-version == 22 && hashFiles('coverage-comment.md') != ''
+        if: matrix.node-version == 24 && hashFiles('coverage-comment.md') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -344,9 +342,46 @@ jobs:
           fi
 
       - name: Fail on a coverage regression
-        if: matrix.node-version == 22 && steps.ratchet.outcome != 'success'
+        if: matrix.node-version == 24 && steps.ratchet.outcome != 'success'
         run: |
           echo "::error::The coverage ratchet did not pass - see the coverage comment."
+          exit 1
+
+  browser-tests:
+    name: browser-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Use Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        # The browser test builds a site from the current TypeScript builder and
+        # installed API package before serving it; it never uses a stale dist.
+        run: npm ci
+      - name: Run Chromium lifecycle, XHR and real-adapter regressions
+        # Chrome on the hosted Ubuntu image is intentionally unpinned: this
+        # checks compatibility with the platform's current browser as it changes,
+        # accepting that runner updates can change the test without a commit.
+        # Try Chromium alternatives; fail if none is available so an image change
+        # cannot silently skip the regression check.
+        run: |
+          for browser in google-chrome chromium chromium-browser; do
+            if command -v "$browser" >/dev/null 2>&1; then
+              export CHROMIUM_PATH="$(command -v "$browser")"
+              "$CHROMIUM_PATH" --version
+              node src/commands/build/internal/mockSite/spec/boot.lifecycle.browser.cjs || exit $?
+              node src/commands/build/internal/mockSite/spec/mount-isolation.browser.cjs || exit $?
+              npm run test:browser:xhr || exit $?
+              node --test src/commands/build/internal/mockSite/spec/intercept.browser.cleanup.test.cjs src/commands/build/internal/mockSite/spec/missing-adapter.harness.test.cjs || exit $?
+              SASJS_BROWSER_TESTS=1 node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --runInBand --coverage=false --runTestsByPath src/commands/build/internal/mockSite/spec/sas9-adapter.browser.spec.js src/commands/build/internal/mockSite/spec/missing-adapter.browser.spec.js src/commands/build/internal/mockSite/spec/mockSite.spec.ts || exit $?
+              exit 0
+            fi
+          done
+          echo "::error::No Chrome/Chromium binary found on runner"
           exit 1
 
   server-tests:
@@ -357,7 +392,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        node-version: [22, 24]
+        node-version: [24, 26]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -449,10 +484,12 @@ jobs:
     # It starts only once every job above has finished, and fails if any of them
     # did not succeed - a skipped job does not count as a pass.
     name: test
-    needs: [lint, audit, docs, build-and-smoke, unit-tests, server-tests]
+    needs: [lint, audit, docs, build-and-smoke, unit-tests, browser-tests, server-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Keep the legacy required check name `test (22)` until branch protection
+    # is updated, even though all jobs above run on supported Node versions.
     strategy:
       matrix:
         node-version: [22]
@@ -466,6 +503,7 @@ jobs:
             "docs=${{ needs.docs.result }}" \
             "build-and-smoke=${{ needs.build-and-smoke.result }}" \
             "unit-tests=${{ needs.unit-tests.result }}" \
+            "browser-tests=${{ needs.browser-tests.result }}" \
             "server-tests=${{ needs.server-tests.result }}"; do
             echo "$result"
             case "$result" in

@@ -3,23 +3,19 @@ import {
   fileExists,
   folderExists,
   createFolder,
-  copy,
   deleteFolder,
   ServerType,
   Target,
   getAbsolutePath
 } from '@sasjs/utils'
 import { getStreamConfig } from '../../utils/config'
-import fs from 'fs'
 import path from 'path'
 import jsdom from 'jsdom'
 import { StreamConfig } from '@sasjs/utils/types/config'
 import { createAssetServices } from './internal/createAssetServices'
 import { updateAllTags } from './internal/updateAllTags'
-import { getSasjsTags } from './internal/getTags'
-import { updateSasjsTag } from './internal/updateSasjsTag'
 import { createClickMeService } from './internal/sas9'
-import { createClickMeFile } from './internal/sasViya'
+import { createClickMeFile } from './internal/createClickMeFile'
 
 const exampleStreamConfig: StreamConfig = {
   streamWeb: true,
@@ -45,29 +41,12 @@ export async function createWebAppServices(target: Target) {
   )
   await createTargetDestinationFolder(destinationPath)
 
-  // For server type SASjs, just need to copy webSourcePath
-  // to streamWebFolder, no need to create service files.
-  if (target.serverType === ServerType.Sasjs) {
-    process.logger?.info(`Copying web app files for target ${target.name}...`)
-    await copy(webSourcePathFull, destinationPath)
-
-    /*
-      The copied app carries whatever appLoc the frontend was built with, and
-      an AppStream app gets no appLoc from its URL - so a deployment to any
-      appLoc but that default sends every service call to the default one. The
-      tag is set from the target here, which is the value this build deploys to.
-    */
-    const copiedIndex = path.join(destinationPath, 'index.html')
-    const indexHtml = new jsdom.JSDOM(await readFile(copiedIndex))
-    const sasjsTags = getSasjsTags(indexHtml)
-
-    if (sasjsTags.length) {
-      updateSasjsTag(sasjsTags[0], target)
-      await fs.promises.writeFile(copiedIndex, indexHtml.serialize())
-    }
-
-    return
-  }
+  // Every server type that streams builds the same artefact: the assets are
+  // copied into the deployment folder and the entry page's links are rewritten
+  // to the route that reads one back. What differs is the route - see
+  // getAssetPath - and, for SAS 9, that an asset is a stored process rather
+  // than a file. A SASjs server target used to skip all of this and copy the
+  // frontend as-is, which is why a Viya build could not be opened on it.
   process.logger?.info(
     `Compiling web app services for target ${target.name}...`
   )
@@ -106,6 +85,17 @@ export async function createWebAppServices(target: Target) {
 
     case ServerType.Sas9:
       await createClickMeService(
+        indexHtml.serialize(),
+        streamConfig.streamServiceName as string
+      )
+
+      break
+
+    // SASjs server reads a Drive file by name, so its entry page is the same
+    // file everywhere else's is: `<services>/<name>.html`, one level above the
+    // folder holding the assets
+    case ServerType.Sasjs:
+      await createClickMeFile(
         indexHtml.serialize(),
         streamConfig.streamServiceName as string
       )

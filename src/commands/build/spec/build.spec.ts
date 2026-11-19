@@ -101,8 +101,12 @@ describe('sasjs build', () => {
 
       expect(manifest).toBeTruthy()
       expect(manifest.type).toBe('file')
+      // the folder comes from the target: a legacy bundle carries its web assets
+      // inside the backend's folder, so the manifest states where that folder is -
+      // otherwise a host reading this pack from a zip has no destination
       expect(JSON.parse(manifest.code)).toEqual({
         name: 'demo',
+        appLoc: '/Public/apps/demo',
         streamWebFolder: 'web'
       })
     },

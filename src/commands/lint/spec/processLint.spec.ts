@@ -51,6 +51,52 @@ describe('processLint', () => {
     })
   })
 
+  /**
+   * `@sasjs/lint` 5.5.7 scans `%unquote`'s argument as code and respects the
+   * masks nested inside it, so a call that a mask keeps literal is not an
+   * invocation - and reporting one is a finding against code the project never
+   * wrote. 5.5.1 only knew `%str` and `%nrstr` as masks, so a `%bquote` inside
+   * `%unquote` left the scanner in quoted state and the masked call was reported
+   * as undeclared.
+   */
+  it('should report no finding for macro calls a mask keeps literal', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'masked.sas'),
+      '/**\n  @file masked.sas\n  @brief masked calls\n**/\n' +
+        '%put %unquote(%str(%fake_one()));\n' +
+        '%put %bquote(%fake_two());\n' +
+        '%put %unquote(%bquote(%fake_three()));\n'
+    )
+
+    const result = await processLint(['masked'])
+
+    expect(result).toEqual({
+      warnings: false,
+      errors: false,
+      warningCount: 0,
+      errorCount: 0
+    })
+  })
+
+  /**
+   * The other half of the same policy: `%unquote` resolves its argument, so a
+   * call inside it really does run and must still be reported. A scanner that
+   * skips `%unquote` wholesale loses that finding instead of the false one.
+   */
+  it('should report a macro call inside %unquote as an invocation', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'evaluated.sas'),
+      '/**\n  @file evaluated.sas\n  @brief evaluated call\n**/\n' +
+        '%put %unquote(%fake_visible());\n'
+    )
+
+    const result = await processLint(['evaluated'])
+
+    expect(result.warnings).toEqual(true)
+    expect(result.warningCount).toBe(1)
+    expect(result.errorCount).toEqual(0)
+  })
+
   it('should count errors separately from warnings', async () => {
     fs.writeFileSync(path.join(tmpDir, 'password.sas'), "%put '{SASENC}';  \n")
 

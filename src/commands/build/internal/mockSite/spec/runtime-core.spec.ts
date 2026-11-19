@@ -564,6 +564,551 @@ webout('CLOSE')`
     )
   })
 
+  it('passes the original request to the shared FETCH prelude', async () => {
+    const runtime = loadRuntime()
+    // A minimal shared-prelude stand-in proves the host supplies the context,
+    // rather than intercepting FETCH with a second implementation.
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `
+const _sasjs_webout = (action) => action === 'FETCH' ? _sasjs_fetch_context : null;
+_sasjs_webout.finalise = (body) => { if (body) fs.writeFileSync(weboutPath, body); };
+globalThis.webout = _sasjs_webout;`
+      }
+    )
+    const params = JSON.parse(
+      '{"_program":"/svc","__proto__":"own","text":"\\\"; throw new Error(1); //"}'
+    )
+    const tables = [
+      { name: '__proto__', filename: 'x.csv', csv: 'X:$char8.\r\nhello' },
+      { name: 'other', filename: 'other.csv', csv: 'X:$char8.\r\nworld' }
+    ]
+    const result = runtime.run({
+      params,
+      tables,
+      code: `_webout = JSON.stringify({ context: webout('FETCH'), shared: webout === _sasjs_webout, name: _WEBIN_NAME1, csv: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), text })`
+    })
+
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      context: { params, tables },
+      shared: true,
+      name: tables[0].name,
+      csv: tables[0].csv,
+      text: params.text
+    })
+  })
+
+  it('protects host and prelude bindings from colliding request names', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `
+const _sasjs_webout_config = 'config';
+const _sasjs_fetch = () => _sasjs_fetch_context;
+const _sasjs_webout = (action) => action === 'FETCH' ? _sasjs_fetch() : null;
+_sasjs_webout.finalise = (body) => { if (body) fs.writeFileSync(weboutPath, body); };
+globalThis.webout = _sasjs_webout;`
+      }
+    )
+    const params = JSON.parse(
+      '{"_sasjs_fetch_context":"attack","__sasjsFetchContext":"attack","_sasjs_fetch":"attack","_sasjs_webout_config":"attack","_WEBIN_NAME1":"attack","_WEBIN_FILE_COUNT":"attack","_WEBIN_CUSTOM":"attack","fs":"attack","Buffer":"attack","const":"attack","class":"attack","let":"attack","await":"attack","safe":"ok","__proto__":"own"}'
+    )
+    const tables = [
+      { name: 'real', filename: 'real.csv', csv: 'X:$char1.\r\na' }
+    ]
+    const result = runtime.run({
+      params,
+      tables,
+      code: `_webout = JSON.stringify({ context: webout('FETCH'), safe, hasProto: Object.prototype.hasOwnProperty.call(_sasjs_fetch_context.params, '__proto__'), name: _WEBIN_NAME1, count: _WEBIN_FILE_COUNT, custom: typeof _WEBIN_CUSTOM, config: _sasjs_webout_config, hasFs: typeof fs.readFileSync })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      context: { params, tables },
+      safe: 'ok',
+      hasProto: true,
+      name: 'real',
+      count: 1,
+      custom: 'undefined',
+      config: 'config',
+      hasFs: 'function'
+    })
+  })
+
+  it('returns bytes after an upload is overwritten with text', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0, 255])
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes }],
+      code: `fs.writeFileSync(_WEBIN_FILEREF1, 'abc'); const b = fs.readFileSync(_WEBIN_FILEREF1); _webout = JSON.stringify({buffer: Buffer.isBuffer(b), hex: b.toString('hex'), options: Buffer.isBuffer(fs.readFileSync(_WEBIN_FILEREF1, {})), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8')})`
+    })
+    expect(result.error).toBeFalsy()
+    expect(JSON.parse(result.webout)).toEqual({
+      buffer: true,
+      hex: '616263',
+      options: true,
+      text: 'abc'
+    })
+  })
+
+  it('removes derived files only within the upload staging namespace', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        { name: 'input', filename: 'x', bytes: new Uint8Array([0, 255]) }
+      ],
+      code: `const path = require('path'); const folder = path.dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, folder + '/copy'); fs.writeFileSync(folder + '/nested/derived', 'secret'); fs.writeFileSync(path.dirname(folder) + '/keep', 'keep'); fs.writeFileSync('/sasjs/drive/files/keep', 'keep'); _webout = folder;`
+    })
+    expect(result.error).toBeFalsy()
+    const folder = result.webout
+    const dirty = runtime.takeDirty()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(Object.keys(dirty)).toContain(path.posix.dirname(folder) + '/keep')
+    expect(Object.keys(dirty)).toContain('/sasjs/drive/files/keep')
+    const probe = runtime.run({
+      code: `_webout = JSON.stringify([fs.existsSync(${JSON.stringify(folder + '/copy')}), fs.existsSync(${JSON.stringify(folder + '/nested/derived')})]);`
+    })
+    expect(JSON.parse(probe.webout)).toEqual([false, false])
+  })
+
+  it('cleans the upload staging subtree when a service throws', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [{ name: 'input', filename: 'x', bytes: new Uint8Array([1]) }],
+      code: `const dir = require('path').dirname(_WEBIN_FILEREF1); fs.copyFileSync(_WEBIN_FILEREF1, dir + '/copy'); fs.writeFileSync('/sasjs/drive/files/location', dir); throw new Error('failed');`
+    })
+    expect(result.error).toContain('failed')
+    const dirty = runtime.takeDirty()
+    const folder = dirty['/sasjs/drive/files/location']
+    expect(folder).toBeTruthy()
+    expect(Object.keys(dirty).some((p) => p.startsWith(folder + '/'))).toBe(
+      false
+    )
+    expect(runtime.dumpAll()[folder + '/copy']).toBeUndefined()
+  })
+
+  it('reports staged upload metadata through fs.statSync', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'binary',
+          filename: 'raw.bin',
+          bytes: new Uint8Array([0, 255, 128])
+        }
+      ],
+      code: `const file = fs.statSync(_WEBIN_FILEREF1); const dir = fs.statSync(require('path').dirname(_WEBIN_FILEREF1)); _webout = JSON.stringify({ size: file.size, file: file.isFile(), fileDir: file.isDirectory(), dir: dir.isDirectory(), dirFile: dir.isFile() });`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      size: 3,
+      file: true,
+      fileDir: false,
+      dir: true,
+      dirFile: false
+    })
+  })
+
+  it('exposes uploaded bytes through session-local file references and first aliases', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0, 0xff, 0x80])
+    const result = runtime.run({
+      tables: [
+        { name: 'field', filename: 'original.bin', csv: 'ignored', bytes },
+        {
+          name: 'empty',
+          filename: 'empty.bin',
+          csv: '',
+          bytes: new Uint8Array()
+        }
+      ],
+      code: `_webout = JSON.stringify({ count: _WEBIN_FILE_COUNT, name: _WEBIN_NAME, filename: _WEBIN_FILENAME, ref: _WEBIN_FILEREF, first: _WEBIN_FILEREF1, second: _WEBIN_FILEREF2, hex: fs.readFileSync(_WEBIN_FILEREF).toString('hex'), empty: fs.readFileSync(_WEBIN_FILEREF2).length })`
+    })
+    expect(result.error).toBeNull()
+    const output = JSON.parse(result.webout)
+    expect(output).toMatchObject({
+      count: 2,
+      name: 'field',
+      filename: 'original.bin',
+      hex: 'efbbbf00ff80',
+      empty: 0
+    })
+    expect(output.ref).toBe(output.first)
+    expect(output.first).not.toBe(output.second)
+    expect(output.first).toMatch(/^\/sasjs\/sessions\//)
+    const next = runtime.run({
+      code: `_webout = String(_WEBIN_FILE_COUNT) + '|' + typeof _WEBIN_FILEREF + '|' + fs.existsSync(${JSON.stringify(output.first)})`
+    })
+    expect(next.webout).toBe('0|undefined|false')
+    expect(runtime.dumpAll()[output.first]).toBeUndefined()
+    expect(runtime.takeDirty()[output.first]).toBeUndefined()
+  })
+
+  it('retains a UTF-8 BOM in raw bytes and Node-style text reads', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {})
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x41, 0, 0xff])
+    const result = runtime.run({
+      tables: [{ name: 'file', filename: 'file.bin', bytes }],
+      code: `_webout = JSON.stringify({ hex: fs.readFileSync(_WEBIN_FILEREF1).toString('hex'), text: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), bufferText: fs.readFileSync(_WEBIN_FILEREF1).toString('utf8') })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      hex: Buffer.from(bytes).toString('hex'),
+      text: Buffer.from(bytes).toString('utf8'),
+      bufferText: Buffer.from(bytes).toString('utf8')
+    })
+  })
+
+  it.each([
+    [
+      'overwrite',
+      "fs.writeFileSync(_WEBIN_FILEREF1, 'VALUE:$char8.\\nchanged'); _webout = JSON.stringify(webout('FETCH').input)",
+      '[{"VALUE":"changed"}]'
+    ],
+    [
+      'delete',
+      "fs.unlinkSync(_WEBIN_FILEREF1); try { webout('FETCH') } catch(e) { _webout = e.code }",
+      'ENOENT'
+    ]
+  ])(
+    'FETCH reads the staged path after %s',
+    async (_operation, code, expected) => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {}, weboutPrelude())
+      const result = runtime.run({
+        tables: [
+          {
+            name: 'input',
+            filename: 'input.csv',
+            bytes: new TextEncoder().encode('VALUE:$char8.\noriginal')
+          }
+        ],
+        code
+      })
+      expect(result.error).toBeNull()
+      expect(result.webout).toBe(expected)
+    }
+  )
+
+  it('does not decode uploaded CSV until FETCH reads it', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(
+      runtime,
+      {},
+      {
+        sentinels: {},
+        template: `const webout = () => _sasjs_fetch_context.tables[0].csv; const _sasjs_webout = { finalise: body => { if (body) fs.writeFileSync(weboutPath, body) } };`
+      }
+    )
+    let decodes = 0
+    const table = {
+      name: 'file',
+      filename: 'file.bin',
+      bytes: new Uint8Array([255]),
+      get csv() {
+        decodes++
+        return 'decoded'
+      }
+    }
+    const raw = runtime.run({
+      tables: [table],
+      code: `_webout = fs.readFileSync(_WEBIN_FILEREF1).toString('hex')`
+    })
+    expect(raw.error).toBeNull()
+    expect(raw.webout).toBe('ff')
+    expect(decodes).toBe(0)
+    const fetched = runtime.run({
+      tables: [table],
+      code: `_webout = webout('FETCH')`
+    })
+    expect(fetched.error).toBeNull()
+    expect(fetched.webout).toBe('\ufffd')
+    expect(decodes).toBe(0)
+  })
+
+  it('fetches a CRLF-terminated multi-column upload without a phantom row', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'input',
+          filename: 'input.csv',
+          csv: 'name:$char8. count:best.\r\nAda,2\r\n'
+        }
+      ],
+      code: "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      input: [{ name: 'Ada', count: 2 }]
+    })
+  })
+
+  it('fetches all uploaded adapter tables without changing their contents', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const convertToCSV =
+      require('@sasjs/adapter/utils/convertToCsv').convertToCSV
+    const data = {
+      people: [
+        { NAME: ' Ann', NOTE: 'quote " and, comma\nnext', COUNT: 3 },
+        { NAME: 'Zoë', NOTE: '', COUNT: null }
+      ],
+      settings: [{ KEY: 'theme', VALUE: 'dark' }]
+    }
+    const tables = Object.keys(data).map((name) => ({
+      name,
+      filename: `${name}.csv`,
+      csv: convertToCSV(data, name)
+    }))
+    const source = `
+const inputs = webout('FETCH')
+webout('OPEN')
+webout('OBJ', 'people', inputs.people)
+webout('OBJ', 'settings', inputs.settings)
+webout('OBJ', 'raw', [{ first: fs.readFileSync(_WEBIN_FILEREF1, 'utf8'), second: fs.readFileSync(_WEBIN_FILEREF2, 'utf8') }])
+webout('CLOSE')`
+    // Both adapter server types use generateFileUploadForm for table uploads.
+    const result = runtime.run({
+      code: source,
+      params: { _program: '/svc' },
+      tables
+    })
+    expect(result.error).toBeNull()
+    const output = JSON.parse(result.webout)
+    expect(output.people).toEqual(data.people)
+    expect(output.settings).toEqual(data.settings)
+    expect(output.raw).toEqual([
+      { first: tables[0].csv, second: tables[1].csv }
+    ])
+  })
+
+  it('fetches adapter parameter tables without changing the parameter variables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      people: [
+        { NAME: 'Zoë, "Z"', COUNT: 3 },
+        { NAME: 'Ann', COUNT: null }
+      ],
+      settings: [{ KEY: 'theme', VALUE: 'dark' }]
+    }
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    const result = runtime.run({
+      params,
+      code: `
+const first = webout('FETCH')
+first.people[0].NAME = 'changed'
+const again = webout('FETCH')
+_webout = JSON.stringify({ again, sasjs_tables, sasjs1data, count: _WEBIN_FILE_COUNT })`
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      again: data,
+      sasjs_tables: params.sasjs_tables,
+      sasjs1data: params.sasjs1data,
+      count: 0
+    })
+  })
+
+  it('fetches ordered chunks from adapter-formatted parameter tables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      short: [{ TEXT: 'before' }],
+      long: [{ TEXT: 'a'.repeat(15980) + ',"Zoë\n' + 'b'.repeat(16500) }],
+      last: [{ TEXT: 'after' }]
+    }
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    expect(params.sasjs2data0).toBeGreaterThan(1)
+    const result = runtime.run({
+      params,
+      code: "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual(data)
+  })
+
+  it('fetches small tables from the adapter web form alongside uploaded tables', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = { small: [{ TEXT: 'web form', N: 7 }] }
+    const fields: Array<[string, string]> = []
+    const form = {
+      append: (name: string, value: string) => fields.push([name, value])
+    }
+    const { requestParams } =
+      require('@sasjs/adapter/file/generateTableUploadForm').generateTableUploadForm(
+        form,
+        data
+      )
+    expect(fields).toEqual([])
+    expect(requestParams.sasjs_tables).toBe('small')
+    const result = runtime.run({
+      params: requestParams,
+      tables: [
+        { name: 'upload', filename: 'upload.csv', csv: 'VALUE:best.\r\n42' }
+      ],
+      code: "_webout = JSON.stringify({ inputs: webout('FETCH'), count: _WEBIN_FILE_COUNT })"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      inputs: { small: data.small, upload: [{ VALUE: 42 }] },
+      count: 1
+    })
+  })
+
+  it('reports a missing parameter chunk instead of returning truncated data', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      params: {
+        sasjs_tables: 'partial',
+        sasjs1data0: '2',
+        sasjs1data1: 'X:$char10.\r\nabc'
+      },
+      code: "webout('FETCH')"
+    })
+    expect(result.error).toContain(
+      "webout('FETCH'): missing chunk 2 for partial"
+    )
+  })
+
+  it('permits a program to declare its own webout binding', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      code: "const webout = () => 'local'; _webout = webout()"
+    })
+    expect(result.error).toBeNull()
+    expect(result.webout).toBe('local')
+  })
+
+  it('treats a trailing empty adapter record as a terminator', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = { input: [{ x: 'a' }, { x: '' }] }
+    const csv = require('@sasjs/adapter/utils/convertToCsv').convertToCSV(
+      data,
+      'input'
+    )
+    expect(csv).toBe('x:$char1.\r\na\r\n')
+    const result = runtime.run({
+      code: "_webout = JSON.stringify(webout('FETCH'))",
+      tables: [{ name: 'input', filename: 'input.csv', csv }]
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({ input: [{ x: 'a' }] })
+  })
+
+  it('discards blank adapter records while retaining distinct and multi-column rows', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const data = {
+      empty: [{ x: '' }],
+      many: [{ x: 'a' }, { x: '' }, { x: '' }],
+      leading: [{ x: '' }, { x: 'a' }],
+      middle: [{ x: 'a' }, { x: '' }, { x: 'b' }],
+      embedded: [{ x: 'a\nb' }, { x: '' }],
+      multi: [
+        { x: 'a', y: '' },
+        { x: '', y: '' }
+      ]
+    }
+    const convertToCSV =
+      require('@sasjs/adapter/utils/convertToCsv').convertToCSV
+    expect(() => convertToCSV({ zero: [] }, 'zero')).toThrow()
+    const params =
+      require('@sasjs/adapter/utils/formatDataForRequest').formatDataForRequest(
+        data
+      )
+    const result = runtime.run({
+      code: "_webout = JSON.stringify(webout('FETCH'))",
+      params
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      empty: [],
+      many: [{ x: 'a' }],
+      leading: [{ x: 'a' }],
+      middle: [{ x: 'a' }, { x: 'b' }],
+      embedded: [{ x: 'a\nb' }],
+      multi: data.multi
+    })
+  })
+
+  it('discards a single bare empty character record generated by the adapter', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const csv = require('@sasjs/adapter/utils/convertToCsv').convertToCSV(
+      { empty: [{ VALUE: '' }] },
+      'empty'
+    )
+    const result = runtime.run({
+      code: "webout('OPEN'); webout('OBJ', 'empty', webout('FETCH').empty); webout('CLOSE')",
+      tables: [{ name: 'empty', filename: 'empty.csv', csv }]
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout).empty).toEqual([])
+  })
+
+  it('retains quoted empty cells and numeric special missings in nonblank records', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      tables: [
+        {
+          name: 'input',
+          filename: 'input.csv',
+          csv: 'text:$char8. number:best.\r\n"",.A\r\nnext,.Z\r\n'
+        }
+      ],
+      code: "_webout = JSON.stringify(webout('FETCH'))"
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      input: [
+        { text: '', number: '.A' },
+        { text: 'next', number: '.Z' }
+      ]
+    })
+  })
+
+  it('refuses an informat it cannot decode instead of returning wrong values', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+    const result = runtime.run({
+      code: "webout('FETCH')",
+      tables: [
+        { name: 'dates', filename: 'dates.csv', csv: 'DAY:date9.\r\n01JAN2024' }
+      ]
+    })
+    expect(result.error).toContain(
+      "webout('FETCH'): unsupported informat date9."
+    )
+  })
+
   it('restores a persisted drive with the host files, so webout() still runs', async () => {
     // A visitor who has opened the site before: the page hands this worker the
     // drive it persisted, so seed() never runs here. The webout() block and the
@@ -630,6 +1175,32 @@ webout('CLOSE')`
     expect(result.webout).toBe('string|he said "hi"\nback\\slash|7')
   })
 
+  it('reports omitted bindings without logging parameter values', () => {
+    const runtime = loadRuntime()
+    const params = {
+      fetch: 'secret-fetch',
+      console: 'secret-console',
+      _sasjs_custom: 'secret-internal',
+      'not-valid': 'secret-invalid',
+      safe: 'ok'
+    }
+    const result = runtime.run({
+      params,
+      code: '_webout = JSON.stringify({ safe, fetch: _sasjs_fetch_context.params.fetch })'
+    })
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout)).toEqual({
+      safe: 'ok',
+      fetch: 'secret-fetch'
+    })
+    expect(result.log).toContain('fetch')
+    expect(result.log).toContain('console')
+    expect(result.log).toContain('_sasjs_custom')
+    expect(result.log).toContain('not-valid')
+    expect(result.log).not.toContain('secret-')
+    expect(result.log).not.toContain('safe')
+  })
+
   it('leaves a parameter name that is not an identifier out of the prelude', () => {
     const runtime = loadRuntime()
 
@@ -644,17 +1215,55 @@ webout('CLOSE')`
     expect(result.webout).toBe('ran')
   })
 
+  it.each([
+    'webout',
+    'String',
+    'Object',
+    'Number',
+    'Array',
+    'JSON',
+    'Date',
+    'Math',
+    'Error'
+  ])(
+    'keeps %s as a runtime binding while preserving the request in FETCH context',
+    async (name) => {
+      const runtime = loadRuntime()
+      await seedDrive(runtime, {}, weboutPrelude())
+      const params = { [name]: 'caller value', safe: 'ok' }
+      const tables = [
+        { name: 'input', filename: 'input.csv', csv: 'N:best.\r\n42' }
+      ]
+      const result = runtime.run({
+        params,
+        tables,
+        code: `
+const input = webout('FETCH')
+webout('OPEN')
+webout('OBJ', 'input', input.input, { maxobs: 1 })
+webout('OBJ', 'context', [{ value: _sasjs_fetch_context.params[${JSON.stringify(name)}], safe, count: _WEBIN_FILE_COUNT }])
+webout('CLOSE')`
+      })
+      expect(result.error).toBeNull()
+      const output = JSON.parse(result.webout)
+      expect(output.input).toEqual([{ N: 42 }])
+      expect(output.context).toEqual([
+        { value: 'caller value', safe: 'ok', count: 1 }
+      ])
+    }
+  )
+
   it('exposes uploaded tables as WEBIN refs', () => {
     const runtime = loadRuntime()
 
     const result = runtime.run({
-      code: '_webout = [_WEBIN_FILE_COUNT, _WEBIN_NAME1, _WEBIN_FILENAME1, _WEBIN_FILEREF1].join(",");',
+      code: '_webout = [_WEBIN_FILE_COUNT, _WEBIN_NAME1, _WEBIN_FILENAME1, fs.readFileSync(_WEBIN_FILEREF1, "utf8")].join(",");',
       tables: [{ name: 'table1', filename: 'data.csv', csv: 'a,b\n1,2\n' }]
     })
 
     expect(result.error).toBeNull()
     expect(result.webout).toBe('1,table1,data.csv,a,b\n1,2\n')
-    // the fileref carries the CSV verbatim, as the fileref does on the server
+    // the referenced file carries the CSV verbatim
     expect(result.webout).toContain('a,b\n1,2')
   })
 

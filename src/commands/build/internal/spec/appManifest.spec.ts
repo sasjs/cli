@@ -38,6 +38,23 @@ describe('the app manifest a build writes', () => {
     })
   })
 
+  it('states the folder the target deploys to', () => {
+    // a streamed bundle is one tree written to `appLoc`, and the manifest is the
+    // only place a deploy that reads an archive can learn that folder
+    expect(appManifest(streamConfig(), '/Public/app/mario')).toEqual({
+      name: 'mario',
+      appLoc: '/Public/app/mario',
+      streamWebFolder: 'web'
+    })
+  })
+
+  it('states no appLoc when the target names none', () => {
+    expect(appManifest(streamConfig(), '')).toEqual({
+      name: 'mario',
+      streamWebFolder: 'web'
+    })
+  })
+
   it('states only what the target states', () => {
     // a manifest carrying `"name": undefined` is not JSON, and one carrying a
     // default would freeze that default into every deployment

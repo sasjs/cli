@@ -1,3 +1,5 @@
+import { ServerType } from '@sasjs/utils'
+
 /**
  * The address an app is served on, from the answer a deploy got back.
  *
@@ -10,6 +12,30 @@
 export interface DeployAppAnswer {
   app?: { id?: string; url?: string }
   streamServiceName?: string
+}
+
+/**
+ * The address a streamed app's entry page answers on.
+ *
+ * The build rewrote the app's asset links through the same route, so this is
+ * the page that can actually load them: one level above the folder holding the
+ * assets, read by name. Viya answers it at the job execution route and SASjs
+ * server at its Drive API; the two spellings are fixed here rather than in each
+ * deploy path, so the address printed and the address built into the page
+ * cannot disagree.
+ */
+export const streamedAppUrl = (
+  serverUrl: string,
+  serverType: ServerType,
+  appLoc: string,
+  streamServiceName: string
+): string => {
+  const route =
+    serverType === ServerType.Sasjs
+      ? '/StoredProgram?_FILE='
+      : '/SASJobExecution?_FILE='
+
+  return `${serverUrl}${route}${encodeURI(appLoc)}/services/${streamServiceName}.html`
 }
 
 export const webAppStreamUrl = (
@@ -27,20 +53,38 @@ export const webAppStreamUrl = (
 }
 
 /**
- * Says where the app is, when the deploy published one.
+ * Says where a streamed build can be opened, and where it was published.
  *
- * The call is the whole of what a caller has to do, which keeps the uncovered
- * path in the deploy command to one function call rather than a chain of
- * conditions nothing exercises.
+ * Two addresses, because one of them is younger than the other. The entry page
+ * is the streamed artefact, and the server answers it through the
+ * `/StoredProgram` tier: sasjs/server v7.23.0 and later. The app stream is the
+ * folder the deploy published, which every server release serves - so a target
+ * whose server predates that release still gets an address that works, and the
+ * deploy output names the version rather than only a page that would render
+ * blank.
  */
-export const reportAppUrl = (
+export const reportStreamedApp = (
   serverUrl: string,
-  answer: DeployAppAnswer | undefined,
+  serverType: ServerType,
+  appLoc: string,
+  streamServiceName: string,
   info?: (message: string) => void
-): string | undefined => {
-  const url = webAppStreamUrl(serverUrl, answer)
+): void => {
+  info?.(
+    `Web app is available at ${streamedAppUrl(
+      serverUrl,
+      serverType,
+      appLoc,
+      streamServiceName
+    )}`
+  )
 
-  if (url) info?.(`Web app is available at ${url}`)
+  const published = webAppStreamUrl(serverUrl, { streamServiceName })
 
-  return url
+  if (published && serverType === ServerType.Sasjs)
+    // the version, not the pull request: this line exists so an operator can
+    // tell whether the server they are deploying to serves the entry page
+    info?.(
+      `App stream: ${published} (any server release; the entry page above needs sasjs/server v7.23.0 or later)`
+    )
 }

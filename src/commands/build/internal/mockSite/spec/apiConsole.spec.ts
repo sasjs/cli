@@ -16,9 +16,9 @@ export {}
  * asserts the request a form sends - including the bearer token, which is the
  * part that has to survive the reload `as()` performs.
  *
- * The service worker is deliberately absent: jsdom has none, and the page has to
- * render without it (a site whose `host/persist.js` cannot load must still show
- * the route list).
+ * The service worker is deliberately absent in the form tests: jsdom has none,
+ * and the page renders the route list when service workers are unavailable.
+ * Host-start tests stub the worker and persistence script separately.
  */
 
 const page = () =>
@@ -100,6 +100,10 @@ const withServiceWorker = (options: { registerFails?: boolean } = {}) => {
     }),
     addEventListener: (type: string, fn: () => void) => {
       if (type === 'controllerchange') listeners.push(fn)
+    },
+    removeEventListener: (type: string, fn: () => void) => {
+      const index = listeners.indexOf(fn)
+      if (type === 'controllerchange' && index >= 0) listeners.splice(index, 1)
     }
   }
   Object.defineProperty(navigator, 'serviceWorker', {
@@ -168,9 +172,15 @@ const loadConsole = async (
 
   require('../assets/api-console.js')
 
-  // the page loads its data in an effect; wait for the list rather than a sleep
+  // Stop at either a rendered list or an explicit startup failure.
   for (let i = 0; i < 200; i++) {
-    if (document.querySelectorAll('#routes .route').length) break
+    if (
+      document.querySelectorAll('#routes .route').length ||
+      document
+        .getElementById('routes')!
+        .textContent!.startsWith('The console could not start:')
+    )
+      break
     await new Promise((resolve) => setTimeout(resolve, 5))
   }
 
@@ -203,6 +213,7 @@ const sendAndWait = async (calls: { url: string; init: any }[], want = 1) => {
 describe('the API console', () => {
   afterEach(() => {
     delete (navigator as any).serviceWorker
+    delete (window as any).__sasjsMockPersistReady
     delete (window as any).__sasjsMockReady
   })
 
@@ -517,7 +528,9 @@ describe('the API console', () => {
     await loadConsole(() => {
       document.head.innerHTML =
         '<meta name="sasjs-mock-version" content="1.2.3" />'
-      ;(window as any).__sasjsMockReady = Promise.resolve({ booted: true })
+      ;(window as any).__sasjsMockPersistReady = Promise.resolve({
+        type: 'sasjs-seed-ack'
+      })
     })
 
     await settle(() => host.sw.register.mock.calls.length === 1)
@@ -532,6 +545,92 @@ describe('the API console', () => {
     host.takeControl()
     await settle(() => requested.some((url) => url.includes('host/persist.js')))
     expect(requested.some((url) => url.includes('host/persist.js'))).toBe(true)
+  })
+
+  it('requests persistence with the build stamp rather than the stale unversioned URL', async () => {
+    const { requested } = stubScripts()
+    const host = withServiceWorker()
+    host.takeControl()
+    await loadConsole(() => {
+      document.head.innerHTML =
+        '<meta name="sasjs-mock-version" content="build-123" />'
+      ;(window as any).__sasjsMockPersistReady = Promise.resolve({
+        type: 'sasjs-seed-ack'
+      })
+    })
+
+    expect(requested).toEqual([
+      new URL('/host/persist.js?v=build-123', location.origin).href
+    ])
+  })
+
+  it('rejects a legacy bridge with no persistence readiness promise', async () => {
+    stubScripts()
+    const host = withServiceWorker()
+    host.takeControl()
+    await loadConsole(() => {
+      ;(window as any).__sasjsMockReady = new Promise(() => {})
+    })
+
+    expect(document.getElementById('routes')!.textContent).toMatch(
+      /persist readiness promise is missing/i
+    )
+    expect((global as any).fetch).not.toHaveBeenCalled()
+    delete (window as any).__sasjsMockReady
+  })
+
+  it.each([undefined, null, {}, { type: 'other' }])(
+    'rejects persistence without a valid drive acknowledgement: %p',
+    async (answer) => {
+      stubScripts()
+      const host = withServiceWorker()
+      host.takeControl()
+      await loadConsole(() => {
+        ;(window as any).__sasjsMockPersistReady = Promise.resolve(answer)
+      })
+
+      expect(document.getElementById('routes')!.textContent).toMatch(
+        /invalid drive acknowledgement/i
+      )
+      expect((global as any).fetch).not.toHaveBeenCalled()
+    }
+  )
+
+  it('reports a script load failure rather than treating it as a handshake', async () => {
+    const realCreate = document.createElement.bind(document)
+    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
+      const node = realCreate(tag)
+      if (String(tag).toLowerCase() === 'script')
+        setTimeout(() => node.dispatchEvent(new Event('error')), 0)
+      return node
+    })
+    const host = withServiceWorker()
+    host.takeControl()
+    await loadConsole()
+
+    expect(document.getElementById('routes')!.textContent).toMatch(
+      /failed to load.*persist\.js/i
+    )
+    expect((global as any).fetch).not.toHaveBeenCalled()
+  })
+
+  it('waits for persistence before loading console data', async () => {
+    const { requested } = stubScripts()
+    const host = withServiceWorker()
+    host.takeControl()
+    let finish!: (value: any) => void
+    const pending = new Promise((resolve) => {
+      finish = resolve
+    })
+    const loading = loadConsole(() => {
+      ;(window as any).__sasjsMockPersistReady = pending
+    })
+    await settle(() => requested.length === 1)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect((global as any).fetch).not.toHaveBeenCalled()
+    finish({ type: 'sasjs-load-ack' })
+    await loading
+    expect(document.querySelectorAll('#routes .route')).toHaveLength(2)
   })
 
   it('registers the plain worker URL while the page carries the placeholder', async () => {
@@ -563,13 +662,36 @@ describe('the API console', () => {
     error.mockRestore()
   })
 
+  it('reports a drive refusal from the standalone persistence handshake', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    stubScripts()
+    const host = withServiceWorker()
+    await loadConsole(() => {
+      ;(window as any).__sasjsMockPersistReady = Promise.resolve({
+        error: 'seed unavailable'
+      })
+    })
+    host.takeControl()
+    await settle(() =>
+      error.mock.calls.some((call) =>
+        String(call[0]).includes('seed unavailable')
+      )
+    )
+    expect(
+      error.mock.calls.some((call) =>
+        String(call[0]).includes('seed unavailable')
+      )
+    ).toBe(true)
+    error.mockRestore()
+  })
+
   it('says so when the drive could not be handed over', async () => {
     const error = jest.spyOn(console, 'error').mockImplementation(() => {})
     const { requested } = stubScripts()
     const host = withServiceWorker()
 
     await loadConsole(() => {
-      ;(window as any).__sasjsMockReady = Promise.reject(
+      ;(window as any).__sasjsMockPersistReady = Promise.reject(
         new Error('no storage in this browser')
       )
     })
@@ -758,6 +880,36 @@ describe('the API console', () => {
     )
   })
 
+  it('uses the nested console folder when a root worker controls first navigation', async () => {
+    const host = withServiceWorker()
+    host.sw.controller = { scriptURL: location.origin + '/sw.js' }
+    const loading = loadConsole(() => {
+      history.replaceState({}, '', '/demo/api-console/')
+    })
+    await settle(() => host.sw.register.mock.calls.length > 0)
+    expect(host.sw.register.mock.calls[0][0]).toContain('/demo/sw.js')
+    host.sw.controller = { scriptURL: location.origin + '/demo/sw.js' }
+    host.takeControl()
+    await loading
+    history.replaceState({}, '', '/api-console/')
+  })
+  it('reset of a nested console leaves another site session and stamp alone', async () => {
+    const reset = jest.fn(async () => {})
+    localStorage.setItem('sasjs-mock-build', 'root-stamp')
+    sessionStorage.setItem('another-app', 'keep')
+    sessionStorage.setItem('mock-console-token:/demo/', 'test-token')
+    await loadConsole(() => {
+      history.replaceState({}, '', '/demo/api-console/?reset=1')
+      ;(window as any).SASjsMock = { reset }
+    })
+    await settle(() => reset.mock.calls.length > 0)
+    await settle(
+      () => sessionStorage.getItem('mock-console-token:/demo/') === null
+    )
+    expect(localStorage.getItem('sasjs-mock-build')).toBe('root-stamp')
+    expect(sessionStorage.getItem('another-app')).toBe('keep')
+    history.replaceState({}, '', '/api-console/')
+  })
   it('clears the drive and starts again when the URL asks it to', async () => {
     const reset = jest.fn(async () => {})
     sessionStorage.setItem('mock-console-token', 'stale')

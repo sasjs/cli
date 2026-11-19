@@ -3,8 +3,17 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { buildSync as esbuildSync } from 'esbuild'
+import { JSDOM } from 'jsdom'
 import { DEFAULT_IDENTITY, parseIdentity, ROUTES } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
+
+// The source offsets used from jsdom's nodeLocation result.
+type SourceRange = { startOffset: number; endOffset: number }
+type ElementLocation = SourceRange & {
+  attrs?: { [name: string]: SourceRange }
+  startTag?: SourceRange
+  endTag?: SourceRange
+}
 
 export interface MockSiteResult {
   outputFolder: string
@@ -75,6 +84,15 @@ const API_BROWSER_BUILD = path.join(
   'browser.js'
 )
 
+const LANGUAGE_ROOT = path.resolve(
+  path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+  '..',
+  '..'
+)
+const LANGUAGE_VERSION: string = JSON.parse(
+  fs.readFileSync(path.join(LANGUAGE_ROOT, '..', '..', 'package.json'), 'utf8')
+).version
+
 const toPosix = (value: string) => value.split(path.sep).join('/')
 
 /**
@@ -98,7 +116,8 @@ const LINT_BUNDLE_FILES: { [name: string]: string } = {
   'entry.js': [
     "import './process.js'",
     "import { createCodeService, LintConfig } from '@sasjs/api/code'",
-    'globalThis.SASjsCode = { createCodeService, LintConfig }'
+    "import { formatText } from '@sasjs/sas-language/format'",
+    `globalThis.SASjsCode = { createCodeService, LintConfig, formatText, dataPath: 'sas-language/${LANGUAGE_VERSION}/' }`
   ].join('\n'),
   'process.js': [
     '// the linter reads process.env for a default and process.cwd() for a root;',
@@ -183,21 +202,12 @@ module.exports = {
 }
 
 /**
- * The `node_modules` the CLI's own dependency lives in.
- *
- * esbuild resolves a bare import from the entry file upwards, which is wrong for
- * a scratch entry outside the install: the walk would miss the installed
- * packages entirely. `nodePaths` states where to look instead, and it is taken
- * from `require.resolve` so it is the tree the CLI actually loaded from - a
- * hoisted install, a nested one, and a pnpm store symlink all answer with their
- * own location.
+ * Resolve the scratch entry's direct imports from the CLI's own module search
+ * paths. An API dependency's real path may be in a separate pnpm store folder,
+ * whose node_modules does not contain the CLI's other direct dependencies.
+ * esbuild still resolves each package's transitive imports from that package.
  */
-const NODE_MODULES = (() => {
-  const resolved = require.resolve('@sasjs/api')
-  const marker = `${path.sep}node_modules${path.sep}`
-  const index = resolved.lastIndexOf(marker)
-  return index < 0 ? undefined : resolved.slice(0, index + marker.length - 1)
-})()
+const NODE_MODULES = module.paths
 
 /**
  * Builds `lint-browser.js` from the installed packages.
@@ -217,9 +227,10 @@ export const buildLintBundle = (destination: string) => {
       entryPoints: [path.join(work, 'entry.js')],
       bundle: true,
       platform: 'browser',
+      define: { global: 'globalThis' },
       format: 'iife',
       outfile: destination,
-      nodePaths: NODE_MODULES ? [NODE_MODULES] : [],
+      nodePaths: NODE_MODULES,
       alias: {
         fs: path.join(work, 'fs.js'),
         path: path.join(work, 'path.js'),
@@ -366,7 +377,6 @@ const readDriveFile = (absolute: string): DriveFile => {
 const seedFromBuild = (
   buildFolder: string,
   appLoc: string,
-  exclude: string[] = [],
   excludeFolders: string[] = []
 ) => {
   const files: { [path: string]: string } = {}
@@ -386,7 +396,6 @@ const seedFromBuild = (
     if (excludeFolders.includes(path.resolve(folder))) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
-      if (exclude.some((prefix) => key.startsWith(prefix))) continue
       candidates.push({ key, absolute: path.join(folder, relative) })
     }
   }
@@ -586,30 +595,6 @@ const shardSnapshot = (files: { [path: string]: string }) => {
   }
 }
 
-/** The script-tag attributes that change how an app's script runs. */
-const REPLAYED_ATTRIBUTES: { [attribute: string]: string } = {
-  type: 'type',
-  id: 'id',
-  crossorigin: 'crossOrigin',
-  integrity: 'integrity',
-  nomodule: 'noModule'
-}
-
-/**
- * Script types a preload may name.
- *
- * The loader only re-runs a tag once the worker controls the page, so without a
- * hint the app's bundle is not requested until the install has finished - the
- * largest asset on the site behind the largest prerequisite. A preload link
- * executes nothing, so the download can start while the worker is still
- * installing.
- *
- * `module` is excluded on purpose: a module is fetched with different
- * credentials semantics from a classic script, so `as="script"` does not match
- * the later tag and the file is fetched twice - slower than no hint at all.
- */
-const PRELOADABLE_TYPES = ['', 'text/javascript', 'application/javascript']
-
 const parseAttributes = (source: string) => {
   const attributes: { [name: string]: string } = {}
   const pattern =
@@ -622,85 +607,32 @@ const parseAttributes = (source: string) => {
   return attributes
 }
 
-const escapeAttribute = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/'/g, '&#39;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+/** The host runs as a parser-blocking external script, including under strict CSP. */
+const bootTag = (version: string, basePath = '') =>
+  `<script src="${basePath}/host/boot.js?v=${version}"></script>`
 
-/** Puts markup at the end of the head, or leaves the page alone when it has none. */
-const insertIntoHead = (html: string, markup: string) => {
-  const head = /<head(\s[^>]*)?>/i.exec(html)
-  if (!head) return html
-  const start = head.index + head[0].length
-  const close = html.toLowerCase().indexOf('</head>', start)
-  const at = close < 0 ? start : close
-  return html.slice(0, at) + markup + html.slice(at)
-}
-
-/**
- * Hints the app scripts the loader will replay, so their download starts while
- * the worker installs rather than after it.
- *
- * Only scripts this build owns are hinted - the file has to be in the output for
- * the version query to be meaningful - and only classic ones. A `type="module"`
- * tag is fetched with different credentials semantics, so an `as="script"`
- * preload does not match it; and a cross-origin src would need `crossorigin` on
- * the hint to match its tag. Either mismatch fetches the file twice, which is
- * worse than no hint.
- */
-const preloadHints = (
-  scripts: { [key: string]: string }[],
-  outputFolder: string
-) =>
-  scripts
-    .filter((script) => {
-      if (!script.src) return false
-      if (!PRELOADABLE_TYPES.includes((script.type || '').trim().toLowerCase()))
-        return false
-      if (script.crossOrigin) return false
-      if (/^([a-z]+:)?\/\//i.test(script.src)) return false
-      if (!outputFolder) return true
-      const pathname = script.src.split('?')[0]
-      return fs.existsSync(
-        path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
-      )
+// Install before app scripts. The observer stamps the config at a microtask
+// checkpoint before async app tasks and subsequent parser-executed scripts.
+const MOUNT_CONFIG_SCRIPT = `(function () {
+  var base = new URL('../', document.currentScript.src)
+  function stamp() {
+    var config = document.querySelector('sasjs')
+    if (!config || !config.hasAttribute('serverurl')) return false
+    config.setAttribute('serverurl', base.origin + base.pathname.slice(0, -1))
+    return true
+  }
+  if (!stamp() && !window.__sasjsMountObserver) {
+    var observer = new MutationObserver(function () {
+      if (stamp()) observer.disconnect()
     })
-    .map((script) => `<link rel="preload" as="script" href="${script.src}" />`)
-
-/**
- * The boot loader is a FILE rather than an inline script: an app with a strict
- * Content-Security-Policy (`default-src 'self'`, no `unsafe-inline`) refuses an
- * inline one, and the builder cannot add a hash or nonce to a policy it does
- * not own.
- *
- * The app's script tags travel to it in `data-scripts`, in document order. Any
- * number of tags works - one bundle, or several plain scripts a page loads in
- * order, plus the inline snippets some pages use to set up a global before the
- * bundle runs - so the host does not dictate how the app is built.
- */
-const bootTag = (
-  scripts: { [key: string]: string }[],
-  version: string,
-  basePath = ''
-) =>
-  `<script src="${
-    basePath ? `${basePath}/host/boot.js` : 'host/boot.js'
-  }?v=${version}" data-scripts='${escapeAttribute(
-    JSON.stringify(scripts)
-  )}'></script>`
-
-/**
- * Script types the browser executes. Anything else (`application/ld+json`, a
- * template) is data the page keeps for later, so it stays where it is.
- */
-const EXECUTABLE_TYPES = [
-  '',
-  'module',
-  'text/javascript',
-  'application/javascript'
-]
+    window.__sasjsMountObserver = observer
+    observer.observe(document, { childList: true, subtree: true })
+  }
+})()\n`
+const MOUNT_CONFIG_VERSION = createHash('md5')
+  .update(MOUNT_CONFIG_SCRIPT)
+  .digest('hex')
+  .slice(0, 10)
 
 /**
  * The folder the site is published under, with a leading slash and no trailing
@@ -815,10 +747,25 @@ const versionScripts = (
     // The version is what stops a stale copy being served at all - a changed file
     // gets a new URL, and an unchanged one is byte-identical to what the hash was
     // computed from.
-    const [pathname, query] = src.split('?')
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src)) return script
+    const hashAt = src.indexOf('#')
+    const fragment = hashAt < 0 ? '' : src.slice(hashAt)
+    const beforeFragment = hashAt < 0 ? src : src.slice(0, hashAt)
+    const queryAt = beforeFragment.indexOf('?')
+    const pathname =
+      queryAt < 0 ? beforeFragment : beforeFragment.slice(0, queryAt)
+    const query = queryAt < 0 ? '' : beforeFragment.slice(queryAt + 1)
     const file = path.join(outputFolder, pathname.replace(/^(\.\/|\/)/, ''))
+    const relative = path.relative(outputFolder, file)
+    if (
+      !relative ||
+      relative === '..' ||
+      relative.startsWith('..' + path.sep) ||
+      path.isAbsolute(relative)
+    )
+      return script
 
-    if (!fs.existsSync(file)) return script
+    if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return script
 
     const hash = createHash('md5')
       .update(fs.readFileSync(file))
@@ -826,149 +773,228 @@ const versionScripts = (
       .slice(0, 10)
 
     return Object.assign({}, script, {
-      src: `${pathname}?v=${hash}${query ? `&${query}` : ''}`
+      src: `${pathname}?v=${hash}${query ? `&${query}` : ''}${fragment}`
     })
   })
 
 /**
- * Points the app at its own origin and replaces its script tags with the boot
- * loader. Both changes are reported when the expected markup is absent, rather
- * than producing a site that silently talks to a real server.
+ * Points the app at its own origin and inserts the host before app scripts.
+ * Missing configuration or head markup is reported to the caller.
  */
 const patchIndexHtml = (
   html: string,
   version: string,
   basePath = '',
-  outputFolder = ''
+  outputFolder = '',
+  serverType?: string,
+  appLoc?: string
 ) => {
   const warnings: string[] = []
   let patched = html
 
   patched = markBrowserHost(patched, warnings)
 
-  if (/<sasjs[^>]*>/i.test(patched)) {
-    // the app talks to the origin root by default; on a site published under a
-    // folder it has to name that folder, or its API calls leave the worker's
-    // scope and meet the static host
-    patched = patched.replace(
-      /(<sasjs[^>]*?)\sserverurl="[^"]*"/i,
-      `$1 serverurl="${basePath}"`
-    )
-    patched = patched.replace(
-      /(<sasjs[^>]*?)\sloginmechanism="[^"]*"/i,
-      '$1 loginmechanism="Default"'
-    )
+  // Parse for locations but edit the original markup: serialising a DOM changes
+  // attributes and inline text. The original tags remain parser-inserted.
+  const dom = new JSDOM(patched, { includeNodeLocations: true })
+  const document = dom.window.document
+  const edits: { start: number; end: number; text: string }[] = []
+  const config = document.querySelector('sasjs')
+  if (config) {
+    const location = dom.nodeLocation(config) as ElementLocation | null
+
+    const values: { [name: string]: string | undefined } = {
+      serverurl: basePath,
+      loginmechanism: 'Default',
+      servertype: serverType,
+      apploc: appLoc
+    }
+    const missing: string[] = []
+    for (const [name, value] of Object.entries(values)) {
+      const attr = location?.attrs?.[name]
+      if (value === undefined) continue
+      const escaped = value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      if (!attr) {
+        missing.push(name)
+        continue
+      }
+      edits.push({
+        start: attr.startOffset,
+        end: attr.endOffset,
+        text: `${name}="${escaped}"`
+      })
+    }
+    if (missing.length && location?.startTag) {
+      const start = location.startTag.startOffset
+      const tagName = /^<[^\s/>]+/.exec(patched.slice(start))
+      if (tagName) {
+        const at = start + tagName[0].length
+        const attrs = missing
+          .map((name) => {
+            const value = values[name]!.replace(/&/g, '&amp;').replace(
+              /"/g,
+              '&quot;'
+            )
+            return ` ${name}="${value}"`
+          })
+          .join('')
+        edits.push({ start: at, end: at, text: attrs })
+      }
+      warnings.push(
+        `<sasjs> was missing ${missing.join(', ')}; mock attributes were added, but an app that ignores them may use incompatible adapter defaults - check its configuration manually`
+      )
+    }
   } else {
     warnings.push(
       'no <sasjs> element found - check the adapter configuration manually'
     )
   }
-
-  const scripts: { [key: string]: string }[] = []
-  /**
-   * Scripts the page marks `data-early`, which stay in the page and run in the
-   * parser instead of through the loader.
-   *
-   * The loader defers every script so the worker is ready before the app asks it
-   * for anything, which is right for the app and wrong for a script that paints:
-   * on the demonstration site the canvas stays unpainted (white) for the seconds
-   * the worker takes to claim the page, so a dark interface announces itself with
-   * a full-screen white flash. A page that marks a script `data-early` is saying
-   * it runs nothing that needs the worker - the theme script reads localStorage
-   * and sets a background - so the parser keeps it where the page put it.
-   *
-   * Only a classic script can be kept: a module is deferred by specification
-   * however it is placed, and an inline one is refused by the page's own policy.
-   * Both are reported and replayed like any other script rather than being
-   * promised something the browser will not do.
-   */
-  const early: { src?: string; tag: string }[] = []
-  const tagPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>[ \t]*\r?\n?/gi
-
-  patched = patched.replace(
-    tagPattern,
-    (tag: string, source: string, body: string) => {
-      const attributes = parseAttributes(source)
-      const type = (attributes.type || '').trim().toLowerCase()
-      const inlined = !attributes.src
-
-      // data blocks stay in the page; they are not scripts to replay
-      if (!EXECUTABLE_TYPES.includes(type)) return tag
-
-      if (attributes['data-early'] !== undefined) {
-        if (inlined)
-          warnings.push(
-            'a data-early script carries its code inline - only a file can stay in the page, because the page is served under a policy that refuses inline script'
-          )
-        else if (type === 'module')
-          warnings.push(
-            'a data-early script is a module - a module is deferred by specification, so it cannot run before the loader; it is replayed like any other script'
-          )
-        else {
-          early.push({ src: attributes.src, tag })
-          return tag
+  const scripts = Array.from(document.querySelectorAll('script'))
+  if (outputFolder) {
+    for (const script of scripts) {
+      const src = script.getAttribute('src')
+      const location = dom.nodeLocation(script) as
+        ElementLocation | null | undefined
+      const attr = location?.attrs?.src
+      if (!src || !attr) continue
+      const [versioned] = versionScripts([{ src }], outputFolder)
+      if (versioned.src === src) continue
+      const hash = /[?]v=([0-9a-f]{10})/.exec(versioned.src)?.[1]
+      if (!hash) continue
+      const original = patched.slice(attr.startOffset, attr.endOffset)
+      // Only the src value is edited, even if another attribute contains it.
+      const updated = original.replace(
+        /^(\s*src\s*=\s*)("[^"]*"|'[^']*'|[^\s>]+)/i,
+        (_match, prefix: string, value: string) => {
+          const quote = value[0] === '"' || value[0] === "'" ? value[0] : ''
+          const raw = quote ? value.slice(1, -1) : value
+          // Delimiters may themselves be character references. Scan whole
+          // references so their '#' is not mistaken for a URL fragment, and
+          // let the HTML parser decode them in attribute context.
+          const decoder = document.createElement('div')
+          const delimiters =
+            /&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+);?|[a-zA-Z][a-zA-Z0-9]*;?)|[?#]/g
+          let query: RegExpExecArray | null = null
+          let fragment: RegExpExecArray | null = null
+          let token: RegExpExecArray | null
+          while ((token = delimiters.exec(raw))) {
+            let delimiter = token[0]
+            if (delimiter[0] === '&') {
+              decoder.innerHTML = `<i a="${delimiter}"></i>`
+              delimiter = decoder.firstElementChild!.getAttribute('a') || ''
+            }
+            if (delimiter === '#') {
+              fragment = token
+              break
+            }
+            if (delimiter === '?' && !query) query = token
+          }
+          if (!query) {
+            const at = fragment?.index ?? raw.length
+            return `${prefix}${quote}${raw.slice(0, at)}?v=${hash}${raw.slice(at)}${quote}`
+          }
+          const at = query.index + query[0].length
+          const hasQuery = at < (fragment?.index ?? raw.length)
+          return `${prefix}${quote}${raw.slice(0, at)}v=${hash}${hasQuery ? '&amp;' : ''}${raw.slice(at)}${quote}`
         }
-      }
-
-      const spec: { [key: string]: string } = inlined
-        ? {}
-        : { src: attributes.src }
-      if (inlined) {
-        const code = body.trim()
-        // an empty inline tag (a placeholder, or a commented-out block) is not
-        // worth a round trip
-        if (!code) return ''
-        spec.code = code
-      }
-      for (const attribute of Object.keys(REPLAYED_ATTRIBUTES)) {
-        if (attributes[attribute] === undefined) continue
-        if (attribute === 'type' && !attributes.type) continue
-        const name = REPLAYED_ATTRIBUTES[attribute]
-        spec[name] = attribute === 'nomodule' ? 'true' : attributes[attribute]
-      }
-      scripts.push(spec)
-      return ''
-    }
-  )
-
-  if (scripts.length || early.length) {
-    const versioned = outputFolder
-      ? versionScripts(scripts, outputFolder)
-      : scripts
-    const hints = preloadHints(versioned, outputFolder)
-    if (hints.length) patched = insertIntoHead(patched, hints.join(''))
-    const tag = bootTag(versioned, version, basePath)
-    // a function, not a replacement string: the tag carries the page's own srcs
-    // in `data-scripts`, and a `$&` in one would expand to the matched markup
-    patched = /<\/body>/i.test(patched)
-      ? patched.replace(/<\/body>/i, () => `${tag}\n</body>`)
-      : patched + tag
-  } else {
-    warnings.push('no script tags found - the mock loader was not installed')
-  }
-
-  // The early scripts keep their place in the page, and their URL follows the
-  // file's contents for the same reason the replayed ones do: the host caches an
-  // asset for two hours and a theme script that never changes its URL is a theme
-  // script a returning reader keeps from the previous build.
-  if (early.length && outputFolder) {
-    const versioned = versionScripts(
-      early.map((entry) => ({ src: entry.src as string })),
-      outputFolder
-    )
-
-    early.forEach((entry, index) => {
-      // Function replacements throughout: a replacement STRING interprets `$&`,
-      // `$1` and the rest of the replacement patterns, and both the tag and the
-      // src are the page's own text - a `$&` in a file name would splice the
-      // surrounding markup into the src.
-      const withVersion = entry.tag.replace(
-        entry.src as string,
-        () => versioned[index].src as string
       )
-      patched = patched.replace(entry.tag, () => withVersion)
-    })
+      edits.push({
+        start: attr.startOffset,
+        end: attr.endOffset,
+        text: updated
+      })
+    }
   }
+
+  const head = dom.nodeLocation(document.head) as
+    ElementLocation | null | undefined
+  const firstHeadScript = scripts.find((script) =>
+    document.head.contains(script)
+  )
+  const scriptLocation = firstHeadScript
+    ? dom.nodeLocation(firstHeadScript)
+    : undefined
+  // A policy after an app script cannot govern the new boot without moving it
+  // ahead of that script. Refuse rather than silently execute boot outside it.
+  const policies = Array.from(document.head.querySelectorAll('meta')).filter(
+    (meta) =>
+      (meta.getAttribute('http-equiv') || '').trim().toLowerCase() ===
+      'content-security-policy'
+  )
+  if (
+    scriptLocation &&
+    policies.some(
+      (meta) =>
+        (dom.nodeLocation(meta)?.startOffset ?? 0) > scriptLocation.startOffset
+    )
+  ) {
+    dom.window.close()
+    throw new Error(
+      'Cannot insert mock boot before an app script and after its head CSP meta tag'
+    )
+  }
+
+  // The end location of an implicitly closed head can point at its start tag,
+  // not the end of its children. Use source locations of the actual head nodes
+  // instead, keeping all existing metadata in front of boot.
+  const lastHeadNode = Array.from(document.head.childNodes)
+    .map((node) => dom.nodeLocation(node))
+    .filter((location) => location != null)
+    .pop()
+  const body = dom.nodeLocation(document.body) as
+    ElementLocation | null | undefined
+  const htmlLocation = dom.nodeLocation(document.documentElement) as
+    ElementLocation | null | undefined
+  const firstBodyNode = Array.from(document.body.childNodes)
+    .map((node) => dom.nodeLocation(node))
+    .find((location) => location != null)
+  const at =
+    scriptLocation?.startOffset ??
+    head?.endTag?.startOffset ??
+    lastHeadNode?.endOffset ??
+    head?.startTag?.endOffset ??
+    body?.startTag?.startOffset ??
+    firstBodyNode?.startOffset ??
+    htmlLocation?.endTag?.startOffset ??
+    htmlLocation?.startTag?.endOffset ??
+    patched.length
+  const boot =
+    bootTag(version, basePath) +
+    (basePath && config
+      ? `<script src="${basePath}/host/mount-config.js?v=${MOUNT_CONFIG_VERSION}"></script>`
+      : '')
+  const explicitHead = !head?.startTag && !lastHeadNode && !scriptLocation
+  edits.push({
+    start: at,
+    end: at,
+    text: explicitHead ? `<head>${boot}</head>` : boot
+  })
+  if (!scripts.length) warnings.push('no script tags found')
+  // Locate the inserted tag after edits to earlier source attributes shift it.
+  const bootOffset =
+    at +
+    edits.reduce(
+      (shift, edit) =>
+        edit.start !== at && edit.end <= at
+          ? shift + edit.text.length - (edit.end - edit.start)
+          : shift,
+      0
+    ) +
+    (explicitHead ? '<head>'.length : 0)
+  edits.sort((a, b) => b.start - a.start)
+  for (const edit of edits)
+    patched = patched.slice(0, edit.start) + edit.text + patched.slice(edit.end)
+  dom.window.close()
+
+  // An unterminated title, comment, or tag can consume inserted markup as text.
+  // Reparse the actual output and reject it rather than shipping a missing boot.
+  const checked = new JSDOM(patched, { includeNodeLocations: true })
+  const inserted = Array.from(
+    checked.window.document.head.querySelectorAll('script')
+  ).find((script) => checked.nodeLocation(script)?.startOffset === bootOffset)
+  checked.window.close()
+  if (!inserted)
+    throw new Error('Cannot safely insert mock boot into the HTML head')
 
   // A stylesheet the page links is a page asset like a script, and the one that
   // paints the canvas is the reason this matters: a palette change behind an
@@ -1035,7 +1061,11 @@ const API_CONSOLE_FILES = [
  * screen of the app, so nothing in the page links to it and nothing preloads it -
  * a visit costs the demo nothing until someone types the URL.
  */
-const writeApiConsole = (outputFolder: string, version: string) => {
+const writeApiConsole = (
+  outputFolder: string,
+  version: string,
+  basePath: string
+) => {
   const folder = path.join(outputFolder, API_CONSOLE_DIR)
   // `<base>/api-console/` is this build's, not the project's: a site that ships its own
   // files there would have them replaced without a word, so it keeps them and
@@ -1060,11 +1090,20 @@ const writeApiConsole = (outputFolder: string, version: string) => {
   // app's loader asks for: a registration is identified by its script URL, and a
   // bare `sw.js` here would replace the versioned one on every visit to either
   // page - an install nobody asked for, which is what the version exists to avoid.
+  const consoleScript = fs.readFileSync(
+    path.join(ASSETS_FOLDER, 'api-console.js')
+  )
+  const consoleVersion = createHash('md5')
+    .update(consoleScript)
+    .digest('hex')
+    .slice(0, 10)
   fs.writeFileSync(
     path.join(folder, 'index.html'),
     fs
       .readFileSync(path.join(ASSETS_FOLDER, 'api-index.html'), 'utf8')
       .replace('__MOCK_VERSION__', version)
+      .replace('__MOCK_BASE__', basePath + '/')
+      .replace('src="console.js"', `src="console.js?v=${consoleVersion}"`)
   )
   fs.copyFileSync(
     path.join(ASSETS_FOLDER, 'api-console.js'),
@@ -1158,26 +1197,17 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // Read the drive before anything is written or removed: an unusable target
   // (SAS services, unreadable build folder) then leaves the previous site in
   // place instead of destroying it and failing.
-  // A streamed app is copied into the build as services/<streamWebFolder>. It
-  // is already served as the site itself, so it does not belong on the drive.
-  const streamConfig = target.streamConfig
-  const excluded: string[] = []
-  // streamWebFolder is defaulted by the config validator, so a streamed app
-  // always names its folder.
-  if (streamConfig?.streamWeb && streamConfig.streamWebFolder) {
-    excluded.push(
-      `/sasjs/drive/files${appLoc}/services/${streamConfig.streamWebFolder}/`
-    )
-  }
+  // A streamed build is copied into the build as services/<streamWebFolder>,
+  // and it belongs on the drive: that is the copy a page reads its assets from
+  // through the `_FILE=` read, so the artefact a server would serve is the one
+  // this site serves. The unmodified frontend is still what the site itself is,
+  // so a project has both the app at the root and the deployment on the drive.
 
   // A previous site may sit inside the build folder; leaving it out of the seed
   // keeps the old site out of the new drive.
-  const { files: seed, skipped } = seedFromBuild(
-    buildFolder,
-    appLoc,
-    excluded,
-    [outputFolder]
-  )
+  const { files: seed, skipped } = seedFromBuild(buildFolder, appLoc, [
+    outputFolder
+  ])
   const jsPrograms = countPrograms(seed, '.js')
   const sasPrograms = countPrograms(seed, '.sas')
   const driveEntries = Object.keys(seed).length
@@ -1269,6 +1299,15 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // 2. the linter, bundled from the installed packages so the code routes answer
   // with the rules this CLI resolved rather than a second implementation
   await buildLintBundle(path.join(hostFolder, 'lint-browser.js'))
+  // The browser formatter fetches its lexer vocabulary lazily. Version the
+  // directory to avoid a static host serving a previous release's cached data.
+  for (const folder of ['data', 'pubsdata']) {
+    fs.cpSync(
+      path.join(LANGUAGE_ROOT, folder),
+      path.join(hostFolder, 'sas-language', LANGUAGE_VERSION, folder),
+      { recursive: true }
+    )
+  }
   // sw.js sits at the site root: a worker can only control the folder it is
   // served from, and the app has to be controlled from /
   fs.copyFileSync(
@@ -1455,18 +1494,28 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // demo nothing.
   let apiConsole = false
   if (target.streamConfig?.mockApi !== false) {
-    const written = writeApiConsole(outputFolder, hostVersion)
+    const written = writeApiConsole(outputFolder, hostVersion, basePath)
     apiConsole = written.written
     if (written.warning) process.logger?.warn(written.warning)
   }
 
   // 4. point the app at itself
+  if (basePath)
+    fs.writeFileSync(
+      path.join(hostFolder, 'mount-config.js'),
+      MOUNT_CONFIG_SCRIPT
+    )
   const indexPath = path.join(outputFolder, 'index.html')
   const { patched, warnings } = patchIndexHtml(
     fs.readFileSync(indexPath, 'utf8'),
     hostVersion,
     basePath,
-    outputFolder
+    outputFolder,
+    // Only SAS9 needs the backend target stamped into the copied frontend.
+    // Other targets historically kept the frontend's adapter configuration;
+    // in particular a Viya deployment target often serves a SASJS mock app.
+    target.serverType === 'SAS9' ? target.serverType : undefined,
+    target.serverType === 'SAS9' ? appLoc : undefined
   )
   fs.writeFileSync(indexPath, patched)
   warnings.forEach((warning) => process.logger?.warn(warning))

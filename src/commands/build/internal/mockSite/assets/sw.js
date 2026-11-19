@@ -214,11 +214,37 @@ const bootIdentity = async (data) => {
 }
 
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
+const SAS9_FRAME = Symbol('sas9-frame')
+const TIER_FRAME = Symbol('tier-frame')
+
+// The server frames a tier run only when its normalized debug level is >= 131.
+// Its parseDebugValue maps every nonempty, non-integer string (including 1e3
+// and 0x10) to 131, so these values enable framing rather than being parsed as
+// numbers. Whitespace-only values remain absent.
+const tierDebugOn = (value) => {
+  if (value === undefined || value === null || value === '') return false
+  if (typeof value === 'number') return Number.isFinite(value) && value >= 131
+  const text = String(value).trim()
+  if (!text) return false
+  return /^[+-]?\d+$/.test(text) ? Number(text) >= 131 : true
+}
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) =>
   event.waitUntil(self.clients.claim())
 )
+
+/**
+ * The host's refusal when a request names both tier parameters.
+ *
+ * The one other copy is the sentence sasjs/server mints on the same two
+ * parameters (`api/src/routes/setupRoutes.ts`, `TIER_NEEDS_ONE_PARAMETER`).
+ * The mock answers as the host answers, so the wording has to match: a spec on
+ * each side asserts the sentence itself rather than the constant, so a change
+ * to either copy fails there instead of drifting quietly.
+ */
+const TIER_NEEDS_ONE_PARAMETER =
+  'Exactly one of "_program" and "_FILE" may be given.'
 
 const json = (obj, status) =>
   new Response(JSON.stringify(obj, null, 2), {
@@ -323,8 +349,15 @@ const SEEDED_HEADER_LINE = String(R.HEADERS_SEED)
  * artefact: one place decides what a service declared, and the transport reads
  * it.
  */
-const artifactOf = (result, debug) => {
+const artifactOf = (result, debug, sas9 = false) => {
   if (debug) {
+    // SAS9 adapters extract JSON from these markers, unlike SASjs/Studio frames.
+    if (sas9)
+      return {
+        contents: `${result.log || ''}\n>>weboutBEGIN<<${result.webout || ''}>>weboutEND<<\n${result.print || ''}`,
+        headers: { 'content-type': 'text/plain' },
+        log: result.log
+      }
     // webout SEP log SEP [listing] - the framing @sasjs/adapter and the Studio's
     // parser both split on, so a recorded session reads the same as a real one.
     const framed = [result.webout, LOGS_SEPARATOR, result.log, LOGS_SEPARATOR]
@@ -365,9 +398,142 @@ const artifactResponse = (artifact) =>
     { status: 200, headers: artifact.headers || {} }
   )
 
+const inWorkerScope = (client) => {
+  if (!client.url) return false
+  try {
+    const url = new URL(client.url)
+    const scope = new URL(self.registration.scope)
+    return (
+      url.origin === scope.origin && url.pathname.startsWith(scope.pathname)
+    )
+  } catch (e) {
+    return false
+  }
+}
+
 const broadcast = async (message) => {
-  const clients = await self.clients.matchAll({ includeUncontrolled: true })
-  clients.forEach((client) => client.postMessage(message))
+  const clients = await self.clients.matchAll({ type: 'window' })
+  clients.filter(inWorkerScope).forEach((client) => {
+    // a tab that closed between matchAll() and the send raises
+    // InvalidStateError, and one closed tab must not fail the broadcast the
+    // others just received - nor the load that is waiting on this call
+    try {
+      client.postMessage(message)
+    } catch (e) {
+      /* that client is gone: the rest still get it */
+    }
+  })
+}
+
+/**
+ * Resolvers waiting on the page's answer to a drive request, and that answer
+ * once it lands.
+ *
+ * The page owns the drive (`persist.js`): IndexedDB is durable, this worker is
+ * not - the browser terminates it between requests and starts a new one on the
+ * next. That new worker has no drive, and `ensureReady` would seed over the
+ * visitor's: every file they made reads `File doesn't exist.`, and creating one
+ * the seed ships reads `File already exists.` So the worker asks a live page for
+ * what it stored before it considers seeding.
+ */
+let driveWaiters = []
+
+/** The page has answered, whatever it said; stop waiting. */
+const driveArrived = (verdict) => {
+  const waiting = driveWaiters
+  driveWaiters = []
+  waiting.forEach((resolve) => resolve(verdict))
+}
+
+/** How long one page gets to answer, and how long the whole ask may take. */
+const ASK_TIMEOUT = 2000
+const ASK_BUDGET = 5000
+
+/**
+ * A client's stable handle.
+ *
+ * `clients.matchAll()` builds fresh `Client` objects on every call, so the
+ * object is not an identity and a set keyed on it would hand back the first tab
+ * on every round - the second tab never asked, the budget spent, and the seed
+ * this handshake exists to avoid. `client.id` is the one field that survives the
+ * call; the object itself is a fallback for a host that reports none.
+ */
+const askedId = (client) => client.id || client
+
+/**
+ * Asks the page for its drive, and answers what came back.
+ *
+ * Concurrent requests share the one promise: a second ask would be a second
+ * load of a drive the first is already installing.
+ *
+ * ONE CLIENT AT A TIME. A page answers by loading the drive into this worker,
+ * so two tabs both answering is two installs and the last one wins; the second
+ * tab is the fallback for the first not answering, not a second asker.
+ *
+ * A page that has not answered yet is not a reason to seed - a large drive, or
+ * a busy tab, takes longer than one ask allows - so the ask is retried while
+ * the budget lasts. Only when every page has had its turn does the seed path
+ * take over, which is where this worker started; the stored drive is still in
+ * IndexedDB and comes back on the next page load.
+ *
+ * 'unavailable' is the page saying it holds a drive it cannot read: the caller
+ * must NOT seed over it, so the verdict travels back to `ensureReady`.
+ */
+let driveAsked = null
+const askHostForDrive = () => {
+  if (driveAsked) return driveAsked
+
+  const asked = new Set()
+
+  driveAsked = (async () => {
+    const deadline = Date.now() + ASK_BUDGET
+
+    while (Date.now() < deadline) {
+      const clients = (
+        await self.clients.matchAll({
+          type: 'window'
+        })
+      ).filter(inWorkerScope)
+      // no page to ask: nothing can have the drive
+      if (!clients.length) return 'none'
+
+      const client = clients.find((c) => !asked.has(askedId(c))) || clients[0]
+      asked.add(askedId(client))
+
+      // A tab that closed between `matchAll()` and this send raises
+      // InvalidStateError. That is this client not answering, not a verdict: the
+      // next one is tried and the budget still bounds the wait. Letting it throw
+      // would reject the promise `driveAsked` holds, and every later ask would
+      // return that rejection - so `ensureReady` would fall through to the seed
+      // for the rest of this worker's life, which is the loss the ask exists to
+      // prevent.
+      try {
+        client.postMessage({ type: 'sasjs-need-drive' })
+      } catch (e) {
+        continue
+      }
+
+      // Registered after a send that worked: a failed send leaves no waiter
+      // behind for an answer that cannot come.
+      const arrived = new Promise((resolve) => driveWaiters.push(resolve))
+
+      const verdict = await Promise.race([
+        arrived,
+        new Promise((resolve) => setTimeout(() => resolve(null), ASK_TIMEOUT))
+      ])
+
+      if (verdict) return verdict
+    }
+
+    return 'none'
+  })().then((verdict) => {
+    // an unreadable drive is not a final answer: ask again on the next request
+    // rather than failing every one for the life of this worker
+    if (verdict === 'unavailable') driveAsked = null
+    return verdict
+  })
+
+  return driveAsked
 }
 
 /**
@@ -379,18 +545,41 @@ const broadcast = async (message) => {
  * stores and the store it seeds. It is sent only when it differs from the last
  * report, so a drive-only request carries no fixture and an identity-only change
  * still reaches storage.
+ *
+ * A report the page never received is not a report: the batch is kept and sent
+ * with the next one, and the fixture is reported again the next time.
  */
+/** Files taken from the runtime whose report to the page failed. */
+let unsentFiles = null
+
 const persistChanges = async () => {
-  const files = R.takeDirty()
+  // `takeDirty()` empties the runtime's map, and only the page writes the drive
+  // on: a batch that never reached it is gone from the drive the next worker
+  // instance loads, while this one has nothing left to hand over. So a failed
+  // report is kept and goes out with the next one.
+  const files = { ...(unsentFiles || {}), ...R.takeDirty() }
   const fixture = IDENTITY_STATE.store.snapshot()
   const asJson = IDENTITY_STATE.seeded ? JSON.stringify(fixture) : ''
-  const identity =
-    asJson && asJson !== IDENTITY_STATE.persisted ? fixture : null
+  const previous = IDENTITY_STATE.persisted
+  const identity = asJson && asJson !== previous ? fixture : null
+
+  if (!Object.keys(files).length && !identity) {
+    unsentFiles = null
+    return
+  }
 
   if (identity) IDENTITY_STATE.persisted = asJson
 
-  if (Object.keys(files).length || identity)
+  try {
     await broadcast({ type: 'sasjs-persist', files, identity })
+  } catch (e) {
+    unsentFiles = files
+    // the fixture is reported when it differs from the last one that ARRIVED
+    if (identity) IDENTITY_STATE.persisted = previous
+    throw e
+  }
+
+  unsentFiles = null
 }
 
 // ----------------------------------------------------------- the SAS transcript
@@ -608,7 +797,24 @@ class BrowserRuntime extends API.MemorySessionHost {
 
   async run(request) {
     const program = request.program || {}
-    const params = Object.assign({}, request.vars || {})
+    const params = Object.assign(Object.create(null), request.vars || {})
+    const sas9 = params[SAS9_FRAME]
+    const tier = Boolean(params[TIER_FRAME])
+    delete params[SAS9_FRAME]
+    delete params[TIER_FRAME]
+    // The package normalizes named debug values for the API, but the SAS9
+    // controller passes its original variable directly to the execution host.
+    // Its isDebugOn uses Number coercion instead of tier parseDebugValue; only
+    // the output markers differ here so SAS9 adapters can extract the webout.
+    if (sas9) {
+      if (sas9.present) params._debug = sas9.value
+      else delete params._debug
+    }
+    const debug = sas9
+      ? Number.isFinite(Number(params._debug)) && Number(params._debug) >= 131
+      : tier
+        ? tierDebugOn(params._debug)
+        : params._debug !== undefined
 
     const resolved =
       program.code === undefined ? R.resolveProgram(program.path) : undefined
@@ -635,7 +841,8 @@ class BrowserRuntime extends API.MemorySessionHost {
           print: recording.print || '',
           headers: SEEDED_HEADER_LINE
         },
-        params._debug !== undefined
+        debug,
+        Boolean(sas9)
       )
     } else {
       const payload = { params, tables: tablesOf(request.files) }
@@ -645,7 +852,7 @@ class BrowserRuntime extends API.MemorySessionHost {
       const result = R.run(payload)
       if (result.error) throw runFailure(result.error)
 
-      artifact = artifactOf(result, params._debug !== undefined)
+      artifact = artifactOf(result, debug, Boolean(sas9))
     }
     const session = request.session
     if (session) {
@@ -700,7 +907,11 @@ const tablesOf = (files) => {
   return list.map((file, index) => ({
     name: file.name || `file${index + 1}`,
     filename: file.filename || file.name || `file${index + 1}`,
-    csv: toText(file.csv !== undefined ? file.csv : file.contents)
+    get csv() {
+      const csv = file.csv
+      return csv !== undefined ? csv : toText(file.contents)
+    },
+    bytes: file.bytes !== undefined ? file.bytes : file.contents
   }))
 }
 
@@ -903,6 +1114,79 @@ const APP_STREAM = API.createAppStreamService(
  * the site root. Both sides take the same base and the answers land inside the
  * folder.
  */
+/**
+ * The app stream's prefix: what a rule names to cover every app at once.
+ */
+const APP_STREAM_PREFIX = '/AppStream'
+
+/** One caller's rules, in the shape the route decision takes them. */
+const routeRulesOf = (permissions) => ({
+  user: (permissions || [])
+    .filter((rule) => rule.user !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting })),
+  group: (permissions || [])
+    .filter((rule) => rule.group !== undefined)
+    .map((rule) => ({ path: rule.path, setting: rule.setting }))
+})
+
+/**
+ * The caller's own rule about which apps it may see.
+ *
+ * The surface takes this from the host, because only the host knows the rules a
+ * caller holds. sasjs/server answers it with `appIsGranted`: the path a rule
+ * names decides - the app's id, or the label an older rule uses - and the stream
+ * prefix decides when no rule names either. A browser host reads the same rules
+ * from the fixture, so a `Deny` on `/AppStream/orders` hides that app here as it
+ * does on a server, and a fixture with no app rules shows every published app.
+ */
+const appFilterFor = async (subject) => {
+  const rules = routeRulesOf(await RECORDS.listPermissions(subject))
+
+  return (entry) =>
+    API.isRouteGranted(
+      rules,
+      [
+        `${APP_STREAM_PREFIX}/${entry.id}`,
+        entry.name ? `${APP_STREAM_PREFIX}/${entry.name}` : ''
+      ].find((path) =>
+        [...rules.user, ...rules.group].some((rule) => rule.path === path)
+      ) || APP_STREAM_PREFIX,
+      APP_STREAM_PREFIX
+    )
+}
+
+/**
+ * The filter to hand the surface, cached per caller.
+ *
+ * The surface asks it for every request under `/app`, an app's own assets
+ * included, and each answer would otherwise read the permission records and the
+ * groups. The key carries the chosen account and the fixture the page last
+ * persisted, so signing in as someone else or writing a rule re-reads once and
+ * every request after that does not.
+ */
+let appFilterCache
+const appFilter = async (subject) => {
+  const key = `${String(CALLER_USERNAME)}|${String(IDENTITY_STATE.persisted)}`
+  if (appFilterCache && appFilterCache.key === key) return appFilterCache.filter
+
+  // the account the subject names, read from the fixture this host already
+  // holds: an administrator holds every app, so the rules are not asked at all
+  const caller = subject
+    ? IDENTITY_STATE.store
+        .snapshot()
+        .users.find((user) => user.uid === subject.userId)
+    : undefined
+
+  const filter = !caller
+    ? () => false
+    : caller.isAdmin
+      ? () => true
+      : await appFilterFor(subject)
+
+  appFilterCache = { key, filter }
+  return filter
+}
+
 let appStreamWeb
 const appStreamSurface = () => {
   if (!appStreamWeb)
@@ -981,7 +1265,14 @@ let linter
 const code = () => {
   if (codeService) return codeService
   linter = self.SASjsCode
-  codeService = linter.createCodeService({ lintConfig })
+  codeService = linter.createCodeService({
+    lintConfig,
+    reprint: (text, options) =>
+      linter.formatText(text, {
+        ...options,
+        dataRoot: `${self.location.origin}${BASE}/host/${linter.dataPath}`
+      })
+  })
   return codeService
 }
 
@@ -1047,6 +1338,10 @@ const parseLintConfig = (contents) => {
 
 const SERVICES = {
   drive: API.createDriveService(DRIVE_STORE),
+  // The read a streamed deployment links to, over the same store as the drive:
+  // a file the deploy wrote is the file its page fetches, typed by the package
+  // exactly as the server types it
+  deploymentFile: API.createDeploymentFileService(DRIVE_STORE),
   // The package's browser fixture states one run time; this host serves two, and
   // `info` is what the Studio reads to decide whether a file may be run at all,
   // so the answer is the host's own list rather than the fixture's.
@@ -1083,6 +1378,34 @@ const RUN_ROUTES = new Set([
   'POST /SASjsApi/stp/trigger',
   'POST /SASjsApi/code/execute',
   'POST /SASjsApi/code/trigger'
+])
+
+/**
+ * The run routes a permission rule addresses.
+ *
+ * A run is answered by this host rather than by `API.dispatch`, so the question
+ * is asked here: the answer is the one `/info/myAuthorizedRoutes` gives the
+ * interface, which is why a denied rule refuses the call and not only the menu
+ * entry beside it.
+ *
+ * Neither the drive routes nor the triggers are gated here, and that is
+ * deliberate: the drive routes stay ungated because the package does not gate
+ * them yet either (no rule is applied to a drive call until sasjs/api#97 lands,
+ * and that gates the run routes only), and the triggers are outside the
+ * inventory the rules address, as they are on a server.
+ *
+ * This set is a copy of the package's own list in `src/host/dispatch.ts`, and it
+ * fails open: a run route the package adds later is silently ungated here. It is
+ * retired by the `@sasjs/api` release that carries `mayUseRoute` - when the pin
+ * reaches that version, delete this set and ask the method instead, which is one
+ * decision rather than a read of the whole reported list, and stops the per-run
+ * re-read of the rules and the groups. The page bridge's executionGrant is
+ * checked against each upload-capable route in this set by intercept.spec.ts.
+ */
+const GRANTED_RUN_ROUTES = new Set([
+  'GET /SASjsApi/stp/execute',
+  'POST /SASjsApi/stp/execute',
+  'POST /SASjsApi/code/execute'
 ])
 
 /**
@@ -1141,7 +1464,7 @@ const payloadTooLarge = (limit) => {
  * that posts JSON directly (a `fetch` from the console, a test) sends its fields
  * flat, so both shapes are read.
  */
-const readJsonBody = async (request) => {
+const readJsonBody = async (request, allowLargeFile = false) => {
   const body = await readJson(request)
 
   // The bridge forwards a JSON body as `json` - a request the page made with
@@ -1164,15 +1487,32 @@ const readJsonBody = async (request) => {
     body.params &&
     typeof body.params === 'object'
   ) {
+    if (!allowLargeFile) {
+      for (const table of body.tables) {
+        const contents = String(table.csv === undefined ? '' : table.csv)
+        let size
+        if (table.binary) {
+          const encoded = contents.replace(/\s+/g, '')
+          const padding = (encoded.match(/=+$/) || [''])[0].length
+          size = Math.floor((encoded.length * 3) / 4) - padding
+        } else {
+          // UTF-8 is at least one byte per UTF-16 code unit. Avoid allocating
+          // an encoded copy when the string alone already exceeds the cap.
+          size =
+            contents.length > R.MAX_UPLOAD_BYTES
+              ? contents.length
+              : bytesOf(contents)
+        }
+        if (size > R.MAX_UPLOAD_BYTES) throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
+      }
+    }
     return {
       body: body.params,
       files: body.tables.map((table, index) => ({
         name: table.name || `table${index + 1}`,
         filename:
           table.filename || `${table.name || 'table' + (index + 1)}.csv`,
-        // A file the bridge could not read as UTF-8 travels as base64 with a
-        // flag: writing its text would replace the bytes and store the damage
-        // under a success status, which is what a binary upload used to do.
+        // The bridge carries every file as base64 so BOM and arbitrary bytes survive.
         contents:
           table.csv === undefined
             ? ''
@@ -1195,12 +1535,33 @@ const readPayload = async (request, allowLargeFile = false) => {
   const parsed = { body: {}, files: [] }
   if (request.method === 'GET' || request.method === 'HEAD') return parsed
   const type = request.headers.get('content-type') || ''
-  if (!type.includes('multipart/form-data')) return await readJsonBody(request)
+  if (!type.includes('multipart/form-data'))
+    return await readJsonBody(request, allowLargeFile)
   const form = await request.formData().catch(() => null)
   if (!form) return parsed
-  for (const [name, value] of form.entries()) {
+  // Only declared parameter tables use repeated fields as ordered CSV chunks.
+  const entries = Array.from(form.entries())
+  const declarations = entries.filter(
+    ([name]) => name.toLowerCase() === 'sasjs_tables'
+  )
+  const tableNames = String(declarations.at(-1)?.[1] || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  const tableFields = new Set(
+    tableNames.map((_name, index) => `sasjs${index + 1}data`)
+  )
+  for (const [name, value] of entries) {
     if (typeof value === 'string') {
-      parsed.body[name] = value
+      // The web adapter appends long CSV chunks under the same field name.
+      // FormData preserves their order; ordinary repeated fields retain the
+      // existing last-value-wins behaviour.
+      if (
+        tableFields.has(name.toLowerCase()) &&
+        Object.prototype.hasOwnProperty.call(parsed.body, name)
+      )
+        parsed.body[name] += value
+      else parsed.body[name] = value
       continue
     }
     // refused from the File's size, before the body is read: a worker holds the
@@ -1381,14 +1742,30 @@ const bearerOf = (request, query) =>
   String(query.access_token || '').trim() ||
   undefined
 
+/** An exact public-group grant authenticates an otherwise anonymous request. */
+const publicGrantOn = (path) => {
+  const identity = IDENTITY_STATE.store.snapshot()
+  const publicGroup = identity.groups.find((group) => group.name === 'public')
+  return Boolean(
+    publicGroup &&
+    identity.permissions.some(
+      (rule) =>
+        rule.group === publicGroup.uid &&
+        rule.path === path &&
+        rule.setting === 'Grant'
+    )
+  )
+}
+
 /** The subject a request is talking as, from its bearer token or the implicit
- * caller when it carries none. An unknown token is the package's 401. */
-const subjectOf = async (request, query) => {
+ * caller when it carries none. Invalid tokens are anonymous on public routes. */
+const subjectOf = async (request, query, publicPath) => {
   const token = bearerOf(request, query)
   if (!token) return IMPLICIT_CALLER
   const subject = await IDENTITY.authenticate(token)
-  if (!subject) throw new API.ApiError(401, 'Unauthorized')
-  return subject
+  if (!subject && !(publicPath && publicGrantOn(publicPath)))
+    throw new API.ApiError(401, 'Unauthorized')
+  return subject || undefined
 }
 
 /**
@@ -1397,11 +1774,18 @@ const subjectOf = async (request, query) => {
  * The service is called directly rather than through `dispatch` because a run's
  * answer is the webout *with the headers its service declared*
  * (`content-disposition` is how a service names a download), and the artefact
- * the service returns is where those headers are. Everything a client observes
- * about the request - who may run it, which field names the program, what
- * `_debug` means - is still the package's decision.
+ * the service returns is where those headers are. What a client observes about
+ * the request - which field names the program, what `_debug` means, which run
+ * times are offered - is still the package's decision; who may run it is not,
+ * because it is asked here before this is reached (see `GRANTED_RUN_ROUTES`).
  */
-const runRoute = async (routeId, payload, subject) => {
+const runRoute = async (
+  routeId,
+  payload,
+  subject,
+  sas9 = false,
+  tier = false
+) => {
   // A program may read any file it likes - the drive is its filesystem - so
   // every piece of a sharded drive is fetched here rather than guessed from the
   // request. That is deliberately the whole drive and not just the app being
@@ -1411,17 +1795,46 @@ const runRoute = async (routeId, payload, subject) => {
   // it; the saving this change is for is on that page.
   await R.ensureAll()
 
+  if (
+    sas9 &&
+    isSasRun(false, undefined, payload.query._program ?? payload.body._program)
+  )
+    throw new API.ApiError(
+      501,
+      'SAS execution is unavailable in the browser mock.'
+    )
+
   const query = payload.query
   const body = payload.body
   const tables = payload.files.map((file) => ({
     name: file.name,
     filename: file.filename,
-    csv: toText(file.contents)
+    get csv() {
+      return toText(file.contents)
+    },
+    bytes:
+      typeof file.contents === 'string'
+        ? new TextEncoder().encode(file.contents)
+        : file.contents
   }))
   const code =
     routeId.endsWith('/code/execute') || routeId.endsWith('/code/trigger')
   const trigger = routeId.endsWith('/trigger')
-  const vars = Object.assign({}, query, body)
+  const vars = Object.assign(Object.create(null), query)
+  if (tier && !sas9 && payload.method === 'POST') {
+    const queryNames = new Map(
+      Object.keys(query).map((key) => [key.toLowerCase(), key])
+    )
+    for (const [key, value] of Object.entries(body))
+      vars[queryNames.get(key.toLowerCase()) || key] = value
+    if (query._program !== undefined) vars._program = query._program
+  } else Object.assign(vars, body)
+  if (sas9)
+    vars[SAS9_FRAME] = {
+      present: Object.hasOwn(vars, '_debug'),
+      value: vars._debug
+    }
+  if (tier && !sas9) vars[TIER_FRAME] = true
 
   const runRequest = {
     source: code ? 'code' : 'program',
@@ -1433,7 +1846,7 @@ const runRoute = async (routeId, payload, subject) => {
     runRequest.runTime = body.runTime
   } else {
     // the query wins over the body, which is the order the server resolves them in
-    runRequest.program = query._program || body._program
+    runRequest.program = query._program ?? body._program
   }
 
   // A SAS run is answered here, ahead of the run: this host cannot execute one, so the answer
@@ -1461,7 +1874,11 @@ const runRoute = async (routeId, payload, subject) => {
         // a code run carries no `_debug` and still answers with its log: the
         // package compiles a code run at its own debug level, and the Studio
         // splits the three parts on the separator it writes
-        code ? true : vars._debug !== undefined
+        code
+          ? true
+          : tier && !sas9
+            ? tierDebugOn(vars._debug)
+            : vars._debug !== undefined
       )
     )
   }
@@ -1496,9 +1913,14 @@ const outputRoute = async (request, params, subject) => {
 /** The response a `contents` answer becomes, typed by the path it names. */
 const contentsResponse = (answer, path) => {
   const binary = typeof answer.contents !== 'string'
+  // a route that states a type decided it from what the file IS - a streamed
+  // deployment's asset - and that answer wins over the extension's guess
   return new Response(answer.contents, {
     status: answer.status,
-    headers: { 'content-type': contentTypeFor(path, binary) }
+    headers: Object.assign(
+      { 'content-type': answer.contentType || contentTypeFor(path, binary) },
+      answer.headers
+    )
   })
 }
 
@@ -1513,11 +1935,11 @@ const contentsResponse = (answer, path) => {
  * `routeRequest`, which knows the path from the read that failed rather than
  * guessing at it from the URL.
  */
-const ensureForRequest = async (url) => {
+const ensureForRequest = async (url, tierQuery) => {
   const paths = []
-  for (const name of ['_filePath', '_program']) {
-    const value = url.searchParams.get(name)
-    if (value) paths.push(value)
+  for (const name of ['_filePath', '_FILE', '_program']) {
+    const value = tierQuery ? tierQuery[name] : url.searchParams.get(name)
+    if (value && !Array.isArray(value)) paths.push(value)
   }
   if (paths.length) await R.ensurePaths(paths)
 }
@@ -1539,17 +1961,74 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
   // both are answered, so the alias is stripped once here and everything below -
   // the route lookup, the drive routes' plain-text refusals, the log - works
   // from one path.
-  const apiPath = path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
-  const query = {}
-  for (const [k, v] of url.searchParams.entries()) query[k] = v
+  // The web tier spellings: ours (`/StoredProgram`, which a SASjs build links to)
+  // and the estate's (`/SASJobExecution`, which a Viya build bakes in). Neither
+  // is in an API table, so the path is translated to the operation it stands
+  // for rather than answered twice - `_FILE=` is the drive read (the package
+  // decides its typing and its refusal), `_program=` is the run.
+  const webTier = /^\/(SASJobExecution|StoredProgram)$/i.test(path)
+  const sas9Run = /^\/SASStoredProcess\/do$/i.test(path)
+  const tierQuery = webTier || sas9Run
+  // URLSearchParams preserves wire order and repeated names. Mirror the web
+  // tier's canonical spellings and leave duplicates for destination validation.
+  const query = Object.create(null)
+  const controls = { _file: '_FILE', _filepath: '_filePath' }
+  for (const [key, value] of url.searchParams.entries()) {
+    const lower = key.toLowerCase()
+    const name = tierQuery
+      ? Object.hasOwn(controls, lower)
+        ? controls[lower]
+        : lower
+      : key
+    if (tierQuery && Object.hasOwn(query, name))
+      query[name] = Array.isArray(query[name])
+        ? [...query[name], value]
+        : [query[name], value]
+    else query[name] = value
+  }
+  // Presence, not truthiness: the server tests `!== undefined`, and Express
+  // parses `_program=` to the empty string, so a request naming both with an
+  // empty value is refused there - a `get`-based guard reads the empty string as
+  // absent and answers the file instead, which is the disagreement to avoid.
+  const namedFile = Object.hasOwn(query, '_FILE')
+  const namedProgram = Object.hasOwn(query, '_program')
+  // presence decides which branch runs, as it does on the server (`!== undefined`
+  // there): an empty `_FILE=` still reaches the read, and the host refuses the
+  // empty name - falling through to "not part of the API" would answer a 404 the
+  // server never gives
+  const askedForFile = webTier && request.method === 'GET' && namedFile
+  const askedForProgram = /^\/StoredProgram$/i.test(path) && namedProgram
+
+  // A request naming both is refused before either branch is chosen, in the
+  // server's own words - by parameter, and before either tier or method is
+  // considered, because that is the order the server checks them in. The mock
+  // exists so a host's answers can be reproduced: picking the file here would
+  // make the site work on a page the server answers 400 for.
+  if (webTier && namedFile && namedProgram)
+    return text(TIER_NEEDS_ONE_PARAMETER, 400)
+
+  // Mirror the sasjs/server Viya mock stub in routes/web/sasviya-web.ts: this
+  // literal does not execute a program and that router has no auth/run-grant
+  // guard. Server startup disallows MOCK_SERVERTYPE in server mode; the real
+  // /StoredProgram and /SASjsApi/stp/execute routes remain separately guarded.
+  if (/^\/SASJobExecution$/i.test(path) && request.method === 'POST')
+    return json({ test: 'test' }, 200)
+
+  const apiPath = sas9Run
+    ? '/SASjsApi/stp/execute'
+    : askedForFile
+      ? '/SASjsApi/drive/file'
+      : askedForProgram
+        ? '/SASjsApi/stp/execute'
+        : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
 
   try {
     // the identity is a file the build shipped, so it is read before anything
     // that needs a caller - a request that arrives before the page has booted
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
-    await R.ensureReady()
-    await ensureForRequest(url)
+    await R.ensureReady(askHostForDrive)
+    await ensureForRequest(url, tierQuery ? query : null)
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
@@ -1580,7 +2059,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         path: url.pathname.replace(
           /\/AppStream(?=\/|$)/i,
           SHORT_APP_STREAM_PATH
-        )
+        ),
+        // who may see which app, which the surface leaves to the host. The
+        // caller is resolved here because this branch answers before the API
+        // routes below resolve theirs
+        allow: await appFilter(await subjectOf(request, query))
       })
 
       // a removal changes the index, which lives in the drive: persisted in the
@@ -1599,6 +2082,21 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       )
     }
 
+    if (/^\/SASStoredProcess$/i.test(path) && request.method === 'GET') {
+      const subject = await subjectOf(request, query)
+      const user =
+        subject &&
+        IDENTITY_STATE.store
+          .snapshot()
+          .users.find((candidate) => candidate.uid === subject.userId)
+      if (!user) throw new API.ApiError(401, 'Unauthorized')
+      // The adapter extracts a title from this probe. JSON encoding prevents a
+      // fixture's display name from becoming executable HTML.
+      return text(
+        `SAS Stored Process\n${JSON.stringify({ title: `Log Off ${user.displayName}` })}`
+      )
+    }
+
     // The package's own matcher, so a route is recognised however its path is
     // cased and its parameters are read the way the document states them.
     const matched = API.findRoute(request.method, apiPath)
@@ -1607,14 +2105,87 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
 
     const routeId = matched.route.id
     const token = bearerOf(request, query)
+    const routePath = routeId.slice(routeId.indexOf(' ') + 1)
+    // The grant inventory preserves fileTree's spelling unlike the route table.
+    const publicPath = (API.DEFAULT_GRANTABLE_ROUTES || []).find(
+      (candidate) =>
+        candidate.toLowerCase() === routePath.toLowerCase() &&
+        candidate.toLowerCase().startsWith('/sasjsapi/drive/')
+    )
     const subject = SELF_AUTH_ROUTES.has(routeId)
       ? undefined
-      : await subjectOf(request, query)
+      : await subjectOf(request, query, publicPath)
+    if (routeId === DEPLOY_UPLOAD) {
+      const uploadPath = '/SASjsApi/drive/deploy/upload'
+      // Newer packages expose the same decision as dispatch. With older ones,
+      // authenticated callers get that decision from their reported routes;
+      // an anonymous caller needs an exact public-group grant.
+      const allowed = RECORDS.mayUseRoute
+        ? await RECORDS.mayUseRoute(subject, uploadPath)
+        : subject
+          ? (await RECORDS.myAuthorizedRoutes(subject)).paths.includes(
+              uploadPath
+            )
+          : publicGrantOn(uploadPath)
+      if (!allowed) throw new API.ApiError(401, 'Unauthorized')
+    }
+    // Every gated execution route must refuse before parsing upload bytes.
+    if (GRANTED_RUN_ROUTES.has(routeId)) {
+      const granted = await RECORDS.myAuthorizedRoutes(subject)
+      if (!granted.paths.includes(routePath))
+        throw new API.ApiError(401, 'Unauthorized')
+    }
+    // The execution API validates URL values before merging POST fields.
+    if (
+      (askedForProgram || (sas9Run && request.method === 'POST')) &&
+      RUN_ROUTES.has(routeId)
+    ) {
+      if (Array.isArray(query._debug))
+        return text('"_debug" must be one of [number, string]', 400)
+      if (query._debug === '')
+        return text('"_debug" is not allowed to be empty', 400)
+      // SAS9 GET bypasses the upload validator; repeated custom values reach JS.
+      for (const [name, value] of Object.entries(query)) {
+        if (Array.isArray(value) && name !== '_program' && name !== '_debug')
+          throw badRequest(`"${name}" must be one of [string, number]`)
+      }
+    }
+    if (askedForFile && Array.isArray(query._FILE))
+      throw badRequest('"_FILE" must be a string')
+    if (askedForFile && Array.isArray(query._filePath))
+      throw badRequest('"_filePath" must be a string')
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
     payload.query = query
+    payload.method = request.method
 
-    if (RUN_ROUTES.has(routeId))
-      return await runRoute(routeId, payload, subject)
+    // Preserve SAS9 body parameter casing apart from the existing program lookup;
+    // URL names were already normalised before authentication and routing.
+    if (sas9Run) {
+      const bodyProgram = payload.body._program
+      const hasLowercaseProgram = Object.hasOwn(payload.body, '_program')
+      for (const key of Object.keys(payload.body)) {
+        const name = key.toLowerCase()
+        // The upload validator accepts a body-only program only as `_program`.
+        if (
+          name === '_program' &&
+          key !== '_program' &&
+          request.method === 'POST' &&
+          query._program === undefined &&
+          !hasLowercaseProgram
+        )
+          continue
+        if (name === '_program') {
+          payload.body[name] = hasLowercaseProgram
+            ? bodyProgram
+            : payload.body[key]
+          if (name !== key) delete payload.body[key]
+        }
+      }
+    }
+
+    if (RUN_ROUTES.has(routeId)) {
+      return await runRoute(routeId, payload, subject, sas9Run, tierQuery)
+    }
 
     const apiRequest = {
       query,
@@ -1663,7 +2234,18 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         answer,
         query._filePath || payload.body.filePath || path
       )
-    return json(answer.body, answer.status)
+    const response = json(answer.body, answer.status)
+    // The page asks this grant before reading SAS9 multipart files. Carry the
+    // worker's actual limit on that same response, not a second page constant.
+    if (
+      routeId === 'GET /SASjsApi/info/myAuthorizedRoutes' &&
+      answer.status === 200
+    )
+      response.headers.set(
+        'x-sasjs-mock-max-upload-bytes',
+        String(R.MAX_UPLOAD_BYTES)
+      )
+    return response
   } catch (e) {
     // A read of a file that is still on the site: the route reached a path the
     // request did not name - an app asset, a `.sasjslint` above the edited file,
@@ -1701,6 +2283,13 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // other drive routes send the message itself as plain text, which is what the
     // server's `res.status(code).send(err.message)` does.
     if (API.isApiError(e)) {
+      // Authorization middleware sends a plain-text 401, even for deploy routes.
+      if (
+        apiPath.toLowerCase().startsWith('/sasjsapi/drive/') &&
+        e.status === 401 &&
+        e.message === 'Unauthorized'
+      )
+        return text(e.message, e.status)
       if (e.body !== undefined) return json(e.body, e.status)
       if (/\/SASjsApi\/drive\/deploy(\/|$)/.test(apiPath))
         return json({ status: 'failure', message: e.message }, e.status)
@@ -1771,7 +2360,12 @@ self.addEventListener('fetch', (event) => {
   // canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
 
-  if (!/^\/(SASjsApi|SASLogon|AppStream|api|app)(\/|$)/i.test(path)) return
+  if (
+    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i.test(
+      path
+    )
+  )
+    return
   event.respondWith(handle(event.request, url))
 })
 
@@ -1786,11 +2380,28 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.load(data.files || {}, data.deleted || []))
           .then(async () => {
-            await persistChanges()
+            // From here the payload is accepted and in the drive: a failure to
+            // write it back to the other tabs is NOT the worker refusing the
+            // data, and reporting it as a `host` refusal would have the page
+            // delete a stored drive the worker is serving. It gets its own kind,
+            // so a failed broadcast is reported and the drive left alone.
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
+            // the request that asked for this drive is waiting on it
+            driveArrived('loaded')
             reply({
               type: 'sasjs-load-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
@@ -1813,11 +2424,26 @@ self.addEventListener('message', (event) => {
         bootIdentity(data)
           .then(() => R.seed())
           .then(async () => {
-            await persistChanges()
+            // as in the load ack: the seed is installed, and a failed write-back
+            // to the other tabs is a `persist` failure, not a refused seed
+            const persisted = await persistChanges().then(
+              () => null,
+              (e) => e
+            )
+            // "there is nothing stored" is an answer too: the wait is over and
+            // the seeded drive is the visitor's
+            driveArrived('seeded')
             reply({
               type: 'sasjs-seed-ack',
               boot: R.bootInfo(),
-              stats: R.stats()
+              stats: R.stats(),
+              ...(persisted
+                ? {
+                    error:
+                      (persisted && persisted.message) || String(persisted),
+                    errorKind: 'persist'
+                  }
+                : {})
             })
           })
           .catch((e) =>
@@ -1828,6 +2454,12 @@ self.addEventListener('message', (event) => {
             })
           )
       )
+      break
+
+    case 'sasjs-drive-unavailable':
+      // the page holds a drive it could not read: not an answer to seed over.
+      // `ensureReady` fails the request instead, and the next one asks again.
+      driveArrived('unavailable')
       break
 
     case 'sasjs-reset':
@@ -1952,7 +2584,7 @@ self.addEventListener('message', (event) => {
       // build. Whole means whole: the pieces nobody read are fetched first, or
       // the export would quietly lose every app bundle it had not opened.
       event.waitUntil(
-        R.ensureReady()
+        R.ensureReady(askHostForDrive)
           .then(() => R.ensureAll())
           .then(() => reply({ type: 'sasjs-snapshot', files: R.dumpAll() }))
           .catch((e) =>
@@ -1967,7 +2599,7 @@ self.addEventListener('message', (event) => {
 
     case 'sasjs-stats':
       event.waitUntil(
-        R.ensureReady().then(() => {
+        R.ensureReady(askHostForDrive).then(() => {
           try {
             reply({ type: 'sasjs-stats', boot: R.bootInfo(), stats: R.stats() })
           } catch (e) {

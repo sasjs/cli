@@ -9,3 +9,6 @@ sasjsbuild
 /coverage
 /documentation
 src/commands/job/spec/logs
+
+# Artefacts a test run leaves behind when it is interrupted
+src/commands/init/spec/test-app-init-*

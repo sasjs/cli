@@ -34,6 +34,8 @@ export { runTest } from './testing/test'
 
 export { processLint } from './lint/processLint'
 
+export { processFormat, resolveSasFiles } from './format/processFormat'
+
 export { initLint } from './lint/initLint'
 
 export { processLogCheck } from './logcheck/processLogCheck'

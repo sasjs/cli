@@ -53,9 +53,39 @@ const settle = async (check: () => boolean) => {
   throw new Error('the page did not reach the state the case expected')
 }
 
+// jsdom does not load scripts. Keep the bridge pending until the worker's
+// acknowledgement, so each base-path case exercises the persistence handshake.
+const stubPersistence = () => {
+  let acknowledge!: (value: { type: string }) => void
+  let loaded: HTMLScriptElement | undefined
+  const realCreate = document.createElement.bind(document)
+  jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
+    const node = realCreate(tag)
+    if (String(tag).toLowerCase() === 'script')
+      setTimeout(() => {
+        ;(window as any).__sasjsMockPersistReady = new Promise((resolve) => {
+          acknowledge = resolve
+        })
+        loaded = node as HTMLScriptElement
+        node.dispatchEvent(new Event('load'))
+      }, 0)
+    return node
+  })
+  return async (url: string, type = 'sasjs-seed-ack') => {
+    await settle(() => Boolean(loaded))
+    expect(loaded!.src).toBe(new URL(url, location.origin).href)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect((global as any).fetch).not.toHaveBeenCalled()
+    acknowledge({ type })
+  }
+}
+
 describe('the API console under a base path', () => {
   afterEach(() => {
     delete (navigator as any).serviceWorker
+    delete (window as any).__sasjsMockPersistReady
+    jest.restoreAllMocks()
+    history.replaceState({}, '', '/demo/api-console/')
   })
 
   it('takes the root from the worker that covers it, not from its own folder', async () => {
@@ -72,13 +102,7 @@ describe('the API console under a base path', () => {
         : jsonResponse({ format: 1, users: [] })
     )
 
-    const realCreate = document.createElement.bind(document)
-    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
-      const node = realCreate(tag)
-      if (String(tag).toLowerCase() === 'script')
-        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
-      return node
-    })
+    const acknowledgePersistence = stubPersistence()
 
     const sw: any = {
       controller: { scriptURL: 'http://localhost/demo/sw.js' },
@@ -93,6 +117,7 @@ describe('the API console under a base path', () => {
     history.replaceState({}, '', '/demo/tools/api-console/')
     jest.resetModules()
     require('../assets/api-console.js')
+    await acknowledgePersistence('/demo/host/persist.js?v=3.0.0')
 
     await settle(() =>
       (global as any).fetch.mock.calls.some((call: any[]) =>
@@ -125,17 +150,14 @@ describe('the API console under a base path', () => {
         : jsonResponse({ format: 1, users: [] })
     )
 
-    const realCreate = document.createElement.bind(document)
-    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
-      const node = realCreate(tag)
-      if (String(tag).toLowerCase() === 'script')
-        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
-      return node
-    })
+    const acknowledgePersistence = stubPersistence()
 
     const sw: any = {
       controller: { scriptURL: 'http://localhost/other/sw.js' },
-      register: jest.fn(async () => ({})),
+      register: jest.fn(async () => {
+        sw.controller = { scriptURL: 'http://localhost/demo/sw.js' }
+        return {}
+      }),
       addEventListener: jest.fn()
     }
     Object.defineProperty(navigator, 'serviceWorker', {
@@ -146,6 +168,10 @@ describe('the API console under a base path', () => {
     history.replaceState({}, '', '/demo/api-console/')
     jest.resetModules()
     require('../assets/api-console.js')
+    await acknowledgePersistence(
+      '/demo/host/persist.js?v=3.0.0',
+      'sasjs-load-ack'
+    )
 
     await settle(() =>
       (global as any).fetch.mock.calls.some((call: any[]) =>
@@ -177,13 +203,7 @@ describe('the API console under a base path', () => {
         : jsonResponse({ format: 1, users: [] })
     )
 
-    const realCreate = document.createElement.bind(document)
-    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
-      const node = realCreate(tag)
-      if (String(tag).toLowerCase() === 'script')
-        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
-      return node
-    })
+    const acknowledgePersistence = stubPersistence()
 
     const sw: any = {
       controller: {},
@@ -197,6 +217,7 @@ describe('the API console under a base path', () => {
 
     jest.resetModules()
     require('../assets/api-console.js')
+    await acknowledgePersistence('/demo/host/persist.js?v=2.0.0')
     await settle(() => sw.register.mock.calls.length === 1)
 
     expect(sw.register.mock.calls[0][0]).toContain('/demo/sw.js?v=2.0.0')
@@ -229,13 +250,7 @@ describe('the API console under a base path', () => {
 
     // the host script is answered by hand: jsdom does not fetch a script it is
     // given, and the page waits for its load event before it reads the API
-    const realCreate = document.createElement.bind(document)
-    jest.spyOn(document, 'createElement').mockImplementation((tag: any) => {
-      const node = realCreate(tag)
-      if (String(tag).toLowerCase() === 'script')
-        setTimeout(() => node.dispatchEvent(new Event('load')), 0)
-      return node
-    })
+    const acknowledgePersistence = stubPersistence()
 
     const sw: any = {
       controller: {},
@@ -257,6 +272,7 @@ describe('the API console under a base path', () => {
 
     jest.resetModules()
     require('../assets/api-console.js')
+    await acknowledgePersistence('/demo/host/persist.js?v=2.0.0')
     await settle(() => sw.register.mock.calls.length === 1).catch((e) => {
       throw new Error(
         e.message +

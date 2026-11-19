@@ -1,5 +1,9 @@
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
+import { spawn } from 'child_process'
+import { once } from 'events'
+import { JSDOM } from 'jsdom'
 import {
   buildMockSite,
   DRIVE_FORMAT,
@@ -7,7 +11,221 @@ import {
   SHARD_FILE_BYTES
 } from '../mockSite'
 
+// jsdom 31 replaces ResourceLoader with request interceptors. Keep all asset
+// requests local: an unknown file must not fall through to the network.
+const assetResources = (
+  fetchAsset: (url: string) => Buffer | Promise<Buffer> | null
+): any => ({
+  interceptors: [
+    require('jsdom').requestInterceptor(async (request: Request) => {
+      const bytes = await fetchAsset(request.url)
+      return bytes === null
+        ? new Response(null, { status: 404 })
+        : new Response(bytes as any, {
+            headers: { 'Content-Type': 'application/javascript' }
+          })
+    })
+  ]
+})
+
+const waitForLoad = (dom: JSDOM) =>
+  dom.window.document.readyState === 'complete'
+    ? Promise.resolve()
+    : new Promise<void>((resolve) =>
+        dom.window.addEventListener('load', () => resolve(), { once: true })
+      )
+
+// jsdom 31 runs following inline scripts before delivering parser mutations;
+// Chromium runs the observer at the parser's script checkpoint. These tests must
+// read the value *inside* the app script in a real browser, not after load.
+const browserIt = process.env.SASJS_BROWSER_TESTS === '1' ? it : it.skip
+
+const observeMountInChromium = async (
+  html: string,
+  url: string,
+  host: string,
+  expression: string,
+  adapter = false
+): Promise<any> => {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-browser-'))
+  const child = spawn(
+    process.env.CHROMIUM_PATH || 'chromium',
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--remote-debugging-port=0',
+      `--user-data-dir=${profile}`,
+      'about:blank'
+    ],
+    { stdio: 'ignore' }
+  )
+  const exited = once(child, 'exit')
+  // Consume spawn errors immediately while preserving the failure for startup.
+  let spawnError: Error | undefined
+  child.on('error', (error) => {
+    spawnError = error
+  })
+  void exited.catch(() => {})
+  let ws: WebSocket | undefined
+  try {
+    let port = ''
+    for (let i = 0; i < 200 && !port; i++) {
+      if (spawnError) throw spawnError
+      if (child.exitCode !== null) throw new Error('Chromium exited on startup')
+      try {
+        port = fs
+          .readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8')
+          .split('\n')[0]!
+      } catch (_) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+    }
+    if (!port) throw new Error('Chromium startup timed out')
+    const version: any = await (
+      await fetch(`http://127.0.0.1:${port}/json/version`)
+    ).json()
+    ws = new WebSocket(version.webSocketDebuggerUrl)
+    await once(ws, 'open')
+    let id = 0
+    const pending = new Map<
+      number,
+      {
+        resolve: (value: any) => void
+        reject: (error: Error) => void
+        timer: NodeJS.Timeout
+      }
+    >()
+    const send = (
+      method: string,
+      params: any = {},
+      sessionId?: string
+    ): Promise<any> =>
+      new Promise((resolve, reject) => {
+        const requestId = ++id
+        const timer = setTimeout(() => {
+          pending.delete(requestId)
+          reject(new Error(`CDP ${method} timed out`))
+        }, 10000)
+        pending.set(requestId, { resolve, reject, timer })
+        ws!.send(JSON.stringify({ id: requestId, method, params, sessionId }))
+      })
+    ws.addEventListener('message', (event) => {
+      const message = JSON.parse(String(event.data))
+      if (message.method === 'Fetch.requestPaused') {
+        const request = message.params
+        const pathname = new URL(request.request.url).pathname
+        const name = pathname.split('/').pop()!
+        let body: Buffer | undefined
+        if (request.resourceType === 'Document' && request.request.url === url)
+          body = Buffer.from(html)
+        else if (name === 'boot.js') body = Buffer.from('')
+        else if (name === 'mount-config.js')
+          body = fs.readFileSync(path.join(host, name))
+        void send(
+          'Fetch.fulfillRequest',
+          {
+            requestId: request.requestId,
+            responseCode: body ? 200 : 404,
+            responseHeaders: [
+              {
+                name: 'Content-Type',
+                value:
+                  request.resourceType === 'Document'
+                    ? 'text/html'
+                    : 'application/javascript'
+              }
+            ],
+            body: (body || Buffer.from('')).toString('base64')
+          },
+          message.sessionId
+        ).catch(() => {})
+      }
+      const request = pending.get(message.id)
+      if (!request) return
+      pending.delete(message.id)
+      clearTimeout(request.timer)
+      if (message.error)
+        request.reject(new Error(JSON.stringify(message.error)))
+      else request.resolve(message.result)
+    })
+    const { targetId } = await send('Target.createTarget', {
+      url: 'about:blank'
+    })
+    const { sessionId } = await send('Target.attachToTarget', {
+      targetId,
+      flatten: true
+    })
+    await send('Page.enable', {}, sessionId)
+    await send('Runtime.enable', {}, sessionId)
+    await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] }, sessionId)
+    if (adapter) {
+      const bundle = fs.readFileSync(
+        require.resolve('@sasjs/adapter/dist/sasjs-adapter.js'),
+        'utf8'
+      )
+      await send(
+        'Page.addScriptToEvaluateOnNewDocument',
+        { source: bundle },
+        sessionId
+      )
+    }
+    await send('Page.navigate', { url }, sessionId)
+    for (let i = 0; i < 200; i++) {
+      const result = await send(
+        'Runtime.evaluate',
+        {
+          expression: `document.readyState === 'complete' && location.href === ${JSON.stringify(url)}`,
+          returnByValue: true
+        },
+        sessionId
+      )
+      if (result.result.value) {
+        const observed = await send(
+          'Runtime.evaluate',
+          { expression, returnByValue: true },
+          sessionId
+        )
+        if (observed.exceptionDetails)
+          throw new Error(JSON.stringify(observed.exceptionDetails))
+        return observed.result.value
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    throw new Error(`Chromium page load timed out: ${url}`)
+  } finally {
+    if (ws) ws.close()
+    if (child.exitCode === null && child.signalCode === null)
+      child.kill('SIGTERM')
+    const exitedInTime = await Promise.race([
+      exited.then(
+        () => true,
+        () => true
+      ),
+      new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), 3000)
+        timer.unref()
+      })
+    ])
+    if (!exitedInTime) {
+      child.kill('SIGKILL')
+      await exited.catch(() => {})
+    }
+    fs.rmSync(profile, { recursive: true, force: true })
+  }
+}
+
 const appLoc = '/Public/app/test'
+const languageVersion: string = JSON.parse(
+  fs.readFileSync(
+    path.resolve(
+      path.dirname(require.resolve('@sasjs/sas-language/server/node')),
+      '../../../../package.json'
+    ),
+    'utf8'
+  )
+).version
 
 const write = (file: string, contents: string) => {
   fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -36,11 +254,8 @@ const createProject = (root: string) => {
     [
       '<!doctype html><html><head><title>App</title>',
       '<link rel="stylesheet" href="theme-boot.css" />',
-      // a paint-critical script: it runs nothing that needs the worker, so the
-      // page marks it to stay in the parser rather than being deferred
       '<script src="theme-boot.js" data-early></script>',
-      // the same marker on a module cannot be honoured - a module is deferred by
-      // specification - so the build must replay it and say why
+      // Both marked and unmarked modules retain the browser's deferred semantics.
       '<script src="deferred.js" type="module" data-early></script>',
       '</head><body>',
       `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}" servertype="SASJS" loginmechanism="Redirected"></sasjs>`,
@@ -104,6 +319,177 @@ describe('browser-hosted build', () => {
 
   afterEach(() => {
     fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('ships the browser formatter and its on-demand vocabulary under the mount', async () => {
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const language = path.join(out(), 'host', 'sas-language', languageVersion)
+    expect(
+      fs.existsSync(path.join(language, 'pubsdata', 'procedures.json'))
+    ).toBe(true)
+    expect(fs.existsSync(path.join(language, 'data'))).toBe(true)
+    expect(
+      fs.readFileSync(path.join(out(), 'host', 'lint-browser.js'), 'utf8')
+    ).toContain(`sas-language/${languageVersion}/`)
+  })
+
+  it('boots in the head before preserved parser scripts with their attributes intact', async () => {
+    const scripts = [
+      '<script src="theme-boot.js" data-early></script>',
+      '<script async defer src="main.abc123.js?mode=one" integrity="sha384-x" crossorigin="anonymous" nonce="n" data-custom="main.abc123.js?mode=one"></script>',
+      '<script type="module" src="deferred.js"></script>',
+      '<script>window.inlineText = "  unchanged  ";</script>',
+      '<script type="application/ld+json">{"name":"app"}</script>'
+    ]
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="script-src 'self'">${scripts[0]}</head><body>${scripts.slice(1).join('')}</body></html>`
+    )
+
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const tags = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/g) || []
+    expect(tags).toHaveLength(6)
+    expect(tags[0]).toMatch(
+      /^<script src="\/demo\/host\/boot\.js\?v=[0-9a-f]{10}"><\/script>$/
+    )
+    expect(html.indexOf(tags[0]!)).toBeLessThan(html.indexOf('</head>'))
+    expect(html.indexOf('Content-Security-Policy')).toBeLessThan(
+      html.indexOf(tags[0]!)
+    )
+    expect(tags[1]).toMatch(
+      /^<script src="theme-boot\.js\?v=[0-9a-f]{10}" data-early><\/script>$/
+    )
+    expect(tags[2]).toMatch(
+      /^<script async defer src="main\.abc123\.js\?v=[0-9a-f]{10}&amp;mode=one" integrity="sha384-x" crossorigin="anonymous" nonce="n" data-custom="main\.abc123\.js\?mode=one"><\/script>$/
+    )
+    expect(tags[3]).toMatch(
+      /^<script type="module" src="deferred\.js\?v=[0-9a-f]{10}"><\/script>$/
+    )
+    expect(tags.slice(4)).toEqual(scripts.slice(3))
+    expect(html).not.toContain('data-scripts')
+    expect(html).not.toContain('rel="preload" as="script"')
+  })
+
+  it('versions owned script URLs before their fragment and preserves query encoding', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head><script data-copy="main.abc123.js#view" src='main.abc123.js#view'></script></head><body><script src="main.abc123.js?one=1&amp;two=2#view"></script></body></html>`
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toMatch(
+      /data-copy="main\.abc123\.js#view" src='main\.abc123\.js\?v=[0-9a-f]{10}#view'/
+    )
+    expect(html).toMatch(
+      /src="main\.abc123\.js\?v=[0-9a-f]{10}&amp;one=1&amp;two=2#view"/
+    )
+  })
+
+  it('versions script URLs with encoded query and fragment delimiters without corrupting markup', async () => {
+    const scripts = [
+      '<script async src="main.abc123.js&#63;mode=one&amp;two=2#view" nonce="n"></script>',
+      "<script defer src='main.abc123.js&#x3f;mode=one&#35;view' data-copy='unchanged'></script>",
+      '<script src="main.abc123.js?mode=one&#35;view" integrity="sha384-x"></script>',
+      '<script src="main.abc123.js&quest;mode=one&num;view" crossorigin="anonymous"></script>'
+    ]
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head></head><body>${scripts.join('')}</body></html>`
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const hash = require('crypto')
+      .createHash('md5')
+      .update(
+        fs.readFileSync(path.join(root, 'client', 'dist', 'main.abc123.js'))
+      )
+      .digest('hex')
+      .slice(0, 10)
+    const tags = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/g) || []
+    expect(tags.slice(1)).toEqual([
+      `<script async src="main.abc123.js&#63;v=${hash}&amp;mode=one&amp;two=2#view" nonce="n"></script>`,
+      `<script defer src='main.abc123.js&#x3f;v=${hash}&amp;mode=one&#35;view' data-copy='unchanged'></script>`,
+      `<script src="main.abc123.js?v=${hash}&amp;mode=one&#35;view" integrity="sha384-x"></script>`,
+      `<script src="main.abc123.js&quest;v=${hash}&amp;mode=one&num;view" crossorigin="anonymous"></script>`
+    ])
+  })
+
+  it('versions unquoted script URLs with an empty query before the fragment', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head><script src=main.abc123.js?#view defer></script></head><body></body></html>'
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toMatch(
+      /<script src=main\.abc123\.js\?v=[0-9a-f]{10}#view defer><\/script>/
+    )
+    const dom = new JSDOM(html)
+    const script = dom.window.document.querySelector('script[defer]')!
+    expect(script.getAttribute('src')).toMatch(
+      /^main\.abc123\.js\?v=[0-9a-f]{10}#view$/
+    )
+    dom.window.close()
+  })
+
+  it('leaves external and directory script URLs untouched', async () => {
+    const scripts = [
+      '<script src="//cdn.example.com/lib.js"></script>',
+      '<script src="data:text/javascript,void(0)"></script>',
+      '<script src="assets"></script>'
+    ]
+    fs.mkdirSync(path.join(root, 'client', 'dist', 'assets'))
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head>${scripts.join('')}</head><body></body></html>`
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    for (const script of scripts) expect(html).toContain(script)
+  })
+
+  it('only versions style links, including unquoted preloads, and leaves incomplete links alone', async () => {
+    const unchanged = [
+      '<link href="theme-boot.css">',
+      '<link rel=preload href="theme-boot.css">',
+      '<link rel=preload as=script href="theme-boot.css">',
+      '<link rel=stylesheet disabled>'
+    ]
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head>${unchanged.join('')}<link rel=preload as=style href=theme-boot.css><link rel='stylesheet' href='theme-boot.css'></head><body></body></html>`
+    )
+
+    await buildMockSite(target())
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    for (const link of unchanged) expect(html).toContain(link)
+    const dom = new JSDOM(html)
+    const preload = dom.window.document.querySelector('link[as="style"]')!
+    const stylesheet = dom.window.document.querySelector(
+      'link[href^="theme-boot.css?"][rel="stylesheet"]'
+    )!
+    expect(preload.getAttribute('href')).toMatch(
+      /^theme-boot\.css\?v=[0-9a-f]{10}$/
+    )
+    expect(stylesheet.getAttribute('href')).toBe(preload.getAttribute('href'))
+    dom.window.close()
+  })
+
+  it('does not version a script outside the generated site', async () => {
+    write(path.join(root, 'sasjsbuild', 'external.js'), 'external')
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head><script src="../external.js"></script></head><body></body></html>'
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html).toContain('<script src="../external.js"></script>')
   })
 
   it('lays the compile output out on the virtual drive', async () => {
@@ -207,6 +593,15 @@ describe('browser-hosted build', () => {
       /importScripts\('host\/lint-browser\.js\?v=[0-9a-f]{10}'\)/
     )
     expect(sw).not.toContain("importScripts('/host/runtime-core.js')")
+  })
+
+  it('resolves the same linter for the API code service and CLI', () => {
+    const cliLint = require.resolve('@sasjs/lint/package.json')
+    const apiEntry = require.resolve('@sasjs/api/code')
+    const apiLint = require.resolve('@sasjs/lint/package.json', {
+      paths: [path.dirname(apiEntry)]
+    })
+    expect(apiLint).toBe(cliLint)
   })
 
   it('bundles the linter from the installed packages, ready for a worker', async () => {
@@ -350,6 +745,324 @@ describe('browser-hosted build', () => {
     }
   })
 
+  it.each([
+    '<sasjs serverurl="old"></sasjs>',
+    '<sasjs serverurl="old">',
+    '<sasjs serverurl="old"/>'
+  ])('uses one early mount script for scripts around %s', async (tag) => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<html><head><script src="early.js"></script></head><body>${tag}<script src="late.js"></script></body></html>`
+    )
+    write(
+      path.join(root, 'client', 'dist', 'early.js'),
+      'window.early = { config: document.querySelector("sasjs")?.getAttribute("serverurl") ?? null, observer: !!window.__sasjsMountObserver }'
+    )
+    write(
+      path.join(root, 'client', 'dist', 'late.js'),
+      'window.late = document.querySelector("sasjs").getAttribute("serverurl")'
+    )
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const parsed = new JSDOM(html)
+    const mountScripts = parsed.window.document.querySelectorAll(
+      'script[src*="/host/mount-config.js?"]'
+    )
+    expect(mountScripts).toHaveLength(1)
+    expect(
+      mountScripts[0]!.compareDocumentPosition(
+        parsed.window.document.querySelector('script[src^="early.js"]')!
+      ) & 4
+    ).toBeTruthy()
+    parsed.window.close()
+
+    const resources = assetResources((url) => {
+      const pathname = new URL(url).pathname.replace(/^\/demo\//, '')
+      if (pathname === 'host/boot.js') return Buffer.from('')
+      const file = path.join(out(), pathname)
+      return fs.existsSync(file) ? fs.readFileSync(file) : null
+    })
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/demo/',
+      resources,
+      runScripts: 'dangerously'
+    })
+    await waitForLoad(dom)
+    expect(
+      (dom.window as any).early.observer ||
+        (dom.window as any).early.config === 'https://example.com/demo'
+    ).toBe(true)
+    expect((dom.window as any).late).toBe('https://example.com/demo')
+    dom.window.close()
+  })
+
+  it('never exposes a relative mount to an async app while a parser script is delayed', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head><script async src="async-app.js"></script></head><body><sasjs serverurl="old"></sasjs></body></html>'
+    )
+    write(path.join(root, 'client', 'dist', 'async-app.js'), 'unused')
+    await buildMockSite(target({ mockWebBasePath: '/demo' }))
+    // Model a parser-blocking script held after the config: the generated early
+    // observer must stamp it before the async app runs, even while parsing stalls.
+    const html = fs
+      .readFileSync(path.join(out(), 'index.html'), 'utf8')
+      .replace('</sasjs>', '<script src="/demo/held.js"></script></sasjs>')
+    let releaseMount!: () => void
+    let releaseApp!: () => void
+    let appObserved!: () => void
+    const observed = new Promise<void>((resolve) => (appObserved = resolve))
+    const appReady = new Promise<Buffer>((resolve) => {
+      releaseApp = () =>
+        resolve(
+          Buffer.from(`
+        function observe() {
+          var config = document.querySelector('sasjs');
+          if (!config) return setTimeout(observe, 0);
+          window.observed = config.getAttribute('serverurl');
+          window.notifyObserved();
+        }
+        observe();
+      `)
+        )
+    })
+    let mountRequested!: () => void
+    const requested = new Promise<void>((resolve) => (mountRequested = resolve))
+    const mountReady = new Promise<Buffer>((resolve) => {
+      releaseMount = () => resolve(Buffer.from(''))
+    })
+    const resources = assetResources((url) => {
+      const name = new URL(url).pathname.split('/').pop()
+      if (name === 'boot.js') return Buffer.from('')
+      if (name === 'async-app.js') return appReady
+      if (name === 'mount-config.js')
+        return fs.readFileSync(path.join(out(), 'host', name))
+      if (name === 'held.js') {
+        mountRequested()
+        return mountReady
+      }
+      return null
+    })
+    const dom = new JSDOM(html, {
+      url: 'https://example.com/demo/',
+      resources,
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        ;(window as any).notifyObserved = appObserved
+      }
+    })
+    await requested
+    releaseApp()
+    // The app must actually run while the parser-blocking response is held.
+    await observed
+    const observedWhileHeld = (dom.window as any).observed
+    releaseMount()
+    await waitForLoad(dom)
+    dom.window.close()
+    expect(observedWhileHeld).toBe('https://example.com/demo')
+  })
+
+  browserIt(
+    'provides an absolute mounted server URL before the app reads its config',
+    async () => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        '<html><head></head><body><sasjs serverurl="https://old.example" apploc="/old" servertype="SASJS" loginmechanism="Redirected"></sasjs><script>window.observedServerUrl = document.querySelector("sasjs").getAttribute("serverurl")</script></body></html>'
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo/nested' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      for (const origin of ['http://127.0.0.1:8123', 'https://example.com']) {
+        expect(
+          await observeMountInChromium(
+            html,
+            `${origin}/demo/nested/`,
+            path.join(out(), 'host'),
+            'window.observedServerUrl'
+          )
+        ).toBe(`${origin}/demo/nested`)
+      }
+    }
+  )
+
+  browserIt.each([
+    "<sasjs serverurl='https://old.example'/>",
+    "<sasjs serverurl='https://old.example'>",
+    "<sasjs serverurl='https://old.example'></sasjs>"
+  ])(
+    'stamps an unclosed config before the following app script: %s',
+    async (tag) => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        `<html><head></head><body>${tag}<script>window.observedServerUrl = document.querySelector('sasjs').getAttribute('serverurl')</script></body></html>`
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      expect(
+        await observeMountInChromium(
+          html,
+          'https://example.com/demo/',
+          path.join(out(), 'host'),
+          'window.observedServerUrl'
+        )
+      ).toBe('https://example.com/demo')
+    }
+  )
+
+  browserIt(
+    'stamps before an app script nested inside the config element',
+    async () => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        `<html><head></head><body><sasjs serverurl="old"><script>window.observed = document.querySelector('sasjs').getAttribute('serverurl')</script></sasjs></body></html>`
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      expect(
+        await observeMountInChromium(
+          html,
+          'https://example.com/demo/',
+          path.join(out(), 'host'),
+          'window.observed'
+        )
+      ).toBe('https://example.com/demo')
+    }
+  )
+
+  it.each(['SASVIYA', 'SASJS'])(
+    'preserves frontend adapter type and appLoc for a %s target',
+    async (serverType) => {
+      const source = `<html><head></head><body><sasjs serverurl="old" servertype="SASJS" apploc="/frontend/app" loginmechanism="Redirected"></sasjs><script>const c = document.querySelector('sasjs'); window.adapter = new window.SASjs({serverUrl: c.getAttribute('serverurl'), serverType: c.getAttribute('servertype'), appLoc: c.getAttribute('apploc'), loginMechanism: c.getAttribute('loginmechanism')})</script></body></html>`
+      write(path.join(root, 'client', 'dist', 'index.html'), source)
+      await buildMockSite({ ...target(), serverType, appLoc: '/target/app' })
+      const dom = new JSDOM(
+        fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
+        {
+          url: 'https://example.com/',
+          runScripts: 'dangerously',
+          beforeParse(window) {
+            ;(window as any).SASjs = require('@sasjs/adapter').default
+          }
+        }
+      )
+      const config = (dom.window as any).adapter.sasjsConfig
+      expect(config.serverType).toBe('SASJS')
+      expect(config.appLoc).toBe('/frontend/app')
+      expect(config.loginMechanism).toBe('Default')
+      dom.window.close()
+    }
+  )
+
+  it.each(['SASVIYA', 'SASJS'])(
+    'does not add absent adapter type or appLoc for a %s target',
+    async (serverType) => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        '<html><head></head><body><sasjs serverurl="old"></sasjs></body></html>'
+      )
+      await buildMockSite({ ...target(), serverType })
+      const dom = new JSDOM(
+        fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      )
+      const config = dom.window.document.querySelector('sasjs')!
+      expect(config.hasAttribute('servertype')).toBe(false)
+      expect(config.hasAttribute('apploc')).toBe(false)
+      dom.window.close()
+    }
+  )
+
+  it('configures the copied app for a SAS9 target and its mounted mock host', async () => {
+    const source = path.join(root, 'client', 'dist', 'index.html')
+    const original = fs.readFileSync(source, 'utf8')
+    const loc = '/Shared/SAS9/demo'
+    await buildMockSite({
+      ...target({ mockWebBasePath: '/demo' }),
+      serverType: 'SAS9',
+      appLoc: loc
+    })
+
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const dom = new JSDOM(html, { url: 'https://example.com/demo/' })
+    const config = dom.window.document.querySelector('sasjs')!
+    expect(config.getAttribute('servertype')).toBe('SAS9')
+    expect(config.getAttribute('apploc')).toBe(loc)
+    expect(config.getAttribute('serverurl')).toBe('/demo')
+    expect(
+      new URL(config.getAttribute('serverurl')!, dom.window.location.href).href
+    ).toBe('https://example.com/demo')
+    expect(config.getAttribute('loginmechanism')).toBe('Default')
+    expect(fs.readFileSync(source, 'utf8')).toBe(original)
+    dom.window.close()
+  })
+
+  it('rewrites actual SASjs attributes with HTML quoting and preserves other markup', async () => {
+    const source = `<!doctype html><html><head></head><body><!-- <sasjs servertype="DECOY"> --><sasjs serverurl='https://old.example' servertype=SASJS apploc='/old' loginmechanism='Redirected' data-value='keep'></sasjs></body></html>`
+    write(path.join(root, 'client', 'dist', 'index.html'), source)
+    const loc = '/Public/A&B "quoted"'
+    await buildMockSite({ ...target(), appLoc: loc, serverType: 'SAS9' })
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const dom = new JSDOM(html)
+    const config = dom.window.document.querySelector('sasjs')!
+    expect(config.getAttribute('serverurl')).toBe('')
+    expect(config.getAttribute('servertype')).toBe('SAS9')
+    expect(config.getAttribute('apploc')).toBe(loc)
+    expect(config.getAttribute('loginmechanism')).toBe('Default')
+    expect(config.getAttribute('data-value')).toBe('keep')
+    expect(html).toContain('<!-- <sasjs servertype="DECOY"> -->')
+    dom.window.close()
+  })
+
+  browserIt(
+    'stamps missing config attributes for an app that reads them',
+    async () => {
+      const source =
+        '<html><head></head><body><sasjs data-custom="keep"></sasjs><script>const c = document.querySelector("sasjs"); window.adapter = new window.SASjs.default({serverUrl: c.getAttribute("serverurl"), serverType: c.getAttribute("servertype"), appLoc: c.getAttribute("apploc"), loginMechanism: c.getAttribute("loginmechanism")})</script></body></html>'
+      write(path.join(root, 'client', 'dist', 'index.html'), source)
+      await buildMockSite({
+        ...target({ mockWebBasePath: '/demo' }),
+        serverType: 'SAS9'
+      })
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const result = await observeMountInChromium(
+        html,
+        'https://example.com/demo/',
+        path.join(out(), 'host'),
+        `({ config: window.adapter.sasjsConfig, custom: document.querySelector('sasjs').getAttribute('data-custom') })`,
+        true
+      )
+      expect(result.config.serverUrl).toBe('https://example.com/demo')
+      expect(result.config.serverType).toBe('SAS9')
+      expect(result.config.appLoc).toBe(appLoc)
+      expect(result.config.loginMechanism).toBe('Default')
+      expect(result.custom).toBe('keep')
+      expect(
+        fs.readFileSync(path.join(root, 'client', 'dist', 'index.html'), 'utf8')
+      ).toBe(source)
+    }
+  )
+
+  it('warns that apps ignoring missing DOM attributes can still use incompatible defaults', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<html><head></head><body><sasjs></sasjs><script>window.adapter = new window.SASjs()</script></body></html>'
+    )
+    await buildMockSite({ ...target(), serverType: 'SAS9' })
+    const dom = new JSDOM(
+      fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
+      {
+        runScripts: 'dangerously',
+        beforeParse(window) {
+          ;(window as any).SASjs = require('@sasjs/adapter').default
+        }
+      }
+    )
+    expect((dom.window as any).adapter.sasjsConfig.serverType).not.toBe('SAS9')
+    expect((dom.window as any).adapter.sasjsConfig.appLoc).not.toBe(appLoc)
+    expect(process.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('ignores')
+    )
+    dom.window.close()
+  })
+
   it('serves the site under a folder when the target names one', async () => {
     await buildMockSite(target({ mockWebBasePath: '/demo' }))
 
@@ -358,6 +1071,43 @@ describe('browser-hosted build', () => {
     // the boot tag is absolute and names the folder, so a page at `/demo` with
     // no trailing slash still loads the loader from `/demo/host/`
     expect(html).toContain('<script src="/demo/host/boot.js?v=')
+  })
+
+  it('resolves the boot script at the site root even with base metadata', async () => {
+    const cases = [
+      {
+        html: '<html><head><base href="/other/"></head><body></body></html>',
+        base: '',
+        url: 'https://example.com/',
+        expected: '/host/boot.js'
+      },
+      {
+        html: '<html><head><base href="/other/"></head><body></body></html>',
+        base: '/demo',
+        url: 'https://example.com/demo',
+        expected: '/demo/host/boot.js'
+      },
+      {
+        html: '<html><base href="/other/"><body><script>window.app = true</script></body></html>',
+        base: '',
+        url: 'https://example.com/',
+        expected: '/host/boot.js'
+      }
+    ]
+    for (const entry of cases) {
+      write(path.join(root, 'client', 'dist', 'index.html'), entry.html)
+      await buildMockSite(target({ mockWebBasePath: entry.base }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const dom = new JSDOM(html, { url: entry.url })
+      const boot = dom.window.document.querySelector(
+        'script[src*="host/boot.js"]'
+      ) as HTMLScriptElement
+      expect(boot).not.toBeNull()
+      expect(new URL(boot.src, entry.url).origin).toBe('https://example.com')
+      expect(new URL(boot.src, entry.url).pathname).toBe(entry.expected)
+      expect(html.indexOf('<base')).toBeLessThan(html.indexOf('host/boot.js'))
+      dom.window.close()
+    }
   })
 
   it('refuses a base path that is not a folder path', async () => {
@@ -384,44 +1134,19 @@ describe('browser-hosted build', () => {
     expect(html).toContain('serverurl=""')
   })
 
-  /**
-   * A page's paint-critical script must run before the worker exists.
-   *
-   * The loader defers every script so the worker is ready before the app asks it
-   * for anything - right for the app, wrong for a script whose job is the canvas:
-   * the page stays unpainted (white) for the seconds the worker takes to claim
-   * it, which is the white flash a dark interface shows on every load. A tag the
-   * page marks `data-early` says it needs no worker, so the parser keeps it.
-   */
-  it('leaves a data-early script to the parser, in the page', async () => {
+  it('keeps early scripts and modules in place after the host', async () => {
     await buildMockSite(target())
-
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const specs = JSON.parse(
-      html
-        .match(/data-scripts='([^']*)'/)![1]
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&')
-    ) as { src?: string }[]
-
-    // still in the page, before the loader, and not replayed through it
+    expect(html.indexOf('host/boot.js')).toBeLessThan(
+      html.indexOf('theme-boot.js')
+    )
     expect(html).toMatch(
       /<script src="theme-boot\.js\?v=[0-9a-f]{10}" data-early><\/script>/
     )
-    expect(specs.map((spec) => spec.src)).not.toContain(
-      expect.stringMatching(/theme-boot/)
+    expect(html).toMatch(
+      /<script src="deferred\.js\?v=[0-9a-f]{10}" type="module" data-early><\/script>/
     )
-    expect(html.indexOf('theme-boot.js')).toBeLessThan(
-      html.indexOf('host/boot.js')
-    )
-
-    // the same marker on a module cannot be honoured: a module is deferred by
-    // specification, so it is replayed and the author is told
-    expect(html).not.toContain('<script src="deferred.js')
-    expect(specs.map((spec) => spec.src)).toContainEqual(
-      expect.stringMatching(/^deferred\.js\?v=/)
-    )
-    expect(process.logger.warn).toHaveBeenCalledWith(
+    expect(process.logger.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('a data-early script is a module')
     )
   })
@@ -439,43 +1164,20 @@ describe('browser-hosted build', () => {
     )
   })
 
-  /**
-   * The loader replays the app's tags only once the worker controls the page.
-   * Right for answerability, but it also puts the largest asset on the site
-   * behind the largest prerequisite - so a classic script is hinted in the head,
-   * where the parser reaches it before the loader runs.
-   */
-  it('hints a classic app script so it downloads while the worker installs', async () => {
+  it('leaves classic and module scripts in the page without replay preloads', async () => {
     write(
       path.join(root, 'client', 'dist', 'index.html'),
-      [
-        '<!doctype html><html><head><title>App</title></head><body>',
-        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}" servertype="SASJS"></sasjs>`,
-        '<script src="main.abc123.js"></script>',
-        '<script src="deferred.js" type="module"></script>',
-        '</body></html>'
-      ].join('\n')
+      '<html><head></head><body><script src="main.abc123.js"></script><script src="deferred.js" type="module"></script></body></html>'
     )
-
     await buildMockSite(target())
-
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const hint = html.match(
-      /<link rel="preload" as="script" href="([^"]+)" \/>/
+    expect(html).toMatch(
+      /<script src="main\.abc123\.js\?v=[0-9a-f]{10}"><\/script>/
     )
-
-    expect(hint).not.toBeNull()
-    // the hint names the URL the replayed tag carries, version query included: a
-    // mismatch is a second download rather than a warm cache
-    expect(hint![1]).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
-    expect(html).toContain(`"src":"${hint![1]}"`)
-    // and it has to be in the head, ahead of the loader that replays the tag
-    expect(html.indexOf('rel="preload"')).toBeLessThan(
-      html.indexOf('host/boot.js')
+    expect(html).toMatch(
+      /<script src="deferred\.js\?v=[0-9a-f]{10}" type="module"><\/script>/
     )
-    // a module is fetched with different credentials semantics, so a script hint
-    // would not match its tag - it is replayed without one
-    expect(html).not.toMatch(/as="script" href="deferred/)
+    expect(html).not.toContain('rel="preload" as="script"')
   })
 
   it('leaves a script this build does not own unhinted', async () => {
@@ -518,13 +1220,6 @@ describe('browser-hosted build', () => {
     await buildMockSite(target())
 
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const specs = JSON.parse(
-      html
-        .match(/data-scripts='([^']*)'/)![1]
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&')
-    ) as { src?: string; integrity?: string }[]
-
     // not owned by this build: untouched
     expect(html).toContain('href="https://cdn.example.com/lib.css"')
 
@@ -532,8 +1227,9 @@ describe('browser-hosted build', () => {
     expect(html).toMatch(
       /href="theme-boot\.css\?v=[0-9a-f]{10}" integrity="sha384-abc" crossorigin="anonymous"/
     )
-    expect(specs[0].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
-    expect(specs[0].integrity).toBe('sha384-def')
+    expect(html).toMatch(
+      /<script src="main\.abc123\.js\?v=[0-9a-f]{10}" type="module" integrity="sha384-def"><\/script>/
+    )
   })
 
   it('does not let a $ in a file name rewrite the page', async () => {
@@ -568,7 +1264,7 @@ describe('browser-hosted build', () => {
         .slice(0, 10)}" data-early></script>`
     )
     // one script tag, not a nested one spliced in by the expansion
-    expect(html.split('<script').length - 1).toBe(2) // the early tag + the loader
+    expect(html.split('<script').length - 1).toBe(3) // both app tags + the host
   })
 
   it('versions a preload of the same stylesheet', async () => {
@@ -598,65 +1294,36 @@ describe('browser-hosted build', () => {
     expect(urls[0]).toBe(urls[1])
   })
 
-  it('installs the loader for a page whose only script runs early', async () => {
-    // the loader is what installs the worker, the bridge and the drive: a page
-    // whose one script is kept in the parser still needs it, and must not be told
-    // it has no scripts
+  it('installs the host when the only app script is early', async () => {
     write(
       path.join(root, 'client', 'dist', 'index.html'),
-      [
-        '<!doctype html><html><head><title>App</title>',
-        '<script src="theme-boot.js" data-early></script>',
-        '</head><body>',
-        `<sasjs serverurl="https://sas.example.com" apploc="${appLoc}"></sasjs>`,
-        '</body></html>'
-      ].join('\n')
+      '<html><head><script src="theme-boot.js" data-early></script></head><body></body></html>'
     )
-
     await buildMockSite(target())
-
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const specs = html.match(/data-scripts='([^']*)'/)![1]
-
-    expect(html).toContain('<script src="host/boot.js?v=')
-    expect(html).toContain('data-early')
-    expect(specs).toBe('[]')
+    expect(html.indexOf('host/boot.js')).toBeLessThan(
+      html.indexOf('theme-boot.js')
+    )
+    expect(html).not.toContain('data-scripts')
     expect(process.logger.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('no script tags found')
     )
   })
 
-  it('points the app at itself and installs the boot loader', async () => {
+  it('points the app at itself and installs the boot host', async () => {
     await buildMockSite(target())
-
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
     expect(html).toContain('serverurl=""')
     expect(html).toContain('loginmechanism="Default"')
     expect(html).not.toContain('https://sas.example.com')
-    // the loader is a file, never an inline script: an app with a strict
-    // Content-Security-Policy would refuse an inline one
-    expect(html).toContain('<script src="host/boot.js?v=')
+    expect(html).toMatch(
+      /<script src="\/host\/boot\.js\?v=[0-9a-f]{10}"><\/script>/
+    )
     expect(html).not.toContain('<script>')
     expect(fs.existsSync(path.join(out(), 'host', 'boot.js'))).toBe(true)
-    // the app's own tags are replayed by the loader, in the order the page has
-    // them, and are gone from the page itself
-    expect(html).not.toContain('<script src="main.abc123.js"')
-
-    // one spec, and it is the module tag: two `toContain` calls would pass with
-    // the src in one spec and the type in another
-    const specs = JSON.parse(
-      html
-        .match(/data-scripts='([^']*)'/)![1]
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&')
+    expect(html).toMatch(
+      /<script src="main\.abc123\.js\?v=[0-9a-f]{10}" type="module"><\/script>/
     )
-
-    // two: the module the page marked data-early (replayed, with a warning),
-    // then the bundle - both in the order the page had them
-    expect(specs).toHaveLength(2)
-    expect(specs[0].src).toMatch(/^deferred\.js\?v=[0-9a-f]{10}$/)
-    expect(specs[1].type).toBe('module')
-    expect(specs[1].src).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
   })
 
   /**
@@ -665,27 +1332,19 @@ describe('browser-hosted build', () => {
    * bundle's name never changes, so the URL is what has to change.
    */
   it('gives each app script a URL that follows its contents', async () => {
-    const specs = () => {
+    const bundleSrc = () => {
       const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-      const tag = html.match(/data-scripts='([^']*)'/)
-
-      return JSON.parse(
-        tag![1].replace(/&#39;/g, "'").replace(/&amp;/g, '&')
-      ) as { src?: string; type?: string }[]
+      return html.match(/src="(main\.abc123\.js[^\"]*)"/)?.[1]
     }
 
-    /** The bundle's spec - the page also carries the data-early module. */
-    const bundleSrc = () =>
-      specs().find((spec) => spec.src?.startsWith('main.'))
-
     await buildMockSite(target())
-    const first = bundleSrc()!.src
+    const first = bundleSrc()
 
     expect(first).toMatch(/^main\.abc123\.js\?v=[0-9a-f]{10}$/)
 
     // the same file twice: nothing about the URL changes
     await buildMockSite(target())
-    expect(bundleSrc()!.src).toBe(first)
+    expect(bundleSrc()).toBe(first)
 
     // a different bundle: a different URL, which is the caching bust
     write(
@@ -693,7 +1352,7 @@ describe('browser-hosted build', () => {
       'console.log(2)\n'
     )
     await buildMockSite(target())
-    expect(bundleSrc()!.src).not.toBe(first)
+    expect(bundleSrc()).not.toBe(first)
 
     // and a script this build does not own is left exactly as the page asked
     write(
@@ -706,7 +1365,9 @@ describe('browser-hosted build', () => {
       ].join('\n')
     )
     await buildMockSite(target())
-    expect(specs()[0].src).toBe('https://cdn.example.com/lib.js')
+    expect(fs.readFileSync(path.join(out(), 'index.html'), 'utf8')).toContain(
+      '<script src="https://cdn.example.com/lib.js"></script>'
+    )
   })
 
   it('states in the page that the API is answered here', async () => {
@@ -788,38 +1449,120 @@ describe('browser-hosted build', () => {
     expect(html).not.toContain('sasjs-host')
   })
 
-  it('replays every script tag a page loads, not just a bundled entry point', async () => {
+  it.each([
+    `<!doctype html><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><div>App</div><script src="theme-boot.js"></script>`,
+    `<!doctype html><html><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></html>`,
+    `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></html>`,
+    `<!doctype html><html><meta http-equiv="Content-Security-Policy" content="script-src 'none'"><body><script src="theme-boot.js"></script></body></html>`,
+    `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'">`,
+    `<!doctype html><meta http-equiv="Content-Security-Policy" content="script-src 'none'">`
+  ])(
+    'keeps CSP effective before boot with implicit markup: %s',
+    async (source) => {
+      write(path.join(root, 'client', 'dist', 'index.html'), source)
+      await buildMockSite(target())
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const dom = new JSDOM(html)
+      const head = dom.window.document.head
+      const csp = head.querySelector(
+        'meta[http-equiv="Content-Security-Policy"]'
+      )
+      const boot = head.querySelector('script[src*="/host/boot.js"]')
+      expect(csp?.getAttribute('content')).toBe("script-src 'none'")
+      expect(boot).not.toBeNull()
+      expect(html.indexOf('Content-Security-Policy')).toBeLessThan(
+        html.indexOf('host/boot.js')
+      )
+      if (html.includes('theme-boot.js'))
+        expect(html.indexOf('host/boot.js')).toBeLessThan(
+          html.indexOf('theme-boot.js')
+        )
+      dom.window.close()
+    }
+  )
+
+  it('inserts boot before an unterminated head title', async () => {
     write(
       path.join(root, 'client', 'dist', 'index.html'),
-      [
-        '<!doctype html><html><body>',
-        '<sasjs serverurl="https://sas.example.com" apploc="/Public/app/test"></sasjs>',
-        '<script type="application/ld+json">{"name":"app"}</script>',
-        '<script defer id="sasjs-adapter" src="sasjs.js"></script>',
-        '<script>window.__boot = {ready: false}</script>',
-        '<script src="js/backend.js"></script>',
-        '<script src="js/game.js" crossorigin="anonymous"></script>',
-        '</body></html>'
-      ].join('\n')
+      '<!doctype html><html><head><title>Unclosed'
     )
-
     await buildMockSite(target())
-
     const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const tag = html.match(/data-scripts='([^']*)'/)
-    expect(tag).toBeTruthy()
-    const specs = JSON.parse(
-      tag![1].replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    const dom = new JSDOM(html)
+    expect(
+      dom.window.document.head.querySelector('script[src*="/host/boot.js"]')
+    ).not.toBeNull()
+    expect(html.indexOf('host/boot.js')).toBeLessThan(html.indexOf('<title>'))
+    dom.window.close()
+  })
+
+  it('rejects an unterminated comment when boot would become text', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      '<!doctype html><html><head><!-- Unclosed'
     )
-    expect(specs).toEqual([
-      { src: 'sasjs.js', id: 'sasjs-adapter' },
-      { code: 'window.__boot = {ready: false}' },
-      { src: 'js/backend.js' },
-      { src: 'js/game.js', crossOrigin: 'anonymous' }
-    ])
-    expect(html).not.toContain('<script src="js/backend.js"')
-    // a data block is not a script: it stays in the page
-    expect(html).toContain('<script type="application/ld+json">')
+    await expect(buildMockSite(target())).rejects.toThrow(/boot/i)
+  })
+
+  it('refuses a head policy after an app script instead of bypassing it', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<!doctype html><html><head><script src="theme-boot.js"></script><meta http-equiv="Content-Security-Policy" content="script-src 'none'"></head></html>`
+    )
+    await expect(buildMockSite(target())).rejects.toThrow(/CSP/i)
+  })
+
+  it('honors implicit-head CSP metadata before the host', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<!doctype html><html><meta http-equiv="Content-Security-Policy" content="script-src 'self'"><script src="theme-boot.js"></script><body></body></html>`
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html.indexOf('Content-Security-Policy')).toBeLessThan(
+      html.indexOf('host/boot.js')
+    )
+    expect(html.indexOf('host/boot.js')).toBeLessThan(
+      html.indexOf('theme-boot.js')
+    )
+  })
+
+  it('boots before scripts after implicit head and body markup', async () => {
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<!doctype html><html><meta http-equiv="Content-Security-Policy" content="script-src 'self'"><div>App</div><script src="theme-boot.js"></script></html>`
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    expect(html.indexOf('Content-Security-Policy')).toBeLessThan(
+      html.indexOf('host/boot.js')
+    )
+    expect(html.indexOf('host/boot.js')).toBeLessThan(html.indexOf('<div>'))
+  })
+
+  it('preserves script tags in order when the source has no head', async () => {
+    const scripts = [
+      '<script type="application/ld+json">{"name":"app"}</script>',
+      '<script defer id="sasjs-adapter" src="sasjs.js"></script>',
+      '<script>window.__boot = {ready: false}</script>',
+      '<script src="js/backend.js"></script>',
+      '<script src="js/game.js" crossorigin="anonymous"></script>'
+    ]
+    write(
+      path.join(root, 'client', 'dist', 'index.html'),
+      `<!doctype html><html><body>${scripts.join('')}</body></html>`
+    )
+    await buildMockSite(target())
+    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+    const tags = html.match(/<script\b[^>]*>[\s\S]*?<\/script>/g) || []
+    expect(tags[0]).toMatch(
+      /^<script src="\/host\/boot\.js\?v=[0-9a-f]{10}"><\/script>$/
+    )
+    expect(tags.slice(1)).toEqual(scripts)
+    expect(html).toMatch(
+      /<head><script src="\/host\/boot\.js\?v=[0-9a-f]{10}"><\/script><\/head>/
+    )
+    expect(html).not.toContain('data-scripts')
   })
 
   it('ships a captured drive snapshot when the project has one', async () => {
@@ -953,7 +1696,7 @@ describe('browser-hosted build', () => {
     // the page is static and carries no inline script: a project that serves it
     // under `default-src 'self'` would refuse one
     const html = fs.readFileSync(path.join(folder, 'index.html'), 'utf8')
-    expect(html).toContain('<script src="console.js"></script>')
+    expect(html).toMatch(/<script src="console\.js\?v=[0-9a-f]{10}"><\/script>/)
     expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/)
     // the page starts the host itself, so it registers the worker under the same
     // versioned URL the app's loader uses: two URLs for one scope replace each
@@ -1275,19 +2018,27 @@ describe('browser-hosted build', () => {
     )
   })
 
-  it('leaves a streamed web folder off the drive', async () => {
+  it('puts a streamed build on the drive, where its page reads it from', async () => {
     write(
       path.join(root, 'sasjsbuild', 'services', 'web', 'index.html'),
       '<html></html>'
+    )
+    write(
+      path.join(root, 'sasjsbuild', 'services', 'clickme.html'),
+      `<html><script src="/SASJobExecution?_FILE=${appLoc}/services/web/index.html"></script></html>`
     )
 
     await buildMockSite(target({ streamWeb: true, streamWebFolder: 'web' }))
 
     const keys = Object.keys(readSeed().files)
-    expect(keys.some((k) => k.startsWith(`${appLoc}/services/web/`))).toBe(
-      false
+    // the artefact a server would serve is the artefact this site serves: the
+    // entry page and its assets are on the drive, read back through `_FILE=`
+    expect(keys).toContain(
+      `/sasjs/drive/files${appLoc}/services/web/index.html`
     )
-    // the same folder is still the site's own content, so it is copied
+    expect(keys).toContain(`/sasjs/drive/files${appLoc}/services/clickme.html`)
+
+    // and the unmodified frontend is still what the site itself is
     expect(fs.existsSync(path.join(out(), 'index.html'))).toBe(true)
   })
 

@@ -151,15 +151,14 @@ async function createFinalSasFiles(target: Target) {
   finalSasFileContent += `\n${buildTerm}`
 
   if (streamWeb) {
-    if (
-      target.serverType === ServerType.SasViya ||
-      target.serverType === ServerType.Sas9
-    ) {
-      finalSasFileContent += getLaunchPageCode(
-        target.serverType,
-        streamConfig.streamServiceName
-      )
-    } else if (target.serverType === ServerType.Sasjs) {
+    // every server that streams says where the app landed, on the route it
+    // serves it from - SASjs server's copy is not a special case any more
+    finalSasFileContent += getLaunchPageCode(
+      target.serverType,
+      streamConfig.streamServiceName as string
+    )
+
+    if (target.serverType === ServerType.Sasjs) {
       servicePackSASjs.streamLogo = streamConfig.streamLogo
       servicePackSASjs.streamServiceName = streamConfig.streamServiceName
       servicePackSASjs.streamWebFolder = streamConfig.streamWebFolder
@@ -170,7 +169,7 @@ async function createFinalSasFiles(target: Target) {
       // also means the zip a CI job keeps is everything needed to publish.
       servicePackSASjs.fileTree = withAppManifest(
         folderContentJSON,
-        appManifest(streamConfig)
+        appManifest(streamConfig, target.appLoc)
       )
     }
   }

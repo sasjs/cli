@@ -5,6 +5,7 @@ import {
 } from '../../../utils/config'
 import { createFile, Target, StreamConfig } from '@sasjs/utils'
 import { LogLine } from '../../../types'
+import { streamedAppUrl } from './appStreamUrl'
 
 /**
  * Execute deployScript on `SASVIYA` server.
@@ -84,9 +85,13 @@ export async function executeDeployScriptSasViya(
     `Deployment completed! Log is available at ${logFilePath}`
   )
 
-  if (streamConfig?.streamWeb) {
-    const appLoc = encodeURI(target.appLoc)
-    const webAppStreamUrl = `${target.serverUrl}/SASJobExecution?_FILE=${appLoc}/services/${streamConfig.streamServiceName}.html`
-    process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
-  }
+  if (streamConfig?.streamWeb)
+    process.logger?.info(
+      `Web app is available at ${streamedAppUrl(
+        target.serverUrl,
+        target.serverType,
+        target.appLoc,
+        streamConfig.streamServiceName as string
+      )}`
+    )
 }

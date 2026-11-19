@@ -38,7 +38,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Update npm
@@ -61,10 +61,60 @@ jobs:
           echo NODE_PATH=node >> .env
 
       - name: Download sasjs/server package from GitHub
-        run: curl -L https://github.com/sasjs/server/releases/latest/download/windows.zip --output windows.zip
+        shell: bash
+        # `releases/latest/download/windows.zip` follows whatever release is
+        # newest, and a release can be published with no assets at all: v7.24.3
+        # was, so that URL 302s to a 404 whose body was saved as windows.zip and
+        # the next step reported "end of central directory record signature not
+        # found" - a message about a zip, for a file that was never one. No
+        # release was ever meant here that carried no binaries, so the newest
+        # release that actually publishes the asset is resolved and named.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # the token is here for rate limits, not access: the repository is
+          # public, so an unauthenticated call is still a correct one
+          args=(-fsSL -H "accept: application/vnd.github+json")
+          if [ -n "${GH_TOKEN:-}" ]; then
+            args+=(-H "authorization: Bearer ${GH_TOKEN}")
+          fi
+          tag=$(curl "${args[@]}" \
+            "https://api.github.com/repos/sasjs/server/releases?per_page=30" |
+            node -e '
+              let body = ""
+              process.stdin.on("data", (chunk) => (body += chunk))
+              process.stdin.on("end", () => {
+                const releases = JSON.parse(body)
+                const carrying = releases.find((release) =>
+                  (release.assets || []).some(
+                    (asset) => asset.name === "windows.zip"
+                  )
+                )
+                if (!carrying) {
+                  console.error("No sasjs/server release publishes windows.zip")
+                  process.exit(1)
+                }
+                console.log(carrying.tag_name)
+              })
+            ')
+          echo "Using sasjs/server ${tag}"
+          curl -fsSL \
+            "https://github.com/sasjs/server/releases/download/${tag}/windows.zip" \
+            --output windows.zip
 
       - name: Unzip downloaded package
-        run: npx extract-zip windows.zip
+        shell: bash
+        # a download served under a `.zip` name is not always one, so the bytes
+        # are checked here rather than left to extract-zip's own wording
+        run: |
+          set -euo pipefail
+          signature=$(head -c 2 windows.zip | od -An -tx1 | tr -d ' \n')
+          if [ "${signature}" != "504b" ]; then
+            echo "::error::windows.zip is not a zip archive: it begins with the bytes ${signature}, where a zip begins 504b (\"PK\")."
+            exit 1
+          fi
+          npx extract-zip windows.zip
 
       - name: Start sasjs server in background
         run: START .\api-win.exe >> run-sasjs-server.txt
