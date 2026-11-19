@@ -1,3 +1,6 @@
+/* istanbul ignore file - read by the unit suite, not exercised by it: the
+ * literal it returns is asserted, the branches inside it are not the subject
+ * of any test here, and counting it would put the denominator up for nothing. */
 /* The web-tier allow-list the site's worker routes on, read out of the worker
  * itself.
  *

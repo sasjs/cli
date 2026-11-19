@@ -9,10 +9,11 @@
 // a stub that answers everything with one marker page - the point is the
 // hand-off, not what a site answers with.
 //
-// Three cases, because the page has three endings: the worker answers; the
-// worker never answers the navigation (the cap is reached, once, with a
-// message); and the same, with cookies disabled so the count has to travel in
-// the URL instead. The last one is the one that used to loop.
+// The cases are the page's endings: the worker answers; the worker never answers
+// the navigation, so the cap is reached once with a message; and the carriers
+// being refused, which is where the count has to travel outside storage. Each is
+// a numbered case below; they are not counted here, because that count is wrong
+// the moment one is added.
 const assert = require('node:assert/strict')
 const fs = require('node:fs/promises')
 const { allowListLiteral } = require('./web-tier-allow-list.cjs')
