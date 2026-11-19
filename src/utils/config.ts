@@ -690,14 +690,23 @@ const resolveCredentials = async (
   const targetEnvFile = await readTargetEnvFile(target?.name)
 
   const resolve = (configValue: string | undefined, envKey: string) => {
-    const fromConfig = sanitizeEnvValue(configValue)
-    const fromTargetEnvFile = sanitizeEnvValue(targetEnvFile?.[envKey])
+    // a blank value is not a value. `sanitizeEnvValue` maps only the literals
+    // 'null' and 'undefined', so a key written with nothing after its `=`
+    // survives it, and `??` does not fall through on '': a blank
+    // `REFRESH_TOKEN=` in `.env.{target}` would then shadow a usable token in
+    // `authConfig` and the CLI would report a missing refresh token where it
+    // previously used the configured pair.
+    const present = (value?: string) =>
+      value === undefined || value.trim() === '' ? undefined : value
+
+    const fromConfig = present(sanitizeEnvValue(configValue))
+    const fromTargetEnvFile = present(sanitizeEnvValue(targetEnvFile?.[envKey]))
 
     const preferred = local.target
       ? (fromTargetEnvFile ?? fromConfig)
       : (fromConfig ?? fromTargetEnvFile)
 
-    return preferred ?? sanitizeEnvValue(process.env[envKey])
+    return preferred ?? present(sanitizeEnvValue(process.env[envKey]))
   }
 
   return {

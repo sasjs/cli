@@ -636,6 +636,50 @@ describe('getAuthConfig - credential precedence', () => {
     expect(authConfig.refresh_token).toEqual('C0NF1GR3FR35H')
   })
 
+  it('treats a blank value in the env file as absent, so the configured one is used', async () => {
+    // A key written with nothing after its `=` is what an interrupted edit or a
+    // hand-tidied file leaves behind. It is not a credential, and treating it as
+    // one hides the configured pair behind an empty string.
+    const target = targetWithConfigTokens('prec')
+    await setupProjectWithTargets([target])
+    await createFile(
+      path.join(projectDir, '.env.prec'),
+      'ACCESS_TOKEN=\nREFRESH_TOKEN=   \n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('C0NF1G')
+    expect(authConfig.refresh_token).toEqual('C0NF1GR3FR35H')
+  })
+
+  it('treats a blank authConfig value as absent, so the env file supplies it', async () => {
+    // the same rule in the other direction: a global target whose authConfig
+    // carries an empty client reads the one the env file defines
+    const target = new Target({
+      name: 'globalTarget',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://example.com',
+      appLoc: '/Public/app',
+      authConfig: {
+        access_token: 'C0NF1G',
+        refresh_token: 'C0NF1GR3FR35H',
+        client: '',
+        secret: ''
+      }
+    })
+    await setupProjectWithTargets([targetWithConfigTokens('other')])
+    await createFile(
+      path.join(projectDir, '.env.globalTarget'),
+      'CLIENT=3NVCL13NT\nSECRET=3NV53CR3T\n'
+    )
+
+    const authConfig = await getAuthConfig(target)
+
+    expect(authConfig.access_token).toEqual('C0NF1G')
+    expect(authConfig.client).toEqual('3NVCL13NT')
+  })
+
   it('falls back to the process environment when neither store defines the value', async () => {
     const target = new Target({
       name: 'prec',
