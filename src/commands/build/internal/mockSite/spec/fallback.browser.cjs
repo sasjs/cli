@@ -77,6 +77,9 @@ function pagesLike(root, hits) {
   })
 }
 
+/* workerScript: a worker to serve, or null for a host that has none - the
+ * state in which the page never becomes controlled and the count has nowhere
+ * to live but the address */
 async function site(workerScript) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'sasjs-404-browser-'))
   const page = (
@@ -91,7 +94,7 @@ async function site(workerScript) {
   )
   await fs.writeFile(path.join(root, '404.html'), page)
   await fs.writeFile(path.join(root, '404.js'), script)
-  await fs.writeFile(path.join(root, 'sw.js'), workerScript)
+  if (workerScript) await fs.writeFile(path.join(root, 'sw.js'), workerScript)
   const hits = []
   const server = pagesLike(root, hits)
   server.listen(0, '127.0.0.1')
@@ -363,11 +366,80 @@ async function main() {
       )
     }
 
-    // 5. both storage carriers refused: the count goes into the address, which
-    // is the one carrier that cannot be refused - so this is the case that
-    // exercises the marker and the strip the give-up does
+    // 5. both storage carriers refused, worker claims the page but answers
+    // nothing: the page is controlled, so it probes the address instead of
+    // marking it - the static host's 404 ends it there
     {
       const s = await site(WORKER_SILENT)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        blockWindowName: true
+      })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(c.evalJS, (t) => t.includes(SILENT))
+      assert.ok(
+        text.includes(SILENT),
+        `expected the give-up message on the address carrier, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      const marked = s.hits.filter((p) => p.includes('sasjs404=')).length
+      assert.equal(
+        marked,
+        0,
+        `a controlled page must not mark the address (saw ${marked})`
+      )
+      const before = s.hits.filter((p) => p.startsWith('/Public/')).length
+      await sleep(1500)
+      const after = s.hits.filter((p) => p.startsWith('/Public/')).length
+      assert.equal(
+        after,
+        before,
+        `the page kept navigating after it gave up (${before} -> ${after})`
+      )
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the address must stay clean'
+      )
+      console.log(
+        'fallback: a worker that claims the page but answers nothing stops it on a probe'
+      )
+    }
+
+    // 6. both storage carriers refused, worker answering: control arrives
+    // during the wait, so the retry is the clean address - the app must not be
+    // handed a marker it never sent
+    {
+      const s = await site(WORKER_ANSWERS)
+      servers.push(s.server)
+      const c = await openCase(browser, {
+        disableCookies: true,
+        blockWindowName: true
+      })
+      await c.send('Page.navigate', { url: s.origin + DEEP_LINK })
+      const text = await settle(
+        c.evalJS,
+        (t) => t.includes(MARKER) || t.includes(SILENT)
+      )
+      assert.ok(
+        text.includes(MARKER),
+        `expected the worker's answer with no carrier, got ${JSON.stringify(text.slice(0, 80))}`
+      )
+      assert.equal(
+        await c.evalJS('location.search'),
+        '?x=1',
+        'the app was handed a marker because control was read before the wait'
+      )
+      console.log(
+        'fallback: with no carrier and a controlled page the address stays clean'
+      )
+    }
+
+    // 7. no worker at all (the host serves no sw.js): the page never becomes
+    // controlled and both storage carriers are refused, so the count can only
+    // live in the address - and the give-up has to take it out again
+    {
+      const s = await site(null)
       servers.push(s.server)
       const c = await openCase(browser, {
         disableCookies: true,
@@ -398,7 +470,7 @@ async function main() {
         'the marker must not outlive the give-up'
       )
       console.log(
-        `fallback: with both storage carriers refused it stops after ${before} attempts and cleans the address`
+        `fallback: with no worker and no carrier it stops after ${before} attempts and cleans the address`
       )
     }
   } finally {

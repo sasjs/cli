@@ -217,17 +217,40 @@
           ])
       return waited.then(function () {
         var next = attempts + 1
-        /* the carriers that keep the address clean come first; the address
-         * itself is the one that cannot be refused, and the one that follows a
-         * copied link. Every path increments: a retry that does not count is
-         * the loop this page exists to stop. */
+        /* the carriers that keep the address clean come first */
         if (writeCookie(next) || writeName(next)) {
           location.replace(target)
           return
         }
-        var retry = new URL(location.href)
-        retry.searchParams.set(PARAM, String(next))
-        location.replace(retry.pathname + retry.search + retry.hash)
+        /* no carrier could hold the count, so the address is the only place
+         * left - but only while no worker is in control, because a controlled
+         * navigation is answered and needs no count. That is read here and not
+         * before the wait: control usually arrives during it, and a stale "not
+         * controlled" is how a marker ended up in an application's address. */
+        if (!navigator.serviceWorker.controller) {
+          var retry = new URL(location.href)
+          retry.searchParams.set(PARAM, String(next))
+          location.replace(retry.pathname + retry.search + retry.hash)
+          return
+        }
+        /* controlled, but a worker in control is not a worker that answers:
+         * ask for the address once, from inside the worker's own scope. An
+         * answer means the clean navigation below is the one the app gets; the
+         * static host's 404 means nothing is answering, and giving up is what
+         * keeps this from looping with no count to stop it. */
+        fetch(target, { cache: 'no-store' }).then(
+          function (response) {
+            if (response.status === 404) {
+              giveUp('This page is not part of this site.')
+              return
+            }
+            location.replace(target)
+          },
+          function () {
+            /* a network failure says nothing about the worker: try the address */
+            location.replace(target)
+          }
+        )
       })
     })
 })()

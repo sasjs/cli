@@ -1369,14 +1369,16 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     path.join(outputFolder, '404.html'),
     fs
       .readFileSync(path.join(ASSETS_FOLDER, 'fallback.html'), 'utf8')
-      .replace('src="/404.js"', `src="${basePath}/404.js"`)
+      .replace('src="/404.js"', () => `src="${basePath}/404.js"`)
   )
   fs.writeFileSync(
     path.join(outputFolder, '404.js'),
     fs
       .readFileSync(path.join(ASSETS_FOLDER, 'fallback.js'), 'utf8')
-      .replace(/__BASE__/g, basePath)
-      .replace(/__HOST_VERSION__/g, hostVersion)
+      /* a function replacement: a base path is configuration, and `$&` in one
+       * would be read as a replacement pattern and corrupt the script */
+      .replace(/__BASE__/g, () => basePath)
+      .replace(/__HOST_VERSION__/g, () => hostVersion)
   )
 
   // The identity of this build's drive AND its fixture: the seed itself, and the
