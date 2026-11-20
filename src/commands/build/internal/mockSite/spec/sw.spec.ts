@@ -6575,6 +6575,47 @@ describe('the estate sign-in', () => {
     expect(answer.body.access_token).toMatch(/^access-/)
   })
 
+  it('decodes a space in a Basic credential as a form would', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const secret = 'two words'
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map((client: any) =>
+        client.clientId === 'web_app'
+          ? { ...client, clientSecret: secret }
+          : client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // form encoding sends a space as `+`, which `decodeURIComponent` alone leaves
+    // in place: a client whose secret has a space would be refused
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(
+            `web_app:${encodeURIComponent(secret).replace(/%20/g, '+')}`
+          ).toString('base64')}`,
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+  })
+
   it('refuses a client whose secret the fixture does not declare', async () => {
     const worker = loadWorker('', { skipLint: true })
     const identity = {

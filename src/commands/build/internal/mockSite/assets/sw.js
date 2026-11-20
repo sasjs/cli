@@ -2232,7 +2232,9 @@ const readForm = async (request) => {
  */
 const decodePart = (value) => {
   try {
-    return decodeURIComponent(value)
+    // form semantics, not URI semantics: section 2.3.1 encodes a space as `+`,
+    // which `decodeURIComponent` leaves in place
+    return decodeURIComponent(value.replace(/\+/g, ' '))
   } catch (error) {
     return value
   }
@@ -2334,9 +2336,10 @@ const oauthAuthorize = async (url) => {
 /**
  * The token step: a code, a refresh token or a password buys a pair.
  *
- * The grants are the three a Viya deployment answers; a client that asks for
- * another gets `unsupported_grant_type` naming these rather than a silent
- * failure. The pair and its lifetimes are the client's own - a token's expiry is
+ * The grants are the ones a browser application signs in with; SASLogon also
+ * answers `client_credentials` and `jwt-bearer` for service clients, which this
+ * host does not stand in for. A client that asks for another gets
+ * `unsupported_grant_type` naming these rather than a silent failure. The pair and its lifetimes are the client's own - a token's expiry is
  * a fact about that client, read back from the store rather than invented here.
  */
 const oauthToken = async (request) => {
