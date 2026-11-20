@@ -539,6 +539,12 @@
    * handshake; the answer goes back to it rather than to whatever controls the
    * page by then.
    */
+  /** Whether a fixture declares an account: the one check both decisions use. */
+  const declaresAccount = (fixture, username) =>
+    !!fixture &&
+    Array.isArray(fixture.users) &&
+    fixture.users.some((user) => user.username === username)
+
   /**
    * The account a redirect carried, and the sign-out it asked for.
    *
@@ -547,12 +553,6 @@
    * address. It is read once, stripped from the address, and stored as the
    * subject `SASjsMock.as()` keeps - the session is the page's.
    */
-  /** Whether a fixture declares an account: the one check both decisions use. */
-  const declaresAccount = (fixture, username) =>
-    !!fixture &&
-    Array.isArray(fixture.users) &&
-    fixture.users.some((user) => user.username === username)
-
   const takeHandoff = () => {
     const handoff = { caller: null, signOut: false }
 
