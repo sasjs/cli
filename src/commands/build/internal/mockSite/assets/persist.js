@@ -673,7 +673,20 @@
       // back as `errorKind: 'identity'`, which the branch above clears and
       // retries.
       await applyHandoff(answer)
-      return await boot({}, stored, [], controller)
+
+      // the retry boots from an address this pass already stripped, so the
+      // account the reader chose has to travel in the row it boots from -
+      // otherwise the load is served as whoever was stored before the redirect
+      const chosen = handoff.signOut
+        ? undefined
+        : handoff.caller || (stored && stored.subject)
+
+      return await boot(
+        {},
+        stored ? { ...stored, subject: chosen } : stored,
+        [],
+        controller
+      )
     }
 
     await applyHandoff(answer)

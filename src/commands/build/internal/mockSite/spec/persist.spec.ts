@@ -431,8 +431,8 @@ describe('the page-side store', () => {
   })
 
   it('records the sign-in even when the stored drive had to be replaced', async () => {
-    // the host-refusal branch retries with a boot that re-reads an address this
-    // pass already stripped, so the handoff is stored before that return
+    // the host-refusal branch retries with a boot from an address this pass
+    // already stripped, so the account has to travel in the row it boots from
     const controller = { postMessage: jest.fn() }
     const { window, listeners, identityRows } = loadPersist({
       controller,
@@ -442,18 +442,18 @@ describe('the page-side store', () => {
       seededDeleted: ['/sasjs/drive/gone.txt']
     })
 
-    let asked = 0
+    // answer each ask by its own type: the retry boots as a seed and waits for a
+    // seed ack, so a single pinned type would leave it to time out
     const answering = setInterval(() => {
       const calls = controller.postMessage.mock.calls
       if (!calls.length) return
-      const type = calls[0][0].type
-      asked += 1
+      const asked = calls[calls.length - 1][0]
       ;[...listeners].forEach((fn) =>
         fn({
           data:
-            asked === 1
-              ? { type: type + '-ack', error: 'refused', errorKind: 'host' }
-              : { type: type + '-ack', identity: FIXTURE }
+            asked.type === 'sasjs-load'
+              ? { type: 'sasjs-load-ack', error: 'refused', errorKind: 'host' }
+              : { type: 'sasjs-seed-ack', identity: FIXTURE }
         })
       )
     }, 5)
@@ -461,7 +461,16 @@ describe('the page-side store', () => {
     await window.__sasjsMockPersistReady
     clearInterval(answering)
 
-    expect(asked).toBeGreaterThan(1)
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    // the drive load, then the seed the refusal sends it back to
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-load',
+      'sasjs-seed'
+    ])
+    // and the retry asks as the account the redirect named, not the one the row
+    // held before it
+    expect(asks[1].subject).toBe('sasjsuser')
     expect(identityRows.get('current')?.subject).toBe('sasjsuser')
   })
 
