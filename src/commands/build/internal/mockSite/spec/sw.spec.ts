@@ -6275,6 +6275,22 @@ describe('the estate sign-in', () => {
     expect(user.body.id).toBe('user-admin')
   })
 
+  it('refuses an implicit-flow request by name, rather than redirecting a code', async () => {
+    const worker = loadWorker()
+
+    // a client asking for a token in the URL would otherwise be redirected with a
+    // code it never asked for and fail with no diagnostic
+    const answer = await json(
+      worker.dispatch(
+        '/SASLogon/oauth/authorize?client_id=web_app&response_type=token'
+      )
+    )
+
+    expect(answer.status).toBe(400)
+    expect(answer.body.error).toBe('unsupported_response_type')
+    expect(answer.emulated).toMatch(/^viya@/)
+  })
+
   it('refuses a client that is not registered, and a wrong secret', async () => {
     const worker = loadWorker()
 

@@ -1165,7 +1165,12 @@ const VIYA_PREFIXES = [
  * the host that mounts the emulator - rather than falling through to the SASjs
  * route table or to the static host.
  */
-const ESTATE_PATHS = ['/saslogon/oauth/token']
+const ESTATE_PATHS = [
+  '/saslogon/oauth/token',
+  // the authorize step is not a row in the package's table - it is the host's own
+  // half of the token port, the page a client is sent to before it holds a code
+  '/saslogon/oauth/authorize'
+]
 
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
@@ -2233,6 +2238,18 @@ const clientOf = (request, form) => {
  * from the query would make this an open redirect.
  */
 const oauthAuthorize = async (url) => {
+  const responseType = url.searchParams.get('response_type') || ''
+
+  // the code flow is the one this host answers; an implicit-flow request would
+  // otherwise be redirected with a code it never asked for and fail with no
+  // diagnostic at all
+  if (responseType !== 'code')
+    return oauthError(
+      400,
+      'unsupported_response_type',
+      'This host answers the authorization code flow: response_type=code.'
+    )
+
   const clientId = url.searchParams.get('client_id') || ''
 
   try {
@@ -2457,11 +2474,16 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // is what makes a Viya build mockable in the browser at all.
     // The OAuth endpoints a Viya client signs in at: the token port is this
     // host's own, as it is on a server running the emulator.
-    const signedIn = apiPath.toLowerCase()
-    if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
-    if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
+    if (isViyaPath(apiPath)) {
+      // the estate's paths, including its two sign-in endpoints: they are the
+      // host's own port, but they are answered where the estate is answered, so
+      // a site that is not asked for one never advertises it
+      const signedIn = apiPath.toLowerCase()
+      if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
+      if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
 
-    if (isViyaPath(apiPath)) return await viyaRequest(request, url, apiPath)
+      return await viyaRequest(request, url, apiPath)
+    }
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
