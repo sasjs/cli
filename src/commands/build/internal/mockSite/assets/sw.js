@@ -1323,14 +1323,13 @@ const loginPage = ({ message = '', service = '', status = 200 }) => {
 const LOGOUT_PATH = '/saslogon/logout'
 
 /**
- * What the sign-out answers.
+ * Ends the caller the worker holds, and asks the browser to end the page's own.
  *
  * The package answers `OK!` and leaves the session alone, because on a server the
  * session is the server's. Here the session is the page's, so the answer carries
  * a `Refresh` into the site with `sasjs-signout=1`: `persist.js` drops the stored
  * subject, and the worker's caller goes back to the one the boot names.
  */
-/** Ends the caller the worker holds, and asks the browser to end the page's own. */
 const signOut = async () => {
   // back to the account the boot named, which for a signed-out site is the
   // fixture's administrator - the same answer a first visit gets

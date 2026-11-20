@@ -16,6 +16,20 @@
  */
 
 /**
+ * An import is not the declaration a doc block documents.
+ *
+ * The block at the top of a file is a header - a licence, `@jest-environment`,
+ * `istanbul ignore` - and what sits beneath it is the file's imports, so adding
+ * one is an ordinary edit: a spec gains a dependency, a worker gains a script.
+ * Exempting the line rather than a line number is what covers headers of any
+ * length; `sw.js`'s closes at :37, well past any figure chosen for a number.
+ */
+const MODULE_IMPORT =
+  /^(?:import\b|import\s*\(|importScripts\s*\(|(?:const|let|var)\s+[^=]+=\s*require\s*\(|export\s+\*\s+from\b)/
+
+const isModuleImport = (text) => MODULE_IMPORT.test(text.trim())
+
+/**
  * The lines a diff inserts directly under an existing doc block.
  *
  * `diffText` is `git diff --unified=1 --no-color` output: **one context line is
@@ -25,18 +39,10 @@
  * inserted.
  */
 const insertionsUnderDocBlocks = (diffText) => {
-  // a block ending this close to the top of a file is a file header - a licence,
-  // `@jest-environment`, `istanbul ignore` - and the code beneath it is the file's
-  // own imports, not a declaration the block documents. Adding an import there is
-  // ordinary, so the rule stays out of it.
-  const HEADER_LINES = 5
-
   const hits = []
   let file = ''
-  let newLine = null
-  // the previous line in the NEW file, as { added, text, header } - `added`
-  // decides whether inserting under it is a mistake or part of a new block, and
-  // `header` whether it is a file header rather than a declaration's doc block
+  // the previous line in the NEW file, as { added, text } - `added` decides
+  // whether inserting under it is a mistake or part of a new block
   let previous = null
 
   const push = (line) => {
@@ -52,18 +58,11 @@ const insertionsUnderDocBlocks = (diffText) => {
 
     // `--- a/x`, `diff --git`, `index ...` and the hunk header say nothing about
     // what the new file holds where the hunk starts
-    if (line.startsWith('@@')) {
-      const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)/.exec(line)
-
-      newLine = hunk ? Number(hunk[1]) : null
-      previous = null
-      continue
-    }
-
     if (
       line.startsWith('---') ||
       line.startsWith('diff ') ||
-      line.startsWith('index ')
+      line.startsWith('index ') ||
+      line.startsWith('@@')
     ) {
       previous = null
       continue
@@ -75,26 +74,18 @@ const insertionsUnderDocBlocks = (diffText) => {
       if (
         previous &&
         !previous.added &&
-        !previous.header &&
-        previous.text.trim() === '*/'
+        previous.text.trim() === '*/' &&
+        !isModuleImport(text)
       )
         hits.push({ file, line: text.trim() })
 
-      previous = { added: true, text, header: false }
-      if (newLine !== null) newLine++
+      previous = { added: true, text }
       continue
     }
 
     if (line.startsWith('-')) continue
 
-    if (line.startsWith(' ')) {
-      previous = {
-        added: false,
-        text: line.slice(1),
-        header: newLine !== null && newLine <= HEADER_LINES
-      }
-      if (newLine !== null) newLine++
-    }
+    if (line.startsWith(' ')) previous = { added: false, text: line.slice(1) }
   }
 
   return hits

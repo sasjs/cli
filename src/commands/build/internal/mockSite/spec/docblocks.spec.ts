@@ -43,10 +43,11 @@ describe('doc blocks keep the declaration they document', () => {
     ])
   })
 
-  it('leaves a file header and the imports beneath it alone', () => {
-    // the opening block of a file is a header - a licence, `@jest-environment`,
-    // `istanbul ignore` - and what follows it is the file's own imports. Adding
-    // one is ordinary, and fifteen files under src look like this.
+  it('leaves a module-scope import under a file header alone', () => {
+    // the opening block of a file is a header and what follows it is the file's
+    // imports, so adding one is ordinary. The exemption is on the line, not on a
+    // line number: sw.js's header closes at :37, far past any figure picked for a
+    // number, and the figure would be a header-length trap either way.
     const diff = [
       'diff --git a/src/f.spec.ts b/src/f.spec.ts',
       '--- a/src/f.spec.ts',
@@ -61,6 +62,41 @@ describe('doc blocks keep the declaration they document', () => {
     ].join('\n')
 
     expect(insertionsUnderDocBlocks(diff)).toEqual([])
+  })
+
+  it('leaves an importScripts added under a long header alone', () => {
+    // the same edit deep in a file, where a block still opens the file: the line
+    // number says nothing, the content says it is an import
+    const diff = [
+      'diff --git a/src/x/sw.js b/src/x/sw.js',
+      '--- a/src/x/sw.js',
+      '+++ b/src/x/sw.js',
+      '@@ -37,2 +37,3 @@',
+      '  */',
+      "+importScripts('host/extra.js')",
+      " importScripts('host/runtime-core.js')",
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([])
+  })
+
+  it('still reports a declaration inserted under a long header', () => {
+    // the exemption is for imports only: a const under the header is the mistake
+    const diff = [
+      'diff --git a/src/x/sw.js b/src/x/sw.js',
+      '--- a/src/x/sw.js',
+      '+++ b/src/x/sw.js',
+      '@@ -37,2 +37,3 @@',
+      '  */',
+      '+const helper = () => 1',
+      " importScripts('host/runtime-core.js')",
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([
+      { file: 'b/src/x/sw.js', line: 'const helper = () => 1' }
+    ])
   })
 
   it('allows a new block added with its own declaration', () => {
@@ -139,14 +175,12 @@ describe('doc blocks keep the declaration they document', () => {
       })
 
     if (!base) {
-      // no history to compare against: a shallow clone with no base branch. The
-      // unit-tests job checks out with fetch-depth: 0 so this does not happen in
-      // CI, and a local clone normally has main.
-      console.warn(
-        '[docblocks] no base ref to diff against: fetch one to check this'
+      // a guard that passes when it cannot run is not a guard. The unit-tests job
+      // checks out with fetch-depth: 0 and a local clone has main, so a missing
+      // ref is a misconfiguration: fail it, with the remedy in the message
+      throw new Error(
+        'no base ref to diff against: fetch origin/main (a shallow clone has none)'
       )
-
-      return
     }
 
     const git = (args: string[]) =>
