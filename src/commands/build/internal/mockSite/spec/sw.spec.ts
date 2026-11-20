@@ -6769,6 +6769,20 @@ describe('the sign-in page', () => {
     expect(await page!.text()).toContain('action="/site-a/saslogon/login"')
   })
 
+  it('answers as the administrator when the address names an account it does not have', async () => {
+    const worker = loadWorker()
+
+    // a mistyped or shared sign-in link must not leave every request answering
+    // as nobody: the default stands, and the account has to be one the fixture
+    // holds
+    const boot = worker.message({ type: 'sasjs-seed', subject: 'gone-user' })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    const answer = await worker.dispatch('/identities/users/@currentUser')
+    expect((await answer!.json()).id).toBe('user-admin')
+  })
+
   it('ends the session at the sign-out a browser follows', async () => {
     const worker = loadWorker()
 

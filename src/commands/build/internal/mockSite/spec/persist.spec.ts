@@ -419,11 +419,19 @@ describe('the page-side store', () => {
     await window.__sasjsMockPersistReady
     stop()
 
-    // the boot answers as nobody named, and the row that named the account goes
+    // the boot answers as nobody named, and the row keeps the fixture without
+    // the account: clearing it would drop the site's own accounts and load the
+    // visitor's drive under the shipped fixture
     expect(controller.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'sasjs-seed', subject: undefined })
     )
-    expect(identityRows.size).toBe(0)
+    expect(identityRows.size).toBe(1)
+
+    const row = await window.SASjsMock.identity()
+    expect(row.subject).toBeUndefined()
+    expect(row.fixture).toEqual(
+      expect.objectContaining({ users: FIXTURE.users })
+    )
   })
 
   it('reports a timeout as an error and leaves no listener behind', async () => {

@@ -222,12 +222,20 @@ const bootIdentity = async (data) => {
     }
   }
 
+  // a subject the fixture does not declare is not a caller. Taking the name
+  // anyway would answer every request as nobody (`emulated-user`), which is not
+  // what a mistyped or shared sign-in link should do - so the default stands and
+  // the account has to be one this fixture holds.
+  const named = data.subject === undefined ? undefined : data.subject
+
   CALLER_USERNAME =
-    data.subject === null
+    named === null
       ? null
-      : data.subject === undefined
+      : named === undefined
         ? undefined
-        : String(data.subject)
+        : fixture.users.some((user) => user.username === String(named))
+          ? String(named)
+          : undefined
 
   seedIdentity(fixture)
 }

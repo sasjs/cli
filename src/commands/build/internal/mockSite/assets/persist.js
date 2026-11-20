@@ -647,13 +647,21 @@
 
     // the handoff is stored, so the next reload answers the same account without
     // carrying the address again
+    const fixture = (answer && answer.identity) || (stored && stored.fixture)
+    const declares = (username) =>
+      !!fixture &&
+      Array.isArray(fixture.users) &&
+      fixture.users.some((user) => user.username === username)
+
     try {
-      if (handoff.signOut) await clearIdentity()
-      else if (handoff.caller)
-        await writeIdentity({
-          fixture: (answer && answer.identity) || (stored && stored.fixture),
-          subject: handoff.caller
-        })
+      if (handoff.signOut) {
+        // the fixture stays: a sign-out ends the account, not the site's accounts
+        // - and dropping it would load the visitor's drive under the shipped one
+        if (fixture) await writeIdentity({ fixture, subject: undefined })
+        else await clearIdentity()
+      } else if (handoff.caller && declares(handoff.caller)) {
+        await writeIdentity({ fixture, subject: handoff.caller })
+      }
     } catch (e) {
       console.error('[sasjs-mock] could not store the sign-in: ' + e)
     }
