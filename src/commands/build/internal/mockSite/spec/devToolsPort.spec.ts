@@ -76,6 +76,32 @@ describe('waitForDevToolsPort', () => {
     expect(reads).toBe(2)
   })
 
+  it('reports the port path and stderr on timeout', async () => {
+    const timer = clock()
+    let reads = 0
+    await expect(
+      waitForDevToolsPort(
+        profile,
+        chromium,
+        () => null,
+        () => 'browser stderr',
+        {
+          ...timer,
+          readFile: async () => {
+            reads++
+            throw Object.assign(new Error('port file missing'), {
+              code: 'ENOENT'
+            })
+          }
+        }
+      )
+    ).rejects.toThrow(
+      `Chromium CDP startup timed out after 30000ms waiting for ${portFile}; last read: ENOENT: port file missing; Chromium stderr: browser stderr`
+    )
+    expect(timer.now()).toBe(30000)
+    expect(reads).toBe(600)
+  })
+
   it('reports a missing port without a stderr callback', async () => {
     const timer = clock()
     await expect(
