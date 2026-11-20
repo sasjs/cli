@@ -424,7 +424,8 @@
      *
      * The worker issues a token pair for the account and answers as it from then
      * on; the subject and the fixture are stored here so a reload stays that
-     * account, and the app is restarted so every screen redraws its menus and
+     * account - the page owns the session, because a service worker is handed no
+     * cookies - and the app is restarted so every screen redraws its menus and
      * refusals. The pair is returned for a caller who wants to send it as a
      * bearer token - nothing signs it, and no password is checked.
      */
@@ -436,12 +437,6 @@
       if (answer.error) throw new Error(answer.error)
 
       try {
-        // the same answer the sign-in page leaves behind, so the two ways of
-        // choosing an account agree about who is asking
-        document.cookie = `sasjs-caller=${encodeURIComponent(
-          answer.username
-        )}; Path=${mount}; SameSite=Lax`
-
         await writeIdentity({
           fixture: answer.identity,
           subject: answer.username
@@ -516,10 +511,6 @@
       return Object.keys(files).length
     },
     reset: async () => {
-      // the session the sign-in page started is part of the state a reset
-      // returns to, so its cookie expires with everything else
-      document.cookie = `sasjs-caller=; Path=${mount}; Max-Age=0; SameSite=Lax`
-
       const answer = await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
       if (answer.error) throw new Error(answer.error)
       await clearAll()
@@ -548,7 +539,40 @@
    * handshake; the answer goes back to it rather than to whatever controls the
    * page by then.
    */
+  /**
+   * The account a redirect carried, and the sign-out it asked for.
+   *
+   * A service worker is not handed cookies and a `Set-Cookie` it writes is
+   * ignored, so the sign-in page answers a redirect carrying the account in the
+   * address. It is read once, stripped from the address, and stored as the
+   * subject `SASjsMock.as()` keeps - the session is the page's.
+   */
+  const takeHandoff = () => {
+    const handoff = { caller: null, signOut: false }
+
+    try {
+      const url = new URL(window.location.href)
+      const caller = url.searchParams.get('sasjs-caller')
+      const signOut = url.searchParams.get('sasjs-signout')
+
+      if (caller === null && signOut === null) return handoff
+
+      if (caller !== null) url.searchParams.delete('sasjs-caller')
+      if (signOut !== null) url.searchParams.delete('sasjs-signout')
+
+      window.history.replaceState(null, '', url.toString())
+
+      handoff.caller = caller
+      handoff.signOut = signOut !== null
+    } catch (e) {
+      // an address this page cannot rewrite keeps the session it already had
+    }
+
+    return handoff
+  }
+
   const boot = async (files, stored, deleted, controller) => {
+    const handoff = takeHandoff()
     // a drive of nothing but deletions is still a drive the visitor had: seeding
     // over it would bring back every file they removed
     const loading =
@@ -566,7 +590,11 @@
         files,
         deleted: deletions,
         identity: stored ? stored.fixture : undefined,
-        subject: stored ? stored.subject : undefined
+        // the redirect's answer wins over the row: a sign-out carries no
+        // account, and a sign-in carries the one just chosen
+        subject: handoff.signOut
+          ? undefined
+          : handoff.caller || (stored ? stored.subject : undefined)
       },
       ack,
       controller
@@ -615,6 +643,19 @@
       // back as `errorKind: 'identity'`, which the branch above clears and
       // retries.
       return await boot({}, stored, [], controller)
+    }
+
+    // the handoff is stored, so the next reload answers the same account without
+    // carrying the address again
+    try {
+      if (handoff.signOut) await clearIdentity()
+      else if (handoff.caller)
+        await writeIdentity({
+          fixture: (answer && answer.identity) || (stored && stored.fixture),
+          subject: handoff.caller
+        })
+    } catch (e) {
+      console.error('[sasjs-mock] could not store the sign-in: ' + e)
     }
 
     return answer

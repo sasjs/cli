@@ -1208,32 +1208,19 @@ const ESTATE_PATHS = [OAUTH_TOKEN, OAUTH_AUTHORIZE]
 
 // ------------------------------------------------------------ the sign-in page
 /**
- * The page a browser is sent to before it holds a session, and the cookie its
- * form leaves behind.
+ * The page a browser is sent to before it holds a session.
  *
  * A Viya deployment sends a client that arrives without a session here; a mock
  * site has no wall, so this is the page an operator or a demo asks for rather
  * than one they are forced through. The form is the estate's shape - a username
- * and a password posted to this path - and the cookie is the only session this
- * host keeps: it names the account every later request is answered as, which is
- * the same choice `SASjsMock.as()` makes from the console.
+ * and a password posted to this path.
+ *
+ * The session is the page's, not the worker's: a service worker is not handed
+ * cookies (`request.headers` has none) and a `Set-Cookie` it writes is ignored,
+ * so the answer is a redirect carrying the account, which `persist.js` stores as
+ * the subject it already keeps for `SASjsMock.as()`.
  */
 const LOGIN_PATH = '/saslogon/login'
-const CALLER_COOKIE = 'sasjs-caller'
-
-/** The account a request carries, if the sign-in page set one. */
-const callerFromCookie = (request) => {
-  const header = request.headers.get('cookie') || ''
-  const match = new RegExp(`(?:^|;\\s*)${CALLER_COOKIE}=([^;]*)`).exec(header)
-
-  if (!match) return undefined
-
-  try {
-    return decodeURIComponent(match[1])
-  } catch (error) {
-    return undefined
-  }
-}
 
 /** Text that came from a request, made safe for the page it is written into. */
 const escapeHtml = (value) =>
@@ -1321,21 +1308,25 @@ const LOGOUT_PATH = '/saslogon/logout'
  * What the sign-out answers.
  *
  * The package answers `OK!` and leaves the session alone, because on a server the
- * session is the server's; here the session is a cookie, so this is where it is
- * ended - the caller goes back to the one the boot named, and the cookie expires
- * on the way out.
+ * session is the server's. Here the session is the page's, so the answer carries
+ * a `Refresh` into the site with `sasjs-signout=1`: `persist.js` drops the stored
+ * subject, and the worker's caller goes back to the one the boot names.
  */
 const signOut = async () => {
   CALLER_USERNAME = undefined
   resolveCaller()
 
+  // the body stays the package's: the conformance corpus pins this route to
+  // `OK!`, and a sign-out that changed it would be a different contract. The
+  // browser is sent into the site by a header instead, where the page drops the
+  // session it owns.
   return new Response(await IDENTITY.logoutSession(), {
     status: 200,
     headers: Object.assign(
       {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store',
-        'set-cookie': `${CALLER_COOKIE}=; Path=${BASE}/; Max-Age=0; SameSite=Lax`
+        refresh: `0; url=${BASE}/?sasjs-signout=1`
       },
       API.emulatedHeaders()
     )
@@ -1346,9 +1337,9 @@ const signOut = async () => {
  * The sign-in page's two answers.
  *
  * A GET is the page. A form post is a browser, not an API client, so it is
- * answered as a browser expects: a redirect into the site with the account in a
- * cookie, or the page again with what went wrong. A JSON post is the package's
- * own route, and is left to answer it.
+ * answered as a browser expects: a redirect into the site carrying the account,
+ * or the page again with what went wrong. A JSON post is the package's own
+ * route, and is left to answer it.
  */
 const signIn = async (request, url) => {
   const service = url.searchParams.get('service') || ''
@@ -1371,14 +1362,20 @@ const signIn = async (request, url) => {
     CALLER_USERNAME = user.username
     resolveCaller()
 
+    // the account travels in the address the browser lands on, and `persist.js`
+    // stores it as the subject `SASjsMock.as()` already keeps: the page owns the
+    // session because a service worker cannot read or set a cookie
+    const target = new URL(
+      signInTarget(form.get('service') || service, url),
+      url.origin
+    )
+    target.searchParams.set('sasjs-caller', user.username)
+
     return new Response(null, {
       status: 302,
       headers: Object.assign(
         {
-          location: signInTarget(form.get('service') || service, url),
-          'set-cookie': `${CALLER_COOKIE}=${encodeURIComponent(
-            user.username
-          )}; Path=${BASE}/; SameSite=Lax`,
+          location: target.pathname + target.search,
           'cache-control': 'no-store'
         },
         API.emulatedHeaders()
@@ -2717,21 +2714,6 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     await ensureIdentity()
     await R.ensureReady(askHostForDrive)
     await ensureForRequest(url, tierQuery ? query : null)
-
-    // the account the sign-in page set, which is this host's only session - and
-    // only while the fixture still declares it, so a stale cookie is ignored
-    // rather than answering every request as nobody
-    const cookieCaller = callerFromCookie(request)
-    if (
-      cookieCaller &&
-      cookieCaller !== CALLER_USERNAME &&
-      IDENTITY_STATE.store
-        .snapshot()
-        .users.some((user) => user.username === cookieCaller)
-    ) {
-      CALLER_USERNAME = cookieCaller
-      resolveCaller()
-    }
 
     // the sign-in page and the form it posts: a browser, not an API client
     if (apiPath.toLowerCase() === LOGIN_PATH) {

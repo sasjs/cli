@@ -6708,7 +6708,7 @@ describe('the sign-in page', () => {
     expect(page).toContain('value="/app/"')
   })
 
-  it('signs a form post in, and the cookie is the caller from then on', async () => {
+  it('signs a form post in, and the redirect carries the account', async () => {
     const worker = loadWorker()
 
     const response = await worker.dispatch(
@@ -6717,21 +6717,17 @@ describe('the sign-in page', () => {
     )
 
     expect(response!.status).toBe(302)
-    expect(response!.headers.get('location')).toBe('/')
 
-    const cookie = response!.headers.get('set-cookie') as string
-    expect(cookie).toContain('sasjs-caller=sasjsuser')
-
-    // the redirect loads the site again, so the cookie has to carry the choice
-    // into a fresh worker - not lean on the one that answered the post
-    const reloaded = loadWorker()
-    const asUser = await reloaded.dispatch('/identities/users/@currentUser', {
-      headers: { cookie: cookie.split(';')[0] }
-    })
-    expect((await asUser!.json()).id).toBe('user-restricted')
+    // a service worker is handed no cookies and cannot set one, so the account
+    // travels in the address the page lands on and `persist.js` stores it
+    const location = new URL(
+      response!.headers.get('location') as string,
+      'https://mock.example.com'
+    )
+    expect(location.searchParams.get('sasjs-caller')).toBe('sasjsuser')
   })
 
-  it('puts the form back with what went wrong, and sets no cookie', async () => {
+  it('puts the form back with what went wrong', async () => {
     const worker = loadWorker()
 
     const response = await worker.dispatch(
@@ -6741,7 +6737,6 @@ describe('the sign-in page', () => {
 
     // a browser renders the page again rather than a blank 401
     expect(response!.status).toBe(200)
-    expect(response!.headers.get('set-cookie')).toBeNull()
     expect(await response!.text()).toContain('Invalid Password.')
   })
 
@@ -6758,10 +6753,13 @@ describe('the sign-in page', () => {
     )
 
     expect(response!.status).toBe(302)
-    expect(response!.headers.get('location')).toBe('/site-a/')
+    // this site's root, with the account it just chose
+    expect(response!.headers.get('location')).toBe(
+      '/site-a/?sasjs-caller=sasjsadmin'
+    )
   })
 
-  it('posts and scopes its cookie to the site it is served from', async () => {
+  it('posts into the site it is served from', async () => {
     // a build in a folder registers the worker for `<folder>/`, so an
     // origin-absolute form action would submit outside it and the page would be
     // inert
@@ -6769,13 +6767,6 @@ describe('the sign-in page', () => {
 
     const page = await worker.dispatch('/SASLogon/login')
     expect(await page!.text()).toContain('action="/site-a/saslogon/login"')
-
-    const signedIn = await worker.dispatch(
-      '/SASLogon/login',
-      form({ username: 'sasjsuser', password: 'Orion123' })
-    )
-    // one origin can serve several sites: the cookie belongs to this one
-    expect(signedIn!.headers.get('set-cookie')).toContain('Path=/site-a/')
   })
 
   it('ends the session at the sign-out a browser follows', async () => {
@@ -6785,31 +6776,18 @@ describe('the sign-in page', () => {
       '/SASLogon/login',
       form({ username: 'sasjsuser', password: 'Orion123' })
     )
-    const cookie = (signedIn!.headers.get('set-cookie') as string).split(';')[0]
-
-    const stillUser = await worker.dispatch('/identities/users/@currentUser', {
-      headers: { cookie }
-    })
-    expect((await stillUser!.json()).id).toBe('user-restricted')
+    expect(signedIn!.status).toBe(302)
 
     const out = await worker.dispatch('/SASLogon/logout')
-    expect(out!.status).toBe(200)
-    expect(out!.headers.get('set-cookie')).toContain('Max-Age=0')
 
-    // the cookie is gone, so the next request is the account the boot named
+    // the body stays the package's - the corpus pins it - and the browser is sent
+    // into the site by a header, where the page drops the session it owns
+    expect(out!.status).toBe(200)
+    expect(await out!.text()).toBe('OK!')
+    expect(out!.headers.get('refresh')).toBe('0; url=/?sasjs-signout=1')
+
+    // and the worker itself answers as the account the boot named
     const after = await worker.dispatch('/identities/users/@currentUser')
     expect((await after!.json()).id).toBe('user-admin')
-  })
-
-  it('ignores a cookie naming an account the fixture does not declare', async () => {
-    const worker = loadWorker()
-
-    // a stale cookie is not a caller: the answer falls back to the fixture's
-    // administrator rather than answering every request as nobody
-    const answer = await worker.dispatch('/identities/users/@currentUser', {
-      headers: { cookie: 'sasjs-caller=gone' }
-    })
-
-    expect((await answer!.json()).id).toBe('user-admin')
   })
 })

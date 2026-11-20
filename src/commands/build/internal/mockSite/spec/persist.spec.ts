@@ -102,6 +102,8 @@ const loadPersist = (
     scriptURL?: string
     /** The page's own URL, as the browser reports it. */
     baseURI?: string
+    /** The address the page was loaded from, which a sign-in redirect carries. */
+    pageUrl?: string
     /**
      * The identity row the page stored: the fixture the worker reported and the
      * subject the visitor chose.
@@ -141,6 +143,12 @@ const loadPersist = (
   }
 
   const window: any = {}
+  window.location = { href: options.pageUrl || 'https://host.test/' }
+  window.history = {
+    replaceState: (_state: any, _title: string, url: string) => {
+      window.location.href = url
+    }
+  }
   ;(global as any).window = window
   ;(global as any).navigator = { serviceWorker }
 
@@ -364,6 +372,58 @@ describe('the page-side store', () => {
     })
     expect(removed).toHaveLength(1)
     expect(listeners.length).toBe(before)
+  })
+
+  it('stores the account a sign-in redirect carried, and strips the address', async () => {
+    // a service worker is handed no cookies, so the sign-in page answers a
+    // redirect carrying the account, and this is the page that stores it
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/?sasjs-caller=sasjsuser'
+    })
+
+    const answering = setInterval(() => {
+      const asked = controller.postMessage.mock.calls
+      if (!asked.length) return
+      const type = asked[0][0].type
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: type + '-ack', identity: FIXTURE } })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', subject: 'sasjsuser' })
+    )
+    // the address is consumed, so a reload does not sign in twice
+    expect(window.location.href).not.toContain('sasjs-caller')
+
+    const row = await window.SASjsMock.identity()
+    expect(row.subject).toBe('sasjsuser')
+  })
+
+  it('drops the account when the sign-out redirect asks it to', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/?sasjs-signout=1',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockPersistReady
+    stop()
+
+    // the boot answers as nobody named, and the row that named the account goes
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', subject: undefined })
+    )
+    expect(identityRows.size).toBe(0)
   })
 
   it('reports a timeout as an error and leaves no listener behind', async () => {
