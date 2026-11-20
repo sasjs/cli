@@ -6704,6 +6704,9 @@ describe('the sign-in page', () => {
     const page = await response!.text()
     expect(page).toContain('name="username"')
     expect(page).toContain('name="password"')
+    // the page says what the handoff means: the account travels in the address,
+    // and an emulated estate protects nothing
+    expect(page).toContain('carried in the address')
     // the service survives the round trip, escaped, so the post knows where to go
     expect(page).toContain('value="/app/"')
   })
@@ -6724,7 +6727,10 @@ describe('the sign-in page', () => {
       response!.headers.get('location') as string,
       'https://mock.example.com'
     )
-    expect(location.searchParams.get('sasjs-caller')).toBe('sasjsuser')
+    // the fragment: not sent in a Referer, and consumed on arrival
+    expect(
+      new URLSearchParams(location.hash.slice(1)).get('sasjs-caller')
+    ).toBe('sasjsuser')
   })
 
   it('puts the form back with what went wrong', async () => {
@@ -6756,7 +6762,7 @@ describe('the sign-in page', () => {
       form({ username: 'sasjsadmin', password: 'Orion123', service: '/app/' })
     )
     expect(signedIn!.headers.get('location')).toBe(
-      '/app/?sasjs-caller=sasjsadmin'
+      '/app/#sasjs-caller=sasjsadmin'
     )
   })
 
@@ -6775,7 +6781,7 @@ describe('the sign-in page', () => {
     expect(response!.status).toBe(302)
     // this site's root, with the account it just chose
     expect(response!.headers.get('location')).toBe(
-      '/site-a/?sasjs-caller=sasjsadmin'
+      '/site-a/#sasjs-caller=sasjsadmin'
     )
   })
 
@@ -6818,7 +6824,7 @@ describe('the sign-in page', () => {
     // into the site by a header, where the page drops the session it owns
     expect(out!.status).toBe(200)
     expect(await out!.text()).toBe('OK!')
-    expect(out!.headers.get('refresh')).toBe('0; url=/?sasjs-signout=1')
+    expect(out!.headers.get('refresh')).toBe('0; url=/#sasjs-signout=1')
 
     // and the worker itself answers as the account the boot named
     const after = await worker.dispatch('/identities/users/@currentUser')

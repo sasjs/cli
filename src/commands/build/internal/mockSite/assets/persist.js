@@ -547,19 +547,28 @@
    * address. It is read once, stripped from the address, and stored as the
    * subject `SASjsMock.as()` keeps - the session is the page's.
    */
+  /** Whether a fixture declares an account: the one check both decisions use. */
+  const declaresAccount = (fixture, username) =>
+    !!fixture &&
+    Array.isArray(fixture.users) &&
+    fixture.users.some((user) => user.username === username)
+
   const takeHandoff = () => {
     const handoff = { caller: null, signOut: false }
 
     try {
       const url = new URL(window.location.href)
-      const caller = url.searchParams.get('sasjs-caller')
-      const signOut = url.searchParams.get('sasjs-signout')
+      // the fragment carries it, so it is never sent in a Referer
+      const params = new URLSearchParams(url.hash.replace(/^#/, ''))
+      const caller = params.get('sasjs-caller')
+      const signOut = params.get('sasjs-signout')
 
       if (caller === null && signOut === null) return handoff
 
-      if (caller !== null) url.searchParams.delete('sasjs-caller')
-      if (signOut !== null) url.searchParams.delete('sasjs-signout')
+      if (caller !== null) params.delete('sasjs-caller')
+      if (signOut !== null) params.delete('sasjs-signout')
 
+      url.hash = params.toString()
       window.history.replaceState(null, '', url.toString())
 
       handoff.caller = caller
@@ -590,10 +599,6 @@
      */
     const applyHandoff = async (answer) => {
       const fixture = (answer && answer.identity) || (stored && stored.fixture)
-      const declares = (username) =>
-        !!fixture &&
-        Array.isArray(fixture.users) &&
-        fixture.users.some((user) => user.username === username)
 
       try {
         if (handoff.signOut) {
@@ -606,7 +611,7 @@
           return undefined
         }
 
-        if (handoff.caller && declares(handoff.caller)) {
+        if (handoff.caller && declaresAccount(fixture, handoff.caller)) {
           await writeIdentity({ fixture, subject: handoff.caller })
 
           return handoff.caller
@@ -630,11 +635,20 @@
         files,
         deleted: deletions,
         identity: stored ? stored.fixture : undefined,
-        // the redirect's answer wins over the row: a sign-out carries no
-        // account, and a sign-in carries the one just chosen
+        // the redirect's answer wins over the row, but only an account the
+        // fixture the message carries declares: sending a name the worker will
+        // reject would serve this load as the administrator while the row keeps
+        // the account before it
         subject: handoff.signOut
           ? undefined
-          : handoff.caller || (stored ? stored.subject : undefined)
+          : handoff.caller &&
+              declaresAccount(stored && stored.fixture, handoff.caller)
+            ? handoff.caller
+            : stored
+              ? stored.subject
+              : // no row to fall back to: the worker decides whether the name is
+                // one the fixture it ships declares
+                handoff.caller || undefined
       },
       ack,
       controller

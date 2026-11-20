@@ -1286,7 +1286,9 @@ const loginPage = ({ message = '', service = '', status = 200 }) => {
 <main>
   <h1>Sign in</h1>
   <p class="note">This is the emulated estate's sign-in page on a mock site. No SAS server is involved,
-  and the accounts are the ones the build's identity fixture declares.</p>
+  and the accounts are the ones the build's identity fixture declares. The account you choose is
+  carried in the address you land on, so a link to a signed-in view can be shared - an emulated
+  estate protects nothing, and the same choice is one call away in the console.</p>
   ${message ? `<p class="error" role="alert">${escapeHtml(message)}</p>` : ''}
   <form method="post" action="${BASE}${LOGIN_PATH}" autocomplete="on">
     <label>Username <input name="username" autocomplete="username" autofocus></label>
@@ -1337,7 +1339,7 @@ const signOut = async () => {
       {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store',
-        refresh: `0; url=${BASE}/?sasjs-signout=1`
+        refresh: `0; url=${BASE}/#sasjs-signout=1`
       },
       API.emulatedHeaders()
     )
@@ -1380,13 +1382,15 @@ const signIn = async (request, url) => {
       signInTarget(form.get('service') || service, url),
       url.origin
     )
-    target.searchParams.set('sasjs-caller', user.username)
+    // the fragment, not the query: it is not sent in a Referer, so the account
+    // does not travel to whatever the page links to next
+    target.hash = `sasjs-caller=${encodeURIComponent(user.username)}`
 
     return new Response(null, {
       status: 302,
       headers: Object.assign(
         {
-          location: target.pathname + target.search,
+          location: `${target.pathname}${target.search}${target.hash}`,
           'cache-control': 'no-store'
         },
         API.emulatedHeaders()

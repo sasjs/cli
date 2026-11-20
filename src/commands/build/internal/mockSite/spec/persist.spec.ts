@@ -381,7 +381,7 @@ describe('the page-side store', () => {
     const { window, listeners } = loadPersist({
       controller,
       ready: Promise.resolve(),
-      pageUrl: 'https://host.test/?sasjs-caller=sasjsuser'
+      pageUrl: 'https://host.test/#sasjs-caller=sasjsuser'
     })
 
     const answering = setInterval(() => {
@@ -412,7 +412,7 @@ describe('the page-side store', () => {
     const { window, listeners, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve(),
-      pageUrl: 'https://host.test/?sasjs-caller=gone-user'
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user'
     })
 
     const answering = setInterval(() => {
@@ -437,7 +437,7 @@ describe('the page-side store', () => {
     const { window, listeners, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve(),
-      pageUrl: 'https://host.test/?sasjs-caller=sasjsuser',
+      pageUrl: 'https://host.test/#sasjs-caller=sasjsuser',
       seededIdentity: { fixture: FIXTURE, subject: null },
       seededDeleted: ['/sasjs/drive/gone.txt']
     })
@@ -482,7 +482,7 @@ describe('the page-side store', () => {
     const { window, listeners, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve(),
-      pageUrl: 'https://host.test/?sasjs-caller=gone-user',
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user',
       seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' },
       seededDeleted: ['/sasjs/drive/gone.txt']
     })
@@ -515,12 +515,32 @@ describe('the page-side store', () => {
     expect(identityRows.get('current')?.subject).toBe('sasjsuser')
   })
 
+  it('asks the first boot as the stored account when the address names one it cannot use', async () => {
+    // the outgoing message is validated too: sending a name the worker rejects
+    // would serve this load as the administrator while the row keeps the account
+    // it already had
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockPersistReady
+    stop()
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+    expect(asks[0].subject).toBe('sasjsuser')
+  })
+
   it('drops the account when the sign-out redirect asks it to', async () => {
     const controller = { postMessage: jest.fn() }
     const { window, listeners, identityRows } = loadPersist({
       controller,
       ready: Promise.resolve(),
-      pageUrl: 'https://host.test/?sasjs-signout=1',
+      pageUrl: 'https://host.test/#sasjs-signout=1',
       seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
     })
 
