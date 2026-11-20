@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Command line interface for SASjs",
   "engines": {
-    "node": "^22.14.0 || >=24.10.0"
+    "node": "^24.15.0 || >=26.0.0"
   },
   "main": "index.js",
   "files": [
@@ -23,8 +23,8 @@
     "start": "nodemon --watch \"src/**/*\" --exec \"npm run build && npm run set:permissions\"",
     "start:ci": "npm run build && npm run set:permissions",
     "test": "npm run test:mocked && npm run test:server",
-    "test:mocked": "jest --silent --runInBand --config=jest.config.js --coverage",
-    "test:server": "jest --silent --runInBand --config=jest.server.config.js",
+    "test:mocked": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.config.js --coverage",
+    "test:server": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.server.config.js",
     "test:browser:xhr": "node src/commands/build/internal/mockSite/spec/intercept.browser.cjs",
     "test:browser:fallback": "node src/commands/build/internal/mockSite/spec/fallback.browser.cjs"
   },
@@ -64,7 +64,7 @@
     "dotenv": "18.0.10",
     "esbuild": "0.28.2",
     "js-base64": "3.9.7",
-    "jsdom": "26.0.0",
+    "jsdom": "31.0.0",
     "lodash.uniqby": "4.7.0",
     "node-graphviz": "0.1.1",
     "node-powershell": "5.0.1",
@@ -104,8 +104,7 @@
     "prettier": "3.10.1",
     "ts-jest": "29.4.15",
     "ts-node": "10.9.2",
-    "typescript": "5.9.3",
-    "util": "0.12.5"
+    "typescript": "5.9.3"
   },
   "overrides": {
     "ws": "8.21.0",

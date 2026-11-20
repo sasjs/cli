@@ -62,7 +62,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [24]
 
     steps:
       - name: Checkout
@@ -133,8 +133,7 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      # Node 22 ships npm 10.x - OIDC trusted publishing needs npm >= 11.5.1.
-      # Pinned rather than @latest so the toolchain that publishes the package is
+      # Pin npm so the toolchain that publishes the package is
       # the one this commit was reviewed with: @latest would adopt a new npm major
       # into the release path without a commit here. Bump it deliberately.
       - name: Update npm
