@@ -424,7 +424,8 @@
      *
      * The worker issues a token pair for the account and answers as it from then
      * on; the subject and the fixture are stored here so a reload stays that
-     * account, and the app is restarted so every screen redraws its menus and
+     * account - the page owns the session, because a service worker is handed no
+     * cookies - and the app is restarted so every screen redraws its menus and
      * refusals. The pair is returned for a caller who wants to send it as a
      * bearer token - nothing signs it, and no password is checked.
      */
@@ -518,6 +519,47 @@
     }
   }
 
+  /** Whether a fixture declares an account: the one check both decisions use. */
+  const declaresAccount = (fixture, username) =>
+    !!fixture &&
+    Array.isArray(fixture.users) &&
+    fixture.users.some((user) => user.username === username)
+
+  /**
+   * The account a redirect carried, and the sign-out it asked for.
+   *
+   * A service worker is not handed cookies and a `Set-Cookie` it writes is
+   * ignored, so the sign-in page answers a redirect carrying the account in the
+   * address. It is read once, stripped from the address, and stored as the
+   * subject `SASjsMock.as()` keeps - the session is the page's.
+   */
+  const takeHandoff = () => {
+    const handoff = { caller: null, signOut: false }
+
+    try {
+      const url = new URL(window.location.href)
+      // the fragment carries it, so it is never sent in a Referer
+      const params = new URLSearchParams(url.hash.replace(/^#/, ''))
+      const caller = params.get('sasjs-caller')
+      const signOut = params.get('sasjs-signout')
+
+      if (caller === null && signOut === null) return handoff
+
+      if (caller !== null) params.delete('sasjs-caller')
+      if (signOut !== null) params.delete('sasjs-signout')
+
+      url.hash = params.toString()
+      window.history.replaceState(null, '', url.toString())
+
+      handoff.caller = caller
+      handoff.signOut = signOut !== null
+    } catch (e) {
+      // an address this page cannot rewrite keeps the session it already had
+    }
+
+    return handoff
+  }
+
   /**
    * Boots the worker with what is stored, and recovers from both refusals.
    *
@@ -539,12 +581,49 @@
    * page by then.
    */
   const boot = async (files, stored, deleted, controller) => {
+    const handoff = takeHandoff()
     // a drive of nothing but deletions is still a drive the visitor had: seeding
     // over it would bring back every file they removed
     const loading =
       Object.keys(files).length > 0 || (deleted && deleted.length > 0)
     const type = loading ? 'sasjs-load' : 'sasjs-seed'
     const ack = loading ? 'sasjs-load-ack' : 'sasjs-seed-ack'
+
+    /**
+     * Records what the redirect asked for, so the next reload answers the same
+     * account without carrying the address again.
+     *
+     * Called before every return that keeps a usable fixture - the host-refusal
+     * branch included, because the retry it makes re-reads an address this
+     * function already stripped.
+     */
+    const applyHandoff = async (answer) => {
+      const fixture = (answer && answer.identity) || (stored && stored.fixture)
+
+      try {
+        if (handoff.signOut) {
+          // the fixture stays: a sign-out ends the account, not the site's
+          // accounts - and dropping it would load the visitor's drive under the
+          // shipped one
+          if (fixture) await writeIdentity({ fixture, subject: undefined })
+          else await clearIdentity()
+
+          return undefined
+        }
+
+        if (handoff.caller && declaresAccount(fixture, handoff.caller)) {
+          await writeIdentity({ fixture, subject: handoff.caller })
+
+          return handoff.caller
+        }
+      } catch (e) {
+        console.error('[sasjs-mock] could not store the sign-in: ' + e)
+      }
+
+      // the account the row already names is the one this load is served as, when
+      // the address does not name one this fixture declares
+      return stored ? stored.subject : undefined
+    }
 
     // only when there are some: an empty list is the common case, and the worker
     // reads an absent one as "nothing was deleted"
@@ -556,7 +635,20 @@
         files,
         deleted: deletions,
         identity: stored ? stored.fixture : undefined,
-        subject: stored ? stored.subject : undefined
+        // the redirect's answer wins over the row, but only an account the
+        // fixture the message carries declares: sending a name the worker will
+        // reject would serve this load as the administrator while the row keeps
+        // the account before it
+        subject: handoff.signOut
+          ? undefined
+          : handoff.caller &&
+              declaresAccount(stored && stored.fixture, handoff.caller)
+            ? handoff.caller
+            : stored
+              ? stored.subject
+              : // no row to fall back to: the worker decides whether the name is
+                // one the fixture it ships declares
+                handoff.caller || undefined
       },
       ack,
       controller
@@ -572,6 +664,25 @@
       return await askWorker(
         { type, files, deleted: deletions },
         ack,
+        controller
+      )
+    }
+
+    if (answer.error && answer.errorKind === 'caller') {
+      console.info('[sasjs-mock] ' + answer.error)
+      // the fixture is fine and the account is not in it: the row keeps the
+      // fixture and loses the subject, so the retry boots as a first visit does
+      try {
+        if (stored && stored.fixture)
+          await writeIdentity({ fixture: stored.fixture, subject: undefined })
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear the stored account: ' + e)
+      }
+
+      return await boot(
+        files,
+        stored ? { ...stored, subject: undefined } : stored,
+        deleted,
         controller
       )
     }
@@ -604,8 +715,21 @@
       // their row stays in storage. An identity the worker does refuse comes
       // back as `errorKind: 'identity'`, which the branch above clears and
       // retries.
-      return await boot({}, stored, [], controller)
+      // the retry boots from an address this pass already stripped, so the account
+      // travels in the row it boots from - and it is the one the write above
+      // settled on, so the load cannot be served as an account the row does not
+      // name
+      const chosen = await applyHandoff(answer)
+
+      return await boot(
+        {},
+        stored ? { ...stored, subject: chosen } : stored,
+        [],
+        controller
+      )
     }
+
+    await applyHandoff(answer)
 
     return answer
   }

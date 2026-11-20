@@ -222,12 +222,28 @@ const bootIdentity = async (data) => {
     }
   }
 
+  // a subject the fixture does not declare is refused rather than answered as
+  // the administrator: taking the name anyway would answer every request as
+  // `emulated-user`, and falling back to the administrator would hide a typo, a
+  // stale shared link, or a test that meant to be someone else. `undefined` stays
+  // the fresh-boot case - no session, so the administrator, the same answer a
+  // request with no session gets (see `resolveCaller`).
+  const named = data.subject === undefined ? undefined : data.subject
+
+  if (
+    named !== null &&
+    named !== undefined &&
+    !fixture.users.some((user) => user.username === String(named))
+  ) {
+    // tagged so the page can clear the account it stored without dropping the
+    // fixture, which is fine; `SASjsMock.as()` sees the error itself
+    const refused = new Error(`No account '${named}' in the identity fixture`)
+    refused.callerRejected = true
+    throw refused
+  }
+
   CALLER_USERNAME =
-    data.subject === null
-      ? null
-      : data.subject === undefined
-        ? undefined
-        : String(data.subject)
+    named === null ? null : named === undefined ? undefined : String(named)
 
   seedIdentity(fixture)
 }
@@ -1205,6 +1221,209 @@ const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
 const OAUTH_TOKEN = '/saslogon/oauth/token'
 
 const ESTATE_PATHS = [OAUTH_TOKEN, OAUTH_AUTHORIZE]
+
+// ------------------------------------------------------------ the sign-in page
+/**
+ * The page a browser is sent to before it holds a session.
+ *
+ * A Viya deployment sends a client that arrives without a session here; a mock
+ * site has no wall, so this is the page an operator or a demo asks for rather
+ * than one they are forced through. The form is the estate's shape - a username
+ * and a password posted to this path.
+ *
+ * The session is the page's, not the worker's: a service worker is not handed
+ * cookies (`request.headers` has none) and a `Set-Cookie` it writes is ignored,
+ * so the answer is a redirect carrying the account, which `persist.js` stores as
+ * the subject it already keeps for `SASjsMock.as()`.
+ */
+const LOGIN_PATH = '/saslogon/login'
+
+/** Text that came from a request, made safe for the page it is written into. */
+const escapeHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[character]
+  )
+
+/** Where a signed-in browser is sent: this site, never anywhere else. */
+const signInTarget = (service, url) => {
+  const root = `${new URL(`${BASE}/`, url.origin).pathname}`
+
+  if (!service) return root
+
+  try {
+    const target = new URL(service, url.origin)
+
+    return target.origin === url.origin ? target.pathname + target.search : root
+  } catch (error) {
+    return root
+  }
+}
+
+/** The sign-in page, with what the last attempt said. */
+const loginPage = ({ message = '', service = '', status = 200 }) => {
+  const page = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f6f7f9; color: #1b1f24; }
+  main { max-width: 22rem; margin: 10vh auto; background: #fff; padding: 2rem; border-radius: .5rem;
+         box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+  .note { color: #57606a; font-size: .8rem; margin: 0 0 1.25rem; }
+  .error { background: #ffebe9; border: 1px solid #ff8182; color: #82071e; padding: .5rem .75rem;
+           border-radius: .25rem; font-size: .85rem; margin: 0 0 1rem; }
+  label { display: block; font-size: .85rem; margin-bottom: .75rem; }
+  input { width: 100%; box-sizing: border-box; margin-top: .25rem; padding: .5rem;
+          border: 1px solid #d0d7de; border-radius: .25rem; font-size: 1rem; }
+  button { width: 100%; padding: .6rem; font-size: 1rem; border: 0; border-radius: .25rem;
+           background: #1f6feb; color: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sign in</h1>
+  <p class="note">This is the emulated estate's sign-in page on a mock site. No SAS server is involved,
+  and the accounts are the ones the build's identity fixture declares. The account you choose is
+  carried in the address you land on, so a link to a signed-in view can be shared - an emulated
+  estate protects nothing, and the same choice is one call away in the console.</p>
+  ${message ? `<p class="error" role="alert">${escapeHtml(message)}</p>` : ''}
+  <form method="post" action="${BASE}${LOGIN_PATH}" autocomplete="on">
+    <label>Username <input name="username" autocomplete="username" autofocus></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password"></label>
+    <input type="hidden" name="service" value="${escapeHtml(service)}">
+    <button type="submit">Sign in</button>
+  </form>
+</main>
+</body>
+</html>`
+
+  return new Response(page, {
+    status,
+    headers: Object.assign(
+      {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store'
+      },
+      API.emulatedHeaders()
+    )
+  })
+}
+
+/** The sign-out a browser follows, which ends the cookie's session. */
+const LOGOUT_PATH = '/saslogon/logout'
+
+/**
+ * Ends the caller the worker holds, and asks the browser to end the page's own.
+ *
+ * The package answers `OK!` and leaves the session alone, because on a server the
+ * session is the server's. Here the session is the page's, so the answer carries
+ * a `Refresh` into the site with `sasjs-signout=1`: `persist.js` drops the stored
+ * subject, and the worker's caller goes back to the one the boot names.
+ */
+const signOut = async () => {
+  // back to the account the boot named, which for a signed-out site is the
+  // fixture's administrator - the same answer a first visit gets
+  CALLER_USERNAME = undefined
+  resolveCaller()
+
+  // the body stays the package's: the conformance corpus pins this route to
+  // `OK!`, and a sign-out that changed it would be a different contract. The
+  // browser is sent into the site by a header instead, where the page drops the
+  // session it owns.
+  //
+  // Only that navigation ends the session. The row holding the account belongs to
+  // the page, and a worker cannot write it, so a caller that reads this answer
+  // without following a navigation - a fetch, an XHR, a script - ends the worker's
+  // caller and nothing else: the next page load boots the stored subject and the
+  // visitor is signed in again. A browser that follows the redirect lands on
+  // `#sasjs-signout=1`, which the page reads and clears.
+  return new Response(await IDENTITY.logoutSession(), {
+    status: 200,
+    headers: Object.assign(
+      {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        refresh: `0; url=${BASE}/#sasjs-signout=1`
+      },
+      API.emulatedHeaders()
+    )
+  })
+}
+
+/**
+ * The sign-in page's two answers.
+ *
+ * A GET is the page. A form post is a browser, not an API client, so it is
+ * answered as a browser expects: a redirect into the site carrying the account,
+ * or the page again with what went wrong. A JSON post is the package's own
+ * route, and is left to answer it.
+ */
+const signIn = async (request, url) => {
+  const service = url.searchParams.get('service') || ''
+
+  if (request.method === 'GET' || request.method === 'HEAD')
+    return loginPage({ service })
+
+  const type = request.headers.get('content-type') || ''
+
+  if (!type.includes('application/x-www-form-urlencoded')) return undefined
+
+  const form = new URLSearchParams(await request.text())
+
+  try {
+    const { user } = await IDENTITY.login({
+      username: form.get('username') || '',
+      password: form.get('password') || ''
+    })
+
+    CALLER_USERNAME = user.username
+    resolveCaller()
+
+    // the account travels in the address the browser lands on, and `persist.js`
+    // stores it as the subject `SASjsMock.as()` already keeps: the page owns the
+    // session because a service worker cannot read or set a cookie
+    const target = new URL(
+      signInTarget(form.get('service') || service, url),
+      url.origin
+    )
+    // the fragment, not the query: it is not sent in a Referer, so the account
+    // does not travel to whatever the page links to next
+    target.hash = `sasjs-caller=${encodeURIComponent(user.username)}`
+
+    return new Response(null, {
+      status: 302,
+      headers: Object.assign(
+        {
+          location: `${target.pathname}${target.search}${target.hash}`,
+          'cache-control': 'no-store'
+        },
+        API.emulatedHeaders()
+      )
+    })
+  } catch (error) {
+    // the estate answers a refused sign-in with the form again and what went
+    // wrong, rather than a status a browser would render as a blank page
+    if (error instanceof API.ApiError)
+      return loginPage({
+        message: error.message,
+        // the service a form post carries is in the body, not the address: losing
+        // it would drop the caller on the site root after one wrong password
+        service: form.get('service') || service
+      })
+
+    throw error
+  }
+}
 
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
@@ -2530,6 +2749,17 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     await R.ensureReady(askHostForDrive)
     await ensureForRequest(url, tierQuery ? query : null)
 
+    // the sign-in page and the form it posts: a browser, not an API client
+    if (apiPath.toLowerCase() === LOGIN_PATH) {
+      const answer = await signIn(request, url)
+      if (answer) return answer
+    }
+
+    // the sign-out a browser follows: the cookie is this host's session, so
+    // ending it is this host's answer
+    if (apiPath.toLowerCase() === LOGOUT_PATH && request.method === 'GET')
+      return await signOut()
+
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which
     // is what makes a Viya build mockable in the browser at all.
@@ -2923,7 +3153,12 @@ self.addEventListener('message', (event) => {
             reply({
               type: 'sasjs-load-ack',
               error: (e && e.message) || String(e),
-              errorKind: e && e.identityRejected ? 'identity' : 'host'
+              errorKind:
+                e && e.identityRejected
+                  ? 'identity'
+                  : e && e.callerRejected
+                    ? 'caller'
+                    : 'host'
             })
           )
       )
@@ -2960,7 +3195,12 @@ self.addEventListener('message', (event) => {
             reply({
               type: 'sasjs-seed-ack',
               error: (e && e.message) || String(e),
-              errorKind: e && e.identityRejected ? 'identity' : 'host'
+              errorKind:
+                e && e.identityRejected
+                  ? 'identity'
+                  : e && e.callerRejected
+                    ? 'caller'
+                    : 'host'
             })
           )
       )
