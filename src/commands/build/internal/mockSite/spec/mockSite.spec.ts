@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { spawn } from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 import { once } from 'events'
 import { JSDOM, requestInterceptor } from 'jsdom'
 import {
@@ -40,12 +40,31 @@ const waitForLoad = (dom: JSDOM) =>
 // read the value *inside* the app script in a real browser, not after load.
 const browserIt = process.env.SASJS_BROWSER_TESTS === '1' ? it : it.skip
 
+// A writer may briefly keep using the profile after the browser exits.
+// Retry only transient non-empty profiles, without hiding cleanup failures.
+const removeChromiumProfile = async (profile: string) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.rmSync(profile, { recursive: true, force: true })
+      return
+    } catch (error) {
+      if (
+        (error as NodeJS.ErrnoException | null)?.code !== 'ENOTEMPTY' ||
+        attempt >= 10
+      )
+        throw error
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+  }
+}
+
 const observeMountInChromium = async (
   html: string,
   url: string,
   host: string,
   expression: string,
-  adapter = false
+  adapter = false,
+  onSpawn?: (child: ChildProcess) => void
 ): Promise<any> => {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-browser-'))
   const child = spawn(
@@ -70,6 +89,7 @@ const observeMountInChromium = async (
   void exited.catch(() => {})
   let ws: WebSocket | undefined
   try {
+    onSpawn?.(child)
     let port = ''
     for (let i = 0; i < 200 && !port; i++) {
       if (spawnError) throw spawnError
@@ -212,9 +232,136 @@ const observeMountInChromium = async (
       child.kill('SIGKILL')
       await exited.catch(() => {})
     }
-    fs.rmSync(profile, { recursive: true, force: true })
+    await removeChromiumProfile(profile)
   }
 }
+
+describe('Chromium profile removal retries', () => {
+  let profile: string
+
+  beforeEach(() => {
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-cleanup-test-'))
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    fs.rmSync(profile, { recursive: true, force: true })
+  })
+
+  it('retries transient non-empty failures and removes the profile', async () => {
+    const remove = fs.rmSync.bind(fs)
+    const transient = Object.assign(new Error('directory not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    let attempts = 0
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation((target, opts) => {
+      if (++attempts <= 2) throw transient
+      remove(target, opts)
+    })
+
+    await removeChromiumProfile(profile)
+    expect(rm).toHaveBeenCalledTimes(3)
+    expect(fs.existsSync(profile)).toBe(false)
+  })
+
+  it('reports persistent non-empty failures after a bounded number of attempts', async () => {
+    const failure = Object.assign(new Error('profile still not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation(() => {
+      throw failure
+    })
+    await expect(removeChromiumProfile(profile)).rejects.toBe(failure)
+    expect(rm).toHaveBeenCalledTimes(11)
+  })
+
+  it('does not retry other profile removal failures', async () => {
+    const failure = Object.assign(new Error('permission denied'), {
+      code: 'EACCES'
+    })
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation(() => {
+      throw failure
+    })
+    await expect(removeChromiumProfile(profile)).rejects.toBe(failure)
+    expect(rm).toHaveBeenCalledTimes(1)
+  })
+})
+
+// POSIX shebang and SIGTERM semantics are unavailable in the Windows suite.
+// Linux browser CI opts in to the real-process lifecycle test.
+const posixBrowserDescribe =
+  process.env.SASJS_BROWSER_TESTS === '1' && process.platform !== 'win32'
+    ? describe
+    : describe.skip
+
+posixBrowserDescribe('Chromium profile cleanup lifecycle', () => {
+  let root: string
+  let previousChromium: string | undefined
+  let profile: string | undefined
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-cleanup-test-'))
+    previousChromium = process.env.CHROMIUM_PATH
+    const browser = path.join(root, 'browser')
+    fs.writeFileSync(
+      browser,
+      `#!${process.execPath}
+const fs = require('fs')
+const path = require('path')
+const profile = process.argv.find(arg => arg.startsWith('--user-data-dir=')).split('=')[1]
+process.on('SIGTERM', () => setTimeout(() => { fs.writeFileSync(path.join(profile, 'terminated'), 'yes'); process.exit(0) }, 250))
+fs.writeFileSync(path.join(profile, 'DevToolsActivePort'), '0\\n')
+setInterval(() => {}, 1000)
+`,
+      { mode: 0o755 }
+    )
+    process.env.CHROMIUM_PATH = browser
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    if (previousChromium === undefined) delete process.env.CHROMIUM_PATH
+    else process.env.CHROMIUM_PATH = previousChromium
+    if (profile) fs.rmSync(profile, { recursive: true, force: true })
+    fs.rmSync(root, { recursive: true, force: true })
+    profile = undefined
+  })
+
+  it('waits for browser exit and retries transient profile removal failures', async () => {
+    const remove = fs.rmSync.bind(fs)
+    const transient = Object.assign(new Error('directory not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    let attempts = 0
+    let exitObserved = false
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation((target, opts) => {
+      profile = String(target)
+      expect(fs.readFileSync(path.join(profile, 'terminated'), 'utf8')).toBe(
+        'yes'
+      )
+      expect(exitObserved).toBe(true)
+      if (++attempts <= 2) throw transient
+      remove(target, opts)
+    })
+
+    await expect(
+      observeMountInChromium(
+        '',
+        'https://example.com/',
+        root,
+        '1',
+        false,
+        (child) => {
+          child.once('exit', () => {
+            exitObserved = true
+          })
+        }
+      )
+    ).rejects.toThrow('fetch failed')
+    expect(rm).toHaveBeenCalledTimes(3)
+    expect(fs.existsSync(profile!)).toBe(false)
+  })
+})
 
 const appLoc = '/Public/app/test'
 const languageVersion: string = JSON.parse(
