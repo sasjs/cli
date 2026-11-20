@@ -6354,6 +6354,24 @@ describe('the estate sign-in', () => {
     expect(wrong.body.error).toBe('invalid_client')
   })
 
+  it('challenges a failed client authentication, as RFC 6749 asks', async () => {
+    const worker = loadWorker()
+
+    // a client that waits for a challenge before retrying with credentials has
+    // only the header to go on: a bare 401 reads as fatal
+    const answer = await exchange(
+      worker,
+      { grant_type: 'password', username: 'sasjsadmin', password: 'Orion123' },
+      'web_app',
+      'wrong'
+    )
+
+    expect(answer!.status).toBe(401)
+    expect(answer!.headers.get('www-authenticate')).toBe(
+      'Basic realm="SASLogon"'
+    )
+  })
+
   it('refuses a grant it does not answer, by name', async () => {
     const worker = loadWorker()
 

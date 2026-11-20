@@ -2167,8 +2167,17 @@ const oauthJson = (status, body) => {
   return new Response(JSON.stringify(body), { status, headers })
 }
 
-const oauthError = (status, error, description) =>
-  oauthJson(status, { error, error_description: description })
+const oauthError = (status, error, description) => {
+  const answer = oauthJson(status, { error, error_description: description })
+
+  // RFC 6749 section 5.2: a 401 for a failed client authentication carries the
+  // challenge for the scheme the client used, or a client that retries only when
+  // challenged treats the answer as fatal
+  if (status === 401 && error === 'invalid_client')
+    answer.headers.set('www-authenticate', 'Basic realm="SASLogon"')
+
+  return answer
+}
 
 /** The form a token request carries, or its JSON equivalent. */
 const readForm = async (request) => {
@@ -2398,7 +2407,6 @@ const oauthToken = async (request) => {
  * request with a body needs one, and `source` is what carries it through the
  * recursion.
  */
-// ------------------------------------------------------- the OAuth endpoints
 const routeRequest = async (request, url, attempts = 0, source = null) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null
