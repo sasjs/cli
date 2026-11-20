@@ -5968,6 +5968,34 @@ describe('the emulated Viya estate', () => {
     expect(String(job.body.message)).toMatch(/not emulated/)
   })
 
+  it('seeds from the address as the package reads it, so one origin is one estate', async () => {
+    // the seed is the address normalised to scheme, host and port: `viya/seed.ts`
+    // drops the path, so two mounts on one origin are one estate's generated
+    // data. The sites stay apart through the drive each persists - `persist.js`
+    // opens `sasjs-mock-host:<mount>` - and this case pins the boundary, so a
+    // package change that made the path significant is a decision, not a drift.
+    const serverId = async (base: string) => {
+      const worker = loadWorker(base)
+
+      const contexts = await read(worker.dispatch('/compute/contexts'))
+      const contextId = contexts.body.items[0].id
+
+      const answer = await read(
+        worker.dispatch(`/compute/contexts/${contextId}/sessions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'seeded' })
+        })
+      )
+
+      expect(answer.status).toBe(201)
+
+      return answer.body.serverId
+    }
+
+    expect(await serverId('/site-b')).toBe(await serverId('/site-a'))
+  })
+
   it('leaves every other path to the static host', async () => {
     const worker = loadWorker()
 

@@ -1430,10 +1430,17 @@ const SERVICES = {
  * The drive is this host's own, so a file uploaded over the Viya paths is the
  * file the SASjs API routes read back, and the address the site is served from is
  * the estate's identity - the only input to its seed, exactly as it is on a
- * server, so two sites are two estates.
+ * server. The address is its scheme, host and port, so what separates two builds on
+ * one origin is the drive they each persist, not the seed.
  */
 const VIYA_SERVICES = {
   drive: SERVICES.drive,
+  // the address, as the package reads it: scheme, host and port. A path is not
+  // part of an address to `normaliseServerUrl` (sasjs/api `viya/seed.ts`), so the
+  // path is not passed - and it would change nothing if it were. Two builds on
+  // one origin are still two sites, because the drive they see is named for the
+  // mount (`persist.js` opens `sasjs-mock-host:<mount>`), which is what has to be
+  // separate for them not to share one filesystem.
   viya: { serverUrl: self.location.origin }
 }
 
@@ -1492,7 +1499,11 @@ const viyaRequest = async (request, url, path) => {
   if (answer.contents !== undefined)
     return new Response(answer.contents, { status: answer.status, headers })
 
-  if (!headers['content-type']) headers['content-type'] = 'application/json'
+  // the emulator sets its own type; a duplicate key under another casing would
+  // leave the effective one to merge order, so the default is only written when
+  // no casing of the header is present at all
+  if (!Object.keys(headers).some((key) => key.toLowerCase() === 'content-type'))
+    headers['content-type'] = 'application/json'
 
   return new Response(
     answer.body === undefined || answer.body === null
