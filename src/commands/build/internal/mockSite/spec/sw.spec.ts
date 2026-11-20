@@ -6014,6 +6014,53 @@ describe('the emulated Viya estate', () => {
     expect(answer.emulated).toMatch(/^viya@/)
     expect(answer.status).toBe(501)
     expect(String(answer.body.message)).toMatch(/host that mounts the emulator/)
+
+    // the same address with a trailing slash is the same path: `routeRequest`
+    // strips it before any lookup, so a client that adds one is not answered by
+    // a different contract
+    const slashed = await read(
+      worker.dispatch('/SASLogon/oauth/token/', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(slashed.status).toBe(answer.status)
+    expect(slashed.emulated).toMatch(/^viya@/)
+  })
+
+  it('costs no drive write to refuse an estate call, and one to accept it', async () => {
+    const worker = loadWorker()
+    const messages: any[] = []
+    ;(global as any).__mockHostClients = [
+      { postMessage: (m: any) => messages.push(m) }
+    ]
+
+    const persists = () =>
+      messages.filter((m) => m.type === 'sasjs-persist').length
+
+    // a refusal changed nothing, so nothing is written back: a client that polls
+    // a route the emulator refuses must not cost a drive write per poll
+    const refused = await read(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(refused.status).toBeGreaterThanOrEqual(400)
+    expect(persists()).toBe(0)
+
+    // and an accepted write is persisted, or the next page load would lose it
+    const created = await read(
+      worker.dispatch('/folders/folders?parentFolderUri=', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'written-back' })
+      })
+    )
+    expect(created.status).toBe(201)
+    expect(persists()).toBeGreaterThan(0)
   })
 
   it('leaves every other path to the static host', async () => {

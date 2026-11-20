@@ -1505,8 +1505,14 @@ const viyaRequest = async (request, url, path) => {
     apiRequest
   )
 
-  // a folder or file the estate created is a change to this host's drive
-  if (request.method !== 'GET' && request.method !== 'HEAD')
+  // a folder or file the estate created is a change to this host's drive - but
+  // only an answer that succeeded can have changed one: the emulator's refusals
+  // (the token endpoint, launcher, jobExecution) cost no write
+  if (
+    request.method !== 'GET' &&
+    request.method !== 'HEAD' &&
+    answer.status < 300
+  )
     await persistChanges()
 
   const headers = Object.assign({}, answer.headers || {})
