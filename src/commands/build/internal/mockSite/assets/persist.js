@@ -668,6 +668,25 @@
       )
     }
 
+    if (answer.error && answer.errorKind === 'caller') {
+      console.info('[sasjs-mock] ' + answer.error)
+      // the fixture is fine and the account is not in it: the row keeps the
+      // fixture and loses the subject, so the retry boots as a first visit does
+      try {
+        if (stored && stored.fixture)
+          await writeIdentity({ fixture: stored.fixture, subject: undefined })
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear the stored account: ' + e)
+      }
+
+      return await boot(
+        files,
+        stored ? { ...stored, subject: undefined } : stored,
+        deleted,
+        controller
+      )
+    }
+
     if (answer.error && answer.errorKind === 'persist') {
       // the worker has the drive: only the write-back to the other tabs failed.
       // Nothing here is a refusal - clearing would delete a drive it is serving,

@@ -6795,16 +6795,22 @@ describe('the sign-in page', () => {
     expect(await page!.text()).toContain('action="/site-a/saslogon/login"')
   })
 
-  it('answers as the administrator when the address names an account it does not have', async () => {
+  it('refuses an account the fixture does not hold, rather than answering as the administrator', async () => {
     const worker = loadWorker()
 
-    // a mistyped or shared sign-in link must not leave every request answering
-    // as nobody: the default stands, and the account has to be one the fixture
-    // holds
+    // a mistyped or shared sign-in link must not be answered as the
+    // administrator: that hides the mistake behind a working site, and
+    // `SASjsMock.as()` would report success for an account nothing knows. The
+    // refusal is tagged so the page clears the account it stored and keeps the
+    // fixture, which is fine.
     const boot = worker.message({ type: 'sasjs-seed', subject: 'gone-user' })
     await boot.pending
-    expect(boot.replies[0].error).toBeUndefined()
 
+    expect(boot.replies[0].error).toContain("No account 'gone-user'")
+    expect(boot.replies[0].errorKind).toBe('caller')
+
+    // nothing was adopted: the worker still answers as the administrator, the
+    // same answer a request with no session gets
     const answer = await worker.dispatch('/identities/users/@currentUser')
     expect((await answer!.json()).id).toBe('user-admin')
   })

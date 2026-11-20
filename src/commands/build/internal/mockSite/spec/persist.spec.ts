@@ -474,6 +474,52 @@ describe('the page-side store', () => {
     expect(identityRows.get('current')?.subject).toBe('sasjsuser')
   })
 
+  it('clears an account the worker refuses, keeping the fixture', async () => {
+    // the worker owns the fixture it ships; a row naming an account that fixture
+    // does not hold comes back as `errorKind: 'caller'`. The fixture is fine, so
+    // only the account goes - clearing the row would discard the accounts the
+    // visitor created.
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/',
+      seededIdentity: { fixture: FIXTURE, subject: 'gone-user' }
+    })
+
+    let seeds = 0
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const asked = calls[calls.length - 1][0]
+      const reply =
+        asked.type === 'sasjs-seed' && seeds++ === 0
+          ? {
+              type: 'sasjs-seed-ack',
+              error: "No account 'gone-user' in the identity fixture",
+              errorKind: 'caller'
+            }
+          : { type: 'sasjs-seed-ack', identity: FIXTURE }
+      ;[...listeners].forEach((fn) => fn({ data: reply }))
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-seed',
+      'sasjs-seed'
+    ])
+    expect(asks[0].subject).toBe('gone-user')
+    // the retry boots as a first visit does
+    expect(asks[1].subject).toBeUndefined()
+    // the fixture stays, the account goes
+    expect(identityRows.get('current')?.fixture).toEqual(FIXTURE)
+    expect(identityRows.get('current')?.subject).toBeUndefined()
+  })
+
   it('retries under the stored account when the address names one it cannot use', async () => {
     // one decision for the row and the retry: an address naming an account the
     // fixture does not declare must not leave the load served as admin while the

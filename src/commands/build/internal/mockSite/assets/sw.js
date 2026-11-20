@@ -222,21 +222,28 @@ const bootIdentity = async (data) => {
     }
   }
 
-  // a subject the fixture does not declare is not a caller: taking the name
-  // anyway would answer every request as `emulated-user`, which nothing else in
-  // this host does. The fallback is the fixture's administrator, the same answer
-  // a request with no session gets (see `resolveCaller`), so a mistyped or shared
-  // sign-in link lands on a usable site rather than an anonymous one.
+  // a subject the fixture does not declare is refused rather than answered as
+  // the administrator: taking the name anyway would answer every request as
+  // `emulated-user`, and falling back to the administrator would hide a typo, a
+  // stale shared link, or a test that meant to be someone else. `undefined` stays
+  // the fresh-boot case - no session, so the administrator, the same answer a
+  // request with no session gets (see `resolveCaller`).
   const named = data.subject === undefined ? undefined : data.subject
 
+  if (
+    named !== null &&
+    named !== undefined &&
+    !fixture.users.some((user) => user.username === String(named))
+  ) {
+    // tagged so the page can clear the account it stored without dropping the
+    // fixture, which is fine; `SASjsMock.as()` sees the error itself
+    const refused = new Error(`No account '${named}' in the identity fixture`)
+    refused.callerRejected = true
+    throw refused
+  }
+
   CALLER_USERNAME =
-    named === null
-      ? null
-      : named === undefined
-        ? undefined
-        : fixture.users.some((user) => user.username === String(named))
-          ? String(named)
-          : undefined
+    named === null ? null : named === undefined ? undefined : String(named)
 
   seedIdentity(fixture)
 }
@@ -1323,6 +1330,7 @@ const LOGOUT_PATH = '/saslogon/logout'
  * a `Refresh` into the site with `sasjs-signout=1`: `persist.js` drops the stored
  * subject, and the worker's caller goes back to the one the boot names.
  */
+/** Ends the caller the worker holds, and asks the browser to end the page's own. */
 const signOut = async () => {
   // back to the account the boot named, which for a signed-out site is the
   // fixture's administrator - the same answer a first visit gets
@@ -1333,6 +1341,13 @@ const signOut = async () => {
   // `OK!`, and a sign-out that changed it would be a different contract. The
   // browser is sent into the site by a header instead, where the page drops the
   // session it owns.
+  //
+  // Only that navigation ends the session. The row holding the account belongs to
+  // the page, and a worker cannot write it, so a caller that reads this answer
+  // without following a navigation - a fetch, an XHR, a script - ends the worker's
+  // caller and nothing else: the next page load boots the stored subject and the
+  // visitor is signed in again. A browser that follows the redirect lands on
+  // `#sasjs-signout=1`, which the page reads and clears.
   return new Response(await IDENTITY.logoutSession(), {
     status: 200,
     headers: Object.assign(
@@ -3139,7 +3154,12 @@ self.addEventListener('message', (event) => {
             reply({
               type: 'sasjs-load-ack',
               error: (e && e.message) || String(e),
-              errorKind: e && e.identityRejected ? 'identity' : 'host'
+              errorKind:
+                e && e.identityRejected
+                  ? 'identity'
+                  : e && e.callerRejected
+                    ? 'caller'
+                    : 'host'
             })
           )
       )
@@ -3176,7 +3196,12 @@ self.addEventListener('message', (event) => {
             reply({
               type: 'sasjs-seed-ack',
               error: (e && e.message) || String(e),
-              errorKind: e && e.identityRejected ? 'identity' : 'host'
+              errorKind:
+                e && e.identityRejected
+                  ? 'identity'
+                  : e && e.callerRejected
+                    ? 'caller'
+                    : 'host'
             })
           )
       )
