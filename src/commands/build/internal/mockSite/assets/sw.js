@@ -70,6 +70,18 @@ const IDENTITY_FILE = 'host/identity.json'
 
 const IDENTITY_STATE = {
   store: new API.MemoryIdentityStore(API.DEFAULT_IDENTITY),
+  /**
+   * The secrets the current fixture declares, kept beside the store rather than
+   * read back from it: the store's read path omits a client's secret, and its
+   * snapshot is an inspection aid rather than the port a credential is checked
+   * through.
+   */
+  secrets: new Map(
+    (API.DEFAULT_IDENTITY.clients || []).map((client) => [
+      client.clientId,
+      client.clientSecret
+    ])
+  ),
   /** The fixture the store last reported to the page, as JSON. */
   persisted: '',
   /** The fixture the build shipped; `reset()` returns to this one. */
@@ -129,6 +141,15 @@ const resolveCaller = () => {
 const seedIdentity = (fixture) => {
   IDENTITY_STATE.store = new API.MemoryIdentityStore(fixture)
   IDENTITY_STATE.persisted = JSON.stringify(IDENTITY_STATE.store.snapshot())
+  // the secrets the fixture declares, kept here rather than read back from the
+  // store: the store's read path omits a client's secret, and the snapshot is an
+  // inspection aid, not the port a credential is checked through
+  IDENTITY_STATE.secrets = new Map(
+    (fixture.clients || []).map((client) => [
+      client.clientId,
+      client.clientSecret
+    ])
+  )
   IDENTITY_STATE.seeded = true
   resolveCaller()
 }
@@ -1166,12 +1187,21 @@ const VIYA_PREFIXES = [
  * route table or to the static host.
  */
 /**
- * The estate's two sign-in endpoints, named once: `ESTATE_PATHS` is what makes the
- * worker answer them, and the handlers below are what answers - a literal repeated
- * in both could leave a handler that never runs.
+ * The two endpoints a Viya client speaks to sign in: the authorize step it
+ * redirects to, and the token step it exchanges a code at.
  *
- * The authorize step is not a row in the package's table: it is this host's own
- * half of the token port, the page a client is sent to before it holds a code.
+ * Both are the host's, not the emulator's - the emulator holds no account to
+ * check a credential against, exactly as on a server, where `routes/viya` answers
+ * the token port from the server's own accounts. `IDENTITY` verifies the client
+ * and mints the pair, and every answer here carries the same `x-sasjs-emulated`
+ * stamp as the estate's, because this host is standing in for Viya whichever
+ * endpoint is asked.
+ *
+ * They are named once: `ESTATE_PATHS` is what makes the worker answer them, and
+ * the handlers below are what answers - a literal repeated in both could leave a
+ * handler that never runs. The authorize step is not a row in the package's
+ * table: it is this host's own half of the token port, the page a client is sent
+ * to before it holds a code.
  */
 const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
 const OAUTH_TOKEN = '/saslogon/oauth/token'
@@ -2142,17 +2172,6 @@ const ensureForRequest = async (url, tierQuery) => {
   if (paths.length) await R.ensurePaths(paths)
 }
 
-/**
- * The two endpoints a Viya client speaks to sign in: the authorize step it
- * redirects to, and the token step it exchanges a code at.
- *
- * Both are the host's, not the emulator's - the emulator holds no account to
- * check a credential against, exactly as on a server, where `routes/viya`
- * answers the token port from the server's own accounts. `IDENTITY` verifies the
- * client and mints the pair, and every answer here carries the same
- * `x-sasjs-emulated` stamp as the estate's, because this host is standing in for
- * Viya whichever endpoint is asked.
- */
 /** An OAuth answer: the body the document states, and no caching of a token. */
 const oauthJson = (status, body) => {
   const headers = Object.assign(
@@ -2336,22 +2355,20 @@ const oauthToken = async (request) => {
   // the store's read answers the client's lifetimes and not its secret, so the
   // comparison reads the snapshot the host persists - the same record, with the
   // field a client authenticates with kept out of the read path
-  const declared = IDENTITY_STATE.store
-    .snapshot()
-    .clients.find((entry) => entry.clientId === client.clientId)
+  const declaredSecret = IDENTITY_STATE.secrets.get(client.clientId)
 
   // verified or refused, never skipped: a client the fixture declares no secret
   // for cannot be checked at all, so it is refused by name. A change to what the
-  // store keeps then shows up as a refusal here rather than as a check that
+  // fixture carries then shows up as a refusal here rather than as a check that
   // quietly accepts any secret.
-  if (!declared || !declared.clientSecret)
+  if (!declaredSecret)
     return oauthError(
       401,
       'invalid_client',
       `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
     )
 
-  if (declared.clientSecret !== client.clientSecret)
+  if (declaredSecret !== client.clientSecret)
     return oauthError(401, 'invalid_client', 'The client secret is wrong.')
 
   try {

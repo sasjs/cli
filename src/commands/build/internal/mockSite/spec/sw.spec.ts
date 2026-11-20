@@ -6008,10 +6008,9 @@ describe('the emulated Viya estate', () => {
       })
     )
 
-    // stamped, so a client knows which contract answered. On this head the host
-    // owns the token port and refuses a bare grant for want of a client id; the
-    // emulator would refuse the route itself. What must not happen either way is
-    // the SASjs route table answering 404 or the static host answering HTML.
+    // stamped, so a client knows which contract answered: the host owns the token
+    // port, and a bare grant is refused for want of a client id. The answer is
+    // never the SASjs route table's 404 or the static host's HTML.
     expect(answer.emulated).toMatch(/^viya@/)
     expect(answer.status).toBe(401)
     expect(answer.body.error).toBe('invalid_client')
