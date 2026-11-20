@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const path = require('node:path')
-const { waitForDevToolsPort } = require('./boot.lifecycle.browser.cjs')
+const { waitForDevToolsPort } = require('./devToolsPort.cjs')
 
 const profile = path.join('/tmp', 'browser-profile')
 const portFile = path.join(profile, 'DevToolsActivePort')

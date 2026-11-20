@@ -4,7 +4,7 @@ import os from 'os'
 import { ChildProcess, spawn } from 'child_process'
 import { once } from 'events'
 import { JSDOM, requestInterceptor } from 'jsdom'
-import { waitForDevToolsPort } from './boot.lifecycle.browser.cjs'
+import { waitForDevToolsPort } from './devToolsPort.cjs'
 import {
   buildMockSite,
   DRIVE_FORMAT,
@@ -92,7 +92,7 @@ const observeMountInChromium = async (
       `--user-data-dir=${profile}`,
       'about:blank'
     ],
-    { stdio: 'ignore' }
+    { stdio: ['ignore', 'ignore', 'pipe'] }
   )
   const exited = once(child, 'exit')
   // Consume spawn errors immediately while preserving the failure for startup.
@@ -100,11 +100,21 @@ const observeMountInChromium = async (
   child.on('error', (error) => {
     spawnError = error
   })
+  // Capture stderr so startup failures can report what the browser said.
+  let stderr = ''
+  child.stderr?.on('data', (data: Buffer) => {
+    stderr += data.toString()
+  })
   void exited.catch(() => {})
   let ws: WebSocket | undefined
   try {
     onSpawn?.(child)
-    const port = await waitForDevToolsPort(profile, child, () => spawnError)
+    const port = await waitForDevToolsPort(
+      profile,
+      child,
+      () => spawnError,
+      () => stderr
+    )
     const version: any = await (
       await fetch(`http://127.0.0.1:${port}/json/version`)
     ).json()
