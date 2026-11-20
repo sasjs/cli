@@ -292,6 +292,46 @@ function serve(site, mode, alternateBoot) {
   return server
 }
 
+async function waitForDevToolsPort(
+  profile,
+  chromium,
+  getSpawnError,
+  getStderr,
+  options = {}
+) {
+  const now = options.now || Date.now
+  const readFile = options.readFile || fs.readFile
+  const wait = options.sleep || sleep
+  const portFile = path.join(profile, 'DevToolsActivePort')
+  const timeout = 30000
+  const deadline = now() + timeout
+  let lastError = 'port file not yet read'
+  while (now() < deadline) {
+    const spawnError = getSpawnError()
+    if (spawnError) throw spawnError
+    if (chromium.exitCode !== null)
+      throw new Error(`Chromium exited: ${getStderr()}`)
+    try {
+      const content = await readFile(portFile, 'utf8')
+      const port = Number(content.split('\n')[0])
+      if (
+        Number.isInteger(port) &&
+        port > 0 &&
+        port <= 65535 &&
+        now() < deadline
+      )
+        return port
+      lastError = `invalid or late port: ${JSON.stringify(content)}`
+    } catch (error) {
+      lastError = `${error.code || error.name}: ${error.message}`
+    }
+    await wait(50)
+  }
+  throw new Error(
+    `Chromium CDP startup timed out after ${timeout}ms waiting for ${portFile}; last read: ${lastError}; Chromium stderr: ${getStderr() || '(empty)'}`
+  )
+}
+
 async function main() {
   const root = await fs.mkdtemp(
     path.join(os.tmpdir(), 'sasjs-startup-browser-')
@@ -322,23 +362,12 @@ async function main() {
       spawnError = error
     })
     exited = new Promise((resolve) => chromium.once('close', resolve))
-    let port
-    const deadline = Date.now() + 10000
-    while (!port && Date.now() < deadline) {
-      if (spawnError) throw spawnError
-      if (chromium.exitCode !== null)
-        throw new Error(`Chromium exited: ${stderr}`)
-      try {
-        port = Number(
-          (
-            await fs.readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')
-          ).split('\n')[0]
-        )
-      } catch (_) {
-        await sleep(50)
-      }
-    }
-    if (!port) throw new Error(`Chromium CDP startup timed out: ${stderr}`)
+    const port = await waitForDevToolsPort(
+      profile,
+      chromium,
+      () => spawnError,
+      () => stderr
+    )
     const { webSocketDebuggerUrl } = await (
       await fetch(`http://127.0.0.1:${port}/json/version`)
     ).json()
@@ -860,7 +889,10 @@ async function main() {
     await fs.rm(root, { recursive: true, force: true })
   }
 }
-main().catch((error) => {
-  console.error('Browser regression failed:', error.stack || error)
-  process.exitCode = 1
-})
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Browser regression failed:', error.stack || error)
+    process.exitCode = 1
+  })
+}
+module.exports = { waitForDevToolsPort }
