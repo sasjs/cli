@@ -580,6 +580,36 @@
     const type = loading ? 'sasjs-load' : 'sasjs-seed'
     const ack = loading ? 'sasjs-load-ack' : 'sasjs-seed-ack'
 
+    /**
+     * Records what the redirect asked for, so the next reload answers the same
+     * account without carrying the address again.
+     *
+     * Called before every return that keeps a usable fixture - the host-refusal
+     * branch included, because the retry it makes re-reads an address this
+     * function already stripped.
+     */
+    const applyHandoff = async (answer) => {
+      const fixture = (answer && answer.identity) || (stored && stored.fixture)
+      const declares = (username) =>
+        !!fixture &&
+        Array.isArray(fixture.users) &&
+        fixture.users.some((user) => user.username === username)
+
+      try {
+        if (handoff.signOut) {
+          // the fixture stays: a sign-out ends the account, not the site's
+          // accounts - and dropping it would load the visitor's drive under the
+          // shipped one
+          if (fixture) await writeIdentity({ fixture, subject: undefined })
+          else await clearIdentity()
+        } else if (handoff.caller && declares(handoff.caller)) {
+          await writeIdentity({ fixture, subject: handoff.caller })
+        }
+      } catch (e) {
+        console.error('[sasjs-mock] could not store the sign-in: ' + e)
+      }
+    }
+
     // only when there are some: an empty list is the common case, and the worker
     // reads an absent one as "nothing was deleted"
     const deletions = loading && deleted.length ? deleted : undefined
@@ -642,29 +672,11 @@
       // their row stays in storage. An identity the worker does refuse comes
       // back as `errorKind: 'identity'`, which the branch above clears and
       // retries.
+      await applyHandoff(answer)
       return await boot({}, stored, [], controller)
     }
 
-    // the handoff is stored, so the next reload answers the same account without
-    // carrying the address again
-    const fixture = (answer && answer.identity) || (stored && stored.fixture)
-    const declares = (username) =>
-      !!fixture &&
-      Array.isArray(fixture.users) &&
-      fixture.users.some((user) => user.username === username)
-
-    try {
-      if (handoff.signOut) {
-        // the fixture stays: a sign-out ends the account, not the site's accounts
-        // - and dropping it would load the visitor's drive under the shipped one
-        if (fixture) await writeIdentity({ fixture, subject: undefined })
-        else await clearIdentity()
-      } else if (handoff.caller && declares(handoff.caller)) {
-        await writeIdentity({ fixture, subject: handoff.caller })
-      }
-    } catch (e) {
-      console.error('[sasjs-mock] could not store the sign-in: ' + e)
-    }
+    await applyHandoff(answer)
 
     return answer
   }

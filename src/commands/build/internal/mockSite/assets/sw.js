@@ -222,10 +222,11 @@ const bootIdentity = async (data) => {
     }
   }
 
-  // a subject the fixture does not declare is not a caller. Taking the name
-  // anyway would answer every request as nobody (`emulated-user`), which is not
-  // what a mistyped or shared sign-in link should do - so the default stands and
-  // the account has to be one this fixture holds.
+  // a subject the fixture does not declare is not a caller: taking the name
+  // anyway would answer every request as `emulated-user`, which nothing else in
+  // this host does. The fallback is the fixture's administrator, the same answer
+  // a request with no session gets (see `resolveCaller`), so a mistyped or shared
+  // sign-in link lands on a usable site rather than an anonymous one.
   const named = data.subject === undefined ? undefined : data.subject
 
   CALLER_USERNAME =
@@ -1321,6 +1322,8 @@ const LOGOUT_PATH = '/saslogon/logout'
  * subject, and the worker's caller goes back to the one the boot names.
  */
 const signOut = async () => {
+  // back to the account the boot named, which for a signed-out site is the
+  // fixture's administrator - the same answer a first visit gets
   CALLER_USERNAME = undefined
   resolveCaller()
 
@@ -1393,7 +1396,12 @@ const signIn = async (request, url) => {
     // the estate answers a refused sign-in with the form again and what went
     // wrong, rather than a status a browser would render as a blank page
     if (error instanceof API.ApiError)
-      return loginPage({ message: error.message, service })
+      return loginPage({
+        message: error.message,
+        // the service a form post carries is in the body, not the address: losing
+        // it would drop the caller on the site root after one wrong password
+        service: form.get('service') || service
+      })
 
     throw error
   }

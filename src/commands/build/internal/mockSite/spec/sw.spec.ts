@@ -6740,6 +6740,26 @@ describe('the sign-in page', () => {
     expect(await response!.text()).toContain('Invalid Password.')
   })
 
+  it('keeps the service through a refused password', async () => {
+    const worker = loadWorker()
+
+    // the service a form post carries is in the body, not the address: losing it
+    // would put the caller on the site root after one wrong password
+    const refused = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'nope', service: '/app/' })
+    )
+    expect(await refused!.text()).toContain('value="/app/"')
+
+    const signedIn = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'Orion123', service: '/app/' })
+    )
+    expect(signedIn!.headers.get('location')).toBe(
+      '/app/?sasjs-caller=sasjsadmin'
+    )
+  })
+
   it('sends the browser into this site, never to another origin', async () => {
     const worker = loadWorker('/site-a')
 

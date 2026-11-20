@@ -406,6 +406,65 @@ describe('the page-side store', () => {
     expect(row.subject).toBe('sasjsuser')
   })
 
+  it('does not store an account the fixture does not declare', async () => {
+    // a mistyped or shared link must not outlive itself in storage
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/?sasjs-caller=gone-user'
+    })
+
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const type = calls[0][0].type
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: type + '-ack', identity: FIXTURE } })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    expect(identityRows.size).toBe(0)
+  })
+
+  it('records the sign-in even when the stored drive had to be replaced', async () => {
+    // the host-refusal branch retries with a boot that re-reads an address this
+    // pass already stripped, so the handoff is stored before that return
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/?sasjs-caller=sasjsuser',
+      seededIdentity: { fixture: FIXTURE, subject: null },
+      seededDeleted: ['/sasjs/drive/gone.txt']
+    })
+
+    let asked = 0
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const type = calls[0][0].type
+      asked += 1
+      ;[...listeners].forEach((fn) =>
+        fn({
+          data:
+            asked === 1
+              ? { type: type + '-ack', error: 'refused', errorKind: 'host' }
+              : { type: type + '-ack', identity: FIXTURE }
+        })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    expect(asked).toBeGreaterThan(1)
+    expect(identityRows.get('current')?.subject).toBe('sasjsuser')
+  })
+
   it('drops the account when the sign-out redirect asks it to', async () => {
     const controller = { postMessage: jest.fn() }
     const { window, listeners, identityRows } = loadPersist({
