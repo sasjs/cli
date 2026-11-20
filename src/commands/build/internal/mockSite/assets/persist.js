@@ -436,6 +436,12 @@
       if (answer.error) throw new Error(answer.error)
 
       try {
+        // the same answer the sign-in page leaves behind, so the two ways of
+        // choosing an account agree about who is asking
+        document.cookie = `sasjs-caller=${encodeURIComponent(
+          answer.username
+        )}; Path=/; SameSite=Lax`
+
         await writeIdentity({
           fixture: answer.identity,
           subject: answer.username

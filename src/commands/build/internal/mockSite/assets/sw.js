@@ -1206,6 +1206,166 @@ const OAUTH_TOKEN = '/saslogon/oauth/token'
 
 const ESTATE_PATHS = [OAUTH_TOKEN, OAUTH_AUTHORIZE]
 
+// ------------------------------------------------------------ the sign-in page
+/**
+ * The page a browser is sent to before it holds a session, and the cookie its
+ * form leaves behind.
+ *
+ * A Viya deployment sends a client that arrives without a session here; a mock
+ * site has no wall, so this is the page an operator or a demo asks for rather
+ * than one they are forced through. The form is the estate's shape - a username
+ * and a password posted to this path - and the cookie is the only session this
+ * host keeps: it names the account every later request is answered as, which is
+ * the same choice `SASjsMock.as()` makes from the console.
+ */
+const LOGIN_PATH = '/saslogon/login'
+const CALLER_COOKIE = 'sasjs-caller'
+
+/** The account a request carries, if the sign-in page set one. */
+const callerFromCookie = (request) => {
+  const header = request.headers.get('cookie') || ''
+  const match = new RegExp(`(?:^|;\\s*)${CALLER_COOKIE}=([^;]*)`).exec(header)
+
+  if (!match) return undefined
+
+  try {
+    return decodeURIComponent(match[1])
+  } catch (error) {
+    return undefined
+  }
+}
+
+/** Text that came from a request, made safe for the page it is written into. */
+const escapeHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[character]
+  )
+
+/** Where a signed-in browser is sent: this site, never anywhere else. */
+const signInTarget = (service, url) => {
+  const root = `${new URL(`${BASE}/`, url.origin).pathname}`
+
+  if (!service) return root
+
+  try {
+    const target = new URL(service, url.origin)
+
+    return target.origin === url.origin ? target.pathname + target.search : root
+  } catch (error) {
+    return root
+  }
+}
+
+/** The sign-in page, with what the last attempt said. */
+const loginPage = ({ message = '', service = '', status = 200 }) => {
+  const page = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #f6f7f9; color: #1b1f24; }
+  main { max-width: 22rem; margin: 10vh auto; background: #fff; padding: 2rem; border-radius: .5rem;
+         box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+  .note { color: #57606a; font-size: .8rem; margin: 0 0 1.25rem; }
+  .error { background: #ffebe9; border: 1px solid #ff8182; color: #82071e; padding: .5rem .75rem;
+           border-radius: .25rem; font-size: .85rem; margin: 0 0 1rem; }
+  label { display: block; font-size: .85rem; margin-bottom: .75rem; }
+  input { width: 100%; box-sizing: border-box; margin-top: .25rem; padding: .5rem;
+          border: 1px solid #d0d7de; border-radius: .25rem; font-size: 1rem; }
+  button { width: 100%; padding: .6rem; font-size: 1rem; border: 0; border-radius: .25rem;
+           background: #1f6feb; color: #fff; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sign in</h1>
+  <p class="note">This is the emulated estate's sign-in page on a mock site. No SAS server is involved,
+  and the accounts are the ones the build's identity fixture declares.</p>
+  ${message ? `<p class="error" role="alert">${escapeHtml(message)}</p>` : ''}
+  <form method="post" action="${LOGIN_PATH}" autocomplete="on">
+    <label>Username <input name="username" autocomplete="username" autofocus></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password"></label>
+    <input type="hidden" name="service" value="${escapeHtml(service)}">
+    <button type="submit">Sign in</button>
+  </form>
+</main>
+</body>
+</html>`
+
+  return new Response(page, {
+    status,
+    headers: Object.assign(
+      {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store'
+      },
+      API.emulatedHeaders()
+    )
+  })
+}
+
+/**
+ * The sign-in page's two answers.
+ *
+ * A GET is the page. A form post is a browser, not an API client, so it is
+ * answered as a browser expects: a redirect into the site with the account in a
+ * cookie, or the page again with what went wrong. A JSON post is the package's
+ * own route, and is left to answer it.
+ */
+const signIn = async (request, url) => {
+  const service = url.searchParams.get('service') || ''
+
+  if (request.method === 'GET' || request.method === 'HEAD')
+    return loginPage({ service })
+
+  const type = request.headers.get('content-type') || ''
+
+  if (!type.includes('application/x-www-form-urlencoded')) return undefined
+
+  const form = new URLSearchParams(await request.text())
+
+  try {
+    const { user } = await IDENTITY.login({
+      username: form.get('username') || '',
+      password: form.get('password') || ''
+    })
+
+    CALLER_USERNAME = user.username
+    resolveCaller()
+
+    return new Response(null, {
+      status: 302,
+      headers: Object.assign(
+        {
+          location: signInTarget(form.get('service') || service, url),
+          'set-cookie': `${CALLER_COOKIE}=${encodeURIComponent(
+            user.username
+          )}; Path=/; SameSite=Lax`,
+          'cache-control': 'no-store'
+        },
+        API.emulatedHeaders()
+      )
+    })
+  } catch (error) {
+    // the estate answers a refused sign-in with the form again and what went
+    // wrong, rather than a status a browser would render as a blank page
+    if (error instanceof API.ApiError)
+      return loginPage({ message: error.message, service })
+
+    throw error
+  }
+}
+
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
   // mixed case (`/jobExecution`), and a path compared as written would never
@@ -2529,6 +2689,27 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     await ensureIdentity()
     await R.ensureReady(askHostForDrive)
     await ensureForRequest(url, tierQuery ? query : null)
+
+    // the account the sign-in page set, which is this host's only session - and
+    // only while the fixture still declares it, so a stale cookie is ignored
+    // rather than answering every request as nobody
+    const cookieCaller = callerFromCookie(request)
+    if (
+      cookieCaller &&
+      cookieCaller !== CALLER_USERNAME &&
+      IDENTITY_STATE.store
+        .snapshot()
+        .users.some((user) => user.username === cookieCaller)
+    ) {
+      CALLER_USERNAME = cookieCaller
+      resolveCaller()
+    }
+
+    // the sign-in page and the form it posts: a browser, not an API client
+    if (apiPath.toLowerCase() === LOGIN_PATH) {
+      const answer = await signIn(request, url)
+      if (answer) return answer
+    }
 
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which

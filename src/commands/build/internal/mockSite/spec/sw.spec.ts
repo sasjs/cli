@@ -6684,3 +6684,92 @@ describe('the estate sign-in', () => {
     expect(answer.status).toBe(401)
   })
 })
+
+describe('the sign-in page', () => {
+  const form = (fields: Record<string, string>) => ({
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(fields).toString()
+  })
+
+  it('serves the page with the fields the estate asks for', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch('/SASLogon/login?service=/app/')
+
+    expect(response!.status).toBe(200)
+    expect(response!.headers.get('content-type')).toContain('text/html')
+    expect(response!.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+
+    const page = await response!.text()
+    expect(page).toContain('name="username"')
+    expect(page).toContain('name="password"')
+    // the service survives the round trip, escaped, so the post knows where to go
+    expect(page).toContain('value="/app/"')
+  })
+
+  it('signs a form post in, and the cookie is the caller from then on', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsuser', password: 'Orion123' })
+    )
+
+    expect(response!.status).toBe(302)
+    expect(response!.headers.get('location')).toBe('/')
+
+    const cookie = response!.headers.get('set-cookie') as string
+    expect(cookie).toContain('sasjs-caller=sasjsuser')
+
+    // the redirect loads the site again, so the cookie has to carry the choice
+    // into a fresh worker - not lean on the one that answered the post
+    const reloaded = loadWorker()
+    const asUser = await reloaded.dispatch('/identities/users/@currentUser', {
+      headers: { cookie: cookie.split(';')[0] }
+    })
+    expect((await asUser!.json()).id).toBe('user-restricted')
+  })
+
+  it('puts the form back with what went wrong, and sets no cookie', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'nope' })
+    )
+
+    // a browser renders the page again rather than a blank 401
+    expect(response!.status).toBe(200)
+    expect(response!.headers.get('set-cookie')).toBeNull()
+    expect(await response!.text()).toContain('Invalid Password.')
+  })
+
+  it('sends the browser into this site, never to another origin', async () => {
+    const worker = loadWorker('/site-a')
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({
+        username: 'sasjsadmin',
+        password: 'Orion123',
+        service: 'https://evil.test/x'
+      })
+    )
+
+    expect(response!.status).toBe(302)
+    expect(response!.headers.get('location')).toBe('/site-a/')
+  })
+
+  it('ignores a cookie naming an account the fixture does not declare', async () => {
+    const worker = loadWorker()
+
+    // a stale cookie is not a caller: the answer falls back to the fixture's
+    // administrator rather than answering every request as nobody
+    const answer = await worker.dispatch('/identities/users/@currentUser', {
+      headers: { cookie: 'sasjs-caller=gone' }
+    })
+
+    expect((await answer!.json()).id).toBe('user-admin')
+  })
+})
