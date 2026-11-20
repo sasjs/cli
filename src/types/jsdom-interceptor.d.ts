@@ -1,5 +1,4 @@
 import 'jsdom'
-import type { Dispatcher } from 'undici-types'
 
 // @types/jsdom 21 predates the resource interceptor API in jsdom 31.
 declare module 'jsdom' {
@@ -8,5 +7,5 @@ declare module 'jsdom' {
       request: Request,
       context: { element: Element | null }
     ) => Response | void | Promise<Response | void>
-  ): Dispatcher.DispatcherComposeInterceptor
+  ): unknown
 }
