@@ -5,7 +5,8 @@ import {
   DEPLOY_CORPUS,
   DRIVE_CORPUS,
   IDENTITY_CORPUS,
-  RECORD_CORPUS
+  RECORD_CORPUS,
+  VIYA_TABLE
 } from '@sasjs/api'
 import type { CorpusCase, IdentityFixture } from '@sasjs/api'
 import os from 'os'
@@ -6069,5 +6070,44 @@ describe('the emulated Viya estate', () => {
     // no respondWith: the fetch listener only takes the estate's prefixes, the
     // API's, the web tier's and the app stream's
     expect(worker.dispatch('/notes/not-an-api')).toBeUndefined()
+  })
+})
+
+describe('the estate surface and the host', () => {
+  const swSource = () =>
+    fs.readFileSync(path.join(__dirname, '..', 'assets', 'sw.js'), 'utf8')
+
+  it('keeps the estate families clear of every tier the host serves', () => {
+    // the estate's prefixes are derived from the table, so a family the package
+    // gains is answered - but a family whose first segment is a tier this host
+    // already serves must not be taken from it. `/SASLogon` is the overlap that
+    // exists today, and the token endpoint is named separately for it.
+    const tiers = (
+      swSource().match(/const TIER_PATHS =\s*\/\^\\\/\(([^)]+)\)/)![1] as string
+    )
+      .split('|')
+      .map((tier) => tier.toLowerCase())
+
+    const families = [
+      ...new Set(
+        VIYA_TABLE.map((route: any) =>
+          route.path.split('/').filter(Boolean)[0].toLowerCase()
+        )
+      )
+    ]
+
+    expect(families.filter((family) => tiers.includes(family))).toEqual([
+      'saslogon'
+    ])
+  })
+
+  it("names the two special paths by the table's own operations", () => {
+    // the byte and multipart branches match through the table's route templates,
+    // so these ids are what they depend on: a rename in the package fails here
+    // rather than turning them into predicates that never match
+    const ids = VIYA_TABLE.map((route: any) => route.id)
+
+    expect(ids).toContain('POST /files/files')
+    expect(ids).toContain('PUT /files/files/{}/content')
   })
 })

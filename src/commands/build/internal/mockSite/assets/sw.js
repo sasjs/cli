@@ -1120,14 +1120,25 @@ const APP_STREAM = API.createAppStreamService(
 const APP_STREAM_PREFIX = '/AppStream'
 
 /**
+ * The tiers a build's links address, answered here rather than by the static
+ * host. The estate's prefixes are not in this literal: they come from
+ * `VIYA_PREFIXES`, and `isAnswered` joins the two, so a family the emulator
+ * gains is routed rather than served `index.html`.
+ */
+const TIER_PATHS =
+  /^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i
+
+/**
  * The paths a Viya-targeted application asks for, which no SASjs route table has:
  * compute, folders, files, identities, types, and the batch families
  * (jobDefinitions, jobExecution, launcher).
  *
  * Read from the package's route table rather than written out, so a family the
- * emulator gains is answered here without a second list to remember. `/SASLogon`
- * is the one family left out, because it is shared with this host's own sign-in
- * routes; the estate's token endpoint is named in `ESTATE_PATHS` instead.
+ * emulator gains is answered here without a second list to remember - and read
+ * *through* `TIER_PATHS`, so a family whose first segment is a tier this host
+ * already serves (`/SASLogon`, and any the package adds later) is left to the
+ * host rather than taken from it. `/SASLogon` is the overlap that exists today;
+ * its estate path, the token endpoint, is named in `ESTATE_PATHS`.
  *
  * The worker answers these from `@sasjs/api`'s emulator over the drive and
  * identity it already holds - the same answers, and the same `x-sasjs-emulated`
@@ -1141,7 +1152,7 @@ const VIYA_PREFIXES = [
   )
 ]
   .map((prefix) => prefix.toLowerCase())
-  .filter((prefix) => prefix !== '/saslogon')
+  .filter((prefix) => !TIER_PATHS.test(prefix))
 
 /**
  * The estate paths that are not a whole family.
@@ -1155,15 +1166,6 @@ const VIYA_PREFIXES = [
  * route table or to the static host.
  */
 const ESTATE_PATHS = ['/saslogon/oauth/token']
-
-/**
- * The tiers a build's links address, answered here rather than by the static
- * host. The estate's prefixes are not in this literal: they come from
- * `VIYA_PREFIXES`, and `isAnswered` joins the two, so a family the emulator
- * gains is routed rather than served `index.html`.
- */
-const TIER_PATHS =
-  /^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i
 
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
@@ -1459,8 +1461,30 @@ const VIYA_SERVICES = {
   viya: { serverUrl: self.location.origin }
 }
 
+/**
+ * A matcher for one of the package's operations, built from the route template the
+ * table carries, so a path this host treats specially is the table's own path
+ * rather than a second copy of it. `{}` is the table's parameter marker.
+ *
+ * A missing id answers false instead of throwing: a package rename must not take
+ * the whole host down, and a spec pins both ids so the rename fails there, loudly,
+ * rather than here silently.
+ */
+const operationMatcher = (id) => {
+  const route = API.VIYA_TABLE.find((entry) => entry.id === id)
+
+  if (!route) return () => false
+
+  const pattern = new RegExp(`^${route.path.replace(/\{\}/g, '[^/]+')}$`)
+
+  return (path) => pattern.test(path)
+}
+
 /** A file's content, which arrives as the body rather than as JSON. */
-const VIYA_CONTENT = /^\/files\/files\/[^/]+\/content$/i
+const isContentPath = operationMatcher('PUT /files/files/{}/content')
+
+/** A file's upload, which arrives as a multipart part rather than as JSON. */
+const isUploadPath = operationMatcher('POST /files/files')
 
 /**
  * One request to the emulated estate, answered by `@sasjs/api`.
@@ -1485,7 +1509,7 @@ const viyaRequest = async (request, url, path) => {
     subject: await subjectOf(request, query)
   }
 
-  if (request.method === 'POST' && /^\/files\/files$/i.test(path)) {
+  if (request.method === 'POST' && isUploadPath(path)) {
     // the multipart part, read by the host's own reader: the emulator takes the
     // name the client sent and the bytes, not a file this worker staged
     const payload = await readPayload(request)
@@ -1493,7 +1517,7 @@ const viyaRequest = async (request, url, path) => {
     const file = singleFile(payload)
     if (file) apiRequest.file = file
   } else if (request.method !== 'GET' && request.method !== 'HEAD') {
-    if (VIYA_CONTENT.test(path))
+    if (isContentPath(path))
       apiRequest.contents = new Uint8Array(await request.arrayBuffer())
     else apiRequest.body = await readJson(request)
   }
