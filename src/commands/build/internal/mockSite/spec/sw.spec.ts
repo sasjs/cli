@@ -6489,6 +6489,31 @@ describe('the estate sign-in', () => {
     )
   })
 
+  it('answers a body it cannot read as invalid_request, not as a crash', async () => {
+    const worker = loadWorker()
+
+    // a body stream that fails mid-read: the handler must answer an OAuth error,
+    // because a sign-in that dies as a network error tells the client nothing
+    const body = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('the body failed'))
+      }
+    })
+
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        authorization: `Basic ${Buffer.from('web_app:web_app').toString('base64')}`
+      },
+      body,
+      duplex: 'half'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
   it('refuses a bearer the store does not hold', async () => {
     const worker = loadWorker()
 

@@ -2272,7 +2272,21 @@ const oauthAuthorize = async (url) => {
  * a fact about that client, read back from the store rather than invented here.
  */
 const oauthToken = async (request) => {
-  const form = await readForm(request)
+  let form
+
+  try {
+    form = await readForm(request)
+  } catch (error) {
+    // a body that cannot be read is the request's problem, not the host's: it is
+    // answered as an OAuth error like every other malformed sign-in, never as a
+    // throw out of the handler
+    return oauthError(
+      400,
+      'invalid_request',
+      'The token request body could not be read as a form or as JSON.'
+    )
+  }
+
   const client = clientOf(request, form)
 
   if (!client.clientId)
@@ -2322,16 +2336,17 @@ const oauthToken = async (request) => {
         pair = await IDENTITY.refresh(form.refresh_token)
         break
       case 'password': {
-        // the credentials are the grant: the account signs in, and the pair is
-        // issued and saved exactly as a code exchange would save it
+        // the credentials are the grant: the account signs in, buys a code and
+        // exchanges it - the same path the authorize step's code takes, so the
+        // mint-and-save sequence lives in the package and cannot drift from it
         const { user } = await IDENTITY.login({
           username: form.username || '',
           password: form.password || ''
         })
         const subject = { userId: user.uid, clientId: client.clientId }
+        const code = await IDENTITY.authorize(subject, client.clientId)
 
-        pair = await IDENTITY_STATE.store.issue(subject, registered)
-        await IDENTITY_STATE.store.savePair(subject, pair)
+        pair = await IDENTITY.token({ clientId: client.clientId, code })
         break
       }
       default:
