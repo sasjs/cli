@@ -29,7 +29,7 @@ describe('doc blocks keep the declaration they document', () => {
       'diff --git a/src/f.js b/src/f.js',
       '--- a/src/f.js',
       '+++ b/src/f.js',
-      '@@ -1,3 +1,4 @@',
+      '@@ -20,3 +20,4 @@',
       ' /**',
       '  * Boots the worker.',
       '  */',
@@ -41,6 +41,26 @@ describe('doc blocks keep the declaration they document', () => {
     expect(insertionsUnderDocBlocks(diff)).toEqual([
       { file: 'b/src/f.js', line: 'const helper = () => 1' }
     ])
+  })
+
+  it('leaves a file header and the imports beneath it alone', () => {
+    // the opening block of a file is a header - a licence, `@jest-environment`,
+    // `istanbul ignore` - and what follows it is the file's own imports. Adding
+    // one is ordinary, and fifteen files under src look like this.
+    const diff = [
+      'diff --git a/src/f.spec.ts b/src/f.spec.ts',
+      '--- a/src/f.spec.ts',
+      '+++ b/src/f.spec.ts',
+      '@@ -1,4 +1,5 @@',
+      ' /**',
+      '  * @jest-environment jsdom',
+      '  */',
+      "+import fs from 'fs'",
+      " import path from 'path'",
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([])
   })
 
   it('allows a new block added with its own declaration', () => {

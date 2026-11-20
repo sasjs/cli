@@ -18,14 +18,25 @@
 /**
  * The lines a diff inserts directly under an existing doc block.
  *
- * `diffText` is `git diff --unified=0 --no-color` output. Each hit is reported
- * with the file it belongs to and the text that was inserted.
+ * `diffText` is `git diff --unified=1 --no-color` output: **one context line is
+ * required**, because with none the terminator above an insertion never appears
+ * in the diff and the rule returns nothing at all - a gate that always passes.
+ * Each hit is reported with the file it belongs to and the text that was
+ * inserted.
  */
 const insertionsUnderDocBlocks = (diffText) => {
+  // a block ending this close to the top of a file is a file header - a licence,
+  // `@jest-environment`, `istanbul ignore` - and the code beneath it is the file's
+  // own imports, not a declaration the block documents. Adding an import there is
+  // ordinary, so the rule stays out of it.
+  const HEADER_LINES = 5
+
   const hits = []
   let file = ''
-  // the previous line in the NEW file, as { added, text } - `added` decides
-  // whether inserting under it is a mistake or part of a new block
+  let newLine = null
+  // the previous line in the NEW file, as { added, text, header } - `added`
+  // decides whether inserting under it is a mistake or part of a new block, and
+  // `header` whether it is a file header rather than a declaration's doc block
   let previous = null
 
   const push = (line) => {
@@ -41,11 +52,18 @@ const insertionsUnderDocBlocks = (diffText) => {
 
     // `--- a/x`, `diff --git`, `index ...` and the hunk header say nothing about
     // what the new file holds where the hunk starts
+    if (line.startsWith('@@')) {
+      const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)/.exec(line)
+
+      newLine = hunk ? Number(hunk[1]) : null
+      previous = null
+      continue
+    }
+
     if (
       line.startsWith('---') ||
       line.startsWith('diff ') ||
-      line.startsWith('index ') ||
-      line.startsWith('@@')
+      line.startsWith('index ')
     ) {
       previous = null
       continue
@@ -54,16 +72,29 @@ const insertionsUnderDocBlocks = (diffText) => {
     if (line.startsWith('+')) {
       const text = line.slice(1)
 
-      if (previous && !previous.added && previous.text.trim() === '*/')
+      if (
+        previous &&
+        !previous.added &&
+        !previous.header &&
+        previous.text.trim() === '*/'
+      )
         hits.push({ file, line: text.trim() })
 
-      previous = { added: true, text }
+      previous = { added: true, text, header: false }
+      if (newLine !== null) newLine++
       continue
     }
 
     if (line.startsWith('-')) continue
 
-    if (line.startsWith(' ')) previous = { added: false, text: line.slice(1) }
+    if (line.startsWith(' ')) {
+      previous = {
+        added: false,
+        text: line.slice(1),
+        header: newLine !== null && newLine <= HEADER_LINES
+      }
+      if (newLine !== null) newLine++
+    }
   }
 
   return hits
