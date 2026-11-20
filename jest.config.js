@@ -31,6 +31,10 @@ module.exports = {
   // coveragePathIgnorePatterns: [
   //   "/node_modules/"
   // ],
+  // The browser harnesses are test infrastructure executed directly by CI,
+  // not shipped source: they must not drag the coverage ratchet down when a
+  // spec imports a helper from one of them.
+  coveragePathIgnorePatterns: ['/node_modules/', '\\.browser\\.cjs$'],
 
   // A list of reporter names that Jest uses when writing coverage reports
   // json-summary is what .github/scripts/coverage-ratchet.mjs reads: the four
