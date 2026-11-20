@@ -60,6 +60,13 @@ describe('setWebpackPublicPath', () => {
     expect(require('vm').runInNewContext(updated)).toBe(configuredPrefix)
   })
 
+  it('skips an unrelated assignment preceding the runtime', () => {
+    const script = 'var a={};a.p="";var t={};t.u=e=>e+".js";t.p="";'
+    expect(setWebpackPublicPath(script, prefix)).toBe(
+      `var a={};a.p="";var t={};t.u=e=>e+".js";t.p="${prefix}";`
+    )
+  })
+
   it('leaves a file that does not name chunks alone', () => {
     // a public path on its own is not a runtime: something else owns `p` here,
     // and rewriting it would be a change we cannot reason about

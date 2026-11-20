@@ -4,7 +4,7 @@
  * emits that address instead - and a streamed deployment owns where the assets
  * are fetched from, so either value is the wrong one to keep.
  */
-const publicPathAssignment = /([A-Za-z_$][\w$]*)\.p\s*=\s*("[^"]*"|'[^']*')/
+const publicPathAssignment = /([A-Za-z_$][\w$]*)\.p\s*=\s*("[^"]*"|'[^']*')/g
 
 const escapeRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -30,25 +30,16 @@ const escapeRegExp = (value: string) =>
  * value it will hold cannot be read here.
  */
 export const setWebpackPublicPath = (content: string, assetPrefix: string) => {
-  const match = publicPathAssignment.exec(content)
-
-  if (!match) return content
-
-  const [, runtimeName] = match
-
-  // the same object has to be the one that names the chunks; without that this
-  // is some unrelated `p` property and rewriting it would be a guess
-  const namesChunks = new RegExp(
-    `\\b${escapeRegExp(runtimeName)}\\.u\\s*=`
-  ).test(content)
-
-  if (!namesChunks) return content
-
-  // a function replacement, so a `$` sequence in the appLoc is copied rather
-  // than read as a replacement pattern (`$&`, `` $` `` and `$'` would splice the
-  // matched text or the rest of the file into the address)
   return content.replace(
-    match[0],
-    () => `${runtimeName}.p=${JSON.stringify(assetPrefix)}`
+    publicPathAssignment,
+    (assignment, runtimeName: string) => {
+      // Only the object that names chunks is a candidate for this rewrite.
+      const namesChunks = new RegExp(
+        `\\b${escapeRegExp(runtimeName)}\\.u\\s*=`
+      ).test(content)
+      return namesChunks
+        ? `${runtimeName}.p=${JSON.stringify(assetPrefix)}`
+        : assignment
+    }
   )
 }
