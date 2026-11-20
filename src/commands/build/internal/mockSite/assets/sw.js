@@ -2280,9 +2280,9 @@ const oauthToken = async (request) => {
   // the store's read answers the client's lifetimes and not its secret, so the
   // comparison reads the snapshot the host persists - the same record, with the
   // field a client authenticates with kept out of the read path
-  const declared = (IDENTITY_STATE.store.snapshot().clients || []).find(
-    (entry) => entry.clientId === client.clientId
-  )
+  const declared = IDENTITY_STATE.store
+    .snapshot()
+    .clients.find((entry) => entry.clientId === client.clientId)
 
   if (
     declared &&
@@ -2334,12 +2334,10 @@ const oauthToken = async (request) => {
       scope: ''
     })
   } catch (error) {
+    // a refusal from a grant is a grant problem: the client was verified above,
+    // so an unknown client or a wrong secret never reaches here
     if (error instanceof API.ApiError)
-      return oauthError(
-        error.status,
-        error.status === 403 ? 'invalid_client' : 'invalid_grant',
-        error.message
-      )
+      return oauthError(error.status, 'invalid_grant', error.message)
 
     throw error
   }

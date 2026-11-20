@@ -6064,6 +6064,31 @@ describe('the emulated Viya estate', () => {
     expect(persists()).toBeGreaterThan(0)
   })
 
+  it('answers a no-content estate call with no body at all', async () => {
+    const worker = loadWorker()
+
+    const contexts = await read(worker.dispatch('/compute/contexts'))
+    const created = await read(
+      worker.dispatch(
+        `/compute/contexts/${contexts.body.items[0].id}/sessions`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'gone' })
+        }
+      )
+    )
+
+    // 204 has no body: the transport must not serialise one, or the response
+    // constructor refuses it
+    const response = await worker.dispatch(
+      `/compute/sessions/${created.body.id}`,
+      { method: 'DELETE' }
+    )
+    expect(response!.status).toBe(204)
+    expect(await response!.text()).toBe('')
+  })
+
   it('leaves every other path to the static host', async () => {
     const worker = loadWorker()
 
@@ -6294,6 +6319,114 @@ describe('the estate sign-in', () => {
     expect(answer.status).toBe(400)
     expect(answer.body.error).toBe('unsupported_grant_type')
     expect(String(answer.body.error_description)).toContain('password')
+  })
+
+  it('reads a client that posts its credentials in the body as JSON', async () => {
+    const worker = loadWorker()
+
+    // no Basic header and no form encoding: the fields are the request
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        })
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
+  it('refuses an authorize step with no client, and a token with no client id', async () => {
+    const worker = loadWorker()
+
+    const noClient = await json(
+      worker.dispatch('/SASLogon/oauth/authorize?response_type=code')
+    )
+    expect(noClient.status).toBe(403)
+    expect(noClient.emulated).toMatch(/^viya@/)
+    expect(noClient.body.error).toBe('invalid_client')
+
+    const bare = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(bare.status).toBe(401)
+    expect(bare.body.error).toBe('invalid_client')
+    expect(String(bare.body.error_description)).toContain(
+      'client id is required'
+    )
+  })
+
+  it('refuses a code it did not issue, and a password that does not verify', async () => {
+    const worker = loadWorker()
+
+    const forged = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: 'code-not-issued'
+      })
+    )
+    expect(forged.status).toBe(401)
+    expect(forged.body.error).toBe('invalid_grant')
+
+    const wrong = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsadmin',
+        password: 'nope'
+      })
+    )
+    expect(wrong.status).toBe(401)
+    expect(wrong.body.error).toBe('invalid_grant')
+  })
+
+  it('takes a request with no content type at all, and a grant with no fields', async () => {
+    const worker = loadWorker()
+
+    // no header: the body is read as JSON rather than refused for its type
+    const bare = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        body: JSON.stringify({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        })
+      })
+    )
+    expect(bare.status).toBe(200)
+
+    // a password grant with nothing filled in: the login refuses before any
+    // token is minted
+    const empty = await json(exchange(worker, { grant_type: 'password' }))
+    expect(empty.status).toBe(401)
+    expect(empty.body.error).toBe('invalid_grant')
+  })
+
+  it('refuses a sign-in when no account is signed in', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const boot = worker.message({ type: 'sasjs-seed', subject: null })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // no caller, no code: the authorize step is a signed-in caller's step
+    const response = await worker.dispatch(
+      '/SASLogon/oauth/authorize?client_id=web_app&response_type=code'
+    )
+
+    expect(response!.status).toBe(401)
   })
 
   it('refuses a bearer the store does not hold', async () => {
