@@ -519,26 +519,6 @@
     }
   }
 
-  /**
-   * Boots the worker with what is stored, and recovers from both refusals.
-   *
-   * A fixture outlives the build that wrote it, exactly as the drive does, and
-   * the worker refuses one whose format stamp it does not speak - by name, and
-   * with `errorKind: 'identity'`. Only that answer drops the stored row: the
-   * row holds the accounts the visitor created as well as the fixture, so a
-   * host-side failure leaves it alone.
-   *
-   * A `host` refusal is the other case, and it is the PAYLOAD the worker
-   * rejects (`R.load` throwing on the drive it was sent), not storage the page
-   * cannot read. Re-sending it would be refused again, and reporting it as
-   * unreadable would fail every request until the visitor cleared storage by
-   * hand - so the drive is what goes: it is cleared, and the site's own seed is
-   * installed instead.
-   *
-   * `controller` is the worker that asked, when the call is answering a
-   * handshake; the answer goes back to it rather than to whatever controls the
-   * page by then.
-   */
   /** Whether a fixture declares an account: the one check both decisions use. */
   const declaresAccount = (fixture, username) =>
     !!fixture &&
@@ -580,6 +560,26 @@
     return handoff
   }
 
+  /**
+   * Boots the worker with what is stored, and recovers from both refusals.
+   *
+   * A fixture outlives the build that wrote it, exactly as the drive does, and
+   * the worker refuses one whose format stamp it does not speak - by name, and
+   * with `errorKind: 'identity'`. Only that answer drops the stored row: the
+   * row holds the accounts the visitor created as well as the fixture, so a
+   * host-side failure leaves it alone.
+   *
+   * A `host` refusal is the other case, and it is the PAYLOAD the worker
+   * rejects (`R.load` throwing on the drive it was sent), not storage the page
+   * cannot read. Re-sending it would be refused again, and reporting it as
+   * unreadable would fail every request until the visitor cleared storage by
+   * hand - so the drive is what goes: it is cleared, and the site's own seed is
+   * installed instead.
+   *
+   * `controller` is the worker that asked, when the call is answering a
+   * handshake; the answer goes back to it rather than to whatever controls the
+   * page by then.
+   */
   const boot = async (files, stored, deleted, controller) => {
     const handoff = takeHandoff()
     // a drive of nothing but deletions is still a drive the visitor had: seeding
