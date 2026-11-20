@@ -1165,12 +1165,18 @@ const VIYA_PREFIXES = [
  * the host that mounts the emulator - rather than falling through to the SASjs
  * route table or to the static host.
  */
-const ESTATE_PATHS = [
-  '/saslogon/oauth/token',
-  // the authorize step is not a row in the package's table - it is the host's own
-  // half of the token port, the page a client is sent to before it holds a code
-  '/saslogon/oauth/authorize'
-]
+/**
+ * The estate's two sign-in endpoints, named once: `ESTATE_PATHS` is what makes the
+ * worker answer them, and the handlers below are what answers - a literal repeated
+ * in both could leave a handler that never runs.
+ *
+ * The authorize step is not a row in the package's table: it is this host's own
+ * half of the token port, the page a client is sent to before it holds a code.
+ */
+const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
+const OAUTH_TOKEN = '/saslogon/oauth/token'
+
+const ESTATE_PATHS = [OAUTH_TOKEN, OAUTH_AUTHORIZE]
 
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
@@ -2137,16 +2143,6 @@ const ensureForRequest = async (url, tierQuery) => {
 }
 
 /**
- * One attempt at a request, with the body source a retry can copy again.
- *
- * A Request's body can only be read once, and a retry (see the catch below) is a
- * second read of the same request - so the first attempt keeps an unread copy
- * beside it and every attempt after that is made from a copy of the copy. Only a
- * request with a body needs one, and `source` is what carries it through the
- * recursion.
- */
-// ------------------------------------------------------- the OAuth endpoints
-/**
  * The two endpoints a Viya client speaks to sign in: the authorize step it
  * redirects to, and the token step it exchanges a code at.
  *
@@ -2157,9 +2153,6 @@ const ensureForRequest = async (url, tierQuery) => {
  * `x-sasjs-emulated` stamp as the estate's, because this host is standing in for
  * Viya whichever endpoint is asked.
  */
-const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
-const OAUTH_TOKEN = '/saslogon/oauth/token'
-
 /** An OAuth answer: the body the document states, and no caching of a token. */
 const oauthJson = (status, body) => {
   const headers = Object.assign(
@@ -2181,8 +2174,10 @@ const oauthError = (status, error, description) =>
 const readForm = async (request) => {
   const type = request.headers.get('content-type') || ''
 
+  // read without the swallowing helper: a body that cannot be read is the
+  // caller's answer to give (`invalid_request`), not an empty form
   if (!type.includes('application/x-www-form-urlencoded'))
-    return await readJson(request)
+    return await request.json()
 
   const form = Object.create(null)
   for (const [key, value] of new URLSearchParams(
@@ -2255,7 +2250,9 @@ const oauthAuthorize = async (url) => {
   try {
     const code = await IDENTITY.authorize(IMPLICIT_CALLER, clientId)
 
-    const target = new URL('/', self.location.origin)
+    // the site's own address, base path included: a site served below the origin
+    // root must not send the code outside its own app
+    const target = new URL(`${BASE}/`, self.location.origin)
     target.searchParams.set('code', code)
 
     const state = url.searchParams.get('state')
@@ -2392,6 +2389,16 @@ const oauthToken = async (request) => {
   }
 }
 
+/**
+ * One attempt at a request, with the body source a retry can copy again.
+ *
+ * A Request's body can only be read once, and a retry (see the catch below) is a
+ * second read of the same request - so the first attempt keeps an unread copy
+ * beside it and every attempt after that is made from a copy of the copy. Only a
+ * request with a body needs one, and `source` is what carries it through the
+ * recursion.
+ */
+// ------------------------------------------------------- the OAuth endpoints
 const routeRequest = async (request, url, attempts = 0, source = null) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null

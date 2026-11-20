@@ -6291,6 +6291,35 @@ describe('the estate sign-in', () => {
     expect(answer.emulated).toMatch(/^viya@/)
   })
 
+  it('redirects to the site it is served from, base path included', async () => {
+    // a build served below the origin root has its own address: a code sent to
+    // the origin root would land outside the app that asked for it
+    const worker = loadWorker('/site-a')
+
+    const response = await worker.dispatch(
+      '/SASLogon/oauth/authorize?client_id=web_app&response_type=code'
+    )
+    const location = new URL(response!.headers.get('location') as string)
+
+    expect(response!.status).toBe(302)
+    expect(location.pathname.startsWith('/site-a/')).toBe(true)
+  })
+
+  it('answers a JSON body it cannot read as invalid_request', async () => {
+    const worker = loadWorker()
+
+    // both encodings answer the same way: the body is the caller's problem, and
+    // the answer names it rather than pretending the form was empty
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not json at all'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
   it('refuses a client that is not registered, and a wrong secret', async () => {
     const worker = loadWorker()
 
