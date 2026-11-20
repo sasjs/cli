@@ -117,6 +117,68 @@ describe('doc blocks keep the declaration they document', () => {
     expect(insertionsUnderDocBlocks(diff)).toEqual([])
   })
 
+  it('leaves a multi-line or typed re-export under a file header alone', () => {
+    // the exemption is the statement's opening, not one written form: the members
+    // may be inline, on the lines below, or behind `type`
+    const multiLine = [
+      'diff --git a/src/index.ts b/src/index.ts',
+      '--- a/src/index.ts',
+      '+++ b/src/index.ts',
+      '@@ -1,3 +1,4 @@',
+      ' /**',
+      '  * The package surface.',
+      '  */',
+      '+export {',
+      '  addTarget',
+      "} from './commands/add/addTarget'",
+      ''
+    ].join('\n')
+
+    const typed = [
+      'diff --git a/src/types/index.ts b/src/types/index.ts',
+      '--- a/src/types/index.ts',
+      '+++ b/src/types/index.ts',
+      '@@ -1,3 +1,4 @@',
+      ' /**',
+      '  * Types.',
+      '  */',
+      "+export type { Target } from './target'",
+      ''
+    ].join('\n')
+
+    const aliased = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,3 +1,4 @@',
+      ' /**',
+      '  * Surface.',
+      '  */',
+      "+export * as targets from './target'",
+      ''
+    ].join('\n')
+
+    // an export that declares is not an import: the boundary of the exemption
+    const declared = [
+      'diff --git a/src/a.ts b/src/a.ts',
+      '--- a/src/a.ts',
+      '+++ b/src/a.ts',
+      '@@ -1,3 +1,4 @@',
+      ' /**',
+      '  * Surface.',
+      '  */',
+      '+export const helper = () => 1',
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(multiLine)).toEqual([])
+    expect(insertionsUnderDocBlocks(typed)).toEqual([])
+    expect(insertionsUnderDocBlocks(aliased)).toEqual([])
+    expect(insertionsUnderDocBlocks(declared)).toEqual([
+      { file: 'b/src/a.ts', line: 'export const helper = () => 1' }
+    ])
+  })
+
   it('reads deleted content that starts with -- as content, not a header', () => {
     // a YAML or SQL comment removed from a file arrives as `-  -- ...`, which is
     // `--- ...` once git prefixes it. Taking that for `--- a/<path>` resets the

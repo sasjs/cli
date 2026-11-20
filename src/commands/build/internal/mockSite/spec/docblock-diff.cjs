@@ -23,9 +23,13 @@
  * one is an ordinary edit: a spec gains a dependency, a worker gains a script, a
  * barrel gains a re-export. Exempting the line rather than a line number is what
  * covers headers of any length; `sw.js`'s closes at :37.
+ *
+ * A re-export is matched by how its statement opens, not by one written form: the
+ * members may be inline, on following lines, or behind `type`/`as`. `export const`
+ * is a declaration and stays reportable.
  */
 const MODULE_IMPORT =
-  /^(?:import\b|import\s*\(|importScripts\s*\(|(?:const|let|var)\s+[^=]+=\s*require\s*\(|export\s*(?:\*|\{[^}]*\})\s*from\b)/
+  /^(?:import\b|import\s*\(|importScripts\s*\(|(?:const|let|var)\s+[^=]+=\s*require\s*\(|export\s*(?:\*|\{|type\s*\{))/
 
 const isModuleImport = (text) => MODULE_IMPORT.test(text.trim())
 
