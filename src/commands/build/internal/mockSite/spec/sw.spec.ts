@@ -6008,13 +6008,13 @@ describe('the emulated Viya estate', () => {
       })
     )
 
-    // stamped, so a client knows which contract answered: the emulator refuses
-    // this route by name (its overlay leaves the token port to the host), and
-    // what must not happen is the SASjs route table answering 404 or the static
-    // host answering `index.html`
+    // stamped, so a client knows which contract answered. On this head the host
+    // owns the token port and refuses a bare grant for want of a client id; the
+    // emulator would refuse the route itself. What must not happen either way is
+    // the SASjs route table answering 404 or the static host answering HTML.
     expect(answer.emulated).toMatch(/^viya@/)
-    expect(answer.status).toBe(501)
-    expect(String(answer.body.message)).toMatch(/host that mounts the emulator/)
+    expect(answer.status).toBe(401)
+    expect(answer.body.error).toBe('invalid_client')
 
     // the same address with a trailing slash is the same path: `routeRequest`
     // strips it before any lookup, so a client that adds one is not answered by
@@ -6109,5 +6109,200 @@ describe('the estate surface and the host', () => {
 
     expect(ids).toContain('POST /files/files')
     expect(ids).toContain('PUT /files/files/{}/content')
+  })
+})
+
+describe('the estate sign-in', () => {
+  const basic = (id: string, secret: string) =>
+    `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`
+
+  /** The code the authorize step redirects with. */
+  const authorize = async (
+    worker: any,
+    query = 'client_id=web_app&response_type=code&state=abc'
+  ) => {
+    const response = await worker.dispatch(`/SASLogon/oauth/authorize?${query}`)
+    expect(response).toBeDefined()
+
+    const answer = await (response as Promise<Response>)
+    const location = new URL(answer.headers.get('location') as string)
+
+    return { answer, location, code: location.searchParams.get('code') }
+  }
+
+  const exchange = async (
+    worker: any,
+    body: Record<string, string>,
+    id = 'web_app',
+    secret = 'web_app'
+  ) =>
+    worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: {
+        authorization: basic(id, secret),
+        'content-type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(body).toString()
+    })
+
+  const json = async (response: Promise<Response> | undefined) => {
+    const answer = await (response as Promise<Response>)
+    return {
+      status: answer.status,
+      emulated: answer.headers.get('x-sasjs-emulated'),
+      body: (await answer.json().catch(() => undefined)) as any
+    }
+  }
+
+  const currentUser = (worker: any, token: string) =>
+    json(
+      worker.dispatch('/identities/users/@currentUser', {
+        headers: { authorization: `Bearer ${token}` }
+      })
+    )
+
+  it('redirects the authorize step back to this site, carrying the code', async () => {
+    const worker = loadWorker()
+
+    // a client that asks for somewhere else is answered with the site's own
+    // address: the registered redirect is where the app reads its code, and
+    // honouring the query would make this an open redirect
+    const { answer, location, code } = await authorize(
+      worker,
+      `client_id=web_app&response_type=code&state=abc&redirect_uri=${encodeURIComponent(
+        'https://evil.test/'
+      )}`
+    )
+
+    expect(answer.status).toBe(302)
+    expect(location.origin).not.toBe('https://evil.test')
+    expect(location.pathname).toBe('/')
+    expect(code).toMatch(/^code-/)
+    // state survives the round trip, which is what stops a cross-site request
+    // being mistaken for this one
+    expect(location.searchParams.get('state')).toBe('abc')
+    expect(answer.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+  })
+
+  it('exchanges a code for a pair, and the access token names the caller', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const token = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+
+    expect(token.status).toBe(200)
+    expect(token.body.token_type).toBe('bearer')
+    expect(token.body.access_token).toMatch(/^access-/)
+    expect(token.body.refresh_token).toMatch(/^refresh-/)
+    expect(token.body.expires_in).toBeGreaterThan(0)
+
+    // the token is the estate's identity: the same call names the account the
+    // code was issued for
+    const user = await currentUser(worker, token.body.access_token)
+    expect(user.status).toBe(200)
+    expect(user.body.id).toBe('user-admin')
+  })
+
+  it('buys a pair with a password, and the estate answers as that account', async () => {
+    const worker = loadWorker()
+
+    const token = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsuser',
+        password: 'Orion123'
+      })
+    )
+
+    expect(token.status).toBe(200)
+
+    const user = await currentUser(worker, token.body.access_token)
+    expect(user.body.id).toBe('user-restricted')
+  })
+
+  it('rotates the pair from a refresh token', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const first = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+
+    const second = await json(
+      exchange(worker, {
+        grant_type: 'refresh_token',
+        refresh_token: first.body.refresh_token
+      })
+    )
+
+    expect(second.status).toBe(200)
+    expect(second.body.access_token).not.toBe(first.body.access_token)
+
+    const user = await currentUser(worker, second.body.access_token)
+    expect(user.body.id).toBe('user-admin')
+  })
+
+  it('refuses a client that is not registered, and a wrong secret', async () => {
+    const worker = loadWorker()
+
+    const unknown = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'nope',
+        'nope'
+      )
+    )
+    expect(unknown.status).toBe(401)
+    expect(unknown.body.error).toBe('invalid_client')
+
+    const wrong = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'web_app',
+        'wrong'
+      )
+    )
+    expect(wrong.status).toBe(401)
+    expect(wrong.body.error).toBe('invalid_client')
+  })
+
+  it('refuses a grant it does not answer, by name', async () => {
+    const worker = loadWorker()
+
+    const answer = await json(
+      exchange(worker, { grant_type: 'client_credentials' })
+    )
+
+    expect(answer.status).toBe(400)
+    expect(answer.body.error).toBe('unsupported_grant_type')
+    expect(String(answer.body.error_description)).toContain('password')
+  })
+
+  it('refuses a bearer the store does not hold', async () => {
+    const worker = loadWorker()
+
+    // a token this host never issued is not a caller: the estate must refuse it
+    // rather than fall back to the account the page is signed in as
+    const answer = await currentUser(worker, 'access-not-a-real-token')
+
+    expect(answer.status).toBe(401)
   })
 })

@@ -2140,6 +2140,211 @@ const ensureForRequest = async (url, tierQuery) => {
  * request with a body needs one, and `source` is what carries it through the
  * recursion.
  */
+// ------------------------------------------------------- the OAuth endpoints
+/**
+ * The two endpoints a Viya client speaks to sign in: the authorize step it
+ * redirects to, and the token step it exchanges a code at.
+ *
+ * Both are the host's, not the emulator's - the emulator holds no account to
+ * check a credential against, exactly as on a server, where `routes/viya`
+ * answers the token port from the server's own accounts. `IDENTITY` verifies the
+ * client and mints the pair, and every answer here carries the same
+ * `x-sasjs-emulated` stamp as the estate's, because this host is standing in for
+ * Viya whichever endpoint is asked.
+ */
+const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
+const OAUTH_TOKEN = '/saslogon/oauth/token'
+
+/** An OAuth answer: the body the document states, and no caching of a token. */
+const oauthJson = (status, body) => {
+  const headers = Object.assign(
+    {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      pragma: 'no-cache'
+    },
+    API.emulatedHeaders()
+  )
+
+  return new Response(JSON.stringify(body), { status, headers })
+}
+
+const oauthError = (status, error, description) =>
+  oauthJson(status, { error, error_description: description })
+
+/** The form a token request carries, or its JSON equivalent. */
+const readForm = async (request) => {
+  const type = request.headers.get('content-type') || ''
+
+  if (!type.includes('application/x-www-form-urlencoded'))
+    return await readJson(request)
+
+  const form = Object.create(null)
+  for (const [key, value] of new URLSearchParams(
+    await request.text()
+  ).entries())
+    form[key] = value
+
+  return form
+}
+
+/**
+ * The client credentials, from the Basic header a Viya client sends or from the
+ * body of a client that posts them instead.
+ */
+const clientOf = (request, form) => {
+  const basic = /^Basic\s+(.+)$/i.exec(
+    request.headers.get('authorization') || ''
+  )
+
+  if (basic) {
+    const decoded = atob(basic[1])
+    const separator = decoded.indexOf(':')
+
+    if (separator !== -1)
+      return {
+        clientId: decoded.slice(0, separator),
+        clientSecret: decoded.slice(separator + 1)
+      }
+  }
+
+  return {
+    clientId: form.client_id || '',
+    clientSecret: form.client_secret || ''
+  }
+}
+
+/**
+ * The authorize step: a client sends the browser here, and this host answers a
+ * redirect carrying the code.
+ *
+ * The registered redirect is this site, because that is where the app reads the
+ * code from - a mock site has no other address to send it to, and accepting one
+ * from the query would make this an open redirect.
+ */
+const oauthAuthorize = async (url) => {
+  const clientId = url.searchParams.get('client_id') || ''
+
+  try {
+    const code = await IDENTITY.authorize(IMPLICIT_CALLER, clientId)
+
+    const target = new URL('/', self.location.origin)
+    target.searchParams.set('code', code)
+
+    const state = url.searchParams.get('state')
+    if (state) target.searchParams.set('state', state)
+
+    return new Response(null, {
+      status: 302,
+      headers: Object.assign(
+        { location: target.toString(), 'cache-control': 'no-store' },
+        API.emulatedHeaders()
+      )
+    })
+  } catch (error) {
+    if (error instanceof API.ApiError)
+      return oauthError(
+        error.status,
+        error.status === 403 ? 'invalid_client' : 'invalid_grant',
+        error.message
+      )
+
+    throw error
+  }
+}
+
+/**
+ * The token step: a code, a refresh token or a password buys a pair.
+ *
+ * The grants are the three a Viya deployment answers; a client that asks for
+ * another gets `unsupported_grant_type` naming these rather than a silent
+ * failure. The pair and its lifetimes are the client's own - a token's expiry is
+ * a fact about that client, read back from the store rather than invented here.
+ */
+const oauthToken = async (request) => {
+  const form = await readForm(request)
+  const client = clientOf(request, form)
+
+  if (!client.clientId)
+    return oauthError(401, 'invalid_client', 'A client id is required.')
+
+  const registered = await IDENTITY_STATE.store.client(client.clientId)
+
+  if (!registered)
+    return oauthError(
+      401,
+      'invalid_client',
+      `The client ${client.clientId} is not registered on this site.`
+    )
+
+  // the store's read answers the client's lifetimes and not its secret, so the
+  // comparison reads the snapshot the host persists - the same record, with the
+  // field a client authenticates with kept out of the read path
+  const declared = (IDENTITY_STATE.store.snapshot().clients || []).find(
+    (entry) => entry.clientId === client.clientId
+  )
+
+  if (
+    declared &&
+    declared.clientSecret &&
+    declared.clientSecret !== client.clientSecret
+  )
+    return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+
+  try {
+    let pair
+
+    switch (form.grant_type) {
+      case 'authorization_code':
+        pair = await IDENTITY.token({
+          clientId: client.clientId,
+          code: form.code
+        })
+        break
+      case 'refresh_token':
+        pair = await IDENTITY.refresh(form.refresh_token)
+        break
+      case 'password': {
+        // the credentials are the grant: the account signs in, and the pair is
+        // issued and saved exactly as a code exchange would save it
+        const { user } = await IDENTITY.login({
+          username: form.username || '',
+          password: form.password || ''
+        })
+        const subject = { userId: user.uid, clientId: client.clientId }
+
+        pair = await IDENTITY_STATE.store.issue(subject, registered)
+        await IDENTITY_STATE.store.savePair(subject, pair)
+        break
+      }
+      default:
+        return oauthError(
+          400,
+          'unsupported_grant_type',
+          'This site answers authorization_code, refresh_token and password.'
+        )
+    }
+
+    return oauthJson(200, {
+      access_token: pair.accessToken,
+      refresh_token: pair.refreshToken,
+      token_type: 'bearer',
+      expires_in: registered.accessTokenExpiration,
+      refresh_expires_in: registered.refreshTokenExpiration,
+      scope: ''
+    })
+  } catch (error) {
+    if (error instanceof API.ApiError)
+      return oauthError(
+        error.status,
+        error.status === 403 ? 'invalid_client' : 'invalid_grant',
+        error.message
+      )
+
+    throw error
+  }
+}
+
 const routeRequest = async (request, url, attempts = 0, source = null) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null
@@ -2220,6 +2425,12 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which
     // is what makes a Viya build mockable in the browser at all.
+    // The OAuth endpoints a Viya client signs in at: the token port is this
+    // host's own, as it is on a server running the emulator.
+    const signedIn = apiPath.toLowerCase()
+    if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
+    if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
+
     if (isViyaPath(apiPath)) return await viyaRequest(request, url, apiPath)
 
     // The app stream is the server's own web surface rather than part of the
