@@ -1,17 +1,20 @@
 name: Coverage baseline
 
-# Publishes the coverage a pull request is measured against. It runs on every
-# push to main, so the baseline is the tree the next pull request is diffed
+# Publishes the coverage a pull request is measured against: it runs on every push
+# to main, so the baseline is the tree the next pull request is diffed
 # against, and on demand, so it can be refreshed after a failed run.
 #
-# The pull request workflow (.github/workflows/run-tests.yml, step "Ratchet the
-# coverage") downloads this artifact and fails a pull request that lowers any
-# metric. See CONTRIBUTING.md.
+# The pipeline is sasjs/release's reusable workflow - the checkout, the node setup,
+# the artifact name and its 90-day retention live there once, instead of in a copy
+# per repository. This file states the build and keeps the concurrency, which a
+# called workflow cannot be given.
+#
+# The comparison is `sasjs-release --coverage-ratchet`, run by
+# .github/workflows/run-tests.yml against this artifact.
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -25,45 +28,24 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  # the same pin as run-tests.yml and npmpublish.yml
-  NPM_VERSION: 12.2.0
-
 jobs:
   baseline:
-    name: baseline
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Update npm
-        run: npm install -g npm@${{ env.NPM_VERSION }}
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Doxygen
-        run: sudo apt-get install -y doxygen
-
-      - name: Build Project
-        run: npm run build
-
-      - name: Generate the coverage summary
-        # plain jest, not the coverage-report action: there is no pull request to
-        # comment on here, and the action's failure would skip the upload
-        run: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --silent --runInBand --ci --coverage
-
-      - name: Publish the coverage baseline
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-summary
-          path: coverage/coverage-summary.json
-          retention-days: 90
+    # v0.18.0: the merge commit, since a tag is not a pin and the action-pins check
+    # demands one for every external `uses:`
+    uses: sasjs/release/.github/workflows/coverage-baseline.yml@daaf6bd774f022b4a16e62504e63661b6319a8f2 # v0.18.0
+    with:
+      # required: the toolchain the head summary is measured with has to match
+      runs-on: ubuntu-latest
+      node-version: 24
+      # A copy of the pin, not the pin itself: a called workflow does not inherit the
+      # caller's workflow-level `env`, so this cannot be `${{ env.NPM_VERSION }}`. It
+      # moves with `NPM_VERSION` in run-tests.yml and run-tests-windows.yml, and with
+      # the version npmpublish.yml installs.
+      pre-install-command: npm install -g npm@12.2.0
+      setup-command: sudo apt-get install -y doxygen
+      build-command: npm run build
+      # The command run-tests.yml's gate runs, flag included: jest loads an ESM-only
+      # dependency (jsdom 31) only under `--experimental-vm-modules`, and the shared
+      # workflow's default of a plain `npx jest` fails on it.
+      test-command: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --silent --runInBand --ci --coverage
+      timeout-minutes: 30
