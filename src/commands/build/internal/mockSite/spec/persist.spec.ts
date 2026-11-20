@@ -474,6 +474,47 @@ describe('the page-side store', () => {
     expect(identityRows.get('current')?.subject).toBe('sasjsuser')
   })
 
+  it('retries under the stored account when the address names one it cannot use', async () => {
+    // one decision for the row and the retry: an address naming an account the
+    // fixture does not declare must not leave the load served as admin while the
+    // row still names someone else
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/?sasjs-caller=gone-user',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' },
+      seededDeleted: ['/sasjs/drive/gone.txt']
+    })
+
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const asked = calls[calls.length - 1][0]
+      ;[...listeners].forEach((fn) =>
+        fn({
+          data:
+            asked.type === 'sasjs-load'
+              ? { type: 'sasjs-load-ack', error: 'refused', errorKind: 'host' }
+              : { type: 'sasjs-seed-ack', identity: FIXTURE }
+        })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-load',
+      'sasjs-seed'
+    ])
+    // the stored account, not the one the address named
+    expect(asks[1].subject).toBe('sasjsuser')
+    expect(identityRows.get('current')?.subject).toBe('sasjsuser')
+  })
+
   it('drops the account when the sign-out redirect asks it to', async () => {
     const controller = { postMessage: jest.fn() }
     const { window, listeners, identityRows } = loadPersist({

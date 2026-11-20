@@ -602,12 +602,22 @@
           // shipped one
           if (fixture) await writeIdentity({ fixture, subject: undefined })
           else await clearIdentity()
-        } else if (handoff.caller && declares(handoff.caller)) {
+
+          return undefined
+        }
+
+        if (handoff.caller && declares(handoff.caller)) {
           await writeIdentity({ fixture, subject: handoff.caller })
+
+          return handoff.caller
         }
       } catch (e) {
         console.error('[sasjs-mock] could not store the sign-in: ' + e)
       }
+
+      // the account the row already names is the one this load is served as, when
+      // the address does not name one this fixture declares
+      return stored ? stored.subject : undefined
     }
 
     // only when there are some: an empty list is the common case, and the worker
@@ -672,14 +682,11 @@
       // their row stays in storage. An identity the worker does refuse comes
       // back as `errorKind: 'identity'`, which the branch above clears and
       // retries.
-      await applyHandoff(answer)
-
-      // the retry boots from an address this pass already stripped, so the
-      // account the reader chose has to travel in the row it boots from -
-      // otherwise the load is served as whoever was stored before the redirect
-      const chosen = handoff.signOut
-        ? undefined
-        : handoff.caller || (stored && stored.subject)
+      // the retry boots from an address this pass already stripped, so the account
+      // travels in the row it boots from - and it is the one the write above
+      // settled on, so the load cannot be served as an account the row does not
+      // name
+      const chosen = await applyHandoff(answer)
 
       return await boot(
         {},
