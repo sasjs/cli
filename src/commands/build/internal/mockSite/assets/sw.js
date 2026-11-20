@@ -1292,7 +1292,7 @@ const loginPage = ({ message = '', service = '', status = 200 }) => {
   <p class="note">This is the emulated estate's sign-in page on a mock site. No SAS server is involved,
   and the accounts are the ones the build's identity fixture declares.</p>
   ${message ? `<p class="error" role="alert">${escapeHtml(message)}</p>` : ''}
-  <form method="post" action="${LOGIN_PATH}" autocomplete="on">
+  <form method="post" action="${BASE}${LOGIN_PATH}" autocomplete="on">
     <label>Username <input name="username" autocomplete="username" autofocus></label>
     <label>Password <input name="password" type="password" autocomplete="current-password"></label>
     <input type="hidden" name="service" value="${escapeHtml(service)}">
@@ -1308,6 +1308,34 @@ const loginPage = ({ message = '', service = '', status = 200 }) => {
       {
         'content-type': 'text/html; charset=utf-8',
         'cache-control': 'no-store'
+      },
+      API.emulatedHeaders()
+    )
+  })
+}
+
+/** The sign-out a browser follows, which ends the cookie's session. */
+const LOGOUT_PATH = '/saslogon/logout'
+
+/**
+ * What the sign-out answers.
+ *
+ * The package answers `OK!` and leaves the session alone, because on a server the
+ * session is the server's; here the session is a cookie, so this is where it is
+ * ended - the caller goes back to the one the boot named, and the cookie expires
+ * on the way out.
+ */
+const signOut = async () => {
+  CALLER_USERNAME = undefined
+  resolveCaller()
+
+  return new Response(await IDENTITY.logoutSession(), {
+    status: 200,
+    headers: Object.assign(
+      {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'set-cookie': `${CALLER_COOKIE}=; Path=${BASE}/; Max-Age=0; SameSite=Lax`
       },
       API.emulatedHeaders()
     )
@@ -1350,7 +1378,7 @@ const signIn = async (request, url) => {
           location: signInTarget(form.get('service') || service, url),
           'set-cookie': `${CALLER_COOKIE}=${encodeURIComponent(
             user.username
-          )}; Path=/; SameSite=Lax`,
+          )}; Path=${BASE}/; SameSite=Lax`,
           'cache-control': 'no-store'
         },
         API.emulatedHeaders()
@@ -2710,6 +2738,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       const answer = await signIn(request, url)
       if (answer) return answer
     }
+
+    // the sign-out a browser follows: the cookie is this host's session, so
+    // ending it is this host's answer
+    if (apiPath.toLowerCase() === LOGOUT_PATH && request.method === 'GET')
+      return await signOut()
 
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which

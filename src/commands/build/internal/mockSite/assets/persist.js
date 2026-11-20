@@ -440,7 +440,7 @@
         // choosing an account agree about who is asking
         document.cookie = `sasjs-caller=${encodeURIComponent(
           answer.username
-        )}; Path=/; SameSite=Lax`
+        )}; Path=${mount}; SameSite=Lax`
 
         await writeIdentity({
           fixture: answer.identity,
@@ -516,6 +516,10 @@
       return Object.keys(files).length
     },
     reset: async () => {
+      // the session the sign-in page started is part of the state a reset
+      // returns to, so its cookie expires with everything else
+      document.cookie = `sasjs-caller=; Path=${mount}; Max-Age=0; SameSite=Lax`
+
       const answer = await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
       if (answer.error) throw new Error(answer.error)
       await clearAll()

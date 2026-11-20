@@ -6761,6 +6761,46 @@ describe('the sign-in page', () => {
     expect(response!.headers.get('location')).toBe('/site-a/')
   })
 
+  it('posts and scopes its cookie to the site it is served from', async () => {
+    // a build in a folder registers the worker for `<folder>/`, so an
+    // origin-absolute form action would submit outside it and the page would be
+    // inert
+    const worker = loadWorker('/site-a')
+
+    const page = await worker.dispatch('/SASLogon/login')
+    expect(await page!.text()).toContain('action="/site-a/saslogon/login"')
+
+    const signedIn = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsuser', password: 'Orion123' })
+    )
+    // one origin can serve several sites: the cookie belongs to this one
+    expect(signedIn!.headers.get('set-cookie')).toContain('Path=/site-a/')
+  })
+
+  it('ends the session at the sign-out a browser follows', async () => {
+    const worker = loadWorker()
+
+    const signedIn = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsuser', password: 'Orion123' })
+    )
+    const cookie = (signedIn!.headers.get('set-cookie') as string).split(';')[0]
+
+    const stillUser = await worker.dispatch('/identities/users/@currentUser', {
+      headers: { cookie }
+    })
+    expect((await stillUser!.json()).id).toBe('user-restricted')
+
+    const out = await worker.dispatch('/SASLogon/logout')
+    expect(out!.status).toBe(200)
+    expect(out!.headers.get('set-cookie')).toContain('Max-Age=0')
+
+    // the cookie is gone, so the next request is the account the boot named
+    const after = await worker.dispatch('/identities/users/@currentUser')
+    expect((await after!.json()).id).toBe('user-admin')
+  })
+
   it('ignores a cookie naming an account the fixture does not declare', async () => {
     const worker = loadWorker()
 
