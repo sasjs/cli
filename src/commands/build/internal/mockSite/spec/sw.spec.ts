@@ -5996,6 +5996,26 @@ describe('the emulated Viya estate', () => {
     expect(await serverId('/site-b')).toBe(await serverId('/site-a'))
   })
 
+  it('takes the token endpoint here, so a client reads a refusal and not HTML', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+
+    // stamped, so a client knows which contract answered: the emulator refuses
+    // this route by name (its overlay leaves the token port to the host), and
+    // what must not happen is the SASjs route table answering 404 or the static
+    // host answering `index.html`
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.status).toBe(501)
+    expect(String(answer.body.message)).toMatch(/host that mounts the emulator/)
+  })
+
   it('leaves every other path to the static host', async () => {
     const worker = loadWorker()
 

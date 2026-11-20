@@ -1126,9 +1126,8 @@ const APP_STREAM_PREFIX = '/AppStream'
  *
  * Read from the package's route table rather than written out, so a family the
  * emulator gains is answered here without a second list to remember. `/SASLogon`
- * is the one family left out: its route is the token endpoint, and a token this
- * host minted would claim an authentication it does not perform - the estate
- * answers from the identity the page already holds.
+ * is the one family left out, because it is shared with this host's own sign-in
+ * routes; the estate's token endpoint is named in `ESTATE_PATHS` instead.
  *
  * The worker answers these from `@sasjs/api`'s emulator over the drive and
  * identity it already holds - the same answers, and the same `x-sasjs-emulated`
@@ -1145,6 +1144,19 @@ const VIYA_PREFIXES = [
   .filter((prefix) => prefix !== '/saslogon')
 
 /**
+ * The estate paths that are not a whole family.
+ *
+ * `/SASLogon` cannot be a prefix: it carries this host's own sign-in routes
+ * (`POST /SASLogon/login` among them) as well as the estate's token endpoint, and
+ * taking the family would answer this host's routes from the emulator. The token
+ * endpoint is named instead, so it is answered here - with the emulator's own
+ * refusal, `implemented: false` in its overlay because the token port belongs to
+ * the host that mounts the emulator - rather than falling through to the SASjs
+ * route table or to the static host.
+ */
+const ESTATE_PATHS = ['/saslogon/oauth/token']
+
+/**
  * The tiers a build's links address, answered here rather than by the static
  * host. The estate's prefixes are not in this literal: they come from
  * `VIYA_PREFIXES`, and `isAnswered` joins the two, so a family the emulator
@@ -1159,8 +1171,11 @@ const isViyaPath = (path) => {
   // match them
   const lower = path.toLowerCase()
 
-  return VIYA_PREFIXES.some(
-    (prefix) => lower === prefix || lower.startsWith(`${prefix}/`)
+  return (
+    ESTATE_PATHS.includes(lower) ||
+    VIYA_PREFIXES.some(
+      (prefix) => lower === prefix || lower.startsWith(`${prefix}/`)
+    )
   )
 }
 
