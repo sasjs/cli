@@ -6372,6 +6372,21 @@ describe('the estate sign-in', () => {
     )
   })
 
+  it('refuses a JSON body that is not a form, naming the request', async () => {
+    const worker = loadWorker()
+
+    // `null` parses as valid JSON and is not an object: reading fields off it
+    // would throw out of the handler, which is the answer this rules out
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'null'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
   it('refuses a grant it does not answer, by name', async () => {
     const worker = loadWorker()
 

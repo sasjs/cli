@@ -2185,8 +2185,17 @@ const readForm = async (request) => {
 
   // read without the swallowing helper: a body that cannot be read is the
   // caller's answer to give (`invalid_request`), not an empty form
-  if (!type.includes('application/x-www-form-urlencoded'))
-    return await request.json()
+  if (!type.includes('application/x-www-form-urlencoded')) {
+    const parsed = await request.json()
+
+    // `null`, a string or an array parses as valid JSON and is not a form: the
+    // field reads below would throw on it, so it is refused the way an
+    // unparseable body is
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error('The token request body is not a form.')
+
+    return parsed
+  }
 
   const form = Object.create(null)
   for (const [key, value] of new URLSearchParams(
