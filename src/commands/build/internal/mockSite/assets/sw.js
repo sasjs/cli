@@ -141,9 +141,7 @@ const resolveCaller = () => {
 const seedIdentity = (fixture) => {
   IDENTITY_STATE.store = new API.MemoryIdentityStore(fixture)
   IDENTITY_STATE.persisted = JSON.stringify(IDENTITY_STATE.store.snapshot())
-  // the secrets the fixture declares, kept here rather than read back from the
-  // store: the store's read path omits a client's secret, and the snapshot is an
-  // inspection aid, not the port a credential is checked through
+  // rebuilt with the store, against the invariant the initialiser documents
   IDENTITY_STATE.secrets = new Map(
     (fixture.clients || []).map((client) => [
       client.clientId,
@@ -2226,6 +2224,21 @@ const readForm = async (request) => {
 }
 
 /**
+ * One half of a Basic credential, decoded.
+ *
+ * A malformed escape is not a credential, so it is returned as written and
+ * refused as a wrong one - the alternative is a throw out of the handler, which
+ * tells the client nothing.
+ */
+const decodePart = (value) => {
+  try {
+    return decodeURIComponent(value)
+  } catch (error) {
+    return value
+  }
+}
+
+/**
  * The client credentials, from the Basic header a Viya client sends or from the
  * body of a client that posts them instead.
  */
@@ -2249,9 +2262,13 @@ const clientOf = (request, form) => {
     const separator = decoded.indexOf(':')
 
     if (separator !== -1)
+      // RFC 6749 section 2.3.1: both halves are form-encoded before they are
+      // base64'd, so a client whose id or secret carries `:`, `%`, `+` or `&`
+      // verifies here as it would on a server. The body path gets this from
+      // `URLSearchParams`.
       return {
-        clientId: decoded.slice(0, separator),
-        clientSecret: decoded.slice(separator + 1)
+        clientId: decodePart(decoded.slice(0, separator)),
+        clientSecret: decodePart(decoded.slice(separator + 1))
       }
   }
 
@@ -2516,9 +2533,8 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // The OAuth endpoints a Viya client signs in at: the token port is this
     // host's own, as it is on a server running the emulator.
     if (isViyaPath(apiPath)) {
-      // the estate's paths, including its two sign-in endpoints: they are the
-      // host's own port, but they are answered where the estate is answered, so
-      // a site that is not asked for one never advertises it
+      // the two sign-in endpoints are the host's port; every other estate path
+      // is the emulator's
       const signedIn = apiPath.toLowerCase()
       if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
       if (signedIn === OAUTH_TOKEN) return await oauthToken(request)

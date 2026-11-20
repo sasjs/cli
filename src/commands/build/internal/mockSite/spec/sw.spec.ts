@@ -6533,6 +6533,48 @@ describe('the estate sign-in', () => {
     expect(answer.body.access_token).toMatch(/^access-/)
   })
 
+  it('decodes a Basic credential the way RFC 6749 encodes it', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const secret = 's3cr:et%&'
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map((client: any) =>
+        client.clientId === 'web_app'
+          ? { ...client, clientSecret: secret }
+          : client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // section 2.3.1: each half is form-encoded before it is base64'd, so a
+    // secret carrying `:` `%` or `&` must compare equal to what it encodes to
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(
+            `web_app:${encodeURIComponent(secret)}`
+          ).toString('base64')}`,
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
   it('refuses a client whose secret the fixture does not declare', async () => {
     const worker = loadWorker('', { skipLint: true })
     const identity = {
