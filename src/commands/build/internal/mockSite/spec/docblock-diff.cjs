@@ -16,57 +16,59 @@
  */
 
 /**
- * An import is not the declaration a doc block documents.
+ * An import or a re-export is not the declaration a doc block documents.
  *
  * The block at the top of a file is a header - a licence, `@jest-environment`,
  * `istanbul ignore` - and what sits beneath it is the file's imports, so adding
- * one is an ordinary edit: a spec gains a dependency, a worker gains a script.
- * Exempting the line rather than a line number is what covers headers of any
- * length; `sw.js`'s closes at :37, well past any figure chosen for a number.
+ * one is an ordinary edit: a spec gains a dependency, a worker gains a script, a
+ * barrel gains a re-export. Exempting the line rather than a line number is what
+ * covers headers of any length; `sw.js`'s closes at :37.
  */
 const MODULE_IMPORT =
-  /^(?:import\b|import\s*\(|importScripts\s*\(|(?:const|let|var)\s+[^=]+=\s*require\s*\(|export\s+\*\s+from\b)/
+  /^(?:import\b|import\s*\(|importScripts\s*\(|(?:const|let|var)\s+[^=]+=\s*require\s*\(|export\s*(?:\*|\{[^}]*\})\s*from\b)/
 
 const isModuleImport = (text) => MODULE_IMPORT.test(text.trim())
 
 /**
  * The lines a diff inserts directly under an existing doc block.
  *
- * `diffText` is `git diff --unified=1 --no-color` output: **one context line is
- * required**, because with none the terminator above an insertion never appears
- * in the diff and the rule returns nothing at all - a gate that always passes.
- * Each hit is reported with the file it belongs to and the text that was
- * inserted.
+ * `diffText` is a `git diff --unified=1 --no-color` run from the merge base:
+ * **one context line is required**, because with none the terminator above an
+ * insertion never appears in the diff and the rule returns nothing at all - a
+ * gate that always passes. Each hit is reported with the file it belongs to and
+ * the text that was inserted.
+ *
+ * Header lines are recognised only between `diff --git` and the first `@@`, which
+ * keeps a deleted line whose content begins with `--` (a YAML or SQL comment)
+ * from being read as a `--- a/<path>` header.
  */
 const insertionsUnderDocBlocks = (diffText) => {
   const hits = []
   let file = ''
+  let inHeader = false
   // the previous line in the NEW file, as { added, text } - `added` decides
   // whether inserting under it is a mistake or part of a new block
   let previous = null
 
-  const push = (line) => {
-    file = line.slice(4).trim()
-    previous = null
-  }
-
   for (const line of diffText.split('\n')) {
-    if (line.startsWith('+++ ')) {
-      push(line)
-      continue
-    }
-
-    // `--- a/x`, `diff --git`, `index ...` and the hunk header say nothing about
-    // what the new file holds where the hunk starts
-    if (
-      line.startsWith('---') ||
-      line.startsWith('diff ') ||
-      line.startsWith('index ') ||
-      line.startsWith('@@')
-    ) {
+    if (line.startsWith('diff --git')) {
+      inHeader = true
       previous = null
       continue
     }
+
+    if (inHeader && line.startsWith('+++ ')) {
+      file = line.slice(4).trim()
+      continue
+    }
+
+    if (line.startsWith('@@')) {
+      inHeader = false
+      previous = null
+      continue
+    }
+
+    if (inHeader) continue
 
     if (line.startsWith('+')) {
       const text = line.slice(1)

@@ -99,6 +99,46 @@ describe('doc blocks keep the declaration they document', () => {
     ])
   })
 
+  it('leaves a named re-export under a file header alone', () => {
+    // a barrel gains a re-export as readily as a spec gains a dependency
+    const diff = [
+      'diff --git a/src/index.ts b/src/index.ts',
+      '--- a/src/index.ts',
+      '+++ b/src/index.ts',
+      '@@ -1,3 +1,4 @@',
+      ' /**',
+      '  * The package surface.',
+      '  */',
+      "+export { addTarget } from './commands/add/addTarget'",
+      " export * from './commands/auth/login'",
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([])
+  })
+
+  it('reads deleted content that starts with -- as content, not a header', () => {
+    // a YAML or SQL comment removed from a file arrives as `-  -- ...`, which is
+    // `--- ...` once git prefixes it. Taking that for `--- a/<path>` resets the
+    // parser and drops a real insertion.
+    const diff = [
+      'diff --git a/src/f.yml b/src/f.yml',
+      '--- a/src/f.yml',
+      '+++ b/src/f.yml',
+      '@@ -20,3 +20,3 @@',
+      ' /**',
+      '  * Boots the worker.',
+      '  */',
+      '--- an old comment',
+      '+  const helper = () => 1',
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([
+      { file: 'b/src/f.yml', line: 'const helper = () => 1' }
+    ])
+  })
+
   it('allows a new block added with its own declaration', () => {
     const diff = [
       'diff --git a/src/f.js b/src/f.js',
@@ -186,11 +226,14 @@ describe('doc blocks keep the declaration they document', () => {
     const git = (args: string[]) =>
       execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' })
 
-    // the whole change, working tree included, against the base branch. One
-    // context line is enough for the rule to see the terminator above an
-    // insertion; with none it would never fire.
+    // from the merge base, so a branch that is behind main does not report
+    // main's own churn as an insertion; to the working tree, so an uncommitted
+    // insertion is caught before it is committed. One context line is enough for
+    // the rule to see the terminator above an insertion; with none it never fires.
+    const mergeBase = git(['merge-base', base, 'HEAD']).trim()
+
     const hits = insertionsUnderDocBlocks(
-      git(['diff', '--unified=1', '--no-color', base, '--', 'src'])
+      git(['diff', '--unified=1', '--no-color', mergeBase, '--', 'src'])
     )
 
     expect(hits).toEqual([])
