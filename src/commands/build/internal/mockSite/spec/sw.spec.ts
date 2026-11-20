@@ -5,7 +5,8 @@ import {
   DEPLOY_CORPUS,
   DRIVE_CORPUS,
   IDENTITY_CORPUS,
-  RECORD_CORPUS
+  RECORD_CORPUS,
+  VIYA_TABLE
 } from '@sasjs/api'
 import type { CorpusCase, IdentityFixture } from '@sasjs/api'
 import os from 'os'
@@ -5827,5 +5828,286 @@ describe('service worker host', () => {
       expect(response.status).toBe(202)
       expect(await response.text()).toBe('Parameter Error\nFile error')
     })
+  })
+})
+
+describe('the emulated Viya estate', () => {
+  /** The status, the emulated stamp and the JSON body of one answer. */
+  const read = async (response: Promise<Response> | undefined) => {
+    expect(response).toBeDefined()
+    const answer = await (response as Promise<Response>)
+
+    return {
+      status: answer.status,
+      emulated: answer.headers.get('x-sasjs-emulated'),
+      body: (await answer.json().catch(() => undefined)) as any
+    }
+  }
+
+  it('answers the estate paths from the package, and says which contract', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(worker.dispatch('/folders/folders/@item?path=/'))
+
+    expect(answer.status).toBe(200)
+    // the stamp is the package's: this host relays it rather than adding it
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.body.type).toBe('folder')
+  })
+
+  it('creates a folder the SASjs routes can see, because there is one drive', async () => {
+    const worker = loadWorker()
+
+    const created = await read(
+      worker.dispatch('/folders/folders?parentFolderUri=', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'viya-demo' })
+      })
+    )
+
+    expect(created.status).toBe(201)
+    expect(created.body.name).toBe('viya-demo')
+    // the bodies name the account the page is signed in as, not a placeholder:
+    // the same subject the SASjs routes resolve
+    expect(created.body.createdBy).toBe('user-admin')
+
+    // the id the estate handed out resolves, which is what a client stores
+    const again = await read(
+      worker.dispatch(`/folders/folders/${created.body.id}`)
+    )
+    expect(again.status).toBe(200)
+    expect(again.body.id).toBe(created.body.id)
+
+    // and the folder is a folder in the host's own drive: the SASjs route lists
+    // it, so an app's two APIs see one filesystem here as they do on a server
+    const sasjs = await read(
+      worker.dispatch('/SASjsApi/drive/filetree?_folderPath=/viya-demo')
+    )
+    expect(sasjs.status).toBe(200)
+    expect(JSON.stringify(sasjs.body)).toContain('viya-demo')
+  })
+
+  it('answers a refusal in the estate envelope, stamped like every other', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(
+      worker.dispatch('/folders/folders/@item?path=/not-there')
+    )
+
+    // a refusal is an answer, and carries the stamp, so an emulated 404 is never
+    // read as evidence about a real estate
+    expect(answer.status).toBe(404)
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.body.httpStatusCode).toBe(404)
+    expect(answer.body.version).toBe(2)
+  })
+
+  it('lands an uploaded file and its content in the drive, bytes and all', async () => {
+    const worker = loadWorker()
+
+    // the multipart part: the name the client sent and the bytes it sent
+    const form = new FormData()
+    form.append(
+      'file',
+      new Blob(['first content'], { type: 'text/plain' }),
+      'notes.txt'
+    )
+
+    const uploaded = await read(
+      worker.dispatch('/files/files?parentFolderUri=', {
+        method: 'POST',
+        body: form
+      })
+    )
+
+    expect(uploaded.status).toBe(201)
+    expect(uploaded.body.name).toBe('notes.txt')
+
+    // a content PUT arrives as the body itself, not as JSON: the byte branch in
+    // the transport, which a JSON-only transport would have parsed and broken
+    const put = await read(
+      worker.dispatch(`/files/files/${uploaded.body.id}/content`, {
+        method: 'PUT',
+        headers: { 'content-type': 'text/plain' },
+        body: 'replaced content'
+      })
+    )
+    expect(put.status).toBeLessThan(300)
+
+    const fetched = await worker.dispatch(
+      `/files/files/${uploaded.body.id}/content`
+    )
+    expect(await fetched!.text()).toBe('replaced content')
+  })
+
+  it('answers the current user with the account the page chose', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(worker.dispatch('/identities/users/@currentUser'))
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.id).toBe('user-admin')
+  })
+
+  it('routes the batch families to the emulator, which refuses them by name', async () => {
+    const worker = loadWorker()
+
+    // jobDefinitions, jobExecution and launcher are families in the package's
+    // table, so they reach the emulator - the overlay has not implemented them,
+    // and the emulator says so with a stamp and a reason. Left to the static
+    // host they would answer with `index.html`, which a client parses as JSON.
+    const launcher = await read(worker.dispatch('/launcher/contexts'))
+    expect(launcher.emulated).toMatch(/^viya@/)
+    expect(launcher.status).toBe(501)
+    expect(String(launcher.body.message)).toMatch(/not emulated/)
+
+    // mixed case in the family name: `/jobExecution`, not `/jobexecution`
+    const job = await read(worker.dispatch('/jobExecution/jobs/not-a-job'))
+    expect(job.emulated).toMatch(/^viya@/)
+    expect(job.status).toBe(501)
+    expect(String(job.body.message)).toMatch(/not emulated/)
+  })
+
+  it('seeds from the address as the package reads it, so one origin is one estate', async () => {
+    // the seed is the address normalised to scheme, host and port: `viya/seed.ts`
+    // drops the path, so two mounts on one origin are one estate's generated
+    // data. The sites stay apart through the drive each persists - `persist.js`
+    // opens `sasjs-mock-host:<mount>` - and this case pins the boundary, so a
+    // package change that made the path significant is a decision, not a drift.
+    const serverId = async (base: string) => {
+      const worker = loadWorker(base)
+
+      const contexts = await read(worker.dispatch('/compute/contexts'))
+      const contextId = contexts.body.items[0].id
+
+      const answer = await read(
+        worker.dispatch(`/compute/contexts/${contextId}/sessions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'seeded' })
+        })
+      )
+
+      expect(answer.status).toBe(201)
+
+      return answer.body.serverId
+    }
+
+    expect(await serverId('/site-b')).toBe(await serverId('/site-a'))
+  })
+
+  it('takes the token endpoint here, so a client reads a refusal and not HTML', async () => {
+    const worker = loadWorker()
+
+    const answer = await read(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+
+    // stamped, so a client knows which contract answered: the emulator refuses
+    // this route by name (its overlay leaves the token port to the host), and
+    // what must not happen is the SASjs route table answering 404 or the static
+    // host answering `index.html`
+    expect(answer.emulated).toMatch(/^viya@/)
+    expect(answer.status).toBe(501)
+    expect(String(answer.body.message)).toMatch(/host that mounts the emulator/)
+
+    // the same address with a trailing slash is the same path: `routeRequest`
+    // strips it before any lookup, so a client that adds one is not answered by
+    // a different contract
+    const slashed = await read(
+      worker.dispatch('/SASLogon/oauth/token/', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(slashed.status).toBe(answer.status)
+    expect(slashed.emulated).toMatch(/^viya@/)
+  })
+
+  it('costs no drive write to refuse an estate call, and one to accept it', async () => {
+    const worker = loadWorker()
+    const messages: any[] = []
+    ;(global as any).__mockHostClients = [
+      { postMessage: (m: any) => messages.push(m) }
+    ]
+
+    const persists = () =>
+      messages.filter((m) => m.type === 'sasjs-persist').length
+
+    // a refusal changed nothing, so nothing is written back: a client that polls
+    // a route the emulator refuses must not cost a drive write per poll
+    const refused = await read(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(refused.status).toBeGreaterThanOrEqual(400)
+    expect(persists()).toBe(0)
+
+    // and an accepted write is persisted, or the next page load would lose it
+    const created = await read(
+      worker.dispatch('/folders/folders?parentFolderUri=', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'written-back' })
+      })
+    )
+    expect(created.status).toBe(201)
+    expect(persists()).toBeGreaterThan(0)
+  })
+
+  it('leaves every other path to the static host', async () => {
+    const worker = loadWorker()
+
+    // no respondWith: the fetch listener only takes the estate's prefixes, the
+    // API's, the web tier's and the app stream's
+    expect(worker.dispatch('/notes/not-an-api')).toBeUndefined()
+  })
+})
+
+describe('the estate surface and the host', () => {
+  const swSource = () =>
+    fs.readFileSync(path.join(__dirname, '..', 'assets', 'sw.js'), 'utf8')
+
+  it('keeps the estate families clear of every tier the host serves', () => {
+    // the estate's prefixes are derived from the table, so a family the package
+    // gains is answered - but a family whose first segment is a tier this host
+    // already serves must not be taken from it. `/SASLogon` is the overlap that
+    // exists today, and the token endpoint is named separately for it.
+    const tiers = (
+      swSource().match(/const TIER_PATHS =\s*\/\^\\\/\(([^)]+)\)/)![1] as string
+    )
+      .split('|')
+      .map((tier) => tier.toLowerCase())
+
+    const families = [
+      ...new Set(
+        VIYA_TABLE.map((route: any) =>
+          route.path.split('/').filter(Boolean)[0].toLowerCase()
+        )
+      )
+    ]
+
+    expect(families.filter((family) => tiers.includes(family))).toEqual([
+      'saslogon'
+    ])
+  })
+
+  it("names the two special paths by the table's own operations", () => {
+    // the byte and multipart branches match through the table's route templates,
+    // so these ids are what they depend on: a rename in the package fails here
+    // rather than turning them into predicates that never match
+    const ids = VIYA_TABLE.map((route: any) => route.id)
+
+    expect(ids).toContain('POST /files/files')
+    expect(ids).toContain('PUT /files/files/{}/content')
   })
 })

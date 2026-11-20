@@ -1119,6 +1119,76 @@ const APP_STREAM = API.createAppStreamService(
  */
 const APP_STREAM_PREFIX = '/AppStream'
 
+/**
+ * The tiers a build's links address, answered here rather than by the static
+ * host. The estate's prefixes are not in this literal: they come from
+ * `VIYA_PREFIXES`, and `isAnswered` joins the two, so a family the emulator
+ * gains is routed rather than served `index.html`.
+ */
+const TIER_PATHS =
+  /^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i
+
+/**
+ * The paths a Viya-targeted application asks for, which no SASjs route table has:
+ * compute, folders, files, identities, types, and the batch families
+ * (jobDefinitions, jobExecution, launcher).
+ *
+ * Read from the package's route table rather than written out, so a family the
+ * emulator gains is answered here without a second list to remember - and read
+ * *through* `TIER_PATHS`, so a family whose first segment is a tier this host
+ * already serves (`/SASLogon`, and any the package adds later) is left to the
+ * host rather than taken from it. `/SASLogon` is the overlap that exists today;
+ * its estate path, the token endpoint, is named in `ESTATE_PATHS`.
+ *
+ * The worker answers these from `@sasjs/api`'s emulator over the drive and
+ * identity it already holds - the same answers, and the same `x-sasjs-emulated`
+ * header, a server running `EMULATE_VIYA` gives.
+ */
+const VIYA_PREFIXES = [
+  ...new Set(
+    API.VIYA_TABLE.map(
+      (route) => `/${route.path.split('/').filter(Boolean)[0]}`
+    )
+  )
+]
+  .map((prefix) => prefix.toLowerCase())
+  .filter((prefix) => !TIER_PATHS.test(prefix))
+
+/**
+ * The estate paths that are not a whole family.
+ *
+ * `/SASLogon` cannot be a prefix: it carries this host's own sign-in routes
+ * (`POST /SASLogon/login` among them) as well as the estate's token endpoint, and
+ * taking the family would answer this host's routes from the emulator. The token
+ * endpoint is named instead, so it is answered here - with the emulator's own
+ * refusal, `implemented: false` in its overlay because the token port belongs to
+ * the host that mounts the emulator - rather than falling through to the SASjs
+ * route table or to the static host.
+ */
+const ESTATE_PATHS = ['/saslogon/oauth/token']
+
+const isViyaPath = (path) => {
+  // the prefixes are lowercased when the list is built: Viya's own families are
+  // mixed case (`/jobExecution`), and a path compared as written would never
+  // match them
+  const lower = path.toLowerCase()
+
+  return (
+    ESTATE_PATHS.includes(lower) ||
+    VIYA_PREFIXES.some(
+      (prefix) => lower === prefix || lower.startsWith(`${prefix}/`)
+    )
+  )
+}
+
+/**
+ * Whether the worker is handed this request at all: a build's tiers, or the
+ * estate's prefixes - which come from `VIYA_PREFIXES` rather than a second list
+ * written into the listener, so a sixth prefix is answered instead of being left
+ * to the static host, where a client would parse `index.html` as JSON.
+ */
+const isAnswered = (path) => TIER_PATHS.test(path) || isViyaPath(path)
+
 /** One caller's rules, in the shape the route decision takes them. */
 const routeRulesOf = (permissions) => ({
   user: (permissions || [])
@@ -1369,6 +1439,123 @@ const SERVICES = {
   // `.sasjslint` at or above its folder, so editing that file changes the
   // editor here exactly as it does on a server
   code: lazyCode()
+}
+
+/**
+ * The services the emulated estate answers through.
+ *
+ * The drive is this host's own, so a file uploaded over the Viya paths is the
+ * file the SASjs API routes read back, and the address the site is served from is
+ * the estate's identity - the only input to its seed, exactly as it is on a
+ * server. The address is its scheme, host and port, so what separates two builds on
+ * one origin is the drive they each persist, not the seed.
+ */
+const VIYA_SERVICES = {
+  drive: SERVICES.drive,
+  // the address, as the package reads it: scheme, host and port. A path is not
+  // part of an address to `normaliseServerUrl` (sasjs/api `viya/seed.ts`), so the
+  // path is not passed - and it would change nothing if it were. Two builds on
+  // one origin are still two sites, because the drive they see is named for the
+  // mount (`persist.js` opens `sasjs-mock-host:<mount>`), which is what has to be
+  // separate for them not to share one filesystem.
+  viya: { serverUrl: self.location.origin }
+}
+
+/**
+ * A matcher for one of the package's operations, built from the route template the
+ * table carries, so a path this host treats specially is the table's own path
+ * rather than a second copy of it. `{}` is the table's parameter marker.
+ *
+ * A missing id answers false instead of throwing: a package rename must not take
+ * the whole host down, and a spec pins both ids so the rename fails there, loudly,
+ * rather than here silently.
+ */
+const operationMatcher = (id) => {
+  const route = API.VIYA_TABLE.find((entry) => entry.id === id)
+
+  if (!route) return () => false
+
+  const pattern = new RegExp(`^${route.path.replace(/\{\}/g, '[^/]+')}$`)
+
+  return (path) => pattern.test(path)
+}
+
+/** A file's content, which arrives as the body rather than as JSON. */
+const isContentPath = operationMatcher('PUT /files/files/{}/content')
+
+/** A file's upload, which arrives as a multipart part rather than as JSON. */
+const isUploadPath = operationMatcher('POST /files/files')
+
+/**
+ * One request to the emulated estate, answered by `@sasjs/api`.
+ *
+ * The transport is the whole of this function: a `Request` is not the package's
+ * `ApiRequest`, so the query, the body (or the bytes, or the multipart part) and
+ * the caller are read here, and the answer's status, headers, body and byte
+ * content are written back unchanged - including the `x-sasjs-emulated` stamp,
+ * which is the package's to set, not this host's.
+ *
+ * The caller is the account the page chose, which is the same answer the SASjs
+ * routes get - so the bodies this host returns name that account, not a generic
+ * emulated user.
+ */
+const viyaRequest = async (request, url, path) => {
+  const query = Object.create(null)
+  for (const [key, value] of url.searchParams.entries()) query[key] = value
+
+  const apiRequest = {
+    query,
+    token: bearerOf(request, query),
+    subject: await subjectOf(request, query)
+  }
+
+  if (request.method === 'POST' && isUploadPath(path)) {
+    // the multipart part, read by the host's own reader: the emulator takes the
+    // name the client sent and the bytes, not a file this worker staged
+    const payload = await readPayload(request)
+    apiRequest.body = payload.body
+    const file = singleFile(payload)
+    if (file) apiRequest.file = file
+  } else if (request.method !== 'GET' && request.method !== 'HEAD') {
+    if (isContentPath(path))
+      apiRequest.contents = new Uint8Array(await request.arrayBuffer())
+    else apiRequest.body = await readJson(request)
+  }
+
+  const answer = await API.dispatchViya(
+    VIYA_SERVICES,
+    request.method,
+    path,
+    apiRequest
+  )
+
+  // a folder or file the estate created is a change to this host's drive - but
+  // only an answer that succeeded can have changed one: the emulator's refusals
+  // (the token endpoint, launcher, jobExecution) cost no write
+  if (
+    request.method !== 'GET' &&
+    request.method !== 'HEAD' &&
+    answer.status < 300
+  )
+    await persistChanges()
+
+  const headers = Object.assign({}, answer.headers || {})
+
+  if (answer.contents !== undefined)
+    return new Response(answer.contents, { status: answer.status, headers })
+
+  // the emulator sets its own type; a duplicate key under another casing would
+  // leave the effective one to merge order, so the default is only written when
+  // no casing of the header is present at all
+  if (!Object.keys(headers).some((key) => key.toLowerCase() === 'content-type'))
+    headers['content-type'] = 'application/json'
+
+  return new Response(
+    answer.body === undefined || answer.body === null
+      ? null
+      : JSON.stringify(answer.body),
+    { status: answer.status, headers }
+  )
 }
 
 /** The routes this host performs itself, because the answer is not JSON. */
@@ -2030,6 +2217,11 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     await R.ensureReady(askHostForDrive)
     await ensureForRequest(url, tierQuery ? query : null)
 
+    // A Viya-targeted application asks the estate's own paths. They are answered
+    // from the package's emulator over the drive this host already holds, which
+    // is what makes a Viya build mockable in the browser at all.
+    if (isViyaPath(apiPath)) return await viyaRequest(request, url, apiPath)
+
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
     // are routes sasjs/server answers, and an interface asks for the listing on
@@ -2360,12 +2552,7 @@ self.addEventListener('fetch', (event) => {
   // canonicalises to `/SASjsApi`.
   if (/^\/api\/?$/i.test(path)) return
 
-  if (
-    !/^\/(SASjsApi|SASLogon|AppStream|api|app|SASJobExecution|StoredProgram|SASStoredProcess)(\/|$)/i.test(
-      path
-    )
-  )
-    return
+  if (!isAnswered(path)) return
   event.respondWith(handle(event.request, url))
 })
 
