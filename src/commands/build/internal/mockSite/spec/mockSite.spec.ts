@@ -4,6 +4,7 @@ import os from 'os'
 import { ChildProcess, spawn } from 'child_process'
 import { once } from 'events'
 import { JSDOM, requestInterceptor } from 'jsdom'
+import { waitForDevToolsPort } from './boot.lifecycle.browser.cjs'
 import {
   buildMockSite,
   DRIVE_FORMAT,
@@ -48,11 +49,24 @@ const removeChromiumProfile = async (profile: string) => {
       fs.rmSync(profile, { recursive: true, force: true })
       return
     } catch (error) {
-      if (
-        (error as NodeJS.ErrnoException | null)?.code !== 'ENOTEMPTY' ||
-        attempt >= 10
-      )
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOTEMPTY') {
         throw error
+      }
+      if (attempt >= 10) {
+        // The writer is unknown, so report what is left rather than only
+        // the symptom, to identify the cause of the next occurrence.
+        let survivors: string[] = []
+        try {
+          survivors = fs.readdirSync(profile)
+        } catch (listError) {
+          survivors = [`(listing failed: ${String(listError)})`]
+        }
+        throw new Error(
+          `Chromium profile ${profile} could not be removed after ${
+            attempt + 1
+          } attempts; remaining entries: ${survivors.join(', ')}`
+        )
+      }
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
   }
@@ -90,19 +104,7 @@ const observeMountInChromium = async (
   let ws: WebSocket | undefined
   try {
     onSpawn?.(child)
-    let port = ''
-    for (let i = 0; i < 200 && !port; i++) {
-      if (spawnError) throw spawnError
-      if (child.exitCode !== null) throw new Error('Chromium exited on startup')
-      try {
-        port = fs
-          .readFileSync(path.join(profile, 'DevToolsActivePort'), 'utf8')
-          .split('\n')[0]!
-      } catch (_) {
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-    }
-    if (!port) throw new Error('Chromium startup timed out')
+    const port = await waitForDevToolsPort(profile, child, () => spawnError)
     const version: any = await (
       await fetch(`http://127.0.0.1:${port}/json/version`)
     ).json()
@@ -265,13 +267,16 @@ describe('Chromium profile removal retries', () => {
   })
 
   it('reports persistent non-empty failures after a bounded number of attempts', async () => {
+    fs.writeFileSync(path.join(profile, 'left-behind'), 'x')
     const failure = Object.assign(new Error('profile still not empty'), {
       code: 'ENOTEMPTY'
     })
     const rm = jest.spyOn(fs, 'rmSync').mockImplementation(() => {
       throw failure
     })
-    await expect(removeChromiumProfile(profile)).rejects.toBe(failure)
+    await expect(removeChromiumProfile(profile)).rejects.toThrow(
+      /could not be removed after 11 attempts; remaining entries: left-behind/
+    )
     expect(rm).toHaveBeenCalledTimes(11)
   })
 
@@ -357,7 +362,7 @@ setInterval(() => {}, 1000)
           })
         }
       )
-    ).rejects.toThrow('fetch failed')
+    ).rejects.toThrow()
     expect(rm).toHaveBeenCalledTimes(3)
     expect(fs.existsSync(profile!)).toBe(false)
   })
