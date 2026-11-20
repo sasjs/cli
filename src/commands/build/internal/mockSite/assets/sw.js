@@ -2198,7 +2198,17 @@ const clientOf = (request, form) => {
   )
 
   if (basic) {
-    const decoded = atob(basic[1])
+    let decoded = ''
+
+    try {
+      decoded = atob(basic[1])
+    } catch (error) {
+      // a header that is not base64 is not a client: it falls through to the
+      // body's credentials, so a malformed header answers like any other bad
+      // credential instead of throwing out of the handler as a network error
+      decoded = ''
+    }
+
     const separator = decoded.indexOf(':')
 
     if (separator !== -1)
@@ -2284,11 +2294,18 @@ const oauthToken = async (request) => {
     .snapshot()
     .clients.find((entry) => entry.clientId === client.clientId)
 
-  if (
-    declared &&
-    declared.clientSecret &&
-    declared.clientSecret !== client.clientSecret
-  )
+  // verified or refused, never skipped: a client the fixture declares no secret
+  // for cannot be checked at all, so it is refused by name. A change to what the
+  // store keeps then shows up as a refusal here rather than as a check that
+  // quietly accepts any secret.
+  if (!declared || !declared.clientSecret)
+    return oauthError(
+      401,
+      'invalid_client',
+      `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
+    )
+
+  if (declared.clientSecret !== client.clientSecret)
     return oauthError(401, 'invalid_client', 'The client secret is wrong.')
 
   try {

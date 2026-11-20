@@ -6429,6 +6429,66 @@ describe('the estate sign-in', () => {
     expect(response!.status).toBe(401)
   })
 
+  it('reads past a malformed Basic header instead of dying on it', async () => {
+    const worker = loadWorker()
+
+    // not base64: the decode throws, and the request must still be answered -
+    // with the body's credentials, which are the ones a client that cannot spell
+    // its header has left
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: 'Basic not-base64-at-all',
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
+  it('refuses a client whose secret the fixture does not declare', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map(
+        ({ clientSecret, ...client }: any) => client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    const answer = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsadmin',
+        password: 'Orion123'
+      })
+    )
+
+    // a secret that cannot be verified is refused by name, never accepted: the
+    // check cannot become a no-op without an answer like this one
+    expect(answer.status).toBe(401)
+    expect(answer.body.error).toBe('invalid_client')
+    expect(String(answer.body.error_description)).toContain(
+      'declares no secret'
+    )
+  })
+
   it('refuses a bearer the store does not hold', async () => {
     const worker = loadWorker()
 
