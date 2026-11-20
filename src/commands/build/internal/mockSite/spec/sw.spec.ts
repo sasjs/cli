@@ -6008,13 +6008,12 @@ describe('the emulated Viya estate', () => {
       })
     )
 
-    // stamped, so a client knows which contract answered: the emulator refuses
-    // this route by name (its overlay leaves the token port to the host), and
-    // what must not happen is the SASjs route table answering 404 or the static
-    // host answering `index.html`
+    // stamped, so a client knows which contract answered: the host owns the token
+    // port, and a bare grant is refused for want of a client id. The answer is
+    // never the SASjs route table's 404 or the static host's HTML.
     expect(answer.emulated).toMatch(/^viya@/)
-    expect(answer.status).toBe(501)
-    expect(String(answer.body.message)).toMatch(/host that mounts the emulator/)
+    expect(answer.status).toBe(401)
+    expect(answer.body.error).toBe('invalid_client')
 
     // the same address with a trailing slash is the same path: `routeRequest`
     // strips it before any lookup, so a client that adds one is not answered by
@@ -6064,6 +6063,31 @@ describe('the emulated Viya estate', () => {
     expect(persists()).toBeGreaterThan(0)
   })
 
+  it('answers a no-content estate call with no body at all', async () => {
+    const worker = loadWorker()
+
+    const contexts = await read(worker.dispatch('/compute/contexts'))
+    const created = await read(
+      worker.dispatch(
+        `/compute/contexts/${contexts.body.items[0].id}/sessions`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: 'gone' })
+        }
+      )
+    )
+
+    // 204 has no body: the transport must not serialise one, or the response
+    // constructor refuses it
+    const response = await worker.dispatch(
+      `/compute/sessions/${created.body.id}`,
+      { method: 'DELETE' }
+    )
+    expect(response!.status).toBe(204)
+    expect(await response!.text()).toBe('')
+  })
+
   it('leaves every other path to the static host', async () => {
     const worker = loadWorker()
 
@@ -6109,5 +6133,554 @@ describe('the estate surface and the host', () => {
 
     expect(ids).toContain('POST /files/files')
     expect(ids).toContain('PUT /files/files/{}/content')
+  })
+})
+
+describe('the estate sign-in', () => {
+  const basic = (id: string, secret: string) =>
+    `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`
+
+  /** The code the authorize step redirects with. */
+  const authorize = async (
+    worker: any,
+    query = 'client_id=web_app&response_type=code&state=abc'
+  ) => {
+    const response = await worker.dispatch(`/SASLogon/oauth/authorize?${query}`)
+    expect(response).toBeDefined()
+
+    const answer = await (response as Promise<Response>)
+    const location = new URL(answer.headers.get('location') as string)
+
+    return { answer, location, code: location.searchParams.get('code') }
+  }
+
+  const exchange = async (
+    worker: any,
+    body: Record<string, string>,
+    id = 'web_app',
+    secret = 'web_app'
+  ) =>
+    worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: {
+        authorization: basic(id, secret),
+        'content-type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams(body).toString()
+    })
+
+  const json = async (response: Promise<Response> | undefined) => {
+    const answer = await (response as Promise<Response>)
+    return {
+      status: answer.status,
+      emulated: answer.headers.get('x-sasjs-emulated'),
+      body: (await answer.json().catch(() => undefined)) as any
+    }
+  }
+
+  const currentUser = (worker: any, token: string) =>
+    json(
+      worker.dispatch('/identities/users/@currentUser', {
+        headers: { authorization: `Bearer ${token}` }
+      })
+    )
+
+  it('redirects the authorize step back to this site, carrying the code', async () => {
+    const worker = loadWorker()
+
+    // a client that asks for somewhere else is answered with the site's own
+    // address: the registered redirect is where the app reads its code, and
+    // honouring the query would make this an open redirect
+    const { answer, location, code } = await authorize(
+      worker,
+      `client_id=web_app&response_type=code&state=abc&redirect_uri=${encodeURIComponent(
+        'https://evil.test/'
+      )}`
+    )
+
+    expect(answer.status).toBe(302)
+    expect(location.origin).not.toBe('https://evil.test')
+    expect(location.pathname).toBe('/')
+    expect(code).toMatch(/^code-/)
+    // state survives the round trip, which is what stops a cross-site request
+    // being mistaken for this one
+    expect(location.searchParams.get('state')).toBe('abc')
+    expect(answer.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+  })
+
+  it('exchanges a code for a pair, and the access token names the caller', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const token = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+
+    expect(token.status).toBe(200)
+    expect(token.body.token_type).toBe('bearer')
+    expect(token.body.access_token).toMatch(/^access-/)
+    expect(token.body.refresh_token).toMatch(/^refresh-/)
+    expect(token.body.expires_in).toBeGreaterThan(0)
+
+    // the token is the estate's identity: the same call names the account the
+    // code was issued for
+    const user = await currentUser(worker, token.body.access_token)
+    expect(user.status).toBe(200)
+    expect(user.body.id).toBe('user-admin')
+  })
+
+  it('buys a pair with a password, and the estate answers as that account', async () => {
+    const worker = loadWorker()
+
+    const token = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsuser',
+        password: 'Orion123'
+      })
+    )
+
+    expect(token.status).toBe(200)
+
+    const user = await currentUser(worker, token.body.access_token)
+    expect(user.body.id).toBe('user-restricted')
+  })
+
+  it('rotates the pair from a refresh token', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const first = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+
+    const second = await json(
+      exchange(worker, {
+        grant_type: 'refresh_token',
+        refresh_token: first.body.refresh_token
+      })
+    )
+
+    expect(second.status).toBe(200)
+    expect(second.body.access_token).not.toBe(first.body.access_token)
+
+    const user = await currentUser(worker, second.body.access_token)
+    expect(user.body.id).toBe('user-admin')
+  })
+
+  it('refuses an implicit-flow request by name, rather than redirecting a code', async () => {
+    const worker = loadWorker()
+
+    // a client asking for a token in the URL would otherwise be redirected with a
+    // code it never asked for and fail with no diagnostic
+    const answer = await json(
+      worker.dispatch(
+        '/SASLogon/oauth/authorize?client_id=web_app&response_type=token'
+      )
+    )
+
+    expect(answer.status).toBe(400)
+    expect(answer.body.error).toBe('unsupported_response_type')
+    expect(answer.emulated).toMatch(/^viya@/)
+  })
+
+  it('redirects to the site it is served from, base path included', async () => {
+    // a build served below the origin root has its own address: a code sent to
+    // the origin root would land outside the app that asked for it
+    const worker = loadWorker('/site-a')
+
+    const response = await worker.dispatch(
+      '/SASLogon/oauth/authorize?client_id=web_app&response_type=code'
+    )
+    const location = new URL(response!.headers.get('location') as string)
+
+    expect(response!.status).toBe(302)
+    expect(location.pathname.startsWith('/site-a/')).toBe(true)
+  })
+
+  it('answers a JSON body it cannot read as invalid_request', async () => {
+    const worker = loadWorker()
+
+    // both encodings answer the same way: the body is the caller's problem, and
+    // the answer names it rather than pretending the form was empty
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not json at all'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
+  it('refuses a client that is not registered, and a wrong secret', async () => {
+    const worker = loadWorker()
+
+    const unknown = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'nope',
+        'nope'
+      )
+    )
+    expect(unknown.status).toBe(401)
+    expect(unknown.body.error).toBe('invalid_client')
+
+    const wrong = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'web_app',
+        'wrong'
+      )
+    )
+    expect(wrong.status).toBe(401)
+    expect(wrong.body.error).toBe('invalid_client')
+  })
+
+  it('challenges a failed client authentication, as RFC 6749 asks', async () => {
+    const worker = loadWorker()
+
+    // a client that waits for a challenge before retrying with credentials has
+    // only the header to go on: a bare 401 reads as fatal
+    const answer = await exchange(
+      worker,
+      { grant_type: 'password', username: 'sasjsadmin', password: 'Orion123' },
+      'web_app',
+      'wrong'
+    )
+
+    expect(answer!.status).toBe(401)
+    expect(answer!.headers.get('www-authenticate')).toBe(
+      'Basic realm="SASLogon"'
+    )
+  })
+
+  it('refuses a JSON body that is not a form, naming the request', async () => {
+    const worker = loadWorker()
+
+    // `null` parses as valid JSON and is not an object: reading fields off it
+    // would throw out of the handler, which is the answer this rules out
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'null'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
+  it('refuses a grant it does not answer, by name', async () => {
+    const worker = loadWorker()
+
+    const answer = await json(
+      exchange(worker, { grant_type: 'client_credentials' })
+    )
+
+    expect(answer.status).toBe(400)
+    expect(answer.body.error).toBe('unsupported_grant_type')
+    expect(String(answer.body.error_description)).toContain('password')
+  })
+
+  it('reads a client that posts its credentials in the body as JSON', async () => {
+    const worker = loadWorker()
+
+    // no Basic header and no form encoding: the fields are the request
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        })
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
+  it('refuses an authorize step with no client, and a token with no client id', async () => {
+    const worker = loadWorker()
+
+    const noClient = await json(
+      worker.dispatch('/SASLogon/oauth/authorize?response_type=code')
+    )
+    expect(noClient.status).toBe(403)
+    expect(noClient.emulated).toMatch(/^viya@/)
+    expect(noClient.body.error).toBe('invalid_client')
+
+    const bare = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=password'
+      })
+    )
+    expect(bare.status).toBe(401)
+    expect(bare.body.error).toBe('invalid_client')
+    expect(String(bare.body.error_description)).toContain(
+      'client id is required'
+    )
+  })
+
+  it('refuses a code it did not issue, and a password that does not verify', async () => {
+    const worker = loadWorker()
+
+    const forged = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: 'code-not-issued'
+      })
+    )
+    expect(forged.status).toBe(401)
+    expect(forged.body.error).toBe('invalid_grant')
+
+    const wrong = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsadmin',
+        password: 'nope'
+      })
+    )
+    expect(wrong.status).toBe(401)
+    expect(wrong.body.error).toBe('invalid_grant')
+  })
+
+  it('takes a request with no content type at all, and a grant with no fields', async () => {
+    const worker = loadWorker()
+
+    // no header: the body is read as JSON rather than refused for its type
+    const bare = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        body: JSON.stringify({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        })
+      })
+    )
+    expect(bare.status).toBe(200)
+
+    // a password grant with nothing filled in: the login refuses before any
+    // token is minted
+    const empty = await json(exchange(worker, { grant_type: 'password' }))
+    expect(empty.status).toBe(401)
+    expect(empty.body.error).toBe('invalid_grant')
+  })
+
+  it('refuses a sign-in when no account is signed in', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const boot = worker.message({ type: 'sasjs-seed', subject: null })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // no caller, no code: the authorize step is a signed-in caller's step
+    const response = await worker.dispatch(
+      '/SASLogon/oauth/authorize?client_id=web_app&response_type=code'
+    )
+
+    expect(response!.status).toBe(401)
+  })
+
+  it('reads past a malformed Basic header instead of dying on it', async () => {
+    const worker = loadWorker()
+
+    // not base64: the decode throws, and the request must still be answered -
+    // with the body's credentials, which are the ones a client that cannot spell
+    // its header has left
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: 'Basic not-base64-at-all',
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'web_app',
+          client_secret: 'web_app',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
+  it('decodes a Basic credential the way RFC 6749 encodes it', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const secret = 's3cr:et%&'
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map((client: any) =>
+        client.clientId === 'web_app'
+          ? { ...client, clientSecret: secret }
+          : client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // section 2.3.1: each half is form-encoded before it is base64'd, so a
+    // secret carrying `:` `%` or `&` must compare equal to what it encodes to
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(
+            `web_app:${encodeURIComponent(secret)}`
+          ).toString('base64')}`,
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+  })
+
+  it('decodes a space in a Basic credential as a form would', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const secret = 'two words'
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map((client: any) =>
+        client.clientId === 'web_app'
+          ? { ...client, clientSecret: secret }
+          : client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    // form encoding sends a space as `+`, which `decodeURIComponent` alone leaves
+    // in place: a client whose secret has a space would be refused
+    const answer = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(
+            `web_app:${encodeURIComponent(secret).replace(/%20/g, '+')}`
+          ).toString('base64')}`,
+          'content-type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+
+    expect(answer.status).toBe(200)
+  })
+
+  it('refuses a client whose secret the fixture does not declare', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      clients: DEFAULT_IDENTITY.clients.map(
+        ({ clientSecret, ...client }: any) => client
+      )
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+    expect(boot.replies[0].error).toBeUndefined()
+
+    const answer = await json(
+      exchange(worker, {
+        grant_type: 'password',
+        username: 'sasjsadmin',
+        password: 'Orion123'
+      })
+    )
+
+    // a secret that cannot be verified is refused by name, never accepted: the
+    // check cannot become a no-op without an answer like this one
+    expect(answer.status).toBe(401)
+    expect(answer.body.error).toBe('invalid_client')
+    expect(String(answer.body.error_description)).toContain(
+      'declares no secret'
+    )
+  })
+
+  it('answers a body it cannot read as invalid_request, not as a crash', async () => {
+    const worker = loadWorker()
+
+    // a body stream that fails mid-read: the handler must answer an OAuth error,
+    // because a sign-in that dies as a network error tells the client nothing
+    const body = new ReadableStream({
+      start(controller) {
+        controller.error(new Error('the body failed'))
+      }
+    })
+
+    const response = await worker.dispatch('/SASLogon/oauth/token', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        authorization: `Basic ${Buffer.from('web_app:web_app').toString('base64')}`
+      },
+      body,
+      duplex: 'half'
+    })
+
+    expect(response!.status).toBe(400)
+    expect((await response!.json()).error).toBe('invalid_request')
+  })
+
+  it('refuses a bearer the store does not hold', async () => {
+    const worker = loadWorker()
+
+    // a token this host never issued is not a caller: the estate must refuse it
+    // rather than fall back to the account the page is signed in as
+    const answer = await currentUser(worker, 'access-not-a-real-token')
+
+    expect(answer.status).toBe(401)
   })
 })

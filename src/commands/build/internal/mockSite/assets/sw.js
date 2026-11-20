@@ -70,6 +70,18 @@ const IDENTITY_FILE = 'host/identity.json'
 
 const IDENTITY_STATE = {
   store: new API.MemoryIdentityStore(API.DEFAULT_IDENTITY),
+  /**
+   * The secrets the current fixture declares, kept beside the store rather than
+   * read back from it: the store's read path omits a client's secret, and its
+   * snapshot is an inspection aid rather than the port a credential is checked
+   * through.
+   */
+  secrets: new Map(
+    (API.DEFAULT_IDENTITY.clients || []).map((client) => [
+      client.clientId,
+      client.clientSecret
+    ])
+  ),
   /** The fixture the store last reported to the page, as JSON. */
   persisted: '',
   /** The fixture the build shipped; `reset()` returns to this one. */
@@ -129,6 +141,13 @@ const resolveCaller = () => {
 const seedIdentity = (fixture) => {
   IDENTITY_STATE.store = new API.MemoryIdentityStore(fixture)
   IDENTITY_STATE.persisted = JSON.stringify(IDENTITY_STATE.store.snapshot())
+  // rebuilt with the store, against the invariant the initialiser documents
+  IDENTITY_STATE.secrets = new Map(
+    (fixture.clients || []).map((client) => [
+      client.clientId,
+      client.clientSecret
+    ])
+  )
   IDENTITY_STATE.seeded = true
   resolveCaller()
 }
@@ -1165,7 +1184,27 @@ const VIYA_PREFIXES = [
  * the host that mounts the emulator - rather than falling through to the SASjs
  * route table or to the static host.
  */
-const ESTATE_PATHS = ['/saslogon/oauth/token']
+/**
+ * The two endpoints a Viya client speaks to sign in: the authorize step it
+ * redirects to, and the token step it exchanges a code at.
+ *
+ * Both are the host's, not the emulator's - the emulator holds no account to
+ * check a credential against, exactly as on a server, where `routes/viya` answers
+ * the token port from the server's own accounts. `IDENTITY` verifies the client
+ * and mints the pair, and every answer here carries the same `x-sasjs-emulated`
+ * stamp as the estate's, because this host is standing in for Viya whichever
+ * endpoint is asked.
+ *
+ * They are named once: `ESTATE_PATHS` is what makes the worker answer them, and
+ * the handlers below are what answers - a literal repeated in both could leave a
+ * handler that never runs. The authorize step is not a row in the package's
+ * table: it is this host's own half of the token port, the page a client is sent
+ * to before it holds a code.
+ */
+const OAUTH_AUTHORIZE = '/saslogon/oauth/authorize'
+const OAUTH_TOKEN = '/saslogon/oauth/token'
+
+const ESTATE_PATHS = [OAUTH_TOKEN, OAUTH_AUTHORIZE]
 
 const isViyaPath = (path) => {
   // the prefixes are lowercased when the list is built: Viya's own families are
@@ -2131,6 +2170,280 @@ const ensureForRequest = async (url, tierQuery) => {
   if (paths.length) await R.ensurePaths(paths)
 }
 
+/** An OAuth answer: the body the document states, and no caching of a token. */
+const oauthJson = (status, body) => {
+  const headers = Object.assign(
+    {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      pragma: 'no-cache'
+    },
+    API.emulatedHeaders()
+  )
+
+  return new Response(JSON.stringify(body), { status, headers })
+}
+
+const oauthError = (status, error, description) => {
+  const answer = oauthJson(status, { error, error_description: description })
+
+  // RFC 6749 section 5.2: a 401 for a failed client authentication carries the
+  // challenge for the scheme the client used, or a client that retries only when
+  // challenged treats the answer as fatal
+  if (status === 401 && error === 'invalid_client')
+    answer.headers.set('www-authenticate', 'Basic realm="SASLogon"')
+
+  return answer
+}
+
+/** The form a token request carries, or its JSON equivalent. */
+const readForm = async (request) => {
+  const type = request.headers.get('content-type') || ''
+
+  // read without the swallowing helper: a body that cannot be read is the
+  // caller's answer to give (`invalid_request`), not an empty form
+  if (!type.includes('application/x-www-form-urlencoded')) {
+    const parsed = await request.json()
+
+    // `null`, a string or an array parses as valid JSON and is not a form: the
+    // field reads below would throw on it, so it is refused the way an
+    // unparseable body is
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error('The token request body is not a form.')
+
+    return parsed
+  }
+
+  const form = Object.create(null)
+  for (const [key, value] of new URLSearchParams(
+    await request.text()
+  ).entries())
+    form[key] = value
+
+  return form
+}
+
+/**
+ * One half of a Basic credential, decoded.
+ *
+ * A malformed escape is not a credential, so it is returned as written and
+ * refused as a wrong one - the alternative is a throw out of the handler, which
+ * tells the client nothing.
+ */
+const decodePart = (value) => {
+  try {
+    // form semantics, not URI semantics: section 2.3.1 encodes a space as `+`,
+    // which `decodeURIComponent` leaves in place
+    return decodeURIComponent(value.replace(/\+/g, ' '))
+  } catch (error) {
+    return value
+  }
+}
+
+/**
+ * The client credentials, from the Basic header a Viya client sends or from the
+ * body of a client that posts them instead.
+ */
+const clientOf = (request, form) => {
+  const basic = /^Basic\s+(.+)$/i.exec(
+    request.headers.get('authorization') || ''
+  )
+
+  if (basic) {
+    let decoded = ''
+
+    try {
+      decoded = atob(basic[1])
+    } catch (error) {
+      // a header that is not base64 is not a client: it falls through to the
+      // body's credentials, so a malformed header answers like any other bad
+      // credential instead of throwing out of the handler as a network error
+      decoded = ''
+    }
+
+    const separator = decoded.indexOf(':')
+
+    if (separator !== -1)
+      // RFC 6749 section 2.3.1: both halves are form-encoded before they are
+      // base64'd, so a client whose id or secret carries `:`, `%`, `+` or `&`
+      // verifies here as it would on a server. The body path gets this from
+      // `URLSearchParams`.
+      return {
+        clientId: decodePart(decoded.slice(0, separator)),
+        clientSecret: decodePart(decoded.slice(separator + 1))
+      }
+  }
+
+  return {
+    clientId: form.client_id || '',
+    clientSecret: form.client_secret || ''
+  }
+}
+
+/**
+ * The authorize step: a client sends the browser here, and this host answers a
+ * redirect carrying the code.
+ *
+ * The registered redirect is this site, because that is where the app reads the
+ * code from - a mock site has no other address to send it to, and accepting one
+ * from the query would make this an open redirect.
+ */
+const oauthAuthorize = async (url) => {
+  const responseType = url.searchParams.get('response_type') || ''
+
+  // the code flow is the one this host answers; an implicit-flow request would
+  // otherwise be redirected with a code it never asked for and fail with no
+  // diagnostic at all
+  if (responseType !== 'code')
+    return oauthError(
+      400,
+      'unsupported_response_type',
+      'This host answers the authorization code flow: response_type=code.'
+    )
+
+  const clientId = url.searchParams.get('client_id') || ''
+
+  try {
+    const code = await IDENTITY.authorize(IMPLICIT_CALLER, clientId)
+
+    // the site's own address, base path included: a site served below the origin
+    // root must not send the code outside its own app
+    const target = new URL(`${BASE}/`, self.location.origin)
+    target.searchParams.set('code', code)
+
+    const state = url.searchParams.get('state')
+    if (state) target.searchParams.set('state', state)
+
+    return new Response(null, {
+      status: 302,
+      headers: Object.assign(
+        { location: target.toString(), 'cache-control': 'no-store' },
+        API.emulatedHeaders()
+      )
+    })
+  } catch (error) {
+    if (error instanceof API.ApiError)
+      return oauthError(
+        error.status,
+        error.status === 403 ? 'invalid_client' : 'invalid_grant',
+        error.message
+      )
+
+    throw error
+  }
+}
+
+/**
+ * The token step: a code, a refresh token or a password buys a pair.
+ *
+ * The grants are the ones a browser application signs in with; SASLogon also
+ * answers `client_credentials` and `jwt-bearer` for service clients, which this
+ * host does not stand in for. A client that asks for another gets
+ * `unsupported_grant_type` naming these rather than a silent failure. The pair and its lifetimes are the client's own - a token's expiry is
+ * a fact about that client, read back from the store rather than invented here.
+ */
+const oauthToken = async (request) => {
+  let form
+
+  try {
+    form = await readForm(request)
+  } catch (error) {
+    // a body that cannot be read is the request's problem, not the host's: it is
+    // answered as an OAuth error like every other malformed sign-in, never as a
+    // throw out of the handler
+    return oauthError(
+      400,
+      'invalid_request',
+      'The token request body could not be read as a form or as JSON.'
+    )
+  }
+
+  const client = clientOf(request, form)
+
+  if (!client.clientId)
+    return oauthError(401, 'invalid_client', 'A client id is required.')
+
+  const registered = await IDENTITY_STATE.store.client(client.clientId)
+
+  if (!registered)
+    return oauthError(
+      401,
+      'invalid_client',
+      `The client ${client.clientId} is not registered on this site.`
+    )
+
+  // the store's read answers the client's lifetimes and not its secret, so the
+  // comparison reads the snapshot the host persists - the same record, with the
+  // field a client authenticates with kept out of the read path
+  const declaredSecret = IDENTITY_STATE.secrets.get(client.clientId)
+
+  // verified or refused, never skipped: a client the fixture declares no secret
+  // for cannot be checked at all, so it is refused by name. A change to what the
+  // fixture carries then shows up as a refusal here rather than as a check that
+  // quietly accepts any secret.
+  if (!declaredSecret)
+    return oauthError(
+      401,
+      'invalid_client',
+      `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
+    )
+
+  if (declaredSecret !== client.clientSecret)
+    return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+
+  try {
+    let pair
+
+    switch (form.grant_type) {
+      case 'authorization_code':
+        pair = await IDENTITY.token({
+          clientId: client.clientId,
+          code: form.code
+        })
+        break
+      case 'refresh_token':
+        pair = await IDENTITY.refresh(form.refresh_token)
+        break
+      case 'password': {
+        // the credentials are the grant: the account signs in, buys a code and
+        // exchanges it - the same path the authorize step's code takes, so the
+        // mint-and-save sequence lives in the package and cannot drift from it
+        const { user } = await IDENTITY.login({
+          username: form.username || '',
+          password: form.password || ''
+        })
+        const subject = { userId: user.uid, clientId: client.clientId }
+        const code = await IDENTITY.authorize(subject, client.clientId)
+
+        pair = await IDENTITY.token({ clientId: client.clientId, code })
+        break
+      }
+      default:
+        return oauthError(
+          400,
+          'unsupported_grant_type',
+          'This site answers authorization_code, refresh_token and password.'
+        )
+    }
+
+    return oauthJson(200, {
+      access_token: pair.accessToken,
+      refresh_token: pair.refreshToken,
+      token_type: 'bearer',
+      expires_in: registered.accessTokenExpiration,
+      refresh_expires_in: registered.refreshTokenExpiration,
+      scope: ''
+    })
+  } catch (error) {
+    // a refusal from a grant is a grant problem: the client was verified above,
+    // so an unknown client or a wrong secret never reaches here
+    if (error instanceof API.ApiError)
+      return oauthError(error.status, 'invalid_grant', error.message)
+
+    throw error
+  }
+}
+
 /**
  * One attempt at a request, with the body source a retry can copy again.
  *
@@ -2220,7 +2533,17 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     // A Viya-targeted application asks the estate's own paths. They are answered
     // from the package's emulator over the drive this host already holds, which
     // is what makes a Viya build mockable in the browser at all.
-    if (isViyaPath(apiPath)) return await viyaRequest(request, url, apiPath)
+    // The OAuth endpoints a Viya client signs in at: the token port is this
+    // host's own, as it is on a server running the emulator.
+    if (isViyaPath(apiPath)) {
+      // the two sign-in endpoints are the host's port; every other estate path
+      // is the emulator's
+      const signedIn = apiPath.toLowerCase()
+      if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
+      if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
+
+      return await viyaRequest(request, url, apiPath)
+    }
 
     // The app stream is the server's own web surface rather than part of the
     // API: the listing, the landing page and the redirect from one to the other
