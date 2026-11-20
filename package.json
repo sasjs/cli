@@ -81,7 +81,7 @@
     "@babel/preset-env": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
     "@nogoo9/gitleaks": "8.30.1-post.2",
-    "@sasjs/release": "0.13.1",
+    "@sasjs/release": "0.18.0",
     "@types/debug": "4.1.13",
     "@types/find": "0.2.4",
     "@types/jest": "30.0.0",
