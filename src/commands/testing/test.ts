@@ -16,6 +16,7 @@ import {
 import { sasFileRegExp } from '../../utils/file'
 import { getAuthConfig } from '../../utils/config'
 import { displayError, displaySuccess } from '../../utils/displayResult'
+import { withoutTrailingSlash } from '../../utils/url'
 import {
   ServerType,
   uuidv4,
@@ -452,7 +453,7 @@ export async function runTest(
 }
 
 export const getTestUrl = (target: Target, jobLocation: string) =>
-  `${target.serverUrl}/${
+  `${withoutTrailingSlash(target.serverUrl)}/${
     target.serverType === ServerType.SasViya
       ? 'SASJobExecution'
       : target.serverType === ServerType.Sas9

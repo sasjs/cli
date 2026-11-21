@@ -5,6 +5,7 @@ import {
   StreamConfig,
   decodeFromBase64
 } from '@sasjs/utils'
+import { withoutTrailingSlash } from '../../../utils/url'
 import { formatErrorString } from './'
 
 /**
@@ -68,7 +69,11 @@ export async function executeDeployScriptSas9(
 
   if (streamConfig?.streamWeb) {
     const appLoc = encodeURI(target.appLoc)
-    const webAppStreamUrl = `${target.serverUrl}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${streamConfig.streamServiceName}`
+    const webAppStreamUrl = `${withoutTrailingSlash(
+      target.serverUrl
+    )}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${
+      streamConfig.streamServiceName
+    }`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }

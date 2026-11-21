@@ -59,8 +59,10 @@ export async function executeDeployScriptSasjs(
   )
 
   if (streamConfig?.streamWeb)
-    // the same helper as the service-pack route, so one deployment is reported
-    // at the same two addresses whichever route deployed it
+    // the same entry page the service-pack route prints. Only the entry page:
+    // a script execution answers a log and no app, so this route cannot know
+    // where the server published anything - `reportPublishedApp` is the
+    // service-pack route's line, and stating it here would state a guess
     reportStreamedApp(
       target.serverUrl,
       target.serverType,
