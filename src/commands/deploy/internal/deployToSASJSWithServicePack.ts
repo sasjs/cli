@@ -1,7 +1,11 @@
 import { SASjsApiClient, SasjsRequestClient } from '@sasjs/adapter/node'
 import { getAuthConfig } from '../../../utils/config'
 import { isSasJsServerInServerMode } from '../../../utils/utils'
-import { reportStreamedApp } from './appStreamUrl'
+import {
+  DeployAppAnswer,
+  reportPublishedApp,
+  reportStreamedApp
+} from './appStreamUrl'
 import {
   readFile,
   Target,
@@ -72,4 +76,16 @@ export async function deployToSasjsWithServicePack(
       streamConfig.streamServiceName as string,
       (message) => process.logger?.info(message)
     )
+
+  // ...and the app the server published, which is a different address and a
+  // different fact. Read off the ANSWER rather than the target's config: a
+  // deploy can publish without `streamWeb` (a bundle carrying its own manifest,
+  // or one built by an earlier configuration), and an app that is on the server
+  // with no address in the output is a deployment an operator cannot open
+  reportPublishedApp(
+    target.serverUrl,
+    target.serverType,
+    result as DeployAppAnswer,
+    (message) => process.logger?.info(message)
+  )
 }
