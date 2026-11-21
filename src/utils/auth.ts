@@ -1,6 +1,7 @@
 import axios from 'axios'
 import * as https from 'https'
 import { getString, ServerType, Target } from '@sasjs/utils'
+import { withoutTrailingSlash } from './url'
 import SASjs, {
   CertificateError,
   SasjsRequestClient
@@ -234,7 +235,7 @@ export async function getTokensWithSasjsLogin(
   client: string
   displayName?: string
 }> {
-  const baseUrl = target.serverUrl.replace(/\/+$/, '')
+  const baseUrl = withoutTrailingSlash(target.serverUrl)
   const cookies = new Map<string, string>()
 
   // Cookie values are percent-encoded by the server, but a malformed value

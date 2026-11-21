@@ -972,3 +972,20 @@ const setupMocksForSASJS = () => {
     .spyOn(readAndValidateInputModule, 'getString')
     .mockImplementation(() => Promise.resolve('mocked input'))
 }
+
+describe('the test URL a target is run at', () => {
+  it('joins one slash where the server URL carries a trailing one', () => {
+    // a hand-written sasjsconfig may hold `https://host/`, and nothing upstream
+    // strips it - the printed URL would then name a path no mount answers
+    const target = new Target({
+      name: 'trailing-slash',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://host/',
+      appLoc: '/Public/app'
+    })
+
+    expect(getTestUrl(target, '/Public/app/tests/a.sas')).toBe(
+      'https://host/SASjsApi/stp/execute/?_program=/Public/app/tests/a.sas&_debug=2477'
+    )
+  })
+})
