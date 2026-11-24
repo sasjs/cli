@@ -19,13 +19,13 @@ describe('getAssetPath', () => {
   it('names the file at the build appLoc for SAS Viya', () => {
     expect(
       getAssetPath('/Public/app', ServerType.SasViya, 'web', 'main.js')
-    ).toEqual('/SASJobExecution?_FILE=/Public/app/services/web/main.js')
+    ).toEqual('/SASJobExecution?_FILE=/Public/app/web/main.js')
   })
 
   it(`names the same file on SASjs server's own web tier`, () => {
     expect(
       getAssetPath('/Public/app', ServerType.Sasjs, 'web', 'main.js')
-    ).toEqual('/StoredProgram?_FILE=/Public/app/services/web/main.js')
+    ).toEqual('/StoredProgram?_FILE=/Public/app/web/main.js')
   })
 
   it('names the stored process for SAS 9, with the appLoc inserted at run time', () => {
@@ -38,10 +38,10 @@ describe('getAssetPath', () => {
     // a runtime appends a chunk name it composes itself, so the prefix has to
     // end where a file name begins
     expect(getAssetPrefix('/Public/app', ServerType.SasViya, 'web')).toEqual(
-      '/SASJobExecution?_FILE=/Public/app/services/web/'
+      '/SASJobExecution?_FILE=/Public/app/web/'
     )
     expect(getAssetPrefix('/Public/app', ServerType.Sasjs, 'web')).toEqual(
-      '/StoredProgram?_FILE=/Public/app/services/web/'
+      '/StoredProgram?_FILE=/Public/app/web/'
     )
     expect(getAssetPrefix('/Public/app', ServerType.Sas9, 'web')).toEqual(
       '/SASStoredProcess/?_PROGRAM=abc123/web/'

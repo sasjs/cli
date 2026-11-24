@@ -24,11 +24,12 @@ export const getAssetPrefix = (
     // for Viya and SASjs server, fileName is a FILE at the build appLoc, so
     //   the value is baked in - exactly as it is for Viya
     serverType === ServerType.SasViya
-      ? `/SASJobExecution?_FILE=${appLoc}/services`
+      ? `/SASJobExecution?_FILE=${appLoc}`
       : serverType === ServerType.Sasjs
-        ? `/StoredProgram?_FILE=${appLoc}/services`
+        ? `/StoredProgram?_FILE=${appLoc}`
         : `/SASStoredProcess/?_PROGRAM=${sas9GUID}`
 
+  // the assets sit directly under the appLoc, not under its services folder
   return `${storedProcessPath}/${streamWebFolder}/`
 }
 

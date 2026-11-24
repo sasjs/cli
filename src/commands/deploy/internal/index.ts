@@ -1,3 +1,4 @@
+export * from './appStreamUrl'
 export * from './deployToSASJSWithServicePack'
 export * from './getDeployScripts'
 export * from './executeDeployScript'

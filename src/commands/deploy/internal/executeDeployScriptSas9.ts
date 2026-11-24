@@ -75,7 +75,7 @@ export async function executeDeployScriptSas9(
     // same reason the stream route in appStreamUrl.ts encodes it
     const webAppStreamUrl = `${withoutTrailingSlash(
       target.serverUrl
-    )}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${encodeURIComponent(
+    )}/SASStoredProcess/?_PROGRAM=${appLoc}/${encodeURIComponent(
       streamConfig.streamServiceName
     )}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)

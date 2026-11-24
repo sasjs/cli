@@ -7,6 +7,13 @@ import { JSDOM } from 'jsdom'
 import { DEFAULT_IDENTITY, parseIdentity, ROUTES } from '@sasjs/api'
 import { folderExists, getWeboutPrelude, Target } from '@sasjs/utils'
 
+// The folder `sasjs build` keeps the published frontend in, spelled here rather
+// than imported: this file is transpiled on its own by
+// `spec/pnpmResolution.spec.ts`, which resolves the CLI's PACKAGES from a fake
+// pnpm layout, so a relative import here has no file to resolve. It is not
+// deployment content and must not reach this site's drive.
+const PUBLISH_FOLDER = 'publish'
+
 // The source offsets used from jsdom's nodeLocation result.
 type SourceRange = { startOffset: number; endOffset: number }
 type ElementLocation = SourceRange & {
@@ -393,6 +400,10 @@ const seedFromBuild = (
   const candidates: { key: string; absolute: string }[] = []
   for (const entry of directories) {
     const folder = path.join(buildFolder, entry.name)
+    // the published frontend is an input to the pack, not content of the
+    // deployment this site emulates; a mock site is not drive content either
+    if (entry.name === PUBLISH_FOLDER) continue
+    if (isMockSiteFolder(folder)) continue
     if (excludeFolders.includes(path.resolve(folder))) continue
     for (const relative of listFiles(folder)) {
       const key = `${driveBase}/${entry.name}/${relative}`
@@ -429,36 +440,92 @@ const seedFromBuild = (
 }
 
 /**
+ * Whether one folder is the other, or sits inside it.
+ *
+ * `path.relative(parent, child)` answers `''` for the folder itself, `..` for the
+ * parent and a `..`-prefixed path for a sibling - none of which is "inside".
+ * Forgetting the `..` case treats a folder's PARENT as contained in it, which is
+ * how a mock path that resolves to the project (`mockWebFolder: "."`) once
+ * excluded every deployment folder beneath the build.
+ *
+ * Exported because `deploymentTree` asks the same question of the folders it
+ * keeps out of the pack; one implementation is what keeps the two answers equal.
+ */
+export const isSameOrChild = (parent: string, child: string): boolean => {
+  const relative = path.relative(parent, child)
+
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith('..' + path.sep) &&
+      !path.isAbsolute(relative))
+  )
+}
+
+/**
+ * The folders inside the build that the CLI writes itself.
+ *
+ * A mock site deletes the folder it is written to, so these are the ones it may
+ * not be pointed at - the deployment's own folders and the published frontend.
+ * Read from the constants rather than spelled out: a new folder the build writes
+ * should not silently become free space for a mock.
+ */
+const protectedBuildFolders = (target: Target): string[] => {
+  const constants = process.sasjsConstants
+  const buildFolder = constants.buildDestinationFolder
+  const folders = [
+    constants.buildDestinationServicesFolder,
+    constants.buildDestinationJobsFolder,
+    constants.buildDestinationTestFolder,
+    constants.buildDestinationDbFolder,
+    constants.buildDestinationDocsFolder,
+    path.join(buildFolder, 'publish')
+  ]
+
+  if (target.streamConfig?.streamWeb && target.streamConfig.streamWebFolder)
+    folders.push(path.join(buildFolder, target.streamConfig.streamWebFolder))
+
+  return folders.filter(Boolean)
+}
+
+/**
  * `mockWebFolder` decides a folder that is deleted before it is written, so it
  * has to name a folder of its own. Anything that would delete the project, the
- * build output the drive is seeded from, or the web app it is copied from is
- * refused before a single file is touched.
+ * build output the drive is seeded from, the folders the CLI writes into it, or
+ * the web app it is copied from is refused before a single file is touched.
+ *
+ * A folder inside the build is allowed (an explicit `mockWebFolder` is honoured),
+ * but only one that does not overlap what the build wrote: pointing it at
+ * `sasjsbuild/services` or the streamed assets would delete the deployment and
+ * replace it with a site the pack then excludes.
  */
 const assertSafeOutputFolder = (
   outputFolder: string,
   projectDir: string,
   buildFolder: string,
-  webFolder: string
+  webFolder: string,
+  protectedFolders: string[] = []
 ) => {
-  const isSameOrChild = (parent: string, child: string) => {
-    const relative = path.relative(parent, child)
-    return (
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith('..' + path.sep) &&
-        !path.isAbsolute(relative))
-    )
-  }
   const refusal = (why: string) =>
     new Error(
       `Refusing to write the mock site to ${outputFolder}: ${why}. ` +
-        'Set streamConfig.mockWebFolder to a folder of its own, for example "sasjsbuild/mock".'
+        'Set streamConfig.mockWebFolder to a folder of its own, for example "sasjsresults/mock".'
     )
 
   if (isSameOrChild(outputFolder, projectDir))
     throw refusal('that folder is the project folder or contains it')
-  if (isSameOrChild(outputFolder, buildFolder))
+  if (outputFolder === buildFolder)
     throw refusal('that folder holds the build output the drive is seeded from')
+  if (
+    protectedFolders.some(
+      (folder) =>
+        isSameOrChild(outputFolder, folder) ||
+        isSameOrChild(folder, outputFolder)
+    )
+  )
+    throw refusal(
+      "that folder is one the build writes - the deployment folders and the published frontend are not the mock site's to replace"
+    )
   if (isSameOrChild(outputFolder, webFolder))
     throw refusal('that folder holds the web app the site is copied from')
   if (isSameOrChild(webFolder, outputFolder))
@@ -1135,6 +1202,51 @@ const writeApiConsole = (
 }
 
 /**
+ * The file, at the root of a mock site, that says what the folder is.
+ *
+ * A mock site is built outside the deployment and must never be packed into one,
+ * including when a project points `mockWebFolder` inside the build folder and
+ * when a previous build left its output there. The build therefore has to be able
+ * to recognise one: the marker is written by every mock build, and a build that
+ * is not a mock carries none. It is also what tells a developer, opening the
+ * folder, which of the three frontends this one is.
+ */
+export const MOCK_SITE_MARKER = 'sasjs.mock.json'
+
+/**
+ * Where the standalone mock site is written.
+ *
+ * It is an output of its own, not a folder of the build: a site that runs the
+ * app in a browser needs a static server on localhost, and nothing about it
+ * belongs in a deployment. `sasjsresults/mock` by default; an explicit
+ * `mockWebFolder` is honoured as it always was, relative to the project.
+ */
+export const mockSiteOutputFolder = (target: Target): string => {
+  const projectDir = process.projectDir || process.cwd()
+  const configured = target.streamConfig?.mockWebFolder
+
+  if (configured) return path.resolve(projectDir, configured)
+
+  const resultsFolder =
+    process.sasjsConstants.buildDestinationResultsFolder ||
+    path.join(projectDir, 'sasjsresults')
+
+  return path.join(resultsFolder, 'mock')
+}
+
+/**
+ * Whether a folder IS a mock site, by its marker.
+ *
+ * A mock site's marker sits at the site's own root, so this answers for that
+ * folder - not for one of its parents. The build skips the site itself by this
+ * question, whatever its path and whichever build wrote it. An ancestor of a
+ * nested site is ordinary content, and is packed only if something else in it is:
+ * an ancestor left empty by the exclusion is dropped rather than deployed.
+ */
+export const isMockSiteFolder = (folder: string): boolean =>
+  fs.existsSync(path.join(folder, MOCK_SITE_MARKER))
+
+/**
  * Builds a static site that runs the project's JS services (its mocks) in the
  * browser, so a frontend can be tested with no server and no SAS.
  *
@@ -1188,20 +1300,24 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     )
   }
 
-  const outputFolder = target.streamConfig?.mockWebFolder
-    ? path.resolve(projectDir, target.streamConfig.mockWebFolder)
-    : path.join(buildFolder, 'mock')
+  const outputFolder = mockSiteOutputFolder(target)
 
-  assertSafeOutputFolder(outputFolder, projectDir, buildFolder, webFolder)
+  assertSafeOutputFolder(
+    outputFolder,
+    projectDir,
+    buildFolder,
+    webFolder,
+    protectedBuildFolders(target)
+  )
 
   // Read the drive before anything is written or removed: an unusable target
   // (SAS services, unreadable build folder) then leaves the previous site in
   // place instead of destroying it and failing.
-  // A streamed build is copied into the build as services/<streamWebFolder>,
-  // and it belongs on the drive: that is the copy a page reads its assets from
-  // through the `_FILE=` read, so the artefact a server would serve is the one
-  // this site serves. The unmodified frontend is still what the site itself is,
-  // so a project has both the app at the root and the deployment on the drive.
+  // A streamed build carries its web assets inside the deployment, and they
+  // belong on the drive: that is the copy a page reads its assets from through
+  // the `_FILE=` read, so the artefact a server would serve is the one this site
+  // serves. The unmodified frontend is still what the site itself is, so a
+  // project has both the app at the root and the deployment on the drive.
 
   // A previous site may sit inside the build folder; leaving it out of the seed
   // keeps the old site out of the new drive.
@@ -1275,6 +1391,17 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   // Only now is the previous site expendable.
   fs.rmSync(outputFolder, { recursive: true, force: true })
   fs.mkdirSync(outputFolder, { recursive: true })
+
+  // say what this folder is, for a developer reading it and for `sasjs build`,
+  // which must never pack it into a deployment
+  fs.writeFileSync(
+    path.join(outputFolder, MOCK_SITE_MARKER),
+    JSON.stringify(
+      { kind: 'sasjs-mock-site', builtAt: new Date().toISOString() },
+      null,
+      2
+    )
+  )
 
   // 1. the app
   copyFolder(webFolder, outputFolder)

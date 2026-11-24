@@ -20,48 +20,36 @@ import { findTargetInConfiguration, getLocalConfig } from '../../../utils'
 
 const webBuiltFilesSASVIYA = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
-  files: [],
+  files: [{ fileName: `${indexHtml}.html` }],
   subFolders: [
     {
-      folderName: 'services',
-      files: [{ fileName: `${indexHtml}.html` }],
-      subFolders: [
-        {
-          folderName: 'webv',
-          files: [
-            { fileName: 'favicon.ico' },
-            { fileName: 'sasjs.js' },
-            { fileName: 'scripts.js' },
-            { fileName: 'style.css' },
-            { fileName: 'testing.js.map' }
-          ],
-          subFolders: []
-        }
-      ]
+      folderName: 'webv',
+      files: [
+        { fileName: 'favicon.ico' },
+        { fileName: 'sasjs.js' },
+        { fileName: 'scripts.js' },
+        { fileName: 'style.css' },
+        { fileName: 'testing.js.map' }
+      ],
+      subFolders: []
     }
   ]
 })
 
 const webBuiltFilesSAS9 = (indexHtml: string = 'clickme'): Folder => ({
   folderName: 'sasjsbuild',
-  files: [],
+  files: [{ fileName: `${indexHtml}.sas` }],
   subFolders: [
     {
-      folderName: 'services',
-      files: [{ fileName: `${indexHtml}.sas` }],
-      subFolders: [
-        {
-          folderName: 'webv',
-          files: [
-            { fileName: 'favicon-ico.sas' },
-            { fileName: 'sasjs-js.sas' },
-            { fileName: 'scripts-js.sas' },
-            { fileName: 'style-css.sas' },
-            { fileName: 'testing.js-map.sas' }
-          ],
-          subFolders: []
-        }
-      ]
+      folderName: 'webv',
+      files: [
+        { fileName: 'favicon-ico.sas' },
+        { fileName: 'sasjs-js.sas' },
+        { fileName: 'scripts-js.sas' },
+        { fileName: 'style-css.sas' },
+        { fileName: 'testing.js-map.sas' }
+      ],
+      subFolders: []
     }
   ]
 })
@@ -224,10 +212,11 @@ describe('sasjs web', () => {
 
       await expect(createWebAppServices(sasjsTarget)).toResolve()
 
-      const servicesFolder =
-        process.sasjsConstants.buildDestinationServicesFolder
+      // the entry page sits at the appLoc root and its assets beside it, not
+      // inside the services folder
+      const buildFolder = process.sasjsConstants.buildDestinationFolder
       const entry = (
-        await readFile(path.join(servicesFolder, 'clickme.html'))
+        await readFile(path.join(buildFolder, 'clickme.html'))
       ).toLowerCase()
 
       // the entry page carries the target's appLoc, not the frontend's own
@@ -237,36 +226,36 @@ describe('sasjs web', () => {
       // and every asset is fetched through the server's own file route, with
       // the appLoc it was deployed to baked in - as it is for Viya
       expect(entry).toContain(
-        'src="/storedprogram?_file=/public/app/anotherloc/services/websas/app.js"'
+        'src="/storedprogram?_file=/public/app/anotherloc/websas/app.js"'
       )
       expect(entry).toContain(
-        'href="/storedprogram?_file=/public/app/anotherloc/services/websas/app.css"'
+        'href="/storedprogram?_file=/public/app/anotherloc/websas/app.css"'
       )
 
       // the asset itself is a file in the deployment, not a service
       await expect(
-        readFile(path.join(servicesFolder, 'websas', 'app.js'))
+        readFile(path.join(buildFolder, 'websas', 'app.js'))
       ).resolves.toEqual('console.log(1)')
 
       // The chunk is not named in index.html, but must still be deployed.
       await expect(
-        readFile(path.join(servicesFolder, 'websas', '15.ba407bec.js'))
+        readFile(path.join(buildFolder, 'websas', '15.ba407bec.js'))
       ).resolves.toEqual('console.log("lazy chunk")')
 
       // a lazily loaded chunk is named by the runtime, not by the entry page, so
       // the runtime's public path is what sends it to the deployment folder
       const runtime = await readFile(
-        path.join(servicesFolder, 'websas', 'runtime.js')
+        path.join(buildFolder, 'websas', 'runtime.js')
       )
       expect(runtime).toContain(
-        't.p="/StoredProgram?_FILE=/Public/app/AnotherLoc/services/websas/"'
+        't.p="/StoredProgram?_FILE=/Public/app/AnotherLoc/websas/"'
       )
 
       // the copy of the entry page in the asset folder is served as a web app in
       // its own right - an app stream on this server - and it has to talk to the
       // appLoc the deployment was made to, not the one the frontend was built for
       const folderEntry = (
-        await readFile(path.join(servicesFolder, 'websas', 'index.html'))
+        await readFile(path.join(buildFolder, 'websas', 'index.html'))
       ).toLowerCase()
       expect(folderEntry).toContain('apploc="/public/app/anotherloc"')
       expect(folderEntry).not.toContain('/public/app/default')

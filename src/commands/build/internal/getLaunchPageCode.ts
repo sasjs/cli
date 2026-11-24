@@ -10,7 +10,7 @@ data _null_;
  urlEscaped = tranwrd(trim(url)," ","%20");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
- putlog "NOTE- " urlEscaped +(-1) "?_program=&appLoc/services/${streamServiceName}" ;
+ putlog "NOTE- " urlEscaped +(-1) "?_program=&appLoc/${streamServiceName}" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";
 run;
 `
@@ -36,7 +36,7 @@ data _null_;
    else url="&systcpiphostname";
  end;
  else url="&systcpiphostname";
- url=cats(url,"${filePath}&appLoc/services/");
+ url=cats(url,"${filePath}&appLoc/");
  urlEscaped = tranwrd(trim(url)," ","%20");
  putlog "NOTE: SASjs Streaming App Created! Check it out here:" ;
  putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";putlog "NOTE- ";

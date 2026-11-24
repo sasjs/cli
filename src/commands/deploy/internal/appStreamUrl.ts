@@ -5,8 +5,8 @@ import { withoutTrailingSlash } from '../../../utils/url'
  * The address a streamed app's entry page answers on.
  *
  * The build rewrote the app's asset links through the same route, so this is
- * the page that can actually load them: one level above the folder holding the
- * assets, read by name. Viya answers it at the job execution route and SASjs
+ * the page that can actually load them: at the appLoc root, beside the folder
+ * holding the assets, read by name. Viya answers it at the job execution route and SASjs
  * server at its Drive API; the two spellings are fixed here rather than in each
  * deploy path, so the address printed and the address built into the page
  * cannot disagree.
@@ -27,7 +27,7 @@ export const streamedAppUrl = (
   // a published name would end the value early or name a different file
   return `${withoutTrailingSlash(serverUrl)}${route}${encodeURI(
     appLoc
-  )}/services/${encodeURIComponent(streamServiceName)}.html`
+  )}/${encodeURIComponent(streamServiceName)}.html`
 }
 
 /**

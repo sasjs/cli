@@ -1,4 +1,35 @@
-export const sasjsout = () => `
+/**
+ * The pattern that recovers an asset program's appLoc from its `_program`.
+ *
+ * An asset program's path is `<appLoc>/<streamWebFolder>/<asset>` - the asset
+ * itself is a file in that folder, so the last segment is its name. The pattern
+ * is greedy up to the **last** occurrence of the folder: an appLoc may itself
+ * hold a segment with the folder's name (`/Public/web/app` with folder `web`),
+ * and cutting at the first would report `/Public` and send every asset link
+ * outside the app.
+ *
+ * It is a plain regex so the rule can be evaluated away from a SAS engine; the
+ * SAS 9 program applies the same pattern through `prxchange`.
+ */
+export const appLocPattern = (streamWebFolder: string): string =>
+  `^(.*)/${escapeRegExp(streamWebFolder)}/[^/]*$`
+
+/** The `prxchange` expression that applies {@link appLocPattern}. */
+export const appLocExpression = (streamWebFolder: string): string =>
+  `s#${appLocPattern(streamWebFolder)}#$1#`
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\#]/g, '\\$&')
+
+/**
+ * The SAS 9 stream helper, emitted into every streamed program.
+ *
+ * `streamWebFolder` is baked in because a SAS 9 program has no access to the
+ * target's configuration at run time: an asset program's `_program` is
+ * `<appLoc>/<folder>/<asset>`, and the folder is what tells the appLoc where to
+ * stop. The entry page sits at the appLoc root and needs no folder.
+ */
+export const sasjsout = (streamWebFolder: string = 'web') => `
 /* this macro is derived from: https://core.sasjs.io/mp__replace_8sas.html */
 options mprint;
 %macro mp_replace(infile,
@@ -158,9 +189,10 @@ run;
     length appLoc expanded_path $1048;
     if _n_=1 then do;
       retain pgm "&_program" appLoc expanded_path;
-      /* index is deployed in the /services/ folder under the appLoc */
-      appLoc=substr(pgm,1,find(pgm,'/services/')-1);
-      expanded_path=cats('?_PROGRAM=',appLoc,'/services/');
+      /* the entry page is deployed at the appLoc root, as <appLoc>/<name>, so
+         the appLoc is that program path without its last segment */
+      appLoc=prxchange('s#/[^/]+$##',1,pgm);
+      expanded_path=cats('?_PROGRAM=',appLoc);
     end;
     if find(_infile_,' appLoc: ') then put '    appLoc: ' apploc:$quote1048. ',';
     else if find(_infile_,' serverType: ') then do;
@@ -235,11 +267,16 @@ run;
     rc = fclose(fileout);
   run;
 
-  /* get appLoc from _program */
+  /* get appLoc from _program - an asset program is
+     <appLoc>/<folder>/<asset>, so the appLoc is what precedes that folder's
+     last occurrence in the path (see appLocPattern: an appLoc may itself hold a
+     segment with the folder's name). If the pattern does not match - an asset
+     registered somewhere else - fall back to dropping the program's own name. */
   data _null_;
     pgm="&_program";
-    appLoc=substr(pgm,1,find(pgm,'/services/')-1);
-    call symputx('apploc',cats(appLoc,'/services/'));
+    appLoc=prxchange("${appLocExpression(streamWebFolder)}",1,pgm);
+    if appLoc=pgm then appLoc=prxchange('s#/[^/]+$##',1,pgm);
+    call symputx('apploc',appLoc);
   run;
   %put &=fvar;
   %put &=apploc;

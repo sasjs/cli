@@ -1,15 +1,13 @@
 import {
   asyncForEach,
-  base64EncodeFile,
   chunk,
   createFile,
   folderExists,
   getDependencyPaths,
-  listFilesInFolder,
-  listSubFoldersInFolder,
   readFile,
   removeHeader,
   ServerType,
+  StreamConfig,
   Target
 } from '@sasjs/utils'
 import { ServerTypeError } from '@sasjs/utils/error'
@@ -24,12 +22,21 @@ import {
 } from '@sasjs/utils/types'
 import { compressAndSave } from '../../utils/compressAndSave'
 import { getMacroFolders, getStreamConfig } from '../../utils/config'
-import { isSasFile } from '../../utils/file'
-import { getCompileTree, loadDependencies } from '../compile/internal'
+import {
+  COMPILE_MANIFEST_NAME,
+  compileTreeFileName,
+  getCompileTree,
+  loadDependencies
+} from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import { appManifest, withAppManifest } from './internal/appManifest'
+import { excludedFromPack, getDeploymentTree } from './internal/deploymentTree'
+import { appManifest } from './internal/appManifest'
+import { packageTree } from './internal/appBundle'
+import { PUBLISH_FOLDER, publishFrontend } from './internal/publishFrontend'
 import { buildMockSite } from './internal/mockSite/mockSite'
+
+export { getWebServiceScriptInvocation } from './internal/webServiceInvocation'
 
 export async function build(target: Target) {
   const { macroCorePath } = process.sasjsConstants
@@ -59,13 +66,20 @@ export async function build(target: Target) {
     )
   }
 
-  await createFinalSasFiles(target)
+  const streamConfig = await getStreamConfig(target)
 
-  // streamConfig.mockWeb opts the target into a static site that runs the same
-  // services in a browser. It is built from what compile just produced, so it
-  // is only meaningful after the tree above exists.
-  if (target.streamConfig?.mockWeb) {
-    await buildMockSite(target)
+  await createFinalSasFiles(target, streamConfig)
+
+  // `mockWeb` opts the target into a standalone static site that runs the same
+  // services in a browser, with no SAS and no SASjs Server. It is a third
+  // artefact, built after the pack from the same compile output, and it is never
+  // part of the pack: a site that needs a localhost static server is not the
+  // frontend a server deploys, and the build folder is not where it lives.
+  if (streamConfig.mockWeb) {
+    const mockSite = await buildMockSite(target)
+    process.logger?.info(
+      `Mock site built at ${mockSite.outputFolder} - serve it over http to run the app in a browser (service workers need http, not file://). It is not deployed.`
+    )
   }
 }
 
@@ -95,15 +109,28 @@ const logPackedFileCounts = (tree: FileTree | FolderMember) => {
   )
 }
 
-async function createFinalSasFiles(target: Target) {
+async function createFinalSasFiles(target: Target, streamConfig: StreamConfig) {
   process.logger?.info('Creating output SAS and JSON files.')
-
-  const streamConfig = await getStreamConfig(target)
 
   const streamWeb = streamConfig.streamWeb ?? false
   const { buildConfig, serverType, name } = target
   const macroFolders = await getMacroFolders(target)
   const buildOutputFileName = buildConfig?.buildOutputFileName ?? `${name}.sas`
+
+  // SAS 9 registers the streamed entry page as a stored process whose program
+  // is a file at the root of the build - the same folder the deploy script is
+  // written to. One file name cannot be both, and the build would silently
+  // overwrite the entry page with the script that creates it.
+  if (
+    streamWeb &&
+    serverType === ServerType.Sas9 &&
+    `${streamConfig.streamServiceName}.sas` === buildOutputFileName
+  ) {
+    throw new Error(
+      `The streamed entry page and the build output would both be ${buildOutputFileName}. ` +
+        `Set a different streamConfig.streamServiceName or buildConfig.buildOutputFileName.`
+    )
+  }
 
   const { buildDestinationFolder } = process.sasjsConstants
 
@@ -137,8 +164,38 @@ async function createFinalSasFiles(target: Target) {
 
   finalSasFileContent += `\n${dependenciesContent}\n\n${buildInit}\n`
 
-  const { folderContent, folderContentJSON } =
-    await getFolderContent(serverType)
+  // A SASjs Server target with `streamWeb` produces two real frontends: the
+  // streamed copy inside the deployment, and the compiled frontend the server
+  // publishes at `apps/<name>`. The second is built here, on disk, so it can be
+  // inspected before it is packed - and so a stale one can be deleted before a
+  // rebuild rather than silently reused.
+  const packageBundle = target.serverType === ServerType.Sasjs && streamWeb
+  const publishFolder = path.join(buildDestinationFolder, PUBLISH_FOLDER)
+  if (packageBundle) {
+    await publishFrontend(target, streamConfig, publishFolder)
+  }
+
+  const excluded = excludedFromPack(target, publishFolder)
+
+  // The build's own outputs sit in the build folder's root, where the streamed
+  // entry page also lands: the compile tree, the deploy script, the pack and its
+  // zip. They are outputs of the previous step, not content to deploy, and a
+  // second build over the same folder must not pack them. Matching those names
+  // rather than their extensions leaves a project's own root file - a PWA
+  // manifest.json, an asset manifest - in the deployment, where it belongs.
+  const isBuildOutputFile = (fileName: string) =>
+    fileName === `${name}.json` ||
+    fileName === `${name}.json.zip` ||
+    fileName === compileTreeFileName(name) ||
+    fileName === COMPILE_MANIFEST_NAME ||
+    fileName === buildOutputFileName
+
+  const { folderContent, folderContentJSON } = await getDeploymentTree(
+    serverType,
+    buildDestinationFolder,
+    excluded,
+    isBuildOutputFile
+  )
 
   logPackedFileCounts(folderContentJSON)
 
@@ -158,17 +215,25 @@ async function createFinalSasFiles(target: Target) {
       streamConfig.streamServiceName as string
     )
 
-    if (target.serverType === ServerType.Sasjs) {
-      servicePackSASjs.streamLogo = streamConfig.streamLogo
-      servicePackSASjs.streamServiceName = streamConfig.streamServiceName
-      servicePackSASjs.streamWebFolder = streamConfig.streamWebFolder
+    // The deployment and the statement that it is an app travel together: one
+    // upload carries the backend written to `appLoc` and the frontend published
+    // as `apps/<name>`, and the server reads the manifest in the same request
+    // that writes the files. It also means the zip a CI job keeps is everything
+    // needed to publish.
+    if (packageBundle) {
+      // the published frontend needs only its tree: the SAS text a deployment
+      // needs would be built per asset and thrown away
+      const { folderContentJSON: frontendTree } = await getDeploymentTree(
+        serverType,
+        publishFolder,
+        [],
+        undefined,
+        false
+      )
 
-      // The deployment and the statement that it is an app travel together: the
-      // server indexes the app from this file in the same request that writes the
-      // files, so a publish cannot fail on its own after a deploy succeeded. It
-      // also means the zip a CI job keeps is everything needed to publish.
-      servicePackSASjs.fileTree = withAppManifest(
+      servicePackSASjs.fileTree = packageTree(
         folderContentJSON,
+        frontendTree,
         appManifest(streamConfig, target.appLoc)
       )
     }
@@ -337,234 +402,6 @@ async function getCreateFileScript(serverType: ServerType) {
     default:
       throw new ServerTypeError([ServerType.SasViya, ServerType.Sasjs])
   }
-}
-
-export function getWebServiceScriptInvocation(
-  serverType: ServerType,
-  isSASFile: boolean = true,
-  encoded: boolean = false,
-  fileName?: string
-) {
-  const encodedParam = encoded ? ', intype=BASE64' : ''
-
-  switch (serverType) {
-    case ServerType.SasViya:
-      let swapString = ''
-
-      if (fileName) {
-        const extension = fileName?.split('.').pop()?.toLowerCase() || ''
-
-        if (['html', 'css', 'js'].includes(extension)) {
-          swapString = `,swap=compiled_apploc apploc`
-        }
-      }
-
-      return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode,replace=yes)`
-        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam}${swapString})`
-    case ServerType.Sas9:
-      return isSASFile
-        ? `%mm_createwebservice(path=&appLoc/&path, name=&service, code=sascode, server=&serverName, replace=yes)`
-        : `%mm_createwebservice(path=&appLoc/&path, name=&filename, code=filecode, server=&serverName, replace=yes)`
-    case ServerType.Sasjs:
-      return isSASFile
-        ? `%mv_createwebservice(path=&appLoc/&path, name=&service, code=sascode,replace=yes)`
-        : `%mv_createfile(path=&appLoc/&path, name=&filename, inref=filecode${encodedParam})`
-    default:
-      throw new ServerTypeError()
-  }
-}
-
-/**
- * Folders inside of `SASJS` folder are converted to JSON structure.
- * That JSON file is used to deploy services, jobs and tests.
- * Services are deployed as direct subfolders within the appLoc.
- * Jobs are deployed within a jobs folder within the appLoc.
- * Tests are deployed within a tests folder within the appLoc.
- * @param {ServerType} serverType
- */
-async function getFolderContent(serverType: ServerType): Promise<{
-  folderContent: string
-  folderContentJSON: FileTree
-}> {
-  const { buildDestinationFolder } = process.sasjsConstants
-  const buildSubFolders = await listSubFoldersInFolder(buildDestinationFolder)
-
-  let folderContent = ''
-  const folderContentJSON: FileTree = { members: [] }
-  await asyncForEach(buildSubFolders, async (subFolder) => {
-    const { content, contentJSON } = await getContentFor(
-      buildDestinationFolder,
-      path.join(buildDestinationFolder, subFolder),
-      serverType
-    )
-
-    folderContent += `\n${content}`
-
-    folderContentJSON.members.push(contentJSON)
-  })
-
-  return { folderContent, folderContentJSON }
-}
-
-async function getContentFor(
-  rootDirectory: string,
-  folderPath: string,
-  serverType: ServerType
-): Promise<{ content: string; contentJSON: FolderMember }> {
-  const folderName = path.basename(folderPath)
-
-  let content = `\n%let path=${folderPath
-    .replace(rootDirectory, '')
-    .substr(1)
-    .split(path.sep)
-    .join('/')};\n`
-
-  const contentJSON: FolderMember = {
-    name: folderName,
-    type: MemberType.folder,
-    members: []
-  }
-
-  const files = await listFilesInFolder(folderPath)
-
-  await asyncForEach(files, async (file) => {
-    const filePath = path.join(folderPath, file)
-
-    if (isSasFile(file)) {
-      const fileContent = removeHeader(await readFile(filePath), filePath)
-      const transformedContent = getServiceText(file, fileContent, serverType)
-      content += `\n${transformedContent}\n`
-
-      contentJSON.members!.push({
-        name: file.replace(/.sas$/, ''),
-        type: MemberType.service,
-        code: removeHeader(fileContent, filePath)
-      })
-    } else {
-      const fileContentEncoded = await base64EncodeFile(filePath)
-
-      const transformedContent = getFileText(
-        file,
-        fileContentEncoded,
-        serverType
-      )
-      content += `\n${transformedContent}\n`
-
-      contentJSON.members!.push({
-        name: file.replace(/.sas$/, ''),
-        type: MemberType.file,
-        code: fileContentEncoded,
-        // the deploy format carries text by default; a built asset is bytes
-        encoding: 'base64'
-      })
-    }
-  })
-
-  const subFolders = await listSubFoldersInFolder(folderPath)
-
-  await asyncForEach(subFolders, async (subFolder) => {
-    const { content: childContent, contentJSON: childContentJSON } =
-      await getContentFor(
-        rootDirectory,
-        path.join(folderPath, subFolder),
-        serverType
-      )
-
-    contentJSON.members!.push(childContentJSON)
-    content += childContent
-  })
-
-  return { content, contentJSON }
-}
-
-function getServiceText(
-  serviceFileName: string,
-  fileContent: string,
-  serverType: ServerType
-) {
-  const serviceName = serviceFileName.replace(/.sas$/, '')
-  const sourceCodeLines = getLines(fileContent)
-  let content = ``
-  sourceCodeLines.forEach((line) => {
-    const escapedLine = line.split("'").join("''")
-    if (escapedLine.trim()) {
-      content += `\n put '${escapedLine.trim()}';`
-    }
-  })
-  return `%let service=${serviceName};
-filename sascode temp lrecl=32767;
-data _null_;
-file sascode;
-${content}\n
-run;
-${
-  serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType)
-    : ''
-}
-filename sascode clear;
-`
-}
-
-function getFileText(
-  fileName: string,
-  fileContent: string,
-  serverType: ServerType
-) {
-  const fileExtension = path.extname(fileName).substring(1).toUpperCase()
-
-  const { content, maxLineLength } = getWebFileContent(
-    fileContent,
-    fileExtension
-  )
-
-  return `%let filename=${fileName};
-filename filecode temp lrecl=${maxLineLength};
-data _null_;
-file filecode;
-${content}\n
-run;
-${
-  serverType !== ServerType.Sasjs
-    ? getWebServiceScriptInvocation(serverType, false, true, fileName)
-    : ''
-}
-filename filecode clear;
-`
-}
-
-function getWebFileContent(filecontent: string, type: string) {
-  let parsedContent = ''
-
-  const chunkedLines = chunk(filecontent)
-  if (chunkedLines.length === 1) {
-    parsedContent = ` put '${chunkedLines[0].split("'").join("''")}';\n`
-  } else {
-    let combinedLines = ''
-    chunkedLines.forEach((chunkedLine, index) => {
-      let text = ` put '${chunkedLine.split("'").join("''")}'`
-      if (index !== chunkedLines.length - 1) text += '@;\n'
-      else text += ';\n'
-
-      combinedLines += text
-    })
-    parsedContent += combinedLines
-  }
-  const maxLineLength = Math.max(32767, filecontent.length)
-
-  return { content: parsedContent, maxLineLength }
-}
-
-function getLines(text: string): string[] {
-  if (!text) {
-    return []
-  }
-  let lines = text
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((l) => l.trim())
-  return lines
 }
 
 export async function getBuildVars(target: Target) {

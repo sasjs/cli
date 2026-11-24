@@ -28,7 +28,7 @@ const exampleStreamConfig: StreamConfig = {
 }
 
 export async function createWebAppServices(target: Target) {
-  const { buildDestinationServicesFolder } = process.sasjsConstants
+  const { buildDestinationFolder } = process.sasjsConstants
 
   const streamConfig = await getStreamConfig(target)
 
@@ -37,8 +37,12 @@ export async function createWebAppServices(target: Target) {
 
   await createBuildDestinationFolder()
 
+  // The streamed assets live directly under the appLoc, beside the services
+  // folder rather than inside it: `<appLoc>/web` by default, and whatever
+  // `streamWebFolder` names otherwise. The entry page sits at the appLoc root,
+  // so the folder holding the assets and the page opening it are siblings.
   const destinationPath = path.join(
-    buildDestinationServicesFolder,
+    buildDestinationFolder,
     streamConfig.streamWebFolder
   )
   await createTargetDestinationFolder(destinationPath)
@@ -95,14 +99,15 @@ export async function createWebAppServices(target: Target) {
     case ServerType.Sas9:
       await createClickMeService(
         indexHtml.serialize(),
-        streamConfig.streamServiceName as string
+        streamConfig.streamServiceName as string,
+        streamConfig.streamWebFolder
       )
 
       break
 
     // SASjs server reads a Drive file by name, so its entry page is the same
-    // file everywhere else's is: `<services>/<name>.html`, one level above the
-    // folder holding the assets
+    // file everywhere else's is: `<appLoc>/<name>.html`, beside the folder
+    // holding the assets
     case ServerType.Sasjs:
       await createClickMeFile(
         indexHtml.serialize(),
@@ -117,13 +122,13 @@ export async function createWebAppServices(target: Target) {
       )
   }
 
-  // The folder holding the assets is itself served as a web app - an app stream
-  // on SASjs server, and whatever a web server is pointed at elsewhere - and the
-  // entry page the frontend was built with sits in it. Left as the frontend
-  // wrote it, that copy names the appLoc the frontend was compiled against, so a
-  // deployment to any other appLoc talks to a different one. Replacing the copied
-  // index.html with the rewritten entry makes every copy of the frontend resolve
-  // to this target's appLoc, through the route the entry page above already uses.
+  // The folder holding the assets may itself be opened - a web server pointed at
+  // it, for instance - and the entry page the frontend was built with sits in
+  // it. Left as the frontend wrote it, that copy names the appLoc the frontend
+  // was compiled against, so a deployment to any other appLoc talks to a
+  // different one. Replacing the copied index.html with the rewritten entry
+  // makes every copy of the frontend resolve to this target's appLoc, through
+  // the route the entry page above already uses.
   if (
     target.serverType === ServerType.SasViya ||
     target.serverType === ServerType.Sasjs

@@ -1,41 +1,18 @@
-import { FileTree, MemberType, StreamConfig } from '@sasjs/utils'
+import { APP_MANIFEST } from '@sasjs/api'
+import { StreamConfig } from '@sasjs/utils'
 
-/**
- * The file, at the root of a deployment, that says the folder is an app.
- *
- * It carries what a deploy payload names for a stream today - the label, the
- * folder the compiled assets are in, the logo - inside the deployment itself, so
- * one upload can be both the deployment and the publish.
- *
- * **This ships ahead of the reader.** The manifest is read by `splitAppBundle` in
- * sasjs/api (PR #65), which takes it out of the tree before the tree is written
- * and indexes the app in the same request; no released `@sasjs/api`, `@sasjs/adapter`
- * or `sasjs/server` knows the file yet, so until a host adopts that package the
- * manifest is deployed as an ordinary file and the publish still comes from the
- * payload's `streamWebFolder` / `streamServiceName`, exactly as now. The name has
- * to match `APP_MANIFEST` in that package - `sasjs.app.json` is spelled here
- * rather than imported because the deployment does not ship the package.
- */
-export const APP_MANIFEST = 'sasjs.app.json'
+// The file name is `@sasjs/api`'s own constant, imported rather than copied: the
+// names on both sides have to match, and the package the CLI builds against is
+// the one a server reads the manifest with.
+export { APP_MANIFEST }
 
+/** What a bundle states about the app it publishes. */
 export interface AppManifest {
-  /** The label the app is listed under. */
+  /** The label the app is listed under, and so `apps/<name>`. */
   name?: string
-  /**
-   * The folder this deployment is written to.
-   *
-   * A streamed deployment carries its web assets inside the backend's folder, so
-   * `streamWebFolder` alone says where the assets sit but not what they sit in:
-   * the deploy writes one tree to `appLoc`. The deploy payload states it today,
-   * but the archive is meant to be everything needed to publish, and a host that
-   * reads the manifest out of a zip has no payload to consult - it refuses a
-   * legacy bundle with no `appLoc` with "appLoc is required when
-   * streamWebFolder is stated".
-   */
+  /** The folder the bundle's `backend/` is written to. */
   appLoc?: string
-  /** The folder under `services/` holding the compiled web app. */
-  streamWebFolder: string
-  /** An asset inside the app, used as its tile image. */
+  /** An asset inside the published frontend, used as its tile image. */
   logo?: string
 }
 
@@ -47,7 +24,7 @@ export interface AppManifest {
  * defaults would freeze that default into every deployment.
  *
  * `appLoc` comes from the target rather than the stream configuration, which is
- * why it is passed in: it is where the deployment goes, not how it streams.
+ * why it is passed in: it is where the backend goes, not how it streams.
  */
 export const appManifest = (
   streamConfig: StreamConfig,
@@ -57,31 +34,5 @@ export const appManifest = (
     ? { name: streamConfig.streamServiceName }
     : {}),
   ...(appLoc ? { appLoc } : {}),
-  streamWebFolder: streamConfig.streamWebFolder,
   ...(streamConfig.streamLogo ? { logo: streamConfig.streamLogo } : {})
-})
-
-/**
- * The deployment tree with the manifest at its root.
- *
- * A tree that already carries a manifest - a build output adjusted by hand, or a
- * bundle built twice - has it replaced rather than duplicated, because two files
- * with one name in one folder is not a tree any host can deploy.
- */
-export const withAppManifest = (
-  tree: FileTree,
-  manifest: AppManifest
-): FileTree => ({
-  ...tree,
-  members: [
-    ...tree.members.filter(
-      (member) =>
-        !(member.type === MemberType.file && member.name === APP_MANIFEST)
-    ),
-    {
-      name: APP_MANIFEST,
-      type: MemberType.file,
-      code: JSON.stringify(manifest, null, 2)
-    }
-  ]
 })
