@@ -473,8 +473,14 @@ describe('browser-hosted build', () => {
     createProject(root)
     process.projectDir = root
     ;(process as any).sasjsConfig = { syncFolder: 'sasjs' }
+    const buildFolder = path.join(root, 'sasjsbuild')
     process.sasjsConstants = {
-      buildDestinationFolder: path.join(root, 'sasjsbuild')
+      buildDestinationFolder: buildFolder,
+      buildDestinationServicesFolder: path.join(buildFolder, 'services'),
+      buildDestinationJobsFolder: path.join(buildFolder, 'jobs'),
+      buildDestinationTestFolder: path.join(buildFolder, 'tests'),
+      buildDestinationDbFolder: path.join(buildFolder, 'db'),
+      buildDestinationDocsFolder: path.join(buildFolder, 'docs')
     } as any
     process.logger = { warn: jest.fn(), info: jest.fn() } as any
   })
@@ -2350,6 +2356,35 @@ describe('browser-hosted build', () => {
 
     expect(fs.existsSync(path.join(out(), '404.html'))).toBe(true)
     expect(fs.existsSync(path.join(out(), '404.js'))).toBe(true)
+  })
+
+  it('refuses a mockWebFolder the build itself writes', async () => {
+    // the site deletes the folder it is written to, so pointing it at the
+    // deployment would replace the deployment with a site the pack excludes
+    const cases: [{ [key: string]: any }, RegExp][] = [
+      [{ mockWebFolder: 'sasjsbuild/services' }, /one the build writes/],
+      [{ mockWebFolder: 'sasjsbuild/services/public' }, /one the build writes/],
+      [{ mockWebFolder: 'sasjsbuild/jobs' }, /one the build writes/],
+      [{ mockWebFolder: 'sasjsbuild/publish' }, /one the build writes/],
+      [
+        {
+          mockWebFolder: 'sasjsbuild/web',
+          streamWeb: true,
+          streamWebFolder: 'web'
+        },
+        /one the build writes/
+      ]
+    ]
+
+    for (const [streamConfig, expected] of cases) {
+      await expect(buildMockSite(target(streamConfig))).rejects.toThrow(
+        expected
+      )
+    }
+
+    expect(
+      fs.existsSync(path.join(root, 'sasjsbuild', 'services', 'public'))
+    ).toBe(true)
   })
 
   it('refuses a mockWebFolder outside the project', async () => {

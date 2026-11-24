@@ -155,6 +155,37 @@ describe('the frontend published to a SASjs server app', () => {
     expect(css).toContain('url(data:image/png;base64,AAAA)')
   })
 
+  it('treats CSS function and at-rule names as case-insensitive', async () => {
+    write(
+      'client/dist/index.html',
+      '<html><head><style>.a{background:URL(/assets/bg.png)}</style>' +
+        '</head><body></body></html>'
+    )
+    write(
+      'client/dist/assets/style.css',
+      '@IMPORT "/assets/reset.css";.b{background:URL(/assets/bg.png)}'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    // the rewrite lower-cases the function/at-rule name, which CSS allows
+    expect(read('index.html')).toContain('url(./assets/bg.png)')
+    const css = read('assets/style.css')
+    expect(css).toContain('@import "./reset.css"')
+    expect(css).toContain('url(./bg.png)')
+  })
+
+  it('rewrites the xlink:href form an SVG sprite uses', async () => {
+    write(
+      'client/dist/index.html',
+      '<html><head></head><body><svg><use xlink:href="/assets/icons.svg#x"></use></svg></body></html>'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    expect(read('index.html')).toContain('xlink:href="./assets/icons.svg#x"')
+  })
+
   it('resolves a stylesheet reference in a sibling folder with ..', async () => {
     write('client/dist/index.html', '<html><head></head><body></body></html>')
     write(

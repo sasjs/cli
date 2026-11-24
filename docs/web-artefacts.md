@@ -95,6 +95,11 @@ The site is not a deployment artefact:
 - it is never published as the server app;
 - `sasjs deploy` does not deploy it.
 
+A `mockWebFolder` inside the build folder is allowed, but the build refuses one that
+overlaps what it wrote - `services`, `jobs`, `tests`, `db`, `docs`, the streamed
+assets folder or `publish` - because the mock build deletes its output folder
+before writing, and those folders are not its to replace.
+
 `build` excludes a mock site from the pack by its marker file
 (`sasjs.mock.json`), so an explicit `mockWebFolder` inside the build folder - or
 one an earlier build left there under a path no longer configured - cannot

@@ -151,6 +151,17 @@ const adjustIndexHtml = (content: string, target: Target): string => {
     }
   }
 
+  // `xlink:href` is a namespaced attribute, which a selector would have to
+  // escape; an SVG sprite is the usual place an app names an icon file, so it is
+  // rewritten wherever it appears.
+  for (const element of Array.from(document.querySelectorAll('*'))) {
+    const value = element.getAttribute('xlink:href')
+    if (value === null) continue
+
+    const rewritten = relativise(value)
+    if (rewritten !== value) element.setAttribute('xlink:href', rewritten)
+  }
+
   for (const element of Array.from(document.querySelectorAll('[srcset]'))) {
     element.setAttribute(
       'srcset',
@@ -229,12 +240,12 @@ export const relativiseSrcset = (srcset: string): string => {
 export const relativiseCss = (css: string, folder: string = ''): string =>
   css
     .replace(
-      /url\(\s*(['"]?)\/(?!\/)([^)'"]*)\1\s*\)/g,
+      /url\(\s*(['"]?)\/(?!\/)([^)'"]*)\1\s*\)/gi,
       (_match, quote: string, reference: string) =>
         `url(${quote}${referenceRelativeTo(reference, folder)}${quote})`
     )
     .replace(
-      /@import\s+(['"])\/(?!\/)([^'"]*)\1/g,
+      /@import\s+(['"])\/(?!\/)([^'"]*)\1/gi,
       (_match, quote: string, reference: string) =>
         `@import ${quote}${referenceRelativeTo(reference, folder)}${quote}`
     )

@@ -451,6 +451,32 @@ const seedFromBuild = (
  * Exported because `deploymentTree` asks the same question of the folders it
  * keeps out of the pack; one implementation is what keeps the two answers equal.
  */
+/**
+ * The folders inside the build that the CLI writes itself.
+ *
+ * A mock site deletes the folder it is written to, so these are the ones it may
+ * not be pointed at - the deployment's own folders and the published frontend.
+ * Read from the constants rather than spelled out: a new folder the build writes
+ * should not silently become free space for a mock.
+ */
+const protectedBuildFolders = (target: Target): string[] => {
+  const constants = process.sasjsConstants
+  const buildFolder = constants.buildDestinationFolder
+  const folders = [
+    constants.buildDestinationServicesFolder,
+    constants.buildDestinationJobsFolder,
+    constants.buildDestinationTestFolder,
+    constants.buildDestinationDbFolder,
+    constants.buildDestinationDocsFolder,
+    path.join(buildFolder, 'publish')
+  ]
+
+  if (target.streamConfig?.streamWeb && target.streamConfig.streamWebFolder)
+    folders.push(path.join(buildFolder, target.streamConfig.streamWebFolder))
+
+  return folders.filter(Boolean)
+}
+
 export const isSameOrChild = (parent: string, child: string): boolean => {
   const relative = path.relative(parent, child)
 
@@ -465,14 +491,20 @@ export const isSameOrChild = (parent: string, child: string): boolean => {
 /**
  * `mockWebFolder` decides a folder that is deleted before it is written, so it
  * has to name a folder of its own. Anything that would delete the project, the
- * build output the drive is seeded from, or the web app it is copied from is
- * refused before a single file is touched.
+ * build output the drive is seeded from, the folders the CLI writes into it, or
+ * the web app it is copied from is refused before a single file is touched.
+ *
+ * A folder inside the build is allowed (an explicit `mockWebFolder` is honoured),
+ * but only one that does not overlap what the build wrote: pointing it at
+ * `sasjsbuild/services` or the streamed assets would delete the deployment and
+ * replace it with a site the pack then excludes.
  */
 const assertSafeOutputFolder = (
   outputFolder: string,
   projectDir: string,
   buildFolder: string,
-  webFolder: string
+  webFolder: string,
+  protectedFolders: string[] = []
 ) => {
   const refusal = (why: string) =>
     new Error(
@@ -484,6 +516,16 @@ const assertSafeOutputFolder = (
     throw refusal('that folder is the project folder or contains it')
   if (outputFolder === buildFolder)
     throw refusal('that folder holds the build output the drive is seeded from')
+  if (
+    protectedFolders.some(
+      (folder) =>
+        isSameOrChild(outputFolder, folder) ||
+        isSameOrChild(folder, outputFolder)
+    )
+  )
+    throw refusal(
+      "that folder is one the build writes - the deployment folders and the published frontend are not the mock site's to replace"
+    )
   if (isSameOrChild(outputFolder, webFolder))
     throw refusal('that folder holds the web app the site is copied from')
   if (isSameOrChild(webFolder, outputFolder))
@@ -1260,7 +1302,13 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
 
   const outputFolder = mockSiteOutputFolder(target)
 
-  assertSafeOutputFolder(outputFolder, projectDir, buildFolder, webFolder)
+  assertSafeOutputFolder(
+    outputFolder,
+    projectDir,
+    buildFolder,
+    webFolder,
+    protectedBuildFolders(target)
+  )
 
   // Read the drive before anything is written or removed: an unusable target
   // (SAS services, unreadable build folder) then leaves the previous site in
