@@ -13,7 +13,10 @@ import { excludedFromPack } from '../deploymentTree'
  * beneath it.
  */
 describe('the folders build keeps out of the pack', () => {
-  const projectDir = path.join(path.sep, 'project')
+  // resolved the same way `mockSiteOutputFolder` resolves a configured folder,
+  // so a drive-relative root (`\project` on Windows) does not compare as two
+  // different folders
+  const projectDir = path.resolve(path.sep, 'project')
   const buildFolder = path.join(projectDir, 'sasjsbuild')
   const publishFolder = path.join(buildFolder, 'publish')
 
