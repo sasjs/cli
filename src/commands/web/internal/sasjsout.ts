@@ -245,10 +245,23 @@ run;
   run;
 
   /* get appLoc from _program - an asset program is
-     <appLoc>/<streamfolder>/<path>, so the appLoc is what precedes that folder */
+     <appLoc>/<streamfolder>/<path>, so the appLoc is what precedes that folder.
+
+     The LAST occurrence is the one that counts: an appLoc may itself hold a
+     segment with the folder's name (appLoc /Public/web/app, folder web, program
+     /Public/web/app/web/main.js), and cutting at the first would report
+     /Public and send every asset link outside the app. */
   data _null_;
     pgm="&_program";
-    pos=index(pgm,cats('/&streamfolder/'));
+    folder=cats('/&streamfolder/');
+    pos=0;
+    from=1;
+    do while(from <= length(pgm));
+      found=index(substr(pgm,from),folder);
+      if found=0 then leave;
+      pos=from+found-1;
+      from=pos+1;
+    end;
     if pos>0 then appLoc=substr(pgm,1,pos-1);
     else appLoc=prxchange('s#/[^/]+$##',1,pgm);
     call symputx('apploc',appLoc);
