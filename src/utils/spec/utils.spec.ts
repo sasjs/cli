@@ -523,5 +523,23 @@ describe('utils', () => {
         `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
       )
     })
+
+    it('should probe one slash where the server URL carries a trailing one', async () => {
+      const get = jest
+        .spyOn(axios, 'get')
+        .mockImplementation(() => Promise.resolve({ data: { mode: 'server' } }))
+
+      const trailing = new Target({
+        name: 'trailing-slash',
+        appLoc: '/Public/test/',
+        serverType: ServerType.Sasjs,
+        serverUrl: 'https://sasjsserver.com/'
+      })
+
+      await expect(isSasJsServerInServerMode(trailing)).resolves.toEqual(true)
+      // the probe is composed from the target's own field, so a config that ends
+      // in a slash must not request a doubled path
+      expect(get).toHaveBeenCalledWith('https://sasjsserver.com/SASjsApi/info')
+    })
   })
 })

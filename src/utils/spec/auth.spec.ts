@@ -57,6 +57,23 @@ describe('getAuthUrl', () => {
       getAuthUrl(ServerType.Sasjs, 'https://server.example.com', 'my-client')
     ).not.toContain('#')
   })
+
+  it('should join one slash where the server URL carries a trailing one', () => {
+    // the address is one a person pastes into a browser, so a hand-written
+    // `https://host/` config must not produce a path no mount answers - the same
+    // join the printed deploy addresses take
+    expect(
+      getAuthUrl(ServerType.Sasjs, 'https://server.example.com/', 'my-client')
+    ).toBe(
+      'https://server.example.com/SASjsLogon?client_id=my-client&response_type=code'
+    )
+
+    expect(
+      getAuthUrl(ServerType.SasViya, 'https://viya.example.com///', 'my-client')
+    ).toBe(
+      'https://viya.example.com/SASLogon/oauth/authorize?client_id=my-client&response_type=code'
+    )
+  })
 })
 
 describe('fetchLoggedInUser', () => {
