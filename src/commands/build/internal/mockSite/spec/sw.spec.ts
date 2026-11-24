@@ -6411,6 +6411,108 @@ describe('the estate sign-in', () => {
     expect(withSecret.body.error).toBe('invalid_client')
   })
 
+  it('keeps a fixture-declared public client secret, rather than overwriting it', async () => {
+    // a site whose fixture names `sas.cli` has stated a secret for it, and the
+    // fixture is the site's own word about its clients: the estate's rule that the
+    // public client carries no secret must not turn a declared secret into a
+    // refusal of that secret and an acceptance of the empty one
+    ;(global as any).__sasjsIdentity = {
+      ...DEFAULT_IDENTITY,
+      clients: [
+        ...DEFAULT_IDENTITY.clients,
+        {
+          clientId: 'sas.cli',
+          clientSecret: 'declared-secret',
+          accessTokenExpiration: 600,
+          refreshTokenExpiration: 900
+        }
+      ]
+    }
+
+    const worker = loadWorker()
+
+    try {
+      const declared = await json(
+        exchange(
+          worker,
+          {
+            grant_type: 'password',
+            username: 'sasjsadmin',
+            password: 'Orion123'
+          },
+          'sas.cli',
+          'declared-secret'
+        )
+      )
+      expect(declared.status).toBe(200)
+      // the lifetimes are the declared record's, not the estate default the rule
+      // would have resolved
+      expect(declared.body.expires_in).toBe(600)
+
+      const secretless = await json(
+        exchange(
+          worker,
+          {
+            grant_type: 'password',
+            username: 'sasjsadmin',
+            password: 'Orion123'
+          },
+          'sas.cli',
+          ''
+        )
+      )
+      expect(secretless.status).toBe(401)
+      expect(secretless.body.error).toBe('invalid_client')
+    } finally {
+      // this describe sits outside the harness's `afterEach`, so a fixture set here
+      // is cleared here: a worker booted by the next case must not read it
+      delete (global as any).__sasjsIdentity
+    }
+  })
+
+  it('refuses a refresh token presented as another client', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const first = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+    expect(first.status).toBe(200)
+
+    // the public client carries no secret, so a check that only verified the
+    // client would hand a confidential client's pair to anyone who named it
+    const asPublic = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'refresh_token',
+          refresh_token: first.body.refresh_token
+        },
+        'sas.cli',
+        ''
+      )
+    )
+    expect(asPublic.status).toBe(401)
+    expect(asPublic.body.error).toBe('invalid_grant')
+    expect(asPublic.body.error_description).toBe(
+      'The refresh token was issued for another client.'
+    )
+
+    // refused before the rotation, in the server's own words: the pair the caller
+    // holds is still the one that rotates
+    const stillGood = await json(
+      exchange(worker, {
+        grant_type: 'refresh_token',
+        refresh_token: first.body.refresh_token
+      })
+    )
+    expect(stillGood.status).toBe(200)
+    expect(stillGood.body.access_token).not.toBe(first.body.access_token)
+  })
+
   it('challenges a failed client authentication, as RFC 6749 asks', async () => {
     const worker = loadWorker()
 
