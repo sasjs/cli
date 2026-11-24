@@ -1,9 +1,32 @@
 /**
+ * The pattern that recovers an asset program's appLoc from its `_program`.
+ *
+ * An asset program's path is `<appLoc>/<streamWebFolder>/<asset>` - the asset
+ * itself is a file in that folder, so the last segment is its name. The pattern
+ * is greedy up to the **last** occurrence of the folder: an appLoc may itself
+ * hold a segment with the folder's name (`/Public/web/app` with folder `web`),
+ * and cutting at the first would report `/Public` and send every asset link
+ * outside the app.
+ *
+ * It is a plain regex so the rule can be evaluated away from a SAS engine; the
+ * SAS 9 program applies the same pattern through `prxchange`.
+ */
+export const appLocPattern = (streamWebFolder: string): string =>
+  `^(.*)/${escapeRegExp(streamWebFolder)}/[^/]*$`
+
+/** The `prxchange` expression that applies {@link appLocPattern}. */
+export const appLocExpression = (streamWebFolder: string): string =>
+  `s#${appLocPattern(streamWebFolder)}#$1#`
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\#]/g, '\\$&')
+
+/**
  * The SAS 9 stream helper, emitted into every streamed program.
  *
  * `streamWebFolder` is baked in because a SAS 9 program has no access to the
  * target's configuration at run time: an asset program's `_program` is
- * `<appLoc>/<folder>/<path>`, and the folder is what tells the appLoc where to
+ * `<appLoc>/<folder>/<asset>`, and the folder is what tells the appLoc where to
  * stop. The entry page sits at the appLoc root and needs no folder.
  */
 export const sasjsout = (streamWebFolder: string = 'web') => `
@@ -111,7 +134,7 @@ run;
 
 %mend mp_replace;
 
-%macro sasjsout(type,fref=sasjs,streamfolder=${streamWebFolder});
+%macro sasjsout(type,fref=sasjs);
 %global sysprocessmode SYS_JES_JOB_URI;
 
 %if &type=JS or &type=JS64 %then %do;
@@ -245,25 +268,14 @@ run;
   run;
 
   /* get appLoc from _program - an asset program is
-     <appLoc>/<streamfolder>/<path>, so the appLoc is what precedes that folder.
-
-     The LAST occurrence is the one that counts: an appLoc may itself hold a
-     segment with the folder's name (appLoc /Public/web/app, folder web, program
-     /Public/web/app/web/main.js), and cutting at the first would report
-     /Public and send every asset link outside the app. */
+     <appLoc>/<folder>/<asset>, so the appLoc is what precedes that folder's
+     last occurrence in the path (see appLocPattern: an appLoc may itself hold a
+     segment with the folder's name). If the pattern does not match - an asset
+     registered somewhere else - fall back to dropping the program's own name. */
   data _null_;
     pgm="&_program";
-    folder=cats('/&streamfolder/');
-    pos=0;
-    from=1;
-    do while(from <= length(pgm));
-      found=index(substr(pgm,from),folder);
-      if found=0 then leave;
-      pos=from+found-1;
-      from=pos+1;
-    end;
-    if pos>0 then appLoc=substr(pgm,1,pos-1);
-    else appLoc=prxchange('s#/[^/]+$##',1,pgm);
+    appLoc=prxchange("${appLocExpression(streamWebFolder)}",1,pgm);
+    if appLoc=pgm then appLoc=prxchange('s#/[^/]+$##',1,pgm);
     call symputx('apploc',appLoc);
   run;
   %put &=fvar;

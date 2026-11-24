@@ -1,12 +1,45 @@
-import { sasjsout } from '../sasjsout'
+import { appLocExpression, appLocPattern, sasjsout } from '../sasjsout'
 
 /**
- * The SAS 9 stream helper, as text.
+ * How the SAS 9 helper recovers an asset program's appLoc.
  *
- * It cannot be executed here, so the properties that decide where an asset's
- * links point are pinned by reading: which folder is baked in, and how the appLoc
- * is recovered from `_program`.
+ * The rule is baked into the emitted program as a `prxchange` expression. It is
+ * evaluated here with the same pattern, so the behaviour is tested rather than
+ * the text that carries it: `appLocPattern` is the one source of the pattern, and
+ * `appLocExpression` wraps it for SAS.
  */
+const resolvedAppLoc = (program: string, streamWebFolder: string) => {
+  const match = program.match(new RegExp(appLocPattern(streamWebFolder)))
+
+  return match === null ? undefined : match[1]
+}
+
+describe('the appLoc an asset program resolves to', () => {
+  it.each([
+    ['/Public/app/web/main-js', 'web', '/Public/app'],
+    // an appLoc holding a segment with the folder's name: the LAST match wins
+    ['/Public/web/app/web/main-js', 'web', '/Public/web/app'],
+    // a nested asset folder
+    ['/Public/app/web/assets/main-js', 'web/assets', '/Public/app'],
+    ['/Public/web/app/web/assets/main-js', 'web/assets', '/Public/web/app'],
+    ['/Public/web/web/main-js', 'web', '/Public/web']
+  ])('resolves %s with folder %s to %s', (program, folder, expected) => {
+    expect(resolvedAppLoc(program, folder)).toEqual(expected)
+  })
+
+  it('matches nothing when the program is outside the folder', () => {
+    // the SAS falls back to dropping the program's own name in this case
+    expect(resolvedAppLoc('/Public/app/other/main-js', 'web')).toBeUndefined()
+  })
+
+  it('treats a regex character in the folder as text', () => {
+    expect(appLocPattern('web(1)')).toContain('web\\(1\\)')
+    expect(resolvedAppLoc('/Public/app/web(1)/main-js', 'web(1)')).toEqual(
+      '/Public/app'
+    )
+  })
+})
+
 describe('the SAS 9 stream helper', () => {
   beforeAll(() => {
     process.sasjsConstants = {
@@ -15,21 +48,17 @@ describe('the SAS 9 stream helper', () => {
     } as any
   })
 
-  it('bakes the stream folder into the program', () => {
-    expect(sasjsout('web')).toContain('streamfolder=web')
-    expect(sasjsout('assets')).toContain('streamfolder=assets')
+  it('bakes the appLoc expression into the program', () => {
+    expect(sasjsout('web')).toContain(appLocExpression('web'))
+    expect(sasjsout('web/assets')).toContain(appLocExpression('web/assets'))
   })
 
-  it('finds the LAST occurrence of the stream folder in the program path', () => {
+  it('applies it with prxchange and falls back when it does not match', () => {
     const macro = sasjsout('web')
 
-    // An appLoc may hold a segment with the folder's name: appLoc
-    // /Public/web/app with folder web gives the asset program
-    // /Public/web/app/web/main.js. Cutting at the first occurrence would report
-    // /Public, so the scan has to walk to the end.
-    expect(macro).toContain("folder=cats('/&streamfolder/')")
-    expect(macro).toContain('from=pos+1')
-    // and not the single-shot lookup that has that bug
-    expect(macro).not.toContain('pos=index(pgm,cats(')
+    expect(macro).toContain('prxchange("s#^(.*)/web/[^/]*$#$1#",1,pgm)')
+    expect(macro).toContain(
+      "if appLoc=pgm then appLoc=prxchange('s#/[^/]+$##',1,pgm);"
+    )
   })
 })

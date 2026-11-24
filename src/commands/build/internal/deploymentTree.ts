@@ -187,15 +187,27 @@ async function walkFolder(
 const shouldSkipFolder = (folderPath: string, excluded: string[]): boolean => {
   if (isMockSiteFolder(folderPath)) return true
 
-  return excluded.some((folder) => {
-    const relative = path.relative(folder, folderPath)
-    return (
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith('..' + path.sep) &&
-        !path.isAbsolute(relative))
-    )
-  })
+  return excluded.some((folder) => isSameOrChild(folder, folderPath))
+}
+
+/**
+ * Whether one folder is the other, or sits inside it.
+ *
+ * Both callers must answer this the same way: `path.relative(parent, child)`
+ * returns `''` for the folder itself, `..` for the parent and a `..`-prefixed
+ * path for a sibling - none of which is "inside". A check that forgets `..`
+ * treats the build's PARENT as if it were contained in the build, and excluding
+ * it then drops every deployment folder.
+ */
+const isSameOrChild = (parent: string, child: string): boolean => {
+  const relative = path.relative(parent, child)
+
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith('..' + path.sep) &&
+      !path.isAbsolute(relative))
+  )
 }
 
 /**
@@ -213,12 +225,10 @@ export const excludedFromPack = (
   const { buildDestinationFolder } = process.sasjsConstants
   const excluded = [publishFolder]
   const mockFolder = mockSiteOutputFolder(target)
-  const relative = path.relative(buildDestinationFolder, mockFolder)
 
   if (
-    relative !== '' &&
-    !relative.startsWith('..' + path.sep) &&
-    !path.isAbsolute(relative)
+    mockFolder !== buildDestinationFolder &&
+    isSameOrChild(buildDestinationFolder, mockFolder)
   ) {
     excluded.push(mockFolder)
   }
