@@ -1,4 +1,12 @@
-export const sasjsout = () => `
+/**
+ * The SAS 9 stream helper, emitted into every streamed program.
+ *
+ * `streamWebFolder` is baked in because a SAS 9 program has no access to the
+ * target's configuration at run time: an asset program's `_program` is
+ * `<appLoc>/<folder>/<path>`, and the folder is what tells the appLoc where to
+ * stop. The entry page sits at the appLoc root and needs no folder.
+ */
+export const sasjsout = (streamWebFolder: string = 'web') => `
 /* this macro is derived from: https://core.sasjs.io/mp__replace_8sas.html */
 options mprint;
 %macro mp_replace(infile,
@@ -103,7 +111,7 @@ run;
 
 %mend mp_replace;
 
-%macro sasjsout(type,fref=sasjs);
+%macro sasjsout(type,fref=sasjs,streamfolder=${streamWebFolder});
 %global sysprocessmode SYS_JES_JOB_URI;
 
 %if &type=JS or &type=JS64 %then %do;
@@ -158,9 +166,10 @@ run;
     length appLoc expanded_path $1048;
     if _n_=1 then do;
       retain pgm "&_program" appLoc expanded_path;
-      /* index is deployed in the /services/ folder under the appLoc */
-      appLoc=substr(pgm,1,find(pgm,'/services/')-1);
-      expanded_path=cats('?_PROGRAM=',appLoc,'/services/');
+      /* the entry page is deployed at the appLoc root, as <appLoc>/<name>, so
+         the appLoc is that program path without its last segment */
+      appLoc=prxchange('s#/[^/]+$##',1,pgm);
+      expanded_path=cats('?_PROGRAM=',appLoc);
     end;
     if find(_infile_,' appLoc: ') then put '    appLoc: ' apploc:$quote1048. ',';
     else if find(_infile_,' serverType: ') then do;
@@ -235,11 +244,14 @@ run;
     rc = fclose(fileout);
   run;
 
-  /* get appLoc from _program */
+  /* get appLoc from _program - an asset program is
+     <appLoc>/<streamfolder>/<path>, so the appLoc is what precedes that folder */
   data _null_;
     pgm="&_program";
-    appLoc=substr(pgm,1,find(pgm,'/services/')-1);
-    call symputx('apploc',cats(appLoc,'/services/'));
+    pos=index(pgm,cats('/&streamfolder/'));
+    if pos>0 then appLoc=substr(pgm,1,pos-1);
+    else appLoc=prxchange('s#/[^/]+$##',1,pgm);
+    call symputx('apploc',appLoc);
   run;
   %put &=fvar;
   %put &=apploc;

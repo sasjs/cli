@@ -9,7 +9,8 @@ import { sasjsout } from '../sasjsout'
  */
 export const getWebServiceContent = async (
   contentBase64: string,
-  type = 'JS'
+  type = 'JS',
+  streamWebFolder: string = 'web'
 ) => {
   let lines = [contentBase64]
 
@@ -20,7 +21,9 @@ export const getWebServiceContent = async (
     SVG: 'SVG64'
   }
 
-  let serviceContent = `${sasjsout()}\nfilename sasjs temp lrecl=99999999;
+  let serviceContent = `${sasjsout(
+    streamWebFolder
+  )}\nfilename sasjs temp lrecl=99999999;
 data _null_;
 file sasjs;
 `

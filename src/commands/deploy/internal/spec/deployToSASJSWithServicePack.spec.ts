@@ -79,7 +79,7 @@ describe('deployToSasjsWithServicePack output', () => {
     expect(logged()).toEqual([
       `Web app is available at ${target.serverUrl}/StoredProgram?_FILE=${encodeURI(
         target.appLoc
-      )}/services/MacroDash.html` +
+      )}/MacroDash.html` +
         ' (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)',
       `App stream: ${target.serverUrl}/app/0e6f1d2c/`
     ])

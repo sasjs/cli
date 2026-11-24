@@ -442,7 +442,7 @@ const createProject = (root: string) => {
 
 describe('browser-hosted build', () => {
   let root: string
-  const out = () => path.join(root, 'sasjsbuild', 'mock')
+  const out = () => path.join(root, 'sasjsresults', 'mock')
   const target = (streamConfig: { [key: string]: any } = {}) =>
     ({
       appLoc,

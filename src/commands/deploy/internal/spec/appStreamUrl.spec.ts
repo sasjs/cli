@@ -19,7 +19,7 @@ describe('the url a streamed deploy reports', () => {
     ).toBe(
       'https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html'
+        '/mario.html'
     )
   })
 
@@ -34,7 +34,7 @@ describe('the url a streamed deploy reports', () => {
     ).toBe(
       'https://viya.example/SASJobExecution?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html'
+        '/mario.html'
     )
   })
 
@@ -56,7 +56,7 @@ describe('the url a streamed deploy reports', () => {
     expect(said).toEqual([
       'Web app is available at https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html' +
+        '/mario.html' +
         ' (needs sasjs/server v7.23.0 or later, the release that serves the /StoredProgram tier)'
     ])
   })
@@ -133,7 +133,7 @@ describe('the url a published app reports', () => {
     ).toBe(
       'https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/mario.html'
+        '/mario.html'
     )
   })
 
@@ -165,7 +165,7 @@ describe('the url a published app reports', () => {
     ).toBe(
       'https://server.example/StoredProgram?_FILE=' +
         encodeURI('/Public/app') +
-        '/services/a%26b.html'
+        '/a%26b.html'
     )
   })
 

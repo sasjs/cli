@@ -9,10 +9,13 @@ import { sasjsout } from '../sasjsout'
  */
 export const createClickMeService = async (
   indexHtmlContent: string,
-  fileName: string
+  fileName: string,
+  streamWebFolder: string
 ) => {
   const lines = indexHtmlContent.replace(/\r\n/g, '\n').split('\n')
-  let clickMeServiceContent = `${sasjsout()}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
+  let clickMeServiceContent = `${sasjsout(
+    streamWebFolder
+  )}\nfilename sasjs temp lrecl=99999999;\ndata _null_;\nfile sasjs;\n`
 
   lines.forEach((line) => {
     const chunkedLines = chunk(line)
@@ -37,9 +40,9 @@ export const createClickMeService = async (
     }
   })
   clickMeServiceContent += 'run;\n%sasjsout(HTML)'
-  const { buildDestinationServicesFolder } = process.sasjsConstants
+  const { buildDestinationFolder } = process.sasjsConstants
   await createFile(
-    path.join(buildDestinationServicesFolder, `${fileName}.sas`),
+    path.join(buildDestinationFolder, `${fileName}.sas`),
     clickMeServiceContent
   )
 }

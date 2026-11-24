@@ -172,7 +172,7 @@ describe('executeDeployScriptSas9', () => {
     expect(process.logger?.info).toHaveBeenCalledWith(
       `Web app is available at ${target.serverUrl}/SASStoredProcess/?_PROGRAM=${encodeURI(
         target.appLoc
-      )}/services/clickme`
+      )}/clickme`
     )
   })
 
@@ -193,7 +193,7 @@ describe('executeDeployScriptSas9', () => {
     expect(process.logger?.info).toHaveBeenCalledWith(
       `Web app is available at ${target.serverUrl}/SASStoredProcess/?_PROGRAM=${encodeURI(
         target.appLoc
-      )}/services/a%26b`
+      )}/a%26b`
     )
   })
 })

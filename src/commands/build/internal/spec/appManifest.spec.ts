@@ -1,6 +1,6 @@
-import { FileTree, MemberType, StreamConfig } from '@sasjs/utils'
+import { StreamConfig } from '@sasjs/utils'
 
-import { APP_MANIFEST, appManifest, withAppManifest } from '../appManifest'
+import { appManifest } from '../appManifest'
 
 const streamConfig = (over: Partial<StreamConfig> = {}): StreamConfig =>
   ({
@@ -12,89 +12,45 @@ const streamConfig = (over: Partial<StreamConfig> = {}): StreamConfig =>
     ...over
   }) as StreamConfig
 
-const tree: FileTree = {
-  members: [
-    {
-      name: 'services',
-      type: MemberType.folder,
-      members: [{ name: 'run', type: MemberType.service, code: '%put hi;' }]
-    }
-  ]
-}
-
 describe('the app manifest a build writes', () => {
-  it('names the app the target names, and the folder its web build is in', () => {
-    expect(appManifest(streamConfig())).toEqual({
-      name: 'mario',
-      streamWebFolder: 'web'
-    })
+  it('names the app the target names', () => {
+    expect(appManifest(streamConfig())).toEqual({ name: 'mario' })
   })
 
   it('states a logo when the target has one', () => {
     expect(appManifest(streamConfig({ streamLogo: 'logo.png' }))).toEqual({
       name: 'mario',
-      streamWebFolder: 'web',
       logo: 'logo.png'
     })
   })
 
-  it('states the folder the target deploys to', () => {
-    // a streamed bundle is one tree written to `appLoc`, and the manifest is the
-    // only place a deploy that reads an archive can learn that folder
+  it('states the folder the backend is deployed to', () => {
+    // the bundle carries its backend separately from the frontend, so the
+    // manifest is where a deploy that reads an archive learns where the backend
+    // goes
     expect(appManifest(streamConfig(), '/Public/app/mario')).toEqual({
       name: 'mario',
-      appLoc: '/Public/app/mario',
-      streamWebFolder: 'web'
+      appLoc: '/Public/app/mario'
     })
   })
 
   it('states no appLoc when the target names none', () => {
-    expect(appManifest(streamConfig(), '')).toEqual({
-      name: 'mario',
-      streamWebFolder: 'web'
-    })
+    expect(appManifest(streamConfig(), '')).toEqual({ name: 'mario' })
   })
 
   it('states only what the target states', () => {
     // a manifest carrying `"name": undefined` is not JSON, and one carrying a
     // default would freeze that default into every deployment
-    const manifest = appManifest(streamConfig({ streamServiceName: '' }))
-
-    expect(Object.keys(manifest)).toEqual(['streamWebFolder'])
+    expect(
+      Object.keys(appManifest(streamConfig({ streamServiceName: '' })))
+    ).toEqual([])
   })
 
-  it('is added at the root of the deployment tree', () => {
-    const deployed = withAppManifest(tree, appManifest(streamConfig()))
-
-    const manifest = deployed.members.find(
-      (member) =>
-        member.type === MemberType.file && member.name === APP_MANIFEST
-    ) as { code: string }
-
-    expect(JSON.parse(manifest.code)).toEqual({
-      name: 'mario',
-      streamWebFolder: 'web'
-    })
-    // the deployment is untouched: the manifest is added, nothing is replaced
-    expect(deployed.members).toHaveLength(2)
-    expect(tree.members).toHaveLength(1)
-  })
-
-  it('replaces a manifest the tree already carries, rather than adding a second', () => {
-    const once = withAppManifest(tree, appManifest(streamConfig()))
-    const twice = withAppManifest(
-      once,
-      appManifest(streamConfig({ streamServiceName: 'luigi' }))
-    )
-
-    const manifests = twice.members.filter(
-      (member) =>
-        member.type === MemberType.file && member.name === APP_MANIFEST
-    )
-
-    expect(manifests).toHaveLength(1)
-    expect(JSON.parse((manifests[0] as { code: string }).code).name).toBe(
-      'luigi'
-    )
+  it('never states a stream folder', () => {
+    // `streamWebFolder` is what marks the legacy bundle, whose web assets sit
+    // inside the backend deployment. A package states the frontend as its own
+    // half, so naming a stream folder would make a host read it as the old
+    // shape and look for the app inside the deployment instead.
+    expect(appManifest(streamConfig())).not.toHaveProperty('streamWebFolder')
   })
 })

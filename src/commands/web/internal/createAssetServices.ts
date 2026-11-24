@@ -108,7 +108,8 @@ const createAssetsServicesNested = async (
         case ServerType.Sas9:
           const fileName = await generateAssetService(
             sourcePath,
-            destinationPath
+            destinationPath,
+            streamWebFolder
           )
           assetServiceUrl = getAssetPath(
             target.appLoc,

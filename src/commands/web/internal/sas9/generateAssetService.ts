@@ -10,7 +10,8 @@ import { getWebServiceContent } from './'
  */
 export const generateAssetService = async (
   sourcePath: string,
-  destinationPath: string
+  destinationPath: string,
+  streamWebFolder: string = 'web'
 ): Promise<string> => {
   const fileExtension = path.extname(sourcePath)
   const fileType = fileExtension.replace('.', '').toUpperCase()
@@ -19,7 +20,11 @@ export const generateAssetService = async (
     .replace(new RegExp(fileExtension + '$'), fileExtension.replace('.', '-'))
   const base64string = await base64EncodeFile(sourcePath)
 
-  const serviceContent = await getWebServiceContent(base64string, fileType)
+  const serviceContent = await getWebServiceContent(
+    base64string,
+    fileType,
+    streamWebFolder
+  )
 
   await createFile(
     path.join(destinationPath, `${fileName}.sas`),

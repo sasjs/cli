@@ -1,21 +1,14 @@
 import path from 'path'
 import { getStreamConfig } from '../../utils/config'
 import { withoutTrailingSlash } from '../../utils/url'
-import {
-  ServerType,
-  Target,
-  asyncForEach,
-  getAbsolutePath,
-  FileTree,
-  FolderMember,
-  MemberType
-} from '@sasjs/utils'
+import { ServerType, Target, asyncForEach, getAbsolutePath } from '@sasjs/utils'
 import { deployToSasViyaWithServicePack } from '../shared/deployToSasViyaWithServicePack'
 import {
   getDeployScripts,
   deployToSasjsWithServicePack,
   executeSasScript,
-  executeDeployScript
+  executeDeployScript,
+  streamedAppUrl
 } from './internal'
 
 /**
@@ -47,30 +40,25 @@ export async function deploy(target: Target, isLocal: boolean) {
         `Deploying service pack to ${target.serverUrl} at location ${appLoc} .`
       )
 
-      const jsonObject: FileTree = await deployToSasViyaWithServicePack(
+      await deployToSasViyaWithServicePack(
         finalFilePathJSON,
         target,
         isLocal,
         true
       )
 
-      const servicesFolder = jsonObject?.members.find<FolderMember>(
-        (member): member is FolderMember =>
-          member?.name === 'services' && member?.type === MemberType.folder
-      )
-
-      const webIndexFileName: string =
-        servicesFolder?.members?.find(
-          (member: any) => member?.type === MemberType.file
-        )?.name ?? ''
-
       process.logger?.success('Build pack has been successfully deployed.')
 
+      // a streamed app opens at its entry page at the appLoc root; the folder
+      // the deployment was written to is not an address of its own
       process.logger?.success(
-        target.serverType === ServerType.SasViya && webIndexFileName
-          ? `${withoutTrailingSlash(
-              target.serverUrl
-            )}/SASJobExecution?_file=${appLoc}/services/${webIndexFileName}`
+        streamConfig?.streamWeb && streamConfig.streamServiceName
+          ? streamedAppUrl(
+              target.serverUrl,
+              target.serverType,
+              target.appLoc,
+              streamConfig.streamServiceName
+            )
           : `${withoutTrailingSlash(
               target.serverUrl
             )}/SASJobExecution?_folder=${appLoc}`
