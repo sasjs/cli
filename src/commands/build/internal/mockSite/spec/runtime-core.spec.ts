@@ -1295,6 +1295,75 @@ webout('CLOSE')`
     expect(result.webout).toBe('')
   })
 
+  /**
+   * A service that stops before CLOSE leaves a complete JSON prefix, because
+   * webout() streams each member and CLOSE - the closing brace with it - sits
+   * after the payload. Served as it is that body is not JSON, so an app reports
+   * its own parse error instead of the refusal the service wrote.
+   */
+  const abortingService = [
+    "webout('OPEN')",
+    "webout('OBJ', 'sasjsAbort', [{ MSG: 'not authorised', MAC: 'mp_abort.sas' }])"
+  ].join('\n')
+
+  it('closes the envelope an aborted run left open', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // what mp_abort does: stream the refusal, then stop the program - so CLOSE,
+    // and the closing brace with it, is never reached
+    const result = runtime.run({
+      code: [abortingService, "throw new Error('not authorised')"].join('\n')
+    })
+
+    expect(result.error).toContain('not authorised')
+    // the whole point: the refusal is a body the caller can read
+    const body = JSON.parse(result.webout)
+    expect(body.sasjsAbort[0].MSG).toBe('not authorised')
+    expect(result.log).toContain('the host closed the response envelope')
+  })
+
+  it('closes it for a service that stops without throwing, too', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // Not every service that aborts throws: a guard clause, or a wrapper that
+    // swallowed the throw, ends the program by returning. The run reports no
+    // error, so the host would serve the prefix as a 200 with
+    // `content-type: application/json` and nothing would name the defect.
+    const result = runtime.run({ code: [abortingService, 'return'].join('\n') })
+
+    expect(result.error).toBeNull()
+    const body = JSON.parse(result.webout)
+    expect(body.sasjsAbort[0].MSG).toBe('not authorised')
+  })
+
+  it('closes a streamed envelope a program forgot to close', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    const result = runtime.run({
+      code: "webout('OPEN')\nwebout('OBJ', 'users', [{ name: 'ann' }])"
+    })
+
+    // finalise names the missing CLOSE, and the body is still readable
+    expect(result.log).toContain(
+      "webout('OPEN') was called but webout('CLOSE') was not"
+    )
+    expect(JSON.parse(result.webout).users).toEqual([{ name: 'ann' }])
+  })
+
+  it('leaves a body the host did not open alone', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // a program that writes its own truncated JSON is answering with what it
+    // wrote; appending a brace there would be inventing output
+    const result = runtime.run({ code: `_webout = '{"mine":1'` })
+
+    expect(result.webout).toBe('{"mine":1')
+  })
+
   it('carries the message when the stack does not, as WebKit reports one', () => {
     const runtime = loadRuntime()
 

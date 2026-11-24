@@ -1173,6 +1173,29 @@ describe('service worker host', () => {
     expect(await response.text()).toBe('seeded')
   })
 
+  it('serves a refusal from a service that stopped before CLOSE as JSON', async () => {
+    // The body the app receives is the point: a service that writes the refusal
+    // and stops - mp_abort's throw, or any early exit after it - leaves the
+    // envelope open, and served as it is the app's JSON.parse fails, so it shows
+    // its own parse error instead of the service's message.
+    const worker = loadWorker('', { prelude: true, skipLint: true })
+    worker.runtime.load({
+      [drivePath('services/public/refuse.js')]: [
+        "webout('OPEN')",
+        "webout('OBJ', 'sasjsAbort', [{ MSG: 'not authorised', MAC: 'mp_abort.sas' }])"
+      ].join('\n')
+    })
+
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/refuse`),
+      { method: 'POST', body: new FormData() }
+    )
+
+    expect(response.status).toBe(200)
+    expect((await response.json()).sasjsAbort[0].MSG).toBe('not authorised')
+  })
+
   it('answers a recorded SAS session with its log, listing and webout', async () => {
     // A browser has no SAS binary. A project may ship the transcript of one real
     // session, and a program it names is answered with it - framed the way the
