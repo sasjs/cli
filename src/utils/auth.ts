@@ -343,7 +343,11 @@ export async function getTokensWithSasjsLogin(
     // Only an administrator may list the registered clients; a 403 here is not
     // an error worth reporting on its own - the message below covers it.
     const clients = await call('get', '/SASjsApi/client')
-    if (Array.isArray(clients.data) && clients.data.length) {
+    if (
+      clients.status === 200 &&
+      Array.isArray(clients.data) &&
+      clients.data.length
+    ) {
       client = clients.data[0].clientId
       // Say which one was picked: the listing order is the server's, and a
       // silent choice here is impossible to debug from the tokens alone.
@@ -361,7 +365,7 @@ export async function getTokensWithSasjsLogin(
     clientId: client
   })
   const code = authorized.data?.code
-  if (!code) {
+  if (authorized.status !== 200 || !code) {
     throw fail(
       `Authorization failed for client '${client}' (HTTP ${authorized.status}).`
     )
@@ -371,9 +375,9 @@ export async function getTokensWithSasjsLogin(
     clientId: client,
     code
   })
-  if (!tokens.data?.accessToken) {
+  if (tokens.status !== 200 || !tokens.data?.accessToken) {
     throw fail(
-      `The token endpoint returned no access token (HTTP ${tokens.status}).`
+      `The token endpoint rejected the exchange or returned no access token (HTTP ${tokens.status}).`
     )
   }
 
