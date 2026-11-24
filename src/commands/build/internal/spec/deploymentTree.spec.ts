@@ -175,6 +175,24 @@ describe('the tree a build packs', () => {
     )
   })
 
+  it('builds the JSON tree without the SAS text when asked', async () => {
+    write('services/common/getdata.js', 'console.log(1)')
+
+    const { folderContent, folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build,
+      [],
+      undefined,
+      false
+    )
+
+    // the published frontend half needs the members and nothing else
+    expect(folderContent).toEqual('')
+    expect(folderContentJSON.members.map((member) => member.name)).toEqual([
+      'services'
+    ])
+  })
+
   it('keeps a project folder called mock when it is not a mock site', async () => {
     write('mock/data.json', '{}')
 

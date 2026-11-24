@@ -221,9 +221,14 @@ async function createFinalSasFiles(target: Target, streamConfig: StreamConfig) {
     // that writes the files. It also means the zip a CI job keeps is everything
     // needed to publish.
     if (packageBundle) {
+      // the published frontend needs only its tree: the SAS text a deployment
+      // needs would be built per asset and thrown away
       const { folderContentJSON: frontendTree } = await getDeploymentTree(
         serverType,
-        publishFolder
+        publishFolder,
+        [],
+        undefined,
+        false
       )
 
       servicePackSASjs.fileTree = packageTree(

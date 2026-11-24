@@ -440,6 +440,29 @@ const seedFromBuild = (
 }
 
 /**
+ * Whether one folder is the other, or sits inside it.
+ *
+ * `path.relative(parent, child)` answers `''` for the folder itself, `..` for the
+ * parent and a `..`-prefixed path for a sibling - none of which is "inside".
+ * Forgetting the `..` case treats a folder's PARENT as contained in it, which is
+ * how a mock path that resolves to the project (`mockWebFolder: "."`) once
+ * excluded every deployment folder beneath the build.
+ *
+ * Exported because `deploymentTree` asks the same question of the folders it
+ * keeps out of the pack; one implementation is what keeps the two answers equal.
+ */
+export const isSameOrChild = (parent: string, child: string): boolean => {
+  const relative = path.relative(parent, child)
+
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith('..' + path.sep) &&
+      !path.isAbsolute(relative))
+  )
+}
+
+/**
  * `mockWebFolder` decides a folder that is deleted before it is written, so it
  * has to name a folder of its own. Anything that would delete the project, the
  * build output the drive is seeded from, or the web app it is copied from is
@@ -451,15 +474,6 @@ const assertSafeOutputFolder = (
   buildFolder: string,
   webFolder: string
 ) => {
-  const isSameOrChild = (parent: string, child: string) => {
-    const relative = path.relative(parent, child)
-    return (
-      relative === '' ||
-      (relative !== '..' &&
-        !relative.startsWith('..' + path.sep) &&
-        !path.isAbsolute(relative))
-    )
-  }
   const refusal = (why: string) =>
     new Error(
       `Refusing to write the mock site to ${outputFolder}: ${why}. ` +

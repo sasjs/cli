@@ -190,10 +190,14 @@ export const relativiseSrcset = (srcset: string): string => {
 
   for (const part of srcset.split(',')) {
     const previous = candidates[candidates.length - 1]
+    // A data URI's payload has no whitespace, so a fragment that begins with
+    // whitespace is a new candidate - the separator after a descriptor-less data
+    // URI looks exactly like the payload's own comma otherwise.
     const continuesDataUri =
       previous !== undefined &&
       /^\s*\S+$/.test(previous) &&
-      previous.trim().startsWith('data:')
+      previous.trim().startsWith('data:') &&
+      !/^\s/.test(part)
 
     if (continuesDataUri)
       candidates[candidates.length - 1] = `${previous},${part}`

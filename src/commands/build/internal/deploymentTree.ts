@@ -15,7 +15,11 @@ import { FileTree, FolderMember, MemberType } from '@sasjs/utils/types'
 
 import { isSasFile } from '../../../utils/file'
 import { getWebServiceScriptInvocation } from './webServiceInvocation'
-import { isMockSiteFolder, mockSiteOutputFolder } from './mockSite/mockSite'
+import {
+  isMockSiteFolder,
+  isSameOrChild,
+  mockSiteOutputFolder
+} from './mockSite/mockSite'
 
 /**
  * A deployment as one tree: the folders compiled into the build, plus any file
@@ -32,12 +36,16 @@ import { isMockSiteFolder, mockSiteOutputFolder } from './mockSite/mockSite'
  * @param {string[]} excluded - absolute folders that are never packed, whether
  * they are configuration (the published frontend) or artefacts recognised by
  * their marker (a mock site)
+ * @param {boolean} includeSasContent - whether to assemble the SAS that recreates
+ * the tree. A caller that only needs the JSON (the published frontend) says no:
+ * that text is base64 and chunked per file, and it is thrown away otherwise.
  */
 export async function getDeploymentTree(
   serverType: ServerType,
   rootDirectory: string,
   excluded: string[] = [],
-  skipRootFile?: (fileName: string) => boolean
+  skipRootFile?: (fileName: string) => boolean,
+  includeSasContent: boolean = true
 ): Promise<{ folderContent: string; folderContentJSON: FileTree }> {
   const folderContentJSON: FileTree = { members: [] }
   let folderContent = ''
@@ -49,7 +57,8 @@ export async function getDeploymentTree(
   const root = await getFilesContent(
     rootDirectory,
     serverType,
-    isBuildRoot ? skipRootFile : undefined
+    isBuildRoot ? skipRootFile : undefined,
+    includeSasContent
   )
 
   const buildSubFolders = await listSubFoldersInFolder(rootDirectory)
@@ -59,17 +68,23 @@ export async function getDeploymentTree(
 
     if (shouldSkipFolder(folderPath, excluded)) continue
 
-    const walked = await walkFolder(folderPath, serverType, subFolder, excluded)
+    const walked = await walkFolder(
+      folderPath,
+      serverType,
+      subFolder,
+      excluded,
+      includeSasContent
+    )
 
     if (walked === undefined) continue
 
-    folderContent += `\n${walked.content}`
+    if (walked.content) folderContent += `\n${walked.content}`
     folderContentJSON.members.push(walked.contentJSON)
   }
 
   // the root files come last: a deploy creates the folders first, and an entry
   // page is written into the appLoc they establish
-  if (root.content) {
+  if (includeSasContent && root.content) {
     folderContent += `\n%let path=;\n${root.content}`
   }
 
@@ -88,7 +103,8 @@ export async function getDeploymentTree(
 async function getFilesContent(
   folderPath: string,
   serverType: ServerType,
-  skipFile?: (fileName: string) => boolean
+  skipFile?: (fileName: string) => boolean,
+  includeSasContent: boolean = true
 ): Promise<{ content: string; contentJSON: FileTree['members'] }> {
   let content = ''
   const contentJSON: FileTree['members'] = []
@@ -102,8 +118,11 @@ async function getFilesContent(
 
     if (isSasFile(file)) {
       const fileContent = removeHeader(await readFile(filePath), filePath)
-      const transformedContent = getServiceText(file, fileContent, serverType)
-      content += `\n${transformedContent}\n`
+
+      if (includeSasContent) {
+        const transformedContent = getServiceText(file, fileContent, serverType)
+        content += `\n${transformedContent}\n`
+      }
 
       contentJSON.push({
         name: file.replace(/.sas$/, ''),
@@ -113,12 +132,14 @@ async function getFilesContent(
     } else {
       const fileContentEncoded = await base64EncodeFile(filePath)
 
-      const transformedContent = getFileText(
-        file,
-        fileContentEncoded,
-        serverType
-      )
-      content += `\n${transformedContent}\n`
+      if (includeSasContent) {
+        const transformedContent = getFileText(
+          file,
+          fileContentEncoded,
+          serverType
+        )
+        content += `\n${transformedContent}\n`
+      }
 
       contentJSON.push({
         name: file.replace(/.sas$/, ''),
@@ -137,15 +158,18 @@ async function walkFolder(
   folderPath: string,
   serverType: ServerType,
   relativePath: string,
-  excluded: string[] = []
+  excluded: string[] = [],
+  includeSasContent: boolean = true
 ): Promise<{ content: string; contentJSON: FolderMember } | undefined> {
   const folderName = path.basename(folderPath)
   const relative = relativePath.split(path.sep).join('/')
 
   const { content: fileContent, contentJSON: fileMembers } =
-    await getFilesContent(folderPath, serverType)
+    await getFilesContent(folderPath, serverType, undefined, includeSasContent)
 
-  let content = `\n%let path=/${relative};\n${fileContent}`
+  let content = includeSasContent
+    ? `\n%let path=/${relative};\n${fileContent}`
+    : ''
   const contentJSON: FolderMember = {
     name: folderName,
     type: MemberType.folder,
@@ -163,7 +187,8 @@ async function walkFolder(
       childPath,
       serverType,
       `${relative}/${subFolder}`,
-      excluded
+      excluded,
+      includeSasContent
     )
 
     if (walked === undefined) return
@@ -207,26 +232,6 @@ const shouldSkipFolder = (folderPath: string, excluded: string[]): boolean => {
   if (isLegacyMockSiteFolder(folderPath)) return true
 
   return excluded.some((folder) => isSameOrChild(folder, folderPath))
-}
-
-/**
- * Whether one folder is the other, or sits inside it.
- *
- * Both callers must answer this the same way: `path.relative(parent, child)`
- * returns `''` for the folder itself, `..` for the parent and a `..`-prefixed
- * path for a sibling - none of which is "inside". A check that forgets `..`
- * treats the build's PARENT as if it were contained in the build, and excluding
- * it then drops every deployment folder.
- */
-const isSameOrChild = (parent: string, child: string): boolean => {
-  const relative = path.relative(parent, child)
-
-  return (
-    relative === '' ||
-    (relative !== '..' &&
-      !relative.startsWith('..' + path.sep) &&
-      !path.isAbsolute(relative))
-  )
 }
 
 /**

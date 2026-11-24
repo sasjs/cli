@@ -185,6 +185,22 @@ describe('the frontend published to a SASjs server app', () => {
     expect(html).toContain(`${dataUri} 2x`)
   })
 
+  it('resumes after a descriptor-less data URI', async () => {
+    // the comma after a data URI with no descriptor is a separator, and looks
+    // exactly like the payload's own comma to a naive scan
+    write(
+      'client/dist/index.html',
+      '<html><head></head><body>' +
+        '<img id="a" srcset="data:image/png;base64,AAAA, /img/a.png 2x">' +
+        '</body></html>'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    const html = read('index.html')
+    expect(html).toContain('data:image/png;base64,AAAA, ./img/a.png 2x')
+  })
+
   it('points the bundler runtime at the app folder', async () => {
     write('client/dist/index.html', '<html><body></body></html>')
     write('client/dist/runtime.js', 'var t={};t.u=e=>e+".js";t.p="/";')
