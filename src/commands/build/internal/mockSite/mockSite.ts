@@ -1179,10 +1179,13 @@ export const mockSiteOutputFolder = (target: Target): string => {
 }
 
 /**
- * Whether a folder is a mock site (or holds one), by its marker.
+ * Whether a folder IS a mock site, by its marker.
  *
- * Used by the build to leave a mock out of every artefact it packs, whatever its
- * path and whichever build wrote it.
+ * A mock site's marker sits at the site's own root, so this answers for that
+ * folder - not for one of its parents. The build skips the site itself by this
+ * question, whatever its path and whichever build wrote it. An ancestor of a
+ * nested site is ordinary content, and is packed only if something else in it is:
+ * an ancestor left empty by the exclusion is dropped rather than deployed.
  */
 export const isMockSiteFolder = (folder: string): boolean =>
   fs.existsSync(path.join(folder, MOCK_SITE_MARKER))

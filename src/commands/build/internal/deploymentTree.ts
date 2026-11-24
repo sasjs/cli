@@ -59,15 +59,12 @@ export async function getDeploymentTree(
 
     if (shouldSkipFolder(folderPath, excluded)) continue
 
-    const { content, contentJSON } = await walkFolder(
-      folderPath,
-      serverType,
-      subFolder,
-      excluded
-    )
+    const walked = await walkFolder(folderPath, serverType, subFolder, excluded)
 
-    folderContent += `\n${content}`
-    folderContentJSON.members.push(contentJSON)
+    if (walked === undefined) continue
+
+    folderContent += `\n${walked.content}`
+    folderContentJSON.members.push(walked.contentJSON)
   }
 
   // the root files come last: a deploy creates the folders first, and an entry
@@ -141,7 +138,7 @@ async function walkFolder(
   serverType: ServerType,
   relativePath: string,
   excluded: string[] = []
-): Promise<{ content: string; contentJSON: FolderMember }> {
+): Promise<{ content: string; contentJSON: FolderMember } | undefined> {
   const folderName = path.basename(folderPath)
   const relative = relativePath.split(path.sep).join('/')
 
@@ -162,17 +159,24 @@ async function walkFolder(
 
     if (shouldSkipFolder(childPath, excluded)) return
 
-    const { content: childContent, contentJSON: childContentJSON } =
-      await walkFolder(
-        childPath,
-        serverType,
-        `${relative}/${subFolder}`,
-        excluded
-      )
+    const walked = await walkFolder(
+      childPath,
+      serverType,
+      `${relative}/${subFolder}`,
+      excluded
+    )
 
-    contentJSON.members!.push(childContentJSON)
-    content += childContent
+    if (walked === undefined) return
+
+    contentJSON.members!.push(walked.contentJSON)
+    content += walked.content
   })
+
+  // A folder with nothing left in it carries nothing a deploy needs, and the one
+  // way it appears is a child the walk skipped - a mock site nested under a
+  // project folder. Dropping it keeps an excluded site from leaving its parent
+  // behind as an empty deployment folder.
+  if (contentJSON.members!.length === 0) return undefined
 
   return { content, contentJSON }
 }

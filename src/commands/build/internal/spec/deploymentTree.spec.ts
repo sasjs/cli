@@ -147,6 +147,34 @@ describe('the tree a build packs', () => {
     expect(names).not.toContain('mock')
   })
 
+  it('does not leave an empty parent behind for a nested mock site', async () => {
+    write('sites/mock/sasjs.mock.json', '{}')
+    write('sites/mock/sw.js', '// worker')
+    write('sites/notes.txt', 'kept')
+
+    const { folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build
+    )
+
+    const sites = folderContentJSON.members.find(
+      (member) => member.name === 'sites'
+    ) as any
+    expect(sites.members.map((member: any) => member.name)).toEqual([
+      'notes.txt'
+    ])
+
+    // and with nothing else in it, the parent is not deployed either
+    fs.rmSync(path.join(build, 'sites', 'notes.txt'))
+    const { folderContentJSON: withoutNotes } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build
+    )
+    expect(withoutNotes.members.map((member) => member.name)).not.toContain(
+      'sites'
+    )
+  })
+
   it('keeps a project folder called mock when it is not a mock site', async () => {
     write('mock/data.json', '{}')
 
