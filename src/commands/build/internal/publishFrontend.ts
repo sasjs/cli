@@ -138,19 +138,9 @@ const adjustIndexHtml = (content: string, target: Target): string => {
   }
 
   for (const element of Array.from(document.querySelectorAll('[srcset]'))) {
-    const srcset = element.getAttribute('srcset') as string
-    // a data URI carries its own commas and is already self-contained
-    if (srcset.includes('data:')) continue
-
     element.setAttribute(
       'srcset',
-      srcset
-        .split(',')
-        .map((candidate) => {
-          const [url, ...descriptor] = candidate.trim().split(/\s+/)
-          return [relativise(url), ...descriptor].join(' ')
-        })
-        .join(', ')
+      relativiseSrcset(element.getAttribute('srcset') as string)
     )
   }
 
@@ -170,6 +160,24 @@ const adjustIndexHtml = (content: string, target: Target): string => {
   if (sasjsTags.length) updateSasjsTag(sasjsTags[0], target)
 
   return dom.serialize()
+}
+
+/**
+ * Root-absolute candidates in a `srcset`, made relative.
+ *
+ * A `srcset` is a comma-separated list, and a data URI carries its own commas,
+ * so the attribute is not split: each candidate that starts at the root is
+ * rewritten where it starts - after the beginning or a separator. A data URI is
+ * left exactly as it is, and may sit beside an absolute candidate without
+ * stopping that one from being rewritten.
+ */
+export const relativiseSrcset = (srcset: string): string => {
+  const rewritten = srcset.replace(/(^|,)(\s+)\/(?!\/)/g, '$1$2./')
+
+  // the first candidate has no separator in front of it
+  return rewritten.startsWith('/') && !rewritten.startsWith('//')
+    ? `.${rewritten}`
+    : rewritten
 }
 
 /**

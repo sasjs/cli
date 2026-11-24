@@ -1,12 +1,9 @@
 import {
   asyncForEach,
-  base64EncodeFile,
   chunk,
   createFile,
   folderExists,
   getDependencyPaths,
-  listFilesInFolder,
-  listSubFoldersInFolder,
   readFile,
   removeHeader,
   ServerType,
@@ -25,7 +22,6 @@ import {
 } from '@sasjs/utils/types'
 import { compressAndSave } from '../../utils/compressAndSave'
 import { getMacroFolders, getStreamConfig } from '../../utils/config'
-import { isSasFile } from '../../utils/file'
 import {
   COMPILE_MANIFEST_NAME,
   compileTreeFileName,

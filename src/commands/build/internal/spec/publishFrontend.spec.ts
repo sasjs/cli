@@ -90,6 +90,27 @@ describe('the frontend published to a SASjs server app', () => {
     expect(html).toContain('src="//cdn.example/lib.js"')
   })
 
+  it('rewrites an absolute srcset candidate beside a data URI', async () => {
+    const dataUri = 'data:image/svg+xml;base64,PHN2Zy8+'
+
+    write(
+      'client/dist/index.html',
+      '<html><head></head><body>' +
+        `<img id="a" srcset="/img/a.png 1x, ${dataUri} 2x">` +
+        `<img id="b" srcset="${dataUri} 1x, /img/b.png 2x">` +
+        '</body></html>'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    const html = read('index.html')
+    expect(html).toContain('./img/a.png 1x')
+    expect(html).toContain('./img/b.png 2x')
+    // the data URI is untouched, commas and all
+    expect(html).toContain(`${dataUri} 2x`)
+    expect(html).toContain(`${dataUri} 1x`)
+  })
+
   it('leaves a navigation link alone', async () => {
     // an anchor is not an asset: its href may name the server's API or another
     // site, and relativising it would point it inside the app
