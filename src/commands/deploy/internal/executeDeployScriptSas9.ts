@@ -69,11 +69,15 @@ export async function executeDeployScriptSas9(
 
   if (streamConfig?.streamWeb) {
     const appLoc = encodeURI(target.appLoc)
+    // the name is the last segment of the `_PROGRAM=` value, and `encodeURI`
+    // leaves `&`, `?` and `#` as they are: a name carrying any of them would end
+    // the value early or name a different stored process. Encoded here for the
+    // same reason the stream route in appStreamUrl.ts encodes it
     const webAppStreamUrl = `${withoutTrailingSlash(
       target.serverUrl
-    )}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${
+    )}/SASStoredProcess/?_PROGRAM=${appLoc}/services/${encodeURIComponent(
       streamConfig.streamServiceName
-    }`
+    )}`
     process.logger?.info(`Web app is available at ${webAppStreamUrl}`)
   }
 }

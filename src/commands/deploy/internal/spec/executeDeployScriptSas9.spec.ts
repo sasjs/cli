@@ -175,4 +175,25 @@ describe('executeDeployScriptSas9', () => {
       )}/services/clickme`
     )
   })
+
+  it('should encode a stream name that carries a query delimiter', async () => {
+    executeScript.mockResolvedValue('NOTE: Services deployed.')
+
+    // the name is the last segment of the `_PROGRAM=` value: unencoded, a `&` or
+    // a `#` would end the value early or name a different stored process, and the
+    // stream route in appStreamUrl.ts encodes it for the same reason
+    await executeDeployScriptSas9(
+      deployScriptName,
+      target,
+      linesToExecute,
+      logFilePath,
+      { streamWeb: true, streamServiceName: 'a&b' } as any
+    )
+
+    expect(process.logger?.info).toHaveBeenCalledWith(
+      `Web app is available at ${target.serverUrl}/SASStoredProcess/?_PROGRAM=${encodeURI(
+        target.appLoc
+      )}/services/a%26b`
+    )
+  })
 })
