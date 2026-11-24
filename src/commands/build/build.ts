@@ -29,11 +29,7 @@ import { isSasFile } from '../../utils/file'
 import { getCompileTree, loadDependencies } from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
-import {
-  excludedFromPack,
-  getDeploymentTree,
-  isBuildOutputFile
-} from './internal/deploymentTree'
+import { excludedFromPack, getDeploymentTree } from './internal/deploymentTree'
 import { appManifest } from './internal/appManifest'
 import { packageTree } from './internal/appBundle'
 import { PUBLISH_FOLDER, publishFrontend } from './internal/publishFrontend'
@@ -179,12 +175,21 @@ async function createFinalSasFiles(target: Target, streamConfig: StreamConfig) {
   }
 
   const excluded = excludedFromPack(target, publishFolder)
+
+  // The build's own outputs sit in the build folder's root, where the streamed
+  // entry page also lands: the deploy script, the pack and its zip. They are
+  // outputs of the previous step, not content to deploy, and a second build over
+  // the same folder must not pack them.
+  const isBuildOutputFile = (fileName: string) =>
+    fileName.endsWith('.json') ||
+    fileName.endsWith('.json.zip') ||
+    fileName === buildOutputFileName
+
   const { folderContent, folderContentJSON } = await getDeploymentTree(
     serverType,
     buildDestinationFolder,
     excluded,
-    (fileName) =>
-      isBuildOutputFile(fileName) || fileName === buildOutputFileName
+    isBuildOutputFile
   )
 
   logPackedFileCounts(folderContentJSON)

@@ -48,8 +48,7 @@ export async function getDeploymentTree(
   const root = await getFilesContent(
     rootDirectory,
     serverType,
-    '',
-    isBuildRoot ? (skipRootFile ?? isBuildOutputFile) : undefined
+    isBuildRoot ? skipRootFile : undefined
   )
 
   const buildSubFolders = await listSubFoldersInFolder(rootDirectory)
@@ -60,7 +59,6 @@ export async function getDeploymentTree(
     if (shouldSkipFolder(folderPath, excluded)) continue
 
     const { content, contentJSON } = await walkFolder(
-      rootDirectory,
       folderPath,
       serverType,
       subFolder,
@@ -86,13 +84,12 @@ export async function getDeploymentTree(
  * The files a deploy writes into one folder, as SAS code that recreates them and
  * as the JSON members a service pack carries.
  *
- * `relativePath` is the folder's position in the deployment, which is what the
- * SAS block names in `&path`; the root of the deployment is the empty string.
+ * The `%let path=` the SAS block needs is emitted by `walkFolder`, which knows
+ * the folder's position in the deployment; this function only reads the folder.
  */
 async function getFilesContent(
   folderPath: string,
   serverType: ServerType,
-  relativePath: string,
   skipFile?: (fileName: string) => boolean
 ): Promise<{ content: string; contentJSON: FileTree['members'] }> {
   let content = ''
@@ -139,7 +136,6 @@ async function getFilesContent(
 }
 
 async function walkFolder(
-  rootDirectory: string,
   folderPath: string,
   serverType: ServerType,
   relativePath: string,
@@ -149,7 +145,7 @@ async function walkFolder(
   const relative = relativePath.split(path.sep).join('/')
 
   const { content: fileContent, contentJSON: fileMembers } =
-    await getFilesContent(folderPath, serverType, relative)
+    await getFilesContent(folderPath, serverType)
 
   let content = `\n%let path=/${relative};\n${fileContent}`
   const contentJSON: FolderMember = {
@@ -167,7 +163,6 @@ async function walkFolder(
 
     const { content: childContent, contentJSON: childContentJSON } =
       await walkFolder(
-        rootDirectory,
         childPath,
         serverType,
         `${relative}/${subFolder}`,
@@ -230,17 +225,6 @@ export const excludedFromPack = (
 
   return excluded
 }
-
-/**
- * The files the build wrote beside the deployment rather than into it.
- *
- * The build's own outputs - the deploy script, the pack and its zip - land in
- * the build folder's root, where the streamed entry page also lands. They are
- * outputs of the previous step, not content to deploy, and a second build over
- * the same folder must not pack them.
- */
-export const isBuildOutputFile = (fileName: string): boolean =>
-  fileName.endsWith('.json') || fileName.endsWith('.json.zip')
 
 function getServiceText(
   serviceFileName: string,

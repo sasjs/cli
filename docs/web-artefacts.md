@@ -52,6 +52,12 @@ The server writes `backend/` to the appLoc, publishes `web/` as
 `apps/<name>`, and answers with the app's URL (`/app/<id>/`), which `sasjs deploy`
 prints. The id survives a redeploy, so the URL does.
 
+This bundle shape needs **sasjs/server v8.6.0 or later** (the release that carries
+`@sasjs/api` 0.48.0, whose `splitAppBundle` reads the halves). An older server does
+not recognise the bundle: it writes `web/` and `backend/` to the appLoc as ordinary
+folders and publishes nothing. Keep a `serverType: SASJS` target with `streamWeb`
+on v8.6.0+.
+
 `<build>/publish` is an input to the pack, not deployment content, and the folder
 name is reserved: it is never included in a deployment tree.
 
