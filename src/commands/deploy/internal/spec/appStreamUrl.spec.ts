@@ -137,6 +137,38 @@ describe('the url a published app reports', () => {
     )
   })
 
+  it('encodes the published name, so a delimiter cannot become a query', () => {
+    // a legacy server published apps under a name it chose, and a name carrying
+    // `?` or `#` unencoded would be read as a query or a fragment: the address
+    // would open a different path from the one the app is served from
+    expect(
+      publishedAppUrl('https://server.example', {
+        streamServiceName: 'quarter?close'
+      })
+    ).toBe('https://server.example/AppStream/quarter%3Fclose/')
+
+    expect(
+      publishedAppUrl('https://server.example', {
+        streamServiceName: 'a#b'
+      })
+    ).toBe('https://server.example/AppStream/a%23b/')
+
+    // and the same name inside the entry page's `_FILE=` value, where an unencoded
+    // `&` would end the value early
+    expect(
+      streamedAppUrl(
+        'https://server.example',
+        ServerType.Sasjs,
+        '/Public/app',
+        'a&b'
+      )
+    ).toBe(
+      'https://server.example/StoredProgram?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/a%26b.html'
+    )
+  })
+
   it('does not invent a url from an id alone, or from no answer at all', () => {
     // a server that answers an id can say where it serves the app; guessing
     // would print an address that may not exist

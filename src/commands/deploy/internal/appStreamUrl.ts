@@ -22,9 +22,12 @@ export const streamedAppUrl = (
       ? '/StoredProgram?_FILE='
       : '/SASJobExecution?_FILE='
 
+  // the name is a path segment inside the `_FILE=` value, so it is encoded on its
+  // own: `encodeURI` leaves `&`, `?` and `#` as they are, and any of the three in
+  // a published name would end the value early or name a different file
   return `${withoutTrailingSlash(serverUrl)}${route}${encodeURI(
     appLoc
-  )}/services/${streamServiceName}.html`
+  )}/services/${encodeURIComponent(streamServiceName)}.html`
 }
 
 /**
@@ -109,10 +112,16 @@ export const publishedAppUrl = (
       ? stated
       : `${withoutTrailingSlash(serverUrl)}${stated}`
 
-  return answer?.streamServiceName
-    ? `${withoutTrailingSlash(serverUrl)}/AppStream/${
-        answer.streamServiceName
-      }/`
+  const name = answer?.streamServiceName
+
+  // the label is a path segment, so it is encoded: a name a legacy server
+  // published may carry `?` or `#`, and unencoded those are read as a query or a
+  // fragment - the printed address would open a different path on the server
+  // than the one the app is served from
+  return name
+    ? `${withoutTrailingSlash(serverUrl)}/AppStream/${encodeURIComponent(
+        name
+      )}/`
     : undefined
 }
 
