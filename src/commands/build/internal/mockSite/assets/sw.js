@@ -2565,6 +2565,21 @@ const oauthAuthorize = async (url) => {
 }
 
 /**
+ * A pair's own id, in the shape the estate mints: 32 hex characters.
+ *
+ * `@sasjs/api`'s store issues the tokens and no id beside them, and the answer
+ * states one so a client can tell two pairs minted in the same second apart -
+ * the reason sasjs/server mints its `jti` from 16 random bytes.
+ */
+const pairId = () => {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    ''
+  )
+}
+
+/**
  * The token step: a code, a refresh token or a password buys a pair.
  *
  * The grants are the ones a browser application signs in with; SASLogon also
@@ -2698,7 +2713,17 @@ const oauthToken = async (request) => {
       token_type: 'bearer',
       expires_in: registered.accessTokenExpiration,
       refresh_expires_in: registered.refreshTokenExpiration,
-      scope: ''
+      scope: '',
+      // the estate's answer carries three more fields than this host used to
+      // state: `jti` is the pair's own id, and the two `revocable` flags are what
+      // a client reads before it tries a revocation. sasjs/server emits all
+      // three (its `tokenResponse`), so a client that branches on them behaves
+      // here as it does there. `id_token` is recorded in the estate's shape and
+      // minted by neither: an ID token asserts an OpenID Connect identity, and
+      // both hosts answer "who is this" with `/identities/users/@currentUser`.
+      jti: pairId(),
+      revocable: true,
+      refresh_revocable: true
     })
   } catch (error) {
     // a refusal from a grant is a grant problem: the client was verified above,

@@ -6154,6 +6154,83 @@ describe('the Viya corpus, replayed in the worker', () => {
     return last.replace(/s$/, '')
   }
 
+  /**
+   * The routes this host answers that the dispatcher declines.
+   *
+   * `VIYA_OVERLAY` is the emulator's own account of what its API dispatcher
+   * implements, and one of its declines reads "the token endpoint is answered by
+   * the host that mounts the emulator, which owns the token port" - a statement
+   * about this worker, not a reason for this worker to skip the case. A decline
+   * is therefore honoured only for a route the host has no decision about; the
+   * ones listed here are replayed whatever the overlay says.
+   */
+  const HOST_ROUTES = new Set(['POST /SASLogon/oauth/token'])
+
+  /**
+   * The routes this replay answers, by name.
+   *
+   * Named rather than counted: a pinned number goes red when the corpus gains a
+   * case, while a route covered twice hides one that stopped being answered. A
+   * case that arrives with the next corpus shows up as a list difference naming
+   * the route it adds.
+   */
+  const REPLAYED = [
+    'DELETE /compute/sessions/{}',
+    'GET /compute/contexts',
+    'GET /compute/sessions/{}/jobs/{}',
+    'GET /compute/sessions/{}/jobs/{}/log/content',
+    'GET /compute/sessions/{}/jobs/{}/state',
+    'GET /compute/sessions/{}/state',
+    'GET /folders/folders/@item',
+    'GET /folders/folders/@myRecycleBin',
+    'GET /folders/folders/{}',
+    'GET /folders/folders/{}/members',
+    'GET /identities/users/@currentUser',
+    'GET /types/types',
+    'POST /SASLogon/oauth/token',
+    'POST /compute/contexts/{}/sessions',
+    'POST /compute/sessions/{}/jobs',
+    'POST /folders/folders'
+  ]
+
+  /**
+   * The cases this host does not answer, by name.
+   *
+   * Each is a fact about the corpus or the dispatcher rather than a silent
+   * omission: the job families the emulator declines by decision, the writes
+   * whose request body the corpus does not carry, and the two path templates
+   * whose id no captured case hands out first. Their reasons are printed in the
+   * run, so a reader can tell a decision from a gap.
+   */
+  const NOT_REPLAYED = [
+    'GET /compute/sessions/{}/variables/{}',
+    'GET /files/files/{}',
+    'GET /files/files/{}/content',
+    'GET /jobDefinitions/definitions/{}',
+    'GET /jobExecution/jobs/{}',
+    'GET /jobExecution/jobs/{}/state',
+    'GET /launcher/contexts',
+    'PATCH /files/files/{}',
+    'PATCH /folders/folders/{}',
+    'POST /files/files',
+    'POST /jobDefinitions/definitions',
+    'POST /jobExecution/jobs',
+    'PUT /files/files/{}/content'
+  ]
+
+  /**
+   * The fields a host may leave out of an answer, and why.
+   *
+   * `id_token` is in the estate's captured token shape and neither host mints
+   * one: an ID token is an assertion about an OpenID Connect identity, and both
+   * hosts answer "who is this" with `GET /identities/users/@currentUser`
+   * (sasjs/server's `tokenResponse` documents the same decision). Naming it here
+   * keeps the replay strict about every other field.
+   */
+  const ABSENT_FIELDS: Record<string, string[]> = {
+    'POST /SASLogon/oauth/token': ['id_token']
+  }
+
   it('answers every captured operation, in the shape the estate recorded', async () => {
     const worker = loadWorker('', { skipLint: true })
     const boot = worker.message({
@@ -6165,15 +6242,22 @@ describe('the Viya corpus, replayed in the worker', () => {
 
     const state: ViyaReplayState = { variable: 'SYSCC' }
     const failures: string[] = []
-    const skipped: string[] = []
-    let answered = 0
+    const replayed: string[] = []
+    const notReplayed: Record<string, string> = {}
 
     /** One case through the worker, compared with what the estate captured. */
     const replay = async (item: (typeof VIYA_CORPUS)[number]) => {
       const declared = VIYA_OVERLAY[item.route]
 
-      if (declared && declared.implemented === false) {
-        skipped.push(`${item.route}: declined - ${declared.reason}`)
+      // a decline is the dispatcher's decision, and the host answers more than
+      // the dispatcher does: only a route the host has no decision about is
+      // taken as declined
+      if (
+        declared &&
+        declared.implemented === false &&
+        !HOST_ROUTES.has(item.route)
+      ) {
+        notReplayed[item.route] = `declined - ${declared.reason}`
 
         return
       }
@@ -6181,21 +6265,17 @@ describe('the Viya corpus, replayed in the worker', () => {
       const request = requestFor(item, state, QUERY_VALUES[item.route])
 
       if (request.unresolved.length) {
-        skipped.push(
-          `${item.route}: no ${request.unresolved.join(', ')} for the path yet`
-        )
+        notReplayed[item.route] = `no ${request.unresolved.join(
+          ', '
+        )} for the path yet`
 
         return
       }
 
       const supplied = BODIES[item.route]
 
-      if (
-        !supplied &&
-        ['POST', 'PATCH', 'PUT'].includes(request.method) &&
-        item.route !== 'POST /SASLogon/oauth/token'
-      ) {
-        skipped.push(`${item.route}: the corpus records no request body`)
+      if (!supplied && ['POST', 'PATCH', 'PUT'].includes(request.method)) {
+        notReplayed[item.route] = 'the corpus records no request body'
 
         return
       }
@@ -6228,11 +6308,17 @@ describe('the Viya corpus, replayed in the worker', () => {
       const body = await answer.json().catch(() => undefined)
 
       if (item.shape !== undefined) {
+        // a field this host states no value for, by decision, is named in
+        // ABSENT_FIELDS; every other missing field is drift
+        const absent = (ABSENT_FIELDS[item.route] || []).map(
+          (field) => `${item.route}.${field}: missing from the answer`
+        )
+
         for (const mismatch of shapeMismatches(item.shape, body, item.route))
-          failures.push(mismatch)
+          if (!absent.includes(mismatch)) failures.push(mismatch)
       }
 
-      answered++
+      replayed.push(item.route)
 
       // an id a following case needs: a create answers it at the top, a list
       // answers it on its first item - the context list is how a client learns
@@ -6259,15 +6345,22 @@ describe('the Viya corpus, replayed in the worker', () => {
 
     for (const item of deferred) await replay(item)
 
-    // the skips are named in the run, because a corpus that is 40% skipped is a
-    // different claim from one that is replayed
-    for (const line of skipped) console.log(`not replayed: ${line}`)
+    // the reasons are printed where a case is not replayed: a corpus that is 40%
+    // skipped is a different claim from one that is replayed, and a reader has to
+    // be able to tell which reason applied
+    for (const [route, reason] of Object.entries(notReplayed))
+      console.log(`not replayed: ${route}: ${reason}`)
 
-    // both halves are asserted: no drift, and the number of cases that actually
-    // ran - a replay that silently stopped early would otherwise look green. The
-    // rest are named above: the job families the emulator declines by decision,
-    // and the writes whose request body the corpus does not carry
-    expect({ failures, answered }).toEqual({ failures: [], answered: 15 })
+    // The lists are the assertion, not a count: every route this host is expected
+    // to answer was answered, and every route left out is one named above. A
+    // corpus case that arrives here fails with the route it adds, rather than
+    // moving a number nobody reads; a route that stops being answered fails as a
+    // missing entry, even when another case still answers something.
+    expect({
+      failures,
+      replayed: replayed.sort(),
+      notReplayed: Object.keys(notReplayed).sort()
+    }).toEqual({ failures: [], replayed: REPLAYED, notReplayed: NOT_REPLAYED })
   })
 })
 
