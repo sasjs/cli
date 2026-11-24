@@ -21,6 +21,7 @@ const Module = require('node:module')
 const os = require('node:os')
 const path = require('node:path')
 const ts = require('typescript')
+const { waitForDevToolsPort } = require('./devToolsPort.cjs')
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const sourceDir = path.resolve(__dirname, '..')
@@ -322,23 +323,12 @@ async function main() {
       spawnError = error
     })
     exited = new Promise((resolve) => chromium.once('close', resolve))
-    let port
-    const deadline = Date.now() + 10000
-    while (!port && Date.now() < deadline) {
-      if (spawnError) throw spawnError
-      if (chromium.exitCode !== null)
-        throw new Error(`Chromium exited: ${stderr}`)
-      try {
-        port = Number(
-          (
-            await fs.readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')
-          ).split('\n')[0]
-        )
-      } catch (_) {
-        await sleep(50)
-      }
-    }
-    if (!port) throw new Error(`Chromium CDP startup timed out: ${stderr}`)
+    const port = await waitForDevToolsPort(
+      profile,
+      chromium,
+      () => spawnError,
+      () => stderr
+    )
     const { webSocketDebuggerUrl } = await (
       await fetch(`http://127.0.0.1:${port}/json/version`)
     ).json()
@@ -860,7 +850,9 @@ async function main() {
     await fs.rm(root, { recursive: true, force: true })
   }
 }
-main().catch((error) => {
-  console.error('Browser regression failed:', error.stack || error)
-  process.exitCode = 1
-})
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Browser regression failed:', error.stack || error)
+    process.exitCode = 1
+  })
+}

@@ -1,12 +1,382 @@
 import fs from 'fs'
 import path from 'path'
-import { JSDOM } from 'jsdom'
+import os from 'os'
+import { ChildProcess, spawn } from 'child_process'
+import { once } from 'events'
+import { JSDOM, requestInterceptor } from 'jsdom'
+import { waitForDevToolsPort } from './devToolsPort.cjs'
 import {
   buildMockSite,
   DRIVE_FORMAT,
   MAX_BINARY_SEED_BYTES,
   SHARD_FILE_BYTES
 } from '../mockSite'
+
+// jsdom 31 replaces ResourceLoader with request interceptors. Keep all asset
+// requests local: an unknown file must not fall through to the network.
+const assetResources = (
+  fetchAsset: (url: string) => Buffer | Promise<Buffer> | null
+): any => ({
+  interceptors: [
+    requestInterceptor(async (request) => {
+      const bytes = await fetchAsset(request.url)
+      return bytes === null
+        ? new Response(null, { status: 404 })
+        : new Response(bytes as any, {
+            headers: { 'Content-Type': 'application/javascript' }
+          })
+    })
+  ]
+})
+
+const waitForLoad = (dom: JSDOM) =>
+  dom.window.document.readyState === 'complete'
+    ? Promise.resolve()
+    : new Promise<void>((resolve) =>
+        dom.window.addEventListener('load', () => resolve(), { once: true })
+      )
+
+// jsdom 31 runs following inline scripts before delivering parser mutations;
+// Chromium runs the observer at the parser's script checkpoint. These tests must
+// read the value *inside* the app script in a real browser, not after load.
+const browserIt = process.env.SASJS_BROWSER_TESTS === '1' ? it : it.skip
+
+// A writer may briefly keep using the profile after the browser exits.
+// Retry only transient non-empty profiles, without hiding cleanup failures.
+const removeChromiumProfile = async (profile: string) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.rmSync(profile, { recursive: true, force: true })
+      return
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOTEMPTY') {
+        throw error
+      }
+      if (attempt >= 10) {
+        // The writer is unknown, so report what is left rather than only
+        // the symptom, to identify the cause of the next occurrence.
+        let survivors: string[] = []
+        try {
+          survivors = fs.readdirSync(profile)
+        } catch (listError) {
+          survivors = [`(listing failed: ${String(listError)})`]
+        }
+        throw new Error(
+          `Chromium profile ${profile} could not be removed after ${
+            attempt + 1
+          } attempts; remaining entries: ${survivors.join(', ')}`
+        )
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+  }
+}
+
+const observeMountInChromium = async (
+  html: string,
+  url: string,
+  host: string,
+  expression: string,
+  adapter = false,
+  onSpawn?: (child: ChildProcess) => void
+): Promise<any> => {
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-browser-'))
+  const child = spawn(
+    process.env.CHROMIUM_PATH || 'chromium',
+    [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+      '--remote-debugging-port=0',
+      `--user-data-dir=${profile}`,
+      'about:blank'
+    ],
+    { stdio: ['ignore', 'ignore', 'pipe'] }
+  )
+  const exited = once(child, 'exit')
+  // Consume spawn errors immediately while preserving the failure for startup.
+  let spawnError: Error | undefined
+  child.on('error', (error) => {
+    spawnError = error
+  })
+  // Capture stderr so startup failures can report what the browser said.
+  let stderr = ''
+  child.stderr?.on('data', (data: Buffer) => {
+    stderr += data.toString()
+  })
+  void exited.catch(() => {})
+  let ws: WebSocket | undefined
+  try {
+    onSpawn?.(child)
+    const port = await waitForDevToolsPort(
+      profile,
+      child,
+      () => spawnError,
+      () => stderr
+    )
+    const version: any = await (
+      await fetch(`http://127.0.0.1:${port}/json/version`)
+    ).json()
+    ws = new WebSocket(version.webSocketDebuggerUrl)
+    await once(ws, 'open')
+    let id = 0
+    const pending = new Map<
+      number,
+      {
+        resolve: (value: any) => void
+        reject: (error: Error) => void
+        timer: NodeJS.Timeout
+      }
+    >()
+    const send = (
+      method: string,
+      params: any = {},
+      sessionId?: string
+    ): Promise<any> =>
+      new Promise((resolve, reject) => {
+        const requestId = ++id
+        const timer = setTimeout(() => {
+          pending.delete(requestId)
+          reject(new Error(`CDP ${method} timed out`))
+        }, 10000)
+        pending.set(requestId, { resolve, reject, timer })
+        ws!.send(JSON.stringify({ id: requestId, method, params, sessionId }))
+      })
+    ws.addEventListener('message', (event) => {
+      const message = JSON.parse(String(event.data))
+      if (message.method === 'Fetch.requestPaused') {
+        const request = message.params
+        const pathname = new URL(request.request.url).pathname
+        const name = pathname.split('/').pop()!
+        let body: Buffer | undefined
+        if (request.resourceType === 'Document' && request.request.url === url)
+          body = Buffer.from(html)
+        else if (name === 'boot.js') body = Buffer.from('')
+        else if (name === 'mount-config.js')
+          body = fs.readFileSync(path.join(host, name))
+        void send(
+          'Fetch.fulfillRequest',
+          {
+            requestId: request.requestId,
+            responseCode: body ? 200 : 404,
+            responseHeaders: [
+              {
+                name: 'Content-Type',
+                value:
+                  request.resourceType === 'Document'
+                    ? 'text/html'
+                    : 'application/javascript'
+              }
+            ],
+            body: (body || Buffer.from('')).toString('base64')
+          },
+          message.sessionId
+        ).catch(() => {})
+      }
+      const request = pending.get(message.id)
+      if (!request) return
+      pending.delete(message.id)
+      clearTimeout(request.timer)
+      if (message.error)
+        request.reject(new Error(JSON.stringify(message.error)))
+      else request.resolve(message.result)
+    })
+    const { targetId } = await send('Target.createTarget', {
+      url: 'about:blank'
+    })
+    const { sessionId } = await send('Target.attachToTarget', {
+      targetId,
+      flatten: true
+    })
+    await send('Page.enable', {}, sessionId)
+    await send('Runtime.enable', {}, sessionId)
+    await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] }, sessionId)
+    if (adapter) {
+      const bundle = fs.readFileSync(
+        require.resolve('@sasjs/adapter/dist/sasjs-adapter.js'),
+        'utf8'
+      )
+      await send(
+        'Page.addScriptToEvaluateOnNewDocument',
+        { source: bundle },
+        sessionId
+      )
+    }
+    await send('Page.navigate', { url }, sessionId)
+    for (let i = 0; i < 200; i++) {
+      const result = await send(
+        'Runtime.evaluate',
+        {
+          expression: `document.readyState === 'complete' && location.href === ${JSON.stringify(url)}`,
+          returnByValue: true
+        },
+        sessionId
+      )
+      if (result.result.value) {
+        const observed = await send(
+          'Runtime.evaluate',
+          { expression, returnByValue: true },
+          sessionId
+        )
+        if (observed.exceptionDetails)
+          throw new Error(JSON.stringify(observed.exceptionDetails))
+        return observed.result.value
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    throw new Error(`Chromium page load timed out: ${url}`)
+  } finally {
+    if (ws) ws.close()
+    if (child.exitCode === null && child.signalCode === null)
+      child.kill('SIGTERM')
+    const exitedInTime = await Promise.race([
+      exited.then(
+        () => true,
+        () => true
+      ),
+      new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => resolve(false), 3000)
+        timer.unref()
+      })
+    ])
+    if (!exitedInTime) {
+      child.kill('SIGKILL')
+      await exited.catch(() => {})
+    }
+    await removeChromiumProfile(profile)
+  }
+}
+
+describe('Chromium profile removal retries', () => {
+  let profile: string
+
+  beforeEach(() => {
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-cleanup-test-'))
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    fs.rmSync(profile, { recursive: true, force: true })
+  })
+
+  it('retries transient non-empty failures and removes the profile', async () => {
+    const remove = fs.rmSync.bind(fs)
+    const transient = Object.assign(new Error('directory not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    let attempts = 0
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation((target, opts) => {
+      if (++attempts <= 2) throw transient
+      remove(target, opts)
+    })
+
+    await removeChromiumProfile(profile)
+    expect(rm).toHaveBeenCalledTimes(3)
+    expect(fs.existsSync(profile)).toBe(false)
+  })
+
+  it('reports persistent non-empty failures after a bounded number of attempts', async () => {
+    fs.writeFileSync(path.join(profile, 'left-behind'), 'x')
+    const failure = Object.assign(new Error('profile still not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation(() => {
+      throw failure
+    })
+    await expect(removeChromiumProfile(profile)).rejects.toThrow(
+      /could not be removed after 11 attempts; remaining entries: left-behind/
+    )
+    expect(rm).toHaveBeenCalledTimes(11)
+  })
+
+  it('does not retry other profile removal failures', async () => {
+    const failure = Object.assign(new Error('permission denied'), {
+      code: 'EACCES'
+    })
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation(() => {
+      throw failure
+    })
+    await expect(removeChromiumProfile(profile)).rejects.toBe(failure)
+    expect(rm).toHaveBeenCalledTimes(1)
+  })
+})
+
+// POSIX shebang and SIGTERM semantics are unavailable in the Windows suite.
+// Linux browser CI opts in to the real-process lifecycle test.
+const posixBrowserDescribe =
+  process.env.SASJS_BROWSER_TESTS === '1' && process.platform !== 'win32'
+    ? describe
+    : describe.skip
+
+posixBrowserDescribe('Chromium profile cleanup lifecycle', () => {
+  let root: string
+  let previousChromium: string | undefined
+  let profile: string | undefined
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'mount-cleanup-test-'))
+    previousChromium = process.env.CHROMIUM_PATH
+    const browser = path.join(root, 'browser')
+    fs.writeFileSync(
+      browser,
+      `#!${process.execPath}
+const fs = require('fs')
+const path = require('path')
+const profile = process.argv.find(arg => arg.startsWith('--user-data-dir=')).split('=')[1]
+process.on('SIGTERM', () => setTimeout(() => { fs.writeFileSync(path.join(profile, 'terminated'), 'yes'); process.exit(0) }, 250))
+fs.writeFileSync(path.join(profile, 'DevToolsActivePort'), '0\\n')
+setInterval(() => {}, 1000)
+`,
+      { mode: 0o755 }
+    )
+    process.env.CHROMIUM_PATH = browser
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    if (previousChromium === undefined) delete process.env.CHROMIUM_PATH
+    else process.env.CHROMIUM_PATH = previousChromium
+    if (profile) fs.rmSync(profile, { recursive: true, force: true })
+    fs.rmSync(root, { recursive: true, force: true })
+    profile = undefined
+  })
+
+  it('waits for browser exit and retries transient profile removal failures', async () => {
+    const remove = fs.rmSync.bind(fs)
+    const transient = Object.assign(new Error('directory not empty'), {
+      code: 'ENOTEMPTY'
+    })
+    let attempts = 0
+    let exitObserved = false
+    const rm = jest.spyOn(fs, 'rmSync').mockImplementation((target, opts) => {
+      profile = String(target)
+      expect(fs.readFileSync(path.join(profile, 'terminated'), 'utf8')).toBe(
+        'yes'
+      )
+      expect(exitObserved).toBe(true)
+      if (++attempts <= 2) throw transient
+      remove(target, opts)
+    })
+
+    await expect(
+      observeMountInChromium(
+        '',
+        'https://example.com/',
+        root,
+        '1',
+        false,
+        (child) => {
+          child.once('exit', () => {
+            exitObserved = true
+          })
+        }
+      )
+    ).rejects.toThrow()
+    expect(rm).toHaveBeenCalledTimes(3)
+    expect(fs.existsSync(profile!)).toBe(false)
+  })
+})
 
 const appLoc = '/Public/app/test'
 const languageVersion: string = JSON.parse(
@@ -568,25 +938,18 @@ describe('browser-hosted build', () => {
     ).toBeTruthy()
     parsed.window.close()
 
-    const { ResourceLoader } = require('jsdom')
-    class Assets extends ResourceLoader {
-      fetch(url: string): Promise<Buffer> | null {
-        const pathname = new URL(url).pathname.replace(/^\/demo\//, '')
-        if (pathname === 'host/boot.js') return Promise.resolve(Buffer.from(''))
-        const file = path.join(out(), pathname)
-        return fs.existsSync(file)
-          ? Promise.resolve(fs.readFileSync(file))
-          : null
-      }
-    }
+    const resources = assetResources((url) => {
+      const pathname = new URL(url).pathname.replace(/^\/demo\//, '')
+      if (pathname === 'host/boot.js') return Buffer.from('')
+      const file = path.join(out(), pathname)
+      return fs.existsSync(file) ? fs.readFileSync(file) : null
+    })
     const dom = new JSDOM(html, {
       url: 'https://example.com/demo/',
-      resources: new Assets() as any,
+      resources,
       runScripts: 'dangerously'
     })
-    await new Promise<void>((resolve) =>
-      dom.window.addEventListener('load', () => resolve())
-    )
+    await waitForLoad(dom)
     expect(
       (dom.window as any).early.observer ||
         (dom.window as any).early.config === 'https://example.com/demo'
@@ -607,9 +970,10 @@ describe('browser-hosted build', () => {
     const html = fs
       .readFileSync(path.join(out(), 'index.html'), 'utf8')
       .replace('</sasjs>', '<script src="/demo/held.js"></script></sasjs>')
-    const { ResourceLoader } = require('jsdom')
     let releaseMount!: () => void
     let releaseApp!: () => void
+    let appObserved!: () => void
+    const observed = new Promise<void>((resolve) => (appObserved = resolve))
     const appReady = new Promise<Buffer>((resolve) => {
       releaseApp = () =>
         resolve(
@@ -618,6 +982,7 @@ describe('browser-hosted build', () => {
           var config = document.querySelector('sasjs');
           if (!config) return setTimeout(observe, 0);
           window.observed = config.getAttribute('serverurl');
+          window.notifyObserved();
         }
         observe();
       `)
@@ -628,75 +993,60 @@ describe('browser-hosted build', () => {
     const mountReady = new Promise<Buffer>((resolve) => {
       releaseMount = () => resolve(Buffer.from(''))
     })
-    class Assets extends ResourceLoader {
-      fetch(url: string): Promise<Buffer> | null {
-        const name = new URL(url).pathname.split('/').pop()
-        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
-        if (name === 'async-app.js') return appReady
-        if (name === 'mount-config.js')
-          return Promise.resolve(
-            fs.readFileSync(path.join(out(), 'host', name))
-          )
-        if (name === 'held.js') {
-          mountRequested()
-          return mountReady
-        }
-        return null
+    const resources = assetResources((url) => {
+      const name = new URL(url).pathname.split('/').pop()
+      if (name === 'boot.js') return Buffer.from('')
+      if (name === 'async-app.js') return appReady
+      if (name === 'mount-config.js')
+        return fs.readFileSync(path.join(out(), 'host', name))
+      if (name === 'held.js') {
+        mountRequested()
+        return mountReady
       }
-    }
+      return null
+    })
     const dom = new JSDOM(html, {
       url: 'https://example.com/demo/',
-      resources: new Assets() as any,
-      runScripts: 'dangerously'
+      resources,
+      runScripts: 'dangerously',
+      beforeParse(window) {
+        ;(window as any).notifyObserved = appObserved
+      }
     })
     await requested
     releaseApp()
-    // Give the async script an opportunity to run while the mount response is held.
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // The app must actually run while the parser-blocking response is held.
+    await observed
     const observedWhileHeld = (dom.window as any).observed
     releaseMount()
-    await new Promise<void>((resolve) =>
-      dom.window.addEventListener('load', () => resolve())
-    )
+    await waitForLoad(dom)
     dom.window.close()
     expect(observedWhileHeld).toBe('https://example.com/demo')
   })
 
-  it('provides an absolute mounted server URL before the app reads its config', async () => {
-    write(
-      path.join(root, 'client', 'dist', 'index.html'),
-      '<html><head></head><body><sasjs serverurl="https://old.example" apploc="/old" servertype="SASJS" loginmechanism="Redirected"></sasjs><script>window.observedServerUrl = document.querySelector("sasjs").getAttribute("serverurl")</script></body></html>'
-    )
-    await buildMockSite(target({ mockWebBasePath: '/demo/nested' }))
-    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    for (const origin of ['http://127.0.0.1:8123', 'https://example.com']) {
-      const { ResourceLoader } = require('jsdom')
-      class Assets extends ResourceLoader {
-        fetch(url: string): Promise<Buffer> | null {
-          const name = new URL(url).pathname.split('/').pop()
-          if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
-          const file = path.join(out(), 'host', name!)
-          return fs.existsSync(file)
-            ? Promise.resolve(fs.readFileSync(file))
-            : null
-        }
+  browserIt(
+    'provides an absolute mounted server URL before the app reads its config',
+    async () => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        '<html><head></head><body><sasjs serverurl="https://old.example" apploc="/old" servertype="SASJS" loginmechanism="Redirected"></sasjs><script>window.observedServerUrl = document.querySelector("sasjs").getAttribute("serverurl")</script></body></html>'
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo/nested' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      for (const origin of ['http://127.0.0.1:8123', 'https://example.com']) {
+        expect(
+          await observeMountInChromium(
+            html,
+            `${origin}/demo/nested/`,
+            path.join(out(), 'host'),
+            'window.observedServerUrl'
+          )
+        ).toBe(`${origin}/demo/nested`)
       }
-      const dom = new JSDOM(html, {
-        url: `${origin}/demo/nested/`,
-        resources: new Assets() as any,
-        runScripts: 'dangerously'
-      })
-      await new Promise<void>((resolve) =>
-        dom.window.addEventListener('load', () => resolve())
-      )
-      expect((dom.window as any).observedServerUrl).toBe(
-        `${origin}/demo/nested`
-      )
-      dom.window.close()
     }
-  })
+  )
 
-  it.each([
+  browserIt.each([
     "<sasjs serverurl='https://old.example'/>",
     "<sasjs serverurl='https://old.example'>",
     "<sasjs serverurl='https://old.example'></sasjs>"
@@ -709,63 +1059,36 @@ describe('browser-hosted build', () => {
       )
       await buildMockSite(target({ mockWebBasePath: '/demo' }))
       const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-      const { ResourceLoader } = require('jsdom')
-      class Assets extends ResourceLoader {
-        fetch(url: string): Promise<Buffer> | null {
-          const name = new URL(url).pathname.split('/').pop()
-          if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
-          const file = path.join(out(), 'host', name!)
-          return fs.existsSync(file)
-            ? Promise.resolve(fs.readFileSync(file))
-            : null
-        }
-      }
-      const dom = new JSDOM(html, {
-        url: 'https://example.com/demo/',
-        resources: new Assets() as any,
-        runScripts: 'dangerously'
-      })
-      await new Promise<void>((resolve) =>
-        dom.window.addEventListener('load', () => resolve())
-      )
-      expect((dom.window as any).observedServerUrl).toBe(
-        'https://example.com/demo'
-      )
-      dom.window.close()
+      expect(
+        await observeMountInChromium(
+          html,
+          'https://example.com/demo/',
+          path.join(out(), 'host'),
+          'window.observedServerUrl'
+        )
+      ).toBe('https://example.com/demo')
     }
   )
 
-  it('stamps before an app script nested inside the config element', async () => {
-    write(
-      path.join(root, 'client', 'dist', 'index.html'),
-      `<html><head></head><body><sasjs serverurl="old"><script>window.observed = document.querySelector('sasjs').getAttribute('serverurl')</script></sasjs></body></html>`
-    )
-    await buildMockSite(target({ mockWebBasePath: '/demo' }))
-    const { ResourceLoader } = require('jsdom')
-    class Assets extends ResourceLoader {
-      fetch(url: string): Promise<Buffer> | null {
-        const name = new URL(url).pathname.split('/').pop()
-        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
-        const file = path.join(out(), 'host', name!)
-        return fs.existsSync(file)
-          ? Promise.resolve(fs.readFileSync(file))
-          : null
-      }
+  browserIt(
+    'stamps before an app script nested inside the config element',
+    async () => {
+      write(
+        path.join(root, 'client', 'dist', 'index.html'),
+        `<html><head></head><body><sasjs serverurl="old"><script>window.observed = document.querySelector('sasjs').getAttribute('serverurl')</script></sasjs></body></html>`
+      )
+      await buildMockSite(target({ mockWebBasePath: '/demo' }))
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      expect(
+        await observeMountInChromium(
+          html,
+          'https://example.com/demo/',
+          path.join(out(), 'host'),
+          'window.observed'
+        )
+      ).toBe('https://example.com/demo')
     }
-    const dom = new JSDOM(
-      fs.readFileSync(path.join(out(), 'index.html'), 'utf8'),
-      {
-        url: 'https://example.com/demo/',
-        resources: new Assets() as any,
-        runScripts: 'dangerously'
-      }
-    )
-    await new Promise<void>((resolve) =>
-      dom.window.addEventListener('load', () => resolve())
-    )
-    expect((dom.window as any).observed).toBe('https://example.com/demo')
-    dom.window.close()
-  })
+  )
 
   it.each(['SASVIYA', 'SASJS'])(
     'preserves frontend adapter type and appLoc for a %s target',
@@ -850,50 +1173,34 @@ describe('browser-hosted build', () => {
     dom.window.close()
   })
 
-  it('stamps missing config attributes for an app that reads them', async () => {
-    const source =
-      '<html><head></head><body><sasjs data-custom="keep"></sasjs><script>const c = document.querySelector("sasjs"); window.adapter = new window.SASjs({serverUrl: c.getAttribute("serverurl"), serverType: c.getAttribute("servertype"), appLoc: c.getAttribute("apploc"), loginMechanism: c.getAttribute("loginmechanism")})</script></body></html>'
-    write(path.join(root, 'client', 'dist', 'index.html'), source)
-    await buildMockSite({
-      ...target({ mockWebBasePath: '/demo' }),
-      serverType: 'SAS9'
-    })
-    const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
-    const { ResourceLoader } = require('jsdom')
-    class Assets extends ResourceLoader {
-      fetch(url: string): Promise<Buffer> | null {
-        const name = new URL(url).pathname.split('/').pop()
-        if (name === 'boot.js') return Promise.resolve(Buffer.from(''))
-        const file = path.join(out(), 'host', name!)
-        return fs.existsSync(file)
-          ? Promise.resolve(fs.readFileSync(file))
-          : null
-      }
+  browserIt(
+    'stamps missing config attributes for an app that reads them',
+    async () => {
+      const source =
+        '<html><head></head><body><sasjs data-custom="keep"></sasjs><script>const c = document.querySelector("sasjs"); window.adapter = new window.SASjs.default({serverUrl: c.getAttribute("serverurl"), serverType: c.getAttribute("servertype"), appLoc: c.getAttribute("apploc"), loginMechanism: c.getAttribute("loginmechanism")})</script></body></html>'
+      write(path.join(root, 'client', 'dist', 'index.html'), source)
+      await buildMockSite({
+        ...target({ mockWebBasePath: '/demo' }),
+        serverType: 'SAS9'
+      })
+      const html = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
+      const result = await observeMountInChromium(
+        html,
+        'https://example.com/demo/',
+        path.join(out(), 'host'),
+        `({ config: window.adapter.sasjsConfig, custom: document.querySelector('sasjs').getAttribute('data-custom') })`,
+        true
+      )
+      expect(result.config.serverUrl).toBe('https://example.com/demo')
+      expect(result.config.serverType).toBe('SAS9')
+      expect(result.config.appLoc).toBe(appLoc)
+      expect(result.config.loginMechanism).toBe('Default')
+      expect(result.custom).toBe('keep')
+      expect(
+        fs.readFileSync(path.join(root, 'client', 'dist', 'index.html'), 'utf8')
+      ).toBe(source)
     }
-    const dom = new JSDOM(html, {
-      url: 'https://example.com/demo/',
-      resources: new Assets() as any,
-      runScripts: 'dangerously',
-      beforeParse(window) {
-        ;(window as any).SASjs = require('@sasjs/adapter').default
-      }
-    })
-    await new Promise<void>((resolve) =>
-      dom.window.addEventListener('load', () => resolve())
-    )
-    const config = (dom.window as any).adapter.sasjsConfig
-    expect(config.serverUrl).toBe('https://example.com/demo')
-    expect(config.serverType).toBe('SAS9')
-    expect(config.appLoc).toBe(appLoc)
-    expect(config.loginMechanism).toBe('Default')
-    expect(
-      dom.window.document.querySelector('sasjs')!.getAttribute('data-custom')
-    ).toBe('keep')
-    expect(
-      fs.readFileSync(path.join(root, 'client', 'dist', 'index.html'), 'utf8')
-    ).toBe(source)
-    dom.window.close()
-  })
+  )
 
   it('warns that apps ignoring missing DOM attributes can still use incompatible defaults', async () => {
     write(

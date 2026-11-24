@@ -1,4 +1,4 @@
-import { JSDOM, ResourceLoader, VirtualConsole } from 'jsdom'
+import { JSDOM, VirtualConsole, requestInterceptor } from 'jsdom'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -416,23 +416,19 @@ describe('mock boot', () => {
     const bothRequested = new Promise<void>((resolve) => {
       requestedBoth = resolve
     })
-    class StalledResources extends ResourceLoader {
-      fetch(url: string): any {
-        if (url.includes('/host/boot.js'))
-          return Promise.resolve(Buffer.from(source))
-        if (
-          url.includes('/host/persist.js') ||
-          url.includes('/host/intercept.js')
-        ) {
-          requested.push(url)
-          if (requested.length === 2) requestedBoth()
-          const pending: any = new Promise(() => {})
-          pending.abort = () => {}
-          return pending
-        }
-        return null
+    const intercept = requestInterceptor((request) => {
+      const url = request.url
+      if (url.includes('/host/boot.js')) return new Response(source)
+      if (
+        url.includes('/host/persist.js') ||
+        url.includes('/host/intercept.js')
+      ) {
+        requested.push(url)
+        if (requested.length === 2) requestedBoth()
+        return new Promise<Response>(() => {})
       }
-    }
+      throw new Error(`Unexpected resource request: ${url}`)
+    })
     jest.useRealTimers()
     const dom = new JSDOM(
       `<!doctype html><head><script src="/host/boot.js?v=abc123"></script><script>
@@ -444,7 +440,7 @@ describe('mock boot', () => {
       {
         url: 'http://localhost/',
         runScripts: 'dangerously',
-        resources: new StalledResources(),
+        resources: { interceptors: [intercept] } as any,
         virtualConsole: new VirtualConsole(),
         beforeParse(win: any) {
           Object.defineProperty(win.navigator, 'serviceWorker', {
@@ -492,21 +488,16 @@ describe('mock boot', () => {
   })
 
   it('leaves native app scripts and lifecycle events under parser control while the worker is pending', async () => {
-    class Resources extends ResourceLoader {
-      fetch(url: string): any {
-        if (url.endsWith('/host/boot.js'))
-          return Promise.resolve(Buffer.from(source))
-        if (url.endsWith('/host/persist.js'))
-          return Promise.resolve(
-            Buffer.from(
-              'window.__sasjsMockPersistReady = new Promise(() => {})'
-            )
-          )
-        if (url.endsWith('/host/intercept.js'))
-          return Promise.resolve(Buffer.from(''))
-        return null
-      }
-    }
+    const intercept = requestInterceptor((request) => {
+      const url = request.url
+      if (url.endsWith('/host/boot.js')) return new Response(source)
+      if (url.endsWith('/host/persist.js'))
+        return new Response(
+          'window.__sasjsMockPersistReady = new Promise(() => {})'
+        )
+      if (url.endsWith('/host/intercept.js')) return new Response('')
+      throw new Error(`Unexpected resource request: ${url}`)
+    })
     jest.useRealTimers()
     const dom = new JSDOM(
       `<!doctype html><head><script src="/host/boot.js"></script><script>
@@ -518,7 +509,7 @@ describe('mock boot', () => {
       {
         url: 'http://localhost/',
         runScripts: 'dangerously',
-        resources: new Resources(),
+        resources: { interceptors: [intercept] } as any,
         virtualConsole: new VirtualConsole(),
         beforeParse(win: any) {
           Object.defineProperty(win.navigator, 'serviceWorker', {

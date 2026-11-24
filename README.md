@@ -30,6 +30,8 @@ A quick demonstration of using it to compile, build and deploy a set of SAS Viya
 
 ## Installation
 
+Node.js 24.15.0 or later in the 24.x series, or Node.js 26.0.0 or later, is required. Node.js 22 and 25 are not supported; upgrade Node.js before upgrading the CLI.
+
 1. Install globally using `npm` as follows:
 
 ```
