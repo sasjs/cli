@@ -6684,3 +6684,156 @@ describe('the estate sign-in', () => {
     expect(answer.status).toBe(401)
   })
 })
+
+describe('the sign-in page', () => {
+  const form = (fields: Record<string, string>) => ({
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(fields).toString()
+  })
+
+  it('serves the page with the fields the estate asks for', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch('/SASLogon/login?service=/app/')
+
+    expect(response!.status).toBe(200)
+    expect(response!.headers.get('content-type')).toContain('text/html')
+    expect(response!.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+
+    const page = await response!.text()
+    expect(page).toContain('name="username"')
+    expect(page).toContain('name="password"')
+    // the page says what the handoff means: the account travels in the address,
+    // and an emulated estate protects nothing
+    expect(page).toContain('carried in the address')
+    // the service survives the round trip, escaped, so the post knows where to go
+    expect(page).toContain('value="/app/"')
+  })
+
+  it('signs a form post in, and the redirect carries the account', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsuser', password: 'Orion123' })
+    )
+
+    expect(response!.status).toBe(302)
+
+    // a service worker is handed no cookies and cannot set one, so the account
+    // travels in the address the page lands on and `persist.js` stores it
+    const location = new URL(
+      response!.headers.get('location') as string,
+      'https://mock.example.com'
+    )
+    // the fragment: not sent in a Referer, and consumed on arrival
+    expect(
+      new URLSearchParams(location.hash.slice(1)).get('sasjs-caller')
+    ).toBe('sasjsuser')
+  })
+
+  it('puts the form back with what went wrong', async () => {
+    const worker = loadWorker()
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'nope' })
+    )
+
+    // a browser renders the page again rather than a blank 401
+    expect(response!.status).toBe(200)
+    expect(await response!.text()).toContain('Invalid Password.')
+  })
+
+  it('keeps the service through a refused password', async () => {
+    const worker = loadWorker()
+
+    // the service a form post carries is in the body, not the address: losing it
+    // would put the caller on the site root after one wrong password
+    const refused = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'nope', service: '/app/' })
+    )
+    expect(await refused!.text()).toContain('value="/app/"')
+
+    const signedIn = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsadmin', password: 'Orion123', service: '/app/' })
+    )
+    expect(signedIn!.headers.get('location')).toBe(
+      '/app/#sasjs-caller=sasjsadmin'
+    )
+  })
+
+  it('sends the browser into this site, never to another origin', async () => {
+    const worker = loadWorker('/site-a')
+
+    const response = await worker.dispatch(
+      '/SASLogon/login',
+      form({
+        username: 'sasjsadmin',
+        password: 'Orion123',
+        service: 'https://evil.test/x'
+      })
+    )
+
+    expect(response!.status).toBe(302)
+    // this site's root, with the account it just chose
+    expect(response!.headers.get('location')).toBe(
+      '/site-a/#sasjs-caller=sasjsadmin'
+    )
+  })
+
+  it('posts into the site it is served from', async () => {
+    // a build in a folder registers the worker for `<folder>/`, so an
+    // origin-absolute form action would submit outside it and the page would be
+    // inert
+    const worker = loadWorker('/site-a')
+
+    const page = await worker.dispatch('/SASLogon/login')
+    expect(await page!.text()).toContain('action="/site-a/saslogon/login"')
+  })
+
+  it('refuses an account the fixture does not hold, rather than answering as the administrator', async () => {
+    const worker = loadWorker()
+
+    // a mistyped or shared sign-in link must not be answered as the
+    // administrator: that hides the mistake behind a working site, and
+    // `SASjsMock.as()` would report success for an account nothing knows. The
+    // refusal is tagged so the page clears the account it stored and keeps the
+    // fixture, which is fine.
+    const boot = worker.message({ type: 'sasjs-seed', subject: 'gone-user' })
+    await boot.pending
+
+    expect(boot.replies[0].error).toContain("No account 'gone-user'")
+    expect(boot.replies[0].errorKind).toBe('caller')
+
+    // nothing was adopted: the worker still answers as the administrator, the
+    // same answer a request with no session gets
+    const answer = await worker.dispatch('/identities/users/@currentUser')
+    expect((await answer!.json()).id).toBe('user-admin')
+  })
+
+  it('ends the session at the sign-out a browser follows', async () => {
+    const worker = loadWorker()
+
+    const signedIn = await worker.dispatch(
+      '/SASLogon/login',
+      form({ username: 'sasjsuser', password: 'Orion123' })
+    )
+    expect(signedIn!.status).toBe(302)
+
+    const out = await worker.dispatch('/SASLogon/logout')
+
+    // the body stays the package's - the corpus pins it - and the browser is sent
+    // into the site by a header, where the page drops the session it owns
+    expect(out!.status).toBe(200)
+    expect(await out!.text()).toBe('OK!')
+    expect(out!.headers.get('refresh')).toBe('0; url=/#sasjs-signout=1')
+
+    // and the worker itself answers as the account the boot named
+    const after = await worker.dispatch('/identities/users/@currentUser')
+    expect((await after!.json()).id).toBe('user-admin')
+  })
+})

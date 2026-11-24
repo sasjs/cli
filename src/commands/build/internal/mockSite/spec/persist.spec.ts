@@ -102,6 +102,8 @@ const loadPersist = (
     scriptURL?: string
     /** The page's own URL, as the browser reports it. */
     baseURI?: string
+    /** The address the page was loaded from, which a sign-in redirect carries. */
+    pageUrl?: string
     /**
      * The identity row the page stored: the fixture the worker reported and the
      * subject the visitor chose.
@@ -141,6 +143,12 @@ const loadPersist = (
   }
 
   const window: any = {}
+  window.location = { href: options.pageUrl || 'https://host.test/' }
+  window.history = {
+    replaceState: (_state: any, _title: string, url: string) => {
+      window.location.href = url
+    }
+  }
   ;(global as any).window = window
   ;(global as any).navigator = { serviceWorker }
 
@@ -364,6 +372,241 @@ describe('the page-side store', () => {
     })
     expect(removed).toHaveLength(1)
     expect(listeners.length).toBe(before)
+  })
+
+  it('stores the account a sign-in redirect carried, and strips the address', async () => {
+    // a service worker is handed no cookies, so the sign-in page answers a
+    // redirect carrying the account, and this is the page that stores it
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=sasjsuser'
+    })
+
+    const answering = setInterval(() => {
+      const asked = controller.postMessage.mock.calls
+      if (!asked.length) return
+      const type = asked[0][0].type
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: type + '-ack', identity: FIXTURE } })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', subject: 'sasjsuser' })
+    )
+    // the address is consumed, so a reload does not sign in twice
+    expect(window.location.href).not.toContain('sasjs-caller')
+
+    const row = await window.SASjsMock.identity()
+    expect(row.subject).toBe('sasjsuser')
+  })
+
+  it('does not store an account the fixture does not declare', async () => {
+    // a mistyped or shared link must not outlive itself in storage
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user'
+    })
+
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const type = calls[0][0].type
+      ;[...listeners].forEach((fn) =>
+        fn({ data: { type: type + '-ack', identity: FIXTURE } })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    expect(identityRows.size).toBe(0)
+  })
+
+  it('records the sign-in even when the stored drive had to be replaced', async () => {
+    // the host-refusal branch retries with a boot from an address this pass
+    // already stripped, so the account has to travel in the row it boots from
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=sasjsuser',
+      seededIdentity: { fixture: FIXTURE, subject: null },
+      seededDeleted: ['/sasjs/drive/gone.txt']
+    })
+
+    // answer each ask by its own type: the retry boots as a seed and waits for a
+    // seed ack, so a single pinned type would leave it to time out
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const asked = calls[calls.length - 1][0]
+      ;[...listeners].forEach((fn) =>
+        fn({
+          data:
+            asked.type === 'sasjs-load'
+              ? { type: 'sasjs-load-ack', error: 'refused', errorKind: 'host' }
+              : { type: 'sasjs-seed-ack', identity: FIXTURE }
+        })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    // the drive load, then the seed the refusal sends it back to
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-load',
+      'sasjs-seed'
+    ])
+    // and the retry asks as the account the redirect named, not the one the row
+    // held before it
+    expect(asks[1].subject).toBe('sasjsuser')
+    expect(identityRows.get('current')?.subject).toBe('sasjsuser')
+  })
+
+  it('clears an account the worker refuses, keeping the fixture', async () => {
+    // the worker owns the fixture it ships; a row naming an account that fixture
+    // does not hold comes back as `errorKind: 'caller'`. The fixture is fine, so
+    // only the account goes - clearing the row would discard the accounts the
+    // visitor created.
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/',
+      seededIdentity: { fixture: FIXTURE, subject: 'gone-user' }
+    })
+
+    let seeds = 0
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const asked = calls[calls.length - 1][0]
+      const reply =
+        asked.type === 'sasjs-seed' && seeds++ === 0
+          ? {
+              type: 'sasjs-seed-ack',
+              error: "No account 'gone-user' in the identity fixture",
+              errorKind: 'caller'
+            }
+          : { type: 'sasjs-seed-ack', identity: FIXTURE }
+      ;[...listeners].forEach((fn) => fn({ data: reply }))
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-seed',
+      'sasjs-seed'
+    ])
+    expect(asks[0].subject).toBe('gone-user')
+    // the retry boots as a first visit does
+    expect(asks[1].subject).toBeUndefined()
+    // the fixture stays, the account goes
+    expect(identityRows.get('current')?.fixture).toEqual(FIXTURE)
+    expect(identityRows.get('current')?.subject).toBeUndefined()
+  })
+
+  it('retries under the stored account when the address names one it cannot use', async () => {
+    // one decision for the row and the retry: an address naming an account the
+    // fixture does not declare must not leave the load served as admin while the
+    // row still names someone else
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' },
+      seededDeleted: ['/sasjs/drive/gone.txt']
+    })
+
+    const answering = setInterval(() => {
+      const calls = controller.postMessage.mock.calls
+      if (!calls.length) return
+      const asked = calls[calls.length - 1][0]
+      ;[...listeners].forEach((fn) =>
+        fn({
+          data:
+            asked.type === 'sasjs-load'
+              ? { type: 'sasjs-load-ack', error: 'refused', errorKind: 'host' }
+              : { type: 'sasjs-seed-ack', identity: FIXTURE }
+        })
+      )
+    }, 5)
+
+    await window.__sasjsMockPersistReady
+    clearInterval(answering)
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+
+    expect(asks.map((ask: any) => ask.type)).toEqual([
+      'sasjs-load',
+      'sasjs-seed'
+    ])
+    // the stored account, not the one the address named
+    expect(asks[1].subject).toBe('sasjsuser')
+    expect(identityRows.get('current')?.subject).toBe('sasjsuser')
+  })
+
+  it('asks the first boot as the stored account when the address names one it cannot use', async () => {
+    // the outgoing message is validated too: sending a name the worker rejects
+    // would serve this load as the administrator while the row keeps the account
+    // it already had
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-caller=gone-user',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockPersistReady
+    stop()
+
+    const asks = controller.postMessage.mock.calls.map((call: any) => call[0])
+    expect(asks[0].subject).toBe('sasjsuser')
+  })
+
+  it('drops the account when the sign-out redirect asks it to', async () => {
+    const controller = { postMessage: jest.fn() }
+    const { window, listeners, identityRows } = loadPersist({
+      controller,
+      ready: Promise.resolve(),
+      pageUrl: 'https://host.test/#sasjs-signout=1',
+      seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
+    })
+
+    const stop = answerBoot(controller, listeners)
+    await window.__sasjsMockPersistReady
+    stop()
+
+    // the boot answers as nobody named, and the row keeps the fixture without
+    // the account: clearing it would drop the site's own accounts and load the
+    // visitor's drive under the shipped fixture
+    expect(controller.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sasjs-seed', subject: undefined })
+    )
+    expect(identityRows.size).toBe(1)
+
+    const row = await window.SASjsMock.identity()
+    expect(row.subject).toBeUndefined()
+    expect(row.fixture).toEqual(
+      expect.objectContaining({ users: FIXTURE.users })
+    )
   })
 
   it('reports a timeout as an error and leaves no listener behind', async () => {
