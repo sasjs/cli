@@ -6353,6 +6353,64 @@ describe('the estate sign-in', () => {
     expect(wrong.body.error).toBe('invalid_client')
   })
 
+  it('signs in the client the adapter falls back to, which carries no secret', async () => {
+    const worker = loadWorker()
+
+    // `@sasjs/adapter` sends `sas.cli` with an empty secret whenever a target
+    // names no client, and sasjs/server binds its password grant to that same
+    // pair. Refusing it here signs an app in against a server and out in a
+    // browser, which is the divergence sasjs/server#665 exists to find.
+    const answer = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'sas.cli',
+        ''
+      )
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+
+    // the same client as the adapter actually posts it: the fields in the body,
+    // no secret at all rather than an empty one
+    const asTheAdapterSends = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'sas.cli',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+    expect(asTheAdapterSends.status).toBe(200)
+    expect(asTheAdapterSends.body.access_token).toMatch(/^access-/)
+
+    // a public client authenticates as nothing: a secret offered for it is
+    // refused rather than quietly ignored, or naming the client would be enough
+    const withSecret = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'sas.cli',
+        'not-the-secret'
+      )
+    )
+    expect(withSecret.status).toBe(401)
+    expect(withSecret.body.error).toBe('invalid_client')
+  })
+
   it('challenges a failed client authentication, as RFC 6749 asks', async () => {
     const worker = loadWorker()
 

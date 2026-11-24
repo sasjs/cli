@@ -68,6 +68,18 @@ const DRIVE_STORE = R.driveStore
  */
 const IDENTITY_FILE = 'host/identity.json'
 
+/**
+ * The public OAuth client every Viya deployment ships, and the one
+ * `@sasjs/adapter` falls back to when a target names no client.
+ *
+ * It is never a fixture entry: a client record carries a secret and this one has
+ * none, which is why `@sasjs/api` resolves it from the store as a rule while
+ * leaving the administration listing to the fixture. sasjs/server binds its
+ * password grant, and the refresh that follows, to this exact id with an empty
+ * secret.
+ */
+const PUBLIC_CLIENT_ID = 'sas.cli'
+
 const IDENTITY_STATE = {
   store: new API.MemoryIdentityStore(API.DEFAULT_IDENTITY),
   /**
@@ -2591,24 +2603,39 @@ const oauthToken = async (request) => {
       `The client ${client.clientId} is not registered on this site.`
     )
 
-  // the store's read answers the client's lifetimes and not its secret, so the
-  // comparison reads the snapshot the host persists - the same record, with the
-  // field a client authenticates with kept out of the read path
-  const declaredSecret = IDENTITY_STATE.secrets.get(client.clientId)
+  // The public client the estate ships holds no secret, so there is nothing in
+  // the fixture to compare against: sasjs/server binds its password grant - and
+  // the refresh that follows - to this id with an empty secret, and
+  // `@sasjs/adapter` falls back to it whenever a target names no client. A secret
+  // offered for it is refused rather than ignored, or naming the client alone
+  // would buy a token.
+  if (client.clientId === PUBLIC_CLIENT_ID) {
+    if (client.clientSecret !== '')
+      return oauthError(
+        401,
+        'invalid_client',
+        `The public client ${PUBLIC_CLIENT_ID} carries no secret.`
+      )
+  } else {
+    // the store's read answers the client's lifetimes and not its secret, so the
+    // comparison reads the snapshot the host persists - the same record, with the
+    // field a client authenticates with kept out of the read path
+    const declaredSecret = IDENTITY_STATE.secrets.get(client.clientId)
 
-  // verified or refused, never skipped: a client the fixture declares no secret
-  // for cannot be checked at all, so it is refused by name. A change to what the
-  // fixture carries then shows up as a refusal here rather than as a check that
-  // quietly accepts any secret.
-  if (!declaredSecret)
-    return oauthError(
-      401,
-      'invalid_client',
-      `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
-    )
+    // verified or refused, never skipped: a client the fixture declares no secret
+    // for at all cannot be checked, so it is refused by name. A change to what the
+    // fixture carries then shows up as a refusal here rather than as a check that
+    // quietly accepts any secret.
+    if (declaredSecret === undefined)
+      return oauthError(
+        401,
+        'invalid_client',
+        `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
+      )
 
-  if (declaredSecret !== client.clientSecret)
-    return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+    if (declaredSecret !== client.clientSecret)
+      return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+  }
 
   try {
     let pair
