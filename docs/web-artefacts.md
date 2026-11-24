@@ -41,8 +41,12 @@ deployed files somewhere else breaks their links; redeploy instead.
 root, and packs it as the `web/` half of the deploy bundle. The adjustments are:
 
 - root-absolute asset references become relative: HTML `src`/`href`/`srcset`/
-  `poster`/`data` attributes, CSS `url(...)` and `@import` - in `.css` files,
-  inline `<style>` blocks and `style=""` attributes - and a `<base href>`;
+  `poster`/`data` attributes and a `<base href>`;
+- CSS `url(...)` and `@import` become relative too, and are computed against the
+  stylesheet's own folder (which is what a browser resolves them against): a
+  stylesheet in `assets/` naming `/assets/f.woff2` gets `./f.woff2`, one in
+  `css/deep/` gets `../../assets/f.woff2`. An inline `<style>` block or a
+  `style=""` attribute uses the document, as the browser does;
 - a bundler runtime's public path becomes `./`, so chunks load from the app's
   folder;
 - the `<sasjs>` adapter tag names the target's `appLoc` and server type.

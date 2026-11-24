@@ -135,20 +135,54 @@ describe('the frontend published to a SASjs server app', () => {
       'client/dist/assets/style.css',
       '@import "/assets/reset.css";' +
         '.a{background:url(/assets/bg.png)}' +
+        '.d{background:url(/assets/f.woff2)}' +
         '.b{background:url("//cdn.example/x.png")}' +
         '.c{background:url(data:image/png;base64,AAAA)}'
     )
 
     await publishFrontend(target(), streamConfig(), destination)
 
+    // inline CSS has the document as its base
     expect(read('index.html')).toContain('url(./assets/f.woff2)')
     expect(read('index.html')).toContain("url('./assets/bg.png')")
+    // a stylesheet in assets/ resolves against assets/, not the document
     const css = read('assets/style.css')
-    expect(css).toContain('@import "./assets/reset.css"')
-    expect(css).toContain('url(./assets/bg.png)')
+    expect(css).toContain('@import "./reset.css"')
+    expect(css).toContain('url(./bg.png)')
+    expect(css).toContain('url(./f.woff2)')
     // another site, and a self-contained URI, are not the app's own files
     expect(css).toContain('url("//cdn.example/x.png")')
     expect(css).toContain('url(data:image/png;base64,AAAA)')
+  })
+
+  it('resolves a stylesheet reference in a sibling folder with ..', async () => {
+    write('client/dist/index.html', '<html><head></head><body></body></html>')
+    write(
+      'client/dist/css/deep/style.css',
+      '.a{background:url(/assets/bg.png)}'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    expect(read('css/deep/style.css')).toContain('url(../../assets/bg.png)')
+  })
+
+  it('handles a bare comma between srcset candidates', async () => {
+    const dataUri = 'data:image/svg+xml;base64,PHN2Zy8+'
+
+    write(
+      'client/dist/index.html',
+      '<html><head></head><body>' +
+        `<img id="a" srcset="/img/a.png 1x,${dataUri} 2x,/img/c.png 3x">` +
+        '</body></html>'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    const html = read('index.html')
+    expect(html).toContain('./img/a.png 1x')
+    expect(html).toContain('./img/c.png 3x')
+    expect(html).toContain(`${dataUri} 2x`)
   })
 
   it('points the bundler runtime at the app folder', async () => {

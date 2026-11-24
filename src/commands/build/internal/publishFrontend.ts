@@ -87,7 +87,21 @@ export const publishFrontend = async (
     // written as `url(/assets/...)` would otherwise be fetched from the server
     // root once the app is served under /app/<id>/
     if (/\.css$/i.test(file)) {
-      fs.writeFileSync(file, relativiseCss(fs.readFileSync(file, 'utf8')))
+      // the reference is relative to the stylesheet, so its folder within the
+      // published app is what the rewrite is computed from
+      const withinApp = path
+        .relative(destination, file)
+        .split(path.sep)
+        .join('/')
+      const folder = path.posix.dirname(withinApp)
+
+      fs.writeFileSync(
+        file,
+        relativiseCss(
+          fs.readFileSync(file, 'utf8'),
+          folder === '.' ? '' : folder
+        )
+      )
     }
   }
 
@@ -165,33 +179,71 @@ const adjustIndexHtml = (content: string, target: Target): string => {
 /**
  * Root-absolute candidates in a `srcset`, made relative.
  *
- * A `srcset` is a comma-separated list, and a data URI carries its own commas,
- * so the attribute is not split: each candidate that starts at the root is
- * rewritten where it starts - after the beginning or a separator. A data URI is
- * left exactly as it is, and may sit beside an absolute candidate without
- * stopping that one from being rewritten.
+ * A candidate URL contains no whitespace, so a `data:` URI's payload - commas
+ * and all - is joined back onto its candidate before the list is handled. What
+ * is left are the real separators, which are commas with or without the
+ * recommended space. Every candidate that starts at the root is rewritten where
+ * it starts; a `data:` URI is left byte for byte.
  */
 export const relativiseSrcset = (srcset: string): string => {
-  const rewritten = srcset.replace(/(^|,)(\s+)\/(?!\/)/g, '$1$2./')
+  const candidates: string[] = []
 
-  // the first candidate has no separator in front of it
-  return rewritten.startsWith('/') && !rewritten.startsWith('//')
-    ? `.${rewritten}`
-    : rewritten
+  for (const part of srcset.split(',')) {
+    const previous = candidates[candidates.length - 1]
+    const continuesDataUri =
+      previous !== undefined &&
+      /^\s*\S+$/.test(previous) &&
+      previous.trim().startsWith('data:')
+
+    if (continuesDataUri)
+      candidates[candidates.length - 1] = `${previous},${part}`
+    else candidates.push(part)
+  }
+
+  return candidates
+    .map((candidate) => {
+      const url = candidate.trim()
+
+      return url.startsWith('/') && !url.startsWith('//')
+        ? candidate.replace(/^(\s*)\/(?!\/)/, '$1./')
+        : candidate
+    })
+    .join(',')
 }
 
 /**
- * Root-absolute references inside CSS, made relative to the stylesheet's own
- * folder.
+ * Root-absolute references inside CSS, made relative to the stylesheet.
  *
- * The same rule as an attribute, applied to the two forms CSS writes a URL in:
- * `url(...)` (quoted or not) and `@import "..."/'...'`. A protocol-relative
- * `//host/...` is another site and is left alone, and so is a `data:` URI.
+ * A stylesheet resolves `url()` and `@import` against its OWN URL, not the
+ * document (CSS 2.1 4.3.4), so the target is computed from the folder holding
+ * the stylesheet. An inline `<style>` block or a `style=""` attribute has the
+ * document as its base, which is the same computation with an empty folder.
+ *
+ * A protocol-relative `//host/...` is another site and is left alone, and so is
+ * a `data:` URI.
  */
-export const relativiseCss = (css: string): string =>
+export const relativiseCss = (css: string, folder: string = ''): string =>
   css
-    .replace(/url\(\s*(['"]?)\/(?!\/)/g, 'url($1./')
-    .replace(/@import\s+(['"])\/(?!\/)/g, '@import $1./')
+    .replace(
+      /url\(\s*(['"]?)\/(?!\/)([^)'"]*)\1\s*\)/g,
+      (_match, quote: string, reference: string) =>
+        `url(${quote}${referenceRelativeTo(reference, folder)}${quote})`
+    )
+    .replace(
+      /@import\s+(['"])\/(?!\/)([^'"]*)\1/g,
+      (_match, quote: string, reference: string) =>
+        `@import ${quote}${referenceRelativeTo(reference, folder)}${quote}`
+    )
+
+/** Where a root-absolute reference lands, relative to the file naming it. */
+const referenceRelativeTo = (reference: string, folder: string): string => {
+  const from = folder === '' ? '.' : folder
+  const to = reference === '' ? '.' : reference
+  const relative = path.posix.relative(from, to)
+  const withDot = relative.startsWith('.') ? relative : `./${relative}`
+
+  return reference.endsWith('/') ? `${withDot}/` : withDot
+}
 
 /** Every file under a folder, recursively, as absolute paths. */
 const listFiles = (folder: string): string[] => {
