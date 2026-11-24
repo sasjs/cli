@@ -152,9 +152,12 @@ const adjustIndexHtml = (content: string, target: Target): string => {
   }
 
   // `xlink:href` is a namespaced attribute, which a selector would have to
-  // escape; an SVG sprite is the usual place an app names an icon file, so it is
-  // rewritten wherever it appears.
+  // escape; a sprite is the usual place an app names an icon file, so it is
+  // rewritten wherever it loads something. An SVG anchor is navigation, exactly
+  // as an HTML one is, and is left alone.
   for (const element of Array.from(document.querySelectorAll('*'))) {
+    if (element.tagName.toLowerCase() === 'a') continue
+
     const value = element.getAttribute('xlink:href')
     if (value === null) continue
 

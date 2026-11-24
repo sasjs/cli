@@ -175,15 +175,20 @@ describe('the frontend published to a SASjs server app', () => {
     expect(css).toContain('url(./bg.png)')
   })
 
-  it('rewrites the xlink:href form an SVG sprite uses', async () => {
+  it('rewrites the xlink:href form an SVG sprite uses, and not an SVG anchor', async () => {
     write(
       'client/dist/index.html',
-      '<html><head></head><body><svg><use xlink:href="/assets/icons.svg#x"></use></svg></body></html>'
+      '<html><head></head><body><svg>' +
+        '<use xlink:href="/assets/icons.svg#x"></use>' +
+        '<a xlink:href="/docs"><text>docs</text></a>' +
+        '</svg></body></html>'
     )
 
     await publishFrontend(target(), streamConfig(), destination)
 
-    expect(read('index.html')).toContain('xlink:href="./assets/icons.svg#x"')
+    const html = read('index.html')
+    expect(html).toContain('xlink:href="./assets/icons.svg#x"')
+    expect(html).toContain('xlink:href="/docs"')
   })
 
   it('resolves a stylesheet reference in a sibling folder with ..', async () => {

@@ -451,6 +451,17 @@ const seedFromBuild = (
  * Exported because `deploymentTree` asks the same question of the folders it
  * keeps out of the pack; one implementation is what keeps the two answers equal.
  */
+export const isSameOrChild = (parent: string, child: string): boolean => {
+  const relative = path.relative(parent, child)
+
+  return (
+    relative === '' ||
+    (relative !== '..' &&
+      !relative.startsWith('..' + path.sep) &&
+      !path.isAbsolute(relative))
+  )
+}
+
 /**
  * The folders inside the build that the CLI writes itself.
  *
@@ -475,17 +486,6 @@ const protectedBuildFolders = (target: Target): string[] => {
     folders.push(path.join(buildFolder, target.streamConfig.streamWebFolder))
 
   return folders.filter(Boolean)
-}
-
-export const isSameOrChild = (parent: string, child: string): boolean => {
-  const relative = path.relative(parent, child)
-
-  return (
-    relative === '' ||
-    (relative !== '..' &&
-      !relative.startsWith('..' + path.sep) &&
-      !path.isAbsolute(relative))
-  )
 }
 
 /**
