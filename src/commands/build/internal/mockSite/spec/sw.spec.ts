@@ -6,9 +6,13 @@ import {
   DRIVE_CORPUS,
   IDENTITY_CORPUS,
   RECORD_CORPUS,
-  VIYA_TABLE
+  VIYA_CORPUS,
+  VIYA_OVERLAY,
+  VIYA_TABLE,
+  requestFor,
+  shapeMismatches
 } from '@sasjs/api'
-import type { CorpusCase, IdentityFixture } from '@sasjs/api'
+import type { CorpusCase, IdentityFixture, ViyaReplayState } from '@sasjs/api'
 import os from 'os'
 import yazl from 'yazl'
 import { getWeboutPrelude } from '@sasjs/utils'
@@ -6097,6 +6101,269 @@ describe('the emulated Viya estate', () => {
   })
 })
 
+describe('the Viya corpus, replayed in the worker', () => {
+  /**
+   * The request bodies this host supplies for cases whose request the corpus
+   * deliberately does not record.
+   *
+   * The corpus carries the answer's shape and the names of the queries the client
+   * sent, because those are the contract. A write's body is the caller's own data,
+   * so a case is replayed only when this host has a body to send - and the ones it
+   * does not are reported, not quietly passed.
+   */
+  const BODIES: Record<string, { body: string; contentType: string }> = {
+    'POST /folders/folders': {
+      contentType: 'application/json',
+      body: JSON.stringify({ name: 'replay-folder' })
+    },
+    'POST /compute/contexts/{}/sessions': {
+      contentType: 'application/json',
+      body: '{}'
+    },
+    'POST /compute/sessions/{}/jobs': {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        name: 'replay',
+        description: 'a replay of the captured job',
+        variables: {}
+      })
+    },
+    // the sign-in the estate records, as the adapter performs it: the public
+    // client with no secret, not a registered one
+    'POST /SASLogon/oauth/token': {
+      contentType: 'application/x-www-form-urlencoded',
+      body: new URLSearchParams({
+        grant_type: 'password',
+        client_id: 'sas.cli',
+        username: 'sasjsadmin',
+        password: 'Orion123'
+      }).toString()
+    }
+  }
+
+  /** The query values this host can answer, where the capture recorded only names. */
+  const QUERY_VALUES: Record<string, Record<string, string>> = {
+    'GET /folders/folders/@item': { path: '/' }
+  }
+
+  /** The id an answer hands out, named the way the replay looks it up. */
+  const idKeyFor = (route: string) => {
+    const [, path] = route.split(' ')
+    const last = path.split('/').filter(Boolean).pop() || ''
+
+    return last.replace(/s$/, '')
+  }
+
+  /**
+   * The routes this host answers that the dispatcher declines.
+   *
+   * `VIYA_OVERLAY` is the emulator's own account of what its API dispatcher
+   * implements, and one of its declines reads "the token endpoint is answered by
+   * the host that mounts the emulator, which owns the token port" - a statement
+   * about this worker, not a reason for this worker to skip the case. A decline
+   * is therefore honoured only for a route the host has no decision about; the
+   * ones listed here are replayed whatever the overlay says.
+   */
+  const HOST_ROUTES = new Set(['POST /SASLogon/oauth/token'])
+
+  /**
+   * The routes this replay answers, by name.
+   *
+   * Named rather than counted: a pinned number goes red when the corpus gains a
+   * case, while a route covered twice hides one that stopped being answered. A
+   * case that arrives with the next corpus shows up as a list difference naming
+   * the route it adds.
+   */
+  const REPLAYED = [
+    'DELETE /compute/sessions/{}',
+    'GET /compute/contexts',
+    'GET /compute/sessions/{}/jobs/{}',
+    'GET /compute/sessions/{}/jobs/{}/log/content',
+    'GET /compute/sessions/{}/jobs/{}/state',
+    'GET /compute/sessions/{}/state',
+    'GET /folders/folders/@item',
+    'GET /folders/folders/@myRecycleBin',
+    'GET /folders/folders/{}',
+    'GET /folders/folders/{}/members',
+    'GET /identities/users/@currentUser',
+    'GET /types/types',
+    'POST /SASLogon/oauth/token',
+    'POST /compute/contexts/{}/sessions',
+    'POST /compute/sessions/{}/jobs',
+    'POST /folders/folders'
+  ]
+
+  /**
+   * The cases this host does not answer, by name.
+   *
+   * Each is a fact about the corpus or the dispatcher rather than a silent
+   * omission: the job families the emulator declines by decision, the writes
+   * whose request body the corpus does not carry, and the two path templates
+   * whose id no captured case hands out first. Their reasons are printed in the
+   * run, so a reader can tell a decision from a gap.
+   */
+  const NOT_REPLAYED = [
+    'GET /compute/sessions/{}/variables/{}',
+    'GET /files/files/{}',
+    'GET /files/files/{}/content',
+    'GET /jobDefinitions/definitions/{}',
+    'GET /jobExecution/jobs/{}',
+    'GET /jobExecution/jobs/{}/state',
+    'GET /launcher/contexts',
+    'PATCH /files/files/{}',
+    'PATCH /folders/folders/{}',
+    'POST /files/files',
+    'POST /jobDefinitions/definitions',
+    'POST /jobExecution/jobs',
+    'PUT /files/files/{}/content'
+  ]
+
+  /**
+   * The fields a host may leave out of an answer, and why.
+   *
+   * `id_token` is in the estate's captured token shape and neither host mints
+   * one: an ID token is an assertion about an OpenID Connect identity, and both
+   * hosts answer "who is this" with `GET /identities/users/@currentUser`
+   * (sasjs/server's `tokenResponse` documents the same decision). Naming it here
+   * keeps the replay strict about every other field.
+   */
+  const ABSENT_FIELDS: Record<string, string[]> = {
+    'POST /SASLogon/oauth/token': ['id_token']
+  }
+
+  it('answers every captured operation, in the shape the estate recorded', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity: DEFAULT_IDENTITY,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+
+    const state: ViyaReplayState = { variable: 'SYSCC' }
+    const failures: string[] = []
+    const replayed: string[] = []
+    const notReplayed: Record<string, string> = {}
+
+    /** One case through the worker, compared with what the estate captured. */
+    const replay = async (item: (typeof VIYA_CORPUS)[number]) => {
+      const declared = VIYA_OVERLAY[item.route]
+
+      // a decline is the dispatcher's decision, and the host answers more than
+      // the dispatcher does: only a route the host has no decision about is
+      // taken as declined
+      if (
+        declared &&
+        declared.implemented === false &&
+        !HOST_ROUTES.has(item.route)
+      ) {
+        notReplayed[item.route] = `declined - ${declared.reason}`
+
+        return
+      }
+
+      const request = requestFor(item, state, QUERY_VALUES[item.route])
+
+      if (request.unresolved.length) {
+        notReplayed[item.route] = `no ${request.unresolved.join(
+          ', '
+        )} for the path yet`
+
+        return
+      }
+
+      const supplied = BODIES[item.route]
+
+      if (!supplied && ['POST', 'PATCH', 'PUT'].includes(request.method)) {
+        notReplayed[item.route] = 'the corpus records no request body'
+
+        return
+      }
+
+      const init: any = { method: request.method, headers: {} }
+
+      if (supplied) {
+        init.headers['content-type'] = supplied.contentType
+        init.body = supplied.body
+      }
+
+      const response = await worker.dispatch(request.path, init)
+
+      if (response === undefined) {
+        failures.push(
+          `${item.route}: the worker did not answer ${request.path}`
+        )
+
+        return
+      }
+
+      const answer = await response
+
+      if (!item.statuses.includes(answer.status)) {
+        failures.push(
+          `${item.route}: ${answer.status}, and the estate answered ${item.statuses.join(' or ')}`
+        )
+      }
+
+      const body = await answer.json().catch(() => undefined)
+
+      if (item.shape !== undefined) {
+        // a field this host states no value for, by decision, is named in
+        // ABSENT_FIELDS; every other missing field is drift
+        const absent = (ABSENT_FIELDS[item.route] || []).map(
+          (field) => `${item.route}.${field}: missing from the answer`
+        )
+
+        for (const mismatch of shapeMismatches(item.shape, body, item.route))
+          if (!absent.includes(mismatch)) failures.push(mismatch)
+      }
+
+      replayed.push(item.route)
+
+      // an id a following case needs: a create answers it at the top, a list
+      // answers it on its first item - the context list is how a client learns
+      // the id the session route takes
+      const direct = (body as any)?.id
+      const fromItems = (body as any)?.items?.[0]?.id
+
+      if (direct !== undefined) state[idKeyFor(item.route)] = String(direct)
+      else if (fromItems !== undefined)
+        state[idKeyFor(item.route)] = String(fromItems)
+    }
+
+    // the session's own delete runs last: done in corpus order it would take the
+    // session away from every case the capture recorded after it
+    const deferred = VIYA_CORPUS.filter((item) =>
+      item.route.startsWith('DELETE ')
+    )
+
+    for (const item of VIYA_CORPUS) {
+      if (item.route.startsWith('DELETE ')) continue
+
+      await replay(item)
+    }
+
+    for (const item of deferred) await replay(item)
+
+    // the reasons are printed where a case is not replayed: a corpus that is 40%
+    // skipped is a different claim from one that is replayed, and a reader has to
+    // be able to tell which reason applied
+    for (const [route, reason] of Object.entries(notReplayed))
+      console.log(`not replayed: ${route}: ${reason}`)
+
+    // The lists are the assertion, not a count: every route this host is expected
+    // to answer was answered, and every route left out is one named above. A
+    // corpus case that arrives here fails with the route it adds, rather than
+    // moving a number nobody reads; a route that stops being answered fails as a
+    // missing entry, even when another case still answers something.
+    expect({
+      failures,
+      replayed: replayed.sort(),
+      notReplayed: Object.keys(notReplayed).sort()
+    }).toEqual({ failures: [], replayed: REPLAYED, notReplayed: NOT_REPLAYED })
+  })
+})
+
 describe('the estate surface and the host', () => {
   const swSource = () =>
     fs.readFileSync(path.join(__dirname, '..', 'assets', 'sw.js'), 'utf8')
@@ -6351,6 +6618,168 @@ describe('the estate sign-in', () => {
     )
     expect(wrong.status).toBe(401)
     expect(wrong.body.error).toBe('invalid_client')
+  })
+
+  it('signs in the client the adapter falls back to, which carries no secret', async () => {
+    const worker = loadWorker()
+
+    // `@sasjs/adapter` sends `sas.cli` with an empty secret whenever a target
+    // names no client, and sasjs/server binds its password grant to that same
+    // pair. Refusing it here signs an app in against a server and out in a
+    // browser, which is the divergence the estate-versus-emulator comparison
+    // exists to find.
+    const answer = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'sas.cli',
+        ''
+      )
+    )
+
+    expect(answer.status).toBe(200)
+    expect(answer.body.access_token).toMatch(/^access-/)
+
+    // the same client as the adapter actually posts it: the fields in the body,
+    // no secret at all rather than an empty one
+    const asTheAdapterSends = await json(
+      worker.dispatch('/SASLogon/oauth/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'password',
+          client_id: 'sas.cli',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        }).toString()
+      })
+    )
+    expect(asTheAdapterSends.status).toBe(200)
+    expect(asTheAdapterSends.body.access_token).toMatch(/^access-/)
+
+    // a public client authenticates as nothing: a secret offered for it is
+    // refused rather than quietly ignored, or the empty-secret rule would accept
+    // any caller that names the client
+    const withSecret = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'password',
+          username: 'sasjsadmin',
+          password: 'Orion123'
+        },
+        'sas.cli',
+        'not-the-secret'
+      )
+    )
+    expect(withSecret.status).toBe(401)
+    expect(withSecret.body.error).toBe('invalid_client')
+  })
+
+  it('keeps a fixture-declared public client secret, rather than overwriting it', async () => {
+    // a site whose fixture names `sas.cli` has stated a secret for it, and the
+    // fixture is the site's own word about its clients: the estate's rule that the
+    // public client carries no secret must not turn a declared secret into a
+    // refusal of that secret and an acceptance of the empty one
+    ;(global as any).__sasjsIdentity = {
+      ...DEFAULT_IDENTITY,
+      clients: [
+        ...DEFAULT_IDENTITY.clients,
+        {
+          clientId: 'sas.cli',
+          clientSecret: 'declared-secret',
+          accessTokenExpiration: 600,
+          refreshTokenExpiration: 900
+        }
+      ]
+    }
+
+    const worker = loadWorker()
+
+    try {
+      const declared = await json(
+        exchange(
+          worker,
+          {
+            grant_type: 'password',
+            username: 'sasjsadmin',
+            password: 'Orion123'
+          },
+          'sas.cli',
+          'declared-secret'
+        )
+      )
+      expect(declared.status).toBe(200)
+      // the lifetimes are the declared record's, not the estate default the rule
+      // would have resolved
+      expect(declared.body.expires_in).toBe(600)
+
+      const secretless = await json(
+        exchange(
+          worker,
+          {
+            grant_type: 'password',
+            username: 'sasjsadmin',
+            password: 'Orion123'
+          },
+          'sas.cli',
+          ''
+        )
+      )
+      expect(secretless.status).toBe(401)
+      expect(secretless.body.error).toBe('invalid_client')
+    } finally {
+      // this describe sits outside the harness's `afterEach`, so a fixture set here
+      // is cleared here: a worker booted by the next case must not read it
+      delete (global as any).__sasjsIdentity
+    }
+  })
+
+  it('refuses a refresh token presented as another client', async () => {
+    const worker = loadWorker()
+
+    const { code } = await authorize(worker)
+    const first = await json(
+      exchange(worker, {
+        grant_type: 'authorization_code',
+        code: code as string
+      })
+    )
+    expect(first.status).toBe(200)
+
+    // the public client carries no secret, so a check that only verified the
+    // client would hand a confidential client's pair to anyone who named it
+    const asPublic = await json(
+      exchange(
+        worker,
+        {
+          grant_type: 'refresh_token',
+          refresh_token: first.body.refresh_token
+        },
+        'sas.cli',
+        ''
+      )
+    )
+    expect(asPublic.status).toBe(401)
+    expect(asPublic.body.error).toBe('invalid_grant')
+    expect(asPublic.body.error_description).toBe(
+      'The refresh token was issued for another client.'
+    )
+
+    // refused before the rotation, in the server's own words: the pair the caller
+    // holds is still the one that rotates
+    const stillGood = await json(
+      exchange(worker, {
+        grant_type: 'refresh_token',
+        refresh_token: first.body.refresh_token
+      })
+    )
+    expect(stillGood.status).toBe(200)
+    expect(stillGood.body.access_token).not.toBe(first.body.access_token)
   })
 
   it('challenges a failed client authentication, as RFC 6749 asks', async () => {

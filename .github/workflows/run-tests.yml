@@ -55,7 +55,6 @@ jobs:
         # The discovery fixture uses git and the @sasjs/release installed by npm ci.
         run: >-
           node --test
-          .github/scripts/coverage-ratchet.test.mjs
           .github/scripts/release-tool-dependencies.test.mjs
           .github/scripts/publish-discovery.test.mjs
 
@@ -214,8 +213,8 @@ jobs:
       # into this workspace, and only switches back when it can name the branch
       # it started on; a `pull_request` run sits on a detached merge commit, so
       # the switch back is skipped and every later step of the job sees the base
-      # tree. The ratchet step failed exactly that way with
-      # `Cannot find module .../coverage-ratchet.mjs` (run 41109073336).
+      # tree. The ratchet therefore reads the summary this job produced, from the
+      # tree this job installed: no step here may replace that tree.
       - name: Run mocked tests with coverage
         if: matrix.node-version == 24
         run: node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config=jest.config.js --silent --runInBand --ci --coverage
@@ -314,16 +313,16 @@ jobs:
         id: ratchet
         # continue-on-error so the comment below is posted either way; the
         # "Fail on a coverage regression" step turns the outcome into the job's
-        # result. See the script's header for why the comparison is the gate.
+        # result. `sasjs-release --help` says why the comparison is the gate.
         continue-on-error: true
         if: matrix.node-version == 24
         run: >-
-          node .github/scripts/coverage-ratchet.mjs
-          --head coverage/coverage-summary.json
-          --base coverage-base/coverage-summary.json
-          --markdown coverage-comment.md
-          --missing-baseline ${{ steps.coverage-baseline.outputs.missing }}
-          --note "Compared against ${{ steps.coverage-baseline.outputs.source }}."
+          npm run release -- --coverage-ratchet
+          --coverage-head coverage/coverage-summary.json
+          --coverage-base coverage-base/coverage-summary.json
+          --coverage-markdown coverage-comment.md
+          --coverage-missing-baseline ${{ steps.coverage-baseline.outputs.missing }}
+          --coverage-note "Compared against ${{ steps.coverage-baseline.outputs.source }}."
 
       - name: Report the coverage
         # one comment per pull request, edited in place on each push

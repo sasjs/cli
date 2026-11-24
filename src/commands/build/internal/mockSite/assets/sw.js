@@ -68,6 +68,18 @@ const DRIVE_STORE = R.driveStore
  */
 const IDENTITY_FILE = 'host/identity.json'
 
+/**
+ * The public OAuth client every Viya deployment ships, and the one
+ * `@sasjs/adapter` falls back to when a target names no client.
+ *
+ * It is never a fixture entry: a client record carries a secret and this one has
+ * none, which is why `@sasjs/api` resolves it from the store as a rule while
+ * leaving the administration listing to the fixture. sasjs/server binds its
+ * password grant, and the refresh that follows, to this exact id with an empty
+ * secret.
+ */
+const PUBLIC_CLIENT_ID = 'sas.cli'
+
 const IDENTITY_STATE = {
   store: new API.MemoryIdentityStore(API.DEFAULT_IDENTITY),
   /**
@@ -2553,6 +2565,21 @@ const oauthAuthorize = async (url) => {
 }
 
 /**
+ * A pair's own id, in the shape the estate mints: 32 hex characters.
+ *
+ * `@sasjs/api`'s store issues the tokens and no id beside them, and the answer
+ * states one so a client can tell two pairs minted in the same second apart -
+ * the reason sasjs/server mints its `jti` from 16 random bytes.
+ */
+const pairId = () => {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join(
+    ''
+  )
+}
+
+/**
  * The token step: a code, a refresh token or a password buys a pair.
  *
  * The grants are the ones a browser application signs in with; SASLogon also
@@ -2591,24 +2618,42 @@ const oauthToken = async (request) => {
       `The client ${client.clientId} is not registered on this site.`
     )
 
+  // A secret is checked against the record the fixture declares for the client -
   // the store's read answers the client's lifetimes and not its secret, so the
-  // comparison reads the snapshot the host persists - the same record, with the
-  // field a client authenticates with kept out of the read path
+  // comparison reads the snapshot the host persists, the same record with the
+  // field a client authenticates with kept out of the read path.
   const declaredSecret = IDENTITY_STATE.secrets.get(client.clientId)
 
-  // verified or refused, never skipped: a client the fixture declares no secret
-  // for cannot be checked at all, so it is refused by name. A change to what the
-  // fixture carries then shows up as a refusal here rather than as a check that
-  // quietly accepts any secret.
-  if (!declaredSecret)
+  if (declaredSecret !== undefined) {
+    // A fixture that names the public client has stated a secret for it, and a
+    // rule about the estate must not overwrite what the site says about itself:
+    // the declared secret is the one that verifies, and an empty one is refused
+    // like any other wrong secret.
+    if (declaredSecret !== client.clientSecret)
+      return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+  } else if (client.clientId === PUBLIC_CLIENT_ID) {
+    // The public client the estate ships holds no secret, so there is nothing to
+    // compare against: sasjs/server binds its password grant - and the refresh
+    // that follows - to this id with an empty secret, and `@sasjs/adapter` falls
+    // back to it whenever a target names no client. A secret offered for it is
+    // refused rather than ignored, or naming the client alone would buy a token.
+    if (client.clientSecret !== '')
+      return oauthError(
+        401,
+        'invalid_client',
+        `The public client ${PUBLIC_CLIENT_ID} carries no secret.`
+      )
+  } else {
+    // verified or refused, never skipped: a client the fixture declares no secret
+    // for at all cannot be checked, so it is refused by name. A change to what the
+    // fixture carries then shows up as a refusal here rather than as a check that
+    // quietly accepts any secret.
     return oauthError(
       401,
       'invalid_client',
       `The identity fixture declares no secret for ${client.clientId}, so its secret cannot be verified.`
     )
-
-  if (declaredSecret !== client.clientSecret)
-    return oauthError(401, 'invalid_client', 'The client secret is wrong.')
+  }
 
   try {
     let pair
@@ -2620,9 +2665,26 @@ const oauthToken = async (request) => {
           code: form.code
         })
         break
-      case 'refresh_token':
+      case 'refresh_token': {
+        // The pair belongs to the client it was issued to, and the server checks
+        // that before it rotates (`verifyRefreshToken` compares the token's own
+        // clientId with the one presented). Without the same check a refresh token
+        // minted for a confidential client is redeemable as any other - the public
+        // client included, which presents no secret at all - and the answer would
+        // state the wrong client's lifetimes. Refused in the server's words, and
+        // before the rotation, so a refused attempt leaves the caller's pair live.
+        const held = await IDENTITY_STATE.store.readRefresh(form.refresh_token)
+
+        if (held && held.clientId !== client.clientId)
+          return oauthError(
+            401,
+            'invalid_grant',
+            'The refresh token was issued for another client.'
+          )
+
         pair = await IDENTITY.refresh(form.refresh_token)
         break
+      }
       case 'password': {
         // the credentials are the grant: the account signs in, buys a code and
         // exchanges it - the same path the authorize step's code takes, so the
@@ -2651,7 +2713,17 @@ const oauthToken = async (request) => {
       token_type: 'bearer',
       expires_in: registered.accessTokenExpiration,
       refresh_expires_in: registered.refreshTokenExpiration,
-      scope: ''
+      scope: '',
+      // the estate's answer carries three more fields than this host used to
+      // state: `jti` is the pair's own id, and the two `revocable` flags are what
+      // a client reads before it tries a revocation. sasjs/server emits all
+      // three (its `tokenResponse`), so a client that branches on them behaves
+      // here as it does there. `id_token` is recorded in the estate's shape and
+      // minted by neither: an ID token asserts an OpenID Connect identity, and
+      // both hosts answer "who is this" with `/identities/users/@currentUser`.
+      jti: pairId(),
+      revocable: true,
+      refresh_revocable: true
     })
   } catch (error) {
     // a refusal from a grant is a grant problem: the client was verified above,
