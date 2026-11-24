@@ -103,6 +103,33 @@ describe('the frontend published to a SASjs server app', () => {
     expect(read('index.html')).toContain('href="/docs"')
   })
 
+  it('makes root-absolute CSS urls relative, in a file, inline and in a style attribute', async () => {
+    write(
+      'client/dist/index.html',
+      '<html><head>' +
+        '<style>@font-face{src:url(/assets/f.woff2)}</style>' +
+        '</head><body><div style="background-image:url(\'/assets/bg.png\')"></div></body></html>'
+    )
+    write(
+      'client/dist/assets/style.css',
+      '@import "/assets/reset.css";' +
+        '.a{background:url(/assets/bg.png)}' +
+        '.b{background:url("//cdn.example/x.png")}' +
+        '.c{background:url(data:image/png;base64,AAAA)}'
+    )
+
+    await publishFrontend(target(), streamConfig(), destination)
+
+    expect(read('index.html')).toContain('url(./assets/f.woff2)')
+    expect(read('index.html')).toContain("url('./assets/bg.png')")
+    const css = read('assets/style.css')
+    expect(css).toContain('@import "./assets/reset.css"')
+    expect(css).toContain('url(./assets/bg.png)')
+    // another site, and a self-contained URI, are not the app's own files
+    expect(css).toContain('url("//cdn.example/x.png")')
+    expect(css).toContain('url(data:image/png;base64,AAAA)')
+  })
+
   it('points the bundler runtime at the app folder', async () => {
     write('client/dist/index.html', '<html><body></body></html>')
     write('client/dist/runtime.js', 'var t={};t.u=e=>e+".js";t.p="/";')

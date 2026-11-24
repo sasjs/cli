@@ -1,6 +1,9 @@
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import { ServerType } from '@sasjs/utils'
 
-import { excludedFromPack } from '../deploymentTree'
+import { excludedFromPack, getDeploymentTree } from '../deploymentTree'
 
 /**
  * The folders `build` keeps out of the pack.
@@ -56,5 +59,104 @@ describe('the folders build keeps out of the pack', () => {
     expect(excluded(path.join(path.sep, 'elsewhere', 'mock'))).toEqual([
       publishFolder
     ])
+  })
+})
+
+describe('the tree a build packs', () => {
+  let root: string
+  let build: string
+
+  const write = (relative: string, content = 'x') => {
+    const file = path.join(build, relative)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(file, content)
+  }
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'sasjs-tree-'))
+    build = path.join(root, 'sasjsbuild')
+    fs.mkdirSync(build, { recursive: true })
+    process.projectDir = root
+    process.sasjsConstants = { buildDestinationFolder: build } as any
+  })
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+    process.projectDir = ''
+    process.sasjsConstants = undefined as any
+  })
+
+  it('packs a project file at the root, and the streamed entry page with it', async () => {
+    write('site.webmanifest.json', '{}')
+    write('demo.html', '<html></html>')
+
+    const { folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build,
+      [],
+      (fileName) =>
+        fileName === 'demo.json' ||
+        fileName === 'demo.json.zip' ||
+        fileName === 'demo_compileTree.json' ||
+        fileName === 'demo.sas'
+    )
+
+    const names = folderContentJSON.members.map((member) => member.name)
+    expect(names).toContain('demo.html')
+    expect(names).toContain('site.webmanifest.json')
+  })
+
+  it('leaves the build outputs out, by name', async () => {
+    write('demo.json', '{}')
+    write('demo.json.zip', 'zip')
+    write('demo_compileTree.json', '{}')
+    write('.compile-manifest.json', '{}')
+    write('demo.sas', '%put build;')
+    write('other.json', '{"kept":true}')
+
+    const { folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build,
+      [],
+      (fileName) =>
+        fileName === 'demo.json' ||
+        fileName === 'demo.json.zip' ||
+        fileName === 'demo_compileTree.json' ||
+        fileName === '.compile-manifest.json' ||
+        fileName === 'demo.sas'
+    )
+
+    const names = folderContentJSON.members.map((member) => member.name)
+    expect(names).not.toContain('demo.json')
+    expect(names).toEqual(['other.json'])
+  })
+
+  it('leaves a mock site written before the marker out of the pack', async () => {
+    // an older CLI wrote the site to <build>/mock and wrote no marker
+    write('mock/sw.js', '// worker')
+    write('mock/host/boot.js', '// host')
+    write('services/common/getdata.js', 'console.log(1)')
+
+    const { folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build
+    )
+
+    const names = folderContentJSON.members.map((member) => member.name)
+    expect(names).toContain('services')
+    expect(names).not.toContain('mock')
+  })
+
+  it('keeps a project folder called mock when it is not a mock site', async () => {
+    write('mock/data.json', '{}')
+
+    const { folderContentJSON } = await getDeploymentTree(
+      ServerType.Sasjs,
+      build
+    )
+
+    expect(folderContentJSON.members.map((member) => member.name)).toContain(
+      'mock'
+    )
   })
 })

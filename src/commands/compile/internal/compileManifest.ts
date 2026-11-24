@@ -31,10 +31,19 @@ import { getAllFolders, SasFileType } from './getAllFolders'
  */
 export type CompileManifest = Record<string, string>
 
-const MANIFEST_NAME = '.compile-manifest.json'
+/**
+ * The file, at the root of the build, recording what the last compile wrote.
+ *
+ * Exported because it is not deployment content: anything packing the build
+ * folder's root has to be able to name it.
+ */
+export const COMPILE_MANIFEST_NAME = '.compile-manifest.json'
 
 export const getManifestPath = () =>
-  path.join(process.sasjsConstants.buildDestinationFolder, MANIFEST_NAME)
+  path.join(
+    process.sasjsConstants.buildDestinationFolder,
+    COMPILE_MANIFEST_NAME
+  )
 
 const hashFile = async (filePath: string) =>
   createHash('md5')

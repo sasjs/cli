@@ -90,10 +90,19 @@ const headerSyntaxNotices = (fileContent: string) => {
   }
 }
 
+/**
+ * The name of the file, at the root of the build, that records the compile tree.
+ *
+ * `compile` writes it beside the deployment, not into it, so anything packing the
+ * root names it by this rather than repeating the convention.
+ */
+export const compileTreeFileName = (targetName: string): string =>
+  `${targetName}_compileTree.json`
+
 export const getCompileTree = (target: Target): CompileTree =>
   new CompileTree(
     path.join(
       process.sasjsConstants.buildDestinationFolder,
-      `${target?.name}_compileTree.json`
+      compileTreeFileName(target?.name)
     )
   )

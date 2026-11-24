@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import {
   asyncForEach,
@@ -177,6 +178,19 @@ async function walkFolder(
 }
 
 /**
+ * A mock site written before the marker file existed.
+ *
+ * The site's default used to be `<build>/mock`, so a build made by an older CLI
+ * leaves a folder there that carries no marker. Its shape is unmistakable - the
+ * service worker at its root, with the runtime folder beside it - and nothing else
+ * the CLI writes into the build has both.
+ */
+const isLegacyMockSiteFolder = (folderPath: string): boolean =>
+  path.basename(folderPath) === 'mock' &&
+  fs.existsSync(path.join(folderPath, 'sw.js')) &&
+  fs.existsSync(path.join(folderPath, 'host'))
+
+/**
  * Folders that are never part of a deployment.
  *
  * Two kinds: what the CLI itself writes beside the deployment (the published
@@ -186,6 +200,7 @@ async function walkFolder(
  */
 const shouldSkipFolder = (folderPath: string, excluded: string[]): boolean => {
   if (isMockSiteFolder(folderPath)) return true
+  if (isLegacyMockSiteFolder(folderPath)) return true
 
   return excluded.some((folder) => isSameOrChild(folder, folderPath))
 }

@@ -26,7 +26,12 @@ import {
 import { compressAndSave } from '../../utils/compressAndSave'
 import { getMacroFolders, getStreamConfig } from '../../utils/config'
 import { isSasFile } from '../../utils/file'
-import { getCompileTree, loadDependencies } from '../compile/internal'
+import {
+  COMPILE_MANIFEST_NAME,
+  compileTreeFileName,
+  getCompileTree,
+  loadDependencies
+} from '../compile/internal'
 import { getBuildInit, getBuildTerm } from './internal/config'
 import { getLaunchPageCode } from './internal/getLaunchPageCode'
 import { excludedFromPack, getDeploymentTree } from './internal/deploymentTree'
@@ -177,12 +182,16 @@ async function createFinalSasFiles(target: Target, streamConfig: StreamConfig) {
   const excluded = excludedFromPack(target, publishFolder)
 
   // The build's own outputs sit in the build folder's root, where the streamed
-  // entry page also lands: the deploy script, the pack and its zip. They are
-  // outputs of the previous step, not content to deploy, and a second build over
-  // the same folder must not pack them.
+  // entry page also lands: the compile tree, the deploy script, the pack and its
+  // zip. They are outputs of the previous step, not content to deploy, and a
+  // second build over the same folder must not pack them. Matching those names
+  // rather than their extensions leaves a project's own root file - a PWA
+  // manifest.json, an asset manifest - in the deployment, where it belongs.
   const isBuildOutputFile = (fileName: string) =>
-    fileName.endsWith('.json') ||
-    fileName.endsWith('.json.zip') ||
+    fileName === `${name}.json` ||
+    fileName === `${name}.json.zip` ||
+    fileName === compileTreeFileName(name) ||
+    fileName === COMPILE_MANIFEST_NAME ||
     fileName === buildOutputFileName
 
   const { folderContent, folderContentJSON } = await getDeploymentTree(

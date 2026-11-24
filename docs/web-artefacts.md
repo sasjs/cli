@@ -38,9 +38,19 @@ deployed files somewhere else breaks their links; redeploy instead.
 
 `build` copies the compiled frontend from `streamConfig.webSourcePath` into
 `<build>/publish`, adjusts it to be served from an app URL rather than the server
-root (root-absolute asset references become relative, a bundler's public path
-becomes `./`, and the `<sasjs>` adapter tag names the target's `appLoc` and
-server type), and packs it as the `web/` half of the deploy bundle:
+root, and packs it as the `web/` half of the deploy bundle. The adjustments are:
+
+- root-absolute asset references become relative: HTML `src`/`href`/`srcset`/
+  `poster`/`data` attributes, CSS `url(...)` and `@import` - in `.css` files,
+  inline `<style>` blocks and `style=""` attributes - and a `<base href>`;
+- a bundler runtime's public path becomes `./`, so chunks load from the app's
+  folder;
+- the `<sasjs>` adapter tag names the target's `appLoc` and server type.
+
+Anchor `href`s are left alone: navigation is not an asset, and an absolute link
+may name the server's API or another site.
+
+The bundle is:
 
 ```
 sasjs.app.json    {"name": "<streamServiceName>", "appLoc": "<appLoc>"}
@@ -84,7 +94,10 @@ The site is not a deployment artefact:
 `build` excludes a mock site from the pack by its marker file
 (`sasjs.mock.json`), so an explicit `mockWebFolder` inside the build folder - or
 one an earlier build left there under a path no longer configured - cannot
-contaminate a later pack. Other project content in the build folder is untouched.
+contaminate a later pack. A site written before the marker existed, when the
+default was `<build>/mock`, is recognised by its shape (a service worker at its
+root with the `host/` folder beside it) and excluded too. Other project content
+in the build folder is untouched.
 
 ## Inspecting and changing an artefact between compile and deploy
 

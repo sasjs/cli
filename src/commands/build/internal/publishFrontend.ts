@@ -31,7 +31,10 @@ export const PUBLISH_FOLDER = 'publish'
  * - **asset references** that start at the root (`/assets/index.js`) become
  *   relative (`./assets/index.js`), and a `<base href>` is pointed at `./`. The
  *   page's own address is the app's folder, so a relative reference resolves
- *   inside the app whatever id it was published under.
+ *   inside the app whatever id it was published under. This covers the HTML
+ *   attributes that load something AND CSS - a stylesheet naming a font or an
+ *   image is as much a reference as a `<script src>`: `url(...)` and `@import`
+ *   in a `.css` file, an inline `<style>` block, or a `style=""` attribute.
  * - **the adapter configuration** in a `<sasjs>` tag names this target's appLoc
  *   and server type, so the app calls the services deployed beside it.
  *
@@ -74,9 +77,18 @@ export const publishFrontend = async (
   )
 
   for (const file of listFiles(destination)) {
-    if (!/\.(m?js)$/i.test(file)) continue
-    const content = fs.readFileSync(file, 'utf8')
-    fs.writeFileSync(file, setWebpackPublicPath(content, './'))
+    if (/\.(m?js)$/i.test(file)) {
+      const content = fs.readFileSync(file, 'utf8')
+      fs.writeFileSync(file, setWebpackPublicPath(content, './'))
+      continue
+    }
+
+    // a stylesheet is a second place an app names its assets: a font or an image
+    // written as `url(/assets/...)` would otherwise be fetched from the server
+    // root once the app is served under /app/<id>/
+    if (/\.css$/i.test(file)) {
+      fs.writeFileSync(file, relativiseCss(fs.readFileSync(file, 'utf8')))
+    }
   }
 
   return destination
@@ -142,6 +154,15 @@ const adjustIndexHtml = (content: string, target: Target): string => {
     )
   }
 
+  for (const style of Array.from(document.querySelectorAll('style')))
+    style.textContent = relativiseCss(style.textContent ?? '')
+
+  for (const element of Array.from(document.querySelectorAll('[style]')))
+    element.setAttribute(
+      'style',
+      relativiseCss(element.getAttribute('style') as string)
+    )
+
   const base = document.querySelector('base')
   if (base !== null) base.setAttribute('href', './')
 
@@ -150,6 +171,19 @@ const adjustIndexHtml = (content: string, target: Target): string => {
 
   return dom.serialize()
 }
+
+/**
+ * Root-absolute references inside CSS, made relative to the stylesheet's own
+ * folder.
+ *
+ * The same rule as an attribute, applied to the two forms CSS writes a URL in:
+ * `url(...)` (quoted or not) and `@import "..."/'...'`. A protocol-relative
+ * `//host/...` is another site and is left alone, and so is a `data:` URI.
+ */
+export const relativiseCss = (css: string): string =>
+  css
+    .replace(/url\(\s*(['"]?)\/(?!\/)/g, 'url($1./')
+    .replace(/@import\s+(['"])\/(?!\/)/g, '@import $1./')
 
 /** Every file under a folder, recursively, as absolute paths. */
 const listFiles = (folder: string): string[] => {
