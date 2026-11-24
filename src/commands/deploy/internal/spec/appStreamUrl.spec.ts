@@ -1,6 +1,11 @@
 import { ServerType } from '@sasjs/utils'
 
-import { reportStreamedApp, streamedAppUrl } from '../appStreamUrl'
+import {
+  publishedAppUrl,
+  reportPublishedApp,
+  reportStreamedApp,
+  streamedAppUrl
+} from '../appStreamUrl'
 
 describe('the url a streamed deploy reports', () => {
   it('opens a SASjs build at its entry page on its own appLoc', () => {
@@ -72,5 +77,143 @@ describe('the url a streamed deploy reports', () => {
 
     expect(said).toHaveLength(1)
     expect(said[0]).not.toContain('sasjs/server')
+  })
+})
+
+describe('the url a published app reports', () => {
+  it('is the address the server stated', () => {
+    expect(
+      publishedAppUrl('https://server.example', {
+        app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' }
+      })
+    ).toBe('https://server.example/app/0e6f1d2c/')
+
+    // a server that serves apps elsewhere states the whole address, and it is
+    // used as given rather than joined to the serverUrl underneath it
+    expect(
+      publishedAppUrl('https://server.example', {
+        app: { url: 'https://apps.example/mario/' }
+      })
+    ).toBe('https://apps.example/mario/')
+  })
+
+  it('is the stream name under the prefix both server generations mount', () => {
+    // a server that answers no app but names the label is one from before the
+    // app index: it served apps at /AppStream/<name>/ and has no /app route, so
+    // the fallback is the canonical prefix rather than the newer spelling
+    expect(
+      publishedAppUrl('https://server.example', {
+        streamServiceName: 'mario'
+      })
+    ).toBe('https://server.example/AppStream/mario/')
+  })
+
+  it('joins one slash where the server URL carries a trailing one', () => {
+    // `https://host/` is what a hand-written sasjsconfig may hold, and nothing
+    // upstream strips it, so every composed address would double the slash
+    expect(
+      publishedAppUrl('https://server.example/', {
+        app: { url: '/app/0e6f1d2c/' }
+      })
+    ).toBe('https://server.example/app/0e6f1d2c/')
+
+    expect(
+      publishedAppUrl('https://server.example//', {
+        streamServiceName: 'mario'
+      })
+    ).toBe('https://server.example/AppStream/mario/')
+
+    expect(
+      streamedAppUrl(
+        'https://server.example/',
+        ServerType.Sasjs,
+        '/Public/app',
+        'mario'
+      )
+    ).toBe(
+      'https://server.example/StoredProgram?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/mario.html'
+    )
+  })
+
+  it('encodes the published name, so a delimiter cannot become a query', () => {
+    // a legacy server published apps under a name it chose, and a name carrying
+    // `?` or `#` unencoded would be read as a query or a fragment: the address
+    // would open a different path from the one the app is served from
+    expect(
+      publishedAppUrl('https://server.example', {
+        streamServiceName: 'quarter?close'
+      })
+    ).toBe('https://server.example/AppStream/quarter%3Fclose/')
+
+    expect(
+      publishedAppUrl('https://server.example', {
+        streamServiceName: 'a#b'
+      })
+    ).toBe('https://server.example/AppStream/a%23b/')
+
+    // and the same name inside the entry page's `_FILE=` value, where an unencoded
+    // `&` would end the value early
+    expect(
+      streamedAppUrl(
+        'https://server.example',
+        ServerType.Sasjs,
+        '/Public/app',
+        'a&b'
+      )
+    ).toBe(
+      'https://server.example/StoredProgram?_FILE=' +
+        encodeURI('/Public/app') +
+        '/services/a%26b.html'
+    )
+  })
+
+  it('does not invent a url from an id alone, or from no answer at all', () => {
+    // a server that answers an id can say where it serves the app; guessing
+    // would print an address that may not exist
+    expect(
+      publishedAppUrl('https://server.example', { app: { id: '0e6f1d2c' } })
+    ).toBeUndefined()
+    expect(publishedAppUrl('https://server.example', {})).toBeUndefined()
+    expect(publishedAppUrl('https://server.example', undefined)).toBeUndefined()
+  })
+
+  it('is named for a SASjs server, and only when the server published one', () => {
+    const said: string[] = []
+    const info = (message: string) => said.push(message)
+
+    // the publish is the server's answer, not a config flag: `streamWeb` says
+    // what the CLI asked the build for, and a deploy can publish without it
+    reportPublishedApp(
+      'https://server.example',
+      ServerType.Sasjs,
+      { app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' } },
+      info
+    )
+
+    expect(said).toEqual(['App stream: https://server.example/app/0e6f1d2c/'])
+
+    // nothing published: a target with a stream name configured but no publish,
+    // which is every plain deploy, says nothing rather than naming an address
+    // no folder backs
+    said.length = 0
+    reportPublishedApp('https://server.example', ServerType.Sasjs, {}, info)
+    expect(said).toEqual([])
+  })
+
+  it('is never reported for a Viya or SAS 9 deploy, which has no app stream', () => {
+    const said: string[] = []
+    const info = (message: string) => said.push(message)
+
+    for (const serverType of [ServerType.SasViya, ServerType.Sas9])
+      reportPublishedApp(
+        'https://server.example',
+        serverType,
+        { app: { id: '0e6f1d2c', url: '/app/0e6f1d2c/' } },
+        info
+      )
+
+    expect(said).toEqual([])
   })
 })

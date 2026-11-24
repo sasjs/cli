@@ -1,6 +1,7 @@
 import axios from 'axios'
 import * as https from 'https'
 import { getString, ServerType, Target } from '@sasjs/utils'
+import { withoutTrailingSlash } from './url'
 import SASjs, {
   CertificateError,
   SasjsRequestClient
@@ -16,10 +17,16 @@ export const getAuthUrl = (
   serverType: ServerType,
   serverUrl: string,
   clientId: string
-) =>
-  serverType === ServerType.Sasjs
-    ? `${serverUrl}/SASjsLogon?client_id=${clientId}&response_type=code`
-    : `${serverUrl}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
+) => {
+  // the address a user copies into a browser is composed from the target's own
+  // field, so it takes the same normalisation as every other printed address:
+  // a `https://host/` config would otherwise ask them to visit a doubled path
+  const base = withoutTrailingSlash(serverUrl)
+
+  return serverType === ServerType.Sasjs
+    ? `${base}/SASjsLogon?client_id=${clientId}&response_type=code`
+    : `${base}/SASLogon/oauth/authorize?client_id=${clientId}&response_type=code`
+}
 
 export async function getAuthCode(authUrl: string) {
   const logger = process.logger || console
@@ -234,7 +241,7 @@ export async function getTokensWithSasjsLogin(
   client: string
   displayName?: string
 }> {
-  const baseUrl = target.serverUrl.replace(/\/+$/, '')
+  const baseUrl = withoutTrailingSlash(target.serverUrl)
   const cookies = new Map<string, string>()
 
   // Cookie values are percent-encoded by the server, but a malformed value

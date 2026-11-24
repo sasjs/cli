@@ -18,6 +18,7 @@ import {
   MacroVars
 } from '@sasjs/utils'
 import SASjs from '@sasjs/adapter/node'
+import { withoutTrailingSlash } from './url'
 import { displayError } from './displayResult'
 import dotenv from 'dotenv'
 import { extractZip } from './zip'
@@ -660,12 +661,17 @@ export const getNodeModulePath = async (
 }
 
 export const isSasJsServerInServerMode = async (target: Target) => {
+  // the probe is an address composed from the target's own field, so it takes
+  // the same join as the printed ones: a `https://host/` config would otherwise
+  // request `https://host//SASjsApi/info`
+  const infoUrl = `${withoutTrailingSlash(target.serverUrl)}/SASjsApi/info`
+
   try {
-    const res = await axios.get(`${target.serverUrl}/SASjsApi/info`)
+    const res = await axios.get(infoUrl)
 
     return res.data.mode === 'server'
   } catch (error) {
-    const message = `An error occurred while fetching server info from ${target.serverUrl}/SASjsApi/info`
+    const message = `An error occurred while fetching server info from ${infoUrl}`
 
     displayError(error, message)
 

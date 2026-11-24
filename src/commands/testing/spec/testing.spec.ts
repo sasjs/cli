@@ -972,3 +972,26 @@ const setupMocksForSASJS = () => {
     .spyOn(readAndValidateInputModule, 'getString')
     .mockImplementation(() => Promise.resolve('mocked input'))
 }
+
+describe('the test URL a target is run at', () => {
+  it('joins one slash where the server URL carries a trailing one', () => {
+    // a hand-written sasjsconfig may hold `https://host/`, and nothing upstream
+    // strips it - the printed URL would then name a path no mount answers
+    const target = new Target({
+      name: 'trailing-slash',
+      serverType: ServerType.Sasjs,
+      serverUrl: 'https://host/',
+      appLoc: '/Public/app'
+    })
+
+    const url = new URL(getTestUrl(target, '/Public/app/tests/a.sas'))
+
+    // the join is what this case is about: the host, then exactly one slash
+    // before the route. The rest of the query is not asserted - the `_debug`
+    // mask is drawn at random, and pinning it would make a slash test fail the
+    // day the mask changes
+    expect(url.origin).toBe('https://host')
+    expect(url.pathname).toBe('/SASjsApi/stp/execute/')
+    expect(url.searchParams.get('_program')).toBe('/Public/app/tests/a.sas')
+  })
+})
