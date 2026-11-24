@@ -6,9 +6,13 @@ import {
   DRIVE_CORPUS,
   IDENTITY_CORPUS,
   RECORD_CORPUS,
-  VIYA_TABLE
+  VIYA_CORPUS,
+  VIYA_OVERLAY,
+  VIYA_TABLE,
+  requestFor,
+  shapeMismatches
 } from '@sasjs/api'
-import type { CorpusCase, IdentityFixture } from '@sasjs/api'
+import type { CorpusCase, IdentityFixture, ViyaReplayState } from '@sasjs/api'
 import os from 'os'
 import yazl from 'yazl'
 import { getWeboutPrelude } from '@sasjs/utils'
@@ -6097,6 +6101,176 @@ describe('the emulated Viya estate', () => {
   })
 })
 
+describe('the Viya corpus, replayed in the worker', () => {
+  /**
+   * The request bodies this host supplies for cases whose request the corpus
+   * deliberately does not record.
+   *
+   * The corpus carries the answer's shape and the names of the queries the client
+   * sent, because those are the contract. A write's body is the caller's own data,
+   * so a case is replayed only when this host has a body to send - and the ones it
+   * does not are reported, not quietly passed.
+   */
+  const BODIES: Record<string, { body: string; contentType: string }> = {
+    'POST /folders/folders': {
+      contentType: 'application/json',
+      body: JSON.stringify({ name: 'replay-folder' })
+    },
+    'POST /compute/contexts/{}/sessions': {
+      contentType: 'application/json',
+      body: '{}'
+    },
+    'POST /compute/sessions/{}/jobs': {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        name: 'replay',
+        description: 'a replay of the captured job',
+        variables: {}
+      })
+    },
+    // the sign-in the estate records, as the adapter performs it: the public
+    // client with no secret, not a registered one
+    'POST /SASLogon/oauth/token': {
+      contentType: 'application/x-www-form-urlencoded',
+      body: new URLSearchParams({
+        grant_type: 'password',
+        client_id: 'sas.cli',
+        username: 'sasjsadmin',
+        password: 'Orion123'
+      }).toString()
+    }
+  }
+
+  /** The query values this host can answer, where the capture recorded only names. */
+  const QUERY_VALUES: Record<string, Record<string, string>> = {
+    'GET /folders/folders/@item': { path: '/' }
+  }
+
+  /** The id an answer hands out, named the way the replay looks it up. */
+  const idKeyFor = (route: string) => {
+    const [, path] = route.split(' ')
+    const last = path.split('/').filter(Boolean).pop() || ''
+
+    return last.replace(/s$/, '')
+  }
+
+  it('answers every captured operation, in the shape the estate recorded', async () => {
+    const worker = loadWorker('', { skipLint: true })
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity: DEFAULT_IDENTITY,
+      subject: 'sasjsadmin'
+    })
+    await boot.pending
+
+    const state: ViyaReplayState = { variable: 'SYSCC' }
+    const failures: string[] = []
+    const skipped: string[] = []
+    let answered = 0
+
+    /** One case through the worker, compared with what the estate captured. */
+    const replay = async (item: (typeof VIYA_CORPUS)[number]) => {
+      const declared = VIYA_OVERLAY[item.route]
+
+      if (declared && declared.implemented === false) {
+        skipped.push(`${item.route}: declined - ${declared.reason}`)
+
+        return
+      }
+
+      const request = requestFor(item, state, QUERY_VALUES[item.route])
+
+      if (request.unresolved.length) {
+        skipped.push(
+          `${item.route}: no ${request.unresolved.join(', ')} for the path yet`
+        )
+
+        return
+      }
+
+      const supplied = BODIES[item.route]
+
+      if (
+        !supplied &&
+        ['POST', 'PATCH', 'PUT'].includes(request.method) &&
+        item.route !== 'POST /SASLogon/oauth/token'
+      ) {
+        skipped.push(`${item.route}: the corpus records no request body`)
+
+        return
+      }
+
+      const init: any = { method: request.method, headers: {} }
+
+      if (supplied) {
+        init.headers['content-type'] = supplied.contentType
+        init.body = supplied.body
+      }
+
+      const response = await worker.dispatch(request.path, init)
+
+      if (response === undefined) {
+        failures.push(
+          `${item.route}: the worker did not answer ${request.path}`
+        )
+
+        return
+      }
+
+      const answer = await response
+
+      if (!item.statuses.includes(answer.status)) {
+        failures.push(
+          `${item.route}: ${answer.status}, and the estate answered ${item.statuses.join(' or ')}`
+        )
+      }
+
+      const body = await answer.json().catch(() => undefined)
+
+      if (item.shape !== undefined) {
+        for (const mismatch of shapeMismatches(item.shape, body, item.route))
+          failures.push(mismatch)
+      }
+
+      answered++
+
+      // an id a following case needs: a create answers it at the top, a list
+      // answers it on its first item - the context list is how a client learns
+      // the id the session route takes
+      const direct = (body as any)?.id
+      const fromItems = (body as any)?.items?.[0]?.id
+
+      if (direct !== undefined) state[idKeyFor(item.route)] = String(direct)
+      else if (fromItems !== undefined)
+        state[idKeyFor(item.route)] = String(fromItems)
+    }
+
+    // the session's own delete runs last: done in corpus order it would take the
+    // session away from every case the capture recorded after it
+    const deferred = VIYA_CORPUS.filter((item) =>
+      item.route.startsWith('DELETE ')
+    )
+
+    for (const item of VIYA_CORPUS) {
+      if (item.route.startsWith('DELETE ')) continue
+
+      await replay(item)
+    }
+
+    for (const item of deferred) await replay(item)
+
+    // the skips are named in the run, because a corpus that is 40% skipped is a
+    // different claim from one that is replayed
+    for (const line of skipped) console.log(`not replayed: ${line}`)
+
+    // both halves are asserted: no drift, and the number of cases that actually
+    // ran - a replay that silently stopped early would otherwise look green. The
+    // rest are named above: the job families the emulator declines by decision,
+    // and the writes whose request body the corpus does not carry
+    expect({ failures, answered }).toEqual({ failures: [], answered: 15 })
+  })
+})
+
 describe('the estate surface and the host', () => {
   const swSource = () =>
     fs.readFileSync(path.join(__dirname, '..', 'assets', 'sw.js'), 'utf8')
@@ -6359,7 +6533,8 @@ describe('the estate sign-in', () => {
     // `@sasjs/adapter` sends `sas.cli` with an empty secret whenever a target
     // names no client, and sasjs/server binds its password grant to that same
     // pair. Refusing it here signs an app in against a server and out in a
-    // browser, which is the divergence sasjs/server#665 exists to find.
+    // browser, which is the divergence the estate-versus-emulator comparison
+    // exists to find.
     const answer = await json(
       exchange(
         worker,
@@ -6394,7 +6569,8 @@ describe('the estate sign-in', () => {
     expect(asTheAdapterSends.body.access_token).toMatch(/^access-/)
 
     // a public client authenticates as nothing: a secret offered for it is
-    // refused rather than quietly ignored, or naming the client would be enough
+    // refused rather than quietly ignored, or the empty-secret rule would accept
+    // any caller that names the client
     const withSecret = await json(
       exchange(
         worker,
