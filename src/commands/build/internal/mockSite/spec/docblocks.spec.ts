@@ -256,6 +256,46 @@ describe('doc blocks keep the declaration they document', () => {
     expect(insertionsUnderDocBlocks(diff)).toEqual([])
   })
 
+  it('does not report a declaration modified in place', () => {
+    // the edit a signature change makes: the line under the block is deleted
+    // and its replacement added, the terminator above untouched. Nothing was
+    // inserted between the block and its declaration - the declaration itself
+    // changed.
+    const diff = [
+      'diff --git a/src/x/sw.js b/src/x/sw.js',
+      '--- a/src/x/sw.js',
+      '+++ b/src/x/sw.js',
+      '@@ -20,3 +20,3 @@',
+      '  */',
+      '-const viyaRequest = async (request, url, path) => {',
+      '+const viyaRequest = async (request, url, path, inherited) => {',
+      '  const query = Object.create(null)',
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([])
+  })
+
+  it('still reports a helper inserted where a comment was deleted', () => {
+    // the deleted line was not the declaration, so the addition takes the gap
+    // it left: the block is separated from what it documents
+    const diff = [
+      'diff --git a/src/x/sw.js b/src/x/sw.js',
+      '--- a/src/x/sw.js',
+      '+++ b/src/x/sw.js',
+      '@@ -20,3 +20,3 @@',
+      '  */',
+      '-// an old comment',
+      '+const helper = () => 1',
+      '  const boot = () => {}',
+      ''
+    ].join('\n')
+
+    expect(insertionsUnderDocBlocks(diff)).toEqual([
+      { file: 'b/src/x/sw.js', line: 'const helper = () => 1' }
+    ])
+  })
+
   it('adds nothing between a block and its declaration on this branch', () => {
     const base = [
       'origin/' + (process.env.GITHUB_BASE_REF || ''),

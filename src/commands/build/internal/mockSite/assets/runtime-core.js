@@ -648,8 +648,10 @@ const entrySizeAt = (abs) => {
 // worker and page storage are not shared), so the page hands the drive in at
 // boot and receives the changed files back after each run.
 const dirty = new Map() // abs path -> contents, or null when deleted
+const activeTokenFiles = new Set()
 
 const markDirty = (path) => {
+  if (activeTokenFiles.has(path)) return
   const contents = FILES.has(path) ? FILES.get(path) : null
   // one place decides what a deletion means, because every write and every
   // remove passes through here: a file that is gone is tombstoned, and writing
@@ -668,7 +670,8 @@ const takeDirty = () => {
 
 const dumpAll = () => {
   const out = {}
-  for (const [path, contents] of FILES) out[path] = contents
+  for (const [path, contents] of FILES)
+    if (!activeTokenFiles.has(path)) out[path] = contents
   return out
 }
 
@@ -1329,7 +1332,13 @@ const RESERVED_PARAMS = new Set(
   ).split(' ')
 )
 
-const runProgram = ({ program, code, params = {}, tables = [] }) => {
+const runProgram = ({
+  program,
+  code,
+  params = {},
+  tables = [],
+  execution = null
+}) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
   if (!codePath && !payloadCode)
@@ -1352,9 +1361,63 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
   const weboutPath = `${sessionDir}/webout.txt`
   const headersPath = `${sessionDir}/stpsrv_header.txt`
   const tokenFile = `${sessionDir}/reqHeaders.txt`
+  activeTokenFiles.add(tokenFile)
+  // Each run receives its own view of the filesystem. Session header files are
+  // transient credentials, not shared drive data, even while runs overlap.
+  const inaccessibleToken = (p) => {
+    const abs = P.resolve(String(p))
+    return abs !== tokenFile && activeTokenFiles.has(abs)
+  }
+  const runFS = { ...FS }
+  for (const name of [
+    'readFileSync',
+    'writeFileSync',
+    'appendFileSync',
+    'statSync',
+    'unlinkSync'
+  ]) {
+    runFS[name] = (p, ...args) => {
+      if (inaccessibleToken(p)) {
+        const error = new Error(
+          `ENOENT: no such file or directory, '${String(p)}'`
+        )
+        error.code = 'ENOENT'
+        throw error
+      }
+      return FS[name](p, ...args)
+    }
+  }
+  runFS.existsSync = (p) => !inaccessibleToken(p) && FS.existsSync(p)
+  runFS.readdirSync = (p) =>
+    FS.readdirSync(p).filter(
+      (name) => !inaccessibleToken(P.resolve(String(p), name))
+    )
+  runFS.copyFileSync = (from, to) => {
+    if (inaccessibleToken(from) || inaccessibleToken(to)) {
+      const error = new Error('ENOENT: no such file or directory')
+      error.code = 'ENOENT'
+      throw error
+    }
+    return FS.copyFileSync(from, to)
+  }
+  runFS.writeFile = (p, data, options, cb) => {
+    if (!inaccessibleToken(p)) return FS.writeFile(p, data, options, cb)
+    const error = new Error('ENOENT: no such file or directory')
+    error.code = 'ENOENT'
+    const callback = typeof options === 'function' ? options : cb
+    if (callback) return callback(error)
+    throw error
+  }
+  const runRequire = (name) => (name === 'fs' ? runFS : requireShim(name))
   FILES.set(weboutPath, '')
   FILES.set(headersPath, SEEDED_HEADERS)
-  FILES.set(tokenFile, '')
+  FILES.set(tokenFile, (execution && execution.headers) || '')
+  const apiServerUrl = execution ? execution.apiServerUrl : ''
+  const user = (execution && execution.user) || {
+    username: 'DEMO',
+    uid: '0',
+    displayName: 'Demo User'
+  }
 
   const requestVars = Object.create(null)
   for (const name of Object.keys(params))
@@ -1420,9 +1483,9 @@ const runProgram = ({ program, code, params = {}, tables = [] }) => {
     headersPath,
     program: codePath || program || '',
     debug: params._debug || '',
-    username: 'DEMO',
-    userId: '0',
-    apiServerUrl: typeof location !== 'undefined' ? location.origin : ''
+    username: user.username || '',
+    userId: user.uid || '',
+    apiServerUrl
   })
 
   const preProgram = `
@@ -1430,9 +1493,10 @@ let _webout = '';
 const weboutPath = ${JSON.stringify(weboutPath)};
 const _SASJS_TOKENFILE = ${JSON.stringify(tokenFile)};
 const _SASJS_WEBOUT_HEADERS = ${JSON.stringify(headersPath)};
-const _SASJS_USERNAME = "DEMO";
-const _SASJS_USERID = "0";
-const _SASJS_DISPLAYNAME = "Demo User";
+const _SASJS_APISERVERURL = ${JSON.stringify(apiServerUrl)};
+const _SASJS_USERNAME = ${JSON.stringify(user.username || '')};
+const _SASJS_USERID = ${JSON.stringify(user.uid || '')};
+const _SASJS_DISPLAYNAME = ${JSON.stringify(user.displayName || '')};
 const _METAPERSON = _SASJS_DISPLAYNAME;
 const _METAUSER = _SASJS_USERNAME;
 const SASJSPROCESSMODE = 'Stored Program';
@@ -1456,26 +1520,102 @@ return _webout;
 
   let thrown = null
   let returned = ''
+  const captureError = (e) => {
+    const message = e && e.message ? String(e.message) : ''
+    const stack = e && e.stack ? String(e.stack) : ''
+    thrown =
+      stack && message && stack.indexOf(message) < 0
+        ? message + '\n' + stack
+        : stack || String(e)
+    logLines.push(String(thrown))
+  }
+  const cleanup = () => {
+    const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
+    for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
+      for (const p of store.keys()) if (inUploads(p)) store.delete(p)
+    // Keep the session file but discard the credential before persistence.
+    FILES.set(tokenFile, '')
+    activeTokenFiles.delete(tokenFile)
+    for (const store of [SIZES, PENDING, dirty, DELETED])
+      store.delete(tokenFile)
+  }
+  const finish = () => {
+    cleanup()
+
+    const stored = FILES.get(weboutPath) || ''
+    // binary only when the byte body is the body: an empty byte write falls back
+    // to the returned string, and flagging that as bytes would have the worker
+    // base64-decode text. A byte body is validated here the way a read is, so a
+    // corrupt one fails the run instead of reaching the worker's decoder.
+    let fromFile = ''
+    let corrupt = false
+    if (isBinary(stored)) {
+      try {
+        fromFile = validateEntry(stored)
+      } catch (e) {
+        corrupt = true
+        if (!thrown) thrown = e.message
+        logLines.push(e.message)
+      }
+    } else {
+      fromFile = entryText(stored)
+    }
+    const binary = !corrupt && !!fromFile && isBinary(stored)
+    const body = fromFile || (typeof returned === 'string' ? returned : '')
+    const repaired = closeStreamedEnvelope(body)
+    const webout = repaired ? repaired.webout : body
+    if (repaired && repaired.truncated) {
+      // the drive holds part of a member, so no brace can make this readable -
+      // say what it is rather than leaving the caller to guess from a parse error
+      logLines.push(
+        'webout: the response envelope is truncated - a member was cut short, and closing it would not make the body valid JSON'
+      )
+    } else if (repaired) {
+      // finalise names this when the program returns, but it sits after the
+      // payload, so a program that never got there - the aborted run - leaves no
+      // word about it anywhere. Say it once here, from the side that repaired it.
+      logLines.push(
+        "webout: the program ended before webout('CLOSE') - the host closed the response envelope so the body is valid JSON"
+      )
+    }
+
+    // The headers file is read as text whatever way it was written, which is what
+    // the server does (`extractHeaders` reads the file, not the write). A service
+    // that writes it as bytes - a Buffer, or any non-UTF-8 encoding - leaves a
+    // byte entry on the drive, so decoding the entry text alone would hand the
+    // worker the `\u0000base64:...` marker and drop every declared header.
+    const storedHeaders = FILES.get(headersPath) || ''
+
+    return {
+      webout,
+      log: logLines.join('\n'),
+      headers: isBinary(storedHeaders)
+        ? utf8Decoder.decode(entryBytes(storedHeaders))
+        : entryText(storedHeaders),
+      // a byte body travels to the host as base64, which is how it is stored
+      binary,
+      error: thrown
+    }
+  }
+
   try {
-    // the construction sits inside the try: a service that declares a name the
-    // prelude already binds (`const Buffer = ...`) makes new Function throw a
-    // SyntaxError, which belongs in the run's error, not outside it
-    const fn = new Function(
+    const Constructor = execution
+      ? Object.getPrototypeOf(async function () {}).constructor
+      : Function
+    const fn = new Constructor(
       'require',
       'console',
       'process',
       'Buffer',
       '__sasjsFetchContext',
       '__sasjsParams',
+      ...(execution ? ['fetch'] : []),
       source
     )
-    returned = fn(
-      requireShim,
+    const args = [
+      runRequire,
       sandboxConsole,
-      {
-        pid: 4242,
-        env: { NODE_ENV: 'browser' }
-      },
+      { pid: 4242, env: { NODE_ENV: 'browser' } },
       BUFFERS,
       {
         params,
@@ -1488,81 +1628,24 @@ return _webout;
         }))
       },
       requestVars
-    )
-  } catch (e) {
-    // The stack alone is not an error message: WebKit's carries frames only, so
-    // a failure there arrives at the app as "anonymous@... > Function:219:1" with
-    // the reason nowhere in it. V8's stack already opens with the message, so it
-    // is prepended only when it is missing rather than repeated.
-    const message = e && e.message ? String(e.message) : ''
-    const stack = e && e.stack ? String(e.stack) : ''
-    thrown =
-      stack && message && stack.indexOf(message) < 0
-        ? message + '\n' + stack
-        : stack || String(e)
-    logLines.push(String(thrown))
-  } finally {
-    // Only the per-request staging subtree is transient. A service may
-    // intentionally copy an upload elsewhere, including elsewhere in sessionDir.
-    const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
-    for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
-      for (const p of store.keys()) if (inUploads(p)) store.delete(p)
+    ]
+    if (execution) args.push(execution.fetch)
+    returned = fn(...args)
+    if (execution)
+      return Promise.resolve(returned).then(
+        (value) => {
+          returned = value
+          return finish()
+        },
+        (error) => {
+          captureError(error)
+          return finish()
+        }
+      )
+  } catch (error) {
+    captureError(error)
   }
-
-  const stored = FILES.get(weboutPath) || ''
-  // binary only when the byte body is the body: an empty byte write falls back
-  // to the returned string, and flagging that as bytes would have the worker
-  // base64-decode text. A byte body is validated here the way a read is, so a
-  // corrupt one fails the run instead of reaching the worker's decoder.
-  let fromFile = ''
-  let corrupt = false
-  if (isBinary(stored)) {
-    try {
-      fromFile = validateEntry(stored)
-    } catch (e) {
-      corrupt = true
-      if (!thrown) thrown = e.message
-      logLines.push(e.message)
-    }
-  } else {
-    fromFile = entryText(stored)
-  }
-  const binary = !corrupt && !!fromFile && isBinary(stored)
-  const body = fromFile || (typeof returned === 'string' ? returned : '')
-  const repaired = closeStreamedEnvelope(body)
-  const webout = repaired ? repaired.webout : body
-  if (repaired && repaired.truncated) {
-    // the drive holds part of a member, so no brace can make this readable -
-    // say what it is rather than leaving the caller to guess from a parse error
-    logLines.push(
-      'webout: the response envelope is truncated - a member was cut short, and closing it would not make the body valid JSON'
-    )
-  } else if (repaired) {
-    // finalise names this when the program returns, but it sits after the
-    // payload, so a program that never got there - the aborted run - leaves no
-    // word about it anywhere. Say it once here, from the side that repaired it.
-    logLines.push(
-      "webout: the program ended before webout('CLOSE') - the host closed the response envelope so the body is valid JSON"
-    )
-  }
-
-  // The headers file is read as text whatever way it was written, which is what
-  // the server does (`extractHeaders` reads the file, not the write). A service
-  // that writes it as bytes - a Buffer, or any non-UTF-8 encoding - leaves a
-  // byte entry on the drive, so decoding the entry text alone would hand the
-  // worker the `\u0000base64:...` marker and drop every declared header.
-  const storedHeaders = FILES.get(headersPath) || ''
-
-  return {
-    webout,
-    log: logLines.join('\n'),
-    headers: isBinary(storedHeaders)
-      ? utf8Decoder.decode(entryBytes(storedHeaders))
-      : entryText(storedHeaders),
-    // a byte body travels to the host as base64, which is how it is stored
-    binary,
-    error: thrown
-  }
+  return finish()
 }
 
 const DRIVE_FILES = () => `${DRIVE_ROOT}/files`

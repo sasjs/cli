@@ -50,6 +50,13 @@ async function buildSite(root, targetType, basePath) {
   )
   // An extra independent service verifies both uploaded files, not just areas.
   await fs.writeFile(
+    path.join(services, 'nestedapi.js'),
+    `const headers = fs.readFileSync(_SASJS_TOKENFILE, 'utf8');
+     const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/info/myAuthorizedRoutes');
+     const session = await fetch(_SASJS_APISERVERURL + '/SASjsApi/session', {headers: Object.fromEntries(headers ? [headers.split(/: +/)] : [])});
+     _webout = JSON.stringify({url: _SASJS_APISERVERURL, status: response.status, paths: (await response.json()).paths, username: _SASJS_USERNAME, session: (await session.json()).username, hasBearer: headers.startsWith('Authorization: Bearer ')});`
+  )
+  await fs.writeFile(
     path.join(services, 'uploads.js'),
     `
     const files = [];
@@ -458,6 +465,32 @@ async function main() {
         `${target}: real adapter constructor`
       )
       console.log(`PASS ${target} worker control and real adapter`)
+      const nestedApi = await evaluate(`(async () => {
+        const path = ${JSON.stringify(basePath + '/SASjsApi/stp/execute')} + '?_program=' + encodeURIComponent(${JSON.stringify(appLoc + '/services/common/nestedapi')});
+        const as = username => new Promise((resolve, reject) => {
+          const listener = event => { if (event.data && event.data.type === 'sasjs-as-ack') { navigator.serviceWorker.removeEventListener('message', listener); event.data.error ? reject(Error(event.data.error)) : resolve(event.data); } };
+          navigator.serviceWorker.addEventListener('message', listener);
+          navigator.serviceWorker.controller.postMessage({type: 'sasjs-as', username});
+        });
+        const admin = await as('sasjsadmin');
+        const user = await as('sasjsuser');
+        const execute = async token => { const response = await fetch(path, {headers: {Authorization: 'Bearer ' + token}}); return {status: response.status, body: await response.json()}; };
+        const results = await Promise.all([execute(admin.accessToken), execute(user.accessToken)]);
+        await as('admin');
+        return {results, origin: location.origin};
+      })()`)
+      for (const [i, username] of ['sasjsadmin', 'sasjsuser'].entries()) {
+        const result = nestedApi.results[i]
+        assert.equal(result.status, 200, JSON.stringify(result))
+        assert.equal(result.body.url, nestedApi.origin + basePath)
+        assert.equal(result.body.status, 200)
+        assert.equal(result.body.username, username)
+        assert.equal(result.body.session, username)
+        assert.equal(result.body.hasBearer, true)
+        assert.equal(result.body.paths.includes('/SASjsApi/code/execute'), i === 0)
+      }
+      assert.deepEqual(server.network, [], `${target}: nested API did not reach static server`)
+      console.log(`PASS ${target} service-to-mock API`)
 
       for (const route of ['/api/stp/execute//', '/SASjsApi/code/execute///', '/SASStoredProcess/do//']) {
         const denied = await evaluate(`(async () => {
