@@ -3452,6 +3452,142 @@ describe('service worker host', () => {
     expect(body.error).toContain('boom')
   })
 
+  it('lets a JavaScript service await the mock API at a mounted site', async () => {
+    const worker = loadWorker('/demo')
+    worker.runtime.load({
+      [drivePath('services/public/nested.js')]: `
+        const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/info');
+        _webout = JSON.stringify({ url: _SASJS_APISERVERURL, status: response.status, body: await response.json() });`
+    })
+    const response = await worker.dispatch(
+      '/demo/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/nested`)
+    )
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(result.url).toBe(`${origin}/demo`)
+    expect(result.status).toBe(200)
+    expect(result.body.runTimes).toEqual(['js', 'sas'])
+  })
+
+  it('keeps concurrent service callers and their token files separate', async () => {
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/who.js')]: `
+        const headers = fs.readFileSync(_SASJS_TOKENFILE, 'utf8');
+        const route = await fetch(_SASJS_APISERVERURL + '/SASjsApi/info/myAuthorizedRoutes');
+        const explicit = await fetch(_SASJS_APISERVERURL + '/SASjsApi/session', {headers: Object.fromEntries(headers ? [headers.split(/: +/)] : [])});
+        _webout = JSON.stringify({ username: _SASJS_USERNAME, hasBearer: headers.startsWith('Authorization: Bearer '), paths: (await route.json()).paths, explicit: (await explicit.json()).username });`
+    })
+    const admin = worker.message({ type: 'sasjs-as', username: 'sasjsadmin' })
+    await admin.pending
+    const restricted = worker.message({
+      type: 'sasjs-as',
+      username: 'sasjsuser'
+    })
+    await restricted.pending
+    const execute = async (token: string) => {
+      const response = await worker.dispatch(
+        '/SASjsApi/stp/execute?_program=' +
+          encodeURIComponent(`${appLoc}/services/public/who`),
+        { headers: { authorization: `Bearer ${token}` } }
+      )
+      expect(response.status).toBe(200)
+      return response.json()
+    }
+    const [a, b] = await Promise.all([
+      execute(admin.replies[0].accessToken),
+      execute(restricted.replies[0].accessToken)
+    ])
+    expect(a.username).toBe('sasjsadmin')
+    expect(b.username).toBe('sasjsuser')
+    expect(a.explicit).toBe('sasjsadmin')
+    expect(b.explicit).toBe('sasjsuser')
+    expect(a.hasBearer).toBe(true)
+    expect(b.hasBearer).toBe(true)
+    expect(a.paths).toContain('/SASjsApi/code/execute')
+    expect(b.paths).not.toContain('/SASjsApi/code/execute')
+    expect(JSON.stringify(worker.runtime.dumpAll())).not.toContain(
+      admin.replies[0].accessToken
+    )
+    expect(JSON.stringify(worker.runtime.dumpAll())).not.toContain(
+      restricted.replies[0].accessToken
+    )
+  })
+
+  it('keeps a Request method and body when fetch overrides its headers', async () => {
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/requestapi.js')]: `
+        const request = new Request(_SASJS_APISERVERURL + '/SASjsApi/code/execute', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({code:"_webout = 'nested-post'",runTime:'js'})});
+        const response = await fetch(request, {headers:{'content-type':'application/json', 'x-test':'yes'}});
+        _webout = JSON.stringify({status:response.status, body:await response.text()});`
+    })
+    const response = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/requestapi`)
+    )
+    const body = await response.json()
+    expect(body.status).toBe(200)
+    expect(body.body).toContain('nested-post')
+  })
+
+  it('passes the bearer token to a nested stored program', async () => {
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/parent.js')]:
+        `const r = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/execute?_program=' + encodeURIComponent('/Public/app/test/services/public/child')); _webout = await r.text();`,
+      [drivePath('services/public/child.js')]:
+        `_webout = JSON.stringify({hasBearer:fs.readFileSync(_SASJS_TOKENFILE, 'utf8').startsWith('Authorization: Bearer '), user:_SASJS_USERNAME});`
+    })
+    const who = worker.message({ type: 'sasjs-as', username: 'sasjsuser' })
+    await who.pending
+    const result = await worker.dispatch(
+      '/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/parent`),
+      { headers: { authorization: 'Bearer ' + who.replies[0].accessToken } }
+    )
+    expect(await result.json()).toEqual({ hasBearer: true, user: 'sasjsuser' })
+  })
+
+  it('routes a mounted StoredProgram fetch back to the worker', async () => {
+    const worker = loadWorker('/demo')
+    worker.runtime.load({
+      [drivePath('services/public/parent.js')]:
+        `const r = await fetch(_SASJS_APISERVERURL + '/StoredProgram?_program=' + encodeURIComponent('/Public/app/test/services/public/child')); _webout = await r.text();`,
+      [drivePath('services/public/child.js')]: `_webout = 'nested-tier';`
+    })
+    const response = await worker.dispatch(
+      '/demo/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/parent`)
+    )
+    expect(await response.text()).toBe('nested-tier')
+  })
+
+  it('does not expose an overlapping run token file to another service', async () => {
+    const worker = seeded()
+    worker.runtime.load({
+      [drivePath('services/public/hold.js')]:
+        `await new Promise(resolve => setTimeout(resolve, 100)); _webout = 'done';`,
+      [drivePath('services/public/inspect.js')]:
+        `const paths = fs.readdirSync('/sasjs/sessions').map(s => '/sasjs/sessions/' + s + '/reqHeaders.txt'); _webout = JSON.stringify(paths.filter(p => p !== _SASJS_TOKENFILE).map(p => {try {return fs.readFileSync(p,'utf8')} catch(e) {return e.code}}));`
+    })
+    const who = worker.message({ type: 'sasjs-as', username: 'sasjsadmin' })
+    await who.pending
+    const path = (name: string) =>
+      '/SASjsApi/stp/execute?_program=' +
+      encodeURIComponent(`${appLoc}/services/public/${name}`)
+    const held = worker.dispatch(path('hold'), {
+      headers: { authorization: 'Bearer ' + who.replies[0].accessToken }
+    })
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    const result = await worker.dispatch(path('inspect'))
+    expect(JSON.stringify(await result.json())).not.toContain(
+      who.replies[0].accessToken
+    )
+    await held
+  })
+
   it('runs code carried by a code/execute request', async () => {
     const { dispatch } = seeded()
 

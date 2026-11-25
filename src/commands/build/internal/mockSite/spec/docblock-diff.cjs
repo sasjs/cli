@@ -13,6 +13,13 @@
  * The edit itself is decidable, though: an ADDED line whose previous line in the
  * new file is an UNCHANGED doc-block terminator. Adding a whole block with its
  * declaration is not flagged, because there the terminator is added too.
+ *
+ * A declaration modified in place is not that edit either: the line under the
+ * block is deleted and its replacement added. The replacement is exempt when
+ * the deleted run beside it holds code - the declaration itself being edited -
+ * and a run that held only comments or blanks removed something else, so what
+ * is added in its place is new content under the block. A context line ends a
+ * run, so a deletion from elsewhere in the hunk cannot vouch for an insertion.
  */
 
 /**
@@ -53,11 +60,16 @@ const insertionsUnderDocBlocks = (diffText) => {
   // the previous line in the NEW file, as { added, text } - `added` decides
   // whether inserting under it is a mistake or part of a new block
   let previous = null
+  // the lines the current run of additions stands in for, as { comment } - a
+  // deletion of code is the declaration being modified, a deletion of a
+  // comment or a blank removed something else
+  let replaced = []
 
   for (const line of diffText.split('\n')) {
     if (line.startsWith('diff --git')) {
       inHeader = true
       previous = null
+      replaced = []
       continue
     }
 
@@ -69,6 +81,7 @@ const insertionsUnderDocBlocks = (diffText) => {
     if (line.startsWith('@@')) {
       inHeader = false
       previous = null
+      replaced = []
       continue
     }
 
@@ -81,7 +94,12 @@ const insertionsUnderDocBlocks = (diffText) => {
         previous &&
         !previous.added &&
         previous.text.trim() === '*/' &&
-        !isModuleImport(text)
+        !isModuleImport(text) &&
+        // the deleted run beside these additions held no code: nothing was
+        // displaced, so the addition is new content under the block. An empty
+        // run - a pure insertion - held no code either. A run that held code
+        // was the declaration itself, being modified.
+        replaced.every((gone) => gone.comment)
       )
         hits.push({ file, line: text.trim() })
 
@@ -89,9 +107,23 @@ const insertionsUnderDocBlocks = (diffText) => {
       continue
     }
 
-    if (line.startsWith('-')) continue
+    if (line.startsWith('-')) {
+      const text = line.slice(1)
+      const trimmed = text.trim()
+      // a `--` comment removed from a YAML or SQL file arrives as `--- ...`
+      // once git prefixes it: content, not a header. It is not code either, so
+      // it cannot vouch for an addition.
+      replaced.push({
+        comment:
+          trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('--')
+      })
+      continue
+    }
 
-    if (line.startsWith(' ')) previous = { added: false, text: line.slice(1) }
+    if (line.startsWith(' ')) {
+      previous = { added: false, text: line.slice(1) }
+      replaced = []
+    }
   }
 
   return hits

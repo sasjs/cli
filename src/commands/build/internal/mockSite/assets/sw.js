@@ -263,6 +263,7 @@ const bootIdentity = async (data) => {
 const LOGS_SEPARATOR = 'SASJS_LOGS_SEPARATOR_163ee17b6ff24f028928972d80a26784'
 const SAS9_FRAME = Symbol('sas9-frame')
 const TIER_FRAME = Symbol('tier-frame')
+const EXECUTION_FRAME = Symbol('execution-frame')
 
 // The server frames a tier run only when its normalized debug level is >= 131.
 // Its parseDebugValue maps every nonempty, non-integer string (including 1e3
@@ -847,6 +848,8 @@ class BrowserRuntime extends API.MemorySessionHost {
     const params = Object.assign(Object.create(null), request.vars || {})
     const sas9 = params[SAS9_FRAME]
     const tier = Boolean(params[TIER_FRAME])
+    const execution = params[EXECUTION_FRAME]
+    delete params[EXECUTION_FRAME]
     delete params[SAS9_FRAME]
     delete params[TIER_FRAME]
     // The package normalizes named debug values for the API, but the SAS9
@@ -892,11 +895,11 @@ class BrowserRuntime extends API.MemorySessionHost {
         Boolean(sas9)
       )
     } else {
-      const payload = { params, tables: tablesOf(request.files) }
+      const payload = { params, tables: tablesOf(request.files), execution }
       if (program.code !== undefined) payload.code = program.code
       else payload.program = program.path
 
-      const result = R.run(payload)
+      const result = await R.run(payload)
       if (result.error) throw runFailure(result.error)
 
       artifact = artifactOf(result, debug, Boolean(sas9))
@@ -1768,15 +1771,19 @@ const isUploadPath = operationMatcher('POST /files/files')
  * The caller is the account the page chose, which is the same answer the SASjs
  * routes get - so the bodies this host returns name that account, not a generic
  * emulated user.
+ *
+ * A service's own nested call has no page and no account of its own: `inherited`
+ * carries the caller that started the run, so the emulation answers for the
+ * same account throughout the recursion.
  */
-const viyaRequest = async (request, url, path) => {
+const viyaRequest = async (request, url, path, inherited) => {
   const query = Object.create(null)
   for (const [key, value] of url.searchParams.entries()) query[key] = value
 
   const apiRequest = {
     query,
     token: bearerOf(request, query),
-    subject: await subjectOf(request, query)
+    subject: await subjectOf(request, query, undefined, inherited)
   }
 
   if (request.method === 'POST' && isUploadPath(path)) {
@@ -2216,9 +2223,9 @@ const publicGrantOn = (path) => {
 
 /** The subject a request is talking as, from its bearer token or the implicit
  * caller when it carries none. Invalid tokens are anonymous on public routes. */
-const subjectOf = async (request, query, publicPath) => {
+const subjectOf = async (request, query, publicPath, inherited) => {
   const token = bearerOf(request, query)
-  if (!token) return IMPLICIT_CALLER
+  if (!token) return inherited ? inherited.subject : IMPLICIT_CALLER
   const subject = await IDENTITY.authenticate(token)
   if (!subject && !(publicPath && publicGrantOn(publicPath)))
     throw new API.ApiError(401, 'Unauthorized')
@@ -2241,7 +2248,8 @@ const runRoute = async (
   payload,
   subject,
   sas9 = false,
-  tier = false
+  tier = false,
+  execution
 ) => {
   // A program may read any file it likes - the drive is its filesystem - so
   // every piece of a sharded drive is fetched here rather than guessed from the
@@ -2292,6 +2300,7 @@ const runRoute = async (
       value: vars._debug
     }
   if (tier && !sas9) vars[TIER_FRAME] = true
+  vars[EXECUTION_FRAME] = execution
 
   const runRequest = {
     source: code ? 'code' : 'program',
@@ -2743,8 +2752,19 @@ const oauthToken = async (request) => {
  * beside it and every attempt after that is made from a copy of the copy. Only a
  * request with a body needs one, and `source` is what carries it through the
  * recursion.
+ *
+ * `inherited` is the recursion's other carry: a nested call made by a running
+ * service arrives with the caller that started the run, so the child answers
+ * for the same account - and retries keep both carries, the body and the
+ * caller.
  */
-const routeRequest = async (request, url, attempts = 0, source = null) => {
+const routeRequest = async (
+  request,
+  url,
+  attempts = 0,
+  source = null,
+  inherited = null
+) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null
   const path = withoutBase(url.pathname).replace(/\/+$/, '') || '/'
@@ -2844,7 +2864,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
       if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
 
-      return await viyaRequest(request, url, apiPath)
+      return await viyaRequest(request, url, apiPath, inherited)
     }
 
     // The app stream is the server's own web surface rather than part of the
@@ -2880,7 +2900,9 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
         // who may see which app, which the surface leaves to the host. The
         // caller is resolved here because this branch answers before the API
         // routes below resolve theirs
-        allow: await appFilter(await subjectOf(request, query))
+        allow: await appFilter(
+          await subjectOf(request, query, undefined, inherited)
+        )
       })
 
       // a removal changes the index, which lives in the drive: persisted in the
@@ -2900,7 +2922,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     }
 
     if (/^\/SASStoredProcess$/i.test(path) && request.method === 'GET') {
-      const subject = await subjectOf(request, query)
+      const subject = await subjectOf(request, query, undefined, inherited)
       const user =
         subject &&
         IDENTITY_STATE.store
@@ -2931,7 +2953,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     )
     const subject = SELF_AUTH_ROUTES.has(routeId)
       ? undefined
-      : await subjectOf(request, query, publicPath)
+      : await subjectOf(request, query, publicPath, inherited)
     if (routeId === DEPLOY_UPLOAD) {
       const uploadPath = '/SASjsApi/drive/deploy/upload'
       // Newer packages expose the same decision as dispatch. With older ones,
@@ -3001,7 +3023,55 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      return await runRoute(routeId, payload, subject, sas9Run, tierQuery)
+      const user =
+        subject &&
+        IDENTITY_STATE.store
+          .snapshot()
+          .users.find((candidate) => candidate.uid === subject.userId)
+      const runToken = token || (inherited && inherited.token)
+      const headers = runToken ? `Authorization: Bearer ${runToken}` : ''
+      const execution = {
+        apiServerUrl: self.location.origin + BASE,
+        user: user || { username: '', uid: '', displayName: '' },
+        headers,
+        fetch: (input, init) => {
+          const target = new URL(
+            typeof input === 'string' || input instanceof URL
+              ? input
+              : input.url,
+            self.location.origin + BASE + '/'
+          )
+          const inside =
+            !BASE ||
+            target.pathname === BASE ||
+            target.pathname.startsWith(BASE + '/')
+          const path = inside ? withoutBase(target.pathname) : ''
+          if (
+            target.origin === self.location.origin &&
+            inside &&
+            isAnswered(path) &&
+            !/^\/api\/?$/i.test(path)
+          ) {
+            const nested = new Request(
+              input instanceof Request ? input : target.href,
+              init
+            )
+            return routeRequest(nested, target, 0, null, {
+              subject,
+              token: runToken
+            })
+          }
+          return fetch(input, init)
+        }
+      }
+      return await runRoute(
+        routeId,
+        payload,
+        subject,
+        sas9Run,
+        tierQuery,
+        execution
+      )
     }
 
     const apiRequest = {
@@ -3075,7 +3145,7 @@ const routeRequest = async (request, url, attempts = 0, source = null) => {
       else await R.ensureAll()
       // a fresh copy per attempt: the one this attempt read is spent
       const next = replay ? replay.clone() : request
-      return await routeRequest(next, url, attempts + 1, replay)
+      return await routeRequest(next, url, attempts + 1, replay, inherited)
     }
 
     const message = (e && e.stack) || String(e)
