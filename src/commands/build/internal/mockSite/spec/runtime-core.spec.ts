@@ -1353,6 +1353,26 @@ webout('CLOSE')`
     expect(JSON.parse(result.webout).users).toEqual([{ name: 'ann' }])
   })
 
+  it('closes a stream that ended on a member whose value ends in a brace', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // showmeta writes the metadata object after its table, so the body's last
+    // character is `}` and it is still not closed: deciding by that character
+    // would leave the caller a body it cannot parse
+    const result = runtime.run({
+      code: [
+        "webout('OPEN')",
+        "webout('OBJ', 'users', [{ NAME: 'ann' }], { showmeta: { vars: { NAME: { format: '$', label: 'Name', length: 8, type: 'char' } } } })"
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    const body = JSON.parse(result.webout)
+    expect(body.users).toEqual([{ NAME: 'ann' }])
+    expect(body.$users.vars.NAME.label).toBe('Name')
+  })
+
   it('leaves a body the host did not open alone', async () => {
     const runtime = loadRuntime()
     await seedDrive(runtime, {}, weboutPrelude())
