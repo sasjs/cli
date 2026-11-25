@@ -1282,22 +1282,39 @@ const STREAMED_ENVELOPE_HEAD = /^\{"SYSDATE":"[^"]*","SYSTIME":"[^"]*"/
  * metadata object after its table (`,"$mytable":{"vars":{...}}`) - so a body
  * that ends in a brace may still be missing the document's own.
  *
- * Returns the closed body, or null when there was nothing to close.
+ * The brace is only offered when it completes the document. A write can be cut
+ * anywhere, not just at a member boundary - an interrupted write, a body the
+ * drive lost - and a brace appended to a half-written member leaves a body that
+ * is still not JSON, only differently so. That case is reported as truncated
+ * and the body is served as it was found, so the host never claims a body is
+ * readable when it is not.
+ *
+ * This matches sasjs/server, which serves the same repair from the one place it
+ * reads a session's webout (sasjs/server#792): a mock that went its own way here
+ * would make a service look fixed in the browser and still hand a server's
+ * caller an unreadable body. A site built by an older CLI against a newer server
+ * is the one combination where the two can still differ, and the older side is
+ * the one that serves the open envelope.
+ *
+ * Returns `{ webout, truncated }`, or null when there was nothing to close.
  */
 const closeStreamedEnvelope = (body) => {
   if (typeof body !== 'string') return null
   const trimmed = body.replace(/\s+$/, '')
   if (!STREAMED_ENVELOPE_HEAD.test(trimmed)) return null
-  // a closed document ends with the brace finalise appends, so one that does not
-  // is missing it and needs no parse to say so
-  if (!trimmed.endsWith('}')) return trimmed + '}'
   try {
     JSON.parse(trimmed)
     return null
   } catch (e) {
     // one brace is all finalise appends, and every member before it was written
     // whole, so the prefix plus that brace is the document the program meant
-    return trimmed + '}'
+    const closed = trimmed + '}'
+    try {
+      JSON.parse(closed)
+      return { webout: closed, truncated: false }
+    } catch (e2) {
+      return { webout: body, truncated: true }
+    }
   }
 }
 
@@ -1512,8 +1529,15 @@ return _webout;
   }
   const binary = !corrupt && !!fromFile && isBinary(stored)
   const body = fromFile || (typeof returned === 'string' ? returned : '')
-  const closed = closeStreamedEnvelope(body)
-  if (closed !== null) {
+  const repaired = closeStreamedEnvelope(body)
+  const webout = repaired ? repaired.webout : body
+  if (repaired && repaired.truncated) {
+    // the drive holds part of a member, so no brace can make this readable -
+    // say what it is rather than leaving the caller to guess from a parse error
+    logLines.push(
+      'webout: the response envelope is truncated - a member was cut short, and closing it would not make the body valid JSON'
+    )
+  } else if (repaired) {
     // finalise names this when the program returns, but it sits after the
     // payload, so a program that never got there - the aborted run - leaves no
     // word about it anywhere. Say it once here, from the side that repaired it.
@@ -1521,7 +1545,6 @@ return _webout;
       "webout: the program ended before webout('CLOSE') - the host closed the response envelope so the body is valid JSON"
     )
   }
-  const webout = closed === null ? body : closed
 
   // The headers file is read as text whatever way it was written, which is what
   // the server does (`extractHeaders` reads the file, not the write). A service

@@ -1384,6 +1384,25 @@ webout('CLOSE')`
     expect(result.webout).toBe('{"mine":1')
   })
 
+  it('does not call a body cut mid-member valid JSON', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // the drive can hold part of a member - an interrupted write - and no brace
+    // makes that readable, so the body is served as found and the log says so
+    // rather than claiming the host closed it
+    const result = runtime.run({
+      code: [
+        "webout('OPEN')",
+        `require('fs').appendFileSync(weboutPath, ',"users":[')`
+      ].join('\n')
+    })
+
+    expect(result.webout.endsWith('}')).toBe(false)
+    expect(result.log).toContain('the response envelope is truncated')
+    expect(result.log).not.toContain('so the body is valid JSON')
+  })
+
   it('carries the message when the stack does not, as WebKit reports one', () => {
     const runtime = loadRuntime()
 
