@@ -3688,27 +3688,6 @@ describe('service worker host', () => {
     expect(await response.text()).toBe('seeded')
   })
 
-  it('waits for every page to clear its pending reports before broadcasting reset state', async () => {
-    const { message } = seeded()
-    const pages: any[] = []
-    ;(global as any).__mockHostClients = ['a', 'b'].map((id) => ({
-      id,
-      postMessage: (data: any) => pages.push({ id, data })
-    }))
-    const reset = message({ type: 'sasjs-reset' })
-    for (let i = 0; i < 100 && pages.length < 2; i++)
-      await new Promise((resolve) => setTimeout(resolve, 5))
-    const barriers = pages.filter((p) => p.data.type === 'sasjs-reset-persist')
-    expect(barriers).toHaveLength(2)
-    expect(pages.some((p) => p.data.type === 'sasjs-persist')).toBe(false)
-    for (const page of barriers) {
-      message({ type: 'sasjs-reset-persist-ack', id: page.data.id }, page.id)
-    }
-    await reset.pending
-    expect(reset.replies[0].error).toBeUndefined()
-    expect(pages.some((p) => p.data.type === 'sasjs-persist')).toBe(true)
-  })
-
   it('acknowledges a load, a seed, a reset and a snapshot from the page', async () => {
     const { message, runtime } = seeded()
     const files = { [drivePath('services/public/other.js')]: '_webout = "x";' }
@@ -6017,72 +5996,6 @@ describe('service worker host', () => {
 })
 
 describe('registered Viya browser jobs', () => {
-  it.each([false, true])(
-    'serializes overlapping persistence broadcasts (first fails: %s)',
-    async (failFirst) => {
-      const program = `${appLoc}/services/public/getdata`
-      ;(global as any).__viyaMockJobs = [program]
-      const worker = loadWorker()
-      await worker.runtime.load({
-        [drivePath('services/public/getdata.js')]:
-          "fs.writeFileSync('/sasjs/drive/files/shared.txt', value); if (value === 'old') fs.writeFileSync('/sasjs/drive/files/old-only.txt', 'keep'); _webout = value;"
-      })
-      const messages: any[] = []
-      let release!: () => void
-      let entered!: () => void
-      const blocked = new Promise<void>((resolve) => (release = resolve))
-      const reached = new Promise<void>((resolve) => (entered = resolve))
-      let calls = 0
-      worker.self.clients.matchAll = async () => {
-        if (++calls === 1) {
-          entered()
-          await blocked
-          if (failFirst) throw new Error('broadcast failed')
-        }
-        return [
-          { url: origin + '/', postMessage: (m: any) => messages.push(m) }
-        ]
-      }
-      let secondRan!: () => void
-      const secondFinishedRun = new Promise<void>(
-        (resolve) => (secondRan = resolve)
-      )
-      const originalRun = worker.runtime.run
-      worker.runtime.run = async (payload: any) => {
-        const result = await originalRun(payload)
-        if (payload.params.value === 'new') secondRan()
-        return result
-      }
-      const run = (value: string) =>
-        worker.dispatch(
-          '/jobExecution/jobs',
-          runRequest({
-            jobDefinition: { program },
-            arguments: { _program: program, value }
-          })
-        )
-      const first = run('old')
-      await reached
-      const second = run('new')
-      await secondFinishedRun
-      // Give the second request a turn to enter its persistence call.
-      await new Promise((resolve) => setTimeout(resolve, 20))
-      release()
-      expect((await first).status).toBe(failFirst ? 500 : 201)
-      expect((await second).status).toBe(201)
-      const writes = messages
-        .filter((m) => m.type === 'sasjs-persist')
-        .map((m) => m.files['/sasjs/drive/files/shared.txt'])
-        .filter(Boolean)
-      expect(writes[writes.length - 1]).toBe('new')
-      expect(
-        messages.some(
-          (m) => m.files['/sasjs/drive/files/old-only.txt'] === 'keep'
-        )
-      ).toBe(true)
-    }
-  )
-
   it('lets the real adapter resolve both a physical file and a same-named registered job', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [program]

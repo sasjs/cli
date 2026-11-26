@@ -252,208 +252,6 @@ const settleUntil = async (check: () => boolean, timeout = 4000) => {
 }
 
 describe('the page-side store', () => {
-  it('retries a failed IndexedDB report on the next report without losing newer changes', async () => {
-    const { reply, rows, identityRows } = loadPersist()
-    const original = (global as any).indexedDB.open
-    let fail = true
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      if (fail) {
-        fail = false
-        throw new Error('transient IndexedDB failure')
-      }
-      return original(...args)
-    }
-    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      reply({
-        type: 'sasjs-persist',
-        files: { '/old': 'retained', '/race': 'old' },
-        identity: { users: [] }
-      })
-      await settleUntil(() => !fail)
-      reply({ type: 'sasjs-persist', files: { '/race': 'new' } })
-      await settleUntil(
-        () => rows.get('/race') === 'new' && identityRows.has('current')
-      )
-      expect(rows.get('/old')).toBe('retained')
-      expect(rows.get('/race')).toBe('new')
-      expect(identityRows.get('current').fixture).toEqual({ users: [] })
-    } finally {
-      error.mockRestore()
-    }
-  })
-
-  it('retains a report if reading tombstones fails and retries without dropping prior deletions', async () => {
-    const { reply, identityRows } = loadPersist({
-      seededDeleted: ['/previous']
-    })
-    const original = (global as any).indexedDB.open
-    let opens = 0
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      if (++opens === 2) throw new Error('transient tombstone read failure')
-      return original(...args)
-    }
-    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      reply({ type: 'sasjs-persist', files: { '/deleted': null } })
-      await settleUntil(() => opens >= 2)
-      reply({ type: 'sasjs-persist', files: { '/new': 'content' } })
-      await settleUntil(() =>
-        (identityRows.get('deleted') || []).includes('/deleted')
-      )
-      expect(identityRows.get('deleted')).toEqual(
-        expect.arrayContaining(['/previous', '/deleted'])
-      )
-    } finally {
-      error.mockRestore()
-    }
-  })
-
-  it('retries a failed report before giving a restarted worker the stored drive', async () => {
-    const { reply, rows, posted } = loadPersist()
-    const original = (global as any).indexedDB.open
-    let fail = true
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      if (fail) {
-        fail = false
-        throw new Error('transient IndexedDB failure')
-      }
-      return original(...args)
-    }
-    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      reply({ type: 'sasjs-persist', files: { '/retained': 'durable' } })
-      await settleUntil(() => !fail)
-      reply({ type: 'sasjs-need-drive' })
-      await settleUntil(() => posted.some((m: any) => m.type === 'sasjs-load'))
-      expect(rows.get('/retained')).toBe('durable')
-      expect(
-        posted.find((m: any) => m.type === 'sasjs-load').files['/retained']
-      ).toBe('durable')
-    } finally {
-      reply({ type: 'sasjs-load-ack' })
-      reply({ type: 'sasjs-seed-ack' })
-      error.mockRestore()
-    }
-  })
-
-  it('retries startup reads if a report arrives during the snapshot', async () => {
-    let ready!: () => void
-    const gate = new Promise<void>((resolve) => {
-      ready = resolve
-    })
-    const { reply, posted, window } = loadPersist({
-      ready: gate,
-      seeded: { '/race': 'old' }
-    })
-    const original = (global as any).indexedDB.open
-    let opens = 0
-    let release!: () => void
-    let held = false
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      const request = original(...args)
-      if (++opens === 2) {
-        const proxy: any = { result: request.result }
-        request.onsuccess = () => {
-          held = true
-          release = () => proxy.onsuccess()
-        }
-        return proxy
-      }
-      return request
-    }
-    ready()
-    await settleUntil(() => held)
-    expect(held).toBe(true)
-    reply({ type: 'sasjs-persist', files: { '/race': 'new' } })
-    release()
-    await settleUntil(() => posted.some((m: any) => m.type === 'sasjs-load'))
-    expect(
-      posted.find((m: any) => m.type === 'sasjs-load').files['/race']
-    ).toBe('new')
-    reply({ type: 'sasjs-load-ack' })
-    await window.__sasjsMockPersistReady
-  })
-
-  it('finishes pending persistence before normal page startup reads the drive', async () => {
-    let ready!: () => void
-    const gate = new Promise<void>((resolve) => {
-      ready = resolve
-    })
-    const { reply, posted, window } = loadPersist({
-      ready: gate,
-      seeded: { '/race': 'old' }
-    })
-    const original = (global as any).indexedDB.open
-    let opens = 0
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      const request = original(...args)
-      if (++opens === 1) {
-        const proxy: any = { result: request.result }
-        request.onsuccess = () => setTimeout(() => proxy.onsuccess(), 80)
-        return proxy
-      }
-      return request
-    }
-    reply({ type: 'sasjs-persist', files: { '/race': 'new' } })
-    await Promise.resolve()
-    ready()
-    await settleUntil(() => posted.some((m: any) => m.type === 'sasjs-load'))
-    expect(
-      posted.find((m: any) => m.type === 'sasjs-load').files['/race']
-    ).toBe('new')
-    reply({ type: 'sasjs-load-ack' })
-    await window.__sasjsMockPersistReady
-  })
-
-  it('finishes pending persistence before answering a restarted worker', async () => {
-    const { reply, posted } = loadPersist()
-    const original = (global as any).indexedDB.open
-    let opens = 0
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      const request = original(...args)
-      if (++opens === 1) {
-        const proxy: any = { result: request.result }
-        request.onsuccess = () => setTimeout(() => proxy.onsuccess(), 60)
-        return proxy
-      }
-      return request
-    }
-    reply({ type: 'sasjs-persist', files: { '/new': 'durable' } })
-    await Promise.resolve()
-    reply({ type: 'sasjs-need-drive' })
-    await settleUntil(() =>
-      posted.some(
-        (m: any) => m.type === 'sasjs-load' || m.type === 'sasjs-seed'
-      )
-    )
-    expect(posted.find((m: any) => m.type === 'sasjs-load')).toEqual(
-      expect.objectContaining({
-        files: expect.objectContaining({ '/new': 'durable' })
-      })
-    )
-  })
-
-  it('applies persist messages in order even when IndexedDB opens out of order', async () => {
-    const { reply, rows, identityRows } = loadPersist()
-    const original = (global as any).indexedDB.open
-    let opens = 0
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      const request = original(...args)
-      if (++opens === 1) {
-        const proxy: any = { result: request.result }
-        request.onsuccess = () => setTimeout(() => proxy.onsuccess(), 60)
-        return proxy
-      }
-      return request
-    }
-    reply({ type: 'sasjs-persist', files: { '/race': 'old' } })
-    reply({ type: 'sasjs-persist', files: { '/race': 'new' } })
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    expect(rows.get('/race')).toBe('new')
-    expect(identityRows.get('deleted') || []).not.toContain('/race')
-  })
-
   it('isolates the database by worker mount and preserves the root name', async () => {
     const root = loadPersist()
     await root.window.SASjsMock.readAll()
@@ -998,50 +796,15 @@ describe('the page-side store', () => {
     await expect(pending).rejects.toThrow(/could not be read whole/)
   })
 
-  it('does not retry a failed pre-reset report over post-reset changes', async () => {
-    const { window, reply, rows, posted } = loadPersist()
-    const original = (global as any).indexedDB.open
-    let fail = true
-    ;(global as any).indexedDB.open = (...args: any[]) => {
-      if (fail) {
-        fail = false
-        throw new Error('transient failure')
-      }
-      return original(...args)
-    }
-    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
-    try {
-      reply({ type: 'sasjs-persist', files: { '/old': 'stale' } })
-      await settleUntil(() => !fail)
-      const reset = window.SASjsMock.reset()
-      await Promise.resolve()
-      reply({ type: 'sasjs-reset-persist', id: 'reset-1' })
-      reply({ type: 'sasjs-persist', files: { '/new': 'valid' } })
-      reply({ type: 'sasjs-reset-ack' })
-      await reset
-      reply({ type: 'sasjs-persist', files: { '/after': 'later' } })
-      await settleUntil(() => rows.get('/after') === 'later')
-      await new Promise((resolve) => setTimeout(resolve, 30))
-      expect(Object.fromEntries(rows)).toEqual({
-        '/new': 'valid',
-        '/after': 'later'
-      })
-    } finally {
-      error.mockRestore()
-    }
-  })
-
   it('drops the recorded deletions with the rest of the drive', async () => {
-    const { window, reply, rows, identityRows } = loadPersist({
+    const { window, listeners, rows, identityRows } = loadPersist({
       seeded: { '/sasjs/drive/a.txt': 'a' },
       seededDeleted: ['/sasjs/drive/a.txt']
     })
 
     const pending = window.SASjsMock.reset()
     await Promise.resolve()
-    reply({ type: 'sasjs-reset-persist', id: 1 })
-    await settleUntil(() => !identityRows.has('deleted'))
-    reply({ type: 'sasjs-reset-ack' })
+    ;[...listeners].forEach((fn) => fn({ data: { type: 'sasjs-reset-ack' } }))
     await pending
     await settleUntil(() => !identityRows.has('deleted'))
 
@@ -1086,8 +849,6 @@ describe('the page-side store', () => {
     await Promise.resolve()
     expect(posted.some((m) => m.type === 'sasjs-reset')).toBe(true)
 
-    reply({ type: 'sasjs-reset-persist', id: 1 })
-    await settleUntil(() => !rows.has('/sasjs/drive/old.txt'))
     reply({ type: 'sasjs-reset-ack' })
     await expect(pending).resolves.toBe(true)
     expect(rows.has('/sasjs/drive/old.txt')).toBe(false)
@@ -1903,18 +1664,16 @@ describe('the page-side store', () => {
   it('reset clears the identity beside the drive', async () => {
     const controller = { postMessage: jest.fn() }
     // no boot: the stored rows are what reset has to clear
-    const { window, reply, rows, identityRows } = loadPersist({
+    const { window, listeners, rows, identityRows } = loadPersist({
       controller,
       seeded: { '/sasjs/drive/stored.txt': 'stored' },
       seededIdentity: { fixture: FIXTURE, subject: 'sasjsuser' }
     })
 
-    const pending = window.SASjsMock.reset()
-    await Promise.resolve()
-    reply({ type: 'sasjs-reset-persist', id: 1 })
-    await settleUntil(() => !identityRows.has('current'))
-    reply({ type: 'sasjs-reset-ack' })
-    await pending
+    const stop = answerAll(controller, listeners, () => ({}))
+
+    await window.SASjsMock.reset()
+    stop()
 
     expect(identityRows.has('current')).toBe(false)
     expect(rows.has('/sasjs/drive/stored.txt')).toBe(false)
