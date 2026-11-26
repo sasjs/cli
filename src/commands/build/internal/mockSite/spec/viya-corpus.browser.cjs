@@ -32,6 +32,16 @@ const expected = new Set([
   'POST /folders/folders',
   'GET /folders/folders/{}',
   'GET /folders/folders/{}/members',
+  'PATCH /folders/folders/{}',
+  'POST /files/files',
+  'GET /files/files/{}',
+  'PATCH /files/files/{}',
+  'GET /files/files/{}/content',
+  'PUT /files/files/{}/content',
+  'GET /jobDefinitions/definitions/{}',
+  'POST /jobExecution/jobs',
+  'GET /jobExecution/jobs/{}',
+  'GET /jobExecution/jobs/{}/state',
   'GET /folders/folders/@item',
   'GET /folders/folders/@myRecycleBin',
   'GET /identities/users/@currentUser',
@@ -40,23 +50,65 @@ const expected = new Set([
 ])
 const expectedSkip = new Set([
   'GET /compute/sessions/{}/variables/{}',
-  'GET /files/files/{}',
-  'GET /files/files/{}/content',
-  'GET /jobDefinitions/definitions/{}',
-  'GET /jobExecution/jobs/{}',
-  'GET /jobExecution/jobs/{}/state',
   'GET /launcher/contexts',
-  'PATCH /files/files/{}',
-  'PATCH /folders/folders/{}',
-  'POST /files/files',
-  'POST /jobDefinitions/definitions',
-  'POST /jobExecution/jobs',
-  'PUT /files/files/{}/content'
+  'POST /jobDefinitions/definitions'
 ])
-// These skips are not claims that the endpoint is unsupported in this host:
-// files and folder PATCH lack complete captured request/state fixtures; the API
-// overlay marks variables, launcher and job definitions/executions unimplemented.
-// The CLI can opt in to registered jobs even though the overlay declines them.
+// The API declines session variables, launcher and definition creation. The CLI
+// serves registered JS jobs but its three JES JSON bodies differ from the real
+// captured shapes; report those exact differences rather than count them as parity.
+// These are real shapeMismatches against the captured corpus, not invented shapes.
+// Exact allowlisting makes a changed or newly missing field visible.
+const jesShapeRoutes = new Set([
+  'GET /jobDefinitions/definitions/{}',
+  'POST /jobExecution/jobs',
+  'GET /jobExecution/jobs/{}'
+])
+const knownJesShapeDrift = [
+  'GET /jobDefinitions/definitions/{}.code: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.createdBy: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.creationTimeStamp: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.links: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.modifiedBy: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.modifiedTimeStamp: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.parameters: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.type: missing from the answer',
+  'GET /jobDefinitions/definitions/{}.version: missing from the answer',
+  'POST /jobExecution/jobs.createdBy: missing from the answer',
+  'POST /jobExecution/jobs.creationTimeStamp: missing from the answer',
+  'POST /jobExecution/jobs.elapsedTime: missing from the answer',
+  'POST /jobExecution/jobs.heartbeatInterval: missing from the answer',
+  'POST /jobExecution/jobs.heartbeatTimeStamp: missing from the answer',
+  'POST /jobExecution/jobs.jobRequest: missing from the answer',
+  'POST /jobExecution/jobs.links[0].method: missing from the answer',
+  'POST /jobExecution/jobs.links[0].type: missing from the answer',
+  'POST /jobExecution/jobs.links[0].uri: missing from the answer',
+  'POST /jobExecution/jobs.modifiedBy: missing from the answer',
+  'POST /jobExecution/jobs.modifiedTimeStamp: missing from the answer',
+  'POST /jobExecution/jobs.state: missing from the answer',
+  'POST /jobExecution/jobs.submittedByApplication: missing from the answer',
+  'POST /jobExecution/jobs.version: missing from the answer',
+  'GET /jobExecution/jobs/{}.createdBy: missing from the answer',
+  'GET /jobExecution/jobs/{}.creationTimeStamp: missing from the answer',
+  'GET /jobExecution/jobs/{}.elapsedTime: missing from the answer',
+  'GET /jobExecution/jobs/{}.endTimeStamp: missing from the answer',
+  'GET /jobExecution/jobs/{}.heartbeatInterval: missing from the answer',
+  'GET /jobExecution/jobs/{}.heartbeatTimeStamp: missing from the answer',
+  'GET /jobExecution/jobs/{}.jobRequest: missing from the answer',
+  'GET /jobExecution/jobs/{}.links[0].method: missing from the answer',
+  'GET /jobExecution/jobs/{}.links[0].type: missing from the answer',
+  'GET /jobExecution/jobs/{}.links[0].uri: missing from the answer',
+  'GET /jobExecution/jobs/{}.logLocation: missing from the answer',
+  'GET /jobExecution/jobs/{}.modifiedBy: missing from the answer',
+  'GET /jobExecution/jobs/{}.modifiedTimeStamp: missing from the answer',
+  'GET /jobExecution/jobs/{}.results.COMPUTE_CONTEXT: missing from the answer',
+  'GET /jobExecution/jobs/{}.results.COMPUTE_JOB: missing from the answer',
+  'GET /jobExecution/jobs/{}.results.COMPUTE_SESSION: missing from the answer',
+  'GET /jobExecution/jobs/{}.results.{}.log: missing from the answer',
+  'GET /jobExecution/jobs/{}.results.{}.log.txt: missing from the answer',
+  'GET /jobExecution/jobs/{}.state: missing from the answer',
+  'GET /jobExecution/jobs/{}.submittedByApplication: missing from the answer',
+  'GET /jobExecution/jobs/{}.version: missing from the answer'
+]
 // The password is the generated host's public demo identity, not a credential.
 const password = new URLSearchParams({
   grant_type: 'password',
@@ -73,6 +125,9 @@ const queries = {
   'GET /compute/sessions/{}/jobs/{}/state': { _action: 'wait', wait: '5' },
   'GET /compute/sessions/{}/state': { wait: '5' },
   'GET /folders/folders/{}/members': { limit: '100' },
+  'POST /files/files': { typeDefName: 'file' },
+  'POST /jobExecution/jobs': { _action: 'wait' },
+  'GET /jobExecution/jobs/{}/state': { _action: 'wait', wait: '5' },
   'GET /folders/folders/@item': { path: '/' },
   'GET /types/types': { limit: '100' }
 }
@@ -96,7 +151,20 @@ const bodies = {
   'POST /folders/folders': {
     type: 'application/json',
     body: JSON.stringify({ name: 'corpus-replay', type: 'folder' })
+  },
+  'PATCH /folders/folders/{}': {
+    type: 'application/json',
+    body: JSON.stringify({ name: 'corpus-renamed' })
+  },
+  'PATCH /files/files/{}': {
+    type: 'application/json',
+    body: JSON.stringify({ name: 'renamed.txt' })
+  },
+  'PUT /files/files/{}/content': {
+    type: 'text/plain',
+    body: 'replacement contents'
   }
+  // POST's body is assembled from the actual definition read in the browser.
 }
 async function main() {
   assert.equal(VIYA_CORPUS.length, 29)
@@ -108,6 +176,9 @@ async function main() {
   const build = path.join(root, 'sasjsbuild')
   await fsp.mkdir(web)
   await fsp.mkdir(build)
+  await fsp.cp(path.join(__dirname, 'fixtures', 'viya-corpus'), build, {
+    recursive: true
+  })
   await fsp.writeFile(
     path.join(web, 'index.html'),
     '<!doctype html><html><head><title>Viya corpus replay</title><sasjs></sasjs><script>window.corpusFixture = true</script></head><body></body></html>'
@@ -315,17 +386,58 @@ async function main() {
         refresh_token: bootAuth.body.refresh_token
       }).toString()
     }
-    const state = { variable: 'SYSJOBID' },
+    const state = {
+        variable: 'SYSJOBID',
+        definition: encodeURIComponent('/Public/app/corpus/services/case')
+      },
       failures = [],
       skipped = {},
       replayed = [],
       covered = [],
-      missing = []
+      missing = [],
+      jesShapeDrift = []
     const ordered = [
-      ...VIYA_CORPUS.filter((c) => !c.route.startsWith('DELETE ')),
+      ...VIYA_CORPUS.filter((c) => c.route === 'POST /folders/folders'),
+      ...VIYA_CORPUS.filter(
+        (c) =>
+          !c.route.startsWith('DELETE ') &&
+          !c.route.startsWith('PATCH ') &&
+          c.route !== 'POST /folders/folders'
+      ),
+      ...VIYA_CORPUS.filter((c) => c.route.startsWith('PATCH ')),
       ...VIYA_CORPUS.filter((c) => c.route.startsWith('DELETE '))
     ]
     for (const item of ordered) {
+      if (item.route === 'PATCH /files/files/{}') {
+        // Extra probes prove that the registered twin actually ran and PUT changed
+        // the original file; these are not additional captured corpus cases.
+        const probes = [
+          {
+            path: `/files/files/${state.file}/content`,
+            expected: 'replacement contents'
+          },
+          {
+            path: `/jobExecution/jobs/${state.job}/results/webout/content`,
+            expected: '{\"answer\":42}'
+          }
+        ]
+        for (const probe of probes) {
+          const eventStart = events.length
+          const result = await fetchInPage('GET', probe.path)
+          assert.equal(result.status, 200, probe.path)
+          assert.equal(result.text, probe.expected, probe.path)
+          assert.ok(result.emulated?.startsWith('viya@'), probe.path)
+          covered.push({
+            route: `GET ${probe.path}`,
+            eventStart,
+            path: probe.path,
+            status: result.status,
+            emulated: result.emulated,
+            body: result.text,
+            fixtureProbe: true
+          })
+        }
+      }
       const decl = VIYA_OVERLAY[item.route]
       if (expectedSkip.has(item.route)) {
         skipped[item.route] =
@@ -339,41 +451,35 @@ async function main() {
         expected.has(item.route),
         `unclassified corpus route: ${item.route}`
       )
+      if (item.route === 'POST /files/files')
+        queries[item.route].parentFolderUri = '/folders/folders/' + state.folder
       const request = requestFor(item, state, queries[item.route] || {})
       assert.deepEqual(request.unresolved, [], `${item.route}: unresolved path`)
       const payload = bodies[item.route]
       assert.ok(
-        payload || !['POST', 'PATCH', 'PUT'].includes(request.method),
+        payload ||
+          item.route === 'POST /files/files' ||
+          !['POST', 'PATCH', 'PUT'].includes(request.method),
         `${item.route}: missing request fixture`
       )
       if (request.omittedQueries.length)
         failures.push(
           `${item.route}: omitted queries ${request.omittedQueries.join(', ')}`
         )
-      if (item.route === 'GET /folders/folders/{}/members') {
-        // The captured members case belongs to files/content: use an actual file, not an empty collection or folder.
-        const uploadPath = `/files/files?parentFolderUri=${encodeURIComponent('/folders/folders/' + state.folder)}&typeDefName=file`
-        const upload = await ev(
-          `(async()=>{const form=new FormData();form.append('file',new Blob(['fixture contents'],{type:'text/plain'}),'fixture.txt');const r=await fetch(${JSON.stringify(uploadPath)},{method:'POST',body:form});return {status:r.status,body:await r.text(),emulated:r.headers.get('x-sasjs-emulated')}})()`
-        )
-        assert.equal(
-          upload.status,
-          201,
-          `multipart fixture creation: ${upload.body}`
-        )
-        assert.ok(upload.emulated?.startsWith('viya@'))
-        assert.ok(
-          JSON.parse(upload.body).id,
-          'file upload fixture must create a real file record'
-        )
-      }
       const eventStart = events.length
-      const result = await fetchInPage(
-        request.method,
-        request.path,
-        payload?.body,
-        payload?.type
-      )
+      let result
+      if (item.route === 'POST /files/files') {
+        const r = await ev(
+          `(async()=>{const form=new FormData();form.append('file',new Blob(['fixture contents'],{type:'text/plain'}),'fixture.txt');const r=await fetch(${JSON.stringify(request.path)},{method:'POST',body:form});return {status:r.status,text:await r.text(),emulated:r.headers.get('x-sasjs-emulated')}})()`
+        )
+        result = { ...r, body: JSON.parse(r.text) }
+      } else
+        result = await fetchInPage(
+          request.method,
+          request.path,
+          payload?.body,
+          payload?.type
+        )
       if (result.status !== item.expected)
         failures.push(
           `${item.route}: expected captured status ${item.expected}, got ${result.status}: ${result.text.slice(0, 300)}`
@@ -386,14 +492,22 @@ async function main() {
             missing.push(m)
             continue
           }
-          failures.push(m)
+          if (jesShapeRoutes.has(item.route)) jesShapeDrift.push(m)
+          else failures.push(m)
         }
       }
-      if (item.route === 'GET /folders/folders/{}/members')
-        assert.ok(
-          result.body?.items?.length,
-          'member fixture must be non-empty'
+      if (item.route === 'GET /folders/folders/{}/members') {
+        const file = result.body?.items?.find(
+          (member) => member.name === 'fixture.txt'
         )
+        assert.ok(file, 'captured members shape requires the uploaded file')
+        for (const mismatch of shapeMismatches(
+          item.shape.items[0],
+          file,
+          `${item.route}.items[fixture]`
+        ))
+          failures.push(mismatch)
+      }
       if (item.route === 'GET /compute/contexts')
         state.context = result.body?.items?.[0]?.id
       if (item.route === 'POST /compute/contexts/{}/sessions')
@@ -401,6 +515,44 @@ async function main() {
       if (item.route === 'POST /compute/sessions/{}/jobs')
         state.job = result.body?.id
       if (item.route === 'POST /folders/folders') state.folder = result.body?.id
+      if (item.route === 'POST /files/files') state.file = result.body?.id
+      if (item.route === 'GET /jobDefinitions/definitions/{}') {
+        assert.equal(result.body?.program, '/Public/app/corpus/services/case')
+        bodies['POST /jobExecution/jobs'] = {
+          type: 'application/json',
+          body: JSON.stringify({
+            name: 'exec-case',
+            description: 'Powered by SASjs',
+            jobDefinition: result.body,
+            arguments: {
+              _contextName: 'Compute Reusable',
+              _program: result.body.program,
+              _webin_file_count: '0',
+              _OMITJSONLISTING: 'true',
+              _OMITJSONLOG: 'true',
+              _omitSessionResults: 'false',
+              _OMITTEXTLISTING: 'true',
+              _OMITTEXTLOG: 'true'
+            }
+          })
+        }
+      }
+      if (item.route === 'POST /jobExecution/jobs') state.job = result.body?.id
+      if (item.route === 'GET /files/files/{}/content')
+        assert.equal(result.text, 'fixture contents')
+      if (item.route === 'PATCH /files/files/{}')
+        assert.equal(result.body?.name, 'renamed.txt')
+      if (item.route === 'PATCH /folders/folders/{}')
+        assert.equal(result.body?.name, 'corpus-renamed')
+      if (
+        item.route === 'GET /compute/contexts' ||
+        item.route === 'GET /types/types'
+      )
+        assert.ok(result.body?.items?.length, `${item.route}: empty collection`)
+      if (item.route === 'GET /compute/sessions/{}/jobs/{}/log/content')
+        assert.ok(result.body?.items?.length, 'simulated log must be non-empty')
+      if (item.route === 'GET /jobExecution/jobs/{}/state')
+        assert.equal(result.text, 'completed')
       replayed.push(item.route)
       covered.push({
         route: item.route,
@@ -461,9 +613,12 @@ async function main() {
       apiVersion: require('../../../../../../package.json').dependencies[
         '@sasjs/api'
       ],
-      coverage: covered,
+      coverage: covered.filter((call) => !call.fixtureProbe),
+      fixtureProbes: covered.filter((call) => call.fixtureProbe),
+      fullShapeCases: replayed.filter((route) => !jesShapeRoutes.has(route)),
       skipped,
       allowedMissing: missing,
+      jesShapeDrift,
       failures,
       apiLeak,
       events: events
@@ -478,12 +633,13 @@ async function main() {
     console.log(JSON.stringify(summary, null, 2))
     assert.deepEqual([...new Set(replayed)].sort(), [...expected].sort())
     assert.deepEqual(Object.keys(skipped).sort(), [...expectedSkip].sort())
-    assert.equal(replayed.length, 16)
-    assert.equal(Object.keys(skipped).length, 13)
+    assert.equal(replayed.length, 26)
+    assert.equal(Object.keys(skipped).length, 3)
     assert.deepEqual(missing, [
       'POST /SASLogon/oauth/token.id_token: missing from the answer'
     ])
     assert.deepEqual(apiLeak, [])
+    assert.deepEqual(jesShapeDrift.sort(), knownJesShapeDrift.slice().sort())
     assert.deepEqual(failures, [])
   } finally {
     if (ws) ws.close()
