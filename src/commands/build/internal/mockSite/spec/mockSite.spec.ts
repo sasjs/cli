@@ -497,6 +497,18 @@ describe('browser-hosted build', () => {
     }
   })
 
+  it('names a malformed Viya manifest and preserves the existing site', async () => {
+    await buildMockSite({ ...target(), serverType: 'SASVIYA' })
+    write(path.join(out(), 'keep.txt'), 'keep')
+    write(path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'), '{invalid')
+    await expect(
+      buildMockSite({ ...target(), serverType: 'SASVIYA' })
+    ).rejects.toThrow(
+      'viya-mock-jobs.json must list existing extensionless services/*.js paths'
+    )
+    expect(fs.readFileSync(path.join(out(), 'keep.txt'), 'utf8')).toBe('keep')
+  })
+
   it('rejects unsafe or missing mock registrations without replacing a site', async () => {
     const file = path.join(root, 'sasjsbuild', 'viya-mock-jobs.json')
     await buildMockSite({ ...target(), serverType: 'SASVIYA' })

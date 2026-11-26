@@ -85,20 +85,6 @@ async function main() {
       let name = pathname.slice(mount.length) || '/'
       if (name.endsWith('/')) name += 'index.html'
       let data = await fs.readFile(path.join(sites.get(mount), name))
-      if (
-        process.env.RESET_NEGATIVE_CONTROL &&
-        (name === '/host/persist.js' || name === '/sw.js')
-      ) {
-        data = require('node:child_process').execFileSync(
-          'git',
-          [
-            'show',
-            '44163d5:src/commands/build/internal/mockSite/assets/' +
-              path.basename(name)
-          ],
-          { cwd: __dirname }
-        )
-      }
       if (holdNestedWorker && mount === mounts[1] && name === '/sw.js') {
         data = Buffer.from(
           data
@@ -241,27 +227,25 @@ async function main() {
     // Start the root worker, then use a copied console two folders down. Drive
     // the console's own UI and inspect the API request, not just a derived URL.
     await navigate(a, '')
-    if (process.env.RESET_CASE !== 'partial') {
-      // A controlled document without the persistence script is not a participant.
-      await send('Page.navigate', { url: origin + '/host/mock-config.json' }, b)
-      for (let i = 0; i < 200; i++) {
-        if (
-          await evaluate(
-            b,
-            "location.pathname === '/host/mock-config.json' && !!navigator.serviceWorker.controller"
-          ).catch(() => false)
-        )
-          break
-        await sleep(25)
-      }
-      assert.equal(
-        await evaluate(b, '!!navigator.serviceWorker.controller'),
-        true
+    // A controlled document without the persistence script is not a participant.
+    await send('Page.navigate', { url: origin + '/host/mock-config.json' }, b)
+    for (let i = 0; i < 200; i++) {
+      if (
+        await evaluate(
+          b,
+          "location.pathname === '/host/mock-config.json' && !!navigator.serviceWorker.controller"
+        ).catch(() => false)
       )
-      assert.equal(await evaluate(b, '!!window.SASjsMock'), false)
-      await evaluate(a, 'window.SASjsMock.reset()')
-      console.log('PASS reset ignores controlled pages without persistence')
+        break
+      await sleep(25)
     }
+    assert.equal(
+      await evaluate(b, '!!navigator.serviceWorker.controller'),
+      true
+    )
+    assert.equal(await evaluate(b, '!!window.SASjsMock'), false)
+    await evaluate(a, 'window.SASjsMock.reset()')
+    console.log('PASS reset ignores controlled pages without persistence')
 
     // A storage failure in a different page does not veto this page's reset.
     // All pages share IndexedDB; this is not a cross-tab durability guarantee.
