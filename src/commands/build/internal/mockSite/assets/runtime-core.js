@@ -649,14 +649,22 @@ const entrySizeAt = (abs) => {
 // boot and receives the changed files back after each run.
 const dirty = new Map() // abs path -> contents, or null when deleted
 const activeTokenFiles = new Set()
+const transientOutputFiles = new Set()
 const transientSessions = new Set()
+// A replacement drive can contain paths that belonged to an older run.
+let driveEpoch = 0
 const isTransientSessionPath = (path) =>
   [...transientSessions].some(
     (dir) => path === dir || path.startsWith(dir + '/')
   )
 
 const markDirty = (path) => {
-  if (activeTokenFiles.has(path) || isTransientSessionPath(path)) return
+  if (
+    activeTokenFiles.has(path) ||
+    transientOutputFiles.has(path) ||
+    isTransientSessionPath(path)
+  )
+    return
   const contents = FILES.has(path) ? FILES.get(path) : null
   // one place decides what a deletion means, because every write and every
   // remove passes through here: a file that is gone is tombstoned, and writing
@@ -676,7 +684,11 @@ const takeDirty = () => {
 const dumpAll = () => {
   const out = {}
   for (const [path, contents] of FILES)
-    if (!activeTokenFiles.has(path) && !isTransientSessionPath(path))
+    if (
+      !activeTokenFiles.has(path) &&
+      !transientOutputFiles.has(path) &&
+      !isTransientSessionPath(path)
+    )
       out[path] = contents
   return out
 }
@@ -692,6 +704,10 @@ const dumpAll = () => {
  * over the index and their shard is never fetched.
  */
 const installDrive = (index, files, deleted) => {
+  driveEpoch++
+  transientSessions.clear()
+  transientOutputFiles.clear()
+  activeTokenFiles.clear()
   FILES.clear()
   SIZES.clear()
   DIRS.clear()
@@ -1344,7 +1360,8 @@ const runProgram = ({
   params = {},
   tables = [],
   execution = null,
-  transientSession = false
+  transientSession = false,
+  transientOutputs = false
 }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
@@ -1367,13 +1384,29 @@ const runProgram = ({
   let sessionDir
   do {
     sessionDir = `/sasjs/sessions/s${++sessionSeq}`
-  } while (transientSession && FS.existsSync(sessionDir))
+  } while ((transientSession || transientOutputs) && FS.existsSync(sessionDir))
   if (transientSession) transientSessions.add(sessionDir)
+  const sessionEpoch = driveEpoch
+  const ownsSession = () =>
+    !(transientSession || transientOutputs) || sessionEpoch === driveEpoch
+  const sessionPath = (p) => {
+    const abs = P.resolve(String(p))
+    return abs === sessionDir || abs.startsWith(sessionDir + '/')
+  }
+  const assertSessionOwned = (p) => {
+    if (!ownsSession() && sessionPath(p))
+      throw new Error('Mock drive replaced during job')
+  }
   const uploadDir = `${sessionDir}/uploads`
   mkdirp(sessionDir)
   const weboutPath = `${sessionDir}/webout.txt`
   const headersPath = `${sessionDir}/stpsrv_header.txt`
   const tokenFile = `${sessionDir}/reqHeaders.txt`
+  // Leave user-created files alone: only these runner-owned paths are transient.
+  const transientFiles = transientOutputs
+    ? [weboutPath, headersPath, tokenFile]
+    : []
+  for (const path of transientFiles) transientOutputFiles.add(path)
   activeTokenFiles.add(tokenFile)
   // Each run receives its own view of the filesystem. Session header files are
   // transient credentials, not shared drive data, even while runs overlap.
@@ -1397,15 +1430,27 @@ const runProgram = ({
         error.code = 'ENOENT'
         throw error
       }
+      assertSessionOwned(p)
       return FS[name](p, ...args)
     }
   }
-  runFS.existsSync = (p) => !inaccessibleToken(p) && FS.existsSync(p)
-  runFS.readdirSync = (p) =>
-    FS.readdirSync(p).filter(
+  runFS.existsSync = (p) => {
+    assertSessionOwned(p)
+    return !inaccessibleToken(p) && FS.existsSync(p)
+  }
+  runFS.readdirSync = (p) => {
+    assertSessionOwned(p)
+    return FS.readdirSync(p).filter(
       (name) => !inaccessibleToken(P.resolve(String(p), name))
     )
+  }
+  runFS.mkdirSync = (p) => {
+    assertSessionOwned(p)
+    return FS.mkdirSync(p)
+  }
   runFS.copyFileSync = (from, to) => {
+    assertSessionOwned(from)
+    assertSessionOwned(to)
     if (inaccessibleToken(from) || inaccessibleToken(to)) {
       const error = new Error('ENOENT: no such file or directory')
       error.code = 'ENOENT'
@@ -1414,6 +1459,12 @@ const runProgram = ({
     return FS.copyFileSync(from, to)
   }
   runFS.writeFile = (p, data, options, cb) => {
+    if (!ownsSession() && sessionPath(p)) {
+      const error = new Error('Mock drive replaced during job')
+      const callback = typeof options === 'function' ? options : cb
+      if (callback) return callback(error)
+      throw error
+    }
     if (!inaccessibleToken(p)) return FS.writeFile(p, data, options, cb)
     const error = new Error('ENOENT: no such file or directory')
     error.code = 'ENOENT'
@@ -1466,6 +1517,7 @@ const runProgram = ({
     const bytes = table.bytes === undefined ? table.csv || '' : table.bytes
     const raw = typeof bytes === 'string' ? utf8Encoder.encode(bytes) : bytes
     putEntry(uploadPath, BINARY_PREFIX + bytesToBase64(raw))
+    if (transientOutputs) transientOutputFiles.add(uploadPath)
     return uploadPath
   })
   tables.forEach((table, idx) => {
@@ -1543,18 +1595,31 @@ return _webout;
     logLines.push(String(thrown))
   }
   const cleanup = () => {
-    const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
-    for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
-      for (const p of store.keys()) if (inUploads(p)) store.delete(p)
+    // A newer drive may own these paths; neither cleanup nor token clearing may
+    // touch it. Direct writes elsewhere by already-dispatched code are not undone.
+    if (!ownsSession()) return
+    activeTokenFiles.delete(tokenFile)
+    if (transientOutputs) {
+      for (const path of uploadPaths) {
+        for (const store of [FILES, SIZES, PENDING, dirty, DELETED])
+          store.delete(path)
+        transientOutputFiles.delete(path)
+      }
+    } else {
+      const inUploads = (p) => p === uploadDir || p.startsWith(uploadDir + '/')
+      for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
+        for (const p of store.keys()) if (inUploads(p)) store.delete(p)
+    }
     // Keep the session file but discard the credential before persistence.
     FILES.set(tokenFile, '')
-    activeTokenFiles.delete(tokenFile)
     for (const store of [SIZES, PENDING, dirty, DELETED])
       store.delete(tokenFile)
   }
   const finish = () => {
     cleanup()
 
+    if (!ownsSession())
+      return { webout: '', log: '', headers: '', binary: false, error: thrown }
     const stored = FILES.get(weboutPath) || ''
     // binary only when the byte body is the body: an empty byte write falls back
     // to the returned string, and flagging that as bytes would have the worker
@@ -1599,6 +1664,13 @@ return _webout;
     // worker the `\u0000base64:...` marker and drop every declared header.
     const storedHeaders = FILES.get(headersPath) || ''
 
+    if (transientOutputs) {
+      for (const path of transientFiles) {
+        for (const store of [FILES, SIZES, PENDING, dirty, DELETED])
+          store.delete(path)
+        transientOutputFiles.delete(path)
+      }
+    }
     if (transientSession) {
       const inSession = (p) =>
         p === sessionDir || p.startsWith(sessionDir + '/')

@@ -895,7 +895,12 @@ class BrowserRuntime extends API.MemorySessionHost {
         Boolean(sas9)
       )
     } else {
-      const payload = { params, tables: tablesOf(request.files), execution }
+      const payload = {
+        params,
+        tables: tablesOf(request.files),
+        execution,
+        transientOutputs: execution?.viyaGeneration !== undefined
+      }
       if (program.code !== undefined) payload.code = program.code
       else payload.program = program.path
 
@@ -904,6 +909,8 @@ class BrowserRuntime extends API.MemorySessionHost {
 
       artifact = artifactOf(result, debug, Boolean(sas9))
     }
+    // A trigger must not register a result after its originating job was reset.
+    assertCurrentViyaJob(execution)
     const session = request.session
     if (session) {
       const stamp = new Date().toISOString()
@@ -1831,6 +1838,7 @@ const executionFrame = (subject, token, inherited, viyaGeneration) => {
   const headers = runToken ? `Authorization: Bearer ${runToken}` : ''
   return {
     apiServerUrl: self.location.origin + BASE,
+    viyaGeneration,
     user: user || { username: '', uid: '', displayName: '' },
     headers,
     fetch: (input, init) => {
@@ -2719,6 +2727,7 @@ const runRoute = async (
       code ? recordedProgramIn(body.code, body.runTime) : runRequest.program
     )
 
+    assertCurrentViyaJob(inherited)
     return artifactResponse(
       artifactOf(
         {
@@ -2747,13 +2756,29 @@ const runRoute = async (
       query.expiresAfterMins !== undefined
         ? query.expiresAfterMins
         : body.expiresAfterMins
-    const answer = await SERVICES.runtime.trigger(subject, runRequest)
+    let answer
+    try {
+      answer = await SERVICES.runtime.trigger(subject, runRequest)
+    } catch (error) {
+      assertCurrentViyaJob(inherited)
+      throw error
+    }
+    assertCurrentViyaJob(inherited)
     await persistChanges()
+    assertCurrentViyaJob(inherited)
     return json(answer, 200)
   }
 
-  const artifact = await SERVICES.runtime.execute(subject, runRequest)
+  let artifact
+  try {
+    artifact = await SERVICES.runtime.execute(subject, runRequest)
+  } catch (error) {
+    assertCurrentViyaJob(inherited)
+    throw error
+  }
+  assertCurrentViyaJob(inherited)
   await persistChanges()
+  assertCurrentViyaJob(inherited)
   return artifactResponse(artifact)
 }
 
