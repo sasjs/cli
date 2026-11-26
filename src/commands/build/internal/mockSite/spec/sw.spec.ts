@@ -5996,7 +5996,248 @@ describe('service worker host', () => {
 })
 
 describe('registered Viya browser jobs', () => {
+  it.each([false, true])(
+    'serializes overlapping persistence broadcasts (first fails: %s)',
+    async (failFirst) => {
+      const program = `${appLoc}/services/public/getdata`
+      ;(global as any).__viyaMockJobs = [program]
+      const worker = loadWorker()
+      await worker.runtime.load({
+        [drivePath('services/public/getdata.js')]:
+          "fs.writeFileSync('/sasjs/drive/files/shared.txt', value); if (value === 'old') fs.writeFileSync('/sasjs/drive/files/old-only.txt', 'keep'); _webout = value;"
+      })
+      const messages: any[] = []
+      let release!: () => void
+      let entered!: () => void
+      const blocked = new Promise<void>((resolve) => (release = resolve))
+      const reached = new Promise<void>((resolve) => (entered = resolve))
+      let calls = 0
+      worker.self.clients.matchAll = async () => {
+        if (++calls === 1) {
+          entered()
+          await blocked
+          if (failFirst) throw new Error('broadcast failed')
+        }
+        return [
+          { url: origin + '/', postMessage: (m: any) => messages.push(m) }
+        ]
+      }
+      let secondRan!: () => void
+      const secondFinishedRun = new Promise<void>(
+        (resolve) => (secondRan = resolve)
+      )
+      const originalRun = worker.runtime.run
+      worker.runtime.run = async (payload: any) => {
+        const result = await originalRun(payload)
+        if (payload.params.value === 'new') secondRan()
+        return result
+      }
+      const run = (value: string) =>
+        worker.dispatch(
+          '/jobExecution/jobs',
+          runRequest({
+            jobDefinition: { program },
+            arguments: { _program: program, value }
+          })
+        )
+      const first = run('old')
+      await reached
+      const second = run('new')
+      await secondFinishedRun
+      // Give the second request a turn to enter its persistence call.
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      release()
+      expect((await first).status).toBe(failFirst ? 500 : 201)
+      expect((await second).status).toBe(201)
+      const writes = messages
+        .filter((m) => m.type === 'sasjs-persist')
+        .map((m) => m.files['/sasjs/drive/files/shared.txt'])
+        .filter(Boolean)
+      expect(writes[writes.length - 1]).toBe('new')
+      expect(
+        messages.some(
+          (m) => m.files['/sasjs/drive/files/old-only.txt'] === 'keep'
+        )
+      ).toBe(true)
+    }
+  )
+
+  it('exposes all registered and physical members to an adapter-sized listing with real paging', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [
+      program,
+      `${appLoc}/services/public/missing`
+    ]
+    const worker = loadWorker()
+    const files: Record<string, string> = {
+      [drivePath('services/public/getdata.js')]: '_webout="ok"'
+    }
+    for (let i = 0; i < 500; i++)
+      files[drivePath(`services/public/file${i}.txt`)] = 'x'
+    await worker.runtime.load(files)
+    const folder = (await (
+      await worker.dispatch(
+        `/folders/folders/@item?path=${appLoc}/services/public`
+      )
+    ).json()) as any
+    expect(folder.memberCount).toBe(502)
+    const byId = (await (
+      await worker.dispatch(`/folders/folders/${folder.id}`)
+    ).json()) as any
+    expect(byId.memberCount).toBe(502)
+    const all = (await (
+      await worker.dispatch(
+        `/folders/folders/${folder.id}/members?limit=${Math.max(500, folder.memberCount)}`
+      )
+    ).json()) as any
+    expect(all.count).toBe(502)
+    expect(all.items).toHaveLength(502)
+    const job = all.items.find((item: any) => item.name === 'getdata')
+    expect(job.links[0].href).toBe(
+      `/jobDefinitions/definitions/${encodeURIComponent(program)}`
+    )
+    expect(all.items.some((item: any) => item.name === 'missing')).toBe(false)
+    const { SASViyaApiClient } = require('@sasjs/adapter/SASViyaApiClient')
+    const requested: string[] = []
+    const adapter = new SASViyaApiClient(origin, '', '', {
+      get: async (url: string) => {
+        requested.push(url)
+        const response = await worker.dispatch(url)
+        expect(response.status).toBe(200)
+        return { result: await response.json() }
+      }
+    })
+    const adapterItems = await adapter.getJobsInFolder(
+      `${appLoc}/services/public`
+    )
+    expect(requested[1]).toContain('limit=502')
+    expect(
+      adapterItems.find((item: any) => item.name === 'getdata').links[0].href
+    ).toBe(`/jobDefinitions/definitions/${encodeURIComponent(program)}`)
+    const page = (await (
+      await worker.dispatch(
+        `/folders/folders/${folder.id}/members?start=500&limit=2`
+      )
+    ).json()) as any
+    expect(page.start).toBe(500)
+    expect(page.limit).toBe(2)
+    expect(page.count).toBe(2)
+    expect(page.items).toEqual(all.items.slice(500, 502))
+  })
+
+  it('persists if the runtime itself rejects after changing the drive', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        "fs.writeFileSync('/sasjs/drive/files/rejected.txt', 'keep'); _webout='ok'"
+    })
+    const original = worker.runtime.run
+    worker.runtime.run = async (payload: any) => {
+      await original(payload)
+      throw new Error('runtime rejected')
+    }
+    const messages: any[] = []
+    ;(global as any).__mockHostClients = [
+      { postMessage: (m: any) => messages.push(m) }
+    ]
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(500)
+    expect(await response.text()).toContain('runtime rejected')
+    expect(
+      messages.some(
+        (m) =>
+          m.type === 'sasjs-persist' &&
+          m.files['/sasjs/drive/files/rejected.txt'] === 'keep'
+      )
+    ).toBe(true)
+  })
+
+  it('keeps the job error if its persistence broadcast fails and retries its changes later', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        "if (!fs.existsSync('/sasjs/drive/files/before-error.txt')) fs.writeFileSync('/sasjs/drive/files/before-error.txt', 'saved'); throw new Error('original job error')"
+    })
+    let attempts = 0
+    worker.self.clients.matchAll = async () => {
+      if (++attempts === 1) throw new Error('broadcast failed')
+      return []
+    }
+    const failed = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(failed.status).toBe(500)
+    expect(await failed.text()).toContain('original job error')
+    const messages: any[] = []
+    worker.self.clients.matchAll = async () => [
+      { url: origin + '/', postMessage: (m: any) => messages.push(m) }
+    ]
+    const retried = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(retried.status).toBe(500)
+    expect(
+      messages.some(
+        (m) =>
+          m.type === 'sasjs-persist' &&
+          m.files['/sasjs/drive/files/before-error.txt'] === 'saved'
+      )
+    ).toBe(true)
+  })
+
+  it('persists changes made by a failing registered job without its transient session', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        "fs.writeFileSync('/sasjs/drive/files/written-before-error.txt', 'important'); throw new Error('twin failed')"
+    })
+    const messages: any[] = []
+    ;(global as any).__mockHostClients = [
+      { postMessage: (m: any) => messages.push(m) }
+    ]
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(500)
+    expect(await response.text()).toContain('twin failed')
+    const files = Object.assign(
+      {},
+      ...messages.filter((m) => m.type === 'sasjs-persist').map((m) => m.files)
+    )
+    expect(files['/sasjs/drive/files/written-before-error.txt']).toBe(
+      'important'
+    )
+    expect(Object.keys(files).filter((p) => p.includes('/sessions/'))).toEqual(
+      []
+    )
+  })
+
   afterEach(() => {
+    delete (global as any).__mockHostClients
     delete (global as any).__viyaMockJobs
     delete (global as any).__sasjsShards
     delete (global as any).__sasjsShardFetches
@@ -6071,6 +6312,7 @@ describe('registered Viya browser jobs', () => {
 
   it('retries a transient mock config fetch when listing folders', async () => {
     const worker = loadWorker()
+    await worker.runtime.load({})
     const original = global.fetch as jest.Mock
     let fail = false
     original.mockImplementation(async (input: any) => {
@@ -6088,12 +6330,13 @@ describe('registered Viya browser jobs', () => {
       if (String(input).includes('vfs-seed')) return jsonResponse({ files: {} })
       return jsonResponse({ appLoc })
     }
-    const folder = await worker.dispatch('/folders/folders/@item?path=/')
-    const id = ((await folder.json()) as any).id
     fail = true
     expect(
-      (await worker.dispatch(`/folders/folders/${id}/members`)).status
+      (await worker.dispatch('/folders/folders/@item?path=/')).status
     ).toBe(500)
+    const folder = await worker.dispatch('/folders/folders/@item?path=/')
+    expect(folder.status).toBe(200)
+    const id = ((await folder.json()) as any).id
     expect(
       (await worker.dispatch(`/folders/folders/${id}/members`)).status
     ).toBe(200)
