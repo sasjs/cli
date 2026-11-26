@@ -66,6 +66,41 @@ const seedDrive = async (
 }
 
 describe('browser runtime', () => {
+  it('never reports an in-flight transient session while another run persists', async () => {
+    const runtime = loadRuntime()
+    await runtime.load({})
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => {
+      started = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve
+    })
+    const transient = runtime.run({
+      code: "fs.writeFileSync(weboutPath, 'secret interim'); await fetch('hold'); _webout = 'done'",
+      transientSession: true,
+      execution: {
+        fetch: () => {
+          started()
+          return gate
+        },
+        user: {}
+      }
+    })
+    await ready
+    const normal = await runtime.run({
+      code: "fs.writeFileSync('/sasjs/drive/files/ordinary.txt', 'saved')"
+    })
+    expect(normal.error).toBeNull()
+    const changes = runtime.takeDirty()
+    expect(changes['/sasjs/drive/files/ordinary.txt']).toBe('saved')
+    expect(JSON.stringify(changes)).not.toContain('secret interim')
+    expect(JSON.stringify(runtime.dumpAll())).not.toContain('secret interim')
+    resume()
+    await transient
+  })
+
   afterEach(() => {
     delete (global as any).self
     delete (global as any).fetch

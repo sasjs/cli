@@ -519,12 +519,25 @@ describe('browser-hosted build', () => {
     const viya = { ...target(), serverType: 'SASVIYA' as const }
     await buildMockSite(viya)
     const stamp = readConfig().buildStamp
+    const workerBefore = fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')
+    const indexBefore = fs.readFileSync(path.join(out(), 'index.html'), 'utf8')
     write(
       path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'),
       JSON.stringify(['services/public/getdata'])
     )
     await buildMockSite(viya)
     expect(readConfig().buildStamp).toBe(stamp)
+    expect(fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')).not.toBe(
+      workerBefore
+    )
+    expect(fs.readFileSync(path.join(out(), 'sw.js'), 'utf8')).toContain(
+      'viya-jobs-version:'
+    )
+    expect(
+      fs
+        .readFileSync(path.join(out(), 'index.html'), 'utf8')
+        .match(/boot\.js\?v=([0-9a-f]+)/)?.[1]
+    ).not.toBe(indexBefore.match(/boot\.js\?v=([0-9a-f]+)/)?.[1])
     expect(readConfig().viyaMockJobs).toEqual([
       `${appLoc}/services/public/getdata`
     ])
