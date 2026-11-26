@@ -1330,10 +1330,13 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   let registeredViyaJobs: string[] = []
   if (target.serverType === 'SASVIYA') {
     const registration = path.join(buildFolder, 'viya-mock-jobs.json')
+    const invalidRegistration =
+      'viya-mock-jobs.json must list existing extensionless services/*.js paths'
     let viyaMockJobs: string[] = []
     try {
       viyaMockJobs = JSON.parse(fs.readFileSync(registration, 'utf8'))
     } catch (error) {
+      if (error instanceof SyntaxError) throw new Error(invalidRegistration)
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
     if (
@@ -1348,9 +1351,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
           )
       )
     )
-      throw new Error(
-        'viya-mock-jobs.json must list existing extensionless services/*.js paths'
-      )
+      throw new Error(invalidRegistration)
     registeredViyaJobs = [...new Set(viyaMockJobs)].map(
       (name) => `${appLoc}/${name}`
     )
