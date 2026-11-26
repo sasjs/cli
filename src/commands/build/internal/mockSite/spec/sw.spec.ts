@@ -5996,6 +5996,274 @@ describe('service worker host', () => {
 })
 
 describe('registered Viya browser jobs', () => {
+  it('refuses an in-flight nested SASjs output after reset without persisting its session', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const child = `${appLoc}/services/public/child`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/execute?_program=' + encodeURIComponent('${child}'));
+        globalThis.__childOutput = {status: response.status, text: await response.text()};
+        _webout = 'parent';`,
+      [drivePath('services/public/child.js')]: `
+        globalThis.__childSession = weboutPath;
+        fs.writeFileSync(weboutPath, 'in-flight child secret');
+        await fetch('https://outside.example/hold-child-output');
+        _webout = 'stale child secret';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold-child-output') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    const messages: any[] = []
+    try {
+      const pending = worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const sessionPath = (global as any).__childSession as string
+      const active = worker.message({ type: 'sasjs-snapshot' })
+      await active.pending
+      expect(active.replies[0].files[sessionPath]).toBeUndefined()
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      ;(global as any).__mockHostClients = [
+        { postMessage: (message: any) => messages.push(message) }
+      ]
+      resume()
+      expect((await pending).status).toBe(409)
+      expect((global as any).__childOutput).toEqual(
+        expect.objectContaining({ status: 409 })
+      )
+      expect((global as any).__childOutput.text).not.toContain(
+        'stale child secret'
+      )
+      const snapshot = worker.message({ type: 'sasjs-snapshot' })
+      await snapshot.pending
+      expect(snapshot.replies[0].files[sessionPath]).toBeUndefined()
+      expect(JSON.stringify(messages)).not.toContain('stale child secret')
+    } finally {
+      resume()
+      global.fetch = originalFetch
+      delete (global as any).__childOutput
+      delete (global as any).__childSession
+    }
+  })
+
+  it('preserves reset data at an in-flight child session path', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const child = `${appLoc}/services/public/child`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/execute?_program=' + encodeURIComponent('${child}'));
+        globalThis.__collisionStatus = response.status;`,
+      [drivePath('services/public/child.js')]: `
+        globalThis.__collisionPath = weboutPath;
+        await fetch('https://outside.example/hold-collision');
+        _webout = 'stale overwrite';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold-collision') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      if (String(url).includes('vfs-snapshot'))
+        return new Response('', { status: 404 })
+      if (String(url).includes('vfs-seed')) {
+        const folder = String((global as any).__collisionPath).replace(
+          '/webout.txt',
+          ''
+        )
+        return jsonResponse({
+          files: {
+            [(global as any).__collisionPath]: 'restored user data',
+            [folder + '/reqHeaders.txt']: 'restored header data'
+          }
+        })
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    try {
+      const pending = worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const sessionPath = (global as any).__collisionPath as string
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      const during = worker.message({ type: 'sasjs-snapshot' })
+      await during.pending
+      expect(during.replies[0].files[sessionPath]).toBe('restored user data')
+      expect(
+        during.replies[0].files[
+          sessionPath.replace('/webout.txt', '/reqHeaders.txt')
+        ]
+      ).toBe('restored header data')
+      resume()
+      expect((await pending).status).toBe(409)
+      expect((global as any).__collisionStatus).toBe(409)
+      const snapshot = worker.message({ type: 'sasjs-snapshot' })
+      await snapshot.pending
+      expect(snapshot.replies[0].files[sessionPath]).toBe('restored user data')
+      expect(
+        snapshot.replies[0].files[
+          sessionPath.replace('/webout.txt', '/reqHeaders.txt')
+        ]
+      ).toBe('restored header data')
+    } finally {
+      resume()
+      global.fetch = originalFetch
+      delete (global as any).__collisionStatus
+      delete (global as any).__collisionPath
+    }
+  })
+
+  it('refuses a nested trigger finishing after reset without registering its session', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const child = `${appLoc}/services/public/child`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const r = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/trigger?_program=' + encodeURIComponent('${child}'), {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({params:{}})});
+        globalThis.__triggerResult = {status:r.status, body:await r.text()};`,
+      [drivePath('services/public/child.js')]: `
+        await fetch('https://outside.example/hold-trigger');
+        _webout = 'trigger secret';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold-trigger') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    const date = new Date('2026-01-02T03:04:05.678Z')
+    jest.useFakeTimers({ now: date })
+    const random = jest.spyOn(Math, 'random').mockReturnValue(0.12345)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const sessionId =
+      [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds())
+      ].join('') + `-12345-${date.valueOf()}`
+    try {
+      const pending = worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      resume()
+      expect((await pending).status).toBe(409)
+      expect((global as any).__triggerResult.status).toBe(409)
+      expect((global as any).__triggerResult.body).not.toContain(
+        'trigger secret'
+      )
+      const output = await worker.dispatch(
+        `/SASjsApi/session/${sessionId}/output`
+      )
+      expect(output.status).toBe(404)
+      const snapshot = worker.message({ type: 'sasjs-snapshot' })
+      await snapshot.pending
+      expect(JSON.stringify(snapshot.replies[0].files)).not.toContain(
+        'trigger secret'
+      )
+    } finally {
+      resume()
+      random.mockRestore()
+      jest.useRealTimers()
+      global.fetch = originalFetch
+      delete (global as any).__triggerResult
+    }
+  })
+
+  it('returns a nested SASjs output in a fresh Viya job', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const child = `${appLoc}/services/public/child`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const r = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/execute?_program=' + encodeURIComponent('${child}'));
+        _webout = JSON.stringify({status:r.status, body:await r.text()});`,
+      [drivePath('services/public/child.js')]: `
+        fs.writeFileSync(weboutPath.replace('webout.txt', 'user-data.txt'), 'user-owned');
+        fs.writeFileSync(weboutPath.replace('webout.txt', 'uploads/user-data.txt'), 'upload-folder-user-data');
+        globalThis.__freshChildSession = weboutPath;
+        _webout = 'fresh child';`
+    })
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(201)
+    const job = await response.json()
+    const result = await worker.dispatch(
+      `${job.results['_webout.json']}/content`
+    )
+    expect(await result.json()).toEqual({ status: 200, body: 'fresh child' })
+    const snapshot = worker.message({ type: 'sasjs-snapshot' })
+    await snapshot.pending
+    const userPath = String((global as any).__freshChildSession).replace(
+      'webout.txt',
+      'user-data.txt'
+    )
+    expect(snapshot.replies[0].files[userPath]).toBe('user-owned')
+    expect(
+      snapshot.replies[0].files[
+        userPath.replace('user-data.txt', 'uploads/user-data.txt')
+      ]
+    ).toBe('upload-folder-user-data')
+    delete (global as any).__freshChildSession
+  })
+
   it('refuses a nested upload from a Viya job resumed after reset', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [program]
