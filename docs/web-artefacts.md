@@ -79,11 +79,10 @@ name is reserved: it is never included in a deployment tree.
 
 `build` writes the mock site to `sasjsresults/mock` (or `streamConfig.mockWebFolder`
 when set). It is a folder of static files that runs the project's services in a
-service worker and keeps its drive in IndexedDB. Changes that IndexedDB rejects
-are retained in page memory and retried; closing all pages before a successful
-retry can lose them. Reset coordinates live pages and fails if a page cannot
-clear its stored state; a suspended or nonresponsive page can cause a timeout.
-Concurrent tabs do not provide transactional isolation for independent writes.
+service worker and keeps its drive in IndexedDB. Page-side writes rejected by
+IndexedDB are not retried, and overlapping writes or concurrent tabs can race.
+Reset clears the shared storage from the requesting page after resetting the
+worker; it does not coordinate other tabs or provide transactional isolation.
 
 ```
 npx http-server sasjsresults/mock     # or any static server
@@ -116,9 +115,9 @@ manifest the existing emulator behaviour is unchanged. The project supplies the
 JavaScript implementations and any fixture data. The worker never executes SAS.
 
 This is not a general JES implementation: it covers registered services, adapter
-CSV table uploads, completion polling and webout only. Results are in worker
-memory and can disappear if the worker is terminated; debug logs and arbitrary
-jobs are not supported. Raw adapter CSV uploads are held in worker memory, not
+CSV table uploads, completion polling, webout and JavaScript console logs. Results
+are in worker memory and can disappear if the worker is terminated; arbitrary jobs
+are not supported. Raw adapter CSV uploads are held in worker memory, not
 persisted on the drive; ordinary Viya file uploads still use the drive. Completed
 results and raw uploads each expire ten minutes after creation, and each store is
 limited to 100 entries and 20 MiB. At capacity new requests receive 429 rather

@@ -98,17 +98,22 @@
       }
     })
 
-  /** The drive paths this visitor deleted; a failed read must not erase them. */
+  /** The drive paths this visitor deleted, `[]` when the store is new or unreadable. */
   const readDeleted = async () => {
-    const db = await openDb()
-    return new Promise((resolve, reject) => {
-      const req = db
-        .transaction(IDENTITY, 'readonly')
-        .objectStore(IDENTITY)
-        .get(DELETED_KEY)
-      req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : [])
-      req.onerror = () => reject(req.error)
-    })
+    try {
+      const db = await openDb()
+      return await new Promise((resolve) => {
+        const req = db
+          .transaction(IDENTITY, 'readonly')
+          .objectStore(IDENTITY)
+          .get(DELETED_KEY)
+        req.onsuccess = () =>
+          resolve(Array.isArray(req.result) ? req.result : [])
+        req.onerror = () => resolve([])
+      })
+    } catch (e) {
+      return []
+    }
   }
 
   // no tombstones is no row: an empty list left behind would read as a stored
@@ -300,52 +305,6 @@
   // identity store's snapshot when a route created, changed or removed anything.
   /** The workers this page is preparing an answer for, by sender. */
   const answeringWorkers = new Set()
-  // IndexedDB opens and the file/tombstone/identity transactions are async.
-  // Process reports in arrival order, including after a rejected write.
-  let persistQueue = Promise.resolve()
-  // Retain a report until every transaction succeeds. Newer reports replace
-  // older values for the same path and identity, but keep unrelated changes.
-  // Pending batches live only as long as this page; closing every page before a
-  // retry succeeds can still lose changes when storage is unavailable.
-  let pendingFiles = {}
-  let pendingIdentity = null
-  let pendingReset = false
-  let reportVersion = 0
-
-  // Take the snapshot in the report queue, but never wait there for a worker
-  // acknowledgement: boot itself broadcasts reports and would deadlock. If a
-  // report arrives during the reads, release the queue and retry after it.
-  const stableSnapshot = async (read) => {
-    while (true) {
-      let version
-      const snapshot = persistQueue.then(async () => {
-        await flushPending()
-        version = reportVersion
-        return read()
-      })
-      persistQueue = snapshot.catch(() => {})
-      const value = await snapshot
-      if (version === reportVersion) return value
-    }
-  }
-
-  const flushPending = async () => {
-    if (pendingReset) {
-      await clearAll()
-      await clearIdentity()
-      pendingReset = false
-    }
-    await writeFiles(pendingFiles)
-    if (pendingIdentity) {
-      const row = await readIdentity()
-      await writeIdentity({
-        fixture: pendingIdentity,
-        subject: row ? row.subject : undefined
-      })
-    }
-    pendingFiles = {}
-    pendingIdentity = null
-  }
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
@@ -356,38 +315,23 @@
     )
       return
     if (data.type === 'sasjs-persist') {
-      reportVersion++
-      persistQueue = persistQueue.then(async () => {
-        pendingFiles = { ...pendingFiles, ...data.files }
-        if (data.identity) pendingIdentity = data.identity
-        try {
-          await flushPending()
-        } catch (e) {
-          console.error('[sasjs-mock] persist failed', e)
-        }
-      })
-    }
-    if (data.type === 'sasjs-reset-persist' && ev.source) {
-      reportVersion++
-      const worker = ev.source
-      const reset = persistQueue.then(async () => {
-        // This barrier follows old reports and precedes new ones in this page.
-        pendingFiles = {}
-        pendingIdentity = null
-        pendingReset = true
-        await flushPending()
-      })
-      persistQueue = reset.catch(() => {})
-      reset.then(
-        () =>
-          worker.postMessage({ type: 'sasjs-reset-persist-ack', id: data.id }),
-        (e) =>
-          worker.postMessage({
-            type: 'sasjs-reset-persist-ack',
-            id: data.id,
-            error: (e && e.message) || String(e)
-          })
+      writeFiles(data.files).catch((e) =>
+        console.error('[sasjs-mock] persist failed', e)
       )
+      if (data.identity)
+        readIdentity()
+          .then((row) =>
+            // `undefined`, not null: no stored subject means the fixture's own
+            // administrator, which is not the same as the anonymous caller a
+            // null would name
+            writeIdentity({
+              fixture: data.identity,
+              subject: row ? row.subject : undefined
+            })
+          )
+          .catch((e) =>
+            console.error('[sasjs-mock] identity persist failed', e)
+          )
     }
     if (data.type === 'sasjs-host-error')
       console.error('[sasjs-mock] ' + data.path + ': ' + data.message)
@@ -445,9 +389,7 @@
 
       const answerTo = (message) => worker.postMessage(message)
 
-      stableSnapshot(() =>
-        Promise.all([readAll(), readIdentity(), readDeleted()])
-      )
+      Promise.all([readAll(), readIdentity(), readDeleted()])
         .then(([files, stored, deleted]) =>
           boot(files, stored, deleted, worker)
         )
@@ -571,6 +513,8 @@
     reset: async () => {
       const answer = await askWorker({ type: 'sasjs-reset' }, 'sasjs-reset-ack')
       if (answer.error) throw new Error(answer.error)
+      await clearAll()
+      await clearIdentity()
       return true
     }
   }
@@ -795,6 +739,16 @@
     const controller = await waitForController()
     if (!controller) return { error: 'no service worker controller' }
 
+    let files = {}
+    let stored = null
+    try {
+      files = await readAll()
+      stored = await readIdentity()
+    } catch (e) {
+      console.error('[sasjs-mock] could not read storage: ' + e)
+      throw e
+    }
+
     // A stored drive outlives the build that wrote it, so a returning visitor
     // would keep running that build's services - including ones the app being
     // loaded no longer matches. This build stamps the seed it ships, and a drive
@@ -804,42 +758,32 @@
     // behaviour every build before this one had.
     const stamp = await readBuildStamp(controller)
     const previous = storedBuildStamp()
-    let files
-    let stored
-    let deleted
-    try {
-      ;[files, stored, deleted] = await stableSnapshot(async () => {
-        let files = await readAll()
-        let stored = await readIdentity()
-        let deleted = await readDeleted()
-        if (
-          Object.keys(files).length &&
-          stamp &&
-          previous !== null &&
-          previous !== stamp
-        ) {
-          console.info(
-            '[sasjs-mock] the stored drive is from another build - seeding this one'
-          )
-          try {
-            await clearAll()
-            // the identity is part of what this build ships, so a visitor who kept
-            // the previous build's fixture would never see a changed
-            // `mock-identity.json`: it goes with the drive, as it does on reset
-            await clearIdentity()
-          } catch (e) {
-            console.error('[sasjs-mock] could not clear storage: ' + e)
-          }
-          files = {}
-          stored = null
-          deleted = []
-        }
-        return [files, stored, deleted]
-      })
-    } catch (e) {
-      console.error('[sasjs-mock] could not read storage: ' + e)
-      throw e
+    if (
+      Object.keys(files).length &&
+      stamp &&
+      previous !== null &&
+      previous !== stamp
+    ) {
+      console.info(
+        '[sasjs-mock] the stored drive is from another build - seeding this one'
+      )
+      try {
+        await clearAll()
+        // the identity is part of what this build ships, so a visitor who kept
+        // the previous build's fixture would never see a changed
+        // `mock-identity.json`: it goes with the drive, as it does on reset
+        await clearIdentity()
+      } catch (e) {
+        console.error('[sasjs-mock] could not clear storage: ' + e)
+      }
+      files = {}
+      stored = null
     }
+
+    // the deletions go with the drive: a sharded site's index lists every file
+    // the build ships, so the paths this visitor removed have to be named or the
+    // page would restore them
+    const deleted = await readDeleted()
     window.__sasjsMockBoot = await boot(files, stored, deleted)
     if (window.__sasjsMockBoot && !window.__sasjsMockBoot.error)
       keepBuildStamp(stamp)

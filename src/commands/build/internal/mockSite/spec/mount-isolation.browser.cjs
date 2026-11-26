@@ -93,7 +93,7 @@ async function main() {
           'git',
           [
             'show',
-            'b24b8d9:src/commands/build/internal/mockSite/assets/' +
+            '44163d5:src/commands/build/internal/mockSite/assets/' +
               path.basename(name)
           ],
           { cwd: __dirname }
@@ -241,6 +241,61 @@ async function main() {
     // Start the root worker, then use a copied console two folders down. Drive
     // the console's own UI and inspect the API request, not just a derived URL.
     await navigate(a, '')
+    if (process.env.RESET_CASE !== 'partial') {
+      // A controlled document without the persistence script is not a participant.
+      await send('Page.navigate', { url: origin + '/host/mock-config.json' }, b)
+      for (let i = 0; i < 200; i++) {
+        if (
+          await evaluate(
+            b,
+            "location.pathname === '/host/mock-config.json' && !!navigator.serviceWorker.controller"
+          ).catch(() => false)
+        )
+          break
+        await sleep(25)
+      }
+      assert.equal(
+        await evaluate(b, '!!navigator.serviceWorker.controller'),
+        true
+      )
+      assert.equal(await evaluate(b, '!!window.SASjsMock'), false)
+      await evaluate(a, 'window.SASjsMock.reset()')
+      console.log('PASS reset ignores controlled pages without persistence')
+    }
+
+    // A storage failure in a different page does not veto this page's reset.
+    // All pages share IndexedDB; this is not a cross-tab durability guarantee.
+    await navigate(b, '')
+    const uploaded = await evaluate(
+      a,
+      `(async () => { const f = new FormData(); f.set('file', new Blob(['durable']), 'durable.txt'); return (await fetch('/SASjsApi/drive/file?_filePath=' + encodeURIComponent('/Public/app/test/durable.txt'), {method:'POST', body:f})).status })()`
+    )
+    assert.equal(uploaded, 200)
+    let stored
+    for (let i = 0; i < 200; i++) {
+      stored = await evaluate(a, 'window.SASjsMock.readAll()')
+      if (Object.keys(stored).some((key) => key.endsWith('/durable.txt'))) break
+      await sleep(25)
+    }
+    assert.ok(Object.keys(stored).some((key) => key.endsWith('/durable.txt')))
+    await evaluate(
+      b,
+      "indexedDB.open = () => { throw Error('simulated outage') }"
+    )
+    const resetError = await evaluate(
+      a,
+      `(async () => { try { await window.SASjsMock.reset(); return null } catch (e) { return e.message } })()`
+    )
+    assert.equal(resetError, null)
+    stored = await evaluate(a, 'window.SASjsMock.readAll()')
+    const live = await evaluate(a, 'window.SASjsMock.snapshot()')
+    assert.ok(!Object.keys(stored).some((key) => key.endsWith('/durable.txt')))
+    assert.ok(
+      !Object.keys(live.files).some((key) => key.endsWith('/durable.txt'))
+    )
+    console.log('PASS reset succeeds despite another page storage failure')
+    // Discard the injected outage before the remaining mount tests.
+    await send('Page.navigate', { url: 'about:blank' }, b)
     await send('Network.enable', {}, a)
     const requests = []
     ws.addEventListener('message', ({ data }) => {
@@ -408,58 +463,6 @@ async function main() {
     assert.equal(
       (await evaluate(a, 'window.SASjsMock.identity()')).subject,
       'sasjsuser'
-    )
-    await navigate(b, mounts[1])
-    for (const session of [a, b]) {
-      await evaluate(
-        session,
-        `(() => {
-        const open = indexedDB.open.bind(indexedDB);
-        window.allowPersistence = false;
-        window.allowOldWrite = false;
-        const put = IDBObjectStore.prototype.put;
-        IDBObjectStore.prototype.put = function(value, key) {
-          if (!window.allowOldWrite && typeof key === 'string' && key.endsWith('/before-reset.txt')) throw Error('test old write outage');
-          return put.call(this, value, key);
-        };
-        indexedDB.open = (...args) => {
-          if (!window.allowPersistence) throw Error('test storage outage');
-          return open(...args);
-        };
-      })()`
-      )
-    }
-    const write = async (name, value) =>
-      evaluate(
-        a,
-        `(async () => { const form = new FormData(); form.set('file', new Blob([${JSON.stringify(value)}]), ${JSON.stringify(name)}); const r = await fetch(${JSON.stringify(mounts[1] + '/SASjsApi/drive/file?_filePath=')} + encodeURIComponent(${JSON.stringify('/Public/app/test/')} + ${JSON.stringify(name)}), {method:'POST', body:form}); return r.status })()`
-      )
-    assert.equal(await write('before-reset.txt', 'stale'), 200)
-    await sleep(200)
-    for (const session of [a, b])
-      await evaluate(session, 'window.allowPersistence = true')
-    await evaluate(a, 'window.SASjsMock.reset()')
-    await sleep(300)
-    for (const session of [a, b])
-      await evaluate(session, 'window.allowOldWrite = true')
-    assert.equal(await write('after-reset.txt', 'valid'), 200)
-    await sleep(400)
-    for (const session of [a, b]) {
-      const drive = await evaluate(session, 'window.SASjsMock.readAll()')
-      assert.ok(
-        !Object.keys(drive).some((p) => p.endsWith('/before-reset.txt')),
-        JSON.stringify(drive)
-      )
-      assert.ok(
-        Object.entries(drive).some(
-          ([p, v]) =>
-            p.endsWith('/after-reset.txt') && v === '\u0000base64:dmFsaWQ='
-        ),
-        JSON.stringify(drive)
-      )
-    }
-    console.log(
-      'PASS reset: two pages with failed old reports retain post-reset write'
     )
     console.log(
       'PASS generated mounts: root and three nested sites, switching, concurrent tabs, identity and rebuild'
