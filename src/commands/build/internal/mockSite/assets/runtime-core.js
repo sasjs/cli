@@ -1337,7 +1337,8 @@ const runProgram = ({
   code,
   params = {},
   tables = [],
-  execution = null
+  execution = null,
+  transientSession = false
 }) => {
   const payloadCode = code
   const codePath = program ? resolveProgram(program) : null
@@ -1586,6 +1587,12 @@ return _webout;
     // worker the `\u0000base64:...` marker and drop every declared header.
     const storedHeaders = FILES.get(headersPath) || ''
 
+    if (transientSession) {
+      const inSession = (p) =>
+        p === sessionDir || p.startsWith(sessionDir + '/')
+      for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
+        for (const p of store.keys()) if (inSession(p)) store.delete(p)
+    }
     return {
       webout,
       log: logLines.join('\n'),

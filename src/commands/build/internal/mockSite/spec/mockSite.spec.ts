@@ -489,6 +489,14 @@ describe('browser-hosted build', () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
+  it('ignores an invalid Viya manifest for non-Viya targets', async () => {
+    write(path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'), '{invalid')
+    for (const serverType of ['SASJS', 'SAS9'] as const) {
+      await buildMockSite({ ...target(), serverType })
+      expect(readConfig().viyaMockJobs).toEqual([])
+    }
+  })
+
   it('rejects unsafe or missing mock registrations without replacing a site', async () => {
     const file = path.join(root, 'sasjsbuild', 'viya-mock-jobs.json')
     await buildMockSite({ ...target(), serverType: 'SASVIYA' })

@@ -114,7 +114,14 @@ JavaScript implementations and any fixture data. The worker never executes SAS.
 This is not a general JES implementation: it covers registered services, adapter
 CSV table uploads, completion polling and webout only. Results are in worker
 memory and can disappear if the worker is terminated; debug logs and arbitrary
-jobs are not supported. Uploaded CSV files are persisted on the mock drive.
+jobs are not supported. Raw adapter CSV uploads are held in worker memory, not
+persisted on the drive; ordinary Viya file uploads still use the drive. Completed
+results and raw uploads each expire ten minutes after creation, and each store is
+limited to 100 entries and 20 MiB. At capacity new requests receive 429 rather
+than evicting an unexpired result or upload that a concurrent request may need.
+An oversized result can be refused after the service has run; its drive writes
+may already have occurred. Worker termination clears both stores. These limits
+are for the intended single-user mock, not a production job service.
 The registered JavaScript runs with the existing mock runtime's drive access, so
 only register code the project trusts. Responses identify the emulation with
 `x-sasjs-emulated`.
