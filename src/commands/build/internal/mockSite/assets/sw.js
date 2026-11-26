@@ -1807,13 +1807,21 @@ const viyaMockResponse = (body, status = 200, type = 'application/json') =>
     headers: { 'content-type': type, ...API.emulatedHeaders() }
   })
 
+const assertCurrentViyaJob = (inherited) => {
+  if (
+    inherited?.viyaGeneration !== undefined &&
+    inherited.viyaGeneration !== viyaMockGeneration
+  )
+    throw new API.ApiError(409, 'Mock reset during job')
+}
+
 const registeredJs = async (program) => {
   await R.ensurePaths([`/sasjs/drive/files${program}.js`])
   const resolved = R.resolveProgram(program + '.js')
   return resolved === `/sasjs/drive/files${program}.js`
 }
 
-const executionFrame = (subject, token, inherited) => {
+const executionFrame = (subject, token, inherited, viyaGeneration) => {
   const user =
     subject &&
     IDENTITY_STATE.store
@@ -1845,10 +1853,14 @@ const executionFrame = (subject, token, inherited) => {
           input instanceof Request ? input : target.href,
           init
         )
-        return routeRequest(nested, target, 0, null, {
-          subject,
-          token: runToken
-        })
+        return routeRequest(
+          nested,
+          target,
+          0,
+          null,
+          { subject, token: runToken, viyaGeneration },
+          viyaGeneration === undefined ? viyaMockGeneration : viyaGeneration
+        )
       }
       return fetch(input, init)
     }
@@ -1878,6 +1890,7 @@ const viyaMockJobRequest = async (
   }
   if (path === '/jobExecution/jobs' && request.method === 'POST') {
     const body = await request.clone().json()
+    assertCurrentViyaJob(inherited)
     const program = body && body.arguments && body.arguments._program
     if (
       !jobs.includes(program) ||
@@ -1920,6 +1933,9 @@ const viyaMockJobRequest = async (
       await R.ensureAll()
       if (!(await registeredJs(program)))
         throw new API.ApiError(404, 'Registered JavaScript mock not found')
+      assertCurrentViyaJob(inherited)
+      if (generation !== viyaMockGeneration)
+        throw new API.ApiError(409, 'Mock reset during job')
       let output
       try {
         output = await R.run({
@@ -1927,7 +1943,7 @@ const viyaMockJobRequest = async (
           params: body.arguments,
           tables: tablesOf(files),
           transientSession: true,
-          execution: executionFrame(subject, token, inherited)
+          execution: executionFrame(subject, token, inherited, generation)
         })
         if (output.error) throw runFailure(output.error)
       } catch (error) {
@@ -2104,6 +2120,7 @@ const viyaRequest = async (request, url, path, inherited, generation) => {
     else apiRequest.body = await readJson(request)
   }
 
+  assertCurrentViyaJob(inherited)
   const answer = await API.dispatchViya(
     VIYA_SERVICES,
     request.method,
@@ -2623,7 +2640,8 @@ const runRoute = async (
   subject,
   sas9 = false,
   tier = false,
-  execution
+  execution,
+  inherited
 ) => {
   // A program may read any file it likes - the drive is its filesystem - so
   // every piece of a sharded drive is fetched here rather than guessed from the
@@ -2633,6 +2651,7 @@ const runRoute = async (
   // time anything runs on a cold visit. A page that only lists apps never pays
   // it; the saving this change is for is on that page.
   await R.ensureAll()
+  assertCurrentViyaJob(inherited)
 
   if (
     sas9 &&
@@ -3209,12 +3228,15 @@ const routeRequest = async (
         : path.replace(/^\/api(?=\/|$)/i, '/SASjsApi')
 
   try {
+    // Nested calls remain owned by their original Viya job across all routes.
+    assertCurrentViyaJob(inherited)
     // the identity is a file the build shipped, so it is read before anything
     // that needs a caller - a request that arrives before the page has booted
     // (a static asset fetch raced by an API call) must not answer as nobody
     await ensureIdentity()
     await R.ensureReady(askHostForDrive)
     await ensureForRequest(url, tierQuery ? query : null)
+    assertCurrentViyaJob(inherited)
 
     // the sign-in page and the form it posts: a browser, not an API client
     if (apiPath.toLowerCase() === LOGIN_PATH) {
@@ -3369,6 +3391,7 @@ const routeRequest = async (
     if (askedForFile && Array.isArray(query._filePath))
       throw badRequest('"_filePath" must be a string')
     const payload = await readPayload(request, routeId === DEPLOY_UPLOAD)
+    assertCurrentViyaJob(inherited)
     payload.query = query
     payload.method = request.method
 
@@ -3398,14 +3421,20 @@ const routeRequest = async (
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      const execution = executionFrame(subject, token, inherited)
+      const execution = executionFrame(
+        subject,
+        token,
+        inherited,
+        inherited?.viyaGeneration
+      )
       return await runRoute(
         routeId,
         payload,
         subject,
         sas9Run,
         tierQuery,
-        execution
+        execution,
+        inherited
       )
     }
 
@@ -3433,6 +3462,7 @@ const routeRequest = async (
       })
     }
 
+    assertCurrentViyaJob(inherited)
     const answer = await API.dispatch(SERVICES, routeId, apiRequest)
     if (request.method !== 'GET') await persistChanges()
 
