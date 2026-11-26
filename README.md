@@ -76,6 +76,14 @@ startApp().catch(showLoadError)
 
 Apply the same readiness gate to other request paths, not just initial loading. Application scripts now follow the browser's normal lifecycle; the host does not synthesize or redispatch `DOMContentLoaded` or `load` events.
 
+### Browser Viya corpus replay
+
+With dependencies installed and Chromium available (`CHROMIUM_PATH` overrides `chromium`), run `npm run test:browser:viya-corpus`. The script builds the CLI and a fresh mock host in a temporary directory, then replays the pinned `@sasjs/api` Viya corpus in headless Chromium against its real service worker. `TMPDIR` can select the temporary directory; no backend is contacted. The output names every replayed and skipped route and fails if either set changes unexpectedly.
+
+With `@sasjs/api` 0.49.0 the test replays **16 of 29** captured cases. The other 13 are named in its output: six file/folder cases lack a complete captured request/state fixture; seven (session variables, launcher contexts, and job definitions/executions) are marked unimplemented by the API overlay. An overlay declaration is not a claim about every host: this CLI can opt in to registered JavaScript jobs. A multipart file upload is used to seed folder members but is not a replay of the captured file-upload case.
+
+The test checks captured HTTP statuses and recorded response **shapes**, not full values, real SAS execution, security or end-to-end Viya parity. Array shapes only check the first element when present. It submits an adapter-shaped compute job and uses the host's public demo identity. The refresh-token response is missing the captured `id_token`; that one discrepancy is explicitly allowed and reported. Each replayed response must carry the emulation header and be observed from the service worker; the static server must receive no API requests. The Linux browser CI job runs this test. If Chromium fails with `Socket path too long`, choose a short writable `TMPDIR` (for example, `$HOME/t`).
+
 ### Mock service API access
 
 A JavaScript mock service can use top-level `await fetch(_SASJS_APISERVERURL + '/SASjsApi/...')` to call the site's mock API. The URL includes the site's mount path. Same-site API calls are dispatched through the worker's API, including its authorization checks; other fetches use the browser's network and CORS rules. A nested API request without an explicit credential uses the original service caller, even if the selected mock account changes while it runs. An explicit bearer token is checked normally.

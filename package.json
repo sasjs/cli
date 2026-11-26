@@ -26,7 +26,8 @@
     "test:mocked": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.config.js --coverage",
     "test:server": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --silent --runInBand --config=jest.server.config.js",
     "test:browser:xhr": "node src/commands/build/internal/mockSite/spec/intercept.browser.cjs",
-    "test:browser:fallback": "node src/commands/build/internal/mockSite/spec/fallback.browser.cjs"
+    "test:browser:fallback": "node src/commands/build/internal/mockSite/spec/fallback.browser.cjs",
+    "test:browser:viya-corpus": "npm run build && node src/commands/build/internal/mockSite/spec/viya-corpus.browser.cjs"
   },
   "testServerTypes": "sasjs",
   "bin": {
