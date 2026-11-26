@@ -1362,7 +1362,12 @@ const runProgram = ({
     }
   }
 
-  const sessionDir = `/sasjs/sessions/s${++sessionSeq}`
+  // A restored session may already own s1 after a worker restart. Never let
+  // transient cleanup remove it (including unloaded, indexed descendants).
+  let sessionDir
+  do {
+    sessionDir = `/sasjs/sessions/s${++sessionSeq}`
+  } while (transientSession && FS.existsSync(sessionDir))
   if (transientSession) transientSessions.add(sessionDir)
   const uploadDir = `${sessionDir}/uploads`
   mkdirp(sessionDir)
