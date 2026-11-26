@@ -2144,6 +2144,8 @@ const viyaRequest = async (request, url, path, inherited) => {
         const id = encodeURIComponent(program)
         registrations.push({
           name,
+          contentType: 'jobDefinition',
+          uri: `/jobDefinitions/definitions/${id}`,
           links: [
             { rel: 'getResource', href: `/jobDefinitions/definitions/${id}` }
           ]
@@ -2158,7 +2160,9 @@ const viyaRequest = async (request, url, path, inherited) => {
           ...apiRequest,
           query: { ...query, limit: 0 }
         })
-        const items = [...registrations, ...physical.body.items]
+        // getFileUri selects the first name match without checking its type;
+        // job lookup filters by type, so physical members must precede jobs.
+        const items = [...physical.body.items, ...registrations]
         const start = Math.max(0, Math.trunc(Number(query.start) || 0))
         const limit = Number(query.limit) || 0
         answer.body.start = start
