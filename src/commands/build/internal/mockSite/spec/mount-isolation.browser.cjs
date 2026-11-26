@@ -85,6 +85,20 @@ async function main() {
       let name = pathname.slice(mount.length) || '/'
       if (name.endsWith('/')) name += 'index.html'
       let data = await fs.readFile(path.join(sites.get(mount), name))
+      if (
+        process.env.RESET_NEGATIVE_CONTROL &&
+        (name === '/host/persist.js' || name === '/sw.js')
+      ) {
+        data = require('node:child_process').execFileSync(
+          'git',
+          [
+            'show',
+            'b24b8d9:src/commands/build/internal/mockSite/assets/' +
+              path.basename(name)
+          ],
+          { cwd: __dirname }
+        )
+      }
       if (holdNestedWorker && mount === mounts[1] && name === '/sw.js') {
         data = Buffer.from(
           data
@@ -394,6 +408,58 @@ async function main() {
     assert.equal(
       (await evaluate(a, 'window.SASjsMock.identity()')).subject,
       'sasjsuser'
+    )
+    await navigate(b, mounts[1])
+    for (const session of [a, b]) {
+      await evaluate(
+        session,
+        `(() => {
+        const open = indexedDB.open.bind(indexedDB);
+        window.allowPersistence = false;
+        window.allowOldWrite = false;
+        const put = IDBObjectStore.prototype.put;
+        IDBObjectStore.prototype.put = function(value, key) {
+          if (!window.allowOldWrite && typeof key === 'string' && key.endsWith('/before-reset.txt')) throw Error('test old write outage');
+          return put.call(this, value, key);
+        };
+        indexedDB.open = (...args) => {
+          if (!window.allowPersistence) throw Error('test storage outage');
+          return open(...args);
+        };
+      })()`
+      )
+    }
+    const write = async (name, value) =>
+      evaluate(
+        a,
+        `(async () => { const form = new FormData(); form.set('file', new Blob([${JSON.stringify(value)}]), ${JSON.stringify(name)}); const r = await fetch(${JSON.stringify(mounts[1] + '/SASjsApi/drive/file?_filePath=')} + encodeURIComponent(${JSON.stringify('/Public/app/test/')} + ${JSON.stringify(name)}), {method:'POST', body:form}); return r.status })()`
+      )
+    assert.equal(await write('before-reset.txt', 'stale'), 200)
+    await sleep(200)
+    for (const session of [a, b])
+      await evaluate(session, 'window.allowPersistence = true')
+    await evaluate(a, 'window.SASjsMock.reset()')
+    await sleep(300)
+    for (const session of [a, b])
+      await evaluate(session, 'window.allowOldWrite = true')
+    assert.equal(await write('after-reset.txt', 'valid'), 200)
+    await sleep(400)
+    for (const session of [a, b]) {
+      const drive = await evaluate(session, 'window.SASjsMock.readAll()')
+      assert.ok(
+        !Object.keys(drive).some((p) => p.endsWith('/before-reset.txt')),
+        JSON.stringify(drive)
+      )
+      assert.ok(
+        Object.entries(drive).some(
+          ([p, v]) =>
+            p.endsWith('/after-reset.txt') && v === '\u0000base64:dmFsaWQ='
+        ),
+        JSON.stringify(drive)
+      )
+    }
+    console.log(
+      'PASS reset: two pages with failed old reports retain post-reset write'
     )
     console.log(
       'PASS generated mounts: root and three nested sites, switching, concurrent tabs, identity and rebuild'
