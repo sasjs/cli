@@ -1784,34 +1784,98 @@ let VIYA_MOCK_JOBS
 const viyaMockJobs = async () => {
   if (!VIYA_MOCK_JOBS) {
     VIYA_MOCK_JOBS = fetch(`${BASE}/host/mock-config.json`)
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) throw new Error('Unable to load mock configuration')
+        return response.json()
+      })
       .then((config) =>
         Array.isArray(config.viyaMockJobs) ? config.viyaMockJobs : []
       )
+      .catch((error) => {
+        VIYA_MOCK_JOBS = undefined
+        throw error
+      })
   }
   return VIYA_MOCK_JOBS
 }
 
 const VIYA_MOCK_RESULTS = new Map()
-let VIYA_MOCK_SEQUENCE = 0
+const VIYA_MOCK_UPLOADS = new Map()
+const VIYA_MOCK_TTL = 10 * 60 * 1000
+const VIYA_MOCK_LIMIT = 100
+const VIYA_MOCK_BYTES = 20 * 1024 * 1024
+let viyaMockRunning = 0
+const pruneViyaMock = () => {
+  const cutoff = Date.now() - VIYA_MOCK_TTL
+  for (const [id, value] of VIYA_MOCK_RESULTS)
+    if (value.created < cutoff) VIYA_MOCK_RESULTS.delete(id)
+  for (const [id, value] of VIYA_MOCK_UPLOADS)
+    if (value.created < cutoff) VIYA_MOCK_UPLOADS.delete(id)
+}
+const viyaMockBytes = (map) =>
+  [...map.values()].reduce((n, value) => n + value.bytes, 0)
 const viyaMockResponse = (body, status = 200, type = 'application/json') =>
   new Response(type === 'application/json' ? JSON.stringify(body) : body, {
     status,
     headers: { 'content-type': type, ...API.emulatedHeaders() }
   })
 
-const registeredJs = (program) => {
+const registeredJs = async (program) => {
+  await R.ensurePaths([`/sasjs/drive/files${program}.js`])
   const resolved = R.resolveProgram(program + '.js')
   return resolved === `/sasjs/drive/files${program}.js`
 }
 
-const viyaMockJobRequest = async (request, path, subject) => {
+const executionFrame = (subject, token, inherited) => {
+  const user =
+    subject &&
+    IDENTITY_STATE.store
+      .snapshot()
+      .users.find((candidate) => candidate.uid === subject.userId)
+  const runToken = token || (inherited && inherited.token)
+  const headers = runToken ? `Authorization: Bearer ${runToken}` : ''
+  return {
+    apiServerUrl: self.location.origin + BASE,
+    user: user || { username: '', uid: '', displayName: '' },
+    headers,
+    fetch: (input, init) => {
+      const target = new URL(
+        typeof input === 'string' || input instanceof URL ? input : input.url,
+        self.location.origin + BASE + '/'
+      )
+      const inside =
+        !BASE ||
+        target.pathname === BASE ||
+        target.pathname.startsWith(BASE + '/')
+      const path = inside ? withoutBase(target.pathname) : ''
+      if (
+        target.origin === self.location.origin &&
+        inside &&
+        isAnswered(path) &&
+        !/^\/api\/?$/i.test(path)
+      ) {
+        const nested = new Request(
+          input instanceof Request ? input : target.href,
+          init
+        )
+        return routeRequest(nested, target, 0, null, {
+          subject,
+          token: runToken
+        })
+      }
+      return fetch(input, init)
+    }
+  }
+}
+
+const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
   const jobs = await viyaMockJobs()
   if (!jobs.length) return null
+  pruneViyaMock()
   const definition = /^\/jobDefinitions\/definitions\/([^/]+)$/.exec(path)
   if (definition && request.method === 'GET') {
     const program = decodeURIComponent(definition[1])
-    if (!jobs.includes(program) || !registeredJs(program)) return null
+    if (!jobs.includes(program) || !(await registeredJs(program))) return null
     return viyaMockResponse({
       id: definition[1],
       name: program.slice(program.lastIndexOf('/') + 1),
@@ -1830,46 +1894,68 @@ const viyaMockJobRequest = async (request, path, subject) => {
     const grants = await RECORDS.myAuthorizedRoutes(subject)
     if (!grants.paths.includes('/SASjsApi/stp/execute'))
       throw new API.ApiError(401, 'Unauthorized')
-    const files = []
-    const count = Number(body.arguments._webin_file_count || 0)
-    if (!Number.isInteger(count) || count < 0 || count > 100)
-      throw badRequest('Invalid file count')
-    for (let i = 1; i <= count; i++) {
-      const uri = body.arguments[`_webin_fileuri${i}`]
-      if (!/^\/files\/files\/[^/]+$/.test(uri || ''))
-        throw badRequest('Invalid file URI')
-      const result = await API.dispatchViya(
-        VIYA_SERVICES,
-        'GET',
-        uri + '/content',
-        { subject }
-      )
-      if (result.status !== 200)
-        throw new API.ApiError(result.status, 'Uploaded file not found')
-      files.push({
-        name: body.arguments[`_webin_name${i}`],
-        contents: result.contents
+    if (VIYA_MOCK_RESULTS.size + viyaMockRunning >= VIYA_MOCK_LIMIT)
+      throw new API.ApiError(429, 'Mock result capacity reached')
+    viyaMockRunning++
+    try {
+      const files = []
+      const count = Number(body.arguments._webin_file_count || 0)
+      if (!Number.isInteger(count) || count < 0 || count > 100)
+        throw badRequest('Invalid file count')
+      // Snapshot references before any asynchronous file reads. Another request
+      // may prune an expired upload while this job is already using it.
+      const uploads = new Map(VIYA_MOCK_UPLOADS)
+      for (let i = 1; i <= count; i++) {
+        const uri = body.arguments[`_webin_fileuri${i}`]
+        if (!/^\/files\/files\/[^/]+$/.test(uri || ''))
+          throw badRequest('Invalid file URI')
+        const upload = uploads.get(uri.split('/').pop())
+        const result =
+          upload && upload.owner === (subject && subject.userId)
+            ? { status: 200, contents: upload.contents }
+            : await API.dispatchViya(VIYA_SERVICES, 'GET', uri + '/content', {
+                subject
+              })
+        if (result.status !== 200)
+          throw new API.ApiError(result.status, 'Uploaded file not found')
+        files.push({
+          name: body.arguments[`_webin_name${i}`],
+          contents: result.contents
+        })
+      }
+      await R.ensureAll()
+      if (!(await registeredJs(program)))
+        throw new API.ApiError(404, 'Registered JavaScript mock not found')
+      const output = await R.run({
+        program: program + '.js',
+        params: body.arguments,
+        tables: tablesOf(files),
+        transientSession: true,
+        execution: executionFrame(subject, token, inherited)
       })
+      if (output.error) throw runFailure(output.error)
+      await persistChanges()
+      const outputBytes = bytesOf(output.webout || '')
+      if (outputBytes + viyaMockBytes(VIYA_MOCK_RESULTS) > VIYA_MOCK_BYTES)
+        throw new API.ApiError(429, 'Mock result byte capacity reached')
+      const id = crypto.randomUUID()
+      const resultPath = `/jobExecution/jobs/${id}/results/webout`
+      const links = [{ rel: 'state', href: `/jobExecution/jobs/${id}/state` }]
+      const job = { id, links, results: { '_webout.json': resultPath } }
+      VIYA_MOCK_RESULTS.set(id, {
+        job,
+        output: { webout: output.webout },
+        owner: subject && subject.userId,
+        created: Date.now(),
+        bytes: outputBytes
+      })
+      return viyaMockResponse(job, 201)
+    } finally {
+      viyaMockRunning--
     }
-    await R.ensureAll()
-    if (!registeredJs(program))
-      throw new API.ApiError(404, 'Registered JavaScript mock not found')
-    const output = await R.run({
-      program: program + '.js',
-      params: body.arguments,
-      tables: tablesOf(files)
-    })
-    if (output.error) throw runFailure(output.error)
-    await persistChanges()
-    const id = String(++VIYA_MOCK_SEQUENCE)
-    const resultPath = `/jobExecution/jobs/${id}/results/webout`
-    const links = [{ rel: 'state', href: `/jobExecution/jobs/${id}/state` }]
-    const job = { id, links, results: { '_webout.json': resultPath } }
-    VIYA_MOCK_RESULTS.set(id, { job, output, owner: subject && subject.userId })
-    return viyaMockResponse(job, 201)
   }
   const result =
-    /^\/jobExecution\/jobs\/(\d+)(?:\/(state|results\/webout\/content))?$/.exec(
+    /^\/jobExecution\/jobs\/([0-9a-f-]+)(?:\/(state|results\/webout\/content))?$/.exec(
       path
     )
   if (result && request.method === 'GET') {
@@ -1877,12 +1963,15 @@ const viyaMockJobRequest = async (request, path, subject) => {
     if (!saved || saved.owner !== (subject && subject.userId)) return null
     if (result[2] === 'state')
       return viyaMockResponse('completed', 200, 'text/plain')
-    if (result[2])
-      return viyaMockResponse(
-        saved.output.webout || '',
-        200,
-        'application/json; charset=utf-8'
-      )
+    if (result[2]) {
+      const webout = saved.output.webout || ''
+      let type = 'text/plain; charset=utf-8'
+      try {
+        JSON.parse(webout)
+        type = 'application/json; charset=utf-8'
+      } catch (_) {}
+      return viyaMockResponse(webout, 200, type)
+    }
     return viyaMockResponse(saved.job)
   }
   return null
@@ -1900,13 +1989,30 @@ const viyaRequest = async (request, url, path, inherited) => {
 
   if (/^\/(jobDefinitions|jobExecution)\//.test(path)) {
     try {
-      const mock = await viyaMockJobRequest(request, path, apiRequest.subject)
+      const mock = await viyaMockJobRequest(
+        request,
+        path,
+        apiRequest.subject,
+        apiRequest.token,
+        inherited
+      )
       if (mock) return mock
     } catch (error) {
       if (error instanceof API.ApiError)
         return viyaMockResponse({ message: error.message }, error.status)
       throw error
     }
+  }
+
+  const uploadContent = /^\/files\/files\/([0-9a-f-]+)\/content$/.exec(path)
+  if (request.method === 'GET' && uploadContent) {
+    pruneViyaMock()
+    const upload = VIYA_MOCK_UPLOADS.get(uploadContent[1])
+    if (
+      upload &&
+      upload.owner === (apiRequest.subject && apiRequest.subject.userId)
+    )
+      return viyaMockResponse(upload.contents, 200, 'text/plain; charset=utf-8')
   }
 
   if (request.method === 'POST' && isUploadPath(path)) {
@@ -1924,10 +2030,21 @@ const viyaRequest = async (request, url, path, inherited) => {
       if (raw && !raw.trimStart().startsWith('{')) {
         if (bytesOf(raw) > R.MAX_UPLOAD_BYTES)
           throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
-        file = {
-          name: `sasjs-upload-${crypto.randomUUID()}.csv`,
-          contents: raw
-        }
+        pruneViyaMock()
+        const bytes = bytesOf(raw)
+        if (
+          VIYA_MOCK_UPLOADS.size >= VIYA_MOCK_LIMIT ||
+          bytes + viyaMockBytes(VIYA_MOCK_UPLOADS) > VIYA_MOCK_BYTES
+        )
+          throw new API.ApiError(429, 'Mock upload capacity reached')
+        const id = crypto.randomUUID()
+        VIYA_MOCK_UPLOADS.set(id, {
+          contents: raw,
+          bytes,
+          created: Date.now(),
+          owner: apiRequest.subject && apiRequest.subject.userId
+        })
+        return viyaMockResponse({ id, name: `sasjs-upload-${id}.csv` }, 201)
       }
     }
     if (file) apiRequest.file = file
@@ -1959,7 +2076,7 @@ const viyaRequest = async (request, url, path, inherited) => {
       for (const program of jobs) {
         if (program.slice(0, program.lastIndexOf('/')) !== folder) continue
         const name = program.slice(program.lastIndexOf('/') + 1)
-        if (!registeredJs(program)) continue
+        if (!(await registeredJs(program))) continue
         const id = encodeURIComponent(program)
         answer.body.items.push({
           name,
@@ -3189,47 +3306,7 @@ const routeRequest = async (
     }
 
     if (RUN_ROUTES.has(routeId)) {
-      const user =
-        subject &&
-        IDENTITY_STATE.store
-          .snapshot()
-          .users.find((candidate) => candidate.uid === subject.userId)
-      const runToken = token || (inherited && inherited.token)
-      const headers = runToken ? `Authorization: Bearer ${runToken}` : ''
-      const execution = {
-        apiServerUrl: self.location.origin + BASE,
-        user: user || { username: '', uid: '', displayName: '' },
-        headers,
-        fetch: (input, init) => {
-          const target = new URL(
-            typeof input === 'string' || input instanceof URL
-              ? input
-              : input.url,
-            self.location.origin + BASE + '/'
-          )
-          const inside =
-            !BASE ||
-            target.pathname === BASE ||
-            target.pathname.startsWith(BASE + '/')
-          const path = inside ? withoutBase(target.pathname) : ''
-          if (
-            target.origin === self.location.origin &&
-            inside &&
-            isAnswered(path) &&
-            !/^\/api\/?$/i.test(path)
-          ) {
-            const nested = new Request(
-              input instanceof Request ? input : target.href,
-              init
-            )
-            return routeRequest(nested, target, 0, null, {
-              subject,
-              token: runToken
-            })
-          }
-          return fetch(input, init)
-        }
-      }
+      const execution = executionFrame(subject, token, inherited)
       return await runRoute(
         routeId,
         payload,
@@ -3330,6 +3407,11 @@ const routeRequest = async (
     )
 
     if (!refusal) broadcast({ type: 'sasjs-host-error', path, message })
+    if (isViyaPath(apiPath))
+      return viyaMockResponse(
+        { message: (e && e.message) || String(e) },
+        status
+      )
     // A refusal the API decided on carries its status and, where the route
     // answers an envelope, the body to send. The deploy routes state one in the
     // document - a refusal there is `{status: 'failure', message}` - while the

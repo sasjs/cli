@@ -5998,6 +5998,74 @@ describe('service worker host', () => {
 describe('registered Viya browser jobs', () => {
   afterEach(() => {
     delete (global as any).__viyaMockJobs
+    delete (global as any).__sasjsShards
+    delete (global as any).__sasjsShardFetches
+  })
+
+  it('retries a transient mock config fetch when listing folders', async () => {
+    const worker = loadWorker()
+    const original = global.fetch as jest.Mock
+    let fail = false
+    original.mockImplementation(async (input: any) => {
+      if (String(input).includes('mock-config') && fail) {
+        fail = false
+        throw new Error('temporary network failure')
+      }
+      return originalFallback(input)
+    })
+    async function originalFallback(input: any) {
+      if (String(input).includes('mock-config'))
+        return jsonResponse({ appLoc, viyaMockJobs: [] })
+      if (String(input).includes('identity.json'))
+        return jsonResponse(DEFAULT_IDENTITY)
+      if (String(input).includes('vfs-seed')) return jsonResponse({ files: {} })
+      return jsonResponse({ appLoc })
+    }
+    const folder = await worker.dispatch('/folders/folders/@item?path=/')
+    const id = ((await folder.json()) as any).id
+    fail = true
+    expect(
+      (await worker.dispatch(`/folders/folders/${id}/members`)).status
+    ).toBe(500)
+    expect(
+      (await worker.dispatch(`/folders/folders/${id}/members`)).status
+    ).toBe(200)
+  })
+
+  it('discovers a registered twin in a non-boot shard', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const file = drivePath('services/public/getdata.js')
+    ;(global as any).__viyaMockJobs = [program]
+    ;(global as any).__sasjsShards = {
+      index: {
+        format: DRIVE_FORMAT,
+        sharded: true,
+        boot: 0,
+        entries: { [file]: { shard: 1, bytes: 20 } },
+        shards: [
+          { id: 0, file: 'host/vfs-snapshot-0.json' },
+          { id: 1, file: 'host/vfs-snapshot-1.json' }
+        ]
+      },
+      0: {},
+      1: { [file]: '_webout = "seeded";' }
+    }
+    const worker = loadWorker()
+    await worker.runtime.load({})
+    const definition = await worker.dispatch(
+      `/jobDefinitions/definitions/${encodeURIComponent(program)}`
+    )
+    expect(definition.status).toBe(200)
+    const folder = await worker.dispatch(
+      `/folders/folders/@item?path=${appLoc}/services/public`
+    )
+    const id = ((await folder.json()) as any).id
+    const members = await worker.dispatch(`/folders/folders/${id}/members`)
+    expect(
+      ((await members.json()) as any).items.some(
+        (item: any) => item.name === 'getdata'
+      )
+    ).toBe(true)
   })
 
   it('denies registered execution before the mock runs when the caller lacks its grant', async () => {
@@ -6077,6 +6145,280 @@ describe('registered Viya browser jobs', () => {
     expect(body.id).toBeDefined()
     const file = await worker.dispatch(`/files/files/${body.id}/content`)
     expect(await file.text()).toContain('Alder Basin')
+  })
+
+  it('executes registered jobs in an async caller frame and does not alias results after worker restart', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const create = async () => {
+      const worker = loadWorker()
+      await worker.runtime.load({
+        [drivePath('services/public/getdata.js')]:
+          'await Promise.resolve(); _webout = _SASJS_USERNAME;'
+      })
+      const response = await worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      expect(response.status).toBe(201)
+      const job = (await response.json()) as any
+      const output = await worker.dispatch(
+        `${job.results['_webout.json']}/content`
+      )
+      expect(await output.text()).toBe('sasjsadmin')
+      return { worker, job }
+    }
+    const first = await create()
+    const second = await create()
+    expect(second.job.id).not.toBe(first.job.id)
+    const stale = await second.worker.dispatch(
+      `${first.job.results['_webout.json']}/content`
+    )
+    expect(stale.status).not.toBe(200)
+  })
+
+  it('keeps raw adapter uploads transient across worker restarts', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    const upload = await worker.dispatch('/files/files', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'X:$char20.\r\nhello\r\n'
+    })
+    const file = (await upload.json()) as any
+    expect(upload.status).toBe(201)
+    expect(
+      (await worker.dispatch(`/files/files/${file.id}/content`)).status
+    ).toBe(200)
+    expect(
+      JSON.stringify(await worker.runtime.driveStore.list('/'))
+    ).not.toContain('sasjs-upload-')
+    const restarted = loadWorker()
+    await restarted.runtime.load({})
+    expect(
+      (await restarted.dispatch(`/files/files/${file.id}/content`)).status
+    ).not.toBe(200)
+  })
+
+  it('limits and expires transient adapter uploads without evicting live uploads', async () => {
+    ;(global as any).__viyaMockJobs = [`${appLoc}/services/public/getdata`]
+    const worker = loadWorker()
+    const upload = () =>
+      worker.dispatch('/files/files', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: 'X:$char20.\r\nhello\r\n'
+      })
+    const first = await upload()
+    expect(first.status).toBe(201)
+    const file = (await first.json()) as any
+    for (let i = 1; i < 100; i++) expect((await upload()).status).toBe(201)
+    const full = await upload()
+    expect(full.status).toBe(429)
+    expect(full.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    expect(
+      (await worker.dispatch(`/files/files/${file.id}/content`)).status
+    ).toBe(200)
+    const now = Date.now
+    jest.spyOn(Date, 'now').mockImplementation(() => now() + 11 * 60 * 1000)
+    try {
+      expect(
+        (await worker.dispatch(`/files/files/${file.id}/content`)).status
+      ).not.toBe(200)
+      expect((await upload()).status).toBe(201)
+    } finally {
+      jest.restoreAllMocks()
+    }
+  })
+
+  it('bounds total retained upload bytes as well as upload count', async () => {
+    ;(global as any).__viyaMockJobs = [`${appLoc}/services/public/getdata`]
+    const worker = loadWorker()
+    const upload = () =>
+      worker.dispatch('/files/files', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: 'x'.repeat(7 * 1024 * 1024)
+      })
+    expect((await upload()).status).toBe(201)
+    expect((await upload()).status).toBe(201)
+    expect((await upload()).status).toBe(429)
+  })
+
+  it('supplies transient CSV uploads to the registered job without consuming them', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        `_webout = fs.readFileSync(_WEBIN_FILEREF1, 'utf8');`
+    })
+    const raw = 'X:$char20.\r\nhello\r\n'
+    const upload = await worker.dispatch('/files/files', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: raw
+    })
+    const file = (await upload.json()) as any
+    const init = runRequest({
+      jobDefinition: { program },
+      arguments: {
+        _program: program,
+        _webin_file_count: 1,
+        _webin_fileuri1: `/files/files/${file.id}`,
+        _webin_name1: 'INPUT'
+      }
+    })
+    const posts = await Promise.all([
+      worker.dispatch('/jobExecution/jobs', init),
+      worker.dispatch('/jobExecution/jobs', init)
+    ])
+    for (const post of posts) {
+      expect(post.status).toBe(201)
+      const job = (await post.json()) as any
+      expect(
+        await (
+          await worker.dispatch(`${job.results['_webout.json']}/content`)
+        ).text()
+      ).toBe(raw)
+    }
+  })
+
+  it('bounds completed result retention without evicting an unexpired result', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    const run = () =>
+      worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+    const baselineFiles = worker.runtime.stats().files
+    const first = (await (await run()).json()) as any
+    for (let i = 1; i < 100; i++) expect((await run()).status).toBe(201)
+    expect(worker.runtime.stats().files).toBe(baselineFiles)
+    expect((await run()).status).toBe(429)
+    expect(
+      (await worker.dispatch(`${first.results['_webout.json']}/content`)).status
+    ).toBe(200)
+    const now = Date.now
+    jest.spyOn(Date, 'now').mockImplementation(() => now() + 11 * 60 * 1000)
+    try {
+      expect(
+        (await worker.dispatch(`${first.results['_webout.json']}/content`))
+          .status
+      ).not.toBe(200)
+      expect((await run()).status).toBe(201)
+    } finally {
+      jest.restoreAllMocks()
+    }
+  })
+
+  it('retains at most 20 MiB of completed result bodies', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        '_webout = "x".repeat(7 * 1024 * 1024);'
+    })
+    const run = () =>
+      worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+    expect((await run()).status).toBe(201)
+    expect((await run()).status).toBe(201)
+    expect((await run()).status).toBe(429)
+  })
+
+  it('isolates concurrent JES callers and inherits their identities for nested API requests', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker('/demo')
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+      await Promise.resolve();
+      const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/info/myAuthorizedRoutes');
+      _webout = JSON.stringify({ username: _SASJS_USERNAME, paths: (await response.json()).paths });`
+    })
+    const admin = worker.message({ type: 'sasjs-as', username: 'sasjsadmin' })
+    await admin.pending
+    const restricted = worker.message({
+      type: 'sasjs-as',
+      username: 'sasjsuser'
+    })
+    await restricted.pending
+    const run = async (token: string) => {
+      const init = runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+      const response = await worker.dispatch('/demo/jobExecution/jobs', {
+        ...init,
+        headers: { ...init.headers, authorization: `Bearer ${token}` }
+      })
+      expect(response.status).toBe(201)
+      const job = (await response.json()) as any
+      return (
+        await worker.dispatch(`/demo${job.results['_webout.json']}/content`, {
+          headers: { authorization: `Bearer ${token}` }
+        })
+      ).json() as Promise<any>
+    }
+    const [a, b] = await Promise.all([
+      run(admin.replies[0].accessToken),
+      run(restricted.replies[0].accessToken)
+    ])
+    expect(a.username).toBe('sasjsadmin')
+    expect(b.username).toBe('sasjsuser')
+    expect(a.paths).toContain('/SASjsApi/code/execute')
+    expect(b.paths).not.toContain('/SASjsApi/code/execute')
+  })
+
+  it('stamps execution failures and labels plain text webout correctly', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    const run = () =>
+      worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: 'throw new Error("bad job")'
+    })
+    const failed = await run()
+    expect(failed.status).toBe(500)
+    expect(failed.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "hello";'
+    })
+    const job = (await (await run()).json()) as any
+    const output = await worker.dispatch(
+      `${job.results['_webout.json']}/content`
+    )
+    expect(output.headers.get('content-type')).toMatch(/^text\/plain/)
+    expect(await output.text()).toBe('hello')
   })
 
   it('runs a registered job and exposes its output through JES links', async () => {
