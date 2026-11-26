@@ -1324,6 +1324,35 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const { files: seed, skipped } = seedFromBuild(buildFolder, appLoc, [
     outputFolder
   ])
+  // Opt-in only: a project lists extensionless JavaScript service twins in its
+  // sync folder. The manifest reaches the compile output as a root-level file.
+  // Validate before replacing a previously built site; never register SAS source.
+  const registration = path.join(buildFolder, 'viya-mock-jobs.json')
+  let viyaMockJobs: string[] = []
+  try {
+    viyaMockJobs = JSON.parse(fs.readFileSync(registration, 'utf8'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  if (
+    !Array.isArray(viyaMockJobs) ||
+    viyaMockJobs.some(
+      (name) =>
+        typeof name !== 'string' ||
+        !/^services\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(name) ||
+        !Object.prototype.hasOwnProperty.call(
+          seed,
+          `/sasjs/drive/files${appLoc}/${name}.js`
+        )
+    )
+  )
+    throw new Error(
+      'viya-mock-jobs.json must list existing extensionless services/*.js paths'
+    )
+  const registeredViyaJobs =
+    target.serverType === 'SASVIYA'
+      ? [...new Set(viyaMockJobs)].map((name) => `${appLoc}/${name}`)
+      : []
   const jsPrograms = countPrograms(seed, '.js')
   const sasPrograms = countPrograms(seed, '.sas')
   const driveEntries = Object.keys(seed).length
@@ -1642,6 +1671,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
     JSON.stringify(
       {
         appLoc,
+        viyaMockJobs: registeredViyaJobs,
         seedPath: 'host/vfs-seed.json',
         driveEntries,
         jsPrograms,

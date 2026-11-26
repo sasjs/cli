@@ -1776,6 +1776,118 @@ const isUploadPath = operationMatcher('POST /files/files')
  * carries the caller that started the run, so the emulation answers for the
  * same account throughout the recursion.
  */
+// The project explicitly registers JavaScript twins, not SAS or arbitrary code.
+// This is a small adapter-facing JES emulation, not a general Viya job service.
+// The package still owns unregistered routes and the legacy web-tier stub.
+const VIYA_MOCK_FOLDERS = new Map()
+let VIYA_MOCK_JOBS
+const viyaMockJobs = async () => {
+  if (!VIYA_MOCK_JOBS) {
+    VIYA_MOCK_JOBS = fetch(`${BASE}/host/mock-config.json`)
+      .then((response) => response.json())
+      .then((config) =>
+        Array.isArray(config.viyaMockJobs) ? config.viyaMockJobs : []
+      )
+  }
+  return VIYA_MOCK_JOBS
+}
+
+const VIYA_MOCK_RESULTS = new Map()
+let VIYA_MOCK_SEQUENCE = 0
+const viyaMockResponse = (body, status = 200, type = 'application/json') =>
+  new Response(type === 'application/json' ? JSON.stringify(body) : body, {
+    status,
+    headers: { 'content-type': type, ...API.emulatedHeaders() }
+  })
+
+const registeredJs = (program) => {
+  const resolved = R.resolveProgram(program + '.js')
+  return resolved === `/sasjs/drive/files${program}.js`
+}
+
+const viyaMockJobRequest = async (request, path, subject) => {
+  const jobs = await viyaMockJobs()
+  if (!jobs.length) return null
+  const definition = /^\/jobDefinitions\/definitions\/([^/]+)$/.exec(path)
+  if (definition && request.method === 'GET') {
+    const program = decodeURIComponent(definition[1])
+    if (!jobs.includes(program) || !registeredJs(program)) return null
+    return viyaMockResponse({
+      id: definition[1],
+      name: program.slice(program.lastIndexOf('/') + 1),
+      program
+    })
+  }
+  if (path === '/jobExecution/jobs' && request.method === 'POST') {
+    const body = await request.clone().json()
+    const program = body && body.arguments && body.arguments._program
+    if (
+      !jobs.includes(program) ||
+      !body.jobDefinition ||
+      body.jobDefinition.program !== program
+    )
+      return null
+    const grants = await RECORDS.myAuthorizedRoutes(subject)
+    if (!grants.paths.includes('/SASjsApi/stp/execute'))
+      throw new API.ApiError(401, 'Unauthorized')
+    const files = []
+    const count = Number(body.arguments._webin_file_count || 0)
+    if (!Number.isInteger(count) || count < 0 || count > 100)
+      throw badRequest('Invalid file count')
+    for (let i = 1; i <= count; i++) {
+      const uri = body.arguments[`_webin_fileuri${i}`]
+      if (!/^\/files\/files\/[^/]+$/.test(uri || ''))
+        throw badRequest('Invalid file URI')
+      const result = await API.dispatchViya(
+        VIYA_SERVICES,
+        'GET',
+        uri + '/content',
+        { subject }
+      )
+      if (result.status !== 200)
+        throw new API.ApiError(result.status, 'Uploaded file not found')
+      files.push({
+        name: body.arguments[`_webin_name${i}`],
+        contents: result.contents
+      })
+    }
+    await R.ensureAll()
+    if (!registeredJs(program))
+      throw new API.ApiError(404, 'Registered JavaScript mock not found')
+    const output = await R.run({
+      program: program + '.js',
+      params: body.arguments,
+      tables: tablesOf(files)
+    })
+    if (output.error) throw runFailure(output.error)
+    await persistChanges()
+    const id = String(++VIYA_MOCK_SEQUENCE)
+    const resultPath = `/jobExecution/jobs/${id}/results/webout`
+    const links = [{ rel: 'state', href: `/jobExecution/jobs/${id}/state` }]
+    const job = { id, links, results: { '_webout.json': resultPath } }
+    VIYA_MOCK_RESULTS.set(id, { job, output, owner: subject && subject.userId })
+    return viyaMockResponse(job, 201)
+  }
+  const result =
+    /^\/jobExecution\/jobs\/(\d+)(?:\/(state|results\/webout\/content))?$/.exec(
+      path
+    )
+  if (result && request.method === 'GET') {
+    const saved = VIYA_MOCK_RESULTS.get(result[1])
+    if (!saved || saved.owner !== (subject && subject.userId)) return null
+    if (result[2] === 'state')
+      return viyaMockResponse('completed', 200, 'text/plain')
+    if (result[2])
+      return viyaMockResponse(
+        saved.output.webout || '',
+        200,
+        'application/json; charset=utf-8'
+      )
+    return viyaMockResponse(saved.job)
+  }
+  return null
+}
+
 const viyaRequest = async (request, url, path, inherited) => {
   const query = Object.create(null)
   for (const [key, value] of url.searchParams.entries()) query[key] = value
@@ -1786,12 +1898,38 @@ const viyaRequest = async (request, url, path, inherited) => {
     subject: await subjectOf(request, query, undefined, inherited)
   }
 
+  if (/^\/(jobDefinitions|jobExecution)\//.test(path)) {
+    try {
+      const mock = await viyaMockJobRequest(request, path, apiRequest.subject)
+      if (mock) return mock
+    } catch (error) {
+      if (error instanceof API.ApiError)
+        return viyaMockResponse({ message: error.message }, error.status)
+      throw error
+    }
+  }
+
   if (request.method === 'POST' && isUploadPath(path)) {
     // the multipart part, read by the host's own reader: the emulator takes the
     // name the client sent and the bytes, not a file this worker staged
-    const payload = await readPayload(request)
+    const payload = await readPayload(request.clone())
     apiRequest.body = payload.body
-    const file = singleFile(payload)
+    let file = singleFile(payload)
+    if (
+      !file &&
+      (await viyaMockJobs()).length &&
+      (request.headers.get('content-type') || '').includes('application/json')
+    ) {
+      const raw = await request.text()
+      if (raw && !raw.trimStart().startsWith('{')) {
+        if (bytesOf(raw) > R.MAX_UPLOAD_BYTES)
+          throw payloadTooLarge(R.MAX_UPLOAD_BYTES)
+        file = {
+          name: `sasjs-upload-${crypto.randomUUID()}.csv`,
+          contents: raw
+        }
+      }
+    }
     if (file) apiRequest.file = file
   } else if (request.method !== 'GET' && request.method !== 'HEAD') {
     if (isContentPath(path))
@@ -1805,6 +1943,34 @@ const viyaRequest = async (request, url, path, inherited) => {
     path,
     apiRequest
   )
+
+  if (
+    request.method === 'GET' &&
+    path === '/folders/folders/@item' &&
+    answer.status === 200 &&
+    query.path
+  )
+    VIYA_MOCK_FOLDERS.set(answer.body.id, query.path.replace(/\/+$/, ''))
+  const members = /^\/folders\/folders\/([^/]+)\/members$/.exec(path)
+  if (request.method === 'GET' && members && answer.status === 200) {
+    const folder = VIYA_MOCK_FOLDERS.get(members[1])
+    const jobs = await viyaMockJobs()
+    if (folder && jobs.length) {
+      for (const program of jobs) {
+        if (program.slice(0, program.lastIndexOf('/')) !== folder) continue
+        const name = program.slice(program.lastIndexOf('/') + 1)
+        if (!registeredJs(program)) continue
+        const id = encodeURIComponent(program)
+        answer.body.items.push({
+          name,
+          links: [
+            { rel: 'getResource', href: `/jobDefinitions/definitions/${id}` }
+          ]
+        })
+      }
+      answer.body.count = answer.body.items.length
+    }
+  }
 
   // a folder or file the estate created is a change to this host's drive - but
   // only an answer that succeeded can have changed one: the emulator's refusals

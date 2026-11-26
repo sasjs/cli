@@ -95,6 +95,30 @@ The site is not a deployment artefact:
 - it is never published as the server app;
 - `sasjs deploy` does not deploy it.
 
+### Viya adapter jobs in a browser mock
+
+A Viya `mockWeb` build can expose selected project-owned JavaScript service twins
+through the adapter's JES path (`useComputeApi: false`). Put a JSON array of
+extensionless service paths in `<syncFolder>/viya-mock-jobs.json`, for example:
+
+```json
+["services/common/appinit", "services/common/getdata"]
+```
+
+Each entry must have a corresponding compiled `services/.../*.js` in the drive
+seed. Missing, malformed, or unsafe paths fail the build before replacing the
+previous site. Entries are registered only for a `SASVIYA` target; without this
+manifest the existing emulator behaviour is unchanged. The project supplies the
+JavaScript implementations and any fixture data. The worker never executes SAS.
+
+This is not a general JES implementation: it covers registered services, adapter
+CSV table uploads, completion polling and webout only. Results are in worker
+memory and can disappear if the worker is terminated; debug logs and arbitrary
+jobs are not supported. Uploaded CSV files are persisted on the mock drive.
+The registered JavaScript runs with the existing mock runtime's drive access, so
+only register code the project trusts. Responses identify the emulation with
+`x-sasjs-emulated`.
+
 A `mockWebFolder` inside the build folder is allowed, but the build refuses one that
 overlaps what it wrote - `services`, `jobs`, `tests`, `db`, `docs`, the streamed
 assets folder or `publish` - because the mock build deletes its output folder
