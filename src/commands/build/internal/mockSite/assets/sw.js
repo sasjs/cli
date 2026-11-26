@@ -602,6 +602,50 @@ let unsentFiles = null
 // A later snapshot must never overtake an earlier broadcast. Keep failures on
 // their own caller while allowing the next queued report to retry the batch.
 let persistQueue = Promise.resolve()
+let resetSequence = 0
+const resetWaiters = new Map()
+// A reset is a barrier in the same ordering as reports. Every live page must
+// discard its old retry batch before any post-reset report can be sent.
+const resetPersistence = () => {
+  const reset = persistQueue.then(async () => {
+    const clients = (await self.clients.matchAll({ type: 'window' })).filter(
+      inWorkerScope
+    )
+    const id = ++resetSequence
+    await Promise.all(
+      clients.map(
+        (client) =>
+          new Promise((resolve, reject) => {
+            const key = id + ':' + client.id
+            const timer = setTimeout(() => {
+              resetWaiters.delete(key)
+              reject(new Error('timed out clearing page persistence'))
+            }, 10000)
+            resetWaiters.set(key, (error) => {
+              clearTimeout(timer)
+              resetWaiters.delete(key)
+              if (error) reject(new Error(error))
+              else resolve()
+            })
+            try {
+              client.postMessage({ type: 'sasjs-reset-persist', id })
+            } catch (e) {
+              clearTimeout(timer)
+              resetWaiters.delete(key)
+              reject(e)
+            }
+          })
+      )
+    )
+    unsentFiles = null
+    CALLER_USERNAME = undefined
+    seedIdentity(IDENTITY_STATE.shipped)
+    await R.reset()
+    await reportChanges()
+  })
+  persistQueue = reset.catch(() => {})
+  return reset
+}
 const persistChanges = () => {
   const report = persistQueue.then(reportChanges)
   persistQueue = report.catch(() => {})
@@ -3590,6 +3634,13 @@ self.addEventListener('message', (event) => {
   const reply = (message) => event.source && event.source.postMessage(message)
 
   switch (data.type) {
+    case 'sasjs-reset-persist-ack': {
+      const waiter = resetWaiters.get(
+        data.id + ':' + (event.source && event.source.id)
+      )
+      if (waiter) waiter(data.error)
+      break
+    }
     case 'sasjs-load':
       event.waitUntil(
         bootIdentity(data)
@@ -3690,15 +3741,8 @@ self.addEventListener('message', (event) => {
     case 'sasjs-reset':
       event.waitUntil(
         ensureIdentity()
-          .then(() => {
-            // the shipped fixture and the fixture's own administrator: a reset
-            // is the state a first visit gets, which includes who is asking
-            CALLER_USERNAME = undefined
-            seedIdentity(IDENTITY_STATE.shipped)
-            return R.reset()
-          })
+          .then(() => resetPersistence())
           .then(async () => {
-            await persistChanges()
             reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
           })
           .catch((e) =>

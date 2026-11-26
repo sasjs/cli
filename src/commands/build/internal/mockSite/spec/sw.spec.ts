@@ -258,11 +258,11 @@ const loadWorker = (
     return event.response as Promise<Response>
   }
 
-  const message = (data: any) => {
+  const message = (data: any, sourceId?: string) => {
     const replies: any[] = []
     const event: any = {
       data,
-      source: { postMessage: (m: any) => replies.push(m) },
+      source: { id: sourceId, postMessage: (m: any) => replies.push(m) },
       waitUntil: (promise: any) => {
         event.pending = promise
       }
@@ -3686,6 +3686,27 @@ describe('service worker host', () => {
     })
 
     expect(await response.text()).toBe('seeded')
+  })
+
+  it('waits for every page to clear its pending reports before broadcasting reset state', async () => {
+    const { message } = seeded()
+    const pages: any[] = []
+    ;(global as any).__mockHostClients = ['a', 'b'].map((id) => ({
+      id,
+      postMessage: (data: any) => pages.push({ id, data })
+    }))
+    const reset = message({ type: 'sasjs-reset' })
+    for (let i = 0; i < 100 && pages.length < 2; i++)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    const barriers = pages.filter((p) => p.data.type === 'sasjs-reset-persist')
+    expect(barriers).toHaveLength(2)
+    expect(pages.some((p) => p.data.type === 'sasjs-persist')).toBe(false)
+    for (const page of barriers) {
+      message({ type: 'sasjs-reset-persist-ack', id: page.data.id }, page.id)
+    }
+    await reset.pending
+    expect(reset.replies[0].error).toBeUndefined()
+    expect(pages.some((p) => p.data.type === 'sasjs-persist')).toBe(true)
   })
 
   it('acknowledges a load, a seed, a reset and a snapshot from the page', async () => {

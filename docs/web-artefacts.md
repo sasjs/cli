@@ -79,7 +79,11 @@ name is reserved: it is never included in a deployment tree.
 
 `build` writes the mock site to `sasjsresults/mock` (or `streamConfig.mockWebFolder`
 when set). It is a folder of static files that runs the project's services in a
-service worker and keeps its drive in IndexedDB:
+service worker and keeps its drive in IndexedDB. Changes that IndexedDB rejects
+are retained in page memory and retried; closing all pages before a successful
+retry can lose them. Reset coordinates live pages and fails if a page cannot
+clear its stored state; a suspended or nonresponsive page can cause a timeout.
+Concurrent tabs do not provide transactional isolation for independent writes.
 
 ```
 npx http-server sasjsresults/mock     # or any static server
