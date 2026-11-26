@@ -175,13 +175,17 @@ async function main() {
   const web = path.join(root, 'web')
   const build = path.join(root, 'sasjsbuild')
   await fsp.mkdir(web)
+  await fsp.copyFile(
+    require.resolve('@sasjs/adapter/dist/sasjs-adapter.js'),
+    path.join(web, 'adapter.js')
+  )
   await fsp.mkdir(build)
   await fsp.cp(path.join(__dirname, 'fixtures', 'viya-corpus'), build, {
     recursive: true
   })
   await fsp.writeFile(
     path.join(web, 'index.html'),
-    '<!doctype html><html><head><title>Viya corpus replay</title><sasjs></sasjs><script>window.corpusFixture = true</script></head><body></body></html>'
+    '<!doctype html><html><head><title>Viya corpus replay</title><sasjs></sasjs><script src="adapter.js"></script><script>window.corpusFixture = true</script></head><body></body></html>'
   )
   process.projectDir = root
   process.sasjsConstants = { buildDestinationFolder: build }
@@ -354,6 +358,46 @@ async function main() {
       await sleep(50)
     }
     assert.equal(controlled.controlled, true)
+    // Exercise the unchanged, installed adapter in the controlled page, not a
+    // hand-written approximation of its JES protocol.
+    const beforeAdapter = events.length
+    const adapterResult = await ev(`(async()=>{
+      const s = new SASjs.default({serverType:'SASVIYA', serverUrl:location.origin,
+        appLoc:'/Public/app/corpus', useComputeApi:false, runAsTask:true,
+        contextName:'Compute Reusable', debug:true});
+      const call = (debug) => Promise.race([
+        s.request('services/case', null, {debug}, undefined, undefined, ['log']),
+        new Promise((_,reject)=>setTimeout(()=>reject(Error('adapter timed out')), 20000))
+      ]);
+      return {debug:await call(true), normal:await call(false)};
+    })()`)
+    assert.deepEqual(adapterResult.debug.result, { answer: 42 })
+    assert.equal(
+      adapterResult.debug.log,
+      '[sasjs mock: JavaScript console output, not a SAS log]\nfixture job log'
+    )
+    assert.deepEqual(adapterResult.normal.result, { answer: 42 })
+    assert.equal(adapterResult.normal.log, undefined)
+    const adapterEvents = events.slice(beforeAdapter)
+    const logs = adapterEvents.filter((event) =>
+      /\/jobExecution\/jobs\/[^/]+\/log\/content/.test(
+        new URL(event.url).pathname
+      )
+    )
+    assert.equal(logs.length, 1, 'only debug requests fetch the log')
+    assert.equal(logs[0].status, 200)
+    assert.equal(logs[0].fromServiceWorker, true)
+    assert.match(
+      String(
+        Object.entries(logs[0].headers).find(
+          ([name]) => name.toLowerCase() === 'x-sasjs-emulated'
+        )?.[1]
+      ),
+      /^viya@/
+    )
+    console.log(
+      'PASS unchanged adapter JES debug and non-debug; log served by emulated worker'
+    )
     const fetchInPage = async (method, url, body, type) => {
       const r = await ev(
         `(async()=>{const r=await fetch(${JSON.stringify(url)},{method:${JSON.stringify(method)},headers:${JSON.stringify(type ? { 'content-type': type } : {})},${body === undefined ? '' : `body:${JSON.stringify(body)},`}cache:'no-store'});return {status:r.status,emulated:r.headers.get('x-sasjs-emulated'),text:await r.text()}})()`

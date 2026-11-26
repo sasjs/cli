@@ -6243,13 +6243,144 @@ describe('registered Viya browser jobs', () => {
     delete (global as any).__sasjsShardFetches
   })
 
+  it('exposes emitted JavaScript console output through a stamped JES log link', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker('/demo')
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        'console.log("fixture job log"); _webout = "ok";'
+    })
+    const post = await worker.dispatch(
+      '/demo/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(post.status).toBe(201)
+    const job = (await post.json()) as any
+    const link = job.links.find((item: any) => item.rel === 'log')
+    expect(link).toBeDefined()
+    const log = await worker.dispatch(`/demo${link.href}/content`)
+    expect(log.status).toBe(200)
+    expect(log.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    expect((await log.json()) as any).toEqual({
+      items: [
+        { line: '[sasjs mock: JavaScript console output, not a SAS log]' },
+        { line: 'fixture job log' }
+      ]
+    })
+  })
+
+  it('keeps JES logs transient, owner-isolated and bounded by result retention', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const files = {
+      [drivePath('services/public/getdata.js')]:
+        'console.log("private message"); _webout = "ok";'
+    }
+    const worker = loadWorker()
+    await worker.runtime.load(files)
+    const admin = worker.message({ type: 'sasjs-as', username: 'sasjsadmin' })
+    const other = worker.message({ type: 'sasjs-as', username: 'sasjsuser' })
+    await admin.pending
+    await other.pending
+    const authorization = (token: string) => ({
+      authorization: `Bearer ${token}`
+    })
+    const owner = authorization(admin.replies[0].accessToken)
+    const stranger = authorization(other.replies[0].accessToken)
+    const init = runRequest({
+      jobDefinition: { program },
+      arguments: { _program: program }
+    })
+    const response = await worker.dispatch('/jobExecution/jobs', {
+      ...init,
+      headers: { ...init.headers, ...owner }
+    })
+    expect(response.status).toBe(201)
+    const job = (await response.json()) as any
+    const href =
+      job.links.find((item: any) => item.rel === 'log').href + '/content'
+    expect((await worker.dispatch(href, { headers: owner })).status).toBe(200)
+    expect(
+      (await worker.dispatch(href, { headers: stranger })).status
+    ).not.toBe(200)
+    const restarted = loadWorker()
+    await restarted.runtime.load(files)
+    expect((await restarted.dispatch(href)).status).not.toBe(200)
+    const now = Date.now
+    jest.spyOn(Date, 'now').mockImplementation(() => now() + 11 * 60 * 1000)
+    try {
+      expect((await worker.dispatch(href, { headers: owner })).status).not.toBe(
+        200
+      )
+    } finally {
+      jest.restoreAllMocks()
+    }
+  })
+
+  it('does not invent a log for a silent job or retain one on failure', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    const run = () =>
+      worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    const job = (await (await run()).json()) as any
+    expect(job.links.find((item: any) => item.rel === 'log')).toBeUndefined()
+    expect(
+      (await worker.dispatch(`/jobExecution/jobs/${job.id}/log/content`)).status
+    ).not.toBe(200)
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        'console.log("before failure"); throw new Error("bad job")'
+    })
+    const failed = await run()
+    expect(failed.status).toBe(500)
+    expect(failed.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    expect(await failed.text()).toContain('bad job')
+  })
+
+  it('counts captured log bytes against the result limit', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    // Stub only the runtime result to avoid emitting a huge string to Jest's console.
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    worker.runtime.run = async () => ({
+      webout: 'ok',
+      log: 'x'.repeat(21 * 1024 * 1024)
+    })
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(429)
+    expect(response.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+  })
+
   it('returns binary registered job output as bytes with its declared MIME type', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [program]
     const worker = loadWorker()
     await worker.runtime.load({
       [drivePath('services/public/getdata.js')]:
-        "fs.writeFileSync(weboutPath, Buffer.from([0, 255, 128, 42])); fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-Type: image/png\\n')"
+        "console.log('binary log'); fs.writeFileSync(weboutPath, Buffer.from([0, 255, 128, 42])); fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-Type: image/png\\n')"
     })
     const response = await worker.dispatch(
       '/jobExecution/jobs',
@@ -6260,6 +6391,15 @@ describe('registered Viya browser jobs', () => {
     )
     expect(response.status).toBe(201)
     const job = (await response.json()) as any
+    const log = await worker.dispatch(
+      job.links.find((item: any) => item.rel === 'log').href + '/content'
+    )
+    expect(
+      ((await log.json()) as any).items.map((item: any) => item.line)
+    ).toEqual([
+      '[sasjs mock: JavaScript console output, not a SAS log]',
+      'binary log'
+    ])
     const output = await worker.dispatch(
       `${job.results['_webout.json']}/content`
     )
