@@ -5996,6 +5996,236 @@ describe('service worker host', () => {
 })
 
 describe('registered Viya browser jobs', () => {
+  it('refuses a nested upload from a Viya job resumed after reset', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        await fetch('https://outside.example/hold');
+        const response = await fetch(_SASJS_APISERVERURL + '/files/files', {
+          method: 'POST', headers: {'content-type': 'application/json'},
+          body: 'X:$char20.\\r\\nsecret\\r\\n'
+        });
+        globalThis.__nestedUpload = { status: response.status, body: await response.json() };
+        _webout = 'old secret';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    try {
+      const pending = worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      resume()
+      expect((await pending).status).toBe(409)
+      const nested = (global as any).__nestedUpload
+      expect(nested.status).toBe(409)
+      if (nested.body.id)
+        expect(
+          (await worker.dispatch(`/files/files/${nested.body.id}/content`))
+            .status
+        ).not.toBe(200)
+    } finally {
+      resume()
+      global.fetch = originalFetch
+      delete (global as any).__nestedUpload
+    }
+  })
+
+  it('rejects nested writes from a child service that was already running at reset', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    const child = `${appLoc}/services/public/child`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker('/demo')
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const r = await fetch(_SASJS_APISERVERURL + '/SASjsApi/stp/execute?_program=' + encodeURIComponent('${child}'));
+        globalThis.__childStatus = r.status;
+        _webout = await r.text();`,
+      [drivePath('services/public/child.js')]: `
+        await fetch('https://outside.example/hold-child');
+        const upload = await fetch(_SASJS_APISERVERURL + '/files/files', {
+          method:'POST', headers:{'content-type':'application/json'}, body:'X:$char20.\\r\\nchild\\r\\n'
+        });
+        const folder = await fetch(_SASJS_APISERVERURL + '/SASjsApi/drive/folder', {
+          method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({folderPath:'/stale-child'})
+        });
+        globalThis.__childWrites = {upload:upload.status, folder:folder.status};
+        _webout = 'child';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold-child') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    try {
+      const pending = worker.dispatch(
+        '/demo/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      resume()
+      expect((await pending).status).toBe(409)
+      expect((global as any).__childWrites).toEqual({
+        upload: 409,
+        folder: 409
+      })
+      const root = await worker.dispatch(
+        '/demo/SASjsApi/drive/folder?_folderPath=%2F'
+      )
+      expect((await root.json()).folders).not.toContain('stale-child')
+    } finally {
+      resume()
+      global.fetch = originalFetch
+      delete (global as any).__childStatus
+      delete (global as any).__childWrites
+    }
+  })
+
+  it('refuses an already-started nested SASjs write whose body arrives after reset', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const stream = new ReadableStream({async pull(controller) {
+          await fetch('https://outside.example/hold-body');
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({folderPath:'/stale-body'})));
+          controller.close();
+        }});
+        const response = await fetch(_SASJS_APISERVERURL + '/SASjsApi/drive/folder', {
+          method:'POST', headers:{'content-type':'application/json'}, body:stream, duplex:'half'
+        });
+        globalThis.__bodyWriteStatus = response.status;
+        _webout = 'done';`
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const originalFetch = global.fetch
+    ;(global as any).fetch = async (url: any, ...args: any[]) => {
+      if (String(url) === 'https://outside.example/hold-body') {
+        started()
+        await gate
+        return new Response('ok')
+      }
+      return (originalFetch as any)(url, ...args)
+    }
+    try {
+      const pending = worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+      await ready
+      const reset = worker.message({ type: 'sasjs-reset' })
+      await reset.pending
+      expect(reset.replies[0].error).toBeUndefined()
+      resume()
+      expect((await pending).status).toBe(409)
+      expect((global as any).__bodyWriteStatus).toBe(409)
+      const root = await worker.dispatch(
+        '/SASjsApi/drive/folder?_folderPath=%2F'
+      )
+      expect((await root.json()).folders).not.toContain('stale-body')
+    } finally {
+      resume()
+      global.fetch = originalFetch
+      delete (global as any).__bodyWriteStatus
+    }
+  })
+
+  it('allows nested writes in a fresh Viya job and an ordinary SASjs run after reset', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker('/demo')
+    await worker.runtime.load({})
+    const reset = worker.message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0].error).toBeUndefined()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: `
+        const upload = await fetch(_SASJS_APISERVERURL + '/files/files', {
+          method:'POST', headers:{'content-type':'application/json'}, body:'X:$char20.\\r\\nfresh\\r\\n'
+        });
+        const folder = await fetch(_SASJS_APISERVERURL + '/SASjsApi/drive/folder', {
+          method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({folderPath:'/fresh-' + _program.split('/').pop()})
+        });
+        _webout = JSON.stringify({upload:upload.status, folder:folder.status, file:await upload.json()});`,
+      [drivePath('services/public/ordinary.js')]: `
+        const folder = await fetch(_SASJS_APISERVERURL + '/SASjsApi/drive/folder', {
+          method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({folderPath:'/ordinary'})
+        });
+        _webout = JSON.stringify({status:folder.status});`
+    })
+    const response = await worker.dispatch(
+      '/demo/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(201)
+    const job = (await response.json()) as any
+    const result = (await (
+      await worker.dispatch(`/demo${job.results['_webout.json']}/content`)
+    ).json()) as any
+    expect(result.upload).toBe(201)
+    expect(result.folder).toBe(200)
+    expect(
+      await (
+        await worker.dispatch(`/demo/files/files/${result.file.id}/content`)
+      ).text()
+    ).toContain('fresh')
+    const ordinary = await worker.dispatch(
+      '/demo/SASjsApi/stp/execute?_program=' +
+        encodeURIComponent(`${appLoc}/services/public/ordinary`)
+    )
+    expect((await ordinary.json()).status).toBe(200)
+    const root = await worker.dispatch(
+      '/demo/SASjsApi/drive/folder?_folderPath=%2F'
+    )
+    expect((await root.json()).folders).toEqual(
+      expect.arrayContaining(['fresh-getdata', 'ordinary'])
+    )
+  })
+
   it('keeps uploads and results when reset fails', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [program]
