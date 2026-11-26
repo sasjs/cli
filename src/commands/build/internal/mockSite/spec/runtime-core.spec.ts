@@ -66,6 +66,42 @@ const seedDrive = async (
 }
 
 describe('browser runtime', () => {
+  it('preserves restored session files when transient runs overlap', async () => {
+    const runtime = loadRuntime()
+    const old = '/sasjs/sessions/s1/important.txt'
+    await runtime.load({ [old]: 'keep' })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const first = runtime.run({
+      code: "fs.writeFileSync(weboutPath, 'first'); await fetch('hold')",
+      transientSession: true,
+      execution: {
+        fetch: () => {
+          started()
+          return gate
+        },
+        user: {}
+      }
+    })
+    await ready
+    const second = await runtime.run({
+      code: "fs.writeFileSync(weboutPath, 'second')",
+      transientSession: true,
+      execution: { user: {} }
+    })
+    expect(second.webout).toBe('second')
+    resume()
+    expect((await first).webout).toBe('first')
+    expect(runtime.dumpAll()[old]).toBe('keep')
+    expect(runtime.takeDirty()[old]).toBeUndefined()
+    expect(
+      Object.keys(runtime.dumpAll()).filter((p) =>
+        p.startsWith('/sasjs/sessions/')
+      )
+    ).toEqual([old])
+  })
   it('never reports an in-flight transient session while another run persists', async () => {
     const runtime = loadRuntime()
     await runtime.load({})

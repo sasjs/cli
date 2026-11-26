@@ -5996,6 +5996,155 @@ describe('service worker host', () => {
 })
 
 describe('registered Viya browser jobs', () => {
+  it('keeps uploads and results when reset fails', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout="retained"'
+    })
+    const upload = await worker.dispatch('/files/files', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'X:$char20.\r\nsecret\r\n'
+    })
+    const file = (await upload.json()) as any
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(201)
+    const job = (await response.json()) as any
+    worker.runtime.reset = async () => {
+      throw new Error('fixture unavailable')
+    }
+    const reset = worker.message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0].error).toContain('fixture unavailable')
+    expect(
+      await (await worker.dispatch(`/files/files/${file.id}/content`)).text()
+    ).toContain('secret')
+    expect(
+      await (
+        await worker.dispatch(`${job.results['_webout.json']}/content`)
+      ).text()
+    ).toBe('retained')
+  })
+  it('refuses an upload whose body arrives after reset', async () => {
+    ;(global as any).__viyaMockJobs = [`${appLoc}/services/public/getdata`]
+    const worker = loadWorker()
+    await worker.runtime.load({})
+    await worker.dispatch('/folders/folders/@item?path=/')
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    const stream = new ReadableStream({
+      async pull(controller) {
+        started()
+        await gate
+        controller.enqueue(new TextEncoder().encode('X:$char20.\r\nsecret\r\n'))
+        controller.close()
+      }
+    })
+    const pending = worker.dispatch('/files/files', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: stream,
+      duplex: 'half'
+    })
+    await ready
+
+    const reset = worker.message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0].error).toBeUndefined()
+    resume()
+    expect((await pending).status).toBe(409)
+  })
+  it('does not retain a job result completed after reset', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout="ok"'
+    })
+    let resume!: () => void
+    let started!: () => void
+    const ready = new Promise<void>((resolve) => (started = resolve))
+    const gate = new Promise<void>((resolve) => (resume = resolve))
+    worker.runtime.run = async () => {
+      started()
+      await gate
+      return { webout: 'old secret', log: '' }
+    }
+    const pending = worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    await ready
+    const reset = worker.message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0].error).toBeUndefined()
+    resume()
+    const response = await pending
+    expect(response.status).toBe(409)
+  })
+  it('clears transient uploads and results on a successful reset and accepts new ones', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        'console.log("secret log"); _webout="secret result"'
+    })
+    const upload = async () =>
+      worker.dispatch('/files/files', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: 'X:$char20.\r\nsecret upload\r\n'
+      })
+    const run = async () =>
+      worker.dispatch(
+        '/jobExecution/jobs',
+        runRequest({
+          jobDefinition: { program },
+          arguments: { _program: program }
+        })
+      )
+    const file = (await (await upload()).json()) as any
+    const job = (await (await run()).json()) as any
+    const paths = [
+      `/files/files/${file.id}/content`,
+      `${job.results['_webout.json']}/content`,
+      job.links.find((item: any) => item.rel === 'log').href + '/content',
+      `/jobExecution/jobs/${job.id}`
+    ]
+    for (const path of paths)
+      expect((await worker.dispatch(path)).status).toBe(200)
+    const reset = worker.message({ type: 'sasjs-reset' })
+    await reset.pending
+    expect(reset.replies[0].error).toBeUndefined()
+    for (const path of paths)
+      expect((await worker.dispatch(path)).status).not.toBe(200)
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout="new"'
+    })
+    expect((await upload()).status).toBe(201)
+    const fresh = await run()
+    expect(fresh.status).toBe(201)
+    const freshJob = (await fresh.json()) as any
+    expect(
+      await (
+        await worker.dispatch(`${freshJob.results['_webout.json']}/content`)
+      ).text()
+    ).toBe('new')
+  })
   it('lets the real adapter resolve both a physical file and a same-named registered job', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [program]

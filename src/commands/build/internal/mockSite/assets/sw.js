@@ -1786,6 +1786,8 @@ const viyaMockJobs = async () => {
 
 const VIYA_MOCK_RESULTS = new Map()
 const VIYA_MOCK_UPLOADS = new Map()
+// A successful reset invalidates work that began before it, even if it finishes later.
+let viyaMockGeneration = 0
 const VIYA_MOCK_TTL = 10 * 60 * 1000
 const VIYA_MOCK_LIMIT = 100
 const VIYA_MOCK_BYTES = 20 * 1024 * 1024
@@ -1853,7 +1855,14 @@ const executionFrame = (subject, token, inherited) => {
   }
 }
 
-const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
+const viyaMockJobRequest = async (
+  request,
+  path,
+  subject,
+  token,
+  inherited,
+  generation
+) => {
   const jobs = await viyaMockJobs()
   if (!jobs.length) return null
   pruneViyaMock()
@@ -1942,6 +1951,8 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
         ? `[sasjs mock: JavaScript console output, not a SAS log]\n${output.log}`
         : ''
       const resultBytes = outputBytes + bytesOf(log)
+      if (generation !== viyaMockGeneration)
+        throw new API.ApiError(409, 'Mock reset during job')
       if (resultBytes + viyaMockBytes(VIYA_MOCK_RESULTS) > VIYA_MOCK_BYTES)
         throw new API.ApiError(429, 'Mock result byte capacity reached')
       const id = crypto.randomUUID()
@@ -2013,7 +2024,7 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
  * carries the caller that started the run, so the emulation answers for the
  * same account throughout the recursion.
  */
-const viyaRequest = async (request, url, path, inherited) => {
+const viyaRequest = async (request, url, path, inherited, generation) => {
   const query = Object.create(null)
   for (const [key, value] of url.searchParams.entries()) query[key] = value
 
@@ -2030,7 +2041,8 @@ const viyaRequest = async (request, url, path, inherited) => {
         path,
         apiRequest.subject,
         apiRequest.token,
-        inherited
+        inherited,
+        generation
       )
       if (mock) return mock
     } catch (error) {
@@ -2074,6 +2086,8 @@ const viyaRequest = async (request, url, path, inherited) => {
         )
           throw new API.ApiError(429, 'Mock upload capacity reached')
         const id = crypto.randomUUID()
+        if (generation !== viyaMockGeneration)
+          return viyaMockResponse({ message: 'Mock reset during upload' }, 409)
         VIYA_MOCK_UPLOADS.set(id, {
           contents: raw,
           bytes,
@@ -3123,7 +3137,8 @@ const routeRequest = async (
   url,
   attempts = 0,
   source = null,
-  inherited = null
+  inherited = null,
+  generation = viyaMockGeneration
 ) => {
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
   const replay = hasBody ? source || request.clone() : null
@@ -3224,7 +3239,7 @@ const routeRequest = async (
       if (signedIn === OAUTH_AUTHORIZE) return await oauthAuthorize(url)
       if (signedIn === OAUTH_TOKEN) return await oauthToken(request)
 
-      return await viyaRequest(request, url, apiPath, inherited)
+      return await viyaRequest(request, url, apiPath, inherited, generation)
     }
 
     // The app stream is the server's own web surface rather than part of the
@@ -3465,7 +3480,14 @@ const routeRequest = async (
       else await R.ensureAll()
       // a fresh copy per attempt: the one this attempt read is spent
       const next = replay ? replay.clone() : request
-      return await routeRequest(next, url, attempts + 1, replay, inherited)
+      return await routeRequest(
+        next,
+        url,
+        attempts + 1,
+        replay,
+        inherited,
+        generation
+      )
     }
 
     const message = (e && e.stack) || String(e)
@@ -3691,6 +3713,9 @@ self.addEventListener('message', (event) => {
           })
           .then(async () => {
             await persistChanges()
+            viyaMockGeneration++
+            VIYA_MOCK_UPLOADS.clear()
+            VIYA_MOCK_RESULTS.clear()
             reply({ type: 'sasjs-reset-ack', boot: R.bootInfo() })
           })
           .catch((e) =>
