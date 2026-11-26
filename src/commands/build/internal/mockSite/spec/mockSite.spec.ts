@@ -489,6 +489,52 @@ describe('browser-hosted build', () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
+  it('rejects unsafe or missing mock registrations without replacing a site', async () => {
+    const file = path.join(root, 'sasjsbuild', 'viya-mock-jobs.json')
+    await buildMockSite({ ...target(), serverType: 'SASVIYA' })
+    write(path.join(out(), 'keep.txt'), 'keep')
+    for (const value of [
+      ['services/../admin/makedata'],
+      ['services/public/missing'],
+      ['services/public/getdata.js'],
+      {}
+    ]) {
+      write(file, JSON.stringify(value))
+      await expect(
+        buildMockSite({ ...target(), serverType: 'SASVIYA' })
+      ).rejects.toThrow(/viya-mock-jobs/)
+      expect(fs.readFileSync(path.join(out(), 'keep.txt'), 'utf8')).toBe('keep')
+    }
+  })
+
+  it('does not reset the persisted drive when only Viya job registrations change', async () => {
+    const viya = { ...target(), serverType: 'SASVIYA' as const }
+    await buildMockSite(viya)
+    const stamp = readConfig().buildStamp
+    write(
+      path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'),
+      JSON.stringify(['services/public/getdata'])
+    )
+    await buildMockSite(viya)
+    expect(readConfig().buildStamp).toBe(stamp)
+    expect(readConfig().viyaMockJobs).toEqual([
+      `${appLoc}/services/public/getdata`
+    ])
+  })
+
+  it('registers explicitly listed project Viya mock jobs from the build', async () => {
+    write(
+      path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'),
+      JSON.stringify(['services/public/getdata'])
+    )
+    await buildMockSite({ ...target(), serverType: 'SASVIYA' })
+    expect(readConfig().viyaMockJobs).toEqual([
+      `${appLoc}/services/public/getdata`
+    ])
+    await buildMockSite({ ...target(), serverType: 'SASJS' })
+    expect(readConfig().viyaMockJobs).toEqual([])
+  })
+
   it('ships the browser formatter and its on-demand vocabulary under the mount', async () => {
     await buildMockSite(target({ mockWebBasePath: '/demo' }))
     const language = path.join(out(), 'host', 'sas-language', languageVersion)

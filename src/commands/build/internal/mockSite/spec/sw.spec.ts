@@ -208,6 +208,7 @@ const loadWorker = (
       const shards = (global as any).__sasjsShards
       return jsonResponse({
         appLoc,
+        viyaMockJobs: (global as any).__viyaMockJobs || [],
         ...(shards
           ? { snapshotShards: (shards.index.shards || []).length }
           : {})
@@ -5991,6 +5992,148 @@ describe('service worker host', () => {
       expect(response.status).toBe(202)
       expect(await response.text()).toBe('Parameter Error\nFile error')
     })
+  })
+})
+
+describe('registered Viya browser jobs', () => {
+  afterEach(() => {
+    delete (global as any).__viyaMockJobs
+  })
+
+  it('denies registered execution before the mock runs when the caller lacks its grant', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        "fs.writeFileSync('/sasjs/drive/files/ran.txt','yes')"
+    })
+    const identity = {
+      ...DEFAULT_IDENTITY,
+      permissions: [
+        ...DEFAULT_IDENTITY.permissions,
+        {
+          uid: 'deny-run',
+          path: '/SASjsApi/stp/execute',
+          type: 'Route',
+          setting: 'Deny',
+          user: 'user-restricted'
+        }
+      ]
+    }
+    const boot = worker.message({
+      type: 'sasjs-seed',
+      identity,
+      subject: 'sasjsuser'
+    })
+    await boot.pending
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    expect(await worker.runtime.driveStore.exists('/ran.txt')).toBe(false)
+  })
+
+  it('never runs an unregistered program or a SAS-only twin', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js.sas')]: '%put not run;'
+    })
+    const missing = await worker.dispatch(
+      `/jobDefinitions/definitions/${encodeURIComponent(program)}`
+    )
+    expect(missing.status).toBe(501)
+    const other = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program: `${appLoc}/other` },
+        arguments: { _program: `${appLoc}/other` }
+      })
+    )
+    expect(other.status).toBe(501)
+  })
+
+  it('accepts raw adapter CSV uploads for registered jobs', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    const upload = await worker.dispatch('/files/files', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'AREA:$char20.\r\nAlder Basin\r\n'
+    })
+    expect(upload.status).toBe(201)
+    const body = (await upload.json()) as any
+    expect(body.id).toBeDefined()
+    const file = await worker.dispatch(`/files/files/${body.id}/content`)
+    expect(await file.text()).toContain('Alder Basin')
+  })
+
+  it('runs a registered job and exposes its output through JES links', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker('/demo')
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "{\\"value\\":42}";'
+    })
+    const definition = await worker.dispatch(
+      `/demo/jobDefinitions/definitions/${encodeURIComponent(program)}`
+    )
+    expect(definition.status).toBe(200)
+    const post = await worker.dispatch(
+      '/demo/jobExecution/jobs?_action=wait',
+      runRequest({
+        jobDefinition: await definition.json(),
+        arguments: { _program: program }
+      })
+    )
+    expect(post.status).toBe(201)
+    expect(post.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    const job = (await post.json()) as any
+    const state = await worker.dispatch(
+      `/demo${job.links.find((l: any) => l.rel === 'state').href}`
+    )
+    expect(await state.text()).toBe('completed')
+    const current = (await (
+      await worker.dispatch(`/demo/jobExecution/jobs/${job.id}`)
+    ).json()) as any
+    const output = await worker.dispatch(
+      `/demo${current.results['_webout.json']}/content`
+    )
+    expect(await output.json()).toEqual({ value: 42 })
+  })
+
+  it('exposes only a registered JavaScript twin as a folder job', async () => {
+    ;(global as any).__viyaMockJobs = [`${appLoc}/services/public/getdata`]
+    const worker = loadWorker()
+    worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "seeded";'
+    })
+    const folder = (await (
+      await worker.dispatch(
+        `/folders/folders/@item?path=${appLoc}/services/public`
+      )
+    ).json()) as any
+    const response = await worker.dispatch(
+      `/folders/folders/${folder.id}/members?limit=500`
+    )
+    const body = (await response.json()) as any
+    expect(response.headers.get('x-sasjs-emulated')).toMatch(/^viya@/)
+    expect(
+      body.items
+        .find((item: any) => item.name === 'getdata')
+        ?.links.find((link: any) => link.rel === 'getResource')
+    ).toBeDefined()
   })
 })
 
