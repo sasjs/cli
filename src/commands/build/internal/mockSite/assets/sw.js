@@ -1759,31 +1759,16 @@ const isContentPath = operationMatcher('PUT /files/files/{}/content')
 /** A file's upload, which arrives as a multipart part rather than as JSON. */
 const isUploadPath = operationMatcher('POST /files/files')
 
-/**
- * One request to the emulated estate, answered by `@sasjs/api`.
- *
- * The transport is the whole of this function: a `Request` is not the package's
- * `ApiRequest`, so the query, the body (or the bytes, or the multipart part) and
- * the caller are read here, and the answer's status, headers, body and byte
- * content are written back unchanged - including the `x-sasjs-emulated` stamp,
- * which is the package's to set, not this host's.
- *
- * The caller is the account the page chose, which is the same answer the SASjs
- * routes get - so the bodies this host returns name that account, not a generic
- * emulated user.
- *
- * A service's own nested call has no page and no account of its own: `inherited`
- * carries the caller that started the run, so the emulation answers for the
- * same account throughout the recursion.
- */
 // The project explicitly registers JavaScript twins, not SAS or arbitrary code.
 // This is a small adapter-facing JES emulation, not a general Viya job service.
 // The package still owns unregistered routes and the legacy web-tier stub.
-const VIYA_MOCK_FOLDERS = new Map()
+// Folder ids are resolved through the emulator, not a cache of earlier requests.
 let VIYA_MOCK_JOBS
 const viyaMockJobs = async () => {
   if (!VIYA_MOCK_JOBS) {
-    VIYA_MOCK_JOBS = fetch(`${BASE}/host/mock-config.json`)
+    VIYA_MOCK_JOBS = fetch(`${BASE}/host/mock-config.json`, {
+      cache: 'no-store'
+    })
       .then((response) => {
         if (!response.ok) throw new Error('Unable to load mock configuration')
         return response.json()
@@ -1935,7 +1920,10 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
       })
       if (output.error) throw runFailure(output.error)
       await persistChanges()
-      const outputBytes = bytesOf(output.webout || '')
+      const artifact = artifactOf(output, false)
+      const outputBytes = output.binary
+        ? artifact.contents.byteLength
+        : bytesOf(output.webout || '')
       if (outputBytes + viyaMockBytes(VIYA_MOCK_RESULTS) > VIYA_MOCK_BYTES)
         throw new API.ApiError(429, 'Mock result byte capacity reached')
       const id = crypto.randomUUID()
@@ -1944,7 +1932,7 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
       const job = { id, links, results: { '_webout.json': resultPath } }
       VIYA_MOCK_RESULTS.set(id, {
         job,
-        output: { webout: output.webout },
+        output: output.binary ? artifact : { webout: output.webout },
         owner: subject && subject.userId,
         created: Date.now(),
         bytes: outputBytes
@@ -1964,6 +1952,11 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
     if (result[2] === 'state')
       return viyaMockResponse('completed', 200, 'text/plain')
     if (result[2]) {
+      if (saved.output.contents !== undefined)
+        return new Response(saved.output.contents, {
+          status: 200,
+          headers: { ...saved.output.headers, ...API.emulatedHeaders() }
+        })
       const webout = saved.output.webout || ''
       let type = 'text/plain; charset=utf-8'
       try {
@@ -1977,6 +1970,23 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
   return null
 }
 
+/**
+ * One request to the emulated estate, answered by `@sasjs/api`.
+ *
+ * The transport is the whole of this function: a `Request` is not the package's
+ * `ApiRequest`, so the query, the body (or the bytes, or the multipart part) and
+ * the caller are read here, and the answer's status, headers, body and byte
+ * content are written back unchanged - including the `x-sasjs-emulated` stamp,
+ * which is the package's to set, not this host's.
+ *
+ * The caller is the account the page chose, which is the same answer the SASjs
+ * routes get - so the bodies this host returns name that account, not a generic
+ * emulated user.
+ *
+ * A service's own nested call has no page and no account of its own: `inherited`
+ * carries the caller that started the run, so the emulation answers for the
+ * same account throughout the recursion.
+ */
 const viyaRequest = async (request, url, path, inherited) => {
   const query = Object.create(null)
   for (const [key, value] of url.searchParams.entries()) query[key] = value
@@ -2061,17 +2071,30 @@ const viyaRequest = async (request, url, path, inherited) => {
     apiRequest
   )
 
-  if (
-    request.method === 'GET' &&
-    path === '/folders/folders/@item' &&
-    answer.status === 200 &&
-    query.path
-  )
-    VIYA_MOCK_FOLDERS.set(answer.body.id, query.path.replace(/\/+$/, ''))
   const members = /^\/folders\/folders\/([^/]+)\/members$/.exec(path)
   if (request.method === 'GET' && members && answer.status === 200) {
-    const folder = VIYA_MOCK_FOLDERS.get(members[1])
     const jobs = await viyaMockJobs()
+    // Resolve each distinct registered parent using the package's own id rules.
+    // This also works after a worker restart and does not retain stale mappings.
+    const parents = [
+      ...new Set(jobs.map((job) => job.slice(0, job.lastIndexOf('/'))))
+    ]
+    let folder
+    for (const candidate of parents) {
+      const resolved = await API.dispatchViya(
+        VIYA_SERVICES,
+        'GET',
+        '/folders/folders/@item',
+        {
+          ...apiRequest,
+          query: { path: candidate }
+        }
+      )
+      if (resolved.status === 200 && resolved.body.id === members[1]) {
+        folder = candidate
+        break
+      }
+    }
     if (folder && jobs.length) {
       for (const program of jobs) {
         if (program.slice(0, program.lastIndexOf('/')) !== folder) continue
@@ -2085,7 +2108,10 @@ const viyaRequest = async (request, url, path, inherited) => {
           ]
         })
       }
+      const limit = Number(query.limit) || 0
+      if (limit > 0) answer.body.items = answer.body.items.slice(0, limit)
       answer.body.count = answer.body.items.length
+      if (!limit) answer.body.limit = answer.body.count
     }
   }
 

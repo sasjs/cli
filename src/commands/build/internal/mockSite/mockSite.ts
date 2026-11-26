@@ -1520,6 +1520,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
         .map((asset) => fs.readFileSync(path.join(hostFolder, asset)))
         .reduce((all, buf) => Buffer.concat([all, buf]), Buffer.alloc(0))
     )
+    .update(JSON.stringify(registeredViyaJobs))
     .digest('hex')
     .slice(0, 10)
 
@@ -1593,7 +1594,7 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
       .readFileSync(swPath, 'utf8')
       .replace(
         "importScripts('host/runtime-core.js')",
-        `importScripts('host/runtime-core.js?v=${hostVersion}')`
+        `// viya-jobs-version: ${createHash('md5').update(JSON.stringify(registeredViyaJobs)).digest('hex')}\nimportScripts('host/runtime-core.js?v=${hostVersion}')`
       )
       .replace(
         "importScripts('host/api-browser.js')",

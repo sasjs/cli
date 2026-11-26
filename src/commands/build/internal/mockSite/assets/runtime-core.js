@@ -649,9 +649,14 @@ const entrySizeAt = (abs) => {
 // boot and receives the changed files back after each run.
 const dirty = new Map() // abs path -> contents, or null when deleted
 const activeTokenFiles = new Set()
+const transientSessions = new Set()
+const isTransientSessionPath = (path) =>
+  [...transientSessions].some(
+    (dir) => path === dir || path.startsWith(dir + '/')
+  )
 
 const markDirty = (path) => {
-  if (activeTokenFiles.has(path)) return
+  if (activeTokenFiles.has(path) || isTransientSessionPath(path)) return
   const contents = FILES.has(path) ? FILES.get(path) : null
   // one place decides what a deletion means, because every write and every
   // remove passes through here: a file that is gone is tombstoned, and writing
@@ -671,7 +676,8 @@ const takeDirty = () => {
 const dumpAll = () => {
   const out = {}
   for (const [path, contents] of FILES)
-    if (!activeTokenFiles.has(path)) out[path] = contents
+    if (!activeTokenFiles.has(path) && !isTransientSessionPath(path))
+      out[path] = contents
   return out
 }
 
@@ -1357,6 +1363,7 @@ const runProgram = ({
   }
 
   const sessionDir = `/sasjs/sessions/s${++sessionSeq}`
+  if (transientSession) transientSessions.add(sessionDir)
   const uploadDir = `${sessionDir}/uploads`
   mkdirp(sessionDir)
   const weboutPath = `${sessionDir}/webout.txt`
@@ -1592,6 +1599,7 @@ return _webout;
         p === sessionDir || p.startsWith(sessionDir + '/')
       for (const store of [FILES, SIZES, PENDING, dirty, DELETED, DIRS])
         for (const p of store.keys()) if (inSession(p)) store.delete(p)
+      transientSessions.delete(sessionDir)
     }
     return {
       webout,

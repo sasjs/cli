@@ -6002,6 +6002,73 @@ describe('registered Viya browser jobs', () => {
     delete (global as any).__sasjsShardFetches
   })
 
+  it('returns binary registered job output as bytes with its declared MIME type', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]:
+        "fs.writeFileSync(weboutPath, Buffer.from([0, 255, 128, 42])); fs.writeFileSync(_SASJS_WEBOUT_HEADERS, 'Content-Type: image/png\\n')"
+    })
+    const response = await worker.dispatch(
+      '/jobExecution/jobs',
+      runRequest({
+        jobDefinition: { program },
+        arguments: { _program: program }
+      })
+    )
+    expect(response.status).toBe(201)
+    const job = (await response.json()) as any
+    const output = await worker.dispatch(
+      `${job.results['_webout.json']}/content`
+    )
+    expect(output.headers.get('content-type')).toBe('image/png')
+    expect(Array.from(new Uint8Array(await output.arrayBuffer()))).toEqual([
+      0, 255, 128, 42
+    ])
+  })
+
+  it('discovers registered members by a known folder id after worker restart', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const files = {
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    }
+    const first = loadWorker()
+    await first.runtime.load(files)
+    const folder = (await (
+      await first.dispatch(
+        `/folders/folders/@item?path=${appLoc}/services/public`
+      )
+    ).json()) as any
+    const restarted = loadWorker()
+    await restarted.runtime.load(files)
+    const body = (await (
+      await restarted.dispatch(`/folders/folders/${folder.id}/members`)
+    ).json()) as any
+    expect(body.items.map((item: any) => item.name)).toContain('getdata')
+  })
+
+  it('honours member page limits when adding registered jobs', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout = "ok";'
+    })
+    const folder = (await (
+      await worker.dispatch(
+        `/folders/folders/@item?path=${appLoc}/services/public`
+      )
+    ).json()) as any
+    const body = (await (
+      await worker.dispatch(`/folders/folders/${folder.id}/members?limit=1`)
+    ).json()) as any
+    expect(body.items).toHaveLength(1)
+    expect(body.count).toBe(1)
+    expect(body.limit).toBe(1)
+  })
+
   it('retries a transient mock config fetch when listing folders', async () => {
     const worker = loadWorker()
     const original = global.fetch as jest.Mock
