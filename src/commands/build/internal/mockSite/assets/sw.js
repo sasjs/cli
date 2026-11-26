@@ -1945,18 +1945,25 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
       const outputBytes = output.binary
         ? artifact.contents.byteLength
         : bytesOf(output.webout || '')
-      if (outputBytes + viyaMockBytes(VIYA_MOCK_RESULTS) > VIYA_MOCK_BYTES)
+      // This is the runtime's captured JS console, never a SAS or Compute log.
+      const log = output.log
+        ? `[sasjs mock: JavaScript console output, not a SAS log]\n${output.log}`
+        : ''
+      const resultBytes = outputBytes + bytesOf(log)
+      if (resultBytes + viyaMockBytes(VIYA_MOCK_RESULTS) > VIYA_MOCK_BYTES)
         throw new API.ApiError(429, 'Mock result byte capacity reached')
       const id = crypto.randomUUID()
       const resultPath = `/jobExecution/jobs/${id}/results/webout`
       const links = [{ rel: 'state', href: `/jobExecution/jobs/${id}/state` }]
+      if (log) links.push({ rel: 'log', href: `/jobExecution/jobs/${id}/log` })
       const job = { id, links, results: { '_webout.json': resultPath } }
       VIYA_MOCK_RESULTS.set(id, {
         job,
+        log,
         output: output.binary ? artifact : { webout: output.webout },
         owner: subject && subject.userId,
         created: Date.now(),
-        bytes: outputBytes
+        bytes: resultBytes
       })
       return viyaMockResponse(job, 201)
     } finally {
@@ -1964,7 +1971,7 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
     }
   }
   const result =
-    /^\/jobExecution\/jobs\/([0-9a-f-]+)(?:\/(state|results\/webout\/content))?$/.exec(
+    /^\/jobExecution\/jobs\/([0-9a-f-]+)(?:\/(state|log\/content|results\/webout\/content))?$/.exec(
       path
     )
   if (result && request.method === 'GET') {
@@ -1972,6 +1979,12 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
     if (!saved || saved.owner !== (subject && subject.userId)) return null
     if (result[2] === 'state')
       return viyaMockResponse('completed', 200, 'text/plain')
+    if (result[2] === 'log/content') {
+      if (!saved.log) return null
+      return viyaMockResponse({
+        items: saved.log.split('\n').map((line) => ({ line }))
+      })
+    }
     if (result[2]) {
       if (saved.output.contents !== undefined)
         return new Response(saved.output.contents, {
