@@ -98,22 +98,17 @@
       }
     })
 
-  /** The drive paths this visitor deleted, `[]` when the store is new or unreadable. */
+  /** The drive paths this visitor deleted; a failed read must not erase them. */
   const readDeleted = async () => {
-    try {
-      const db = await openDb()
-      return await new Promise((resolve) => {
-        const req = db
-          .transaction(IDENTITY, 'readonly')
-          .objectStore(IDENTITY)
-          .get(DELETED_KEY)
-        req.onsuccess = () =>
-          resolve(Array.isArray(req.result) ? req.result : [])
-        req.onerror = () => resolve([])
-      })
-    } catch (e) {
-      return []
-    }
+    const db = await openDb()
+    return new Promise((resolve, reject) => {
+      const req = db
+        .transaction(IDENTITY, 'readonly')
+        .objectStore(IDENTITY)
+        .get(DELETED_KEY)
+      req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : [])
+      req.onerror = () => reject(req.error)
+    })
   }
 
   // no tombstones is no row: an empty list left behind would read as a stored
@@ -308,6 +303,31 @@
   // IndexedDB opens and the file/tombstone/identity transactions are async.
   // Process reports in arrival order, including after a rejected write.
   let persistQueue = Promise.resolve()
+  // Retain a report until every transaction succeeds. Newer reports replace
+  // older values for the same path and identity, but keep unrelated changes.
+  // Pending batches live only as long as this page; closing every page before a
+  // retry succeeds can still lose changes when storage is unavailable.
+  let pendingFiles = {}
+  let pendingIdentity = null
+
+  const flushPending = async () => {
+    await writeFiles(pendingFiles)
+    if (pendingIdentity) {
+      const row = await readIdentity()
+      await writeIdentity({
+        fixture: pendingIdentity,
+        subject: row ? row.subject : undefined
+      })
+    }
+    pendingFiles = {}
+    pendingIdentity = null
+  }
+
+  const flushAfterReports = () => {
+    const retry = persistQueue.then(flushPending)
+    persistQueue = retry.catch(() => {})
+    return retry
+  }
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
@@ -319,23 +339,13 @@
       return
     if (data.type === 'sasjs-persist') {
       persistQueue = persistQueue.then(async () => {
-        await writeFiles(data.files).catch((e) =>
+        pendingFiles = { ...pendingFiles, ...data.files }
+        if (data.identity) pendingIdentity = data.identity
+        try {
+          await flushPending()
+        } catch (e) {
           console.error('[sasjs-mock] persist failed', e)
-        )
-        if (data.identity)
-          await readIdentity()
-            .then((row) =>
-              // `undefined`, not null: no stored subject means the fixture's own
-              // administrator, which is not the same as the anonymous caller a
-              // null would name
-              writeIdentity({
-                fixture: data.identity,
-                subject: row ? row.subject : undefined
-              })
-            )
-            .catch((e) =>
-              console.error('[sasjs-mock] identity persist failed', e)
-            )
+        }
       })
     }
     if (data.type === 'sasjs-host-error')
@@ -394,7 +404,7 @@
 
       const answerTo = (message) => worker.postMessage(message)
 
-      persistQueue
+      flushAfterReports()
         .then(() => Promise.all([readAll(), readIdentity(), readDeleted()]))
         .then(([files, stored, deleted]) =>
           boot(files, stored, deleted, worker)
@@ -748,6 +758,7 @@
     let files = {}
     let stored = null
     try {
+      await flushAfterReports()
       files = await readAll()
       stored = await readIdentity()
     } catch (e) {

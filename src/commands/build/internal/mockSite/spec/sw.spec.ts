@@ -6062,6 +6062,47 @@ describe('registered Viya browser jobs', () => {
     }
   )
 
+  it('lets the real adapter resolve both a physical file and a same-named registered job', async () => {
+    const program = `${appLoc}/services/public/getdata`
+    ;(global as any).__viyaMockJobs = [program]
+    const worker = loadWorker()
+    await worker.runtime.load({
+      [drivePath('services/public/getdata.js')]: '_webout="ok"',
+      [drivePath('services/public/getdata')]: 'physical content'
+    })
+    const { SASViyaApiClient } = require('@sasjs/adapter/SASViyaApiClient')
+    const {
+      WebJobExecutor
+    } = require('@sasjs/adapter/job-execution/WebJobExecutor')
+    const transport = {
+      get: async (url: string) => {
+        const response = await worker.dispatch(url)
+        if (response.status !== 200)
+          throw new Error(`GET ${url}: ${response.status}`)
+        const text = await response.text()
+        try {
+          return { result: JSON.parse(text) }
+        } catch {
+          return { result: text }
+        }
+      }
+    }
+    const adapter = new SASViyaApiClient(origin, '', '', transport)
+    expect(
+      await adapter.getFileContent(`${appLoc}/services/public`, 'getdata')
+    ).toBe('physical content')
+    const executor = new WebJobExecutor(
+      origin,
+      'SASVIYA',
+      '',
+      transport,
+      adapter
+    )
+    expect(await executor.getJobUri(program)).toBe(
+      `/jobDefinitions/definitions/${encodeURIComponent(program)}`
+    )
+  })
+
   it('exposes all registered and physical members to an adapter-sized listing with real paging', async () => {
     const program = `${appLoc}/services/public/getdata`
     ;(global as any).__viyaMockJobs = [
