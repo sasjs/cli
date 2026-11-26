@@ -305,6 +305,9 @@
   // identity store's snapshot when a route created, changed or removed anything.
   /** The workers this page is preparing an answer for, by sender. */
   const answeringWorkers = new Set()
+  // IndexedDB opens and the file/tombstone/identity transactions are async.
+  // Process reports in arrival order, including after a rejected write.
+  let persistQueue = Promise.resolve()
 
   navigator.serviceWorker.addEventListener('message', (ev) => {
     const data = ev.data || {}
@@ -315,23 +318,25 @@
     )
       return
     if (data.type === 'sasjs-persist') {
-      writeFiles(data.files).catch((e) =>
-        console.error('[sasjs-mock] persist failed', e)
-      )
-      if (data.identity)
-        readIdentity()
-          .then((row) =>
-            // `undefined`, not null: no stored subject means the fixture's own
-            // administrator, which is not the same as the anonymous caller a
-            // null would name
-            writeIdentity({
-              fixture: data.identity,
-              subject: row ? row.subject : undefined
-            })
-          )
-          .catch((e) =>
-            console.error('[sasjs-mock] identity persist failed', e)
-          )
+      persistQueue = persistQueue.then(async () => {
+        await writeFiles(data.files).catch((e) =>
+          console.error('[sasjs-mock] persist failed', e)
+        )
+        if (data.identity)
+          await readIdentity()
+            .then((row) =>
+              // `undefined`, not null: no stored subject means the fixture's own
+              // administrator, which is not the same as the anonymous caller a
+              // null would name
+              writeIdentity({
+                fixture: data.identity,
+                subject: row ? row.subject : undefined
+              })
+            )
+            .catch((e) =>
+              console.error('[sasjs-mock] identity persist failed', e)
+            )
+      })
     }
     if (data.type === 'sasjs-host-error')
       console.error('[sasjs-mock] ' + data.path + ': ' + data.message)
@@ -389,7 +394,8 @@
 
       const answerTo = (message) => worker.postMessage(message)
 
-      Promise.all([readAll(), readIdentity(), readDeleted()])
+      persistQueue
+        .then(() => Promise.all([readAll(), readIdentity(), readDeleted()]))
         .then(([files, stored, deleted]) =>
           boot(files, stored, deleted, worker)
         )

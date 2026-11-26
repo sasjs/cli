@@ -599,8 +599,16 @@ const askHostForDrive = () => {
  */
 /** Files taken from the runtime whose report to the page failed. */
 let unsentFiles = null
+// A later snapshot must never overtake an earlier broadcast. Keep failures on
+// their own caller while allowing the next queued report to retry the batch.
+let persistQueue = Promise.resolve()
+const persistChanges = () => {
+  const report = persistQueue.then(reportChanges)
+  persistQueue = report.catch(() => {})
+  return report
+}
 
-const persistChanges = async () => {
+const reportChanges = async () => {
   // `takeDirty()` empties the runtime's map, and only the page writes the drive
   // on: a batch that never reached it is gone from the drive the next worker
   // instance loads, while this one has nothing left to hand over. So a failed
@@ -1911,14 +1919,27 @@ const viyaMockJobRequest = async (request, path, subject, token, inherited) => {
       await R.ensureAll()
       if (!(await registeredJs(program)))
         throw new API.ApiError(404, 'Registered JavaScript mock not found')
-      const output = await R.run({
-        program: program + '.js',
-        params: body.arguments,
-        tables: tablesOf(files),
-        transientSession: true,
-        execution: executionFrame(subject, token, inherited)
-      })
-      if (output.error) throw runFailure(output.error)
+      let output
+      try {
+        output = await R.run({
+          program: program + '.js',
+          params: body.arguments,
+          tables: tablesOf(files),
+          transientSession: true,
+          execution: executionFrame(subject, token, inherited)
+        })
+        if (output.error) throw runFailure(output.error)
+      } catch (error) {
+        // Failed runs can still have changed the drive, just like SASjs runs.
+        // Keep the execution error if reporting also fails; the persistence
+        // queue retains the batch for its next attempt.
+        try {
+          await persistChanges()
+        } catch (persistError) {
+          logEntry(`persist after failed job: ${String(persistError)}`)
+        }
+        throw error
+      }
       await persistChanges()
       const artifact = artifactOf(output, false)
       const outputBytes = output.binary
@@ -2072,13 +2093,19 @@ const viyaRequest = async (request, url, path, inherited) => {
   )
 
   const members = /^\/folders\/folders\/([^/]+)\/members$/.exec(path)
-  if (request.method === 'GET' && members && answer.status === 200) {
+  const folderResource = /^\/folders\/folders\/([^/]+)$/.exec(path)
+  if (
+    request.method === 'GET' &&
+    (members || folderResource) &&
+    answer.status === 200
+  ) {
     const jobs = await viyaMockJobs()
     // Resolve each distinct registered parent using the package's own id rules.
     // This also works after a worker restart and does not retain stale mappings.
     const parents = [
       ...new Set(jobs.map((job) => job.slice(0, job.lastIndexOf('/'))))
     ]
+    const folderId = members ? members[1] : answer.body.id
     let folder
     for (const candidate of parents) {
       const resolved = await API.dispatchViya(
@@ -2090,28 +2117,43 @@ const viyaRequest = async (request, url, path, inherited) => {
           query: { path: candidate }
         }
       )
-      if (resolved.status === 200 && resolved.body.id === members[1]) {
+      if (resolved.status === 200 && resolved.body.id === folderId) {
         folder = candidate
         break
       }
     }
     if (folder && jobs.length) {
+      const registrations = []
       for (const program of jobs) {
         if (program.slice(0, program.lastIndexOf('/')) !== folder) continue
         const name = program.slice(program.lastIndexOf('/') + 1)
         if (!(await registeredJs(program))) continue
         const id = encodeURIComponent(program)
-        answer.body.items.push({
+        registrations.push({
           name,
           links: [
             { rel: 'getResource', href: `/jobDefinitions/definitions/${id}` }
           ]
         })
       }
-      const limit = Number(query.limit) || 0
-      if (limit > 0) answer.body.items = answer.body.items.slice(0, limit)
-      answer.body.count = answer.body.items.length
-      if (!limit) answer.body.limit = answer.body.count
+      if (registrations.length && !members) {
+        answer.body.memberCount += registrations.length
+      } else if (registrations.length) {
+        // The package ignores start and truncates before returning. Re-read its
+        // complete physical listing, then page the combined collection once.
+        const physical = await API.dispatchViya(VIYA_SERVICES, 'GET', path, {
+          ...apiRequest,
+          query: { ...query, limit: 0 }
+        })
+        const items = [...registrations, ...physical.body.items]
+        const start = Math.max(0, Math.trunc(Number(query.start) || 0))
+        const limit = Number(query.limit) || 0
+        answer.body.start = start
+        answer.body.items =
+          limit > 0 ? items.slice(start, start + limit) : items.slice(start)
+        answer.body.count = answer.body.items.length
+        answer.body.limit = limit || answer.body.count
+      }
     }
   }
 

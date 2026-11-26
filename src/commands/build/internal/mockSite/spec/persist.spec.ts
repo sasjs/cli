@@ -252,6 +252,54 @@ const settleUntil = async (check: () => boolean, timeout = 4000) => {
 }
 
 describe('the page-side store', () => {
+  it('finishes pending persistence before answering a restarted worker', async () => {
+    const { reply, posted } = loadPersist()
+    const original = (global as any).indexedDB.open
+    let opens = 0
+    ;(global as any).indexedDB.open = (...args: any[]) => {
+      const request = original(...args)
+      if (++opens === 1) {
+        const proxy: any = { result: request.result }
+        request.onsuccess = () => setTimeout(() => proxy.onsuccess(), 60)
+        return proxy
+      }
+      return request
+    }
+    reply({ type: 'sasjs-persist', files: { '/new': 'durable' } })
+    await Promise.resolve()
+    reply({ type: 'sasjs-need-drive' })
+    await settleUntil(() =>
+      posted.some(
+        (m: any) => m.type === 'sasjs-load' || m.type === 'sasjs-seed'
+      )
+    )
+    expect(posted.find((m: any) => m.type === 'sasjs-load')).toEqual(
+      expect.objectContaining({
+        files: expect.objectContaining({ '/new': 'durable' })
+      })
+    )
+  })
+
+  it('applies persist messages in order even when IndexedDB opens out of order', async () => {
+    const { reply, rows, identityRows } = loadPersist()
+    const original = (global as any).indexedDB.open
+    let opens = 0
+    ;(global as any).indexedDB.open = (...args: any[]) => {
+      const request = original(...args)
+      if (++opens === 1) {
+        const proxy: any = { result: request.result }
+        request.onsuccess = () => setTimeout(() => proxy.onsuccess(), 60)
+        return proxy
+      }
+      return request
+    }
+    reply({ type: 'sasjs-persist', files: { '/race': 'old' } })
+    reply({ type: 'sasjs-persist', files: { '/race': 'new' } })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(rows.get('/race')).toBe('new')
+    expect(identityRows.get('deleted') || []).not.toContain('/race')
+  })
+
   it('isolates the database by worker mount and preserves the root name', async () => {
     const root = loadPersist()
     await root.window.SASjsMock.readAll()
