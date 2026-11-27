@@ -93,7 +93,7 @@ describe('sasjs snippets', () => {
       },
       example: {
         prefix: '%example',
-        body: '%example($1)',
+        body: '%example(${1:msg})',
         description: [
           'An example macro',
           '\r',

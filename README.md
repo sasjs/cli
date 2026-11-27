@@ -46,7 +46,7 @@ npx @sasjs/cli <command>
 
 ## Documentation
 
-Additional documentation can be found on the [SASjs CLI documentation](https://cli.sasjs.io) site.
+Additional documentation can be found on the [SASjs CLI documentation](https://cli.sasjs.io) site. See also [macro snippet generation](docs/snippets.md).
 
 ### Mock site app readiness
 
