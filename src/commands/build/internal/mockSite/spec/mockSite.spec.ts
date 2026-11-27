@@ -555,6 +555,18 @@ describe('browser-hosted build', () => {
     ])
   })
 
+  it('derives the Viya job list from the compiled services', async () => {
+    await buildMockSite({ ...target(), serverType: 'SASVIYA' })
+    expect(readConfig().viyaMockJobs).toEqual([
+      `${appLoc}/services/admin/makedata`,
+      `${appLoc}/services/public/getdata`,
+      `${appLoc}/services/public/viewtables`
+    ])
+    // the same build as another server type registers no Viya jobs
+    await buildMockSite({ ...target(), serverType: 'SASJS' })
+    expect(readConfig().viyaMockJobs).toEqual([])
+  })
+
   it('registers explicitly listed project Viya mock jobs from the build', async () => {
     write(
       path.join(root, 'sasjsbuild', 'viya-mock-jobs.json'),

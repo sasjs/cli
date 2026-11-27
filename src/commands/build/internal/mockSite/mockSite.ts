@@ -439,6 +439,19 @@ const seedFromBuild = (
   return { files, skipped }
 }
 
+// A Viya JES client names the service path, so that path is what has to be
+// registered. Every compiled service carrying a JavaScript twin is runnable,
+// the same set the SASJS and SAS 9 mocks resolve from the drive; deriving it
+// means a new service needs no second registration. SAS source and synced data
+// stay on the drive as files and are never registered.
+const deriveViyaJobs = (seed: { [path: string]: string }, appLoc: string) => {
+  const prefix = `/sasjs/drive/files${appLoc}/services/`
+  return Object.keys(seed)
+    .filter((key) => key.startsWith(prefix) && key.endsWith('.js'))
+    .map((key) => `${appLoc}/services/${key.slice(prefix.length, -3)}`)
+    .sort()
+}
+
 /**
  * Whether one folder is the other, or sits inside it.
  *
@@ -1324,37 +1337,43 @@ export async function buildMockSite(target: Target): Promise<MockSiteResult> {
   const { files: seed, skipped } = seedFromBuild(buildFolder, appLoc, [
     outputFolder
   ])
-  // Opt-in only: a project lists extensionless JavaScript service twins in its
-  // sync folder. The manifest reaches the compile output as a root-level file.
-  // Validate before replacing a previously built site; never register SAS source.
+  // Derived by default: every compiled service with a JavaScript twin is
+  // runnable here. A project that wants a different set - to run one service as
+  // a job and leave another one alone - edits viya-mock-jobs.json in its sync
+  // folder; the manifest reaches the compile output as a root-level file and
+  // replaces the derived list before deploy. Validate before replacing a
+  // previously built site; never register SAS source.
   let registeredViyaJobs: string[] = []
   if (target.serverType === 'SASVIYA') {
+    registeredViyaJobs = deriveViyaJobs(seed, appLoc)
     const registration = path.join(buildFolder, 'viya-mock-jobs.json')
-    const invalidRegistration =
-      'viya-mock-jobs.json must list existing extensionless services/*.js paths'
-    let viyaMockJobs: string[] = []
-    try {
-      viyaMockJobs = JSON.parse(fs.readFileSync(registration, 'utf8'))
-    } catch (error) {
-      if (error instanceof SyntaxError) throw new Error(invalidRegistration)
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    }
-    if (
-      !Array.isArray(viyaMockJobs) ||
-      viyaMockJobs.some(
-        (name) =>
-          typeof name !== 'string' ||
-          !/^services\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(name) ||
-          !Object.prototype.hasOwnProperty.call(
-            seed,
-            `/sasjs/drive/files${appLoc}/${name}.js`
-          )
+    if (fs.existsSync(registration)) {
+      const invalidRegistration =
+        'viya-mock-jobs.json must list existing extensionless services/*.js paths'
+      let viyaMockJobs: string[] = []
+      try {
+        viyaMockJobs = JSON.parse(fs.readFileSync(registration, 'utf8'))
+      } catch (error) {
+        if (error instanceof SyntaxError) throw new Error(invalidRegistration)
+        throw error
+      }
+      if (
+        !Array.isArray(viyaMockJobs) ||
+        viyaMockJobs.some(
+          (name) =>
+            typeof name !== 'string' ||
+            !/^services\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+$/.test(name) ||
+            !Object.prototype.hasOwnProperty.call(
+              seed,
+              `/sasjs/drive/files${appLoc}/${name}.js`
+            )
+        )
       )
-    )
-      throw new Error(invalidRegistration)
-    registeredViyaJobs = [...new Set(viyaMockJobs)].map(
-      (name) => `${appLoc}/${name}`
-    )
+        throw new Error(invalidRegistration)
+      registeredViyaJobs = [...new Set(viyaMockJobs)].map(
+        (name) => `${appLoc}/${name}`
+      )
+    }
   }
   const jsPrograms = countPrograms(seed, '.js')
   const sasPrograms = countPrograms(seed, '.sas')
