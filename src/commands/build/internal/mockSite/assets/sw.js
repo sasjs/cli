@@ -1732,6 +1732,14 @@ const SERVICES = {
  */
 const VIYA_SERVICES = {
   drive: SERVICES.drive,
+  // The identity the site signs in with, so the identity questions an
+  // application asks the platform itself are answered from the same fixture the
+  // sign-in flow uses. `@sasjs/adapter` asks only who the caller is, but an
+  // application calls the identity service directly for its group, user and
+  // deploy screens - and the package answers those from the records port, so a
+  // host that omitted it would answer `501` where the screen expects a list.
+  identity: IDENTITY,
+  records: RECORDS,
   // the address, as the package reads it: scheme, host and port. A path is not
   // part of an address to `normaliseServerUrl` (sasjs/api `viya/seed.ts`), so the
   // path is not passed - and it would change nothing if it were. Two builds on
