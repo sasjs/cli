@@ -1,4 +1,4 @@
-import { execFileSync } from 'child_process'
+import { execFileSync, spawnSync } from 'child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
 import os from 'os'
 import path from 'path'
@@ -97,11 +97,43 @@ describe('snippet signatures', () => {
     }
   )
 
+  it('generates a signature after consecutive block comments without timing out', async () => {
+    await writeFile(
+      path.join(root, 'macros', 'comments.sas'),
+      ';\n' + '/* a */\n'.repeat(30) + '%macro comments(real); %mend;'
+    )
+    const modulePath = path.resolve(__dirname, '../snippets.ts')
+    const runner = `
+      process.projectDir = process.argv[1];
+      process.sasjsConstants = { buildDestinationResultsFolder: process.argv[1] };
+      require(process.argv[2]).generateSnippets([process.argv[1] + '/macros'], 'output.json')
+        .catch(error => { console.error(error); process.exitCode = 1 });
+    `
+    const result = spawnSync(
+      process.execPath,
+      [
+        '-r',
+        require.resolve('ts-node/register/transpile-only'),
+        '-e',
+        runner,
+        root,
+        modulePath
+      ],
+      { encoding: 'utf8', timeout: 5000 }
+    )
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(0)
+    const snippets = JSON.parse(
+      await readFile(path.join(root, 'output.json'), 'utf8')
+    )
+    expect(snippets.comments.body).toBe('%comments(${1:real})')
+  })
+
   it('recognizes a data statement after a SAS block comment', async () => {
     expect(
       await body(
         'records',
-        'data work.records; input text $char80.; /* inline input */ datalines;\n%macro records(fake);\n;\nrun;\n%macro records(real); %mend;'
+        'data work.records; input text $char80.; /* first */\n/** second **/ datalines;\n%macro records(fake);\n;\nrun;\n%macro records(real); %mend;'
       )
     ).toBe('%records(${1:real})')
   })
