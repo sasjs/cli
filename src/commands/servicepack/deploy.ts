@@ -8,7 +8,7 @@ export async function servicePackDeploy(
   isLocal: boolean,
   jsonFilePath: string,
   isForced = false
-) {
+): Promise<boolean> {
   if (path.extname(jsonFilePath) !== '.json') {
     throw new Error('Provided data file must be valid json.')
   }
@@ -24,7 +24,7 @@ export async function servicePackDeploy(
     jsonFilePath = path.join(buildDestinationFolder, `${target.name}.json`)
   }
 
-  let success
+  let success = false
   await deployToSasViyaWithServicePack(jsonFilePath, target, isLocal, isForced)
     .then((_) => {
       displaySuccess('Servicepack successfully deployed!')
