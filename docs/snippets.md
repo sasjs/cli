@@ -1,27 +1,7 @@
 # SAS macro snippets
 
-Run `sasjs snippets` in a configured SASjs project to generate VS Code snippet
-JSON from the configured macro folders, including nested folders. Use
-`--outDirectory` (or `-o`) to select an output directory or JSON filename;
-the default is `sasjsresults/sasjs-macro-snippets.json`. Target-specific macro
-folders are included according to the normal target configuration. Test files
-are excluded as before.
+Run `sasjs snippets` in a configured SASjs project to generate VS Code snippet JSON from the configured macro folders, including nested folders. Use `--outDirectory` (or `-o`) to select an output directory or JSON filename; the default is `sasjsresults/sasjs-macro-snippets.json`. Target-specific macro folders are included according to the normal target configuration. Test files are excluded.
 
-Each `.sas` filename supplies the snippet key and prefix. If the file contains a
-matching `%macro` declaration (case-insensitive), positional parameters become
-named tab stops: `%macro report(data, column, debug=0);` produces
-`%report(${1:data}, ${2:column})`. Keyword parameters and their defaults are not
-inserted. A macro with no positional parameters produces `%name($0)`.
-Doxygen `@brief` and `@param` text supplies the description.
+Each `.sas` filename supplies the snippet key and prefix. If the file contains a matching `%macro` declaration (case-insensitive), positional parameters become named tab stops: `%macro report(data, column, debug=0);` produces `%report(${1:data}, ${2:column})`. Keyword parameters and their defaults are not inserted. A macro with no positional parameters produces `%name($0)`. Doxygen `@brief` and `@param` text supplies the description.
 
-A file without a recognizable matching declaration still produces the legacy
-`%filename($1)` snippet. This includes ordinary SAS programs and declarations
-whose syntax cannot be safely parsed, or where matching declarations are
-repeated, nested inside another macro, or appear in potentially resolving macro
-quoting. Declarations in `DATALINES`, `CARDS`, `DATALINES4`, and `CARDS4` data
-are ignored. This is conservative static analysis, not a SAS interpreter, so
-complex generated declarations may also use the fallback. Keys are still based
-on filenames, not
-the declared macro name; when names collide, the later file encountered
-replaces the earlier one, as before. The JSON structure remains `prefix`,
-`body`, and `description`.
+A file without a recognizable matching declaration produces the fallback `%filename($1)` snippet. This includes ordinary SAS programs and declarations whose syntax cannot be safely parsed, or where matching declarations are repeated, nested inside another macro, or appear in potentially resolving macro quoting. Declarations in `DATALINES`, `CARDS`, `DATALINES4`, and `CARDS4` data are ignored. This is conservative static analysis, not a SAS interpreter, so complex generated declarations may also use the fallback. Keys are based on filenames, not the declared macro name; when names collide, the later file encountered replaces the earlier one. The JSON structure contains `prefix`, `body`, and `description`.
