@@ -303,6 +303,12 @@ export async function executeJobViya(
     terminateProcess(ReturnCode.InternalError)
   }
 
+  // A final failed state must not resolve as a successful command, even when
+  // returned without links or without an explicit wait flag.
+  if (submittedJob?.state === 'failed') {
+    terminateProcess(ReturnCode.InternalError)
+  }
+
   process.logger?.info(
     `This job was executed in ${(endTime - startTime) / 1000} seconds`
   )
