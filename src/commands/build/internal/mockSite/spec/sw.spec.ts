@@ -2051,6 +2051,42 @@ describe('service worker host', () => {
       )
     })
 
+    it.each([
+      [
+        'PARMCARDS4 indented terminator record (sas-language#45)',
+        'filename f temp;\nparmcards4;\nalpha\n  ;;;;\n  x   y\n;;;;\n%put TAIL;\n',
+        'parmcards4;\nalpha\n  ;;;;\n  x   y\n;;;;\n'
+      ],
+      [
+        'masked parenthesis in bquote (sas-language#48)',
+        '%let z=%bquote(%();\n%put TAIL;\n',
+        '%let z=%bquote(%();'
+      ],
+      [
+        'masked parenthesis in nrbquote (sas-language#48)',
+        '%let z=%nrbquote(%();\n%put TAIL;\n',
+        '%let z=%nrbquote(%();'
+      ]
+    ])(
+      'preserves %s through the worker format route',
+      async (_name, code, preserved) => {
+        const worker = loadWorker('/demo')
+        worker.runtime.load({})
+        const format = async (input: string) => {
+          const response = await worker.dispatch(
+            '/demo/SASjsApi/code/format',
+            runRequest({ code: input })
+          )
+          expect(response.status).toBe(200)
+          return (await response.json()) as string
+        }
+        const formatted = await format(code)
+        expect(formatted).toContain(preserved)
+        expect(formatted).toContain('%put TAIL;')
+        expect(await format(formatted)).toBe(formatted)
+      }
+    )
+
     it('reports missing language data instead of silently returning the input', async () => {
       ;(global as any).__languageMissing = true
       const worker = loadWorker('/missing')

@@ -58,7 +58,7 @@
     "@sasjs/api": "0.49.0",
     "@sasjs/core": "7.1.12",
     "@sasjs/lint": "5.5.10",
-    "@sasjs/sas-language": "0.7.4",
+    "@sasjs/sas-language": "0.8.9",
     "@sasjs/utils": "4.13.2",
     "axios": "1.21.1",
     "chalk": "4.1.2",
