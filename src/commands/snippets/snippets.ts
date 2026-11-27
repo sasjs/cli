@@ -86,8 +86,10 @@ const maskNonDeclarations = (fileContent: string): string => {
   // DATALINES4 terminates only with four semicolons in columns 1-4; an
   // indented semicolon is a valid terminator for ordinary DATALINES. Mask
   // only through the terminator so code on the same line remains searchable.
+  // The comment in the DATALINES prefix must stop at its first terminator:
+  // a lazy wildcard can backtrack across adjacent comments exponentially.
   return fileContent.replace(
-    /(?<![^;])(?:\s|\/\*[\s\S]*?\*\/|%\*[^;]*;)*(?:(?:datalines4|cards4|lines4)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^;;;;|(?![\s\S]))|(?:datalines|cards|lines)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^[ \t]*;|(?![\s\S])))|%['"]|\/\*[\s\S]*?(?:\*\/|(?![\s\S]))|%\*(?:%[;'"]|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))|[^;'"%]|%(?![;'"]))*?(?:;|(?![\s\S]))|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))/gim,
+    /(?<![^;])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|%\*[^;]*;)*(?:(?:datalines4|cards4|lines4)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^;;;;|(?![\s\S]))|(?:datalines|cards|lines)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^[ \t]*;|(?![\s\S])))|%['"]|\/\*[\s\S]*?(?:\*\/|(?![\s\S]))|%\*(?:%[;'"]|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))|[^;'"%]|%(?![;'"]))*?(?:;|(?![\s\S]))|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))/gim,
     // Preserve percent-escaped quotes so they do not start a quoted string.
     (match) =>
       match[0] === '%' && match.length === 2 ? match : ' '.repeat(match.length)
@@ -151,7 +153,7 @@ const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
   // Macro-quoting functions make their arguments text, not declarations.
   const quoting = /%(?:nrstr|str|nrbquote|bquote|nrquote|quote)\s*\(/gi
   let quoted: RegExpExecArray | null
-  const uncertainQuotes: { start: number; content: string }[] = []
+  const uncertainQuotes: string[] = []
   while ((quoted = quoting.exec(searchable))) {
     let depth = 1
     let end = quoting.lastIndex
@@ -166,7 +168,7 @@ const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
     const content = searchable.slice(quoted.index, end)
     const uncertain =
       !/^%nrstr\b/i.test(quoted[0]) && /%macro\s+[a-z_]\w*/i.test(content)
-    if (uncertain) uncertainQuotes.push({ start: quoted.index, content })
+    if (uncertain) uncertainQuotes.push(content)
     searchable =
       searchable.slice(0, quoted.index) +
       ' '.repeat(end - quoted.index) +
@@ -192,7 +194,7 @@ const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
     }
   }
   const uncertainMatch = uncertainQuotes.some((quote) =>
-    Array.from(quote.content.matchAll(/%macro\s+([a-z_]\w*)/gi)).some(
+    Array.from(quote.matchAll(/%macro\s+([a-z_]\w*)/gi)).some(
       (match) => match[1].toLowerCase() === macro.toLowerCase()
     )
   )
