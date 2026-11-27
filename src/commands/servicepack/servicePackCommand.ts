@@ -64,8 +64,8 @@ export class ServicePackCommand extends TargetCommand {
       source as string,
       force as boolean
     )
-      .then(() => {
-        return ReturnCode.Success
+      .then((success) => {
+        return success ? ReturnCode.Success : ReturnCode.InternalError
       })
       .catch((err) => {
         displayError(err, 'An error has occurred when processing servicepack.')

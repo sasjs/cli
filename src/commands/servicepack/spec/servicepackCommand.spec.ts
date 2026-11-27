@@ -63,6 +63,14 @@ describe('ServicePackCommand', () => {
     expect(returnCode).toEqual(ReturnCode.Success)
   })
 
+  it('returns an error code when the deployment helper reports failure', async () => {
+    jest.spyOn(deployModule, 'servicePackDeploy').mockResolvedValue(false)
+
+    const returnCode = await executeCommandWrapper(['--source', source])
+
+    expect(returnCode).toEqual(ReturnCode.InternalError)
+  })
+
   it('should log the error and return the error code when execution is unsuccessful', async () => {
     jest
       .spyOn(deployModule, 'servicePackDeploy')
@@ -81,7 +89,7 @@ const setupMocks = () => {
   jest.mock('../../../utils/config')
   jest
     .spyOn(deployModule, 'servicePackDeploy')
-    .mockImplementation(() => Promise.resolve(undefined))
+    .mockImplementation(() => Promise.resolve(true))
 
   jest
     .spyOn(configUtils, 'findTargetInConfiguration')
