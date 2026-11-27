@@ -7,7 +7,16 @@ const { JobCommand } = require('../../jobCommand')
 const config = require('../../../../utils/config')
 const { setLogCheckMode } = require('../../../../utils/logcheck')
 
-process.logger = { success() {}, error() {}, warn() {}, info() {}, log() {} }
+const captureErrors = process.argv[7] === 'capture'
+process.logger = {
+  success() {},
+  error(...args) {
+    if (captureErrors) console.error(...args)
+  },
+  warn() {},
+  info() {},
+  log() {}
+}
 process.projectDir = process.argv[2]
 setLogCheckMode('off')
 const target = {
@@ -31,13 +40,16 @@ const adapter = {
   async startComputeJob() {
     if (process.argv[4] === 'reject')
       throw Object.assign(new Error('SIMULATED failed'), { job })
-    return job
+    return process.argv[9] === 'wrapped' ? { job } : job
   },
   async fetchLogFileContent() {
     return JSON.stringify({ items: [{ line: 'SIMULATED log' }] })
   }
 }
-const status = path.join(process.projectDir, 'status.txt')
+const status =
+  process.argv[8] === 'no-status'
+    ? undefined
+    : path.join(process.projectDir, 'status.txt')
 const wait = process.argv[6] === 'wait'
 const options = {
   log: path.join(process.projectDir, 'job.log'),
@@ -73,8 +85,7 @@ async function main() {
     ...(wait ? ['--wait'] : []),
     '--ignoreWarnings',
     '--no-logcheck',
-    '--statusFile',
-    status,
+    ...(status ? ['--statusFile', status] : []),
     '--output',
     options.output
   ])

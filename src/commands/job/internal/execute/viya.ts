@@ -173,6 +173,12 @@ export async function executeJobViya(
 
   if (submittedJob && submittedJob.job) submittedJob = submittedJob.job
 
+  // A resolved failed job has no adapter error to report. The status file path
+  // already displays this state, so only add a diagnostic when neither did.
+  if (submittedJob?.state === 'failed' && !result && !statusFile) {
+    displayError(null, 'Job Status: failed')
+  }
+
   // write job status to the status file
   if (statusFile) await displayStatus(submittedJob, statusFile, result, true)
 
