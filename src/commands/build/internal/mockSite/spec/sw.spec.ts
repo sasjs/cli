@@ -7670,6 +7670,36 @@ describe('the emulated Viya estate', () => {
     expect(answer.body.id).toBe('user-admin')
   })
 
+  it('answers application identity reads from the signed-in estate', async () => {
+    const worker = loadWorker()
+    const groups = await read(
+      worker.dispatch('/identities/groups?sortBy=name&limit=5000')
+    )
+    expect(groups.status).toBe(200)
+    const adminGroup = groups.body.items.find(
+      (group: any) => group.id === 'group-admins'
+    )
+    expect(adminGroup).toBeDefined()
+
+    const members = await read(
+      worker.dispatch(`/identities/groups/${adminGroup.id}/members`)
+    )
+    expect(members.status).toBe(200)
+    expect(members.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'user-admin', name: 'sasjsadmin' })
+      ])
+    )
+
+    const memberships = await read(
+      worker.dispatch('/identities/users/sasjsadmin/memberships')
+    )
+    expect(memberships.status).toBe(200)
+    expect(memberships.body.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: adminGroup.id })])
+    )
+  })
+
   it('routes the batch families to the emulator, which refuses them by name', async () => {
     const worker = loadWorker()
 
