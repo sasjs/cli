@@ -43,6 +43,17 @@ export async function runSasCode(
 ) {
   let isTempFile = false
 
+  // URLs are fetched as raw source regardless of their URL suffix. SASjs
+  // Server also accepts other runtimes, including JavaScript.
+  if (
+    !isUrl(filePath) &&
+    (target.serverType === ServerType.SasViya ||
+      target.serverType === ServerType.Sas9) &&
+    path.extname(filePath).toLowerCase() !== '.sas'
+  ) {
+    throw new Error("'sasjs run' command supports only *.sas files.")
+  }
+
   if (isUrl(filePath)) {
     ;({ isTempFile, tempFilePath: filePath } =
       await createFileFromUrl(filePath))
