@@ -1,5 +1,7 @@
 import { FileTree, MemberType, readFile, Target } from '@sasjs/utils'
+import { DeployProgress } from '@sasjs/adapter'
 import { getAuthConfig, getSASjs } from '../../utils'
+import { deployProgressLine } from './deployProgress'
 
 export async function deployToSasViyaWithServicePack(
   jsonFilePath: string,
@@ -33,7 +35,14 @@ export async function deployToSasViyaWithServicePack(
   const sasjs = getSASjs(target)
 
   await sasjs
-    .deployServicePack(jsonObject, undefined, undefined, access_token, isForced)
+    .deployServicePack(
+      jsonObject,
+      undefined,
+      undefined,
+      access_token,
+      isForced,
+      reportProgress
+    )
     .catch((err: any) => {
       process.logger.error('deployServicePack error', err)
       throw new Error('Deploy service pack error')
@@ -41,6 +50,15 @@ export async function deployToSasViyaWithServicePack(
 
   return jsonObject
 }
+
+/**
+ * Reports each member as the adapter writes it.
+ *
+ * The adapter is the only place that knows the member order and the total, so
+ * the deploy passes this in rather than guessing from the tree.
+ */
+const reportProgress = (progress: DeployProgress) =>
+  process.logger?.info(deployProgressLine(progress))
 
 const populateCodeInServicePack = (json: any) =>
   json?.members?.forEach((member: any) => {
