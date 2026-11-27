@@ -59,7 +59,34 @@ describe('deployToSasViyaWithServicePack', () => {
       undefined,
       undefined,
       mockAuthConfig.access_token,
-      false
+      false,
+      expect.any(Function)
+    )
+  })
+
+  it('logs each member as the deploy writes it', async () => {
+    // the deploy is silent between "Deploying service pack..." and its success
+    // line unless the adapter's per-member reports are printed
+    const info = jest.fn()
+    ;(process as any).logger = { info }
+
+    jest
+      .spyOn(configUtils, 'getAuthConfig')
+      .mockImplementation(() => Promise.resolve(mockAuthConfig))
+
+    await deployToSasViyaWithServicePack(jsonFilePath, target, true, false)
+
+    const report = deployServicePack.mock.calls[0][5]
+    report({
+      type: 'service',
+      name: 'getdata',
+      parentFolder: '/Public/test/services',
+      index: 2,
+      total: 5
+    })
+
+    expect(info).toHaveBeenCalledWith(
+      'Creating service 2/5: getdata in /Public/test/services'
     )
   })
 
