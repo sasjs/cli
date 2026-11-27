@@ -76,6 +76,36 @@ describe('sasjs format released formatter integration', () => {
     expect(run('--check').status).toBe(0)
   })
 
+  it.each([
+    [
+      'PARMCARDS4 indented terminator record (sas-language#45)',
+      'filename f temp;\nparmcards4;\nalpha\n  ;;;;\n  x   y\n;;;;\n%put TAIL;\n',
+      'parmcards4;\nalpha\n  ;;;;\n  x   y\n;;;;\n'
+    ],
+    [
+      'masked parenthesis (sas-language#48)',
+      '%let z=%bquote(%();\n%put TAIL;\n',
+      '%let z=%bquote(%();'
+    ],
+    [
+      'masked parenthesis in nrbquote (sas-language#48)',
+      '%let z=%nrbquote(%();\n%put TAIL;\n',
+      '%let z=%nrbquote(%();'
+    ]
+  ])(
+    'preserves %s through the CLI on repeated formatting',
+    (_name, input, preserved) => {
+      fs.writeFileSync(file, input)
+      expect(run().status).toBe(0)
+      const formatted = fs.readFileSync(file, 'utf8')
+      expect(formatted).toContain(preserved)
+      expect(formatted).toContain('%put TAIL;')
+      expect(run().status).toBe(0)
+      expect(fs.readFileSync(file, 'utf8')).toBe(formatted)
+      expect(run('--check').status).toBe(0)
+    }
+  )
+
   it('keeps standalone calls separate and preserves header sample indentation', () => {
     const original = `/**\n  @file regression.sas\n  @example\n      %let x = 1;\n        proc sql; quit;\n**/\n%mp_assert(\n  iftrue=(%mf_existfunction(CAT)=1),\n  desc=Checking if CAT function exists,\n  outds=work.test_results\n)\n\n%mp_assert(\n  iftrue=(%mf_existfunction(DOG)=0),\n  desc=Checking DOG function does not exist,\n  outds=work.test_results\n)\n%let x=1;\n`
     fs.writeFileSync(file, original)
