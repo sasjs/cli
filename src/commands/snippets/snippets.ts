@@ -82,6 +82,18 @@ export async function generateSnippets(
   return Promise.resolve(snippetsFilePath)
 }
 
+const maskNonDeclarations = (fileContent: string): string => {
+  // DATALINES4 terminates only with four semicolons in columns 1-4; an
+  // indented semicolon is a valid terminator for ordinary DATALINES. Mask
+  // only through the terminator so code on the same line remains searchable.
+  return fileContent.replace(
+    /(?<![^;])(?:\s|\/\*[\s\S]*?\*\/|%\*[^;]*;)*(?:(?:datalines4|cards4|lines4)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^;;;;|(?![\s\S]))|(?:datalines|cards|lines)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^[ \t]*;|(?![\s\S])))|%['"]|\/\*[\s\S]*?(?:\*\/|(?![\s\S]))|%\*(?:%[;'"]|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))|[^;'"%]|%(?![;'"]))*?(?:;|(?![\s\S]))|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))/gim,
+    // Preserve percent-escaped quotes so they do not start a quoted string.
+    (match) =>
+      match[0] === '%' && match.length === 2 ? match : ' '.repeat(match.length)
+  )
+}
+
 /**
  * Creates a VS Code snippet from SAS macro.
  * @param file file path of SAS macro.
@@ -135,14 +147,7 @@ const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
     ...params
   ].filter((line) => line)
 
-  // DATALINES4 terminates only with four semicolons in columns 1-4; an
-  // indented semicolon is a valid terminator for ordinary DATALINES. Mask
-  // only through the terminator so code on the same line remains searchable.
-  let searchable = fileContent.replace(
-    /(?<![^;])(?:\s|\/\*[\s\S]*?\*\/|%\*[^;]*;)*(?:(?:datalines4|cards4|lines4)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^;;;;|(?![\s\S]))|(?:datalines|cards|lines)\s*;[^\r\n]*(?:\r?\n|(?![\s\S]))[\s\S]*?(?:^[ \t]*;|(?![\s\S])))|%['"]|\/\*[\s\S]*?(?:\*\/|(?![\s\S]))|%\*(?:%[;'"]|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))|[^;'"%]|%(?![;'"]))*?(?:;|(?![\s\S]))|'(?:''|[^'])*(?:'|(?![\s\S]))|"(?:""|[^"])*(?:"|(?![\s\S]))/gim,
-    (match) =>
-      match[0] === '%' && match.length === 2 ? match : ' '.repeat(match.length)
-  )
+  let searchable = maskNonDeclarations(fileContent)
   // Macro-quoting functions make their arguments text, not declarations.
   const quoting = /%(?:nrstr|str|nrbquote|bquote|nrquote|quote)\s*\(/gi
   let quoted: RegExpExecArray | null
@@ -208,28 +213,29 @@ const createSnippetFromMacro = async (file: string): Promise<Snippet> => {
       }
       continue
     }
-    let depth = 1
+    let parenDepth = 1
     let part = ''
     const parts: string[] = []
     let index = declarations.lastIndex + 1
-    for (; index < searchable.length && depth; index++) {
+    for (; index < searchable.length && parenDepth; index++) {
       const char = searchable[index]
       if (char === '%' && /[(),;]/.test(searchable[index + 1] || '')) {
         part += char + searchable[++index]
       } else if (char === '(') {
-        depth++
+        parenDepth++
         part += char
       } else if (char === ')') {
-        depth--
-        if (depth) part += char
-      } else if (char === ',' && depth === 1) {
+        parenDepth--
+        if (parenDepth) part += char
+      } else if (char === ',' && parenDepth === 1) {
         parts.push(part)
         part = ''
       } else {
         part += char
       }
     }
-    if (depth || !/^\s*(?:;|\/[^;]*;)/.test(searchable.slice(index))) continue
+    if (parenDepth || !/^\s*(?:;|\/[^;]*;)/.test(searchable.slice(index)))
+      continue
     parts.push(part)
     if (parts.length > 1 && parts.some((item) => !item.trim())) continue
     if (
