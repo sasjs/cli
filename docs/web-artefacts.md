@@ -100,9 +100,17 @@ The site is not a deployment artefact:
 
 ### Viya adapter jobs in a browser mock
 
-A Viya `mockWeb` build can expose selected project-owned JavaScript service twins
-through the adapter's JES path (`useComputeApi: false`). Put a JSON array of
-extensionless service paths in `<syncFolder>/viya-mock-jobs.json`, for example:
+A Viya `mockWeb` build exposes the project's compiled JavaScript service twins
+through the adapter's JES path (`useComputeApi: false`). Every compiled
+`services/.../*.js` in the drive seed is registered, which is the same set the
+SASJS and SAS 9 mocks resolve, so a new service needs no separate registration.
+SAS source and synced data files are never registered, and registration applies
+to a `SASVIYA` target only.
+
+To register a different set - one job while another service stays callable only
+through the web tier, or a JavaScript-only service with no compiled SAS - put a
+JSON array of extensionless service paths in `<syncFolder>/viya-mock-jobs.json`.
+The manifest replaces the derived list for that build, for example:
 
 ```json
 ["services/common/appinit", "services/common/getdata"]
@@ -110,9 +118,8 @@ extensionless service paths in `<syncFolder>/viya-mock-jobs.json`, for example:
 
 Each entry must have a corresponding compiled `services/.../*.js` in the drive
 seed. Missing, malformed, or unsafe paths fail the build before replacing the
-previous site. Entries are registered only for a `SASVIYA` target; without this
-manifest the existing emulator behaviour is unchanged. The project supplies the
-JavaScript implementations and any fixture data. The worker never executes SAS.
+previous site. The project supplies the JavaScript implementations and any
+fixture data. The worker never executes SAS.
 
 This is not a general JES implementation: it covers registered services, adapter
 CSV table uploads, completion polling, webout and JavaScript console logs. Results
