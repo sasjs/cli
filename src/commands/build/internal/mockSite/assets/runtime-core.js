@@ -1599,10 +1599,10 @@ return _webout;
       refuses must not reach the client as "Job execution failed" with the
       refusal - the only thing a user can act on - discarded.
 
-      The program says which kind of stop this is: an error carrying
-      `mockAbort` is its own refusal (that is what a JS mp_abort throws), so it
-      is not an error at all here and the run answers what the program wrote.
-      Anything untagged is a genuine failure and keeps its message and stack.
+      A program can signal its own refusal by throwing an error carrying
+      `mockAbort`. The host treats that marker as a refusal and answers what
+      the program wrote. Anything untagged is a genuine failure and keeps its
+      message and stack.
     */
     if (e && e.mockAbort) {
       logLines.push(
