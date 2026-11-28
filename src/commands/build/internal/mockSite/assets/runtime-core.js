@@ -21,6 +21,12 @@
  *   2. bytes - write an ArrayBuffer, a TypedArray or a Buffer to `weboutPath`,
  *      the way a service that streams a file does on the server.
  *
+ * A program may also refuse the request, as %mp_abort does: write the answer to
+ * `weboutPath` and throw an error carrying `mockAbort`. SAS's abort leaves SYSCC
+ * at 0, so the estate answers that body as a normal response - the host does the
+ * same, rather than reporting the run as failed and discarding the refusal. An
+ * error without the marker is a real failure and is reported as one.
+ *
  * In both cases the response headers are whatever lines the service wrote to
  * `_SASJS_WEBOUT_HEADERS` (`Content-type`, `Content-Disposition`); the host
  * applies them to the response. A byte body comes back to the host as base64
@@ -1586,6 +1592,24 @@ return _webout;
   let thrown = null
   let returned = ''
   const captureError = (e) => {
+    /*
+      A program that refuses a request may end itself the way %mp_abort does:
+      write the answer to `weboutPath` and stop. SAS's abort leaves SYSCC at 0,
+      so an estate answers that body as a normal response, and a service that
+      refuses must not reach the client as "Job execution failed" with the
+      refusal - the only thing a user can act on - discarded.
+
+      The program says which kind of stop this is: an error carrying
+      `mockAbort` is its own refusal (that is what a JS mp_abort throws), so it
+      is not an error at all here and the run answers what the program wrote.
+      Anything untagged is a genuine failure and keeps its message and stack.
+    */
+    if (e && e.mockAbort) {
+      logLines.push(
+        'service: refused the request - ' + String(e.message || e) + ' (mp_abort)'
+      )
+      return
+    }
     const message = e && e.message ? String(e.message) : ''
     const stack = e && e.stack ? String(e.stack) : ''
     thrown =
