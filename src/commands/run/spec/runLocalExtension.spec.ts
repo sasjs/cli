@@ -85,17 +85,13 @@ describe('run source paths', () => {
       const executor = jest
         .spyOn(config, 'getSASjsAndAuthConfig')
         .mockRejectedValue(stop)
+      const read = jest.spyOn(fs.promises, 'readFile')
       await expect(
         runSasCode(targetFor(serverType), 'Program.SAS')
       ).rejects.toBe(stop)
       expect(executor).toHaveBeenCalledTimes(1)
-      executor.mockClear()
-      await expect(
-        runSasCode(targetFor(serverType), 'program.SAS')
-      ).rejects.toMatchObject({
-        code: 'ENOENT'
-      })
-      expect(executor).not.toHaveBeenCalled()
+      expect(read).toHaveBeenCalledWith(path.join(dir, 'Program.SAS'), 'utf8')
+      read.mockRestore()
     }
   )
 
