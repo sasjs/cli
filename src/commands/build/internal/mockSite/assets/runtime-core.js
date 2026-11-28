@@ -1606,7 +1606,9 @@ return _webout;
     */
     if (e && e.mockAbort) {
       logLines.push(
-        'service: refused the request - ' + String(e.message || e) + ' (mp_abort)'
+        'service: refused the request - ' +
+          String(e.message || e) +
+          ' (mp_abort)'
       )
       return
     }
