@@ -1367,6 +1367,77 @@ webout('CLOSE')`
   })
 
   /**
+   * mp_abort is a soft abort: it writes the refusal and stops the program, and
+   * an estate answers it as a normal response because SYSCC stays 0. A JS
+   * service copies that by writing its answer to the fileref and throwing an
+   * error marked `mockAbort`; without the marker the worker reports "Job
+   * execution failed" and the refusal - the only thing a user can act on - is
+   * discarded.
+   */
+  const refusal = (message: string, mac: string) =>
+    [
+      `const body = JSON.stringify({ sasjsAbort: [{ MSG: ${JSON.stringify(message)}, MAC: ${JSON.stringify(mac)} }] })`,
+      'require("fs").writeFileSync(weboutPath, body)',
+      `const stop = new Error(${JSON.stringify(message)})`,
+      'stop.mockAbort = true',
+      'throw stop'
+    ].join('\n')
+
+  it('answers the body an aborted program wrote, instead of failing the run', () => {
+    const runtime = loadRuntime()
+
+    const result = runtime.run({
+      code: refusal(
+        'Problem accessing DC_JSLIB.MPE_USERS table',
+        'startupservice.sas'
+      )
+    })
+
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout).sasjsAbort).toEqual([
+      {
+        MSG: 'Problem accessing DC_JSLIB.MPE_USERS table',
+        MAC: 'startupservice.sas'
+      }
+    ])
+    // the log says why the program stopped, as the SAS log does
+    expect(result.log).toContain('refused the request')
+  })
+
+  it('answers a streamed refusal that stopped before CLOSE', async () => {
+    const runtime = loadRuntime()
+    await seedDrive(runtime, {}, weboutPrelude())
+
+    // the same refusal through webout(): the members are on the fileref and the
+    // closing brace is not, so the host closes it as it does for any run that
+    // ends before finalise
+    const result = runtime.run({
+      code: [
+        "webout('OPEN')",
+        "webout('OBJ', 'sasjsAbort', [{ MSG: 'not authorised', MAC: 'mp_abort.sas' }])",
+        "const stop = new Error('not authorised')",
+        'stop.mockAbort = true',
+        'throw stop'
+      ].join('\n')
+    })
+
+    expect(result.error).toBeNull()
+    expect(JSON.parse(result.webout).sasjsAbort[0].MSG).toBe('not authorised')
+  })
+
+  it('still fails a run whose error is not the program refusing', () => {
+    const runtime = loadRuntime()
+
+    // the marker is the program saying "this is my answer"; an unmarked throw -
+    // including one that happens to have written a body first - is a defect
+    const result = runtime.run({
+      code: "_webout = 'half an answer'\nthrow new Error('boom')"
+    })
+
+    expect(result.error).toContain('boom')
+  })
+
+  /**
    * A service that stops before CLOSE leaves a complete JSON prefix, because
    * webout() streams each member and CLOSE - the closing brace with it - sits
    * after the payload. Served as it is that body is not JSON, so an app reports
